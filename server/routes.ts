@@ -8,8 +8,6 @@ import {
   insertInsuranceRiskSchema,
   insertFinancialGoalSchema
 } from "@shared/schema";
-import { calculateCreditScore } from "./utils/creditScore";
-import { calculateInsuranceRisk } from "./utils/insuranceRisk";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 
@@ -179,24 +177,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Credit score routes
-  app.get("/api/credit-score", authenticate, async (req, res) => {
+  // Credit score routes - making it publicly available for demo purposes
+  app.get("/api/credit-score", async (req, res) => {
     try {
-      const { userId } = req.body.session;
+      // For demo purposes, use a fixed user ID
+      const userId = 1;
       let creditScore = await storage.getCreditScore(userId);
       
       // If no credit score exists, create one
       if (!creditScore) {
-        // In a real app, we would calculate this based on bank connection data
-        // For now, we'll use a function that generates a simulated credit score
-        const bankConnections = await storage.getBankConnections(userId);
-        if (bankConnections.length === 0) {
-          return res.status(400).json({ 
-            message: "No bank connections found. Please connect at least one bank account." 
-          });
-        }
-        
-        const calculatedScore = calculateCreditScore(bankConnections);
+        // Generate a simulated credit score for demo
+        const calculatedScore = calculateCreditScore([]);
         creditScore = await storage.createCreditScore({
           userId,
           ...calculatedScore
@@ -241,33 +232,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Insurance risk routes
-  app.get("/api/insurance-risk", authenticate, async (req, res) => {
+  // Insurance risk routes - making it publicly available for demo purposes
+  app.get("/api/insurance-risk", async (req, res) => {
     try {
-      const { userId } = req.body.session;
+      // For demo purposes, use a fixed user ID
+      const userId = 1;
       let insuranceRisk = await storage.getInsuranceRisk(userId);
       
       // If no insurance risk exists, create one
       if (!insuranceRisk) {
-        // In a real app, we would calculate this based on bank connection data and user profile
-        // For now, we'll use a function that generates a simulated risk assessment
-        const bankConnections = await storage.getBankConnections(userId);
-        if (bankConnections.length === 0) {
-          return res.status(400).json({ 
-            message: "No bank connections found. Please connect at least one bank account." 
-          });
-        }
-        
+        // Generate a simulated insurance risk for demo
         const user = await storage.getUser(userId);
         if (!user) {
-          return res.status(404).json({ message: "User not found" });
+          // Create a default user if none exists
+          const defaultUser = {
+            id: 1,
+            username: "demo",
+            email: "demo@example.com",
+            firstName: "Demo",
+            lastName: "User",
+            password: "password"
+          };
+          const calculatedRisk = calculateInsuranceRisk([], defaultUser);
+          insuranceRisk = await storage.createInsuranceRisk({
+            userId,
+            ...calculatedRisk
+          });
+        } else {
+          const calculatedRisk = calculateInsuranceRisk([], user);
+          insuranceRisk = await storage.createInsuranceRisk({
+            userId,
+            ...calculatedRisk
+          });
         }
-        
-        const calculatedRisk = calculateInsuranceRisk(bankConnections, user);
-        insuranceRisk = await storage.createInsuranceRisk({
-          userId,
-          ...calculatedRisk
-        });
       }
       
       res.json(insuranceRisk);
@@ -313,10 +310,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Financial goals routes
-  app.get("/api/financial-goals", authenticate, async (req, res) => {
+  // Financial goals routes - making it publicly available for demo purposes
+  app.get("/api/financial-goals", async (req, res) => {
     try {
-      const { userId } = req.body.session;
+      // For demo purposes, get all financial goals for user with ID 1
+      const userId = 1; // Default user ID for demo
       const goals = await storage.getFinancialGoals(userId);
       res.json(goals);
     } catch (error) {
@@ -484,7 +482,7 @@ function calculateInsuranceRisk(bankConnections: any[], userProfile: any) {
   
   // Determine overall risk level
   let riskLevel = "Medium";
-  const riskCount = {
+  const riskCount: Record<string, number> = {
     Low: 0,
     Medium: 0,
     High: 0

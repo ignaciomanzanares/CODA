@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface Tab {
@@ -55,10 +55,14 @@ export default function TabsComponent({
         {React.Children.map(children, (child) => {
           if (!React.isValidElement(child)) return null;
           
+          // Check if child has an id prop
+          const childProps = child.props as any;
+          
           return React.cloneElement(child, {
+            ...childProps,
             className: cn(
-              child.props.className,
-              child.props.id === activeTab ? "block" : "hidden"
+              childProps.className || "",
+              childProps.id === activeTab ? "block" : "hidden"
             ),
           });
         })}
