@@ -1,6 +1,7 @@
 import { pgTable, text, serial, integer, boolean, timestamp, jsonb, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 // Users table
 export const users = pgTable("users", {
@@ -105,6 +106,42 @@ export const insertFinancialGoalSchema = createInsertSchema(financialGoals).omit
 export const insertFinancialProductSchema = createInsertSchema(financialProducts).omit({
   id: true,
 });
+
+// Define relations
+export const usersRelations = relations(users, ({ many }) => ({
+  bankConnections: many(bankConnections),
+  creditScores: many(creditScores),
+  insuranceRisks: many(insuranceRisks),
+  financialGoals: many(financialGoals),
+}));
+
+export const bankConnectionsRelations = relations(bankConnections, ({ one }) => ({
+  user: one(users, {
+    fields: [bankConnections.userId],
+    references: [users.id],
+  }),
+}));
+
+export const creditScoresRelations = relations(creditScores, ({ one }) => ({
+  user: one(users, {
+    fields: [creditScores.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insuranceRisksRelations = relations(insuranceRisks, ({ one }) => ({
+  user: one(users, {
+    fields: [insuranceRisks.userId],
+    references: [users.id],
+  }),
+}));
+
+export const financialGoalsRelations = relations(financialGoals, ({ one }) => ({
+  user: one(users, {
+    fields: [financialGoals.userId],
+    references: [users.id],
+  }),
+}));
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;

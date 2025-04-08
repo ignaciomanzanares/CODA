@@ -6,6 +6,8 @@ import {
   financialGoals, type FinancialGoal, type InsertFinancialGoal, 
   financialProducts, type FinancialProduct, type InsertFinancialProduct
 } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -426,4 +428,200 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  // User operations
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+  
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+  
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+  
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+  
+  // Bank connection operations
+  async getBankConnections(userId: number): Promise<BankConnection[]> {
+    return await db
+      .select()
+      .from(bankConnections)
+      .where(eq(bankConnections.userId, userId));
+  }
+  
+  async getBankConnection(id: number): Promise<BankConnection | undefined> {
+    const [connection] = await db
+      .select()
+      .from(bankConnections)
+      .where(eq(bankConnections.id, id));
+    return connection || undefined;
+  }
+  
+  async createBankConnection(insertConnection: InsertBankConnection): Promise<BankConnection> {
+    const [connection] = await db
+      .insert(bankConnections)
+      .values(insertConnection)
+      .returning();
+    return connection;
+  }
+  
+  async updateBankConnection(id: number, connection: Partial<InsertBankConnection>): Promise<BankConnection | undefined> {
+    const [updatedConnection] = await db
+      .update(bankConnections)
+      .set({
+        ...connection,
+        lastUpdated: new Date()
+      })
+      .where(eq(bankConnections.id, id))
+      .returning();
+    return updatedConnection || undefined;
+  }
+  
+  async deleteBankConnection(id: number): Promise<boolean> {
+    const result = await db
+      .delete(bankConnections)
+      .where(eq(bankConnections.id, id));
+    return !!result;
+  }
+  
+  // Credit score operations
+  async getCreditScore(userId: number): Promise<CreditScore | undefined> {
+    const [creditScore] = await db
+      .select()
+      .from(creditScores)
+      .where(eq(creditScores.userId, userId));
+    return creditScore || undefined;
+  }
+  
+  async createCreditScore(insertCreditScore: InsertCreditScore): Promise<CreditScore> {
+    const [creditScore] = await db
+      .insert(creditScores)
+      .values(insertCreditScore)
+      .returning();
+    return creditScore;
+  }
+  
+  async updateCreditScore(userId: number, creditScore: Partial<InsertCreditScore>): Promise<CreditScore | undefined> {
+    const [updatedScore] = await db
+      .update(creditScores)
+      .set({
+        ...creditScore,
+        lastUpdated: new Date()
+      })
+      .where(eq(creditScores.userId, userId))
+      .returning();
+    return updatedScore || undefined;
+  }
+  
+  // Insurance risk operations
+  async getInsuranceRisk(userId: number): Promise<InsuranceRisk | undefined> {
+    const [insuranceRisk] = await db
+      .select()
+      .from(insuranceRisks)
+      .where(eq(insuranceRisks.userId, userId));
+    return insuranceRisk || undefined;
+  }
+  
+  async createInsuranceRisk(insertInsuranceRisk: InsertInsuranceRisk): Promise<InsuranceRisk> {
+    const [insuranceRisk] = await db
+      .insert(insuranceRisks)
+      .values(insertInsuranceRisk)
+      .returning();
+    return insuranceRisk;
+  }
+  
+  async updateInsuranceRisk(userId: number, insuranceRisk: Partial<InsertInsuranceRisk>): Promise<InsuranceRisk | undefined> {
+    const [updatedRisk] = await db
+      .update(insuranceRisks)
+      .set({
+        ...insuranceRisk,
+        lastUpdated: new Date()
+      })
+      .where(eq(insuranceRisks.userId, userId))
+      .returning();
+    return updatedRisk || undefined;
+  }
+  
+  // Financial goal operations
+  async getFinancialGoals(userId: number): Promise<FinancialGoal[]> {
+    return await db
+      .select()
+      .from(financialGoals)
+      .where(eq(financialGoals.userId, userId));
+  }
+  
+  async getFinancialGoal(id: number): Promise<FinancialGoal | undefined> {
+    const [goal] = await db
+      .select()
+      .from(financialGoals)
+      .where(eq(financialGoals.id, id));
+    return goal || undefined;
+  }
+  
+  async createFinancialGoal(insertGoal: InsertFinancialGoal): Promise<FinancialGoal> {
+    const [goal] = await db
+      .insert(financialGoals)
+      .values(insertGoal)
+      .returning();
+    return goal;
+  }
+  
+  async updateFinancialGoal(id: number, goal: Partial<InsertFinancialGoal>): Promise<FinancialGoal | undefined> {
+    const [updatedGoal] = await db
+      .update(financialGoals)
+      .set(goal)
+      .where(eq(financialGoals.id, id))
+      .returning();
+    return updatedGoal || undefined;
+  }
+  
+  async deleteFinancialGoal(id: number): Promise<boolean> {
+    const result = await db
+      .delete(financialGoals)
+      .where(eq(financialGoals.id, id));
+    return !!result;
+  }
+  
+  // Financial product operations
+  async getFinancialProducts(category?: string): Promise<FinancialProduct[]> {
+    if (category) {
+      return await db
+        .select()
+        .from(financialProducts)
+        .where(eq(financialProducts.category, category));
+    } else {
+      return await db.select().from(financialProducts);
+    }
+  }
+  
+  async getFinancialProduct(id: number): Promise<FinancialProduct | undefined> {
+    const [product] = await db
+      .select()
+      .from(financialProducts)
+      .where(eq(financialProducts.id, id));
+    return product || undefined;
+  }
+  
+  async createFinancialProduct(insertProduct: InsertFinancialProduct): Promise<FinancialProduct> {
+    const [product] = await db
+      .insert(financialProducts)
+      .values(insertProduct)
+      .returning();
+    return product;
+  }
+}
+
+// Change from MemStorage to DatabaseStorage for persistence
+export const storage = new DatabaseStorage();
