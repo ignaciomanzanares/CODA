@@ -289,7 +289,7 @@ export class MemStorage implements IStorage {
   }
   
   // Seed financial products for demonstration
-  private seedFinancialProducts() {
+  private async seedFinancialProducts() {
     // Loan products
     [
       {

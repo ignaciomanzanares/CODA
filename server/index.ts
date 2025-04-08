@@ -1,7 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { seedFinancialProducts } from "./seed";
+import { seedDemoUser, seedFinancialProducts } from "./seed";
 
 const app = express();
 app.use(express.json());
@@ -38,7 +38,8 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Seed financial products data
+  // Seed demo user and financial products data
+  await seedDemoUser();
   await seedFinancialProducts();
 
   const server = await registerRoutes(app);

@@ -1,5 +1,36 @@
-import { financialProducts } from "@shared/schema";
+import { financialProducts, users } from "@shared/schema";
 import { db } from "./db";
+import { eq } from "drizzle-orm";
+
+/**
+ * Seed demo user into the database
+ */
+export async function seedDemoUser() {
+  // Check if demo user with ID 1 already exists
+  const [existingUser] = await db.select().from(users).where(eq(users.id, 1));
+  
+  if (existingUser) {
+    console.log("Demo user already exists. Skipping user seed.");
+    return;
+  }
+  
+  console.log("Creating demo user...");
+  
+  try {
+    await db.insert(users).values({
+      id: 1,
+      username: "demo",
+      email: "demo@example.com",
+      password: "password",
+      firstName: "Demo",
+      lastName: "User",
+      createdAt: new Date()
+    });
+    console.log("Successfully created demo user");
+  } catch (error) {
+    console.error("Error creating demo user:", error);
+  }
+}
 
 /**
  * Seed financial products into the database
