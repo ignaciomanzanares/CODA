@@ -33,6 +33,8 @@ export default function Header() {
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard" },
+    { name: "Expenses", href: "/expenses" },
+    { name: "Bill Split", href: "/bill-split" },
     { name: "Products", href: "/products" },
     { name: "Goals", href: "/goals" },
     { name: "Plan", href: "/plan" },

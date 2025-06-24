@@ -56,6 +56,20 @@ The system uses PostgreSQL with the following core tables:
 - Progress tracking with target amounts and dates
 - Goal categorization (Emergency Fund, Retirement, etc.)
 
+### Expense Tracking & Classification
+- Automatic expense categorization using rule-based AI classification
+- Manual expense entry with rich metadata (merchant, tags, notes)
+- Category-based filtering and search functionality
+- Recurring expense tracking and payment method logging
+- Confidence scoring for auto-classified transactions
+
+### Bill Splitting System
+- Create shared expenses among groups of friends
+- Automatic equal split calculation with customizable amounts
+- Participant management with email notifications
+- Payment tracking and status updates
+- Real-time progress monitoring for group expenses
+
 ### Product Recommendation Engine
 - Financial product catalog (loans, credit cards, insurance)
 - Filtering and comparison functionality

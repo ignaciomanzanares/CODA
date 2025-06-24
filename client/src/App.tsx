@@ -12,12 +12,16 @@ import Products from "@/pages/Products";
 import Goals from "@/pages/Goals";
 import Plan from "@/pages/Plan";
 import Profile from "@/pages/Profile";
+import Expenses from "@/pages/Expenses";
+import BillSplit from "@/pages/BillSplit";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Onboarding} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/expenses" component={Expenses} />
+      <Route path="/bill-split" component={BillSplit} />
       <Route path="/products" component={Products} />
       <Route path="/goals" component={Goals} />
       <Route path="/plan" component={Plan} />

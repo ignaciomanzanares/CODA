@@ -4,7 +4,10 @@ import {
   creditScores, type CreditScore, type InsertCreditScore,
   insuranceRisks, type InsuranceRisk, type InsertInsuranceRisk,
   financialGoals, type FinancialGoal, type InsertFinancialGoal, 
-  financialProducts, type FinancialProduct, type InsertFinancialProduct
+  financialProducts, type FinancialProduct, type InsertFinancialProduct,
+  expenses, type Expense, type InsertExpense,
+  billSplits, type BillSplit, type InsertBillSplit,
+  billSplitParticipants, type BillSplitParticipant, type InsertBillSplitParticipant
 } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -44,6 +47,25 @@ export interface IStorage {
   getFinancialProducts(category?: string): Promise<FinancialProduct[]>;
   getFinancialProduct(id: number): Promise<FinancialProduct | undefined>;
   createFinancialProduct(product: InsertFinancialProduct): Promise<FinancialProduct>;
+  
+  // Expense operations
+  getExpenses(userId: number): Promise<Expense[]>;
+  getExpense(id: number): Promise<Expense | undefined>;
+  createExpense(expense: InsertExpense): Promise<Expense>;
+  updateExpense(id: number, expense: Partial<InsertExpense>): Promise<Expense | undefined>;
+  deleteExpense(id: number): Promise<boolean>;
+  
+  // Bill split operations
+  getBillSplits(userId: number): Promise<BillSplit[]>;
+  getBillSplit(id: number): Promise<BillSplit | undefined>;
+  createBillSplit(billSplit: InsertBillSplit): Promise<BillSplit>;
+  updateBillSplit(id: number, billSplit: Partial<InsertBillSplit>): Promise<BillSplit | undefined>;
+  deleteBillSplit(id: number): Promise<boolean>;
+  
+  // Bill split participant operations
+  getBillSplitParticipants(billSplitId: number): Promise<BillSplitParticipant[]>;
+  createBillSplitParticipant(participant: InsertBillSplitParticipant): Promise<BillSplitParticipant>;
+  updateBillSplitParticipant(id: number, participant: Partial<InsertBillSplitParticipant>): Promise<BillSplitParticipant | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -53,6 +75,9 @@ export class MemStorage implements IStorage {
   private insuranceRisks: Map<number, InsuranceRisk>;
   private financialGoals: Map<number, FinancialGoal>;
   private financialProducts: Map<number, FinancialProduct>;
+  private expenses: Map<number, Expense>;
+  private billSplits: Map<number, BillSplit>;
+  private billSplitParticipants: Map<number, BillSplitParticipant>;
   
   private currentUserId: number;
   private currentBankConnectionId: number;
@@ -60,6 +85,9 @@ export class MemStorage implements IStorage {
   private currentInsuranceRiskId: number;
   private currentFinancialGoalId: number;
   private currentFinancialProductId: number;
+  private currentExpenseId: number;
+  private currentBillSplitId: number;
+  private currentBillSplitParticipantId: number;
 
   constructor() {
     this.users = new Map();
@@ -68,6 +96,9 @@ export class MemStorage implements IStorage {
     this.insuranceRisks = new Map();
     this.financialGoals = new Map();
     this.financialProducts = new Map();
+    this.expenses = new Map();
+    this.billSplits = new Map();
+    this.billSplitParticipants = new Map();
     
     this.currentUserId = 1;
     this.currentBankConnectionId = 1;
@@ -75,9 +106,155 @@ export class MemStorage implements IStorage {
     this.currentInsuranceRiskId = 1;
     this.currentFinancialGoalId = 1;
     this.currentFinancialProductId = 1;
+    this.currentExpenseId = 1;
+    this.currentBillSplitId = 1;
+    this.currentBillSplitParticipantId = 1;
     
     // Prepopulate with sample financial products
     this.seedFinancialProducts();
+    this.seedSampleExpenses();
+  }
+
+  // Expense operations
+  async getExpenses(userId: number): Promise<Expense[]> {
+    return Array.from(this.expenses.values()).filter(expense => expense.userId === userId);
+  }
+
+  async getExpense(id: number): Promise<Expense | undefined> {
+    return this.expenses.get(id);
+  }
+
+  async createExpense(insertExpense: InsertExpense): Promise<Expense> {
+    const expense: Expense = {
+      id: this.currentExpenseId++,
+      ...insertExpense,
+      createdAt: new Date(),
+    };
+    this.expenses.set(expense.id, expense);
+    return expense;
+  }
+
+  async updateExpense(id: number, updateData: Partial<InsertExpense>): Promise<Expense | undefined> {
+    const existing = this.expenses.get(id);
+    if (!existing) return undefined;
+
+    const updated: Expense = { ...existing, ...updateData };
+    this.expenses.set(id, updated);
+    return updated;
+  }
+
+  async deleteExpense(id: number): Promise<boolean> {
+    return this.expenses.delete(id);
+  }
+
+  // Bill split operations
+  async getBillSplits(userId: number): Promise<BillSplit[]> {
+    return Array.from(this.billSplits.values()).filter(split => split.createdBy === userId);
+  }
+
+  async getBillSplit(id: number): Promise<BillSplit | undefined> {
+    return this.billSplits.get(id);
+  }
+
+  async createBillSplit(insertBillSplit: InsertBillSplit): Promise<BillSplit> {
+    const billSplit: BillSplit = {
+      id: this.currentBillSplitId++,
+      ...insertBillSplit,
+      createdAt: new Date(),
+    };
+    this.billSplits.set(billSplit.id, billSplit);
+    return billSplit;
+  }
+
+  async updateBillSplit(id: number, updateData: Partial<InsertBillSplit>): Promise<BillSplit | undefined> {
+    const existing = this.billSplits.get(id);
+    if (!existing) return undefined;
+
+    const updated: BillSplit = { ...existing, ...updateData };
+    this.billSplits.set(id, updated);
+    return updated;
+  }
+
+  async deleteBillSplit(id: number): Promise<boolean> {
+    return this.billSplits.delete(id);
+  }
+
+  // Bill split participant operations
+  async getBillSplitParticipants(billSplitId: number): Promise<BillSplitParticipant[]> {
+    return Array.from(this.billSplitParticipants.values()).filter(p => p.billSplitId === billSplitId);
+  }
+
+  async createBillSplitParticipant(insertParticipant: InsertBillSplitParticipant): Promise<BillSplitParticipant> {
+    const participant: BillSplitParticipant = {
+      id: this.currentBillSplitParticipantId++,
+      ...insertParticipant,
+      createdAt: new Date(),
+    };
+    this.billSplitParticipants.set(participant.id, participant);
+    return participant;
+  }
+
+  async updateBillSplitParticipant(id: number, updateData: Partial<InsertBillSplitParticipant>): Promise<BillSplitParticipant | undefined> {
+    const existing = this.billSplitParticipants.get(id);
+    if (!existing) return undefined;
+
+    const updated: BillSplitParticipant = { ...existing, ...updateData };
+    this.billSplitParticipants.set(id, updated);
+    return updated;
+  }
+
+  private async seedSampleExpenses() {
+    const sampleExpenses = [
+      {
+        userId: 1,
+        amount: "85.50",
+        description: "Grocery shopping at Whole Foods",
+        category: "Groceries",
+        subcategory: "Food & Beverages",
+        merchantName: "Whole Foods Market",
+        date: new Date("2024-01-15"),
+        paymentMethod: "Credit Card",
+        isRecurring: false,
+        tags: ["food", "groceries"],
+        notes: "Weekly grocery run",
+        isAutoClassified: true,
+        confidence: "0.95"
+      },
+      {
+        userId: 1,
+        amount: "1200.00",
+        description: "Monthly rent payment",
+        category: "Housing",
+        subcategory: "Rent",
+        merchantName: "Property Management Co",
+        date: new Date("2024-01-01"),
+        paymentMethod: "Bank Transfer",
+        isRecurring: true,
+        tags: ["rent", "housing"],
+        notes: "Monthly rent",
+        isAutoClassified: true,
+        confidence: "0.99"
+      },
+      {
+        userId: 1,
+        amount: "45.00",
+        description: "Gas station fill-up",
+        category: "Transportation",
+        subcategory: "Fuel",
+        merchantName: "Shell",
+        date: new Date("2024-01-10"),
+        paymentMethod: "Debit Card",
+        isRecurring: false,
+        tags: ["gas", "car"],
+        notes: "Tank fill-up",
+        isAutoClassified: true,
+        confidence: "0.92"
+      }
+    ];
+
+    for (const expense of sampleExpenses) {
+      await this.createExpense(expense);
+    }
   }
 
   // User methods

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, real } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, real, decimal, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -77,6 +77,50 @@ export const financialProducts = pgTable("financial_products", {
   features: jsonb("features"),
 });
 
+// Expenses table
+export const expenses = pgTable("expenses", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  description: varchar("description", { length: 255 }).notNull(),
+  category: varchar("category", { length: 100 }).notNull(),
+  subcategory: varchar("subcategory", { length: 100 }),
+  merchantName: varchar("merchant_name", { length: 255 }),
+  date: timestamp("date").notNull(),
+  paymentMethod: varchar("payment_method", { length: 50 }),
+  isRecurring: boolean("is_recurring").default(false),
+  tags: text("tags").array(),
+  notes: text("notes"),
+  isAutoClassified: boolean("is_auto_classified").default(true),
+  confidence: decimal("confidence", { precision: 3, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Bill splits table
+export const billSplits = pgTable("bill_splits", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  description: text("description"),
+  date: timestamp("date").notNull(),
+  createdBy: integer("created_by").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  status: varchar("status", { length: 50 }).default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Bill split participants table
+export const billSplitParticipants = pgTable("bill_split_participants", {
+  id: serial("id").primaryKey(),
+  billSplitId: integer("bill_split_id").references(() => billSplits.id, { onDelete: "cascade" }).notNull(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }),
+  amountOwed: decimal("amount_owed", { precision: 10, scale: 2 }).notNull(),
+  amountPaid: decimal("amount_paid", { precision: 10, scale: 2 }).default("0"),
+  isPaid: boolean("is_paid").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -107,12 +151,30 @@ export const insertFinancialProductSchema = createInsertSchema(financialProducts
   id: true,
 });
 
+export const insertExpenseSchema = createInsertSchema(expenses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBillSplitSchema = createInsertSchema(billSplits).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBillSplitParticipantSchema = createInsertSchema(billSplitParticipants).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Define relations
 export const usersRelations = relations(users, ({ many }) => ({
   bankConnections: many(bankConnections),
   creditScores: many(creditScores),
   insuranceRisks: many(insuranceRisks),
   financialGoals: many(financialGoals),
+  expenses: many(expenses),
+  billSplits: many(billSplits),
+  billSplitParticipants: many(billSplitParticipants),
 }));
 
 export const bankConnectionsRelations = relations(bankConnections, ({ one }) => ({
@@ -143,6 +205,20 @@ export const financialGoalsRelations = relations(financialGoals, ({ one }) => ({
   }),
 }));
 
+export const expensesRelations = relations(expenses, ({ one }) => ({
+  user: one(users, { fields: [expenses.userId], references: [users.id] }),
+}));
+
+export const billSplitsRelations = relations(billSplits, ({ one, many }) => ({
+  createdByUser: one(users, { fields: [billSplits.createdBy], references: [users.id] }),
+  participants: many(billSplitParticipants),
+}));
+
+export const billSplitParticipantsRelations = relations(billSplitParticipants, ({ one }) => ({
+  billSplit: one(billSplits, { fields: [billSplitParticipants.billSplitId], references: [billSplits.id] }),
+  user: one(users, { fields: [billSplitParticipants.userId], references: [users.id] }),
+}));
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -161,3 +237,12 @@ export type FinancialGoal = typeof financialGoals.$inferSelect;
 
 export type InsertFinancialProduct = z.infer<typeof insertFinancialProductSchema>;
 export type FinancialProduct = typeof financialProducts.$inferSelect;
+
+export type InsertExpense = z.infer<typeof insertExpenseSchema>;
+export type Expense = typeof expenses.$inferSelect;
+
+export type InsertBillSplit = z.infer<typeof insertBillSplitSchema>;
+export type BillSplit = typeof billSplits.$inferSelect;
+
+export type InsertBillSplitParticipant = z.infer<typeof insertBillSplitParticipantSchema>;
+export type BillSplitParticipant = typeof billSplitParticipants.$inferSelect;
