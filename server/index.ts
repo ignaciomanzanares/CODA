@@ -38,9 +38,14 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Seed demo user and financial products data
-  await seedDemoUser();
-  await seedFinancialProducts();
+  try {
+    console.log("Starting application initialization...");
+    console.log("Using in-memory storage - no database seeding needed");
+    console.log("Application initialization completed successfully");
+  } catch (error) {
+    console.error("Error during application initialization:", error);
+    process.exit(1);
+  }
 
   const server = await registerRoutes(app);
 
