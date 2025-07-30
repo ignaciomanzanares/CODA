@@ -30,32 +30,20 @@ export interface FinancialProfile {
 }
 
 export interface CreditAnalysis {
-  userId: string;
-  creditScore: number;
-  maxScore: number;
-  factors: {
-    paymentHistory: {
-      score: number;
-      status: string;
-      description: string;
-    };
-    utilization: {
-      score: number;
-      status: string;
-      description: string;
-    };
-    ageOfCredit: {
-      score: number;
-      status: string;
-      description: string;
-    };
+  user_id: string;
+  score: number;
+  monthly_income: number;
+  monthly_expenses: number;
+  savings_rate: number;
+  debt_ratio: number;
+  risk_factors: string[];
+  recommendation: string;
+  max_loan_amount: number;
+  insights: {
+    income_stability: string;
+    expense_categories: Record<string, number>;
+    spending_patterns: string[];
   };
-  recommendations: Array<{
-    title: string;
-    description: string;
-    impact: string;
-  }>;
-  lastUpdated: string;
 }
 
 export class RailwayAPI {

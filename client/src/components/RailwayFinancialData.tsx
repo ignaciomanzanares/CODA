@@ -150,7 +150,7 @@ export default function RailwayFinancialData({ userId = "demo123" }: RailwayFina
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Credit Score</p>
                 <p className="text-2xl font-bold">
-                  {creditAnalysis?.creditScore || 'N/A'}
+                  {creditAnalysis?.score ? `${creditAnalysis.score}/10` : 'N/A'}
                 </p>
               </div>
             </div>
