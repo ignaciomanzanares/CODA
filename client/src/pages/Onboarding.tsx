@@ -20,39 +20,39 @@ import {
 const availableBanks = [
   {
     id: 1,
-    name: "Chase Bank",
-    icon: <Landmark className="h-8 w-8 text-gray-600" />,
-    description: "Connect your accounts to analyze your credit profile."
+    name: "WeGroup Demo",
+    icon: <Building2 className="h-8 w-8 text-blue-600" />,
+    description: "Showcase WeGroup credit analysis engine with real Railway API data."
   },
   {
     id: 2,
-    name: "Bank of America",
-    icon: <CreditCard className="h-8 w-8 text-gray-600" />,
-    description: "Connect your accounts to analyze your credit profile."
+    name: "Chase Bank",
+    icon: <Landmark className="h-8 w-8 text-gray-600" />,
+    description: "Connect to demonstrate credit analysis capabilities."
   },
   {
     id: 3,
-    name: "Wells Fargo",
-    icon: <PiggyBank className="h-8 w-8 text-gray-600" />,
-    description: "Connect your accounts to analyze your credit profile."
+    name: "Bank of America",
+    icon: <CreditCard className="h-8 w-8 text-gray-600" />,
+    description: "Connect to demonstrate credit analysis capabilities."
   },
   {
     id: 4,
-    name: "Citibank",
-    icon: <Building2 className="h-8 w-8 text-gray-600" />,
-    description: "Connect your accounts to analyze your credit profile."
+    name: "Wells Fargo",
+    icon: <PiggyBank className="h-8 w-8 text-gray-600" />,
+    description: "Connect to demonstrate credit analysis capabilities."
   },
   {
     id: 5,
-    name: "Capital One",
-    icon: <BadgeDollarSign className="h-8 w-8 text-gray-600" />,
-    description: "Connect your accounts to analyze your credit profile."
+    name: "Citibank",
+    icon: <Building2 className="h-8 w-8 text-gray-600" />,
+    description: "Connect to demonstrate credit analysis capabilities."
   },
   {
     id: 6,
-    name: "US Bank",
-    icon: <Building className="h-8 w-8 text-gray-600" />,
-    description: "Connect your accounts to analyze your credit profile."
+    name: "Capital One",
+    icon: <BadgeDollarSign className="h-8 w-8 text-gray-600" />,
+    description: "Connect to demonstrate credit analysis capabilities."
   }
 ];
 

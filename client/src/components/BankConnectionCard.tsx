@@ -1,18 +1,12 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { connectBank } from "@/lib/api";
-import { Card, CardContent } from "@/components/ui/card";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { queryClient } from "@/lib/queryClient";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Building2, CheckCircle2, TrendingUp, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { railwayApi } from "@/lib/railwayApi";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
 
 interface BankConnectionCardProps {
   bankName: string;
@@ -20,207 +14,166 @@ interface BankConnectionCardProps {
   description?: string;
 }
 
-// Form schema for connecting a bank
-const bankConnectionSchema = z.object({
-  bankName: z.string().min(1, "Bank name is required"),
-  accountType: z.enum(["checking", "savings", "credit_card", "investment", "loan", "mortgage"]),
-  credentials: z.object({
-    username: z.string().min(1, "Username is required"),
-    password: z.string().min(1, "Password is required"),
-  }),
-});
-
-type BankConnectionValues = z.infer<typeof bankConnectionSchema>;
-
 export default function BankConnectionCard({
   bankName,
   bankLogo,
-  description = "Connect your accounts to analyze your credit profile.",
+  description = "Connect to showcase WeGroup credit analysis engine.",
 }: BankConnectionCardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [creditAnalysis, setCreditAnalysis] = useState<any>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  // Mutation for connecting bank
-  const connectBankMutation = useMutation({
-    mutationFn: connectBank,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bank-connections"] });
+  // Mutation for connecting directly to WeGroup Railway API
+  const connectToWeGroupMutation = useMutation({
+    mutationFn: async () => {
+      // Call your WeGroup Railway API directly
+      const analysis = await railwayApi.getCreditAnalysis("testuser");
+      return analysis;
+    },
+    onSuccess: (data) => {
+      setIsConnected(true);
+      setCreditAnalysis(data);
       setIsDialogOpen(false);
+      
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['railway-credit-score'] });
+      queryClient.invalidateQueries({ queryKey: ['railway-financial-profile'] });
+      
       toast({
-        title: "Bank connected",
-        description: `Your ${bankName} account has been connected successfully.`,
+        title: "WeGroup Analysis Complete",
+        description: `Credit analysis completed. Score: ${data.score}/10 - ${data.recommendation.toUpperCase()}`,
       });
     },
     onError: (error) => {
+      console.error("WeGroup connection failed:", error);
       toast({
         title: "Connection failed",
-        description: error instanceof Error ? error.message : "Could not connect to bank. Please try again.",
+        description: "Could not connect to WeGroup Railway API. Please try again.",
         variant: "destructive",
       });
     },
   });
 
-  const form = useForm<BankConnectionValues>({
-    resolver: zodResolver(bankConnectionSchema),
-    defaultValues: {
-      bankName,
-      accountType: "checking",
-      credentials: {
-        username: "",
-        password: "",
-      },
-    },
-  });
-
-  const onSubmit = async (values: BankConnectionValues) => {
-    try {
-      // Use Railway API to connect bank
-      const result = await railwayApi.connectBank("demo123", values.bankName);
-      
-      if (result.success) {
-        // Also call local API to store connection
-        connectBankMutation.mutate(values);
-      } else {
-        toast({
-          title: "Connection failed",
-          description: result.message,
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Connection failed", 
-        description: "Unable to connect to Railway API. Please try again.",
-        variant: "destructive",
-      });
-    }
+  const handleConnect = () => {
+    connectToWeGroupMutation.mutate();
   };
 
   return (
-    <Card className="bg-white border border-gray-200 rounded-lg p-6 flex flex-col items-center hover:border-primary transition-colors">
-      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-        {bankLogo || (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-8 w-8 text-gray-600"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 6l9-4 9 4v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6z"
-            />
-          </svg>
+    <Card className="w-full">
+      <CardHeader className="text-center">
+        <div className="flex items-center justify-center mb-2">
+          {bankLogo || <Building2 className="h-8 w-8 text-blue-600" />}
+        </div>
+        <CardTitle className="text-lg">{bankName}</CardTitle>
+        <p className="text-sm text-gray-600">{description}</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isConnected && creditAnalysis ? (
+          // Show connected state with credit analysis preview
+          <div className="space-y-3">
+            <div className="flex items-center justify-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <Badge variant="default">Connected</Badge>
+            </div>
+            
+            <div className="text-center p-4 bg-green-50 rounded-lg border">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <TrendingUp className="h-5 w-5 text-green-600" />
+                <span className="font-semibold text-green-800">WeGroup Analysis</span>
+              </div>
+              <div className="text-2xl font-bold text-green-700">
+                {creditAnalysis.score}/10
+              </div>
+              <div className="text-sm text-green-600 uppercase font-medium">
+                {creditAnalysis.recommendation}
+              </div>
+              <div className="text-xs text-green-600 mt-1">
+                Max Loan: ${creditAnalysis.max_loan_amount.toLocaleString()}
+              </div>
+            </div>
+
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="w-full">
+                  View Full Analysis
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>WeGroup Credit Analysis</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-green-600">
+                      {creditAnalysis.score}/10
+                    </div>
+                    <div className="text-lg font-semibold text-gray-700">
+                      {creditAnalysis.recommendation.toUpperCase()}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Monthly Income:</span>
+                      <span className="font-semibold">${creditAnalysis.monthly_income.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Monthly Expenses:</span>
+                      <span className="font-semibold">${creditAnalysis.monthly_expenses.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Savings Rate:</span>
+                      <span className="font-semibold">{(creditAnalysis.savings_rate * 100).toFixed(1)}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Max Loan Amount:</span>
+                      <span className="font-semibold text-green-600">${creditAnalysis.max_loan_amount.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  {creditAnalysis.insights.spending_patterns.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-sm mb-2">Spending Patterns:</h4>
+                      <ul className="text-xs text-gray-600 space-y-1">
+                        {creditAnalysis.insights.spending_patterns.map((pattern: string, index: number) => (
+                          <li key={index}>• {pattern}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        ) : (
+          // Show connect button
+          <div className="space-y-3">
+            <Button 
+              onClick={handleConnect} 
+              className="w-full" 
+              disabled={connectToWeGroupMutation.isPending}
+            >
+              {connectToWeGroupMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Analyzing with WeGroup...
+                </>
+              ) : (
+                <>
+                  <TrendingUp className="mr-2 h-4 w-4" />
+                  Connect & Analyze
+                </>
+              )}
+            </Button>
+            
+            <div className="text-xs text-center text-gray-500">
+              No login required - Direct API demonstration
+            </div>
+          </div>
         )}
-      </div>
-      <h3 className="text-lg font-bold mb-2">{bankName}</h3>
-      <p className="text-gray-500 text-sm text-center mb-4">
-        {description}
-      </p>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogTrigger asChild>
-          <Button
-            variant="outline"
-            className="mt-auto w-full"
-          >
-            Connect
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Connect to {bankName}</DialogTitle>
-            <DialogDescription>
-              Enter your {bankName} credentials to securely connect your account.
-              We use bank-level security to protect your information.
-            </DialogDescription>
-          </DialogHeader>
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="accountType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Account Type</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select account type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="checking">Checking</SelectItem>
-                        <SelectItem value="savings">Savings</SelectItem>
-                        <SelectItem value="credit_card">Credit Card</SelectItem>
-                        <SelectItem value="investment">Investment</SelectItem>
-                        <SelectItem value="loan">Loan</SelectItem>
-                        <SelectItem value="mortgage">Mortgage</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="credentials.username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Your bank username" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="credentials.password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="Your bank password"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit"
-                  disabled={connectBankMutation.isPending}
-                >
-                  {connectBankMutation.isPending ? "Connecting..." : "Connect Account"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      </CardContent>
     </Card>
   );
 }
