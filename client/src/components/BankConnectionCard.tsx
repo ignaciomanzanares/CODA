@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { connectBank } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { railwayApi } from "@/lib/railwayApi";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -71,8 +72,28 @@ export default function BankConnectionCard({
     },
   });
 
-  const onSubmit = (values: BankConnectionValues) => {
-    connectBankMutation.mutate(values);
+  const onSubmit = async (values: BankConnectionValues) => {
+    try {
+      // Use Railway API to connect bank
+      const result = await railwayApi.connectBank("demo123", values.bankName);
+      
+      if (result.success) {
+        // Also call local API to store connection
+        connectBankMutation.mutate(values);
+      } else {
+        toast({
+          title: "Connection failed",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Connection failed", 
+        description: "Unable to connect to Railway API. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

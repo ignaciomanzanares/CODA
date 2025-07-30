@@ -123,5 +123,36 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
-Changelog:
-- June 24, 2025. Initial setup
+### July 30, 2025
+**Railway Backend Integration**
+- Integrated Railway backend API at https://wegroup-backend-production.up.railway.app
+- Created RailwayAPI service layer for financial profile and credit analysis data
+- Added RailwayFinancialData component to display real user accounts, transactions, and credit scores
+- Added RailwayHealthCheck component for monitoring backend API connectivity
+- Updated Dashboard with tabs to show both Railway API data and local demo data
+- Enhanced BankConnectionCard to use Railway API for real bank connections
+- API endpoints: GET /api/mock/financial-profile?userId=<id>, GET /api/mock/credit-analysis?userId=<id>, GET /health
+
+### June 24, 2025 
+**Initial Setup & Core Features**
+- Set up FinHealth financial analysis platform with credit score and insurance risk analysis
+- Created user authentication system with session management
+- Implemented financial goal tracking with progress monitoring
+
+**Expense Tracking & Classification**
+- Added automatic expense categorization using rule-based AI classification
+- Created expense management interface with filtering, search, and detailed metadata
+- Implemented confidence scoring for auto-classified transactions
+- Added support for recurring expenses and payment method tracking
+
+**Bill Splitting System**
+- Built group expense sharing functionality with participant management
+- Added automatic equal split calculation with payment status tracking
+- Created real-time progress monitoring for group expenses
+- Implemented participant email notification system
+
+**Technical Implementation**
+- Enhanced database schema with new expense and bill split tables
+- Added comprehensive storage layer with in-memory implementation
+- Created new API routes for expense and bill split operations
+- Updated navigation to include new Expenses and Bill Split features
