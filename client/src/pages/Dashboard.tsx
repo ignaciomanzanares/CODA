@@ -6,6 +6,7 @@ import CreditScoreCard from "@/components/CreditScoreCard";
 import InsuranceRiskCard from "@/components/InsuranceRiskCard";
 import FinancialGoalsCard from "@/components/FinancialGoalsCard";
 import RailwayFinancialData from "@/components/RailwayFinancialData";
+import RailwayCreditScore from "@/components/RailwayCreditScore";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw } from "lucide-react";
@@ -73,6 +74,7 @@ export default function Dashboard() {
         </TabsList>
         
         <TabsContent value="railway" className="space-y-6">
+          <RailwayCreditScore userId="demo123" />
           <RailwayFinancialData userId="demo123" />
         </TabsContent>
         
