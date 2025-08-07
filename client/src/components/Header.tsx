@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Wallet } from "lucide-react";
-import { useAuth } from "@/lib/api";
+import { useAuth0 } from "@auth0/auth0-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,20 +15,26 @@ import { Menu } from "lucide-react";
 
 export default function Header() {
   const [location] = useLocation();
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, loginWithRedirect, logout } = useAuth0();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
-    logout();
+    logout({ logoutParams: { returnTo: window.location.origin } });
   };
 
   // Get initials for avatar
   const getInitials = () => {
     if (!user) return "U";
-    if (user.firstName && user.lastName) {
-      return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`;
+    if (user.given_name && user.family_name) {
+      return `${user.given_name.charAt(0)}${user.family_name.charAt(0)}`;
     }
-    return user.username.charAt(0).toUpperCase();
+    if (user.name) {
+      return user.name.charAt(0).toUpperCase();
+    }
+    if (user.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    return "U";
   };
 
   const navigation = [
@@ -93,9 +99,7 @@ export default function Header() {
                 </DropdownMenu>
               </>
             ) : (
-              <Link href="/dashboard">
-                <Button>Sign In</Button>
-              </Link>
+              <Button onClick={() => loginWithRedirect()}>Sign In</Button>
             )}
 
             {/* Mobile Menu Button */}
@@ -136,14 +140,15 @@ export default function Header() {
                       </Button>
                     </>
                   ) : (
-                    <Link href="/dashboard">
-                      <Button 
-                        className="w-full" 
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        Sign In
-                      </Button>
-                    </Link>
+                    <Button 
+                      className="w-full" 
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        loginWithRedirect();
+                      }}
+                    >
+                      Sign In
+                    </Button>
                   )}
                 </div>
               </SheetContent>

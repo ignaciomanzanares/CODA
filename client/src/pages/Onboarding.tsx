@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/api";
+import { useAuth0 } from "@auth0/auth0-react";
 import { useQuery } from "@tanstack/react-query";
 import { getBankConnections } from "@/lib/api";
 import { useLocation } from "wouter";
@@ -57,7 +57,7 @@ const availableBanks = [
 ];
 
 export default function Onboarding() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth0();
   const [, navigate] = useLocation();
   const [showAll, setShowAll] = useState(false);
   
@@ -78,7 +78,7 @@ export default function Onboarding() {
 
   // Redirect to dashboard if connections are found
   useEffect(() => {
-    if (bankConnections && bankConnections.length > 0) {
+    if (Array.isArray(bankConnections) && bankConnections.length > 0) {
       navigate("/dashboard");
     }
   }, [bankConnections, navigate]);

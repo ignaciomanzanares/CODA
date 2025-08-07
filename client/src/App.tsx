@@ -1,7 +1,7 @@
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
-import { AuthProvider } from "./lib/api";
+import { Auth0Provider } from "@auth0/auth0-react";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -33,8 +33,16 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+    <Auth0Provider
+      domain="dev-klhap06xvhqbtvbi.us.auth0.com"
+      clientId="re8BTok97oBa8oDHkobPRfTnZUSaAawr"
+      authorizationParams={{
+        redirect_uri: window.location.origin
+        // audience: "YOUR_API_IDENTIFIER" // Uncomment and set if using API auth
+      }}
+    >
+      <QueryClientProvider client={queryClient}>
+        {/* <AuthProvider> */}
         <div className="min-h-screen flex flex-col">
           <Header />
           <main className="flex-grow py-8">
@@ -44,8 +52,9 @@ function App() {
           </main>
           <Footer />
         </div>
-      </AuthProvider>
-    </QueryClientProvider>
+        {/* </AuthProvider> */}
+      </QueryClientProvider>
+    </Auth0Provider>
   );
 }
 

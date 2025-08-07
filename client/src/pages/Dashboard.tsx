@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useAuth, useBankConnections } from "@/lib/api";
+import { useAuth0 } from "@auth0/auth0-react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import CreditScoreCard from "@/components/CreditScoreCard";
@@ -13,14 +13,14 @@ import { RefreshCw } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 
 export default function Dashboard() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth0();
   const [, navigate] = useLocation();
-  const { getBankConnections } = useBankConnections();
+  // const { getBankConnections } = useBankConnections();
 
   // Check if user has connected banks
   const { data: bankConnections, isLoading } = useQuery({
     queryKey: ["/api/bank-connections"],
-    queryFn: getBankConnections,
+    queryFn: () => Promise.resolve([]), // Mock data for now
     enabled: isAuthenticated,
   });
 

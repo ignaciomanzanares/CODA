@@ -178,23 +178,6 @@ export function useAuth() {
   return context;
 }
 
-// Helper functions for making authenticated API requests
-// These are custom hooks that use the useAuth hook and return functions
-
-export function useAuthenticatedRequest() {
-  const { token } = useAuth();
-  
-  return async (method: string, url: string, data?: any) => {
-    if (!token) {
-      throw new Error("Authentication required");
-    }
-    
-    return apiRequest(method, url, data, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-  };
-}
-
 // Individual bank connection functions for direct import
 export async function connectBank(bankData: any) {
   const response = await apiRequest("POST", "/api/bank-connections", bankData);
@@ -208,28 +191,14 @@ export async function getBankConnections() {
 
 // Bank connections hook
 export function useBankConnections() {
-  const { token } = useAuth();
-  
   const connectBankWithAuth = async (bankData: any) => {
-    if (!token) {
-      throw new Error("Authentication required");
-    }
-    
-    const response = await apiRequest("POST", "/api/bank-connections", bankData, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiRequest("POST", "/api/bank-connections", bankData);
     
     return response.json();
   };
   
   const getBankConnectionsWithAuth = async () => {
-    if (!token) {
-      throw new Error("Authentication required");
-    }
-    
-    const response = await apiRequest("GET", "/api/bank-connections", undefined, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiRequest("GET", "/api/bank-connections");
     
     return response.json();
   };
@@ -242,28 +211,14 @@ export function useBankConnections() {
 
 // Credit score hook
 export function useCreditScore() {
-  const { token } = useAuth();
-  
   const getCreditScore = async () => {
-    if (!token) {
-      throw new Error("Authentication required");
-    }
-    
-    const response = await apiRequest("GET", "/api/credit-score", undefined, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiRequest("GET", "/api/credit-score");
     
     return response.json();
   };
   
   const refreshCreditScore = async () => {
-    if (!token) {
-      throw new Error("Authentication required");
-    }
-    
-    const response = await apiRequest("POST", "/api/credit-score/refresh", {}, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiRequest("POST", "/api/credit-score/refresh");
     
     return response.json();
   };
@@ -273,28 +228,14 @@ export function useCreditScore() {
 
 // Insurance risk hook
 export function useInsuranceRisk() {
-  const { token } = useAuth();
-  
   const getInsuranceRisk = async () => {
-    if (!token) {
-      throw new Error("Authentication required");
-    }
-    
-    const response = await apiRequest("GET", "/api/insurance-risk", undefined, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiRequest("GET", "/api/insurance-risk");
     
     return response.json();
   };
   
   const refreshInsuranceRisk = async () => {
-    if (!token) {
-      throw new Error("Authentication required");
-    }
-    
-    const response = await apiRequest("POST", "/api/insurance-risk/refresh", {}, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiRequest("POST", "/api/insurance-risk/refresh");
     
     return response.json();
   };
@@ -325,52 +266,26 @@ export async function deleteFinancialGoal(goalId: number) {
 
 // Financial goals hook
 export function useFinancialGoals() {
-  const { token } = useAuth();
-  
   const getFinancialGoalsWithAuth = async () => {
-    if (!token) {
-      throw new Error("Authentication required");
-    }
-    
-    const response = await apiRequest("GET", "/api/financial-goals", undefined, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiRequest("GET", "/api/financial-goals");
     
     return response.json();
   };
   
   const createFinancialGoalWithAuth = async (goalData: any) => {
-    if (!token) {
-      throw new Error("Authentication required");
-    }
-    
-    const response = await apiRequest("POST", "/api/financial-goals", goalData, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiRequest("POST", "/api/financial-goals", goalData);
     
     return response.json();
   };
   
   const updateFinancialGoalWithAuth = async (goalId: number, goalData: any) => {
-    if (!token) {
-      throw new Error("Authentication required");
-    }
-    
-    const response = await apiRequest("PUT", `/api/financial-goals/${goalId}`, goalData, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiRequest("PUT", `/api/financial-goals/${goalId}`, goalData);
     
     return response.json();
   };
   
   const deleteFinancialGoalWithAuth = async (goalId: number) => {
-    if (!token) {
-      throw new Error("Authentication required");
-    }
-    
-    const response = await apiRequest("DELETE", `/api/financial-goals/${goalId}`, undefined, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await apiRequest("DELETE", `/api/financial-goals/${goalId}`);
     
     return response.json();
   };

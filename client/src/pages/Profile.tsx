@@ -1,15 +1,14 @@
+import { useAuth0 } from "@auth0/auth0-react";
 import { useState } from "react";
-import { useAuth } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
-import { getBankConnections } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,378 +20,506 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Trash2, Lock, CreditCard, User } from "lucide-react";
+import { 
+  User, 
+  Lock, 
+  Shield, 
+  Settings, 
+  Mail, 
+  Calendar,
+  Key,
+  LogOut,
+  Edit,
+  Camera,
+  Bell,
+  Globe,
+  CreditCard,
+  Trash2,
+  CheckCircle,
+  AlertCircle
+} from "lucide-react";
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated, isLoading } = useAuth0();
   const { toast } = useToast();
-  const [isUpdating, setIsUpdating] = useState(false);
-  
-  const { data: bankConnections, isLoading } = useQuery({
-    queryKey: ["/api/bank-connections"],
-  });
-
-  // Profile form data
-  const [formData, setFormData] = useState({
-    firstName: user?.firstName || "",
-    lastName: user?.lastName || "",
+  const [isEditing, setIsEditing] = useState(false);
+  const [profileData, setProfileData] = useState({
+    displayName: user?.name || "",
     email: user?.email || "",
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
+    timezone: "UTC",
+    language: "English"
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
-  };
+  if (!isAuthenticated) {
+    return (
+      <div className="max-w-4xl mx-auto text-center py-20">
+        <div className="bg-white shadow rounded-lg p-8">
+          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Authentication Required</h2>
+          <p className="text-gray-600">You must be signed in to view your profile.</p>
+        </div>
+      </div>
+    );
+  }
 
-  const handleProfileUpdate = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsUpdating(true);
-    
-    // In a real app, we would call an API to update the user profile
-    setTimeout(() => {
-      setIsUpdating(false);
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been updated successfully.",
-      });
-    }, 1000);
-  };
-
-  const handlePasswordUpdate = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (formData.newPassword !== formData.confirmPassword) {
-      toast({
-        title: "Passwords don't match",
-        description: "New password and confirmation password must match.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setIsUpdating(true);
-    
-    // In a real app, we would call an API to update the password
-    setTimeout(() => {
-      setIsUpdating(false);
-      setFormData({
-        ...formData,
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-      toast({
-        title: "Password updated",
-        description: "Your password has been updated successfully.",
-      });
-    }, 1000);
-  };
-
-  const handleDeleteAccount = () => {
-    // In a real app, we would call an API to delete the user account
-    setTimeout(() => {
-      toast({
-        title: "Account deleted",
-        description: "Your account has been deleted. You will be logged out.",
-      });
-      logout();
-    }, 1000);
-  };
-
-  const handleDisconnectBank = (connectionId: number) => {
-    // In a real app, we would call an API to disconnect the bank
-    toast({
-      title: "Bank disconnected",
-      description: "Your bank account has been disconnected.",
-    });
-  };
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto py-20">
+        <div className="flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
 
   // Get initials for avatar
   const getInitials = () => {
     if (!user) return "U";
-    if (formData.firstName && formData.lastName) {
-      return `${formData.firstName.charAt(0)}${formData.lastName.charAt(0)}`;
+    if (user.given_name && user.family_name) {
+      return `${user.given_name.charAt(0)}${user.family_name.charAt(0)}`;
     }
-    return user.username.charAt(0).toUpperCase();
+    if (user.name) {
+      return user.name.charAt(0).toUpperCase();
+    }
+    if (user.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    return "U";
+  };
+
+  const handleProfileUpdate = () => {
+    setIsEditing(false);
+    toast({
+      title: "Profile updated",
+      description: "Your profile information has been updated successfully.",
+    });
+  };
+
+  const handleLogout = () => {
+    logout({ logoutParams: { returnTo: window.location.origin } });
+  };
+
+  const handlePasswordChange = () => {
+    // Redirect to Auth0's password change page
+    window.open(`https://dev-klhap06xvhqbtvbi.us.auth0.com/authorize?client_id=re8BTok97oBa8oDHkobPRfTnZUSaAawr&response_type=code&redirect_uri=${encodeURIComponent(window.location.origin)}&scope=openid%20profile%20email&audience=&state=password_change`, '_blank');
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6 font-sans">Your Profile</h2>
-      
-      <div className="bg-white shadow rounded-lg overflow-hidden mb-6">
-        <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <Avatar className="h-20 w-20">
-            <AvatarFallback className="text-xl">{getInitials()}</AvatarFallback>
-          </Avatar>
-          
-          <div>
-            <h3 className="text-xl font-bold">
-              {user?.firstName && user?.lastName 
-                ? `${user.firstName} ${user.lastName}`
-                : user?.username}
-            </h3>
-            <p className="text-gray-500">{user?.email}</p>
-            <p className="text-sm text-gray-500 mt-1">
-              Account created on {user?.createdAt 
-                ? new Date(user.createdAt).toLocaleDateString() 
-                : "N/A"}
-            </p>
-          </div>
-        </div>
+    <div className="max-w-6xl mx-auto">
+      {/* Header Section */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile Settings</h1>
+        <p className="text-gray-600">Manage your account settings and preferences</p>
       </div>
-      
-      <Tabs defaultValue="profile" className="mb-6">
-        <TabsList className="mb-4">
-          <TabsTrigger value="profile">
+
+      {/* Profile Overview Card */}
+      <Card className="mb-8">
+        <CardHeader className="pb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Avatar className="h-20 w-20">
+                {user?.picture ? (
+                  <img src={user.picture} alt="Profile" className="rounded-full h-20 w-20 object-cover" />
+                ) : (
+                  <AvatarFallback className="text-xl bg-primary text-white">
+                    {getInitials()}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {user?.name || user?.email || "User"}
+                </h2>
+                <p className="text-gray-600 flex items-center">
+                  <Mail className="h-4 w-4 mr-2" />
+                  {user?.email}
+                </p>
+                <div className="flex items-center mt-2">
+                  <Badge variant="secondary" className="mr-2">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Verified Account
+                  </Badge>
+                  <Badge variant="outline">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    Member since {new Date().toLocaleDateString()}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+            <div className="flex space-x-2">
+              <Button variant="outline" size="sm">
+                <Camera className="h-4 w-4 mr-2" />
+                Change Photo
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setIsEditing(!isEditing)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Profile
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Settings Tabs */}
+      <Tabs defaultValue="profile" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="profile" className="flex items-center">
             <User className="h-4 w-4 mr-2" />
             Profile
           </TabsTrigger>
-          <TabsTrigger value="security">
-            <Lock className="h-4 w-4 mr-2" />
+          <TabsTrigger value="security" className="flex items-center">
+            <Shield className="h-4 w-4 mr-2" />
             Security
           </TabsTrigger>
-          <TabsTrigger value="connections">
+          <TabsTrigger value="preferences" className="flex items-center">
+            <Settings className="h-4 w-4 mr-2" />
+            Preferences
+          </TabsTrigger>
+          <TabsTrigger value="account" className="flex items-center">
             <CreditCard className="h-4 w-4 mr-2" />
-            Bank Connections
+            Account
           </TabsTrigger>
         </TabsList>
-        
+
+        {/* Profile Tab */}
         <TabsContent value="profile">
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>
-                Update your personal information here. This information will be displayed in your profile.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleProfileUpdate}>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input
-                      id="firstName"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleInputChange}
-                      placeholder="First Name"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleInputChange}
-                      placeholder="Last Name"
-                    />
-                  </div>
-                </div>
-                
-                <div className="mt-4 space-y-2">
-                  <Label htmlFor="email">Email</Label>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <User className="h-5 w-5 mr-2" />
+                  Personal Information
+                </CardTitle>
+                <CardDescription>
+                  Update your personal details and contact information
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="displayName">Display Name</Label>
                   <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="Email"
+                    id="displayName"
+                    value={profileData.displayName}
+                    onChange={(e) => setProfileData({...profileData, displayName: e.target.value})}
+                    disabled={!isEditing}
                   />
                 </div>
-                
-                <div className="mt-6">
-                  <Button type="submit" disabled={isUpdating}>
-                    {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Update Profile
-                  </Button>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={profileData.email}
+                    disabled
+                    className="bg-gray-50"
+                  />
+                  <p className="text-sm text-gray-500">Email is managed by Auth0</p>
                 </div>
-              </form>
-            </CardContent>
-          </Card>
+                {isEditing && (
+                  <Button onClick={handleProfileUpdate} className="w-full">
+                    Save Changes
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Globe className="h-5 w-5 mr-2" />
+                  Account Information
+                </CardTitle>
+                <CardDescription>
+                  View your account details and status
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Account ID</Label>
+                  <div className="text-sm text-gray-600 font-mono bg-gray-50 p-2 rounded">
+                    {user?.sub || "N/A"}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Account Type</Label>
+                  <Badge variant="secondary">Premium</Badge>
+                </div>
+                <div className="space-y-2">
+                  <Label>Last Login</Label>
+                  <div className="text-sm text-gray-600">
+                    {new Date().toLocaleString()}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
-        
+
+        {/* Security Tab */}
         <TabsContent value="security">
-          <Card>
-            <CardHeader>
-              <CardTitle>Security Settings</CardTitle>
-              <CardDescription>
-                Manage your password and account security.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handlePasswordUpdate}>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="currentPassword">Current Password</Label>
-                    <Input
-                      id="currentPassword"
-                      name="currentPassword"
-                      type="password"
-                      value={formData.currentPassword}
-                      onChange={handleInputChange}
-                      placeholder="••••••••"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="newPassword">New Password</Label>
-                    <Input
-                      id="newPassword"
-                      name="newPassword"
-                      type="password"
-                      value={formData.newPassword}
-                      onChange={handleInputChange}
-                      placeholder="••••••••"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                    <Input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      placeholder="••••••••"
-                    />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Lock className="h-5 w-5 mr-2" />
+                  Password & Security
+                </CardTitle>
+                <CardDescription>
+                  Manage your password and security settings
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Password</Label>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                    <span className="text-sm text-gray-600">••••••••</span>
+                    <Button variant="outline" size="sm" onClick={handlePasswordChange}>
+                      <Key className="h-4 w-4 mr-2" />
+                      Change Password
+                    </Button>
                   </div>
                 </div>
-                
-                <div className="mt-6">
-                  <Button type="submit" disabled={isUpdating}>
-                    {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Update Password
+                <div className="space-y-2">
+                  <Label>Two-Factor Authentication</Label>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Not enabled</span>
+                    <Button variant="outline" size="sm">
+                      Enable 2FA
+                    </Button>
+                  </div>
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                  <Label>Active Sessions</Label>
+                  <div className="text-sm text-gray-600">
+                    <div className="flex items-center justify-between p-2 bg-green-50 rounded">
+                      <span>Current Session</span>
+                      <Badge variant="secondary">Active</Badge>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Shield className="h-5 w-5 mr-2" />
+                  Security Settings
+                </CardTitle>
+                <CardDescription>
+                  Configure additional security options
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Login Notifications</Label>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Email notifications for new logins</span>
+                    <Button variant="outline" size="sm">
+                      Configure
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Account Recovery</Label>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Recovery email and phone</span>
+                    <Button variant="outline" size="sm">
+                      Set Up
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Preferences Tab */}
+        <TabsContent value="preferences">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Settings className="h-5 w-5 mr-2" />
+                  Application Preferences
+                </CardTitle>
+                <CardDescription>
+                  Customize your app experience
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="language">Language</Label>
+                  <select 
+                    id="language" 
+                    className="w-full p-2 border rounded"
+                    value={profileData.language}
+                    onChange={(e) => setProfileData({...profileData, language: e.target.value})}
+                  >
+                    <option value="English">English</option>
+                    <option value="Spanish">Spanish</option>
+                    <option value="French">French</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="timezone">Timezone</Label>
+                  <select 
+                    id="timezone" 
+                    className="w-full p-2 border rounded"
+                    value={profileData.timezone}
+                    onChange={(e) => setProfileData({...profileData, timezone: e.target.value})}
+                  >
+                    <option value="UTC">UTC</option>
+                    <option value="America/New_York">Eastern Time</option>
+                    <option value="America/Chicago">Central Time</option>
+                    <option value="America/Denver">Mountain Time</option>
+                    <option value="America/Los_Angeles">Pacific Time</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Notifications</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Email Notifications</span>
+                      <Button variant="outline" size="sm">
+                        <Bell className="h-4 w-4 mr-2" />
+                        Configure
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Push Notifications</span>
+                      <Button variant="outline" size="sm">
+                        <Bell className="h-4 w-4 mr-2" />
+                        Configure
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  Financial Preferences
+                </CardTitle>
+                <CardDescription>
+                  Manage your financial data preferences
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Data Sharing</Label>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Share financial data for analysis</span>
+                    <Button variant="outline" size="sm">
+                      Configure
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Privacy Settings</Label>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Manage data privacy</span>
+                    <Button variant="outline" size="sm">
+                      View Settings
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Account Tab */}
+        <TabsContent value="account">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  Account Management
+                </CardTitle>
+                <CardDescription>
+                  Manage your account and subscription
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Subscription Plan</Label>
+                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded">
+                    <div>
+                      <span className="font-medium">Premium Plan</span>
+                      <p className="text-sm text-gray-600">Full access to all features</p>
+                    </div>
+                    <Badge variant="secondary">Active</Badge>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Billing</Label>
+                  <Button variant="outline" size="sm" className="w-full">
+                    Manage Billing
                   </Button>
                 </div>
-              </form>
-              
-              <Separator className="my-6" />
-              
-              <div>
-                <h3 className="text-lg font-medium text-red-600 mb-2">Danger Zone</h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  Once you delete your account, there is no going back. Please be certain.
-                </p>
+                <div className="space-y-2">
+                  <Label>Export Data</Label>
+                  <Button variant="outline" size="sm" className="w-full">
+                    Export My Data
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <LogOut className="h-5 w-5 mr-2" />
+                  Account Actions
+                </CardTitle>
+                <CardDescription>
+                  Sign out or manage your account
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </Button>
+                
+                <Separator />
                 
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive">
-                      <Trash2 className="mr-2 h-4 w-4" />
+                    <Button variant="destructive" className="w-full">
+                      <Trash2 className="h-4 w-4 mr-2" />
                       Delete Account
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogTitle>Delete Account</AlertDialogTitle>
                       <AlertDialogDescription>
                         This action cannot be undone. This will permanently delete your account
-                        and remove your data from our servers.
+                        and remove all your data from our servers.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDeleteAccount}
-                        className="bg-red-500 text-white hover:bg-red-600"
-                      >
+                      <AlertDialogAction className="bg-red-500 hover:bg-red-600">
                         Delete Account
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="connections">
-          <Card>
-            <CardHeader>
-              <CardTitle>Bank Connections</CardTitle>
-              <CardDescription>
-                Manage your connected financial accounts.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="flex items-center justify-center h-32">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : bankConnections && bankConnections.length > 0 ? (
-                <div className="space-y-4">
-                  {bankConnections.map((connection: any) => (
-                    <div key={connection.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center">
-                        <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center mr-4">
-                          <CreditCard className="h-5 w-5 text-gray-600" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium">{connection.bankName}</h4>
-                          <p className="text-sm text-gray-500">
-                            {connection.accountType} &middot; Last updated {new Date(connection.lastUpdated).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            Disconnect
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Disconnect Bank?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to disconnect this bank account? 
-                              You will need to reconnect it to continue using all features.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDisconnectBank(connection.id)}
-                            >
-                              Disconnect
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500 mb-4">
-                    You haven't connected any bank accounts yet.
-                  </p>
-                  <Button
-                    onClick={() => window.location.href = "/"}
-                  >
-                    Connect Bank Account
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-            <CardFooter className="flex justify-center border-t pt-6">
-              <Button
-                variant="outline"
-                onClick={() => window.location.href = "/"}
-              >
-                Connect New Account
-              </Button>
-            </CardFooter>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

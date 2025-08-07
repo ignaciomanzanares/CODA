@@ -5,12 +5,14 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsx server/index.ts",
+    "dev:frontend": "vite",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@auth0/auth0-react": "^2.4.0",
     "@hookform/resolvers": "^3.9.1",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@radix-ui/react-accordion": "^1.2.1",
