@@ -51,7 +51,7 @@ Open a new terminal:
 ```sh
 cd client
 npm install
-npm run dev
+npm run dev:frontend
 ```
 
 ## 6. Access the App
