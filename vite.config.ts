@@ -26,9 +26,6 @@ export default defineConfig({
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
-  server: {
-    port: 5173, // Ensure the frontend always runs on 5173
-  },
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
