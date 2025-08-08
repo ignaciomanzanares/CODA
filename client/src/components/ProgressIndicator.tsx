@@ -42,7 +42,7 @@ export default function ProgressIndicator({ steps }: ProgressIndicatorProps) {
                 )}
               </div>
               <div
-                className={`absolute -bottom-6 left-1/2 transform -translate-x-1/2 whitespace-nowrap text-sm font-medium
+                className={`absolute -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap text-sm font-medium
                   ${
                     step.isActive || step.isCompleted
                       ? "text-primary"
@@ -54,7 +54,7 @@ export default function ProgressIndicator({ steps }: ProgressIndicatorProps) {
             </div>
             {index < steps.length - 1 && (
               <div
-                className={`flex-grow h-1 mx-2 ${
+                className={`flex-grow h-1 mx-4 ${
                   steps[index + 1].isActive || steps[index + 1].isCompleted
                     ? "bg-primary"
                     : "bg-gray-200"
