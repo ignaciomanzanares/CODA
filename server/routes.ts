@@ -383,9 +383,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const category = req.query.category as string | undefined;
       const products = await storage.getFinancialProducts(category);
-      res.json(products);
+      res.json(products ?? []); // Always return an array
     } catch (error) {
-      throw error;
+      console.error("Error in /api/financial-products:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 
