@@ -1,32 +1,38 @@
 import { useQuery } from "@tanstack/react-query";
-import { getCreditScore, getInsuranceRisk, getFinancialGoals } from "@/lib/api";
+import { useApi } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import RecommendationCard from "@/components/RecommendationCard";
 import FinancialTimeline from "@/components/FinancialTimeline";
-import { 
-  TrendingUp, 
-  Landmark, 
-  ShieldCheck,
-  Home,
-  DollarSign,
-  GraduationCap
-} from "lucide-react";
+import { TrendingUp, Landmark, ShieldCheck, Home, DollarSign, GraduationCap } from "lucide-react";
+
+type CreditScore = {
+  utilization?: string;
+  score?: number;
+};
+
+type InsuranceRisk = {
+  autoRisk?: string;
+};
 
 export default function Plan() {
-  // Fetch required data
+  // Get API functions from useApi hook
+  const { getCreditScore, getInsuranceRisk, getFinancialGoals } = useApi();
+
+  // Use useQuery with the correct functions
   const { data: creditScore, isLoading: isLoadingCreditScore } = useQuery({
     queryKey: ["/api/credit-score"],
+    queryFn: getCreditScore,
   });
-
   const { data: insuranceRisk, isLoading: isLoadingInsuranceRisk } = useQuery({
     queryKey: ["/api/insurance-risk"],
+    queryFn: getInsuranceRisk,
   });
-
   const { data: goals, isLoading: isLoadingGoals } = useQuery({
     queryKey: ["/api/financial-goals"],
+    queryFn: getFinancialGoals,
   });
 
   const isLoading = isLoadingCreditScore || isLoadingInsuranceRisk || isLoadingGoals;
@@ -35,9 +41,13 @@ export default function Plan() {
   const getRecommendations = () => {
     const recommendations = [];
 
-    if (creditScore) {
+    // Defensive: creditScore and insuranceRisk may be undefined
+    const cs: CreditScore = (creditScore ?? {}) as CreditScore;
+    const ir: InsuranceRisk = (insuranceRisk ?? {}) as InsuranceRisk;
+
+    if (cs.utilization) {
       // Credit utilization recommendation
-      if (creditScore.utilization === "Average" || creditScore.utilization === "Poor") {
+      if (cs.utilization === "Average" || cs.utilization === "Poor") {
         recommendations.push({
           id: 1,
           icon: <TrendingUp />,
@@ -47,9 +57,11 @@ export default function Plan() {
           actionLink: "/products",
         });
       }
+    }
 
+    if (typeof cs.score === "number") {
       // Debt consolidation recommendation
-      if (creditScore.score < 720) {
+      if (cs.score < 720) {
         recommendations.push({
           id: 2,
           icon: <Landmark />,
@@ -61,9 +73,9 @@ export default function Plan() {
       }
     }
 
-    if (insuranceRisk) {
+    if (ir.autoRisk) {
       // Insurance recommendation
-      if (insuranceRisk.autoRisk === "Medium" || insuranceRisk.autoRisk === "High") {
+      if (ir.autoRisk === "Medium" || ir.autoRisk === "High") {
         recommendations.push({
           id: 3,
           icon: <ShieldCheck />,

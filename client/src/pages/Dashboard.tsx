@@ -13,28 +13,27 @@ import { RefreshCw } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 
 export default function Dashboard() {
-  const { isAuthenticated } = useAuth0();
+  const { isAuthenticated, isLoading: authLoading } = useAuth0();
   const [, navigate] = useLocation();
-  // const { getBankConnections } = useBankConnections();
 
-  // Check if user has connected banks
-  const { data: bankConnections, isLoading } = useQuery({
+  // Only fetch bank connections if authenticated and not loading
+  const { data: bankConnections, isLoading: bankLoading } = useQuery({
     queryKey: ["/api/bank-connections"],
-    queryFn: () => Promise.resolve([]), // Mock data for now
-    enabled: isAuthenticated,
+    queryFn: () => Promise.resolve([]), // Replace with real fetch if needed
+    enabled: isAuthenticated && !authLoading,
   });
 
   // Redirect to onboarding if no bank connections are found
   useEffect(() => {
+    if (authLoading) return;
     if (!isAuthenticated) {
       navigate("/");
       return;
     }
-
-    if (!isLoading && bankConnections && bankConnections.length === 0) {
+    if (!bankLoading && bankConnections && bankConnections.length === 0) {
       navigate("/");
     }
-  }, [isAuthenticated, isLoading, bankConnections, navigate]);
+  }, [isAuthenticated, authLoading, bankLoading, bankConnections, navigate]);
 
   // Function to refresh all data
   const refreshAllData = () => {
@@ -44,7 +43,7 @@ export default function Dashboard() {
     queryClient.invalidateQueries({ queryKey: ["/api/bank-connections"] });
   };
 
-  if (!isAuthenticated || isLoading) {
+  if (authLoading || bankLoading || !isAuthenticated) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
@@ -88,4 +87,4 @@ export default function Dashboard() {
       </Tabs>
     </div>
   );
-}
+} 

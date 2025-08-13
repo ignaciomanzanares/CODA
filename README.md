@@ -47,7 +47,7 @@ npm run dev
 
 ```bash
 cd ../client
-npm run dev:frontend
+npx vite
 ```
 
 ### 5. **Open the App**

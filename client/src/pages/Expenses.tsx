@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import type { Expense } from "@shared/schema";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const expenseFormSchema = z.object({
   amount: z.string().min(1, "Amount is required"),
@@ -38,6 +39,7 @@ const categories = [
 ];
 
 export default function Expenses() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth0();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -45,6 +47,7 @@ export default function Expenses() {
 
   const { data: expenses = [], isLoading } = useQuery<Expense[]>({
     queryKey: ["/api/expenses"],
+    enabled: isAuthenticated && !authLoading,
   });
 
   const createExpenseMutation = useMutation({
@@ -98,6 +101,28 @@ export default function Expenses() {
   const onSubmit = (values: ExpenseFormValues) => {
     createExpenseMutation.mutate(values);
   };
+
+  if (authLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+        <div className="grid gap-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-24 bg-gray-200 rounded animate-pulse"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <h2 className="text-2xl font-bold mb-4">Expenses</h2>
+        <p className="text-gray-600">Please sign in to view and manage your expenses.</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

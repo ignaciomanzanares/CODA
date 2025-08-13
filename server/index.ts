@@ -1,4 +1,6 @@
 import "dotenv/config";
+console.log("AUTH0_ISSUER_BASE_URL:", process.env.AUTH0_ISSUER_BASE_URL);
+console.log("AUTH0_AUDIENCE:", process.env.AUTH0_AUDIENCE);
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";

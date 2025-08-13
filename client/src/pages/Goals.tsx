@@ -48,6 +48,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, Target, PiggyBank, School, Home, ArrowDown, Landmark } from "lucide-react";
+import { useAuth0 } from "@auth0/auth0-react";
 
 // Form schema for adding/editing a goal
 const goalFormSchema = z.object({
@@ -61,13 +62,17 @@ const goalFormSchema = z.object({
 type GoalFormValues = z.infer<typeof goalFormSchema>;
 
 export default function Goals() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth0();
   const [isAddGoalOpen, setIsAddGoalOpen] = useState(false);
   const [isEditGoalOpen, setIsEditGoalOpen] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<any>(null);
   const { toast } = useToast();
   
+  // Only fetch goals if authenticated and not loading
   const { data: goals, isLoading, error } = useQuery({
     queryKey: ["/api/financial-goals"],
+    queryFn: getFinancialGoals,
+    enabled: isAuthenticated && !authLoading,
   });
 
   // Add goal mutation
@@ -92,7 +97,7 @@ export default function Goals() {
 
   // Edit goal mutation
   const editGoalMutation = useMutation({
-    mutationFn: (data: { id: number; goal: any }) => 
+    mutationFn: (data: { id: string; goal: any }) => 
       updateFinancialGoal(data.id, data.goal),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
@@ -114,7 +119,7 @@ export default function Goals() {
 
   // Delete goal mutation
   const deleteGoalMutation = useMutation({
-    mutationFn: deleteFinancialGoal,
+    mutationFn: (goalId: string) => deleteFinancialGoal(goalId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
       toast({
@@ -165,7 +170,7 @@ export default function Goals() {
   const handleEditSubmit = (values: GoalFormValues) => {
     if (selectedGoal) {
       editGoalMutation.mutate({
-        id: selectedGoal.id,
+        id: String(selectedGoal.id),
         goal: {
           ...values,
           targetDate: new Date(values.targetDate),
@@ -186,8 +191,8 @@ export default function Goals() {
     setIsEditGoalOpen(true);
   };
 
-  const handleDeleteGoal = (goalId: number) => {
-    deleteGoalMutation.mutate(goalId);
+  const handleDeleteGoal = (goalId: string | number) => {
+    deleteGoalMutation.mutate(String(goalId));
   };
 
   const formatCurrency = (amount: number) => {
@@ -235,6 +240,31 @@ export default function Goals() {
         return "Other";
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-gray-800 font-sans">Financial Goals</h2>
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Skeleton key={i} className="h-64 w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4 font-sans">Financial Goals</h2>
+        <p className="mb-4">Please sign in to view and manage your financial goals.</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
