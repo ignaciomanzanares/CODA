@@ -11,15 +11,17 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
+import { useApi } from "@/lib/api"; // <-- Import useApi
 
 export default function Dashboard() {
   const { isAuthenticated, isLoading: authLoading } = useAuth0();
   const [, navigate] = useLocation();
+  const { getBankConnections } = useApi(); // <-- Get API function
 
   // Only fetch bank connections if authenticated and not loading
   const { data: bankConnections, isLoading: bankLoading } = useQuery({
     queryKey: ["/api/bank-connections"],
-    queryFn: () => Promise.resolve([]), // Replace with real fetch if needed
+    queryFn: getBankConnections, // <-- Use correct API function
     enabled: isAuthenticated && !authLoading,
   });
 
@@ -87,4 +89,4 @@ export default function Dashboard() {
       </Tabs>
     </div>
   );
-} 
+}

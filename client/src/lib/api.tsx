@@ -1,19 +1,28 @@
 import { useAuth0 } from "@auth0/auth0-react";
 
-// Helper to make authenticated API requests with Auth0 token
 export function useApi() {
-  const { getAccessTokenSilently } = useAuth0();
+  const { getAccessTokenSilently, isAuthenticated, loginWithRedirect } = useAuth0();
 
-  // Generic API request with Auth0 token
   const apiRequest = async (
     method: string,
     url: string,
     data?: unknown,
     options?: RequestInit
   ) => {
-    const token = await getAccessTokenSilently();
+    // If not authenticated, redirect to login
+    if (!isAuthenticated) {
+      await loginWithRedirect();
+      throw new Error("User not authenticated");
+    }
 
-    // Only spread headers if they are a plain object (not Headers, not array)
+    let token = "";
+    try {
+      token = await getAccessTokenSilently();
+    } catch (err) {
+      await loginWithRedirect();
+      throw new Error("Could not get access token");
+    }
+
     let extraHeaders: Record<string, string> = {};
     if (
       options?.headers &&
@@ -131,10 +140,3 @@ export const useFinancialGoals = () => {
   const { getFinancialGoals, createFinancialGoal, updateFinancialGoal, deleteFinancialGoal } = useApi();
   return { getFinancialGoals, createFinancialGoal, updateFinancialGoal, deleteFinancialGoal };
 };
-
-// Named exports for direct usage in components/pages
-export const getFinancialGoals = () => useApi().getFinancialGoals();
-export const createFinancialGoal = (goalData: any) => useApi().createFinancialGoal(goalData);
-export const updateFinancialGoal = (goalId: string, goalData: any) => useApi().updateFinancialGoal(goalId, goalData);
-export const deleteFinancialGoal = (goalId: string) => useApi().deleteFinancialGoal(goalId);
-export const getFinancialProducts = (category?: string) => useApi().getFinancialProducts(category);

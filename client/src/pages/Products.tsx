@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getFinancialProducts } from "@/lib/api";
+import { useApi } from "@/lib/api";
 import TabsComponent from "@/components/TabsComponent";
 import FiltersSection from "@/components/FiltersSection";
 import ProductsTable from "@/components/ProductsTable";
@@ -18,6 +18,7 @@ type ProductFilters = {
 
 export default function Products() {
   const { isAuthenticated, isLoading: authLoading } = useAuth0();
+  const { getFinancialProducts } = useApi(); // <-- Add this line
   const [activeCategory, setActiveCategory] = useState("loans");
   const [filters, setFilters] = useState<ProductFilters>({});
 
@@ -28,7 +29,7 @@ export default function Products() {
     error,
   } = useQuery({
     queryKey: ["/api/financial-products", activeCategory],
-    queryFn: () => getFinancialProducts(activeCategory),
+    queryFn: () => getFinancialProducts(activeCategory), // <-- Now this works
     enabled: isAuthenticated && !authLoading,
   });
 
