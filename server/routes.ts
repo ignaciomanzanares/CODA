@@ -211,6 +211,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Expenses routes
+  app.get("/api/expenses", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const expenses = await storage.getExpenses(userId as any);
+      res.json(expenses);
+    } catch (error) {
+      throw error;
+    }
+  });
+
+  app.post("/api/expenses", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const expenseData = {
+        ...req.body,
+        userId
+      };
+      const expense = await storage.createExpense(expenseData);
+      res.status(201).json(expense);
+    } catch (error) {
+      throw error;
+    }
+  });
+
+  app.put("/api/expenses/:id", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const expenseId = Number(req.params.id);
+      const expense = await storage.getExpense(expenseId);
+      if (!expense || String(expense.userId) !== userId) {
+        return res.status(404).json({ message: "Expense not found" });
+      }
+      const updatedExpense = await storage.updateExpense(expenseId, req.body);
+      res.json(updatedExpense);
+    } catch (error) {
+      throw error;
+    }
+  });
+
+  app.delete("/api/expenses/:id", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const expenseId = Number(req.params.id);
+      const expense = await storage.getExpense(expenseId);
+      if (!expense || String(expense.userId) !== userId) {
+        return res.status(404).json({ message: "Expense not found" });
+      }
+      await storage.deleteExpense(expenseId);
+      res.json({ message: "Expense deleted" });
+    } catch (error) {
+      throw error;
+    }
+  });
+
+  // Bill splits routes
+  app.get("/api/bill-splits", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const billSplits = await storage.getBillSplits(userId as any);
+      res.json(billSplits);
+    } catch (error) {
+      throw error;
+    }
+  });
+
+  app.post("/api/bill-splits", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const billSplitData = {
+        ...req.body,
+        createdBy: userId
+      };
+      const billSplit = await storage.createBillSplit(billSplitData);
+      res.status(201).json(billSplit);
+    } catch (error) {
+      throw error;
+    }
+  });
+
+  app.put("/api/bill-splits/:id", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const billSplitId = Number(req.params.id);
+      const billSplit = await storage.getBillSplit(billSplitId);
+      if (!billSplit || String(billSplit.createdBy) !== userId) {
+        return res.status(404).json({ message: "Bill split not found" });
+      }
+      const updatedBillSplit = await storage.updateBillSplit(billSplitId, req.body);
+      res.json(updatedBillSplit);
+    } catch (error) {
+      throw error;
+    }
+  });
+
+  app.delete("/api/bill-splits/:id", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const billSplitId = Number(req.params.id);
+      const billSplit = await storage.getBillSplit(billSplitId);
+      if (!billSplit || String(billSplit.createdBy) !== userId) {
+        return res.status(404).json({ message: "Bill split not found" });
+      }
+      await storage.deleteBillSplit(billSplitId);
+      res.json({ message: "Bill split deleted" });
+    } catch (error) {
+      throw error;
+    }
+  });
+
+  app.put("/api/bill-splits/:id/participants/:participantId", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const billSplitId = Number(req.params.id);
+      const participantId = Number(req.params.participantId);
+      const billSplit = await storage.getBillSplit(billSplitId);
+      if (!billSplit || String(billSplit.createdBy) !== userId) {
+        return res.status(404).json({ message: "Bill split not found" });
+      }
+      const updatedParticipant = await storage.updateBillSplitParticipant(participantId, req.body);
+      res.json(updatedParticipant);
+    } catch (error) {
+      throw error;
+    }
+  });
+
+  // Profile routes
+  app.get("/api/profile", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      // For now, return basic profile info from Auth0
+      res.json({
+        id: userId,
+        displayName: req.auth?.payload?.name || "",
+        email: req.auth?.payload?.email || "",
+        timezone: "UTC",
+        language: "English"
+      });
+    } catch (error) {
+      throw error;
+    }
+  });
+
+  app.put("/api/profile", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      // For now, just return success (in a real app, you'd save to database)
+      res.json({
+        id: userId,
+        ...req.body,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      throw error;
+    }
+  });
+
   // Financial products routes (public)
   app.get("/api/financial-products", async (req, res) => {
     try {

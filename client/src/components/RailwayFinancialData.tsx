@@ -136,7 +136,7 @@ export default function RailwayFinancialData({ userId = "demo123" }: RailwayFina
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Balance</p>
                 <p className="text-2xl font-bold">
-                  ${financialProfile?.summary.totalBalance.toLocaleString() || '0'}
+                  ${financialProfile?.summary?.totalBalance?.toLocaleString() || '0'}
                 </p>
               </div>
             </div>
@@ -164,7 +164,7 @@ export default function RailwayFinancialData({ userId = "demo123" }: RailwayFina
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Monthly Income</p>
                 <p className="text-2xl font-bold">
-                  ${financialProfile?.summary.monthlyIncome.toLocaleString() || '0'}
+                  ${financialProfile?.summary?.monthlyIncome?.toLocaleString() || '0'}
                 </p>
               </div>
             </div>
@@ -178,7 +178,7 @@ export default function RailwayFinancialData({ userId = "demo123" }: RailwayFina
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Connected Accounts</p>
                 <p className="text-2xl font-bold">
-                  {financialProfile?.summary.accountsCount || 0}
+                  {financialProfile?.summary?.accountsCount || 0}
                 </p>
               </div>
             </div>
@@ -205,10 +205,10 @@ export default function RailwayFinancialData({ userId = "demo123" }: RailwayFina
                         </Badge>
                       </div>
                       <p className="text-sm text-gray-600">{account.bankName} • {account.type}</p>
-                      <p className="text-xs text-gray-500">****{account.accountNumber.slice(-4)}</p>
+                      <p className="text-xs text-gray-500">****{account.accountNumber?.slice(-4) || '****'}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-semibold">${account.balance.toLocaleString()}</p>
+                      <p className="text-lg font-semibold">${account.balance?.toLocaleString() || '0'}</p>
                     </div>
                   </div>
                 ))}
@@ -231,10 +231,10 @@ export default function RailwayFinancialData({ userId = "demo123" }: RailwayFina
               <div className="space-y-4">
                 <div className="text-center">
                   <div className="text-4xl font-bold text-blue-600">
-                    {creditAnalysis.creditScore}
+                    {creditAnalysis?.creditScore || 'N/A'}
                   </div>
                   <div className="text-sm text-gray-600">
-                    out of {creditAnalysis.maxScore}
+                    out of {creditAnalysis?.maxScore || 'N/A'}
                   </div>
                 </div>
                 
@@ -242,33 +242,33 @@ export default function RailwayFinancialData({ userId = "demo123" }: RailwayFina
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Payment History</span>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{creditAnalysis.factors.paymentHistory.status}</Badge>
-                      <span className="text-sm font-medium">{creditAnalysis.factors.paymentHistory.score}</span>
+                      <Badge variant="outline">{creditAnalysis.factors?.paymentHistory?.status || 'N/A'}</Badge>
+                      <span className="text-sm font-medium">{creditAnalysis.factors?.paymentHistory?.score || 'N/A'}</span>
                     </div>
                   </div>
                   
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Credit Utilization</span>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{creditAnalysis.factors.utilization.status}</Badge>
-                      <span className="text-sm font-medium">{creditAnalysis.factors.utilization.score}</span>
+                      <Badge variant="outline">{creditAnalysis.factors?.utilization?.status || 'N/A'}</Badge>
+                      <span className="text-sm font-medium">{creditAnalysis.factors?.utilization?.score || 'N/A'}</span>
                     </div>
                   </div>
                   
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Age of Credit</span>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{creditAnalysis.factors.ageOfCredit.status}</Badge>
-                      <span className="text-sm font-medium">{creditAnalysis.factors.ageOfCredit.score}</span>
+                      <Badge variant="outline">{creditAnalysis.factors?.ageOfCredit?.status || 'N/A'}</Badge>
+                      <span className="text-sm font-medium">{creditAnalysis.factors?.ageOfCredit?.score || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
 
-                {creditAnalysis.recommendations.length > 0 && (
+                {creditAnalysis?.recommendations?.length > 0 && (
                   <div className="mt-4">
                     <h4 className="font-medium mb-2">Recommendations:</h4>
                     <div className="space-y-2">
-                      {creditAnalysis.recommendations.slice(0, 2).map((rec, index) => (
+                      {creditAnalysis.recommendations?.slice(0, 2).map((rec, index) => (
                         <div key={index} className="text-sm p-2 bg-blue-50 rounded">
                           <p className="font-medium">{rec.title}</p>
                           <p className="text-gray-600">{rec.description}</p>
@@ -288,14 +288,14 @@ export default function RailwayFinancialData({ userId = "demo123" }: RailwayFina
       </div>
 
       {/* Recent Transactions */}
-      {financialProfile?.transactions.length && (
+      {financialProfile?.transactions?.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Recent Transactions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {financialProfile.transactions.slice(0, 5).map((transaction) => (
+              {financialProfile.transactions?.slice(0, 5).map((transaction) => (
                 <div key={transaction.id} className="flex items-center justify-between p-3 border rounded">
                   <div>
                     <p className="font-medium">{transaction.description}</p>

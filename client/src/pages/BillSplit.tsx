@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { apiRequest } from "@/lib/queryClient";
+import { useApi } from "@/lib/api";
 import type { BillSplit, BillSplitParticipant } from "@shared/schema";
 
 const participantSchema = z.object({
@@ -34,11 +34,13 @@ interface BillSplitWithParticipants extends BillSplit {
 }
 
 export default function BillSplit() {
+  const { getBillSplits, createBillSplit } = useApi();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: billSplits = [], isLoading } = useQuery<BillSplitWithParticipants[]>({
     queryKey: ["/api/bill-splits"],
+    queryFn: getBillSplits,
   });
 
   const createBillSplitMutation = useMutation({
@@ -46,7 +48,7 @@ export default function BillSplit() {
       const totalAmount = parseFloat(billSplit.totalAmount);
       const amountPerPerson = totalAmount / billSplit.participants.length;
       
-      return apiRequest("/api/bill-splits", "POST", {
+      return createBillSplit({
         name: billSplit.name,
         totalAmount: billSplit.totalAmount,
         description: billSplit.description,

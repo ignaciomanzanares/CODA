@@ -1,6 +1,7 @@
 import { useAuth0 } from "@auth0/auth0-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useApi } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -42,6 +43,7 @@ import {
 export default function Profile() {
   const { user, logout, isAuthenticated, isLoading } = useAuth0();
   const { toast } = useToast();
+  const { updateProfile, getUserProfile } = useApi();
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
     displayName: user?.name || "",
@@ -49,6 +51,18 @@ export default function Profile() {
     timezone: "UTC",
     language: "English"
   });
+
+  // Load user profile data when component mounts
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      setProfileData({
+        displayName: user.name || "",
+        email: user.email || "",
+        timezone: "UTC",
+        language: "English"
+      });
+    }
+  }, [isAuthenticated, user]);
 
   if (!isAuthenticated) {
     return (
@@ -87,12 +101,21 @@ export default function Profile() {
     return "U";
   };
 
-  const handleProfileUpdate = () => {
-    setIsEditing(false);
-    toast({
-      title: "Profile updated",
-      description: "Your profile information has been updated successfully.",
-    });
+  const handleProfileUpdate = async () => {
+    try {
+      await updateProfile(profileData);
+      setIsEditing(false);
+      toast({
+        title: "Profile updated",
+        description: "Your profile information has been updated successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Update failed",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleLogout = () => {

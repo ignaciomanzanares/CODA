@@ -17,8 +17,13 @@ export function useApi() {
 
     let token = "";
     try {
-      token = await getAccessTokenSilently();
+      token = await getAccessTokenSilently({
+        authorizationParams: {
+          audience: "https://finhealth-api"
+        }
+      });
     } catch (err) {
+      console.error("Error getting access token:", err);
       await loginWithRedirect();
       throw new Error("Could not get access token");
     }
@@ -48,6 +53,10 @@ export function useApi() {
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({}));
+      // Don't throw for 401 errors, let React Query handle them
+      if (res.status === 401) {
+        throw new Error("Unauthorized");
+      }
       throw new Error(error.message || "API request failed");
     }
 
@@ -111,6 +120,64 @@ export function useApi() {
     return res.json();
   };
 
+  // Expenses API functions
+  const getExpenses = async () => {
+    const res = await apiRequest("GET", "/api/expenses");
+    return res.json();
+  };
+
+  const createExpense = async (expenseData: any) => {
+    const res = await apiRequest("POST", "/api/expenses", expenseData);
+    return res.json();
+  };
+
+  const updateExpense = async (expenseId: string, expenseData: any) => {
+    const res = await apiRequest("PUT", `/api/expenses/${expenseId}`, expenseData);
+    return res.json();
+  };
+
+  const deleteExpense = async (expenseId: string) => {
+    const res = await apiRequest("DELETE", `/api/expenses/${expenseId}`);
+    return res.json();
+  };
+
+  // Bill Split API functions
+  const getBillSplits = async () => {
+    const res = await apiRequest("GET", "/api/bill-splits");
+    return res.json();
+  };
+
+  const createBillSplit = async (billSplitData: any) => {
+    const res = await apiRequest("POST", "/api/bill-splits", billSplitData);
+    return res.json();
+  };
+
+  const updateBillSplit = async (billSplitId: string, billSplitData: any) => {
+    const res = await apiRequest("PUT", `/api/bill-splits/${billSplitId}`, billSplitData);
+    return res.json();
+  };
+
+  const deleteBillSplit = async (billSplitId: string) => {
+    const res = await apiRequest("DELETE", `/api/bill-splits/${billSplitId}`);
+    return res.json();
+  };
+
+  const updateBillSplitParticipant = async (billSplitId: string, participantId: string, participantData: any) => {
+    const res = await apiRequest("PUT", `/api/bill-splits/${billSplitId}/participants/${participantId}`, participantData);
+    return res.json();
+  };
+
+  // Profile API functions
+  const updateProfile = async (profileData: any) => {
+    const res = await apiRequest("PUT", "/api/profile", profileData);
+    return res.json();
+  };
+
+  const getUserProfile = async () => {
+    const res = await apiRequest("GET", "/api/profile");
+    return res.json();
+  };
+
   return {
     apiRequest,
     getBankConnections,
@@ -122,6 +189,20 @@ export function useApi() {
     getCreditScore,
     getInsuranceRisk,
     getFinancialProducts,
+    // Expenses
+    getExpenses,
+    createExpense,
+    updateExpense,
+    deleteExpense,
+    // Bill Splits
+    getBillSplits,
+    createBillSplit,
+    updateBillSplit,
+    deleteBillSplit,
+    updateBillSplitParticipant,
+    // Profile
+    updateProfile,
+    getUserProfile,
   };
 }
 

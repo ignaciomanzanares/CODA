@@ -19,10 +19,13 @@ export default function Dashboard() {
   const { getBankConnections } = useApi(); // <-- Get API function
 
   // Only fetch bank connections if authenticated and not loading
-  const { data: bankConnections, isLoading: bankLoading } = useQuery({
+  const { data: bankConnections, isLoading: bankLoading, error: bankError } = useQuery({
     queryKey: ["/api/bank-connections"],
     queryFn: getBankConnections, // <-- Use correct API function
     enabled: isAuthenticated && !authLoading,
+    retry: false, // Don't retry on failure
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
   // Redirect to onboarding if no bank connections are found
@@ -32,10 +35,11 @@ export default function Dashboard() {
       navigate("/");
       return;
     }
-    if (!bankLoading && bankConnections && bankConnections.length === 0) {
+    // Only redirect if we successfully got data and it's empty
+    if (!bankLoading && !bankError && bankConnections && bankConnections.length === 0) {
       navigate("/");
     }
-  }, [isAuthenticated, authLoading, bankLoading, bankConnections, navigate]);
+  }, [isAuthenticated, authLoading, bankLoading, bankError, bankConnections, navigate]);
 
   // Function to refresh all data
   const refreshAllData = () => {

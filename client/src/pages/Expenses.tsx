@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { apiRequest } from "@/lib/queryClient";
+import { useApi } from "@/lib/api";
 import type { Expense } from "@shared/schema";
 import { useAuth0 } from "@auth0/auth0-react";
 
@@ -40,6 +40,7 @@ const categories = [
 
 export default function Expenses() {
   const { isAuthenticated, isLoading: authLoading } = useAuth0();
+  const { getExpenses, createExpense, deleteExpense } = useApi();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -47,12 +48,13 @@ export default function Expenses() {
 
   const { data: expenses = [], isLoading } = useQuery<Expense[]>({
     queryKey: ["/api/expenses"],
+    queryFn: getExpenses,
     enabled: isAuthenticated && !authLoading,
   });
 
   const createExpenseMutation = useMutation({
     mutationFn: (expense: ExpenseFormValues) => 
-      apiRequest("/api/expenses", "POST", {
+      createExpense({
         ...expense,
         amount: expense.amount,
         date: new Date(expense.date),
@@ -66,7 +68,7 @@ export default function Expenses() {
   });
 
   const deleteExpenseMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/expenses/${id}`, "DELETE"),
+    mutationFn: (id: number) => deleteExpense(id.toString()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
     },
