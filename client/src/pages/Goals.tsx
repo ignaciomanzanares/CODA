@@ -49,6 +49,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, Target, PiggyBank, School, Home, ArrowDown, Landmark } from "lucide-react";
 import { useAuth0 } from "@auth0/auth0-react";
+import { generateDemoFinancialGoals } from "@/lib/demoData";
+import SignInBanner from "@/components/SignInBanner";
 
 // Form schema for adding/editing a goal
 const goalFormSchema = z.object({
@@ -76,12 +78,17 @@ export default function Goals() {
     deleteFinancialGoal 
   } = useApi();
 
+  // Use demo data when not authenticated, real data when authenticated
+  const demoGoals = generateDemoFinancialGoals();
+  
   // Only fetch goals if authenticated and not loading
-  const { data: goals, isLoading, error } = useQuery({
+  const { data: realGoals, isLoading, error } = useQuery({
     queryKey: ["/api/financial-goals"],
     queryFn: getFinancialGoals,
     enabled: isAuthenticated && !authLoading,
   });
+  
+  const goals = isAuthenticated ? realGoals : demoGoals;
 
   // Add goal mutation
   const addGoalMutation = useMutation({
@@ -265,16 +272,8 @@ export default function Goals() {
     );
   }
 
-  if (!isAuthenticated) {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4 font-sans">Financial Goals</h2>
-        <p className="mb-4">Please sign in to view and manage your financial goals.</p>
-      </div>
-    );
-  }
 
-  if (isLoading) {
+  if (authLoading || (isAuthenticated && isLoading)) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -310,12 +309,19 @@ export default function Goals() {
 
   return (
     <div className="space-y-6">
+      {!isAuthenticated && (
+        <SignInBanner 
+          title="Viewing Demo Financial Goals"
+          description="You're exploring sample financial goals with progress tracking. Sign in to create and manage your real financial objectives, set target dates, and track your progress."
+          actionText="Sign In to Track Real Goals"
+        />
+      )}
       {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-800 font-sans">Financial Goals</h2>
         <Dialog open={isAddGoalOpen} onOpenChange={setIsAddGoalOpen}>
           <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
+            <Button className="flex items-center gap-2" disabled={!isAuthenticated}>
               <Plus className="h-4 w-4" />
               Add Goal
             </Button>
@@ -441,12 +447,13 @@ export default function Goals() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleEditGoal(goal)}
+                      disabled={!isAuthenticated}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" disabled={!isAuthenticated}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </AlertDialogTrigger>
@@ -502,7 +509,7 @@ export default function Goals() {
           <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">No goals yet</h3>
           <p className="text-gray-600 mb-6">Create your first financial goal to start tracking your progress.</p>
-          <Button onClick={() => setIsAddGoalOpen(true)}>
+          <Button onClick={() => setIsAddGoalOpen(true)} disabled={!isAuthenticated}>
             <Plus className="h-4 w-4 mr-2" />
             Create Your First Goal
           </Button>

@@ -12,6 +12,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
+import NotificationCenter from "@/components/NotificationCenter";
 
 export default function Header() {
   const [location] = useLocation();
@@ -79,6 +80,7 @@ export default function Header() {
           <div className="flex items-center space-x-4">
             {isAuthenticated ? (
               <>
+                <NotificationCenter />
                 <Link href="/">
                   <Button variant="outline">Connect Account</Button>
                 </Link>

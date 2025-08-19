@@ -13,6 +13,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useApi } from "@/lib/api";
 import type { BillSplit, BillSplitParticipant } from "@shared/schema";
+import { useAuth0 } from "@auth0/auth0-react";
+import { generateDemoBillSplits } from "@/lib/demoData";
+import SignInBanner from "@/components/SignInBanner";
 
 const participantSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -34,14 +37,21 @@ interface BillSplitWithParticipants extends BillSplit {
 }
 
 export default function BillSplit() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth0();
   const { getBillSplits, createBillSplit } = useApi();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: billSplits = [], isLoading } = useQuery<BillSplitWithParticipants[]>({
+  // Use demo data when not authenticated, real data when authenticated
+  const demoBillSplits = generateDemoBillSplits();
+  
+  const { data: realBillSplits = [], isLoading } = useQuery<BillSplitWithParticipants[]>({
     queryKey: ["/api/bill-splits"],
     queryFn: getBillSplits,
+    enabled: isAuthenticated && !authLoading,
   });
+
+  const billSplits = isAuthenticated ? realBillSplits : demoBillSplits;
 
   const createBillSplitMutation = useMutation({
     mutationFn: (billSplit: BillSplitFormValues) => {
@@ -98,7 +108,7 @@ export default function BillSplit() {
     return sum + participants.reduce((splitSum, p) => splitSum + parseFloat(p.amountPaid), 0);
   }, 0);
 
-  if (isLoading) {
+  if (authLoading || (isAuthenticated && isLoading)) {
     return (
       <div className="space-y-6">
         <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
@@ -113,6 +123,13 @@ export default function BillSplit() {
 
   return (
     <div className="space-y-6">
+      {!isAuthenticated && (
+        <SignInBanner 
+          title="Viewing Demo Bill Splits"
+          description="You're exploring sample bill splitting data. Sign in to create real bill splits, invite friends, and track payments together."
+          actionText="Sign In to Split Real Bills"
+        />
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Bill Splitting</h1>
@@ -120,7 +137,7 @@ export default function BillSplit() {
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button disabled={!isAuthenticated}>
               <Plus className="w-4 h-4 mr-2" />
               Create Split
             </Button>
@@ -364,7 +381,7 @@ export default function BillSplit() {
                             </Badge>
                           )}
                           {!participant.isPaid && participant.email && (
-                            <Button variant="outline" size="sm">
+                            <Button variant="outline" size="sm" disabled={!isAuthenticated}>
                               <Send className="w-3 h-3" />
                             </Button>
                           )}

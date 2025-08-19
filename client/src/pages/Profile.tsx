@@ -123,8 +123,42 @@ export default function Profile() {
   };
 
   const handlePasswordChange = () => {
-    // Redirect to Auth0's password change page
-    window.open(`https://dev-klhap06xvhqbtvbi.us.auth0.com/authorize?client_id=re8BTok97oBa8oDHkobPRfTnZUSaAawr&response_type=code&redirect_uri=${encodeURIComponent(window.location.origin)}&scope=openid%20profile%20email&audience=&state=password_change`, '_blank');
+    // Redirect to Auth0's password reset page
+    const domain = "dev-klhap06xvhqbtvbi.us.auth0.com";
+    const clientId = "9vk8ApGUVUO4txi1wQGOo5PoymgvQrqm";
+    const redirectUri = encodeURIComponent(window.location.origin);
+    
+    // Use Auth0's universal login with password reset
+    window.open(`https://${domain}/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=openid%20profile%20email&screen_hint=password_reset`, '_blank');
+  };
+  
+  const handleDeleteAccount = async () => {
+    try {
+      // This would typically call your backend to delete the user from Auth0 Management API
+      // For now, we'll show a toast and logout
+      toast({
+        title: "Account deletion requested",
+        description: "Your account deletion request has been submitted. You will be logged out.",
+        variant: "destructive",
+      });
+      
+      // Logout the user
+      setTimeout(() => {
+        handleLogout();
+      }, 2000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete account. Please contact support.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleEnable2FA = () => {
+    // Redirect to Auth0 MFA enrollment
+    const domain = "dev-klhap06xvhqbtvbi.us.auth0.com";
+    window.open(`https://${domain}/mfa`, '_blank');
   };
 
   return (
@@ -259,8 +293,16 @@ export default function Profile() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Account ID</Label>
-                  <div className="text-sm text-gray-600 font-mono bg-gray-50 p-2 rounded">
+                  <div className="text-sm text-gray-600 font-mono bg-gray-50 p-2 rounded break-all">
                     {user?.sub || "N/A"}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Login Provider</Label>
+                  <div className="text-sm text-gray-600">
+                    {user?.sub?.includes('google') ? '🔗 Google' : 
+                     user?.sub?.includes('apple') ? '🔗 Apple' : 
+                     user?.sub?.includes('auth0') ? '📧 Email/Password' : '🔗 Social Login'}
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -305,8 +347,12 @@ export default function Profile() {
                 <div className="space-y-2">
                   <Label>Two-Factor Authentication</Label>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Not enabled</span>
-                    <Button variant="outline" size="sm">
+                    <div>
+                      <span className="text-sm text-gray-600">Not enabled</span>
+                      <p className="text-xs text-gray-500">Add extra security to your account</p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={handleEnable2FA}>
+                      <Shield className="h-4 w-4 mr-2" />
                       Enable 2FA
                     </Button>
                   </div>
@@ -338,8 +384,12 @@ export default function Profile() {
                 <div className="space-y-2">
                   <Label>Login Notifications</Label>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Email notifications for new logins</span>
+                    <div>
+                      <span className="text-sm text-gray-600">Email notifications for new logins</span>
+                      <p className="text-xs text-gray-500">Get notified of suspicious activity</p>
+                    </div>
                     <Button variant="outline" size="sm">
+                      <Bell className="h-4 w-4 mr-2" />
                       Configure
                     </Button>
                   </div>
@@ -347,9 +397,13 @@ export default function Profile() {
                 <div className="space-y-2">
                   <Label>Account Recovery</Label>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Recovery email and phone</span>
+                    <div>
+                      <span className="text-sm text-gray-600">Recovery email: {user?.email}</span>
+                      <p className="text-xs text-gray-500">Managed by Auth0</p>
+                    </div>
                     <Button variant="outline" size="sm">
-                      Set Up
+                      <Key className="h-4 w-4 mr-2" />
+                      Update
                     </Button>
                   </div>
                 </div>
@@ -534,7 +588,10 @@ export default function Profile() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction className="bg-red-500 hover:bg-red-600">
+                      <AlertDialogAction 
+                        className="bg-red-500 hover:bg-red-600"
+                        onClick={handleDeleteAccount}
+                      >
                         Delete Account
                       </AlertDialogAction>
                     </AlertDialogFooter>

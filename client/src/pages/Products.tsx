@@ -6,6 +6,8 @@ import FiltersSection from "@/components/FiltersSection";
 import ProductsTable from "@/components/ProductsTable";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth0 } from "@auth0/auth0-react";
+import { getDemoFinancialProductsByCategory } from "@/lib/demoData";
+import SignInBanner from "@/components/SignInBanner";
 
 // Define a type for your filters
 type ProductFilters = {
@@ -22,9 +24,12 @@ export default function Products() {
   const [activeCategory, setActiveCategory] = useState("loans");
   const [filters, setFilters] = useState<ProductFilters>({});
 
+  // Use demo data when not authenticated, real data when authenticated
+  const demoProducts = getDemoFinancialProductsByCategory(activeCategory);
+  
   // Only fetch products if authenticated and not loading
   const {
-    data: products,
+    data: realProducts,
     isLoading: productsLoading,
     error,
   } = useQuery({
@@ -32,6 +37,8 @@ export default function Products() {
     queryFn: () => getFinancialProducts(activeCategory), // <-- Now this works
     enabled: isAuthenticated && !authLoading,
   });
+  
+  const products = isAuthenticated ? realProducts : demoProducts;
 
   const handleTabChange = (tabId: string) => {
     setActiveCategory(tabId);
@@ -78,11 +85,28 @@ export default function Products() {
     { id: "insurance", label: "Insurance" },
   ];
 
-  if (authLoading) return <div>Loading...</div>;
-  if (!isAuthenticated) return <div>Please sign in to view products.</div>;
+  if (authLoading || (isAuthenticated && productsLoading)) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+        <div className="grid gap-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-32 bg-gray-200 rounded animate-pulse"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id="product-section" className="mb-12">
+      {!isAuthenticated && (
+        <SignInBanner 
+          title="Viewing Demo Financial Products"
+          description="You're exploring sample financial products including loans, credit cards, savings accounts, and insurance. Sign in to get personalized product recommendations based on your financial profile."
+          actionText="Sign In for Personal Recommendations"
+        />
+      )}
       <h2 className="text-2xl font-bold text-gray-800 mb-6 font-sans">Recommended Financial Products</h2>
       <TabsComponent
         tabs={tabs}

@@ -7,37 +7,38 @@ import {
   financialProducts, type FinancialProduct, type InsertFinancialProduct,
   expenses, type Expense, type InsertExpense,
   billSplits, type BillSplit, type InsertBillSplit,
-  billSplitParticipants, type BillSplitParticipant, type InsertBillSplitParticipant
+  billSplitParticipants, type BillSplitParticipant, type InsertBillSplitParticipant,
+  notifications, type Notification, type InsertNotification
 } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
-  getUser(id: number): Promise<User | undefined>;
+  getUser(id: string | number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   
   // Bank connection operations
-  getBankConnections(userId: number): Promise<BankConnection[]>;
+  getBankConnections(userId: string): Promise<BankConnection[]>;
   getBankConnection(id: number): Promise<BankConnection | undefined>;
   createBankConnection(connection: InsertBankConnection): Promise<BankConnection>;
   updateBankConnection(id: number, connection: Partial<InsertBankConnection>): Promise<BankConnection | undefined>;
   deleteBankConnection(id: number): Promise<boolean>;
   
   // Credit score operations
-  getCreditScore(userId: number): Promise<CreditScore | undefined>;
+  getCreditScore(userId: string): Promise<CreditScore | undefined>;
   createCreditScore(creditScore: InsertCreditScore): Promise<CreditScore>;
-  updateCreditScore(userId: number, creditScore: Partial<InsertCreditScore>): Promise<CreditScore | undefined>;
+  updateCreditScore(userId: string, creditScore: Partial<InsertCreditScore>): Promise<CreditScore | undefined>;
   
   // Insurance risk operations
-  getInsuranceRisk(userId: number): Promise<InsuranceRisk | undefined>;
+  getInsuranceRisk(userId: string): Promise<InsuranceRisk | undefined>;
   createInsuranceRisk(insuranceRisk: InsertInsuranceRisk): Promise<InsuranceRisk>;
-  updateInsuranceRisk(userId: number, insuranceRisk: Partial<InsertInsuranceRisk>): Promise<InsuranceRisk | undefined>;
+  updateInsuranceRisk(userId: string, insuranceRisk: Partial<InsuranceRisk>): Promise<InsuranceRisk | undefined>;
   
   // Financial goal operations
-  getFinancialGoals(userId: number): Promise<FinancialGoal[]>;
+  getFinancialGoals(userId: string): Promise<FinancialGoal[]>;
   getFinancialGoal(id: number): Promise<FinancialGoal | undefined>;
   createFinancialGoal(goal: InsertFinancialGoal): Promise<FinancialGoal>;
   updateFinancialGoal(id: number, goal: Partial<InsertFinancialGoal>): Promise<FinancialGoal | undefined>;
@@ -49,14 +50,14 @@ export interface IStorage {
   createFinancialProduct(product: InsertFinancialProduct): Promise<FinancialProduct>;
   
   // Expense operations
-  getExpenses(userId: number): Promise<Expense[]>;
+  getExpenses(userId: string): Promise<Expense[]>;
   getExpense(id: number): Promise<Expense | undefined>;
   createExpense(expense: InsertExpense): Promise<Expense>;
   updateExpense(id: number, expense: Partial<InsertExpense>): Promise<Expense | undefined>;
   deleteExpense(id: number): Promise<boolean>;
   
   // Bill split operations
-  getBillSplits(userId: number): Promise<BillSplit[]>;
+  getBillSplits(userId: string): Promise<BillSplit[]>;
   getBillSplit(id: number): Promise<BillSplit | undefined>;
   createBillSplit(billSplit: InsertBillSplit): Promise<BillSplit>;
   updateBillSplit(id: number, billSplit: Partial<InsertBillSplit>): Promise<BillSplit | undefined>;
@@ -66,6 +67,14 @@ export interface IStorage {
   getBillSplitParticipants(billSplitId: number): Promise<BillSplitParticipant[]>;
   createBillSplitParticipant(participant: InsertBillSplitParticipant): Promise<BillSplitParticipant>;
   updateBillSplitParticipant(id: number, participant: Partial<InsertBillSplitParticipant>): Promise<BillSplitParticipant | undefined>;
+  
+  // Notification operations
+  getNotifications(userId: string, options?: { limit?: number; offset?: number; category?: string; unreadOnly?: boolean }): Promise<Notification[]>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(notificationId: number, userId: string): Promise<boolean>;
+  markAllNotificationsAsRead(userId: string): Promise<boolean>;
+  deleteNotification(notificationId: number, userId: string): Promise<boolean>;
+  getUnreadNotificationCount(userId: string): Promise<number>;
 }
 
 export class MemStorage implements IStorage {
@@ -607,8 +616,8 @@ export class MemStorage implements IStorage {
 
 export class DatabaseStorage implements IStorage {
   // User operations
-  async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
+  async getUser(id: string | number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id as string));
     return user || undefined;
   }
   
@@ -798,7 +807,189 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return product;
   }
+  
+  // Expense operations
+  async getExpenses(userId: string): Promise<Expense[]> {
+    return await db
+      .select()
+      .from(expenses)
+      .where(eq(expenses.userId, userId));
+  }
+  
+  async getExpense(id: number): Promise<Expense | undefined> {
+    const [expense] = await db
+      .select()
+      .from(expenses)
+      .where(eq(expenses.id, id));
+    return expense || undefined;
+  }
+  
+  async createExpense(insertExpense: InsertExpense): Promise<Expense> {
+    const [expense] = await db
+      .insert(expenses)
+      .values(insertExpense)
+      .returning();
+    return expense;
+  }
+  
+  async updateExpense(id: number, expense: Partial<InsertExpense>): Promise<Expense | undefined> {
+    const [updatedExpense] = await db
+      .update(expenses)
+      .set(expense)
+      .where(eq(expenses.id, id))
+      .returning();
+    return updatedExpense || undefined;
+  }
+  
+  async deleteExpense(id: number): Promise<boolean> {
+    const result = await db
+      .delete(expenses)
+      .where(eq(expenses.id, id));
+    return !!result;
+  }
+  
+  // Bill split operations
+  async getBillSplits(userId: string): Promise<BillSplit[]> {
+    return await db
+      .select()
+      .from(billSplits)
+      .where(eq(billSplits.createdBy, userId));
+  }
+  
+  async getBillSplit(id: number): Promise<BillSplit | undefined> {
+    const [billSplit] = await db
+      .select()
+      .from(billSplits)
+      .where(eq(billSplits.id, id));
+    return billSplit || undefined;
+  }
+  
+  async createBillSplit(insertBillSplit: InsertBillSplit): Promise<BillSplit> {
+    const [billSplit] = await db
+      .insert(billSplits)
+      .values(insertBillSplit)
+      .returning();
+    return billSplit;
+  }
+  
+  async updateBillSplit(id: number, billSplit: Partial<InsertBillSplit>): Promise<BillSplit | undefined> {
+    const [updatedBillSplit] = await db
+      .update(billSplits)
+      .set(billSplit)
+      .where(eq(billSplits.id, id))
+      .returning();
+    return updatedBillSplit || undefined;
+  }
+  
+  async deleteBillSplit(id: number): Promise<boolean> {
+    const result = await db
+      .delete(billSplits)
+      .where(eq(billSplits.id, id));
+    return !!result;
+  }
+  
+  // Bill split participant operations
+  async getBillSplitParticipants(billSplitId: number): Promise<BillSplitParticipant[]> {
+    return await db
+      .select()
+      .from(billSplitParticipants)
+      .where(eq(billSplitParticipants.billSplitId, billSplitId));
+  }
+  
+  async createBillSplitParticipant(insertParticipant: InsertBillSplitParticipant): Promise<BillSplitParticipant> {
+    const [participant] = await db
+      .insert(billSplitParticipants)
+      .values(insertParticipant)
+      .returning();
+    return participant;
+  }
+  
+  async updateBillSplitParticipant(id: number, participant: Partial<InsertBillSplitParticipant>): Promise<BillSplitParticipant | undefined> {
+    const [updatedParticipant] = await db
+      .update(billSplitParticipants)
+      .set(participant)
+      .where(eq(billSplitParticipants.id, id))
+      .returning();
+    return updatedParticipant || undefined;
+  }
+  
+  // Notification operations
+  async getNotifications(userId: string, options?: { limit?: number; offset?: number; category?: string; unreadOnly?: boolean }): Promise<Notification[]> {
+    let query = db.select().from(notifications).where(eq(notifications.userId, userId));
+    
+    if (options?.category) {
+      query = query.where(eq(notifications.category, options.category));
+    }
+    
+    if (options?.unreadOnly) {
+      query = query.where(eq(notifications.isRead, false));
+    }
+    
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    return await query;
+  }
+  
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const [notification] = await db
+      .insert(notifications)
+      .values(insertNotification)
+      .returning();
+    return notification;
+  }
+  
+  async markNotificationAsRead(notificationId: number, userId: string): Promise<boolean> {
+    const result = await db
+      .update(notifications)
+      .set({ isRead: true, readAt: new Date() })
+      .where(eq(notifications.id, notificationId))
+      .where(eq(notifications.userId, userId));
+    return !!result;
+  }
+  
+  async markAllNotificationsAsRead(userId: string): Promise<boolean> {
+    const result = await db
+      .update(notifications)
+      .set({ isRead: true, readAt: new Date() })
+      .where(eq(notifications.userId, userId));
+    return !!result;
+  }
+  
+  async deleteNotification(notificationId: number, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(notifications)
+      .where(eq(notifications.id, notificationId))
+      .where(eq(notifications.userId, userId));
+    return !!result;
+  }
+  
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    const result = await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .where(eq(notifications.isRead, false));
+    return result.length;
+  }
 }
 
-// Change from MemStorage to DatabaseStorage for persistence
-export const storage = new MemStorage();
+import { db } from "./db";
+
+// Automatically choose storage based on database availability
+function createStorage(): IStorage {
+  if (db) {
+    console.log("🗄️  Using PostgreSQL database storage");
+    return new DatabaseStorage();
+  } else {
+    console.log("💾 Using in-memory storage (development mode)");
+    return new MemStorage();
+  }
+}
+
+export const storage = createStorage();

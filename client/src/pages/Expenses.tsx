@@ -16,6 +16,8 @@ import { z } from "zod";
 import { useApi } from "@/lib/api";
 import type { Expense } from "@shared/schema";
 import { useAuth0 } from "@auth0/auth0-react";
+import { generateDemoExpenses } from "@/lib/demoData";
+import SignInBanner from "@/components/SignInBanner";
 
 const expenseFormSchema = z.object({
   amount: z.string().min(1, "Amount is required"),
@@ -46,11 +48,16 @@ export default function Expenses() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: expenses = [], isLoading } = useQuery<Expense[]>({
+  // Use demo data when not authenticated, real data when authenticated
+  const demoExpenses = generateDemoExpenses();
+  
+  const { data: realExpenses = [], isLoading } = useQuery<Expense[]>({
     queryKey: ["/api/expenses"],
     queryFn: getExpenses,
     enabled: isAuthenticated && !authLoading,
   });
+
+  const expenses = isAuthenticated ? realExpenses : demoExpenses;
 
   const createExpenseMutation = useMutation({
     mutationFn: (expense: ExpenseFormValues) => 
@@ -104,29 +111,7 @@ export default function Expenses() {
     createExpenseMutation.mutate(values);
   };
 
-  if (authLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
-        <div className="grid gap-4">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-24 bg-gray-200 rounded animate-pulse"></div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64">
-        <h2 className="text-2xl font-bold mb-4">Expenses</h2>
-        <p className="text-gray-600">Please sign in to view and manage your expenses.</p>
-      </div>
-    );
-  }
-
-  if (isLoading) {
+  if (authLoading || (isAuthenticated && isLoading)) {
     return (
       <div className="space-y-6">
         <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
@@ -141,6 +126,13 @@ export default function Expenses() {
 
   return (
     <div className="space-y-6">
+      {!isAuthenticated && (
+        <SignInBanner 
+          title="Viewing Demo Expense Data"
+          description="You're seeing sample expense data to explore our features. Sign in to track your real expenses, add new transactions, and sync with your bank accounts."
+          actionText="Sign In to Track Real Expenses"
+        />
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Expenses</h1>
@@ -148,7 +140,7 @@ export default function Expenses() {
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button disabled={!isAuthenticated}>
               <Plus className="w-4 h-4 mr-2" />
               Add Expense
             </Button>
@@ -388,14 +380,14 @@ export default function Expenses() {
                 <div className="text-right">
                   <p className="text-2xl font-bold">${parseFloat(expense.amount).toFixed(2)}</p>
                   <div className="flex gap-2 mt-2">
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" disabled={!isAuthenticated}>
                       <Edit2 className="w-4 h-4" />
                     </Button>
                     <Button 
                       variant="outline" 
                       size="sm"
                       onClick={() => deleteExpenseMutation.mutate(expense.id)}
-                      disabled={deleteExpenseMutation.isPending}
+                      disabled={deleteExpenseMutation.isPending || !isAuthenticated}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>

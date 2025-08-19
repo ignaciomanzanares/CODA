@@ -5,6 +5,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { seedDemoUser, seedFinancialProducts } from "./seed";
+import { checkDatabaseConnection } from "./db";
 
 const app = express();
 app.use(express.json());
@@ -43,7 +44,7 @@ app.use((req, res, next) => {
 (async () => {
   try {
     console.log("Starting application initialization...");
-    console.log("Using in-memory storage - no database seeding needed");
+    await checkDatabaseConnection();
     console.log("Application initialization completed successfully");
   } catch (error) {
     console.error("Error during application initialization:", error);

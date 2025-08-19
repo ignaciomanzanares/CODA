@@ -43,7 +43,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/bank-connections", checkJwt, async (req, res) => {
     try {
       const userId = getUserIdFromAuth(req); // userId is string
-      const connections = await storage.getBankConnections(userId as any); // <-- FIX: allow string
+      const connections = await storage.getBankConnections(userId);
       res.json(connections);
     } catch (error) {
       throw error;
@@ -101,7 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/financial-goals", checkJwt, async (req, res) => {
     try {
       const userId = getUserIdFromAuth(req); // userId is string
-      const goals = await storage.getFinancialGoals(userId as any); // <-- FIX: allow string
+      const goals = await storage.getFinancialGoals(userId);
       res.json(goals);
     } catch (error) {
       throw error;
@@ -161,7 +161,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/credit-score", async (req, res) => {
     try {
       // For demo purposes, use a fixed user ID
-      const userId = 1;
+      const userId = "demo-user";
+      
+      // Ensure demo user exists
+      let user = await storage.getUser(userId);
+      if (!user) {
+        user = await storage.createUser({
+          id: userId,
+          username: "demo",
+          email: "demo@example.com",
+          firstName: "Demo",
+          lastName: "User"
+        });
+      }
+      
       let creditScore = await storage.getCreditScore(userId);
       if (!creditScore) {
         const calculatedScore = calculateCreditScore([]);
@@ -179,18 +192,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Insurance risk routes (demo)
   app.get("/api/insurance-risk", async (req, res) => {
     try {
-      const userId = 1;
+      const userId = "demo-user";
       let insuranceRisk = await storage.getInsuranceRisk(userId);
       if (!insuranceRisk) {
         const user = await storage.getUser(userId);
         if (!user) {
           const defaultUser = {
-            id: 1,
+            id: "demo-user",
             username: "demo",
             email: "demo@example.com",
             firstName: "Demo",
-            lastName: "User",
-            password: "password"
+            lastName: "User"
           };
           const calculatedRisk = calculateInsuranceRisk([], defaultUser);
           insuranceRisk = await storage.createInsuranceRisk({
@@ -215,7 +227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/expenses", checkJwt, async (req, res) => {
     try {
       const userId = getUserIdFromAuth(req);
-      const expenses = await storage.getExpenses(userId as any);
+      const expenses = await storage.getExpenses(userId);
       res.json(expenses);
     } catch (error) {
       throw error;
@@ -270,7 +282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/bill-splits", checkJwt, async (req, res) => {
     try {
       const userId = getUserIdFromAuth(req);
-      const billSplits = await storage.getBillSplits(userId as any);
+      const billSplits = await storage.getBillSplits(userId);
       res.json(billSplits);
     } catch (error) {
       throw error;

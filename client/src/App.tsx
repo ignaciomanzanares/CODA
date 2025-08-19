@@ -4,6 +4,7 @@ import { queryClient } from "./lib/queryClient";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import Onboarding from "@/pages/Onboarding";
@@ -43,6 +44,7 @@ function App() {
         </main>
         <Footer />
       </div>
+      <Toaster />
       {/* </AuthProvider> */}
     </QueryClientProvider>
   );

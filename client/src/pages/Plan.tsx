@@ -7,6 +7,9 @@ import { Link } from "wouter";
 import RecommendationCard from "@/components/RecommendationCard";
 import FinancialTimeline from "@/components/FinancialTimeline";
 import { TrendingUp, Landmark, ShieldCheck, Home, DollarSign, GraduationCap } from "lucide-react";
+import { useAuth0 } from "@auth0/auth0-react";
+import { generateDemoCreditScore, generateDemoInsuranceRisk, generateDemoFinancialGoals } from "@/lib/demoData";
+import SignInBanner from "@/components/SignInBanner";
 
 type CreditScore = {
   utilization?: string;
@@ -18,24 +21,38 @@ type InsuranceRisk = {
 };
 
 export default function Plan() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth0();
+  
   // Get API functions from useApi hook
   const { getCreditScore, getInsuranceRisk, getFinancialGoals } = useApi();
 
+  // Use demo data when not authenticated, real data when authenticated
+  const demoCreditScore = generateDemoCreditScore();
+  const demoInsuranceRisk = generateDemoInsuranceRisk();
+  const demoGoals = generateDemoFinancialGoals();
+
   // Use useQuery with the correct functions
-  const { data: creditScore, isLoading: isLoadingCreditScore } = useQuery({
+  const { data: realCreditScore, isLoading: isLoadingCreditScore } = useQuery({
     queryKey: ["/api/credit-score"],
     queryFn: getCreditScore,
+    enabled: isAuthenticated && !authLoading,
   });
-  const { data: insuranceRisk, isLoading: isLoadingInsuranceRisk } = useQuery({
+  const { data: realInsuranceRisk, isLoading: isLoadingInsuranceRisk } = useQuery({
     queryKey: ["/api/insurance-risk"],
     queryFn: getInsuranceRisk,
+    enabled: isAuthenticated && !authLoading,
   });
-  const { data: goals, isLoading: isLoadingGoals } = useQuery({
+  const { data: realGoals, isLoading: isLoadingGoals } = useQuery({
     queryKey: ["/api/financial-goals"],
     queryFn: getFinancialGoals,
+    enabled: isAuthenticated && !authLoading,
   });
+  
+  const creditScore = isAuthenticated ? realCreditScore : demoCreditScore;
+  const insuranceRisk = isAuthenticated ? realInsuranceRisk : demoInsuranceRisk;
+  const goals = isAuthenticated ? realGoals : demoGoals;
 
-  const isLoading = isLoadingCreditScore || isLoadingInsuranceRisk || isLoadingGoals;
+  const isLoading = authLoading || (isAuthenticated && (isLoadingCreditScore || isLoadingInsuranceRisk || isLoadingGoals));
 
   // Generate recommendations based on data
   const getRecommendations = () => {
@@ -190,6 +207,13 @@ export default function Plan() {
 
   return (
     <div id="plan-section" className="mb-12">
+      {!isAuthenticated && (
+        <SignInBanner 
+          title="Viewing Demo Financial Plan"
+          description="You're exploring a sample financial plan with personalized recommendations and timeline. Sign in to get real recommendations based on your financial profile, goals, and credit data."
+          actionText="Sign In for Personal Planning"
+        />
+      )}
       <div className="bg-white shadow rounded-lg p-6">
         <h2 className="text-2xl font-bold text-gray-800 mb-6 font-sans">Your Financial Plan</h2>
         
@@ -215,7 +239,7 @@ export default function Plan() {
                     Connect more financial accounts to get personalized recommendations.
                   </p>
                   <Link href="/">
-                    <Button className="mt-4">Connect Accounts</Button>
+                    <Button className="mt-4" disabled={!isAuthenticated}>Connect Accounts</Button>
                   </Link>
                 </Card>
               )}
@@ -235,7 +259,7 @@ export default function Plan() {
                       You haven't set any financial goals yet.
                     </p>
                     <Link href="/goals">
-                      <Button>Create Goals</Button>
+                      <Button disabled={!isAuthenticated}>Create Goals</Button>
                     </Link>
                   </div>
                 )}
@@ -243,7 +267,7 @@ export default function Plan() {
             </Card>
             
             <Link href="/goals">
-              <Button className="mt-4 w-full">
+              <Button className="mt-4 w-full" disabled={!isAuthenticated}>
                 Customize Timeline
               </Button>
             </Link>

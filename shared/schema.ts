@@ -5,9 +5,8 @@ import { relations } from "drizzle-orm";
 
 // Users table
 export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
+  id: text("id").primaryKey(), // Changed from serial to text to support Auth0 IDs
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
   email: text("email").notNull().unique(),
   firstName: text("first_name"),
   lastName: text("last_name"),
@@ -17,7 +16,7 @@ export const users = pgTable("users", {
 // Bank connections table
 export const bankConnections = pgTable("bank_connections", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: text("user_id").notNull().references(() => users.id),
   bankName: text("bank_name").notNull(),
   accountType: text("account_type").notNull(),
   status: text("status").notNull().default("connected"),
@@ -28,7 +27,7 @@ export const bankConnections = pgTable("bank_connections", {
 // Credit scores table
 export const creditScores = pgTable("credit_scores", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: text("user_id").notNull().references(() => users.id),
   score: integer("score").notNull(),
   maxScore: integer("max_score").notNull().default(850),
   paymentHistory: text("payment_history").notNull(),
@@ -40,7 +39,7 @@ export const creditScores = pgTable("credit_scores", {
 // Insurance risks table
 export const insuranceRisks = pgTable("insurance_risks", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: text("user_id").notNull().references(() => users.id),
   riskLevel: text("risk_level").notNull(),
   healthRisk: text("health_risk").notNull(),
   propertyRisk: text("property_risk").notNull(),
@@ -51,7 +50,7 @@ export const insuranceRisks = pgTable("insurance_risks", {
 // Financial goals table
 export const financialGoals = pgTable("financial_goals", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: text("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
   targetAmount: integer("target_amount").notNull(),
   currentAmount: integer("current_amount").notNull().default(0),
@@ -80,7 +79,7 @@ export const financialProducts = pgTable("financial_products", {
 // Expenses table
 export const expenses = pgTable("expenses", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: varchar("description", { length: 255 }).notNull(),
   category: varchar("category", { length: 100 }).notNull(),
@@ -103,7 +102,7 @@ export const billSplits = pgTable("bill_splits", {
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
   date: timestamp("date").notNull(),
-  createdBy: integer("created_by").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  createdBy: text("created_by").references(() => users.id, { onDelete: "cascade" }).notNull(),
   status: varchar("status", { length: 50 }).default("active"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -112,13 +111,28 @@ export const billSplits = pgTable("bill_splits", {
 export const billSplitParticipants = pgTable("bill_split_participants", {
   id: serial("id").primaryKey(),
   billSplitId: integer("bill_split_id").references(() => billSplits.id, { onDelete: "cascade" }).notNull(),
-  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 255 }).notNull(),
   email: varchar("email", { length: 255 }),
   amountOwed: decimal("amount_owed", { precision: 10, scale: 2 }).notNull(),
   amountPaid: decimal("amount_paid", { precision: 10, scale: 2 }).default("0"),
   isPaid: boolean("is_paid").default(false),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Notifications table
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  type: varchar("type", { length: 50 }).notNull(), // info, warning, success, error
+  category: varchar("category", { length: 50 }).notNull(), // bill_split, credit_score, goal, expense, security
+  isRead: boolean("is_read").default(false),
+  actionUrl: text("action_url"), // Optional URL for click actions
+  metadata: jsonb("metadata"), // Additional data for the notification
+  createdAt: timestamp("created_at").defaultNow(),
+  readAt: timestamp("read_at"),
 });
 
 // Insert schemas
@@ -166,6 +180,12 @@ export const insertBillSplitParticipantSchema = createInsertSchema(billSplitPart
   createdAt: true,
 });
 
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+  readAt: true,
+});
+
 // Define relations
 export const usersRelations = relations(users, ({ many }) => ({
   bankConnections: many(bankConnections),
@@ -175,6 +195,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   expenses: many(expenses),
   billSplits: many(billSplits),
   billSplitParticipants: many(billSplitParticipants),
+  notifications: many(notifications),
 }));
 
 export const bankConnectionsRelations = relations(bankConnections, ({ one }) => ({
@@ -219,6 +240,10 @@ export const billSplitParticipantsRelations = relations(billSplitParticipants, (
   user: one(users, { fields: [billSplitParticipants.userId], references: [users.id] }),
 }));
 
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, { fields: [notifications.userId], references: [users.id] }),
+}));
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -246,3 +271,6 @@ export type BillSplit = typeof billSplits.$inferSelect;
 
 export type InsertBillSplitParticipant = z.infer<typeof insertBillSplitParticipantSchema>;
 export type BillSplitParticipant = typeof billSplitParticipants.$inferSelect;
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
