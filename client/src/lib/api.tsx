@@ -1,4 +1,15 @@
 import { useAuth0 } from "@auth0/auth0-react";
+import type {
+  CreateBankConnectionData,
+  CreateGoalData,
+  UpdateGoalData,
+  CreateExpenseData,
+  UpdateExpenseData,
+  CreateBillSplitData,
+  UpdateBillSplitData,
+  UpdateBillSplitParticipantData,
+  ProfileData
+} from "@/types";
 
 export function useApi() {
   const { getAccessTokenSilently, isAuthenticated, loginWithRedirect } = useAuth0();
@@ -69,7 +80,7 @@ export function useApi() {
   };
 
   // Example: connect a bank
-  const connectBank = async (bankData: any) => {
+  const connectBank = async (bankData: CreateBankConnectionData) => {
     const res = await apiRequest("POST", "/api/bank-connections", bankData);
     return res.json();
   };
@@ -81,13 +92,13 @@ export function useApi() {
   };
 
   // Example: create a financial goal
-  const createFinancialGoal = async (goalData: any) => {
+  const createFinancialGoal = async (goalData: CreateGoalData) => {
     const res = await apiRequest("POST", "/api/financial-goals", goalData);
     return res.json();
   };
 
   // Example: update a financial goal
-  const updateFinancialGoal = async (goalId: string, goalData: any) => {
+  const updateFinancialGoal = async (goalId: string, goalData: UpdateGoalData) => {
     const res = await apiRequest("PUT", `/api/financial-goals/${goalId}`, goalData);
     return res.json();
   };
@@ -137,12 +148,12 @@ export function useApi() {
     return res.json();
   };
 
-  const createExpense = async (expenseData: any) => {
+  const createExpense = async (expenseData: CreateExpenseData) => {
     const res = await apiRequest("POST", "/api/expenses", expenseData);
     return res.json();
   };
 
-  const updateExpense = async (expenseId: string, expenseData: any) => {
+  const updateExpense = async (expenseId: string, expenseData: UpdateExpenseData) => {
     const res = await apiRequest("PUT", `/api/expenses/${expenseId}`, expenseData);
     return res.json();
   };
@@ -158,12 +169,12 @@ export function useApi() {
     return res.json();
   };
 
-  const createBillSplit = async (billSplitData: any) => {
+  const createBillSplit = async (billSplitData: CreateBillSplitData) => {
     const res = await apiRequest("POST", "/api/bill-splits", billSplitData);
     return res.json();
   };
 
-  const updateBillSplit = async (billSplitId: string, billSplitData: any) => {
+  const updateBillSplit = async (billSplitId: string, billSplitData: UpdateBillSplitData) => {
     const res = await apiRequest("PUT", `/api/bill-splits/${billSplitId}`, billSplitData);
     return res.json();
   };
@@ -173,13 +184,23 @@ export function useApi() {
     return res.json();
   };
 
-  const updateBillSplitParticipant = async (billSplitId: string, participantId: string, participantData: any) => {
+  const updateBillSplitParticipant = async (billSplitId: string, participantId: string, participantData: UpdateBillSplitParticipantData) => {
     const res = await apiRequest("PUT", `/api/bill-splits/${billSplitId}/participants/${participantId}`, participantData);
     return res.json();
   };
 
+  const markParticipantAsPaid = async (billSplitId: string, participantId: string, amountPaid?: number) => {
+    const res = await apiRequest("POST", `/api/bill-splits/${billSplitId}/participants/${participantId}/pay`, { amountPaid });
+    return res.json();
+  };
+
+  const archiveBillSplit = async (billSplitId: string) => {
+    const res = await apiRequest("POST", `/api/bill-splits/${billSplitId}/archive`);
+    return res.json();
+  };
+
   // Profile API functions
-  const updateProfile = async (profileData: any) => {
+  const updateProfile = async (profileData: ProfileData) => {
     const res = await apiRequest("PUT", "/api/profile", profileData);
     return res.json();
   };
@@ -232,6 +253,8 @@ export function useApi() {
     updateBillSplit,
     deleteBillSplit,
     updateBillSplitParticipant,
+    markParticipantAsPaid,
+    archiveBillSplit,
     // Profile
     updateProfile,
     getUserProfile,

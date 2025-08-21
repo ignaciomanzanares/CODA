@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -51,6 +51,7 @@ import { Plus, Pencil, Trash2, Target, PiggyBank, School, Home, ArrowDown, Landm
 import { useAuth0 } from "@auth0/auth0-react";
 import { generateDemoFinancialGoals } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
+import type { Goal, UpdateGoalData } from "@/types";
 
 // Form schema for adding/editing a goal
 const goalFormSchema = z.object({
@@ -67,7 +68,7 @@ export default function Goals() {
   const { isAuthenticated, isLoading: authLoading } = useAuth0();
   const [isAddGoalOpen, setIsAddGoalOpen] = useState(false);
   const [isEditGoalOpen, setIsEditGoalOpen] = useState(false);
-  const [selectedGoal, setSelectedGoal] = useState<any>(null);
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const { toast } = useToast();
 
   // Get API functions from useApi
@@ -112,7 +113,7 @@ export default function Goals() {
 
   // Edit goal mutation
   const editGoalMutation = useMutation({
-    mutationFn: (data: { id: string; goal: any }) => 
+    mutationFn: (data: { id: string; goal: UpdateGoalData }) => 
       updateFinancialGoal(data.id, data.goal),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
@@ -194,7 +195,7 @@ export default function Goals() {
     }
   };
 
-  const handleEditGoal = (goal: any) => {
+  const handleEditGoal = (goal: Goal) => {
     setSelectedGoal(goal);
     editForm.reset({
       name: goal.name,
@@ -431,7 +432,7 @@ export default function Goals() {
       {/* Goals Grid */}
       {goals && goals.length > 0 ? (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {goals.map((goal: any) => (
+          {goals.map((goal: Goal) => (
             <Card key={goal.id} className="relative">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -461,7 +462,7 @@ export default function Goals() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Delete Goal</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Are you sure you want to delete "{goal.name}"? This action cannot be undone.
+                            Are you sure you want to delete &quot;{goal.name}&quot;? This action cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -507,7 +508,7 @@ export default function Goals() {
       ) : (
         <div className="text-center py-12">
           <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No goals yet</h3>
+              <h3 className="text-lg font-semibold mb-2">Set a &quot;SMART&quot; Goal</h3>
           <p className="text-gray-600 mb-6">Create your first financial goal to start tracking your progress.</p>
           <Button onClick={() => setIsAddGoalOpen(true)} disabled={!isAuthenticated}>
             <Plus className="h-4 w-4 mr-2" />

@@ -218,7 +218,7 @@ export function getDemoBillSplitsByStatus(status?: "active" | "settled"): (BillS
 }
 
 // Demo financial goals data generator
-export function generateDemoFinancialGoals(): any[] {
+export function generateDemoFinancialGoals(): Array<{id: number; userId: string; name: string; category: string; targetAmount: number; currentAmount: number; targetDate: Date; description: string; createdAt: Date; updatedAt: Date}> {
   const goalTemplates = [
     {
       name: "Emergency Fund",
@@ -280,7 +280,7 @@ export function generateDemoFinancialGoals(): any[] {
 }
 
 // Demo financial products data generator
-export function generateDemoFinancialProducts(): any[] {
+export function generateDemoFinancialProducts(): Record<string, unknown>[] {
   const loans = [
     {
       id: 1,
@@ -473,7 +473,7 @@ export function generateDemoFinancialProducts(): any[] {
 }
 
 // Demo credit score data
-export function generateDemoCreditScore(): any {
+export function generateDemoCreditScore(): Record<string, unknown> {
   return {
     score: 742,
     range: "Good",
@@ -496,7 +496,7 @@ export function generateDemoCreditScore(): any {
 }
 
 // Demo insurance risk data
-export function generateDemoInsuranceRisk(): any {
+export function generateDemoInsuranceRisk(): Record<string, unknown> {
   return {
     overallRisk: "Low",
     autoRisk: "Low",
@@ -520,7 +520,7 @@ export function generateDemoInsuranceRisk(): any {
 }
 
 // Helper functions for filtered data
-export function getDemoFinancialProductsByCategory(category: string): any[] {
+export function getDemoFinancialProductsByCategory(category: string): Record<string, unknown>[] {
   const allProducts = generateDemoFinancialProducts();
   return allProducts.filter(product => product.category === category);
 }

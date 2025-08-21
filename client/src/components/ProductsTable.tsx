@@ -24,12 +24,13 @@ import {
   ShieldCheck, 
   Landmark
 } from "lucide-react";
+import type { FinancialProduct, LoanProduct } from "@/types";
 
 interface ProductsTableProps {
-  products: any[];
+  products: FinancialProduct[];
   category: string;
   isLoading: boolean;
-  error: any;
+  error: Error | null;
 }
 
 export default function ProductsTable({
@@ -125,8 +126,13 @@ export default function ProductsTable({
     }
   };
 
+  // Type guards
+  const isLoanProduct = (product: FinancialProduct): product is LoanProduct => {
+    return 'monthlyPayment' in product && 'loanAmount' in product;
+  };
+
   // Function to render cell content based on column key and product data
-  const renderCellContent = (product: any, columnKey: string) => {
+  const renderCellContent = (product: FinancialProduct, columnKey: string) => {
     switch (columnKey) {
       case "provider":
         return (
@@ -145,7 +151,7 @@ export default function ProductsTable({
         if (category === "savings") {
           return (
             <>
-              <div className={`text-sm font-medium ${product.interestRate >= 4 ? "text-green-600" : "text-yellow-600"}`}>
+              <div className={`text-sm font-medium ${(product.interestRate ?? 0) >= 4 ? "text-green-600" : "text-yellow-600"}`}>
                 {product.interestRate}%
               </div>
               <div className="text-xs text-gray-500">APY</div>
@@ -154,7 +160,7 @@ export default function ProductsTable({
         }
         return (
           <>
-            <div className={`text-sm font-medium ${product.interestRate < 8 ? "text-green-600" : "text-yellow-600"}`}>
+            <div className={`text-sm font-medium ${(product.interestRate ?? 0) < 8 ? "text-green-600" : "text-yellow-600"}`}>
               {product.interestRate}%
             </div>
             <div className="text-xs text-gray-500">
@@ -163,47 +169,56 @@ export default function ProductsTable({
           </>
         );
       case "monthlyPayment":
-        return (
-          <>
-            <div className="text-sm font-medium text-gray-900">
-              ${product.monthlyPayment}
-            </div>
-            <div className="text-xs text-gray-500">
-              For {formatCurrency(product.loanAmount)}
-            </div>
-          </>
-        );
+        if (isLoanProduct(product)) {
+          return (
+            <>
+              <div className="text-sm font-medium text-gray-900">
+                ${product.monthlyPayment}
+              </div>
+              <div className="text-xs text-gray-500">
+                For {formatCurrency(product.loanAmount)}
+              </div>
+            </>
+          );
+        }
+        return null;
       case "term":
-        return (
-          <div className="text-sm text-gray-900">
-            {product.term} {product.termUnit}
-          </div>
-        );
-      case "rewardsRate":
+        if (isLoanProduct(product)) {
+          return (
+            <div className="text-sm text-gray-900">
+              {product.term} {product.termUnit}
+            </div>
+          );
+        }
+        return null;
+      case "rewardsRate": {
         const features = product.features || {};
         return (
           <div className="text-sm text-gray-900">
             {features.rewardsRate ? `${features.rewardsRate}% Cash Back` : "None"}
           </div>
         );
-      case "annualFee":
-        const fee = product.features?.annualFee || 0;
+      }
+      case "annualFee": {
+        const fee = (product.features?.annualFee as number) || 0;
         return (
           <div className="text-sm text-gray-900">
             {fee > 0 ? formatCurrency(fee) : "No Fee"}
           </div>
         );
-      case "minimumBalance":
-        const minBalance = product.features?.minimumBalance || 0;
+      }
+      case "minimumBalance": {
+        const minBalance = (product.features?.minimumBalance as number) || 0;
         return (
           <div className="text-sm text-gray-900">
             {minBalance > 0 ? formatCurrency(minBalance) : "No Minimum"}
           </div>
         );
-      case "features":
+      }
+      case "features": {
         const productFeatures = product.features || {};
         const featuresList = Object.entries(productFeatures)
-          .filter(([key, value]) => value === true)
+          .filter(([_key, value]) => value === true)
           .map(([key]) => key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()));
         
         return (
@@ -212,6 +227,7 @@ export default function ProductsTable({
             {featuresList.length > 2 && "..."}
           </div>
         );
+      }
       case "coverage":
         return (
           <div className="text-sm text-gray-900">

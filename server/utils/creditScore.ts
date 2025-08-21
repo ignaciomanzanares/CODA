@@ -35,25 +35,25 @@ export function calculateCreditScore(bankConnections: BankConnection[]): CreditS
   // For this demo, we'll simulate scores based on the number and type of connections
   
   // Analyze payment history (simulated)
-  let paymentHistoryScore = simulatePaymentHistory(bankConnections);
-  let paymentHistoryRating = getRatingFromScore(paymentHistoryScore);
+  const paymentHistoryScore = simulatePaymentHistory(bankConnections);
+  const paymentHistoryRating = getRatingFromScore(paymentHistoryScore);
   
   // Analyze credit utilization (simulated)
-  let utilizationScore = simulateCreditUtilization(bankConnections);
-  let utilizationRating = getRatingFromScore(utilizationScore);
+  const utilizationScore = simulateCreditUtilization(bankConnections);
+  const utilizationRating = getRatingFromScore(utilizationScore);
   
   // Analyze credit age (simulated)
-  let creditAgeScore = simulateCreditAge(bankConnections);
-  let creditAgeRating = getRatingFromScore(creditAgeScore);
+  const creditAgeScore = simulateCreditAge(bankConnections);
+  const creditAgeRating = getRatingFromScore(creditAgeScore);
   
   // Analyze account mix (simulated)
-  let accountMixScore = simulateAccountMix(bankConnections);
+  const accountMixScore = simulateAccountMix(bankConnections);
   
   // Analyze inquiries (simulated)
-  let inquiriesScore = simulateInquiries(bankConnections);
+  const inquiriesScore = simulateInquiries(bankConnections);
   
   // Calculate weighted score
-  let weightedScore = 
+  const weightedScore = 
     paymentHistoryScore * CREDIT_FACTORS.PAYMENT_HISTORY +
     utilizationScore * CREDIT_FACTORS.CREDIT_UTILIZATION +
     creditAgeScore * CREDIT_FACTORS.CREDIT_AGE +
@@ -98,7 +98,7 @@ function simulateCreditUtilization(connections: BankConnection[]): number {
   const otherAccounts = connections.filter(conn => conn.accountType !== 'credit_card');
   
   // Base utilization score - higher is better (lower utilization)
-  let baseScore = 0.7 + (Math.random() * 0.2); // Between 0.7 and 0.9
+  const baseScore = 0.7 + (Math.random() * 0.2); // Between 0.7 and 0.9
   
   // Credit cards typically increase utilization (decrease score)
   const creditCardPenalty = creditCards.length * 0.05;
@@ -135,7 +135,7 @@ function simulateAccountMix(connections: BankConnection[]): number {
   return Math.min(1, 0.7 + (accountTypes.size * 0.08));
 }
 
-function simulateInquiries(connections: BankConnection[]): number {
+function simulateInquiries(_connections: BankConnection[]): number {
   // In a real app, we'd analyze recent credit inquiries
   
   // For this demo, use random value between 0.8 and 1.0

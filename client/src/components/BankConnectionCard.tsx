@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Building2, CheckCircle2, TrendingUp, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { railwayApi } from "@/lib/railwayApi";
+import { railwayApi, type CreditAnalysis } from "@/lib/railwayApi";
 
 interface BankConnectionCardProps {
   bankName: string;
@@ -21,7 +21,7 @@ export default function BankConnectionCard({
 }: BankConnectionCardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
-  const [creditAnalysis, setCreditAnalysis] = useState<any>(null);
+  const [creditAnalysis, setCreditAnalysis] = useState<CreditAnalysis | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 

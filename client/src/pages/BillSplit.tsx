@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Users, DollarSign, Check, Clock, Send } from "lucide-react";
+import { Plus, Users, DollarSign, Check, Clock, Send, Archive, CheckCircle, CreditCard, Smartphone, Mail, Trash2, Filter, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,10 +16,16 @@ import type { BillSplit, BillSplitParticipant } from "@shared/schema";
 import { useAuth0 } from "@auth0/auth0-react";
 import { generateDemoBillSplits } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
+import PaymentDialog from "@/components/PaymentDialog";
 
 const participantSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  email: z.string().email("Valid email required").optional().or(z.literal("")),
+  email: z.string().optional().refine((val) => {
+    if (!val || val === "") return true; // Allow empty string
+    return z.string().email().safeParse(val).success; // Validate email format if provided
+  }, {
+    message: "Please enter a valid email address"
+  }),
 });
 
 const billSplitFormSchema = z.object({
@@ -34,13 +40,58 @@ type BillSplitFormValues = z.infer<typeof billSplitFormSchema>;
 
 interface BillSplitWithParticipants extends BillSplit {
   participants?: BillSplitParticipant[];
+  userRole?: 'creator' | 'participant' | 'none';
 }
 
+type FilterOption = 'all' | 'active' | 'settled';
+
 export default function BillSplit() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth0();
-  const { getBillSplits, createBillSplit } = useApi();
+  const { isAuthenticated, isLoading: authLoading, loginWithRedirect } = useAuth0();
+  const { getBillSplits, createBillSplit, markParticipantAsPaid, archiveBillSplit, deleteBillSplit } = useApi();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [filter, setFilter] = useState<FilterOption>('all');
+  const [highlightedBillId, setHighlightedBillId] = useState<string | null>(null);
+  const [paymentDialog, setPaymentDialog] = useState<{
+    isOpen: boolean;
+    billSplit?: BillSplitWithParticipants;
+    participant?: BillSplitParticipant;
+  }>({ isOpen: false });
   const queryClient = useQueryClient();
+  
+  // Check for highlight parameter from email invitations and handle auth
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const highlightId = urlParams.get('highlight');
+    
+    if (highlightId) {
+      if (!authLoading && !isAuthenticated) {
+        // User clicked email link but isn't authenticated, store the bill ID and redirect to login
+        localStorage.setItem('highlightBillAfterAuth', highlightId);
+        loginWithRedirect({
+          appState: { targetUrl: `/bill-split?highlight=${highlightId}` }
+        });
+        return;
+      }
+      
+      if (isAuthenticated) {
+        setHighlightedBillId(highlightId);
+        // Clear the highlight after 8 seconds to give more time to see it
+        setTimeout(() => setHighlightedBillId(null), 8000);
+        // Clean up stored bill ID if it exists
+        localStorage.removeItem('highlightBillAfterAuth');
+      }
+    } else if (isAuthenticated) {
+      // Check if there's a stored bill ID from before auth
+      const storedBillId = localStorage.getItem('highlightBillAfterAuth');
+      if (storedBillId) {
+        setHighlightedBillId(storedBillId);
+        setTimeout(() => setHighlightedBillId(null), 8000);
+        localStorage.removeItem('highlightBillAfterAuth');
+        // Update URL to include highlight parameter
+        window.history.replaceState(null, '', `/bill-split?highlight=${storedBillId}`);
+      }
+    }
+  }, [authLoading, isAuthenticated, loginWithRedirect]);
 
   // Use demo data when not authenticated, real data when authenticated
   const demoBillSplits = generateDemoBillSplits();
@@ -51,7 +102,15 @@ export default function BillSplit() {
     enabled: isAuthenticated && !authLoading,
   });
 
-  const billSplits = isAuthenticated ? realBillSplits : demoBillSplits;
+  const allBillSplits = isAuthenticated ? realBillSplits : demoBillSplits;
+  
+  // Filter bill splits based on selected filter
+  const filteredBillSplits = allBillSplits.filter(split => {
+    if (filter === 'all') return true;
+    return split.status === filter;
+  });
+  
+  const billSplits = filteredBillSplits;
 
   const createBillSplitMutation = useMutation({
     mutationFn: (billSplit: BillSplitFormValues) => {
@@ -60,14 +119,14 @@ export default function BillSplit() {
       
       return createBillSplit({
         name: billSplit.name,
-        totalAmount: billSplit.totalAmount,
+        totalAmount: totalAmount,
         description: billSplit.description,
         date: new Date(billSplit.date),
         participants: billSplit.participants.map(p => ({
-          ...p,
-          amountOwed: amountPerPerson.toFixed(2),
-          amountPaid: "0",
+          userId: '', // Will be set by the server
+          amount: amountPerPerson,
           isPaid: false,
+          ...p,
         })),
       });
     },
@@ -77,6 +136,51 @@ export default function BillSplit() {
       form.reset();
     },
   });
+
+  const markAsPaidMutation = useMutation({
+    mutationFn: ({ billSplitId, participantId, amountPaid }: { billSplitId: string; participantId: string; amountPaid?: number }) => {
+      return markParticipantAsPaid(billSplitId, participantId, amountPaid);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
+    },
+  });
+
+  const archiveSplitMutation = useMutation({
+    mutationFn: (billSplitId: string) => {
+      return archiveBillSplit(billSplitId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
+    },
+  });
+
+  const deleteSplitMutation = useMutation({
+    mutationFn: (billSplitId: string) => {
+      return deleteBillSplit(billSplitId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
+    },
+  });
+
+  const handleMarkAsPaid = (billSplitId: string, participantId: string, amountPaid?: number) => {
+    if (isAuthenticated) {
+      markAsPaidMutation.mutate({ billSplitId, participantId, amountPaid });
+    }
+  };
+
+  const handleArchiveSplit = (billSplitId: string) => {
+    if (isAuthenticated && confirm('Are you sure you want to archive this bill split?')) {
+      archiveSplitMutation.mutate(billSplitId);
+    }
+  };
+
+  const handleDeleteSplit = (billSplitId: string) => {
+    if (isAuthenticated && confirm('Are you sure you want to delete this bill split? This action cannot be undone.')) {
+      deleteSplitMutation.mutate(billSplitId);
+    }
+  };
 
   const form = useForm<BillSplitFormValues>({
     resolver: zodResolver(billSplitFormSchema),
@@ -308,11 +412,44 @@ export default function BillSplit() {
               <Users className="h-8 w-8 text-blue-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Active Splits</p>
-                <p className="text-2xl font-bold">{billSplits.filter(s => s.status === "active").length}</p>
+                <p className="text-2xl font-bold">{allBillSplits.filter(s => s.status === "active").length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Filter Section */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-gray-600" />
+          <span className="text-sm font-medium text-gray-600">Filter:</span>
+          <div className="flex gap-1">
+            {(['all', 'active', 'settled'] as FilterOption[]).map((filterOption) => (
+              <Button
+                key={filterOption}
+                variant={filter === filterOption ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilter(filterOption)}
+                className="capitalize"
+              >
+                {filterOption === 'all' ? 'All' : filterOption}
+                <Badge 
+                  variant="secondary" 
+                  className="ml-2 text-xs"
+                >
+                  {filterOption === 'all' 
+                    ? allBillSplits.length 
+                    : allBillSplits.filter(s => s.status === filterOption).length
+                  }
+                </Badge>
+              </Button>
+            ))}
+          </div>
+        </div>
+        <p className="text-sm text-gray-500">
+          Showing {billSplits.length} of {allBillSplits.length} splits
+        </p>
       </div>
 
       {/* Bill Splits List */}
@@ -322,8 +459,20 @@ export default function BillSplit() {
           const paidParticipants = participants.filter(p => p.isPaid).length;
           const totalParticipants = participants.length;
           
+          const isHighlighted = highlightedBillId === String(split.id);
+          
           return (
-            <Card key={split.id}>
+            <Card 
+              key={split.id} 
+              className={isHighlighted ? 'ring-2 ring-blue-500 bg-blue-50/50 transition-all duration-500' : ''}
+            >
+              {isHighlighted && (
+                <div className="bg-blue-100 border-b border-blue-200 px-6 py-2">
+                  <p className="text-sm text-blue-700 font-medium">
+                    📧 You accessed this bill split from an email invitation!
+                  </p>
+                </div>
+              )}
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -332,11 +481,39 @@ export default function BillSplit() {
                       {new Date(split.date).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold">${parseFloat(split.totalAmount).toFixed(2)}</p>
-                    <Badge variant={split.status === "active" ? "default" : "secondary"}>
-                      {split.status}
-                    </Badge>
+                  <div className="text-right flex items-center gap-3">
+                    <div>
+                      <p className="text-2xl font-bold">${parseFloat(split.totalAmount).toFixed(2)}</p>
+                      <Badge variant={split.status === "active" ? "default" : "secondary"}>
+                        {split.status}
+                      </Badge>
+                    </div>
+                    {/* Complete button for active bills that are fully paid */}
+                    {isAuthenticated && split.userRole === 'creator' && split.status === "active" && paidParticipants === totalParticipants && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleArchiveSplit(String(split.id))}
+                        disabled={archiveSplitMutation.isPending}
+                        className="text-green-600 border-green-600 hover:bg-green-50"
+                      >
+                        <Archive className="w-4 h-4 mr-1" />
+                        Complete
+                      </Button>
+                    )}
+                    {/* Delete button for settled bills */}
+                    {isAuthenticated && split.userRole === 'creator' && split.status === "settled" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteSplit(String(split.id))}
+                        disabled={deleteSplitMutation.isPending}
+                        className="text-red-600 border-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Delete
+                      </Button>
+                    )}
                   </div>
                 </div>
                 {split.description && (
@@ -375,15 +552,50 @@ export default function BillSplit() {
                               Paid
                             </Badge>
                           ) : (
-                            <Badge variant="outline">
-                              <Clock className="w-3 h-3 mr-1" />
-                              Pending
-                            </Badge>
-                          )}
-                          {!participant.isPaid && participant.email && (
-                            <Button variant="outline" size="sm" disabled={!isAuthenticated}>
-                              <Send className="w-3 h-3" />
-                            </Button>
+                            <>
+                              <Badge variant="outline">
+                                <Clock className="w-3 h-3 mr-1" />
+                                Pending
+                              </Badge>
+                              {/* Creators can mark any participant as paid */}
+                              {isAuthenticated && split.userRole === 'creator' && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleMarkAsPaid(
+                                    String(split.id),
+                                    String(participant.id),
+                                    parseFloat(participant.amountOwed)
+                                  )}
+                                  disabled={markAsPaidMutation.isPending}
+                                  className="text-green-600 border-green-600 hover:bg-green-50"
+                                >
+                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                  Mark Paid
+                                </Button>
+                              )}
+                              {/* Participants can pay their share */}
+                              {isAuthenticated && split.userRole === 'participant' && participant.isCurrentUser && (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => setPaymentDialog({
+                                    isOpen: true,
+                                    billSplit: split,
+                                    participant: participant
+                                  })}
+                                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                                >
+                                  <CreditCard className="w-3 h-3 mr-1" />
+                                  Pay Now
+                                </Button>
+                              )}
+                              {!participant.isPaid && participant.email && (
+                                <Button variant="outline" size="sm" disabled={!isAuthenticated}>
+                                  <Send className="w-3 h-3" />
+                                </Button>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -398,11 +610,37 @@ export default function BillSplit() {
           <Card>
             <CardContent className="p-12 text-center">
               <Users className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-500">No bill splits yet. Create your first split to get started!</p>
+              <p className="text-gray-500">
+                {allBillSplits.length === 0 
+                  ? "No bill splits yet. Create your first split to get started!"
+                  : `No ${filter === 'all' ? '' : filter} bill splits found. Try switching filters.`
+                }
+              </p>
             </CardContent>
           </Card>
         )}
       </div>
+
+      {/* Payment Dialog */}
+      {paymentDialog.isOpen && paymentDialog.billSplit && paymentDialog.participant && (
+        <PaymentDialog
+          isOpen={paymentDialog.isOpen}
+          onClose={() => setPaymentDialog({ isOpen: false })}
+          amount={parseFloat(paymentDialog.participant.amountOwed).toFixed(2)}
+          participantName={paymentDialog.participant.name}
+          billName={paymentDialog.billSplit.name}
+          creatorName={paymentDialog.billSplit.createdByName || 'Bill Creator'}
+          onPaymentComplete={() => {
+            if (paymentDialog.billSplit && paymentDialog.participant) {
+              handleMarkAsPaid(
+                String(paymentDialog.billSplit.id),
+                String(paymentDialog.participant.id),
+                parseFloat(paymentDialog.participant.amountOwed)
+              );
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

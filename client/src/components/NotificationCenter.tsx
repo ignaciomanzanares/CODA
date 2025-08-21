@@ -1,17 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bell, BellOff, Check, CheckCheck, Trash2, X, Settings } from 'lucide-react';
+import { Bell, BellOff, Check, CheckCheck, X, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 import { formatRelativeTime, truncateText } from '@/lib/utils';
-import { useApi } from '@/lib/api';
 import type { Notification } from '@shared/schema';
 
 interface NotificationCenterProps {
@@ -25,7 +22,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
   const queryClient = useQueryClient();
   
   // Mock API functions for notifications (these would be added to useApi)
-  const getNotifications = async (options?: { category?: string; unreadOnly?: boolean }) => {
+  const getNotifications = async (_options?: { category?: string; unreadOnly?: boolean }) => {
     // Mock implementation - in real app this would come from the API
     return [
       {
@@ -87,7 +84,8 @@ export default function NotificationCenter({ className }: NotificationCenterProp
 
   // Mock mutations (these would also be in useApi)
   const markAsReadMutation = useMutation({
-    mutationFn: async (notificationId: number) => {
+    mutationFn: async (_notificationId: number) => {
+
       // Mock implementation
       await new Promise(resolve => setTimeout(resolve, 500));
       return true;
@@ -117,7 +115,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
   });
 
   const deleteNotificationMutation = useMutation({
-    mutationFn: async (notificationId: number) => {
+    mutationFn: async (_notificationId: number) => {
       // Mock implementation
       await new Promise(resolve => setTimeout(resolve, 500));
       return true;

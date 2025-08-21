@@ -10,6 +10,7 @@ import { TrendingUp, Landmark, ShieldCheck, Home, DollarSign, GraduationCap } fr
 import { useAuth0 } from "@auth0/auth0-react";
 import { generateDemoCreditScore, generateDemoInsuranceRisk, generateDemoFinancialGoals } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
+import type { Goal } from "@/types";
 
 type CreditScore = {
   utilization?: string;
@@ -106,7 +107,7 @@ export default function Plan() {
 
     // Add more personalized recommendations based on goals
     if (goals && goals.length > 0) {
-      const homeGoal = goals.find((goal: any) => goal.category === "home");
+      const homeGoal = goals.find((goal: Goal) => goal.category === "home");
       if (homeGoal) {
         recommendations.push({
           id: 4,
@@ -119,7 +120,7 @@ export default function Plan() {
       }
 
       // Check for retirement goal
-      const retirementGoal = goals.find((goal: any) => goal.category === "retirement");
+      const retirementGoal = goals.find((goal: Goal) => goal.category === "retirement");
       if (!retirementGoal) {
         recommendations.push({
           id: 5,
@@ -132,7 +133,7 @@ export default function Plan() {
       }
 
       // Check for education goal
-      const educationGoal = goals.find((goal: any) => goal.category === "education");
+      const educationGoal = goals.find((goal: Goal) => goal.category === "education");
       if (educationGoal) {
         recommendations.push({
           id: 6,
@@ -152,7 +153,7 @@ export default function Plan() {
   const getTimelineGoals = () => {
     if (!goals || goals.length === 0) return [];
 
-    return goals.map((goal: any) => {
+    return goals.map((goal: Goal) => {
       const progress = Math.round((goal.currentAmount / goal.targetAmount) * 100);
       let status = "not_started";
       
@@ -186,7 +187,7 @@ export default function Plan() {
         timeframe,
         progress
       };
-    }).sort((a: any, b: any) => {
+    }).sort((a: Goal & { timeframe: string }, b: Goal & { timeframe: string }) => {
       // Sort by timeframe (now first, then next, etc.)
       const timeOrder = { "now": 0, "next (3-6 months)": 1, "6-12 months": 2, "1-2 years": 3 };
       return timeOrder[a.timeframe as keyof typeof timeOrder] - timeOrder[b.timeframe as keyof typeof timeOrder];
@@ -256,7 +257,7 @@ export default function Plan() {
                 ) : (
                   <div className="text-center py-8">
                     <p className="text-gray-500 mb-4">
-                      You haven't set any financial goals yet.
+                      You haven&apos;t set any financial goals yet.
                     </p>
                     <Link href="/goals">
                       <Button disabled={!isAuthenticated}>Create Goals</Button>

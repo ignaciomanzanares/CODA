@@ -56,10 +56,9 @@ export default function TabsComponent({
           if (!React.isValidElement(child)) return null;
           
           // Check if child has an id prop
-          const childProps = child.props as any;
+          const childProps = child.props as { id?: string; className?: string };
           
-          return React.cloneElement(child, {
-            ...childProps,
+          return React.cloneElement(child as React.ReactElement<{ id?: string; className?: string }>, {
             className: cn(
               childProps.className || "",
               childProps.id === activeTab ? "block" : "hidden"

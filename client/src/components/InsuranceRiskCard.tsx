@@ -8,8 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import ProgressRing from "./ProgressRing";
 import { 
   getRiskColor, 
-  getRiskTextColor, 
-  calculateRiskRingDashoffset,
+  getRiskTextColor,
   getRiskBackgroundColor
 } from "@/lib/insuranceRisk";
 

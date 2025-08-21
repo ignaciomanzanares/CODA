@@ -59,11 +59,20 @@ Create a `.env` file in the root directory:
 # Database
 DATABASE_URL="postgresql://username:password@localhost:5432/finhealth"
 
-# Auth0 Configuration
-AUTH0_DOMAIN="your-domain.auth0.com"
-AUTH0_CLIENT_ID="your-client-id"
-AUTH0_CLIENT_SECRET="your-client-secret"
+# Auth0 Configuration - Backend API
+AUTH0_ISSUER_BASE_URL="https://your-domain.auth0.com/"
 AUTH0_AUDIENCE="https://finhealth-api"
+
+# Auth0 Configuration - Frontend
+VITE_AUTH0_DOMAIN="your-domain.auth0.com"
+VITE_AUTH0_CLIENT_ID="your-client-id"
+VITE_AUTH0_AUDIENCE="https://finhealth-api"
+VITE_AUTH0_REDIRECT_URI="http://localhost:5173"
+
+# Auth0 Management API Configuration (Machine to Machine)
+# Create a Machine to Machine application in Auth0 Dashboard
+AUTH0_M2M_CLIENT_ID="your-m2m-client-id"
+AUTH0_M2M_CLIENT_SECRET="your-m2m-client-secret"
 
 # Railway API (Optional)
 RAILWAY_API_URL="https://wegroup-backend-production.up.railway.app"
