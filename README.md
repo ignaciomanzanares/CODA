@@ -69,7 +69,8 @@ AUTH0_AUDIENCE="https://finhealth-api"
 RAILWAY_API_URL="https://wegroup-backend-production.up.railway.app"
 
 # Application
-PORT=3000
+# The server always listens on port 5000 in this project
+PORT=5000
 NODE_ENV=development
 ```
 
@@ -86,12 +87,11 @@ npm run db:seed
 ### 4. Development
 
 ```bash
-# Start development server (backend + frontend)
+# Start development server (backend + frontend via Express + Vite middleware)
 npm run dev
 
-# Or start individually:
-npm run dev          # Backend only
-npm run dev:frontend # Frontend only
+# Or start the frontend dev server alone (API still proxied to http://localhost:5000):
+npm run dev:frontend
 ```
 
 ### 5. Production Build
@@ -184,9 +184,7 @@ FinHealth/
 ## 🔧 API Endpoints
 
 ### Authentication
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-- `GET /api/auth/me` - Get current user
+Auth is handled via Auth0 JWT. There are no explicit `/api/auth/*` routes; instead, protected routes require a valid Bearer token.
 
 ### Financial Data
 - `GET /api/credit-score` - Get credit score analysis
@@ -205,6 +203,12 @@ FinHealth/
 - `POST /api/expenses` - Add new expense
 - `GET /api/bill-splits` - List bill splits
 - `POST /api/bill-splits` - Create new bill split
+
+### Public
+- `GET /api/financial-products` - List financial products (optional category query)
+- `GET /api/financial-products/:id` - Get product by ID
+- `POST /api/utils/credit-score` - Calculate a score from provided bank data (demo)
+- `POST /api/utils/insurance-risk` - Calculate risk from provided bank data and profile (demo)
 
 ---
 
