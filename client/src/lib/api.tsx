@@ -189,6 +189,27 @@ export function useApi() {
     return res.json();
   };
 
+  // User management API functions
+  const deleteAccount = async () => {
+    const res = await apiRequest("DELETE", "/api/profile/account");
+    return res.json();
+  };
+
+  const changePassword = async () => {
+    const res = await apiRequest("POST", "/api/profile/change-password");
+    return res.json();
+  };
+
+  const getMFAStatus = async () => {
+    const res = await apiRequest("GET", "/api/profile/mfa-status");
+    return res.json();
+  };
+
+  const enableMFA = async () => {
+    const res = await apiRequest("POST", "/api/profile/enable-mfa");
+    return res.json();
+  };
+
   return {
     apiRequest,
     getBankConnections,
@@ -214,6 +235,11 @@ export function useApi() {
     // Profile
     updateProfile,
     getUserProfile,
+    // User Management
+    deleteAccount,
+    changePassword,
+    getMFAStatus,
+    enableMFA,
   };
 }
 

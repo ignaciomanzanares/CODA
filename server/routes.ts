@@ -8,6 +8,8 @@ import {
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { auth } from "express-oauth2-jwt-bearer";
+import { Auth0ManagementService } from "./services/auth0Management";
+import crypto from "crypto";
 
 // Auth0 JWT middleware
 const checkJwt = auth({
@@ -44,6 +46,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserIdFromAuth(req); // userId is string
       const connections = await storage.getBankConnections(userId);
+      
+      // Set appropriate caching headers with a stable ETag based on content
+      const body = JSON.stringify(connections);
+      const etag = 'W/"' + crypto.createHash('sha1').update(body).digest('hex') + '"';
+      res.set({
+        'Cache-Control': 'private, max-age=30, must-revalidate',
+        'ETag': etag,
+      });
+
+      // Handle conditional request
+      const ifNoneMatch = req.headers['if-none-match'];
+      if (ifNoneMatch && ifNoneMatch === etag) {
+        return res.status(304).end();
+      }
+      
       res.json(connections);
     } catch (error) {
       throw error;
@@ -102,6 +119,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserIdFromAuth(req); // userId is string
       const goals = await storage.getFinancialGoals(userId);
+
+      const body = JSON.stringify(goals);
+      const etag = 'W/"' + crypto.createHash('sha1').update(body).digest('hex') + '"';
+      res.set({
+        'Cache-Control': 'private, max-age=30, must-revalidate',
+        'ETag': etag,
+      });
+      const ifNoneMatch = req.headers['if-none-match'];
+      if (ifNoneMatch && ifNoneMatch === etag) {
+        return res.status(304).end();
+      }
+
       res.json(goals);
     } catch (error) {
       throw error;
@@ -227,6 +256,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserIdFromAuth(req);
       const expenses = await storage.getExpenses(userId);
+
+      const body = JSON.stringify(expenses);
+      const etag = 'W/"' + crypto.createHash('sha1').update(body).digest('hex') + '"';
+      res.set({
+        'Cache-Control': 'private, max-age=30, must-revalidate',
+        'ETag': etag,
+      });
+      const ifNoneMatch = req.headers['if-none-match'];
+      if (ifNoneMatch && ifNoneMatch === etag) {
+        return res.status(304).end();
+      }
+
       res.json(expenses);
     } catch (error) {
       throw error;
@@ -379,12 +420,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User management routes
+  app.post("/api/profile/change-password", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      await Auth0ManagementService.sendPasswordChangeEmail(userId);
+      res.json({ message: "Password change email sent successfully" });
+    } catch (error) {
+      console.error('Password change error:', error);
+      res.status(500).json({ message: "Failed to send password change email" });
+    }
+  });
+
+  app.delete("/api/profile/account", checkJwt, async (req, res, next) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      console.log(`Received request to delete account for user: ${userId}`);
+
+      // First, delete user data from our application's database
+      await storage.deleteUserData(userId);
+      console.log(`Database cleanup complete for user: ${userId}`);
+
+      // Then, delete the user from Auth0
+      await Auth0ManagementService.deleteUser(userId);
+      console.log(`Auth0 account deletion successful for user: ${userId}`);
+
+      res.json({ message: "Account deleted successfully from all systems" });
+    } catch (error) {
+      // Let the central error handler deal with it
+      next(error); 
+    }
+  });
+
+  app.get("/api/profile/mfa-status", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const mfaStatus = await Auth0ManagementService.checkMFAStatus(userId);
+      res.json(mfaStatus);
+    } catch (error) {
+      console.error('MFA status error:', error);
+      res.status(500).json({ message: "Failed to get MFA status" });
+    }
+  });
+
+  app.post("/api/profile/enable-mfa", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const enrollmentTicket = await Auth0ManagementService.generateMFAEnrollmentTicket(userId);
+      res.json({ enrollmentUrl: enrollmentTicket });
+    } catch (error) {
+      console.error('MFA enrollment error:', error);
+      res.status(500).json({ message: "Failed to generate MFA enrollment" });
+    }
+  });
+
   // Financial products routes (public)
   app.get("/api/financial-products", async (req, res) => {
     try {
       const category = req.query.category as string | undefined;
       const products = await storage.getFinancialProducts(category);
-      res.json(products ?? []);
+
+      const safeProducts = products ?? [];
+      const body = JSON.stringify(safeProducts);
+      const etag = 'W/"' + crypto.createHash('sha1').update(body).digest('hex') + '"';
+      res.set({
+        'Cache-Control': 'public, max-age=60, must-revalidate',
+        'ETag': etag,
+      });
+      const ifNoneMatch = req.headers['if-none-match'];
+      if (ifNoneMatch && ifNoneMatch === etag) {
+        return res.status(304).end();
+      }
+
+      res.json(safeProducts);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }

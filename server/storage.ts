@@ -75,6 +75,9 @@ export interface IStorage {
   markAllNotificationsAsRead(userId: string): Promise<boolean>;
   deleteNotification(notificationId: number, userId: string): Promise<boolean>;
   getUnreadNotificationCount(userId: string): Promise<number>;
+  
+  // User data cleanup
+  deleteUserData(userId: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -739,6 +742,63 @@ export class MemStorage implements IStorage {
       .filter(notification => notification.userId === userId && !notification.isRead)
       .length;
   }
+  
+  // User data cleanup
+  async deleteUserData(userId: string): Promise<boolean> {
+    try {
+      // Delete all user-related data from memory maps
+      
+      // Delete bank connections
+      const userConnections = Array.from(this.bankConnections.entries())
+        .filter(([_, connection]) => connection.userId === userId);
+      userConnections.forEach(([id, _]) => this.bankConnections.delete(id));
+      
+      // Delete credit scores
+      const userCreditScores = Array.from(this.creditScores.entries())
+        .filter(([_, score]) => score.userId === userId);
+      userCreditScores.forEach(([id, _]) => this.creditScores.delete(id));
+      
+      // Delete insurance risks
+      const userInsuranceRisks = Array.from(this.insuranceRisks.entries())
+        .filter(([_, risk]) => risk.userId === userId);
+      userInsuranceRisks.forEach(([id, _]) => this.insuranceRisks.delete(id));
+      
+      // Delete financial goals
+      const userGoals = Array.from(this.financialGoals.entries())
+        .filter(([_, goal]) => goal.userId === userId);
+      userGoals.forEach(([id, _]) => this.financialGoals.delete(id));
+      
+      // Delete expenses
+      const userExpenses = Array.from(this.expenses.entries())
+        .filter(([_, expense]) => expense.userId === userId);
+      userExpenses.forEach(([id, _]) => this.expenses.delete(id));
+      
+      // Delete bill splits created by user
+      const userBillSplits = Array.from(this.billSplits.entries())
+        .filter(([_, billSplit]) => billSplit.createdBy === userId);
+      userBillSplits.forEach(([id, _]) => {
+        // Also delete participants for these bill splits
+        const participants = Array.from(this.billSplitParticipants.entries())
+          .filter(([_, participant]) => participant.billSplitId === id);
+        participants.forEach(([participantId, _]) => this.billSplitParticipants.delete(participantId));
+        
+        this.billSplits.delete(id);
+      });
+      
+      // Delete notifications
+      const userNotifications = Array.from(this.notifications.entries())
+        .filter(([_, notification]) => notification.userId === userId);
+      userNotifications.forEach(([id, _]) => this.notifications.delete(id));
+      
+      // Finally delete the user
+      this.users.delete(userId);
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting user data:', error);
+      return false;
+    }
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1155,6 +1215,72 @@ export class DatabaseStorage implements IStorage {
       .from(notifications)
       .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
     return result.length;
+  }
+  
+  // User data cleanup
+  async deleteUserData(userId: string): Promise<boolean> {
+    if (!db) return false;
+    
+    try {
+      // Delete all user-related data in the correct order (respecting foreign key constraints)
+      
+      // Delete bill split participants for user's bill splits first
+      const userBillSplitIds = await db
+        .select({ id: billSplits.id })
+        .from(billSplits)
+        .where(eq(billSplits.createdBy, userId));
+      
+      for (const billSplit of userBillSplitIds) {
+        await db
+          .delete(billSplitParticipants)
+          .where(eq(billSplitParticipants.billSplitId, billSplit.id));
+      }
+      
+      // Delete user's bill splits
+      await db
+        .delete(billSplits)
+        .where(eq(billSplits.createdBy, userId));
+      
+      // Delete user's notifications
+      await db
+        .delete(notifications)
+        .where(eq(notifications.userId, userId));
+      
+      // Delete user's expenses
+      await db
+        .delete(expenses)
+        .where(eq(expenses.userId, userId));
+      
+      // Delete user's financial goals
+      await db
+        .delete(financialGoals)
+        .where(eq(financialGoals.userId, userId));
+      
+      // Delete user's insurance risks
+      await db
+        .delete(insuranceRisks)
+        .where(eq(insuranceRisks.userId, userId));
+      
+      // Delete user's credit scores
+      await db
+        .delete(creditScores)
+        .where(eq(creditScores.userId, userId));
+      
+      // Delete user's bank connections
+      await db
+        .delete(bankConnections)
+        .where(eq(bankConnections.userId, userId));
+      
+      // Finally delete the user record
+      await db
+        .delete(users)
+        .where(eq(users.id, userId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting user data from database:', error);
+      return false;
+    }
   }
 }
 

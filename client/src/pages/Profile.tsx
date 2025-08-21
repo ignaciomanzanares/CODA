@@ -43,7 +43,7 @@ import {
 export default function Profile() {
   const { user, logout, isAuthenticated, isLoading } = useAuth0();
   const { toast } = useToast();
-  const { updateProfile, getUserProfile } = useApi();
+  const { updateProfile, getUserProfile, deleteAccount } = useApi();
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
     displayName: user?.name || "",
@@ -134,22 +134,24 @@ export default function Profile() {
   
   const handleDeleteAccount = async () => {
     try {
-      // This would typically call your backend to delete the user from Auth0 Management API
-      // For now, we'll show a toast and logout
+      // Call the backend API to delete the account
+      await deleteAccount();
+      
       toast({
-        title: "Account deletion requested",
-        description: "Your account deletion request has been submitted. You will be logged out.",
+        title: "Account deleted",
+        description: "Your account has been permanently deleted. You will now be logged out.",
         variant: "destructive",
       });
       
-      // Logout the user
+      // Logout the user after successful deletion
       setTimeout(() => {
         handleLogout();
       }, 2000);
     } catch (error) {
+      console.error('Delete account error:', error);
       toast({
         title: "Error",
-        description: "Failed to delete account. Please contact support.",
+        description: "Failed to delete account. Please try again or contact support.",
         variant: "destructive",
       });
     }

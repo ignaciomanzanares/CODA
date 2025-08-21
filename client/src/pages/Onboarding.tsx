@@ -76,7 +76,9 @@ export default function Onboarding() {
     queryKey: ["/api/bank-connections"],
     queryFn: getBankConnections,
     enabled: isAuthenticated,
-    refetchInterval: 3000, // Refresh every 3 seconds to check for connections
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    refetchInterval: 10000, // Check for updates every 10 seconds instead of 3
+    refetchIntervalInBackground: false, // Don't poll when tab is not active
   });
 
   // Redirect to dashboard if connections are found

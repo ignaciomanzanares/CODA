@@ -125,7 +125,7 @@ export async function seedFinancialProducts() {
       interestRate: 18.24,
       description: "Earn 3% cash back on dining, 2% on gas, 1% on everything else",
       requirements: { minimumCreditScore: 700 },
-      features: { annualFee: 0, rewardsRate: 3, introducotryAPR: 0 }
+features: { annualFee: 0, rewardsRate: 3, introductoryAPR: 0 }
     },
     {
       productName: "Travel Rewards Card",
