@@ -167,7 +167,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let user = await storage.getUser(userId);
       if (!user) {
         user = await storage.createUser({
-          id: userId,
           username: "demo",
           email: "demo@example.com",
           firstName: "Demo",

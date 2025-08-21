@@ -231,49 +231,53 @@ export default function RailwayFinancialData({ userId = "demo123" }: RailwayFina
               <div className="space-y-4">
                 <div className="text-center">
                   <div className="text-4xl font-bold text-blue-600">
-                    {creditAnalysis?.creditScore || 'N/A'}
+                    {creditAnalysis?.score || 'N/A'}
                   </div>
                   <div className="text-sm text-gray-600">
-                    out of {creditAnalysis?.maxScore || 'N/A'}
+                    Credit Score
                   </div>
                 </div>
                 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm">Payment History</span>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{creditAnalysis.factors?.paymentHistory?.status || 'N/A'}</Badge>
-                      <span className="text-sm font-medium">{creditAnalysis.factors?.paymentHistory?.score || 'N/A'}</span>
-                    </div>
+                    <span className="text-sm">Monthly Income</span>
+                    <span className="text-sm font-medium">${creditAnalysis.monthly_income?.toLocaleString() || 'N/A'}</span>
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <span className="text-sm">Credit Utilization</span>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{creditAnalysis.factors?.utilization?.status || 'N/A'}</Badge>
-                      <span className="text-sm font-medium">{creditAnalysis.factors?.utilization?.score || 'N/A'}</span>
-                    </div>
+                    <span className="text-sm">Monthly Expenses</span>
+                    <span className="text-sm font-medium">${creditAnalysis.monthly_expenses?.toLocaleString() || 'N/A'}</span>
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <span className="text-sm">Age of Credit</span>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{creditAnalysis.factors?.ageOfCredit?.status || 'N/A'}</Badge>
-                      <span className="text-sm font-medium">{creditAnalysis.factors?.ageOfCredit?.score || 'N/A'}</span>
-                    </div>
+                    <span className="text-sm">Savings Rate</span>
+                    <span className="text-sm font-medium">{creditAnalysis.savings_rate ? `${(creditAnalysis.savings_rate * 100).toFixed(1)}%` : 'N/A'}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Max Loan Amount</span>
+                    <span className="text-sm font-medium">${creditAnalysis.max_loan_amount?.toLocaleString() || 'N/A'}</span>
                   </div>
                 </div>
 
-                {creditAnalysis?.recommendations?.length > 0 && (
+                {creditAnalysis?.risk_factors?.length > 0 && (
                   <div className="mt-4">
-                    <h4 className="font-medium mb-2">Recommendations:</h4>
+                    <h4 className="font-medium mb-2">Risk Factors:</h4>
                     <div className="space-y-2">
-                      {creditAnalysis.recommendations?.slice(0, 2).map((rec, index) => (
-                        <div key={index} className="text-sm p-2 bg-blue-50 rounded">
-                          <p className="font-medium">{rec.title}</p>
-                          <p className="text-gray-600">{rec.description}</p>
+                      {creditAnalysis.risk_factors.slice(0, 3).map((factor: string, index: number) => (
+                        <div key={index} className="text-sm p-2 bg-orange-50 rounded">
+                          <Badge variant="outline" className="text-xs">{factor}</Badge>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+                
+                {creditAnalysis?.recommendation && (
+                  <div className="mt-4">
+                    <h4 className="font-medium mb-2">Recommendation:</h4>
+                    <div className="text-sm p-2 bg-blue-50 rounded">
+                      <p className="text-gray-600">{creditAnalysis.recommendation}</p>
                     </div>
                   </div>
                 )}
@@ -288,14 +292,14 @@ export default function RailwayFinancialData({ userId = "demo123" }: RailwayFina
       </div>
 
       {/* Recent Transactions */}
-      {financialProfile?.transactions?.length > 0 && (
+      {financialProfile?.transactions && financialProfile.transactions.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Recent Transactions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {financialProfile.transactions?.slice(0, 5).map((transaction) => (
+              {financialProfile.transactions.slice(0, 5).map((transaction) => (
                 <div key={transaction.id} className="flex items-center justify-between p-3 border rounded">
                   <div>
                     <p className="font-medium">{transaction.description}</p>

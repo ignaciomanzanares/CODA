@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { useQuery } from "@tanstack/react-query";
-import { getBankConnections } from "@/lib/api";
+import { useApi } from "@/lib/api";
 import { useLocation } from "wouter";
 import ProgressIndicator from "@/components/ProgressIndicator";
 import BankConnectionCard from "@/components/BankConnectionCard";
@@ -69,9 +69,12 @@ export default function Onboarding() {
     { id: 4, label: "Plan", isActive: false, isCompleted: false }
   ];
 
+  const { getBankConnections } = useApi();
+
   // Check if user has connected banks
   const { data: bankConnections } = useQuery({
     queryKey: ["/api/bank-connections"],
+    queryFn: getBankConnections,
     enabled: isAuthenticated,
     refetchInterval: 3000, // Refresh every 3 seconds to check for connections
   });

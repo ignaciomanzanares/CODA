@@ -105,7 +105,7 @@ export default function BillSplit() {
 
   const totalPaid = billSplits.reduce((sum, split) => {
     const participants = split.participants || [];
-    return sum + participants.reduce((splitSum, p) => splitSum + parseFloat(p.amountPaid), 0);
+    return sum + participants.reduce((splitSum, p) => splitSum + parseFloat(p.amountPaid || '0'), 0);
   }, 0);
 
   if (authLoading || (isAuthenticated && isLoading)) {

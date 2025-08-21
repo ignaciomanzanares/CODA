@@ -6,8 +6,13 @@ import { eq } from "drizzle-orm";
  * Seed demo user into the database
  */
 export async function seedDemoUser() {
-  // Check if demo user with ID 1 already exists
-  const [existingUser] = await db.select().from(users).where(eq(users.id, 1));
+  if (!db) {
+    console.log("Database not available. Skipping user seed.");
+    return;
+  }
+
+  // Check if demo user with ID "demo-user" already exists
+  const [existingUser] = await db.select().from(users).where(eq(users.id, "demo-user"));
   
   if (existingUser) {
     console.log("Demo user already exists. Skipping user seed.");
@@ -18,10 +23,9 @@ export async function seedDemoUser() {
   
   try {
     await db.insert(users).values({
-      id: 1,
+      id: "demo-user",
       username: "demo",
       email: "demo@example.com",
-      password: "password",
       firstName: "Demo",
       lastName: "User",
       createdAt: new Date()
@@ -36,6 +40,11 @@ export async function seedDemoUser() {
  * Seed financial products into the database
  */
 export async function seedFinancialProducts() {
+  if (!db) {
+    console.log("Database not available. Skipping products seed.");
+    return;
+  }
+
   // First check if we already have products
   const existingProducts = await db.select().from(financialProducts);
   

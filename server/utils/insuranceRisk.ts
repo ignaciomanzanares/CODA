@@ -140,7 +140,8 @@ function simulateUserProfileRisk(user: User): number {
   // For demo, we'll use a random risk based on user ID for consistency
   // This ensures the same user always gets the same profile risk
   // but different users get different risks
-  const userIdSeed = user.id % 100 / 100; // Value between 0 and 0.99
+  // Convert string ID to numeric seed for consistent risk calculation
+  const userIdSeed = (parseInt(user.id) || user.id.charCodeAt(0) || 42) % 100 / 100; // Value between 0 and 0.99
   
   // Base risk between 0.2 and 0.8
   return 0.2 + (userIdSeed * 0.6);
