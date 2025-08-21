@@ -7,7 +7,7 @@ export function generateDemoExpenses(): Expense[] {
     "Entertainment", "Shopping", "Utilities", "Education", "Travel"
   ];
 
-  const merchants = {
+  const merchants: Record<string, string[]> = {
     "Groceries": ["Whole Foods", "Safeway", "Trader Joe's", "Costco", "Target"],
     "Dining": ["Chipotle", "Starbucks", "Pizza Hut", "McDonald's", "Subway"],
     "Transportation": ["Uber", "Lyft", "Shell", "BP", "Metro Transit"],
@@ -20,7 +20,7 @@ export function generateDemoExpenses(): Expense[] {
     "Travel": ["United Airlines", "Marriott", "Airbnb", "Car Rental", "Travel Agency"]
   };
 
-  const descriptions = {
+  const descriptions: Record<string, string[]> = {
     "Groceries": ["Weekly groceries", "Fresh produce", "Household essentials", "Bulk shopping", "Organic foods"],
     "Dining": ["Lunch with colleagues", "Coffee break", "Dinner out", "Quick bite", "Weekend brunch"],
     "Transportation": ["Ride to airport", "Daily commute", "Gas fill-up", "Public transit", "Parking fee"],
@@ -103,17 +103,16 @@ export function generateDemoExpenses(): Expense[] {
       amount: amount.toString(),
       description,
       category,
-      subcategory: Math.random() > 0.7 ? `${category} Subcategory` : undefined,
+      subcategory: Math.random() > 0.7 ? `${category} Subcategory` : null,
       merchantName: merchant,
       date: expenseDate,
       paymentMethod: Math.random() > 0.5 ? "Credit Card" : "Debit Card",
       isRecurring,
       tags,
-      notes: Math.random() > 0.8 ? "Demo expense note" : undefined,
+      notes: Math.random() > 0.8 ? "Demo expense note" : null,
       isAutoClassified,
-      confidenceScore: isAutoClassified ? Math.round((Math.random() * 30 + 70) * 100) / 100 : undefined,
+      confidence: isAutoClassified ? (Math.round((Math.random() * 30 + 70) * 100) / 100).toString() : null,
       createdAt: expenseDate,
-      updatedAt: expenseDate,
     });
   }
 
@@ -175,15 +174,15 @@ export function generateDemoBillSplits(): (BillSplit & { participants: BillSplit
     const participants: BillSplitParticipant[] = selectedParticipants.map((participantName, idx) => {
       const isPaid = Math.random() > 0.4; // 60% chance of being paid
       return {
-        id: `${i}-${idx}`,
+        id: parseInt(`${i}${idx}`),
         billSplitId: i + 1,
         name: participantName,
         email: `${participantName.toLowerCase().replace(' ', '.')}@email.com`,
+        userId: null,
         amountOwed: amountPerPerson.toFixed(2),
-        amountPaid: isPaid ? amountPerPerson.toFixed(2) : "0",
-        isPaid,
+        amountPaid: isPaid ? amountPerPerson.toFixed(2) : null,
+        isPaid: isPaid ? true : null,
         createdAt: billDate,
-        updatedAt: billDate,
       };
     });
 
@@ -192,14 +191,13 @@ export function generateDemoBillSplits(): (BillSplit & { participants: BillSplit
 
     demoBillSplits.push({
       id: i + 1,
-      userId: "demo-user",
+      createdBy: "demo-user",
       name,
       totalAmount: totalAmount.toString(),
       description: descriptions[i % descriptions.length],
       date: billDate,
       status,
       createdAt: billDate,
-      updatedAt: billDate,
       participants
     });
   }

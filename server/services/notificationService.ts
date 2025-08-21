@@ -3,11 +3,11 @@ import type { InsertNotification, Notification } from "@shared/schema";
 
 export interface NotificationService {
   createNotification(notification: InsertNotification): Promise<Notification>;
-  getNotifications(userId: number, options?: GetNotificationsOptions): Promise<Notification[]>;
-  markAsRead(notificationId: number, userId: number): Promise<boolean>;
-  markAllAsRead(userId: number): Promise<boolean>;
-  deleteNotification(notificationId: number, userId: number): Promise<boolean>;
-  getUnreadCount(userId: number): Promise<number>;
+  getNotifications(userId: string, options?: GetNotificationsOptions): Promise<Notification[]>;
+  markAsRead(notificationId: number, userId: string): Promise<boolean>;
+  markAllAsRead(userId: string): Promise<boolean>;
+  deleteNotification(notificationId: number, userId: string): Promise<boolean>;
+  getUnreadCount(userId: string): Promise<number>;
 }
 
 export interface GetNotificationsOptions {
@@ -97,28 +97,28 @@ class NotificationServiceImpl implements NotificationService {
     return await storage.createNotification(notification);
   }
 
-  async getNotifications(userId: number, options: GetNotificationsOptions = {}): Promise<Notification[]> {
+  async getNotifications(userId: string, options: GetNotificationsOptions = {}): Promise<Notification[]> {
     return await storage.getNotifications(userId, options);
   }
 
-  async markAsRead(notificationId: number, userId: number): Promise<boolean> {
+  async markAsRead(notificationId: number, userId: string): Promise<boolean> {
     return await storage.markNotificationAsRead(notificationId, userId);
   }
 
-  async markAllAsRead(userId: number): Promise<boolean> {
+  async markAllAsRead(userId: string): Promise<boolean> {
     return await storage.markAllNotificationsAsRead(userId);
   }
 
-  async deleteNotification(notificationId: number, userId: number): Promise<boolean> {
+  async deleteNotification(notificationId: number, userId: string): Promise<boolean> {
     return await storage.deleteNotification(notificationId, userId);
   }
 
-  async getUnreadCount(userId: number): Promise<number> {
+  async getUnreadCount(userId: string): Promise<number> {
     return await storage.getUnreadNotificationCount(userId);
   }
 
   // Helper methods for common notification scenarios
-  async notifyBillSplitCreated(userId: number, billName: string, amount: number, billSplitId?: number): Promise<Notification> {
+  async notifyBillSplitCreated(userId: string, billName: string, amount: number, billSplitId?: number): Promise<Notification> {
     const template = NotificationTemplates.BILL_SPLIT_CREATED(billName, amount);
     return await this.createNotification({
       userId,
@@ -127,7 +127,7 @@ class NotificationServiceImpl implements NotificationService {
     });
   }
 
-  async notifyPaymentReminder(userId: number, billName: string, amount: number, billSplitId?: number): Promise<Notification> {
+  async notifyPaymentReminder(userId: string, billName: string, amount: number, billSplitId?: number): Promise<Notification> {
     const template = NotificationTemplates.BILL_SPLIT_PAYMENT_REMINDER(billName, amount);
     return await this.createNotification({
       userId,
@@ -136,7 +136,7 @@ class NotificationServiceImpl implements NotificationService {
     });
   }
 
-  async notifyCreditScoreChange(userId: number, newScore: number, oldScore: number): Promise<Notification> {
+  async notifyCreditScoreChange(userId: string, newScore: number, oldScore: number): Promise<Notification> {
     const change = newScore - oldScore;
     const template = NotificationTemplates.CREDIT_SCORE_UPDATED(newScore, change);
     return await this.createNotification({
@@ -146,7 +146,7 @@ class NotificationServiceImpl implements NotificationService {
     });
   }
 
-  async notifyGoalMilestone(userId: number, goalName: string, progress: number, goalId?: number): Promise<Notification> {
+  async notifyGoalMilestone(userId: string, goalName: string, progress: number, goalId?: number): Promise<Notification> {
     const template = NotificationTemplates.GOAL_MILESTONE(goalName, progress);
     return await this.createNotification({
       userId,
@@ -155,7 +155,7 @@ class NotificationServiceImpl implements NotificationService {
     });
   }
 
-  async notifyUnusualExpense(userId: number, amount: number, category: string, expenseId?: number): Promise<Notification> {
+  async notifyUnusualExpense(userId: string, amount: number, category: string, expenseId?: number): Promise<Notification> {
     const template = NotificationTemplates.EXPENSE_UNUSUAL(amount, category);
     return await this.createNotification({
       userId,
@@ -164,7 +164,7 @@ class NotificationServiceImpl implements NotificationService {
     });
   }
 
-  async notifySecurityLogin(userId: number, location: string): Promise<Notification> {
+  async notifySecurityLogin(userId: string, location: string): Promise<Notification> {
     const template = NotificationTemplates.SECURITY_LOGIN(location);
     return await this.createNotification({
       userId,

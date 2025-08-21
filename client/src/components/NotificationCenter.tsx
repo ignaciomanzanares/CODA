@@ -96,7 +96,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       toast({
         title: 'Notification marked as read',
-        variant: 'success'
+        variant: 'default'
       });
     }
   });
@@ -111,7 +111,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       toast({
         title: 'All notifications marked as read',
-        variant: 'success'
+        variant: 'default'
       });
     }
   });
@@ -126,7 +126,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       toast({
         title: 'Notification deleted',
-        variant: 'success'
+        variant: 'default'
       });
     }
   });
@@ -301,7 +301,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                                 </p>
                                 <div className="flex items-center gap-1 ml-2">
                                   <span className="text-xs text-gray-500 whitespace-nowrap">
-                                    {formatRelativeTime(notification.createdAt)}
+                                    {notification.createdAt ? formatRelativeTime(notification.createdAt) : 'N/A'}
                                   </span>
                                   <span className="text-lg">{getCategoryIcon(notification.category)}</span>
                                 </div>

@@ -209,12 +209,20 @@ export function useApi() {
 // React hooks for data fetching (for compatibility with your imports)
 export const useCreditScore = () => {
   const { getCreditScore } = useApi();
-  return { getCreditScore };
+  const refreshCreditScore = async () => {
+    // In a real implementation, this might refresh cached data
+    return await getCreditScore();
+  };
+  return { getCreditScore, refreshCreditScore };
 };
 
 export const useInsuranceRisk = () => {
   const { getInsuranceRisk } = useApi();
-  return { getInsuranceRisk };
+  const refreshInsuranceRisk = async () => {
+    // In a real implementation, this might refresh cached data
+    return await getInsuranceRisk();
+  };
+  return { getInsuranceRisk, refreshInsuranceRisk };
 };
 
 export const useFinancialGoals = () => {

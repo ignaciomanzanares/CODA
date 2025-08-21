@@ -11,11 +11,11 @@ import {
   notifications, type Notification, type InsertNotification
 } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
-  getUser(id: string | number): Promise<User | undefined>;
+  getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -78,7 +78,7 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<number, User>;
+  private users: Map<string, User>;
   private bankConnections: Map<number, BankConnection>;
   private creditScores: Map<number, CreditScore>;
   private insuranceRisks: Map<number, InsuranceRisk>;
@@ -87,6 +87,7 @@ export class MemStorage implements IStorage {
   private expenses: Map<number, Expense>;
   private billSplits: Map<number, BillSplit>;
   private billSplitParticipants: Map<number, BillSplitParticipant>;
+  private notifications: Map<number, Notification>;
   
   private currentUserId: number;
   private currentBankConnectionId: number;
@@ -97,6 +98,7 @@ export class MemStorage implements IStorage {
   private currentExpenseId: number;
   private currentBillSplitId: number;
   private currentBillSplitParticipantId: number;
+  private currentNotificationId: number;
 
   constructor() {
     this.users = new Map();
@@ -108,6 +110,7 @@ export class MemStorage implements IStorage {
     this.expenses = new Map();
     this.billSplits = new Map();
     this.billSplitParticipants = new Map();
+    this.notifications = new Map();
     
     this.currentUserId = 1;
     this.currentBankConnectionId = 1;
@@ -118,6 +121,7 @@ export class MemStorage implements IStorage {
     this.currentExpenseId = 1;
     this.currentBillSplitId = 1;
     this.currentBillSplitParticipantId = 1;
+    this.currentNotificationId = 1;
     
     // Prepopulate with sample financial products
     this.seedFinancialProducts();
@@ -125,7 +129,7 @@ export class MemStorage implements IStorage {
   }
 
   // Expense operations
-  async getExpenses(userId: number): Promise<Expense[]> {
+  async getExpenses(userId: string): Promise<Expense[]> {
     return Array.from(this.expenses.values()).filter(expense => expense.userId === userId);
   }
 
@@ -138,6 +142,16 @@ export class MemStorage implements IStorage {
       id: this.currentExpenseId++,
       ...insertExpense,
       createdAt: new Date(),
+      // Ensure undefined values become null for nullable fields
+      subcategory: insertExpense.subcategory ?? null,
+      merchantName: insertExpense.merchantName ?? null,
+      paymentMethod: insertExpense.paymentMethod ?? null,
+      notes: insertExpense.notes ?? null,
+      confidence: insertExpense.confidence ?? null,
+      // Fix array and boolean fields - ensure they are not undefined
+      tags: insertExpense.tags ?? null,
+      isRecurring: insertExpense.isRecurring ?? false,
+      isAutoClassified: insertExpense.isAutoClassified ?? true,
     };
     this.expenses.set(expense.id, expense);
     return expense;
@@ -157,7 +171,7 @@ export class MemStorage implements IStorage {
   }
 
   // Bill split operations
-  async getBillSplits(userId: number): Promise<BillSplit[]> {
+  async getBillSplits(userId: string): Promise<BillSplit[]> {
     return Array.from(this.billSplits.values()).filter(split => split.createdBy === userId);
   }
 
@@ -170,6 +184,9 @@ export class MemStorage implements IStorage {
       id: this.currentBillSplitId++,
       ...insertBillSplit,
       createdAt: new Date(),
+      // Ensure undefined values become null for nullable fields
+      description: insertBillSplit.description ?? null,
+      status: insertBillSplit.status ?? null,
     };
     this.billSplits.set(billSplit.id, billSplit);
     return billSplit;
@@ -198,6 +215,11 @@ export class MemStorage implements IStorage {
       id: this.currentBillSplitParticipantId++,
       ...insertParticipant,
       createdAt: new Date(),
+      // Ensure undefined values become null for nullable fields
+      email: insertParticipant.email ?? null,
+      userId: insertParticipant.userId ?? null,
+      amountPaid: insertParticipant.amountPaid ?? null,
+      isPaid: insertParticipant.isPaid ?? null,
     };
     this.billSplitParticipants.set(participant.id, participant);
     return participant;
@@ -215,7 +237,7 @@ export class MemStorage implements IStorage {
   private async seedSampleExpenses() {
     const sampleExpenses = [
       {
-        userId: 1,
+        userId: "1",
         amount: "85.50",
         description: "Grocery shopping at Whole Foods",
         category: "Groceries",
@@ -230,7 +252,7 @@ export class MemStorage implements IStorage {
         confidence: "0.95"
       },
       {
-        userId: 1,
+        userId: "1",
         amount: "1200.00",
         description: "Monthly rent payment",
         category: "Housing",
@@ -245,7 +267,7 @@ export class MemStorage implements IStorage {
         confidence: "0.99"
       },
       {
-        userId: 1,
+        userId: "1",
         amount: "45.00",
         description: "Gas station fill-up",
         category: "Transportation",
@@ -267,7 +289,7 @@ export class MemStorage implements IStorage {
   }
 
   // User methods
-  async getUser(id: number): Promise<User | undefined> {
+  async getUser(id: string): Promise<User | undefined> {
     return this.users.get(id);
   }
 
@@ -284,19 +306,22 @@ export class MemStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
+    const id = String(this.currentUserId++);
     const now = new Date();
     const user: User = { 
       ...insertUser, 
       id,
-      createdAt: now
+      createdAt: now,
+      // Ensure undefined becomes null for nullable fields
+      firstName: insertUser.firstName ?? null,
+      lastName: insertUser.lastName ?? null,
     };
     this.users.set(id, user);
     return user;
   }
   
   // Bank connection methods
-  async getBankConnections(userId: number): Promise<BankConnection[]> {
+  async getBankConnections(userId: string): Promise<BankConnection[]> {
     return Array.from(this.bankConnections.values()).filter(
       (connection) => connection.userId === userId,
     );
@@ -312,7 +337,10 @@ export class MemStorage implements IStorage {
     const connection: BankConnection = {
       ...insertConnection,
       id,
-      lastUpdated: now
+      lastUpdated: now,
+      // Ensure proper field defaults
+      status: insertConnection.status ?? "connected",
+      connectionData: insertConnection.connectionData ?? null,
     };
     this.bankConnections.set(id, connection);
     return connection;
@@ -338,7 +366,7 @@ export class MemStorage implements IStorage {
   }
   
   // Credit score methods
-  async getCreditScore(userId: number): Promise<CreditScore | undefined> {
+  async getCreditScore(userId: string): Promise<CreditScore | undefined> {
     return Array.from(this.creditScores.values()).find(
       (score) => score.userId === userId,
     );
@@ -350,13 +378,15 @@ export class MemStorage implements IStorage {
     const creditScore: CreditScore = {
       ...insertCreditScore,
       id,
-      lastUpdated: now
+      lastUpdated: now,
+      // Ensure maxScore has default value
+      maxScore: insertCreditScore.maxScore ?? 850,
     };
     this.creditScores.set(id, creditScore);
     return creditScore;
   }
   
-  async updateCreditScore(userId: number, creditScore: Partial<InsertCreditScore>): Promise<CreditScore | undefined> {
+  async updateCreditScore(userId: string, creditScore: Partial<InsertCreditScore>): Promise<CreditScore | undefined> {
     const existingScore = Array.from(this.creditScores.values()).find(
       (score) => score.userId === userId,
     );
@@ -375,7 +405,7 @@ export class MemStorage implements IStorage {
   }
   
   // Insurance risk methods
-  async getInsuranceRisk(userId: number): Promise<InsuranceRisk | undefined> {
+  async getInsuranceRisk(userId: string): Promise<InsuranceRisk | undefined> {
     return Array.from(this.insuranceRisks.values()).find(
       (risk) => risk.userId === userId,
     );
@@ -393,7 +423,7 @@ export class MemStorage implements IStorage {
     return insuranceRisk;
   }
   
-  async updateInsuranceRisk(userId: number, insuranceRisk: Partial<InsertInsuranceRisk>): Promise<InsuranceRisk | undefined> {
+  async updateInsuranceRisk(userId: string, insuranceRisk: Partial<InsertInsuranceRisk>): Promise<InsuranceRisk | undefined> {
     const existingRisk = Array.from(this.insuranceRisks.values()).find(
       (risk) => risk.userId === userId,
     );
@@ -412,7 +442,7 @@ export class MemStorage implements IStorage {
   }
   
   // Financial goal methods
-  async getFinancialGoals(userId: number): Promise<FinancialGoal[]> {
+  async getFinancialGoals(userId: string): Promise<FinancialGoal[]> {
     return Array.from(this.financialGoals.values()).filter(
       (goal) => goal.userId === userId,
     );
@@ -428,7 +458,9 @@ export class MemStorage implements IStorage {
     const goal: FinancialGoal = {
       ...insertGoal,
       id,
-      createdAt: now
+      createdAt: now,
+      // Ensure currentAmount has default value
+      currentAmount: insertGoal.currentAmount ?? 0,
     };
     this.financialGoals.set(id, goal);
     return goal;
@@ -469,6 +501,16 @@ export class MemStorage implements IStorage {
     const product: FinancialProduct = {
       ...insertProduct,
       id,
+      // Ensure nullable JSONB fields are handled properly
+      requirements: insertProduct.requirements ?? null,
+      features: insertProduct.features ?? null,
+      // Ensure nullable numeric fields are handled properly
+      interestRate: insertProduct.interestRate ?? null,
+      term: insertProduct.term ?? null,
+      monthlyPayment: insertProduct.monthlyPayment ?? null,
+      loanAmount: insertProduct.loanAmount ?? null,
+      termUnit: insertProduct.termUnit ?? null,
+      description: insertProduct.description ?? null,
     };
     this.financialProducts.set(id, product);
     return product;
@@ -612,35 +654,130 @@ export class MemStorage implements IStorage {
       this.createFinancialProduct(product);
     });
   }
+
+  // Notification operations
+  async getNotifications(userId: string, options?: { limit?: number; offset?: number; category?: string; unreadOnly?: boolean }): Promise<Notification[]> {
+    let notifications = Array.from(this.notifications.values()).filter(notification => notification.userId === userId);
+    
+    if (options?.category) {
+      notifications = notifications.filter(notification => notification.category === options.category);
+    }
+    
+    if (options?.unreadOnly) {
+      notifications = notifications.filter(notification => !notification.isRead);
+    }
+    
+    // Sort by creation date (most recent first)
+    notifications.sort((a, b) => b.createdAt!.getTime() - a.createdAt!.getTime());
+    
+    if (options?.offset) {
+      notifications = notifications.slice(options.offset);
+    }
+    
+    if (options?.limit) {
+      notifications = notifications.slice(0, options.limit);
+    }
+    
+    return notifications;
+  }
+  
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const notification: Notification = {
+      id: this.currentNotificationId++,
+      ...insertNotification,
+      createdAt: new Date(),
+      readAt: null,
+      // Ensure nullable metadata field is handled properly
+      metadata: insertNotification.metadata ?? null,
+      // Ensure isRead has default value
+      isRead: insertNotification.isRead ?? false,
+      // Ensure actionUrl is handled properly
+      actionUrl: insertNotification.actionUrl ?? null,
+    };
+    this.notifications.set(notification.id, notification);
+    return notification;
+  }
+  
+  async markNotificationAsRead(notificationId: number, userId: string): Promise<boolean> {
+    const notification = this.notifications.get(notificationId);
+    if (!notification || notification.userId !== userId) {
+      return false;
+    }
+    
+    notification.isRead = true;
+    notification.readAt = new Date();
+    this.notifications.set(notificationId, notification);
+    return true;
+  }
+  
+  async markAllNotificationsAsRead(userId: string): Promise<boolean> {
+    const userNotifications = Array.from(this.notifications.values()).filter(
+      notification => notification.userId === userId && !notification.isRead
+    );
+    
+    const now = new Date();
+    userNotifications.forEach(notification => {
+      notification.isRead = true;
+      notification.readAt = now;
+      this.notifications.set(notification.id, notification);
+    });
+    
+    return userNotifications.length > 0;
+  }
+  
+  async deleteNotification(notificationId: number, userId: string): Promise<boolean> {
+    const notification = this.notifications.get(notificationId);
+    if (!notification || notification.userId !== userId) {
+      return false;
+    }
+    
+    return this.notifications.delete(notificationId);
+  }
+  
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    return Array.from(this.notifications.values())
+      .filter(notification => notification.userId === userId && !notification.isRead)
+      .length;
+  }
 }
 
 export class DatabaseStorage implements IStorage {
   // User operations
-  async getUser(id: string | number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id as string));
+  async getUser(id: string): Promise<User | undefined> {
+    if (!db) return undefined;
+    const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
   }
   
   async getUserByUsername(username: string): Promise<User | undefined> {
+    if (!db) return undefined;
     const [user] = await db.select().from(users).where(eq(users.username, username));
     return user || undefined;
   }
   
   async getUserByEmail(email: string): Promise<User | undefined> {
+    if (!db) return undefined;
     const [user] = await db.select().from(users).where(eq(users.email, email));
     return user || undefined;
   }
   
   async createUser(insertUser: InsertUser): Promise<User> {
+    if (!db) throw new Error("Database not available");
+    // Generate a unique ID for the user if not provided
+    const userWithId = {
+      ...insertUser,
+      id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9)
+    };
     const [user] = await db
       .insert(users)
-      .values(insertUser)
+      .values(userWithId)
       .returning();
     return user;
   }
   
   // Bank connection operations
-  async getBankConnections(userId: number): Promise<BankConnection[]> {
+  async getBankConnections(userId: string): Promise<BankConnection[]> {
+    if (!db) return [];
     return await db
       .select()
       .from(bankConnections)
@@ -648,6 +785,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getBankConnection(id: number): Promise<BankConnection | undefined> {
+    if (!db) return undefined;
     const [connection] = await db
       .select()
       .from(bankConnections)
@@ -656,6 +794,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createBankConnection(insertConnection: InsertBankConnection): Promise<BankConnection> {
+    if (!db) throw new Error("Database not available");
     const [connection] = await db
       .insert(bankConnections)
       .values(insertConnection)
@@ -664,6 +803,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateBankConnection(id: number, connection: Partial<InsertBankConnection>): Promise<BankConnection | undefined> {
+    if (!db) return undefined;
     const [updatedConnection] = await db
       .update(bankConnections)
       .set({
@@ -676,6 +816,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async deleteBankConnection(id: number): Promise<boolean> {
+    if (!db) return false;
     const result = await db
       .delete(bankConnections)
       .where(eq(bankConnections.id, id));
@@ -683,7 +824,8 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Credit score operations
-  async getCreditScore(userId: number): Promise<CreditScore | undefined> {
+  async getCreditScore(userId: string): Promise<CreditScore | undefined> {
+    if (!db) return undefined;
     const [creditScore] = await db
       .select()
       .from(creditScores)
@@ -692,6 +834,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createCreditScore(insertCreditScore: InsertCreditScore): Promise<CreditScore> {
+    if (!db) throw new Error("Database not available");
     const [creditScore] = await db
       .insert(creditScores)
       .values(insertCreditScore)
@@ -699,7 +842,8 @@ export class DatabaseStorage implements IStorage {
     return creditScore;
   }
   
-  async updateCreditScore(userId: number, creditScore: Partial<InsertCreditScore>): Promise<CreditScore | undefined> {
+  async updateCreditScore(userId: string, creditScore: Partial<InsertCreditScore>): Promise<CreditScore | undefined> {
+    if (!db) return undefined;
     const [updatedScore] = await db
       .update(creditScores)
       .set({
@@ -712,7 +856,8 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Insurance risk operations
-  async getInsuranceRisk(userId: number): Promise<InsuranceRisk | undefined> {
+  async getInsuranceRisk(userId: string): Promise<InsuranceRisk | undefined> {
+    if (!db) return undefined;
     const [insuranceRisk] = await db
       .select()
       .from(insuranceRisks)
@@ -721,6 +866,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createInsuranceRisk(insertInsuranceRisk: InsertInsuranceRisk): Promise<InsuranceRisk> {
+    if (!db) throw new Error("Database not available");
     const [insuranceRisk] = await db
       .insert(insuranceRisks)
       .values(insertInsuranceRisk)
@@ -728,7 +874,8 @@ export class DatabaseStorage implements IStorage {
     return insuranceRisk;
   }
   
-  async updateInsuranceRisk(userId: number, insuranceRisk: Partial<InsertInsuranceRisk>): Promise<InsuranceRisk | undefined> {
+  async updateInsuranceRisk(userId: string, insuranceRisk: Partial<InsertInsuranceRisk>): Promise<InsuranceRisk | undefined> {
+    if (!db) return undefined;
     const [updatedRisk] = await db
       .update(insuranceRisks)
       .set({
@@ -741,7 +888,8 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Financial goal operations
-  async getFinancialGoals(userId: number): Promise<FinancialGoal[]> {
+  async getFinancialGoals(userId: string): Promise<FinancialGoal[]> {
+    if (!db) return [];
     return await db
       .select()
       .from(financialGoals)
@@ -749,6 +897,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getFinancialGoal(id: number): Promise<FinancialGoal | undefined> {
+    if (!db) return undefined;
     const [goal] = await db
       .select()
       .from(financialGoals)
@@ -757,6 +906,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createFinancialGoal(insertGoal: InsertFinancialGoal): Promise<FinancialGoal> {
+    if (!db) throw new Error("Database not available");
     const [goal] = await db
       .insert(financialGoals)
       .values(insertGoal)
@@ -765,6 +915,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateFinancialGoal(id: number, goal: Partial<InsertFinancialGoal>): Promise<FinancialGoal | undefined> {
+    if (!db) return undefined;
     const [updatedGoal] = await db
       .update(financialGoals)
       .set(goal)
@@ -774,6 +925,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async deleteFinancialGoal(id: number): Promise<boolean> {
+    if (!db) return false;
     const result = await db
       .delete(financialGoals)
       .where(eq(financialGoals.id, id));
@@ -782,6 +934,7 @@ export class DatabaseStorage implements IStorage {
   
   // Financial product operations
   async getFinancialProducts(category?: string): Promise<FinancialProduct[]> {
+    if (!db) return [];
     if (category) {
       return await db
         .select()
@@ -793,6 +946,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getFinancialProduct(id: number): Promise<FinancialProduct | undefined> {
+    if (!db) return undefined;
     const [product] = await db
       .select()
       .from(financialProducts)
@@ -801,6 +955,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createFinancialProduct(insertProduct: InsertFinancialProduct): Promise<FinancialProduct> {
+    if (!db) throw new Error("Database not available");
     const [product] = await db
       .insert(financialProducts)
       .values(insertProduct)
@@ -810,6 +965,7 @@ export class DatabaseStorage implements IStorage {
   
   // Expense operations
   async getExpenses(userId: string): Promise<Expense[]> {
+    if (!db) return [];
     return await db
       .select()
       .from(expenses)
@@ -817,6 +973,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getExpense(id: number): Promise<Expense | undefined> {
+    if (!db) return undefined;
     const [expense] = await db
       .select()
       .from(expenses)
@@ -825,6 +982,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createExpense(insertExpense: InsertExpense): Promise<Expense> {
+    if (!db) throw new Error("Database not available");
     const [expense] = await db
       .insert(expenses)
       .values(insertExpense)
@@ -833,6 +991,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateExpense(id: number, expense: Partial<InsertExpense>): Promise<Expense | undefined> {
+    if (!db) return undefined;
     const [updatedExpense] = await db
       .update(expenses)
       .set(expense)
@@ -842,6 +1001,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async deleteExpense(id: number): Promise<boolean> {
+    if (!db) return false;
     const result = await db
       .delete(expenses)
       .where(eq(expenses.id, id));
@@ -850,6 +1010,7 @@ export class DatabaseStorage implements IStorage {
   
   // Bill split operations
   async getBillSplits(userId: string): Promise<BillSplit[]> {
+    if (!db) return [];
     return await db
       .select()
       .from(billSplits)
@@ -857,6 +1018,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getBillSplit(id: number): Promise<BillSplit | undefined> {
+    if (!db) return undefined;
     const [billSplit] = await db
       .select()
       .from(billSplits)
@@ -865,6 +1027,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createBillSplit(insertBillSplit: InsertBillSplit): Promise<BillSplit> {
+    if (!db) throw new Error("Database not available");
     const [billSplit] = await db
       .insert(billSplits)
       .values(insertBillSplit)
@@ -873,6 +1036,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateBillSplit(id: number, billSplit: Partial<InsertBillSplit>): Promise<BillSplit | undefined> {
+    if (!db) return undefined;
     const [updatedBillSplit] = await db
       .update(billSplits)
       .set(billSplit)
@@ -882,6 +1046,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async deleteBillSplit(id: number): Promise<boolean> {
+    if (!db) return false;
     const result = await db
       .delete(billSplits)
       .where(eq(billSplits.id, id));
@@ -890,6 +1055,7 @@ export class DatabaseStorage implements IStorage {
   
   // Bill split participant operations
   async getBillSplitParticipants(billSplitId: number): Promise<BillSplitParticipant[]> {
+    if (!db) return [];
     return await db
       .select()
       .from(billSplitParticipants)
@@ -897,6 +1063,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createBillSplitParticipant(insertParticipant: InsertBillSplitParticipant): Promise<BillSplitParticipant> {
+    if (!db) throw new Error("Database not available");
     const [participant] = await db
       .insert(billSplitParticipants)
       .values(insertParticipant)
@@ -905,6 +1072,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateBillSplitParticipant(id: number, participant: Partial<InsertBillSplitParticipant>): Promise<BillSplitParticipant | undefined> {
+    if (!db) return undefined;
     const [updatedParticipant] = await db
       .update(billSplitParticipants)
       .set(participant)
@@ -915,28 +1083,38 @@ export class DatabaseStorage implements IStorage {
   
   // Notification operations
   async getNotifications(userId: string, options?: { limit?: number; offset?: number; category?: string; unreadOnly?: boolean }): Promise<Notification[]> {
-    let query = db.select().from(notifications).where(eq(notifications.userId, userId));
+    if (!db) return [];
+    
+    // Build where conditions array
+    const whereConditions = [eq(notifications.userId, userId)];
     
     if (options?.category) {
-      query = query.where(eq(notifications.category, options.category));
+      whereConditions.push(eq(notifications.category, options.category));
     }
     
     if (options?.unreadOnly) {
-      query = query.where(eq(notifications.isRead, false));
+      whereConditions.push(eq(notifications.isRead, false));
     }
     
-    if (options?.limit) {
-      query = query.limit(options.limit);
+    // Build the base query with all conditions
+    const baseQuery = db.select().from(notifications).where(
+      whereConditions.length === 1 ? whereConditions[0] : and(...whereConditions)
+    );
+    
+    // Apply limit and offset based on options
+    if (options?.limit && options?.offset) {
+      return await baseQuery.limit(options.limit).offset(options.offset);
+    } else if (options?.limit) {
+      return await baseQuery.limit(options.limit);
+    } else if (options?.offset) {
+      return await baseQuery.offset(options.offset);
     }
     
-    if (options?.offset) {
-      query = query.offset(options.offset);
-    }
-    
-    return await query;
+    return await baseQuery;
   }
   
   async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    if (!db) throw new Error("Database not available");
     const [notification] = await db
       .insert(notifications)
       .values(insertNotification)
@@ -945,15 +1123,16 @@ export class DatabaseStorage implements IStorage {
   }
   
   async markNotificationAsRead(notificationId: number, userId: string): Promise<boolean> {
+    if (!db) return false;
     const result = await db
       .update(notifications)
       .set({ isRead: true, readAt: new Date() })
-      .where(eq(notifications.id, notificationId))
-      .where(eq(notifications.userId, userId));
+      .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)));
     return !!result;
   }
   
   async markAllNotificationsAsRead(userId: string): Promise<boolean> {
+    if (!db) return false;
     const result = await db
       .update(notifications)
       .set({ isRead: true, readAt: new Date() })
@@ -962,24 +1141,22 @@ export class DatabaseStorage implements IStorage {
   }
   
   async deleteNotification(notificationId: number, userId: string): Promise<boolean> {
+    if (!db) return false;
     const result = await db
       .delete(notifications)
-      .where(eq(notifications.id, notificationId))
-      .where(eq(notifications.userId, userId));
+      .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)));
     return !!result;
   }
   
   async getUnreadNotificationCount(userId: string): Promise<number> {
+    if (!db) return 0;
     const result = await db
       .select()
       .from(notifications)
-      .where(eq(notifications.userId, userId))
-      .where(eq(notifications.isRead, false));
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
     return result.length;
   }
 }
-
-import { db } from "./db";
 
 // Automatically choose storage based on database availability
 function createStorage(): IStorage {
