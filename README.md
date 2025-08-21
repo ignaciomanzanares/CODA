@@ -1,71 +1,237 @@
-**FinHealth By WeGroup**
+<div align="center">
+  <h1>🏦 FinHealth</h1>
+  <p><strong>Intelligent Financial Health Platform by WeGroup 🇨🇱</strong></p>
+  
+  <p>A comprehensive financial analysis platform that provides personalized insights into credit scores, insurance risk assessments, expense tracking, and financial goal management.</p>
 
-FinHealth is a full-stack financial health application that helps users track their financial status, credit score, insurance risk, and more.
+  ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+  ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)
+  ![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black)
+  ![Node.js](https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white)
+  ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?logo=postgresql&logoColor=white)
+  ![License](https://img.shields.io/badge/license-MIT-green.svg)
+</div>
 
 ---
 
-## 🚀 Getting Started
+## ✨ Features
 
-### 1. **Clone the Repository**
+### 🎯 Core Financial Analysis
+- **Credit Score Monitoring** - Real-time credit score analysis with detailed factor breakdowns
+- **Insurance Risk Assessment** - Comprehensive risk evaluation for auto, home, health, and life insurance
+- **Financial Goal Tracking** - Set, monitor, and achieve your financial objectives with progress visualization
+- **Bank Account Integration** - Secure connection to multiple financial institutions
+
+### 💰 Advanced Money Management
+- **Expense Tracking & Classification** - AI-powered automatic categorization with confidence scoring
+- **Bill Splitting System** - Smart group expense management with participant tracking
+- **Financial Product Recommendations** - Personalized suggestions for loans, credit cards, and savings accounts
+- **Railway API Integration** - Real-time financial data from external APIs
+
+### 🔐 Security & Authentication
+- **Auth0 Integration** - Enterprise-grade authentication and user management
+- **Session Management** - Secure token-based sessions with automatic renewal
+- **Data Encryption** - Bank-level security for all financial information
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+ 
+- PostgreSQL 14+
+- Auth0 account (for authentication)
+- Railway API access (optional, for external data)
+
+### 1. Clone & Install
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/ignaciomanzanares/FinHealth.git
 cd FinHealth
-```
-
-### 2. **Install Dependencies**
-
-#### Backend
-
-```bash
-cd server
 npm install
 ```
 
-#### Frontend
+### 2. Environment Setup
 
-```bash
-cd ../client
-npm install
+Create a `.env` file in the root directory:
+
+```env
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/finhealth"
+
+# Auth0 Configuration
+AUTH0_DOMAIN="your-domain.auth0.com"
+AUTH0_CLIENT_ID="your-client-id"
+AUTH0_CLIENT_SECRET="your-client-secret"
+AUTH0_AUDIENCE="https://finhealth-api"
+
+# Railway API (Optional)
+RAILWAY_API_URL="https://wegroup-backend-production.up.railway.app"
+
+# Application
+PORT=3000
+NODE_ENV=development
 ```
 
-### 3. **Configure Environment Variables**
-
-- Copy `.env.example` to `.env` in the `/server` directory (if provided).
-- Edit the `.env` file with your configuration (API keys, database URL, etc.).
-
-### 4. **Run the Application**
-
-#### Start the Backend
+### 3. Database Setup
 
 ```bash
-cd server
+# Push database schema
+npm run db:push
+
+# Seed with demo data
+npm run db:seed
+```
+
+### 4. Development
+
+```bash
+# Start development server (backend + frontend)
 npm run dev
+
+# Or start individually:
+npm run dev          # Backend only
+npm run dev:frontend # Frontend only
 ```
 
-#### Start the Frontend
+### 5. Production Build
 
 ```bash
-cd ../client
-npx vite
+npm run build
+npm start
 ```
 
-### 5. **Open the App**
+---
 
-On your host machine, open the frontend in your browser:
+## 🏗️ Architecture
 
-```bash
-$BROWSER http://localhost:5173
+### Frontend Stack
+- **React 18** with TypeScript for type-safe development
+- **Vite** for lightning-fast development and optimized builds
+- **TanStack Query** for powerful server state management
+- **Radix UI + shadcn/ui** for accessible, beautiful components
+- **Tailwind CSS** with custom theming for consistent design
+- **Wouter** for lightweight client-side routing
+
+### Backend Stack
+- **Express.js** REST API with TypeScript
+- **PostgreSQL** with **Drizzle ORM** for type-safe database operations
+- **Auth0** for enterprise authentication
+- **Railway API** integration for real-time financial data
+- **ESBuild** for optimized production bundles
+
+### Database Design
 ```
+├── users (Auth0 integrated)
+├── bank_connections (Multi-bank support)
+├── credit_scores (Real-time analysis)
+├── insurance_risks (Comprehensive assessment)
+├── financial_goals (Progress tracking)
+├── expenses (AI classification)
+├── bill_splits (Group management)
+├── financial_products (Recommendation engine)
+└── notifications (Real-time alerts)
+```
+
+---
+
+## 📱 Screenshots
+
+<details>
+<summary>🖼️ View Application Screenshots</summary>
+
+### Dashboard Overview
+*Coming soon - Add screenshot of main dashboard*
+
+### Credit Score Analysis
+*Coming soon - Add screenshot of credit score visualization*
+
+### Expense Tracking
+*Coming soon - Add screenshot of expense management interface*
+
+### Bill Splitting
+*Coming soon - Add screenshot of bill splitting feature*
+
+</details>
 
 ---
 
 ## 🛠️ Project Structure
 
-- `/client` – React frontend (TypeScript)
-- `/server` – Node.js backend (TypeScript)
-- `/shared` – Shared types/schemas
+```
+FinHealth/
+├── client/                 # React frontend
+│   ├── src/
+│   │   ├── components/     # Reusable UI components
+│   │   ├── pages/          # Application pages
+│   │   ├── lib/            # Utilities and API clients
+│   │   └── hooks/          # Custom React hooks
+│   ├── public/             # Static assets
+│   └── vite.config.ts      # Vite configuration
+├── server/                 # Express backend
+│   ├── index.ts            # Server entry point
+│   ├── routes.ts           # API route definitions
+│   ├── db.ts               # Database connection
+│   └── storage.ts          # Data layer
+├── shared/                 # Shared types and schemas
+│   └── schema.ts           # Drizzle database schema
+├── package.json            # Dependencies and scripts
+└── drizzle.config.ts       # Database configuration
+```
 
+---
 
+## 🔧 API Endpoints
 
-**Made by WeGroup 🇨🇱**
+### Authentication
+- `POST /api/auth/login` - User login
+- `POST /api/auth/logout` - User logout
+- `GET /api/auth/me` - Get current user
+
+### Financial Data
+- `GET /api/credit-score` - Get credit score analysis
+- `GET /api/insurance-risk` - Get insurance risk assessment
+- `GET /api/bank-connections` - List connected accounts
+- `POST /api/bank-connections` - Connect new account
+
+### Goals & Planning
+- `GET /api/financial-goals` - List user goals
+- `POST /api/financial-goals` - Create new goal
+- `PUT /api/financial-goals/:id` - Update goal
+- `DELETE /api/financial-goals/:id` - Delete goal
+
+### Expenses & Bills
+- `GET /api/expenses` - List expenses with filtering
+- `POST /api/expenses` - Add new expense
+- `GET /api/bill-splits` - List bill splits
+- `POST /api/bill-splits` - Create new bill split
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🌟 Support
+
+If you find this project helpful, please consider giving it a ⭐!
+
+**Made with ❤️ by WeGroup 🇨🇱**
+
+<div align="center">
+  <p>For more information, visit our <a href="https://wegroup.cl">website</a> or contact us at <a href="mailto:contact@wegroup.cl">contact@wegroup.cl</a></p>
+</div>
