@@ -9,9 +9,8 @@ export function useApi() {
     data?: unknown,
     options?: RequestInit
   ) => {
-    // If not authenticated, redirect to login
+    // If not authenticated, throw error without redirecting
     if (!isAuthenticated) {
-      await loginWithRedirect();
       throw new Error("User not authenticated");
     }
 
@@ -111,12 +110,24 @@ export function useApi() {
     return res.json();
   };
 
-  // Example: get financial products
+  // Example: get financial products (public endpoint)
   const getFinancialProducts = async (category?: string) => {
     const url = category
       ? `/api/financial-products?category=${encodeURIComponent(category)}`
       : "/api/financial-products";
-    const res = await apiRequest("GET", url);
+    
+    // Financial products is a public endpoint, don't require auth
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    
+    if (!res.ok) {
+      throw new Error("Failed to fetch financial products");
+    }
+    
     return res.json();
   };
 
