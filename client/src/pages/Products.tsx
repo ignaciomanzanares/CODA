@@ -4,10 +4,10 @@ import { useApi } from "@/lib/api";
 import TabsComponent from "@/components/TabsComponent";
 import FiltersSection from "@/components/FiltersSection";
 import ProductsTable from "@/components/ProductsTable";
-import { Card, CardContent } from "@/components/ui/card";
 import { useAuth0 } from "@auth0/auth0-react";
 import { getDemoFinancialProductsByCategory } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
+import type { FinancialProduct } from "@/types";
 
 // Define a type for your filters
 type ProductFilters = {
@@ -50,30 +50,41 @@ export default function Products() {
   };
 
   // Apply filters to products
-  const filterProducts = (products: any[]) => {
+  const filterProducts = (products: FinancialProduct[] | Record<string, unknown>[]): FinancialProduct[] => {
     if (!products) return [];
-    return products.filter((product) => {
-      if (filters.type && filters.type !== "all" && product.productType?.toLowerCase() !== filters.type) {
+    return products.filter((product: FinancialProduct | Record<string, unknown>) => {
+      // Type guard to check if it's a proper FinancialProduct
+      const productType = (product as FinancialProduct).productType || (product as Record<string, unknown>).productType as string;
+      if (filters.type && filters.type !== "all" && productType?.toLowerCase() !== filters.type) {
         return false;
       }
       if (filters.rate && filters.rate !== "any") {
-        const rate = product.interestRate || 0;
+        const rate = ((product as FinancialProduct).interestRate || (product as Record<string, unknown>).interestRate as number) || 0;
         if (filters.rate === "below_5" && rate >= 5) return false;
         if (filters.rate === "5_to_10" && (rate < 5 || rate > 10)) return false;
         if (filters.rate === "above_10" && rate <= 10) return false;
       }
-      if (filters.term && filters.term !== "any" && product.term) {
-        const term = parseInt(filters.term);
-        if (term && product.term < term) return false;
+      if (filters.term && filters.term !== "any") {
+        const productTerm = (product as Record<string, unknown>).term as number;
+        if (productTerm) {
+          const term = parseInt(filters.term);
+          if (term && productTerm < term) return false;
+        }
       }
-      if (filters.minAmount !== undefined && product.loanAmount && product.loanAmount < filters.minAmount) {
-        return false;
+      if (filters.minAmount !== undefined) {
+        const loanAmount = (product as Record<string, unknown>).loanAmount as number;
+        if (loanAmount && loanAmount < filters.minAmount) {
+          return false;
+        }
       }
-      if (filters.maxAmount !== undefined && product.loanAmount && product.loanAmount > filters.maxAmount) {
-        return false;
+      if (filters.maxAmount !== undefined) {
+        const loanAmount = (product as Record<string, unknown>).loanAmount as number;
+        if (loanAmount && loanAmount > filters.maxAmount) {
+          return false;
+        }
       }
       return true;
-    });
+    }) as FinancialProduct[];
   };
 
   const filteredProducts = products ? filterProducts(products) : [];

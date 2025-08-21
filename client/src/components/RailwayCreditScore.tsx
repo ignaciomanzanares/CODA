@@ -30,7 +30,7 @@ export default function RailwayCreditScore({ userId = "demo123" }: RailwayCredit
         title: "Credit score refreshed",
         description: "Latest credit analysis loaded from Railway API",
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Refresh failed",
         description: "Unable to refresh credit score from Railway API",

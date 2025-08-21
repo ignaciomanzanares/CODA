@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RefreshCw, DollarSign, CreditCard, TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
-import { railwayApi, type FinancialProfile, type CreditAnalysis } from "@/lib/railwayApi";
+import { railwayApi } from "@/lib/railwayApi";
+import type { FinancialProfile as _FinancialProfile, CreditAnalysis as _CreditAnalysis } from "@/lib/railwayApi";
 import { useToast } from "@/hooks/use-toast";
 import RailwayHealthCheck from "./RailwayHealthCheck";
 
@@ -39,7 +40,7 @@ export default function RailwayFinancialData({ userId = "demo123" }: RailwayFina
         title: "Data refreshed",
         description: "Financial data has been updated from Railway API",
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Refresh failed",
         description: "Unable to refresh data from Railway API",

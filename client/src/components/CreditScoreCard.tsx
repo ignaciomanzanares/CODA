@@ -9,8 +9,7 @@ import ProgressRing from "./ProgressRing";
 import { 
   getCreditScoreStatus, 
   getCreditFactorColor,
-  getCircleColor,
-  calculateCreditScoreCircleDashoffset 
+  getCircleColor
 } from "@/lib/creditScore";
 
 export default function CreditScoreCard() {

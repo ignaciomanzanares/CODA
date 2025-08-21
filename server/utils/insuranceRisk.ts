@@ -84,7 +84,7 @@ function simulatePaymentStability(connections: BankConnection[]): number {
   const checkingAccounts = connections.filter(conn => conn.accountType === 'checking');
   
   // Base risk score - higher is riskier
-  let baseRisk = 0.5 - (Math.random() * 0.2); // Between 0.3 and 0.5
+  const baseRisk = 0.5 - (Math.random() * 0.2); // Between 0.3 and 0.5
   
   // Savings accounts typically indicate stability (reduce risk)
   const savingsBonus = savingsAccounts.length * 0.07;

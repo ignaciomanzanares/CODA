@@ -6,13 +6,12 @@ import { useLocation } from "wouter";
 import ProgressIndicator from "@/components/ProgressIndicator";
 import BankConnectionCard from "@/components/BankConnectionCard";
 import { Button } from "@/components/ui/button";
-import { 
-  CreditCard, 
-  Building2, 
-  PiggyBank, 
+import {
+  CreditCard,
+  Building2,
+  PiggyBank,
   BadgeDollarSign,
   Landmark,
-  Building,
   ChevronsDown
 } from "lucide-react";
 

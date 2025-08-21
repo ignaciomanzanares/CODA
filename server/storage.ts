@@ -11,7 +11,7 @@ import {
   notifications, type Notification, type InsertNotification
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -58,6 +58,7 @@ export interface IStorage {
   
   // Bill split operations
   getBillSplits(userId: string): Promise<BillSplit[]>;
+  getBillSplitsAsParticipant(userId: string): Promise<BillSplit[]>;
   getBillSplit(id: number): Promise<BillSplit | undefined>;
   createBillSplit(billSplit: InsertBillSplit): Promise<BillSplit>;
   updateBillSplit(id: number, billSplit: Partial<InsertBillSplit>): Promise<BillSplit | undefined>;
@@ -67,6 +68,7 @@ export interface IStorage {
   getBillSplitParticipants(billSplitId: number): Promise<BillSplitParticipant[]>;
   createBillSplitParticipant(participant: InsertBillSplitParticipant): Promise<BillSplitParticipant>;
   updateBillSplitParticipant(id: number, participant: Partial<InsertBillSplitParticipant>): Promise<BillSplitParticipant | undefined>;
+  getUnlinkedParticipantsByEmail(email: string): Promise<BillSplitParticipant[]>;
   
   // Notification operations
   getNotifications(userId: string, options?: { limit?: number; offset?: number; category?: string; unreadOnly?: boolean }): Promise<Notification[]>;
@@ -178,6 +180,17 @@ export class MemStorage implements IStorage {
     return Array.from(this.billSplits.values()).filter(split => split.createdBy === userId);
   }
 
+  async getBillSplitsAsParticipant(userId: string): Promise<BillSplit[]> {
+    // Find bill split IDs where user is a participant
+    const participantEntries = Array.from(this.billSplitParticipants.values())
+      .filter(participant => participant.userId === userId);
+    const participantBillSplitIds = new Set(participantEntries.map(p => p.billSplitId));
+    
+    // Return bill splits where user is a participant
+    return Array.from(this.billSplits.values())
+      .filter(split => participantBillSplitIds.has(split.id as number));
+  }
+
   async getBillSplit(id: number): Promise<BillSplit | undefined> {
     return this.billSplits.get(id);
   }
@@ -235,6 +248,12 @@ export class MemStorage implements IStorage {
     const updated: BillSplitParticipant = { ...existing, ...updateData };
     this.billSplitParticipants.set(id, updated);
     return updated;
+  }
+
+  // Get participant records that have an email but no userId (for linking new users)
+  async getUnlinkedParticipantsByEmail(email: string): Promise<BillSplitParticipant[]> {
+    return Array.from(this.billSplitParticipants.values())
+      .filter(participant => participant.email === email && participant.userId === null);
   }
 
   private async seedSampleExpenses() {
@@ -593,7 +612,7 @@ export class MemStorage implements IStorage {
         interestRate: 18.24,
         description: "Earn 3% cash back on dining, 2% on gas, 1% on everything else",
         requirements: { minimumCreditScore: 700 },
-        features: { annualFee: 0, rewardsRate: 3, introducotryAPR: 0 }
+        features: { annualFee: 0, rewardsRate: 3, introductoryAPR: 0 }
       },
       {
         productName: "Travel Rewards Card",
@@ -821,12 +840,12 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
   
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser: InsertUser & { id?: string }): Promise<User> {
     if (!db) throw new Error("Database not available");
-    // Generate a unique ID for the user if not provided
+    // Use provided ID or generate a unique ID for the user if not provided
     const userWithId = {
       ...insertUser,
-      id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9)
+      id: insertUser.id || Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9)
     };
     const [user] = await db
       .insert(users)
@@ -1076,6 +1095,44 @@ export class DatabaseStorage implements IStorage {
       .from(billSplits)
       .where(eq(billSplits.createdBy, userId));
   }
+
+  async getBillSplitsAsParticipant(userId: string): Promise<BillSplit[]> {
+    if (!db) return [];
+    
+    console.log(`🔍 DEBUG: Looking for participant bill splits for user: ${userId}`);
+    
+    // Get bill split IDs where user is a participant
+    const participantBillSplitIds = await db
+      .select({ billSplitId: billSplitParticipants.billSplitId })
+      .from(billSplitParticipants)
+      .where(eq(billSplitParticipants.userId, userId));
+    
+    console.log(`🔍 DEBUG: Found ${participantBillSplitIds.length} participant records for user ${userId}:`, participantBillSplitIds);
+    
+    if (participantBillSplitIds.length === 0) {
+      return [];
+    }
+    
+    // Get the bill splits for these IDs
+    const billSplitIds = participantBillSplitIds.map(p => p.billSplitId);
+    console.log(`🔍 DEBUG: Bill split IDs to fetch: ${billSplitIds}`);
+    
+    if (billSplitIds.length === 1) {
+      const result = await db
+        .select()
+        .from(billSplits)
+        .where(eq(billSplits.id, billSplitIds[0]));
+      console.log(`🔍 DEBUG: Found ${result.length} bill splits for single ID query`);
+      return result;
+    } else {
+      const result = await db
+        .select()
+        .from(billSplits)
+        .where(inArray(billSplits.id, billSplitIds));
+      console.log(`🔍 DEBUG: Found ${result.length} bill splits for multi ID query`);
+      return result;
+    }
+  }
   
   async getBillSplit(id: number): Promise<BillSplit | undefined> {
     if (!db) return undefined;
@@ -1139,6 +1196,20 @@ export class DatabaseStorage implements IStorage {
       .where(eq(billSplitParticipants.id, id))
       .returning();
     return updatedParticipant || undefined;
+  }
+  
+  // Get participant records that have an email but no userId (for linking new users)
+  async getUnlinkedParticipantsByEmail(email: string): Promise<BillSplitParticipant[]> {
+    if (!db) return [];
+    return await db
+      .select()
+      .from(billSplitParticipants)
+      .where(
+        and(
+          eq(billSplitParticipants.email, email),
+          isNull(billSplitParticipants.userId)
+        )
+      );
   }
   
   // Notification operations

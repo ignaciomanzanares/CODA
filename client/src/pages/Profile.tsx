@@ -43,7 +43,7 @@ import {
 export default function Profile() {
   const { user, logout, isAuthenticated, isLoading } = useAuth0();
   const { toast } = useToast();
-  const { updateProfile, getUserProfile, deleteAccount } = useApi();
+  const { updateProfile, deleteAccount } = useApi();
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
     displayName: user?.name || "",
@@ -109,7 +109,7 @@ export default function Profile() {
         title: "Profile updated",
         description: "Your profile information has been updated successfully.",
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Update failed",
         description: "Failed to update profile. Please try again.",

@@ -196,7 +196,7 @@ function getSubcategory(category: string, text: string, amount?: number): string
   }
 }
 
-export function getExpenseInsights(expenses: any[]): {
+export function getExpenseInsights(expenses: Array<{ amount: string | number; category: string; date: string | Date }>): {
   topCategories: { category: string; amount: number; percentage: number }[];
   monthlyTrend: { month: string; amount: number }[];
   avgPerCategory: { category: string; avg: number }[];
@@ -204,7 +204,7 @@ export function getExpenseInsights(expenses: any[]): {
   // Calculate top spending categories
   const categoryTotals: { [key: string]: number } = {};
   const totalSpent = expenses.reduce((sum, expense) => {
-    const amount = parseFloat(expense.amount);
+    const amount = parseFloat(String(expense.amount));
     const category = expense.category;
     categoryTotals[category] = (categoryTotals[category] || 0) + amount;
     return sum + amount;
@@ -224,7 +224,7 @@ export function getExpenseInsights(expenses: any[]): {
   expenses.forEach(expense => {
     const date = new Date(expense.date);
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + parseFloat(expense.amount);
+    monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + parseFloat(String(expense.amount));
   });
   
   const monthlyTrend = Object.entries(monthlyTotals)

@@ -16,10 +16,11 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import type { AllFilters, FilterValue } from "@/types";
 
 interface FiltersSectionProps {
   category: string;
-  onFilterChange: (filters: Record<string, any>) => void;
+  onFilterChange: (filters: AllFilters) => void;
   className?: string;
 }
 
@@ -47,10 +48,10 @@ export default function FiltersSection({
   const handleFilterChange = (key: string, value: string) => {
     const newFilters = { ...filters, [key]: value };
     setFilters(newFilters);
-    onFilterChange(newFilters);
+    onFilterChange({ ...newFilters, ...advancedFilters });
   };
 
-  const handleAdvancedFilterChange = (key: string, value: any) => {
+  const handleAdvancedFilterChange = (key: string, value: FilterValue) => {
     const newAdvancedFilters = { ...advancedFilters, [key]: value };
     setAdvancedFilters(newAdvancedFilters);
     onFilterChange({ ...filters, ...newAdvancedFilters });

@@ -1,7 +1,4 @@
-import { useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
-import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
 import CreditScoreCard from "@/components/CreditScoreCard";
 import InsuranceRiskCard from "@/components/InsuranceRiskCard";
 import FinancialGoalsCard from "@/components/FinancialGoalsCard";
@@ -11,10 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
-import { useApi } from "@/lib/api"; // <-- Import useApi
 
 export default function Dashboard() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth0();
+  const { isLoading: authLoading } = useAuth0();
   
   // For now, let's make the dashboard work without requiring authentication
   // This fixes the infinite loading issue
