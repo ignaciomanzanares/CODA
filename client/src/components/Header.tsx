@@ -81,9 +81,7 @@ export default function Header() {
             {isAuthenticated ? (
               <>
                 <NotificationCenter />
-                <Link href="/">
-                  <Button variant="outline">Connect Account</Button>
-                </Link>
+                <Button variant="outline" onClick={() => window.location.href = '/'}>Connect Account</Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger>
                     <Avatar>
@@ -91,8 +89,8 @@ export default function Header() {
                     </Avatar>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
-                      <Link href="/profile">Profile</Link>
+                    <DropdownMenuItem onClick={() => window.location.href = '/profile'}>
+                      Profile
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleLogout}>
                       Logout
@@ -114,29 +112,32 @@ export default function Header() {
               <SheetContent>
                 <div className="flex flex-col space-y-4 mt-8">
                   {navigation.map((item) => (
-                    <Link key={item.name} href={item.href}>
-                      <a
-                        className={`font-medium ${
-                          location === item.href
-                            ? "text-primary"
-                            : "text-neutral-600"
-                        }`}
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        {item.name}
-                      </a>
-                    </Link>
+                    <button
+                      key={item.name}
+                      className={`font-medium text-left ${
+                        location === item.href
+                          ? "text-primary"
+                          : "text-neutral-600"
+                      }`}
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        window.location.href = item.href;
+                      }}
+                    >
+                      {item.name}
+                    </button>
                   ))}
                   {isAuthenticated ? (
                     <>
-                      <Link href="/profile">
-                        <a
-                          className="font-medium text-neutral-600"
-                          onClick={() => setMobileMenuOpen(false)}
-                        >
-                          Profile
-                        </a>
-                      </Link>
+                      <button
+                        className="font-medium text-neutral-600 text-left"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          window.location.href = '/profile';
+                        }}
+                      >
+                        Profile
+                      </button>
                       <Button variant="outline" onClick={handleLogout}>
                         Logout
                       </Button>
