@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useApi } from "@/lib/api"; // <-- Use only useApi
-import { queryClient } from "@/lib/queryClient";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -70,6 +69,7 @@ export default function Goals() {
   const [isEditGoalOpen, setIsEditGoalOpen] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Get API functions from useApi
   const { 
@@ -87,6 +87,7 @@ export default function Goals() {
     queryKey: ["/api/financial-goals"],
     queryFn: getFinancialGoals,
     enabled: isAuthenticated && !authLoading,
+    staleTime: 0, // Ensure we always get fresh data from cache
   });
   
   const goals = isAuthenticated ? realGoals : demoGoals;
@@ -94,15 +95,35 @@ export default function Goals() {
   // Add goal mutation
   const addGoalMutation = useMutation({
     mutationFn: createFinancialGoal,
+    onMutate: async (newGoal) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/financial-goals"] });
+      
+      const previousGoals = queryClient.getQueryData<Goal[]>(["/api/financial-goals"]);
+      
+      if (previousGoals) {
+        const optimisticGoal: Goal = {
+          id: Date.now(), // Temporary ID
+          ...newGoal,
+          createdAt: new Date(),
+        };
+        queryClient.setQueryData<Goal[]>(["/api/financial-goals"], [...previousGoals, optimisticGoal]);
+      }
+      
+      return { previousGoals };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
       setIsAddGoalOpen(false);
+      addForm.reset();
       toast({
         title: "Goal created",
         description: "Your financial goal has been created successfully.",
       });
     },
-    onError: (error) => {
+    onError: (error, newGoal, context) => {
+      if (context?.previousGoals) {
+        queryClient.setQueryData(["/api/financial-goals"], context.previousGoals);
+      }
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to create financial goal",
@@ -115,16 +136,48 @@ export default function Goals() {
   const editGoalMutation = useMutation({
     mutationFn: (data: { id: string; goal: UpdateGoalData }) => 
       updateFinancialGoal(data.id, data.goal),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
+    onMutate: async ({ id, goal }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/financial-goals"] });
+      
+      const previousGoals = queryClient.getQueryData<Goal[]>(["/api/financial-goals"]);
+      
+      if (previousGoals) {
+        const updatedGoals = previousGoals.map(existingGoal => 
+          existingGoal.id === Number(id) ? {
+            ...existingGoal,
+            ...goal,
+          } : existingGoal
+        );
+        queryClient.setQueryData<Goal[]>(["/api/financial-goals"], updatedGoals);
+      }
+      
+      return { previousGoals };
+    },
+    onSuccess: (data) => {
+      // Update the cache with the real data from server
+      if (data) {
+        const previousGoals = queryClient.getQueryData<Goal[]>(["/api/financial-goals"]);
+        if (previousGoals) {
+          const updatedGoals = previousGoals.map(goal => 
+            goal.id === data.id ? data : goal
+          );
+          queryClient.setQueryData<Goal[]>(["/api/financial-goals"], updatedGoals);
+        }
+      }
+      // Invalidate notifications to show goal milestone notifications
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       setIsEditGoalOpen(false);
       setSelectedGoal(null);
+      editForm.reset();
       toast({
         title: "Goal updated",
         description: "Your financial goal has been updated successfully.",
       });
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
+      if (context?.previousGoals) {
+        queryClient.setQueryData(["/api/financial-goals"], context.previousGoals);
+      }
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to update financial goal",
@@ -136,14 +189,29 @@ export default function Goals() {
   // Delete goal mutation
   const deleteGoalMutation = useMutation({
     mutationFn: (goalId: string) => deleteFinancialGoal(goalId),
+    onMutate: async (goalId) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/financial-goals"] });
+      
+      const previousGoals = queryClient.getQueryData<Goal[]>(["/api/financial-goals"]);
+      
+      if (previousGoals) {
+        const filteredGoals = previousGoals.filter(goal => goal.id !== Number(goalId));
+        queryClient.setQueryData<Goal[]>(["/api/financial-goals"], filteredGoals);
+      }
+      
+      return { previousGoals };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
+      // Don't invalidate - the optimistic update already removed it
       toast({
         title: "Goal deleted",
         description: "Your financial goal has been deleted.",
       });
     },
-    onError: (error) => {
+    onError: (error, goalId, context) => {
+      if (context?.previousGoals) {
+        queryClient.setQueryData(["/api/financial-goals"], context.previousGoals);
+      }
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to delete financial goal",
@@ -177,19 +245,27 @@ export default function Goals() {
   });
 
   const handleAddSubmit = (values: GoalFormValues) => {
+    // Create a Date object that treats the date as local time, not UTC
+    const [year, month, day] = values.targetDate.split('-').map(Number);
+    const localDate = new Date(year, month - 1, day); // month is 0-indexed
+    
     addGoalMutation.mutate({
       ...values,
-      targetDate: new Date(values.targetDate),
+      targetDate: localDate,
     });
   };
 
   const handleEditSubmit = (values: GoalFormValues) => {
     if (selectedGoal) {
+      // Create a Date object that treats the date as local time, not UTC
+      const [year, month, day] = values.targetDate.split('-').map(Number);
+      const localDate = new Date(year, month - 1, day); // month is 0-indexed
+      
       editGoalMutation.mutate({
         id: String(selectedGoal.id),
         goal: {
           ...values,
-          targetDate: new Date(values.targetDate),
+          targetDate: localDate,
         }
       });
     }

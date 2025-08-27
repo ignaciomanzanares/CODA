@@ -13,6 +13,7 @@ import { emailService } from "./services/emailService.js";
 import crypto from "crypto";
 import { calculateCreditScore } from "./utils/creditScore";
 import { calculateInsuranceRisk } from "./utils/insuranceRisk";
+import { notificationService } from "./services/notificationService";
 
 // Auth0 JWT middleware
 const checkJwt = auth({
@@ -129,7 +130,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const userId = getUserIdFromAuth(req);
     const goalData = insertFinancialGoalSchema.parse({
       ...req.body,
-      userId
+      userId,
+      targetDate: new Date(req.body.targetDate) // Convert string to Date
     });
     const goal = await storage.createFinancialGoal(goalData);
     res.status(201).json(goal);
@@ -142,10 +144,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!goal || String(goal.userId) !== userId) {
       return res.status(404).json({ message: "Financial goal not found" });
     }
-    const updatedGoal = await storage.updateFinancialGoal(
-      goalId, 
-      req.body
-    );
+    const updateData = req.body.targetDate ? {
+      ...req.body,
+      targetDate: new Date(req.body.targetDate) // Convert string to Date if present
+    } : req.body;
+    const updatedGoal = await storage.updateFinancialGoal(goalId, updateData);
+    
+    // Check for goal milestone notifications
+    if (updatedGoal && req.body.currentAmount !== undefined) {
+      try {
+        const progress = Math.round((updatedGoal.currentAmount / updatedGoal.targetAmount) * 100);
+        
+        // Notify on significant milestones (25%, 50%, 75%, 90%, 100%)
+        const milestones = [25, 50, 75, 90, 100];
+        const currentMilestone = milestones.find(m => 
+          progress >= m && 
+          (goal.currentAmount / goal.targetAmount * 100) < m
+        );
+        
+        if (currentMilestone) {
+          await notificationService.notifyGoalMilestone(
+            userId,
+            updatedGoal.name,
+            currentMilestone,
+            updatedGoal.id as number
+          );
+        }
+      } catch (notificationError) {
+        console.error('Error creating goal milestone notification:', notificationError);
+      }
+    }
+    
     res.json(updatedGoal);
   });
 
@@ -158,6 +187,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     await storage.deleteFinancialGoal(goalId);
     res.json({ message: "Financial goal deleted" });
+  });
+
+  // Notification routes
+  app.get("/api/notifications", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { category, unreadOnly, limit, offset } = req.query;
+      
+      const options = {
+        category: category as string | undefined,
+        unreadOnly: unreadOnly === 'true',
+        limit: limit ? parseInt(limit as string) : undefined,
+        offset: offset ? parseInt(offset as string) : undefined,
+      };
+      
+      const notifications = await notificationService.getNotifications(userId, options);
+      
+      const body = JSON.stringify(notifications);
+      const etag = 'W/"' + crypto.createHash('sha1').update(body).digest('hex') + '"';
+      res.set({
+        'Cache-Control': 'private, max-age=10, must-revalidate',
+        'ETag': etag,
+      });
+      
+      const ifNoneMatch = req.headers['if-none-match'];
+      if (ifNoneMatch && ifNoneMatch === etag) {
+        return res.status(304).end();
+      }
+      
+      res.json(notifications);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.put("/api/notifications/:id/read", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const notificationId = Number(req.params.id);
+      
+      const success = await notificationService.markAsRead(notificationId, userId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+      
+      res.json({ message: "Notification marked as read" });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.put("/api/notifications/read-all", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      
+      const success = await notificationService.markAllAsRead(userId);
+      
+      res.json({ 
+        message: success ? "All notifications marked as read" : "No unread notifications found"
+      });
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.delete("/api/notifications/:id", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const notificationId = Number(req.params.id);
+      
+      const success = await notificationService.deleteNotification(notificationId, userId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+      
+      res.json({ message: "Notification deleted" });
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.get("/api/notifications/unread-count", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const count = await notificationService.getUnreadCount(userId);
+      
+      res.json({ count });
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
   });
 
   // --- Public/demo routes (no auth required) ---
@@ -243,9 +369,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const userId = getUserIdFromAuth(req);
     const expenseData = {
       ...req.body,
-      userId
+      userId,
+      // Convert date string to Date object if it's a string
+      date: typeof req.body.date === 'string' ? new Date(req.body.date) : req.body.date
     };
     const expense = await storage.createExpense(expenseData);
+    
+    // Check for unusual spending patterns and create notification
+    try {
+      console.log(`🔔 Processing expense notification for user ${userId}, amount: $${expense.amount}, category: ${expense.category}`);
+      
+      // For testing: create a notification for any expense >= $50
+      const currentAmount = parseFloat(expense.amount);
+      if (currentAmount >= 50) {
+        console.log(`🔔 Creating expense notification for $${currentAmount}`);
+        await notificationService.createNotification({
+          userId,
+          title: 'New Expense Added',
+          message: `You added a $${currentAmount.toFixed(2)} expense for ${expense.category}.`,
+          type: 'info',
+          category: 'expense',
+          actionUrl: '/expenses',
+          metadata: { expenseId: expense.id, amount: currentAmount, category: expense.category }
+        });
+        console.log(`✅ Expense notification created successfully`);
+      }
+      
+      // Original logic for unusual spending (keep this too)
+      const userExpenses = await storage.getExpenses(userId);
+      const categoryExpenses = userExpenses.filter(e => 
+        e.category === expense.category && 
+        e.id !== expense.id && // Exclude current expense
+        new Date(e.date) >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
+      );
+      
+      if (categoryExpenses.length > 0) {
+        const averageAmount = categoryExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0) / categoryExpenses.length;
+        
+        // Notify if this expense is 2x more than average in this category
+        if (currentAmount >= averageAmount * 2 && currentAmount >= 100) { // Also require minimum $100
+          console.log(`🔔 Creating unusual expense notification: $${currentAmount} vs avg $${averageAmount.toFixed(2)}`);
+          await notificationService.notifyUnusualExpense(
+            userId,
+            currentAmount,
+            expense.category,
+            expense.id as number
+          );
+        }
+      }
+    } catch (notificationError) {
+      console.error('❌ Error creating expense notification:', notificationError);
+    }
+    
     res.status(201).json(expense);
   });
 
@@ -256,7 +431,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!expense || String(expense.userId) !== userId) {
       return res.status(404).json({ message: "Expense not found" });
     }
-    const updatedExpense = await storage.updateExpense(expenseId, req.body);
+    const updateData = {
+      ...req.body,
+      // Convert date string to Date object if it's a string
+      ...(req.body.date && typeof req.body.date === 'string' && { date: new Date(req.body.date) })
+    };
+    const updatedExpense = await storage.updateExpense(expenseId, updateData);
     res.json(updatedExpense);
   });
 
@@ -403,6 +583,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       const billSplit = await storage.createBillSplit(billSplitData);
       
+      // Create notification for bill split creation
+      try {
+        console.log(`🔔 Creating bill split notification for user ${userId}, title: ${billSplit.title}, amount: $${billSplit.totalAmount}`);
+        await notificationService.notifyBillSplitCreated(
+          userId, 
+          billSplit.title || 'New Bill Split', 
+          parseFloat(billSplit.totalAmount),
+          billSplit.id as number
+        );
+        console.log(`✅ Bill split notification created successfully`);
+      } catch (notificationError) {
+        console.error('❌ Error creating bill split notification:', notificationError);
+      }
+      
       // Create participants if provided and send email invitations
       if (participants && Array.isArray(participants)) {
         const creatorName = user ? 
@@ -532,7 +726,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Participant not found" });
       }
       
-      // TODO: Send notification to bill creator about payment
+      // Notify bill creator about payment
+      if (String(billSplit.createdBy) !== userId) { // Only notify if payer is not the creator
+        try {
+          const payerUser = await storage.getUser(userId);
+          const payerName = payerUser ? 
+            `${payerUser.firstName || ''} ${payerUser.lastName || ''}`.trim() || payerUser.username :
+            'Someone';
+          
+          await notificationService.createNotification({
+            userId: String(billSplit.createdBy),
+            title: 'Payment Received',
+            message: `${payerName} has paid their share for "${billSplit.title}".`,
+            type: 'success',
+            category: 'bill_split',
+            actionUrl: '/bill-split',
+            metadata: { billSplitId, participantId, paidAmount: participant.amountPaid }
+          });
+        } catch (notificationError) {
+          console.error('Error creating payment notification:', notificationError);
+        }
+      }
+      
       res.json({ message: "Payment marked successfully", participant });
     } catch (error) {
       console.error('Error marking payment:', error);
