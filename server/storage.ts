@@ -11,7 +11,7 @@ import {
   notifications, type Notification, type InsertNotification
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, inArray, isNull } from "drizzle-orm";
+import { eq, and, inArray, isNull, desc } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -986,18 +986,32 @@ export class DatabaseStorage implements IStorage {
   
   async createFinancialGoal(insertGoal: InsertFinancialGoal): Promise<FinancialGoal> {
     if (!db) throw new Error("Database not available");
+    
+    // Ensure targetDate is a proper Date object
+    const goalData = {
+      ...insertGoal,
+      targetDate: insertGoal.targetDate instanceof Date ? insertGoal.targetDate : new Date(insertGoal.targetDate)
+    };
+    
     const [goal] = await db
       .insert(financialGoals)
-      .values(insertGoal)
+      .values(goalData)
       .returning();
     return goal;
   }
   
   async updateFinancialGoal(id: number, goal: Partial<InsertFinancialGoal>): Promise<FinancialGoal | undefined> {
     if (!db) return undefined;
+    
+    // Ensure targetDate is a proper Date object if provided
+    const goalData = goal.targetDate ? {
+      ...goal,
+      targetDate: goal.targetDate instanceof Date ? goal.targetDate : new Date(goal.targetDate)
+    } : goal;
+    
     const [updatedGoal] = await db
       .update(financialGoals)
-      .set(goal)
+      .set(goalData)
       .where(eq(financialGoals.id, id))
       .returning();
     return updatedGoal || undefined;
@@ -1062,18 +1076,32 @@ export class DatabaseStorage implements IStorage {
   
   async createExpense(insertExpense: InsertExpense): Promise<Expense> {
     if (!db) throw new Error("Database not available");
+    
+    // Ensure date is a proper Date object
+    const expenseData = {
+      ...insertExpense,
+      date: insertExpense.date instanceof Date ? insertExpense.date : new Date(insertExpense.date)
+    };
+    
     const [expense] = await db
       .insert(expenses)
-      .values(insertExpense)
+      .values(expenseData)
       .returning();
     return expense;
   }
   
   async updateExpense(id: number, expense: Partial<InsertExpense>): Promise<Expense | undefined> {
     if (!db) return undefined;
+    
+    // Ensure date is a proper Date object if provided
+    const expenseData = expense.date ? {
+      ...expense,
+      date: expense.date instanceof Date ? expense.date : new Date(expense.date)
+    } : expense;
+    
     const [updatedExpense] = await db
       .update(expenses)
-      .set(expense)
+      .set(expenseData)
       .where(eq(expenses.id, id))
       .returning();
     return updatedExpense || undefined;
@@ -1227,21 +1255,21 @@ export class DatabaseStorage implements IStorage {
       whereConditions.push(eq(notifications.isRead, false));
     }
     
-    // Build the base query with all conditions
-    const baseQuery = db.select().from(notifications).where(
-      whereConditions.length === 1 ? whereConditions[0] : and(...whereConditions)
-    );
+    // Build the base query with all conditions and ordering
+    let query = db.select().from(notifications)
+      .where(whereConditions.length === 1 ? whereConditions[0] : and(...whereConditions))
+      .orderBy(desc(notifications.createdAt)); // Order by most recent first
     
     // Apply limit and offset based on options
-    if (options?.limit && options?.offset) {
-      return await baseQuery.limit(options.limit).offset(options.offset);
-    } else if (options?.limit) {
-      return await baseQuery.limit(options.limit);
-    } else if (options?.offset) {
-      return await baseQuery.offset(options.offset);
+    if (options?.offset) {
+      query = query.offset(options.offset);
     }
     
-    return await baseQuery;
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    return await query;
   }
   
   async createNotification(insertNotification: InsertNotification): Promise<Notification> {
@@ -1255,28 +1283,46 @@ export class DatabaseStorage implements IStorage {
   
   async markNotificationAsRead(notificationId: number, userId: string): Promise<boolean> {
     if (!db) return false;
-    const result = await db
-      .update(notifications)
-      .set({ isRead: true, readAt: new Date() })
-      .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)));
-    return !!result;
+    try {
+      const result = await db
+        .update(notifications)
+        .set({ isRead: true, readAt: new Date() })
+        .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      return false;
+    }
   }
   
   async markAllNotificationsAsRead(userId: string): Promise<boolean> {
     if (!db) return false;
-    const result = await db
-      .update(notifications)
-      .set({ isRead: true, readAt: new Date() })
-      .where(eq(notifications.userId, userId));
-    return !!result;
+    try {
+      const result = await db
+        .update(notifications)
+        .set({ isRead: true, readAt: new Date() })
+        .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      return false;
+    }
   }
   
   async deleteNotification(notificationId: number, userId: string): Promise<boolean> {
     if (!db) return false;
-    const result = await db
-      .delete(notifications)
-      .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)));
-    return !!result;
+    try {
+      const result = await db
+        .delete(notifications)
+        .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      return false;
+    }
   }
   
   async getUnreadNotificationCount(userId: string): Promise<number> {

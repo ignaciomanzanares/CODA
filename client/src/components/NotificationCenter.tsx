@@ -10,6 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 import { formatRelativeTime, truncateText } from '@/lib/utils';
 import type { Notification } from '@shared/schema';
+import { useApi } from '@/lib/api';
+import { useAuth0 } from '@auth0/auth0-react';
 
 interface NotificationCenterProps {
   className?: string;
@@ -20,75 +22,71 @@ export default function NotificationCenter({ className }: NotificationCenterProp
   const [activeTab, setActiveTab] = useState('all');
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
-  // Mock API functions for notifications (these would be added to useApi)
-  const getNotifications = async (_options?: { category?: string; unreadOnly?: boolean }) => {
-    // Mock implementation - in real app this would come from the API
-    return [
-      {
-        id: 1,
-        title: 'New Bill Split Created',
-        message: '"Dinner at restaurant" has been created for $120.00. Check your share!',
-        type: 'info',
-        category: 'bill_split',
-        isRead: false,
-        actionUrl: '/bill-split',
-        createdAt: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-        metadata: { billSplitId: 1 }
-      },
-      {
-        id: 2,
-        title: 'Credit Score Updated',
-        message: 'Your credit score is now 750 (+15 points).',
-        type: 'success',
-        category: 'credit_score',
-        isRead: false,
-        actionUrl: '/dashboard',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-        metadata: { newScore: 750, change: 15 }
-      },
-      {
-        id: 3,
-        title: 'Goal Milestone Reached',
-        message: "Great job! You've reached 75% of your \"Emergency Fund\" goal.",
-        type: 'success',
-        category: 'goal',
-        isRead: true,
-        actionUrl: '/goals',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-        metadata: { goalId: 1, progress: 75 }
-      },
-      {
-        id: 4,
-        title: 'Unusual Spending Detected',
-        message: 'You spent $350.00 on Entertainment, which is higher than usual.',
-        type: 'warning',
-        category: 'expense',
-        isRead: true,
-        actionUrl: '/expenses',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48), // 2 days ago
-        metadata: { amount: 350, category: 'Entertainment' }
-      }
-    ] as Notification[];
-  };
+  const { isAuthenticated, isLoading: authLoading } = useAuth0();
+  const { 
+    getNotifications, 
+    markNotificationAsRead, 
+    markAllNotificationsAsRead, 
+    deleteNotification,
+    getUnreadNotificationCount 
+  } = useApi();
 
-  const { data: notifications = [], isLoading } = useQuery({
-    queryKey: ['notifications', activeTab],
-    queryFn: () => getNotifications({
-      category: activeTab === 'all' ? undefined : activeTab,
-      unreadOnly: activeTab === 'unread'
-    }),
+  // Get all notifications for counting and filtering
+  const { data: allNotifications = [], isLoading: allNotificationsLoading } = useQuery({
+    queryKey: ['notifications', 'all'],
+    queryFn: () => getNotifications({}),
+    enabled: isAuthenticated && !authLoading,
   });
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  // Get filtered notifications for the active tab
+  const { data: filteredNotifications = [], isLoading: filteredLoading } = useQuery({
+    queryKey: ['notifications', activeTab],
+    queryFn: () => {
+      if (activeTab === 'all') {
+        return getNotifications({});
+      } else if (activeTab === 'unread') {
+        return getNotifications({ unreadOnly: true });
+      } else {
+        return getNotifications({ category: activeTab });
+      }
+    },
+    enabled: isAuthenticated && !authLoading && activeTab !== 'all',
+  });
 
-  // Mock mutations (these would also be in useApi)
+  const notifications = activeTab === 'all' ? allNotifications : filteredNotifications;
+  const isLoading = activeTab === 'all' ? allNotificationsLoading : filteredLoading;
+  const unreadCount = allNotifications.filter(n => !n.isRead).length;
+
   const markAsReadMutation = useMutation({
-    mutationFn: async (_notificationId: number) => {
-
-      // Mock implementation
-      await new Promise(resolve => setTimeout(resolve, 500));
-      return true;
+    mutationFn: markNotificationAsRead,
+    onMutate: async (notificationId) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['notifications'] });
+      
+      // Snapshot the previous values
+      const previousAll = queryClient.getQueryData<Notification[]>(['notifications', 'all']);
+      const previousFiltered = queryClient.getQueryData<Notification[]>(['notifications', activeTab]);
+      
+      // Optimistically update to the new value
+      if (previousAll) {
+        const updatedAll = previousAll.map(notification => 
+          notification.id === notificationId 
+            ? { ...notification, isRead: true, readAt: new Date() }
+            : notification
+        );
+        queryClient.setQueryData<Notification[]>(['notifications', 'all'], updatedAll);
+      }
+      
+      if (previousFiltered && activeTab !== 'all') {
+        const updatedFiltered = previousFiltered.map(notification => 
+          notification.id === notificationId 
+            ? { ...notification, isRead: true, readAt: new Date() }
+            : notification
+        );
+        queryClient.setQueryData<Notification[]>(['notifications', activeTab], updatedFiltered);
+      }
+      
+      return { previousAll, previousFiltered };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -96,35 +94,83 @@ export default function NotificationCenter({ className }: NotificationCenterProp
         title: 'Notification marked as read',
         variant: 'default'
       });
+    },
+    onError: (error, notificationId, context) => {
+      // Rollback optimistic updates on error
+      if (context?.previousAll) {
+        queryClient.setQueryData(['notifications', 'all'], context.previousAll);
+      }
+      if (context?.previousFiltered) {
+        queryClient.setQueryData(['notifications', activeTab], context.previousFiltered);
+      }
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to mark notification as read',
+        variant: 'destructive'
+      });
     }
   });
 
   const markAllAsReadMutation = useMutation({
-    mutationFn: async () => {
-      // Mock implementation
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return true;
-    },
+    mutationFn: markAllNotificationsAsRead,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       toast({
         title: 'All notifications marked as read',
         variant: 'default'
       });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to mark all notifications as read',
+        variant: 'destructive'
+      });
     }
   });
 
   const deleteNotificationMutation = useMutation({
-    mutationFn: async (_notificationId: number) => {
-      // Mock implementation
-      await new Promise(resolve => setTimeout(resolve, 500));
-      return true;
+    mutationFn: deleteNotification,
+    onMutate: async (notificationId) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['notifications'] });
+      
+      // Snapshot the previous values
+      const previousAll = queryClient.getQueryData<Notification[]>(['notifications', 'all']);
+      const previousFiltered = queryClient.getQueryData<Notification[]>(['notifications', activeTab]);
+      
+      // Optimistically update to the new value
+      if (previousAll) {
+        const updatedAll = previousAll.filter(notification => notification.id !== notificationId);
+        queryClient.setQueryData<Notification[]>(['notifications', 'all'], updatedAll);
+      }
+      
+      if (previousFiltered && activeTab !== 'all') {
+        const updatedFiltered = previousFiltered.filter(notification => notification.id !== notificationId);
+        queryClient.setQueryData<Notification[]>(['notifications', activeTab], updatedFiltered);
+      }
+      
+      return { previousAll, previousFiltered };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       toast({
         title: 'Notification deleted',
         variant: 'default'
+      });
+    },
+    onError: (error, notificationId, context) => {
+      // Rollback optimistic updates on error
+      if (context?.previousAll) {
+        queryClient.setQueryData(['notifications', 'all'], context.previousAll);
+      }
+      if (context?.previousFiltered) {
+        queryClient.setQueryData(['notifications', activeTab], context.previousFiltered);
+      }
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete notification',
+        variant: 'destructive'
       });
     }
   });
@@ -187,11 +233,13 @@ export default function NotificationCenter({ className }: NotificationCenterProp
     setIsOpen(false);
   };
 
-  const filteredNotifications = notifications.filter(notification => {
-    if (activeTab === 'all') return true;
-    if (activeTab === 'unread') return !notification.isRead;
-    return notification.category === activeTab;
-  });
+  // Notifications are already filtered by the query, so we don't need to filter them again
+  const displayNotifications = notifications;
+
+  // Don't render the component if user is not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className={className}>
@@ -268,7 +316,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                       </Card>
                     ))}
                   </div>
-                ) : filteredNotifications.length === 0 ? (
+                ) : displayNotifications.length === 0 ? (
                   <div className="text-center py-12">
                     <BellOff className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                     <p className="text-gray-500">
@@ -277,7 +325,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {filteredNotifications.map((notification) => (
+                    {displayNotifications.map((notification) => (
                       <Card 
                         key={notification.id}
                         className={`cursor-pointer transition-colors hover:bg-gray-50 ${

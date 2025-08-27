@@ -17,6 +17,7 @@ import type { Expense } from "@shared/schema";
 import { useAuth0 } from "@auth0/auth0-react";
 import { generateDemoExpenses } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
+import { useToast } from "@/hooks/use-toast";
 
 const expenseFormSchema = z.object({
   amount: z.string().min(1, "Amount is required"),
@@ -41,11 +42,14 @@ const categories = [
 
 export default function Expenses() {
   const { isAuthenticated, isLoading: authLoading } = useAuth0();
-  const { getExpenses, createExpense, deleteExpense } = useApi();
+  const { getExpenses, createExpense, updateExpense, deleteExpense } = useApi();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Use demo data when not authenticated, real data when authenticated
   const demoExpenses = generateDemoExpenses();
@@ -54,6 +58,7 @@ export default function Expenses() {
     queryKey: ["/api/expenses"],
     queryFn: getExpenses,
     enabled: isAuthenticated && !authLoading,
+    staleTime: 0, // Ensure we always get fresh data from cache
   });
 
   const expenses = isAuthenticated ? realExpenses : demoExpenses;
@@ -62,25 +67,193 @@ export default function Expenses() {
     mutationFn: (expense: ExpenseFormValues) => 
       createExpense({
         ...expense,
-        amount: expense.amount,
-        date: new Date(expense.date),
+        amount: parseFloat(expense.amount),
+        date: expense.date, // Keep as string, backend will handle conversion
         tags: expense.tags ? expense.tags.split(",").map(t => t.trim()) : [],
       }),
+    onMutate: async (newExpense) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/expenses"] });
+      
+      // Snapshot previous value
+      const previousExpenses = queryClient.getQueryData<Expense[]>(["/api/expenses"]);
+      
+      // Optimistically update to new value
+      if (previousExpenses) {
+        const optimisticExpense: Expense = {
+          id: Date.now(), // Temporary ID
+          userId: "temp",
+          amount: newExpense.amount.toString(),
+          description: newExpense.description,
+          category: newExpense.category,
+          subcategory: newExpense.subcategory || null,
+          merchantName: newExpense.merchantName || null,
+          // Create a Date object that treats the date as local time, not UTC
+          date: (() => {
+            const [year, month, day] = newExpense.date.split('-').map(Number);
+            return new Date(year, month - 1, day); // month is 0-indexed
+          })(),
+          paymentMethod: newExpense.paymentMethod || null,
+          isRecurring: newExpense.isRecurring || false,
+          tags: newExpense.tags ? newExpense.tags.split(",").map(t => t.trim()) : null,
+          notes: newExpense.notes || null,
+          isAutoClassified: newExpense.isAutoClassified || true,
+          confidence: null,
+          createdAt: new Date()
+        };
+        queryClient.setQueryData<Expense[]>(["/api/expenses"], [...previousExpenses, optimisticExpense]);
+      }
+      
+      return { previousExpenses };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+      // Invalidate notifications to show new expense notifications
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       setIsAddDialogOpen(false);
       form.reset();
+      toast({
+        title: "Expense added",
+        description: "Your expense has been added successfully.",
+      });
+    },
+    onError: (error, newExpense, context) => {
+      // Rollback on error
+      if (context?.previousExpenses) {
+        queryClient.setQueryData(["/api/expenses"], context.previousExpenses);
+      }
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add expense",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateExpenseMutation = useMutation({
+    mutationFn: (data: { id: number; expense: ExpenseFormValues }) => 
+      updateExpense(data.id.toString(), {
+        ...data.expense,
+        amount: parseFloat(data.expense.amount),
+        date: data.expense.date, // Keep as string, backend will handle conversion
+        tags: data.expense.tags ? data.expense.tags.split(",").map(t => t.trim()) : [],
+      }),
+    onMutate: async ({ id, expense }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/expenses"] });
+      
+      const previousExpenses = queryClient.getQueryData<Expense[]>(["/api/expenses"]);
+      
+      if (previousExpenses) {
+        const updatedExpenses = previousExpenses.map(exp => {
+          if (exp.id === Number(id)) {
+            return {
+              ...exp,
+              amount: parseFloat(expense.amount).toString(), // Ensure it's a valid number then convert to string
+              description: expense.description,
+              category: expense.category,
+              subcategory: expense.subcategory || null,
+              merchantName: expense.merchantName || null,
+              // Create a Date object that treats the date as local time, not UTC
+              date: (() => {
+                const [year, month, day] = expense.date.split('-').map(Number);
+                return new Date(year, month - 1, day); // month is 0-indexed
+              })(),
+              paymentMethod: expense.paymentMethod || null,
+              isRecurring: expense.isRecurring || false,
+              tags: expense.tags ? expense.tags.split(",").map(t => t.trim()) : null,
+              notes: expense.notes || null,
+              isAutoClassified: expense.isAutoClassified || true,
+            };
+          }
+          return exp;
+        });
+        queryClient.setQueryData<Expense[]>(["/api/expenses"], updatedExpenses);
+      }
+      
+      return { previousExpenses };
+    },
+    onSuccess: (data) => {
+      // Update the cache with the real data from server
+      if (data) {
+        const previousExpenses = queryClient.getQueryData<Expense[]>(["/api/expenses"]);
+        if (previousExpenses) {
+          const updatedExpenses = previousExpenses.map(exp => 
+            exp.id === data.id ? data : exp
+          );
+          queryClient.setQueryData<Expense[]>(["/api/expenses"], updatedExpenses);
+        }
+      }
+      setIsEditDialogOpen(false);
+      setSelectedExpense(null);
+      editForm.reset();
+      toast({
+        title: "Expense updated",
+        description: "Your expense has been updated successfully.",
+      });
+    },
+    onError: (error, variables, context) => {
+      if (context?.previousExpenses) {
+        queryClient.setQueryData(["/api/expenses"], context.previousExpenses);
+      }
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update expense",
+        variant: "destructive",
+      });
     },
   });
 
   const deleteExpenseMutation = useMutation({
     mutationFn: (id: number) => deleteExpense(id.toString()),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/expenses"] });
+      
+      const previousExpenses = queryClient.getQueryData<Expense[]>(["/api/expenses"]);
+      
+      if (previousExpenses) {
+        const filteredExpenses = previousExpenses.filter(expense => expense.id !== Number(id));
+        queryClient.setQueryData<Expense[]>(["/api/expenses"], filteredExpenses);
+      }
+      
+      return { previousExpenses };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+      // Don't invalidate - the optimistic update already removed it
+      toast({
+        title: "Expense deleted",
+        description: "Your expense has been deleted successfully.",
+      });
+    },
+    onError: (error, id, context) => {
+      if (context?.previousExpenses) {
+        queryClient.setQueryData(["/api/expenses"], context.previousExpenses);
+      }
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete expense",
+        variant: "destructive",
+      });
     },
   });
 
   const form = useForm<ExpenseFormValues>({
+    resolver: zodResolver(expenseFormSchema),
+    defaultValues: {
+      amount: "",
+      description: "",
+      category: "",
+      subcategory: "",
+      merchantName: "",
+      date: new Date().toISOString().split('T')[0],
+      paymentMethod: "",
+      isRecurring: false,
+      tags: "",
+      notes: "",
+      isAutoClassified: true,
+    },
+  });
+
+  const editForm = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: {
       amount: "",
@@ -108,6 +281,33 @@ export default function Expenses() {
 
   const onSubmit = (values: ExpenseFormValues) => {
     createExpenseMutation.mutate(values);
+  };
+
+  const onEditSubmit = (values: ExpenseFormValues) => {
+    if (selectedExpense) {
+      updateExpenseMutation.mutate({ id: Number(selectedExpense.id), expense: values });
+    }
+  };
+
+  const handleEditExpense = (expense: Expense) => {
+    setSelectedExpense(expense);
+    const expenseDate = new Date(expense.date);
+    const formattedDate = expenseDate.toISOString().split('T')[0];
+    
+    editForm.reset({
+      amount: expense.amount.toString(),
+      description: expense.description,
+      category: expense.category,
+      subcategory: expense.subcategory || "",
+      merchantName: expense.merchantName || "",
+      date: formattedDate,
+      paymentMethod: expense.paymentMethod || "",
+      isRecurring: expense.isRecurring || false,
+      tags: expense.tags?.join(", ") || "",
+      notes: expense.notes || "",
+      isAutoClassified: expense.isAutoClassified || false,
+    });
+    setIsEditDialogOpen(true);
   };
 
   if (authLoading || (isAuthenticated && isLoading)) {
@@ -379,7 +579,12 @@ export default function Expenses() {
                 <div className="text-right">
                   <p className="text-2xl font-bold">${parseFloat(expense.amount).toFixed(2)}</p>
                   <div className="flex gap-2 mt-2">
-                    <Button variant="outline" size="sm" disabled={!isAuthenticated}>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleEditExpense(expense)}
+                      disabled={!isAuthenticated}
+                    >
                       <Edit2 className="w-4 h-4" />
                     </Button>
                     <Button 
@@ -404,6 +609,145 @@ export default function Expenses() {
           </Card>
         )}
       </div>
+
+      {/* Edit Expense Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Expense</DialogTitle>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+              <FormField
+                control={editForm.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Amount</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Input placeholder="What did you buy?" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="merchantName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Merchant (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Store or business name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="tags"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tags (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="vacation, work, gift (comma separated)" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editForm.control}
+                name="isAutoClassified"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Auto-classify</FormLabel>
+                      <div className="text-sm text-gray-500">
+                        Let AI categorize this expense
+                      </div>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => setIsEditDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="flex-1"
+                  disabled={updateExpenseMutation.isPending}
+                >
+                  {updateExpenseMutation.isPending ? "Updating..." : "Update Expense"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -132,6 +132,8 @@ export default function BillSplit() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
+      // Invalidate notifications to show bill split notifications
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       setIsCreateDialogOpen(false);
       form.reset();
     },
@@ -143,6 +145,8 @@ export default function BillSplit() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
+      // Invalidate notifications to show payment notifications
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 

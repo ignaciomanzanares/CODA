@@ -231,6 +231,44 @@ export function useApi() {
     return res.json();
   };
 
+  // Notification API functions
+  const getNotifications = async (options?: { 
+    category?: string; 
+    unreadOnly?: boolean; 
+    limit?: number; 
+    offset?: number; 
+  }) => {
+    const params = new URLSearchParams();
+    if (options?.category) params.append('category', options.category);
+    if (options?.unreadOnly) params.append('unreadOnly', 'true');
+    if (options?.limit) params.append('limit', options.limit.toString());
+    if (options?.offset) params.append('offset', options.offset.toString());
+    
+    const url = `/api/notifications${params.toString() ? `?${params.toString()}` : ''}`;
+    const res = await apiRequest("GET", url);
+    return res.json();
+  };
+
+  const markNotificationAsRead = async (notificationId: number) => {
+    const res = await apiRequest("PUT", `/api/notifications/${notificationId}/read`);
+    return res.json();
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    const res = await apiRequest("PUT", "/api/notifications/read-all");
+    return res.json();
+  };
+
+  const deleteNotification = async (notificationId: number) => {
+    const res = await apiRequest("DELETE", `/api/notifications/${notificationId}`);
+    return res.json();
+  };
+
+  const getUnreadNotificationCount = async () => {
+    const res = await apiRequest("GET", "/api/notifications/unread-count");
+    return res.json();
+  };
+
   return {
     apiRequest,
     getBankConnections,
@@ -263,6 +301,12 @@ export function useApi() {
     changePassword,
     getMFAStatus,
     enableMFA,
+    // Notifications
+    getNotifications,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    deleteNotification,
+    getUnreadNotificationCount,
   };
 }
 
