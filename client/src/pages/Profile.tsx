@@ -43,26 +43,48 @@ import {
 export default function Profile() {
   const { user, logout, isAuthenticated, isLoading } = useAuth0();
   const { toast } = useToast();
-  const { updateProfile, deleteAccount } = useApi();
+  const { updateProfile, deleteAccount, changePassword, getMFAStatus, enableMFA, getUserProfile } = useApi();
   const [isEditing, setIsEditing] = useState(false);
+  const [mfaStatus, setMfaStatus] = useState({ enabled: false, enrollments: [] });
+  const [profileLoading, setProfileLoading] = useState(true);
   const [profileData, setProfileData] = useState({
-    displayName: user?.name || "",
-    email: user?.email || "",
+    displayName: "",
+    email: "",
     timezone: "UTC",
     language: "English"
   });
 
-  // Load user profile data when component mounts
+  // Load user profile data from database API when component mounts
   useEffect(() => {
-    if (isAuthenticated && user) {
-      setProfileData({
-        displayName: user.name || "",
-        email: user.email || "",
-        timezone: "UTC",
-        language: "English"
-      });
-    }
-  }, [isAuthenticated, user]);
+    const loadProfile = async () => {
+      if (isAuthenticated) {
+        try {
+          console.log('🔄 Loading profile from database...');
+          const profile = await getUserProfile();
+          console.log('✅ Profile loaded from database:', profile);
+          setProfileData({
+            displayName: profile.displayName || "",
+            email: profile.email || "",
+            timezone: profile.timezone || "UTC",
+            language: profile.language || "English"
+          });
+        } catch (error) {
+          console.error('❌ Failed to load profile, falling back to Auth0 data:', error);
+          // Fallback to Auth0 data if API fails
+          setProfileData({
+            displayName: user?.name || "",
+            email: user?.email || "",
+            timezone: "UTC",
+            language: "English"
+          });
+        } finally {
+          setProfileLoading(false);
+        }
+      }
+    };
+
+    loadProfile();
+  }, [isAuthenticated, user, getUserProfile]);
 
   if (!isAuthenticated) {
     return (
@@ -122,14 +144,21 @@ export default function Profile() {
     logout({ logoutParams: { returnTo: window.location.origin } });
   };
 
-  const handlePasswordChange = () => {
-    // Redirect to Auth0's password reset page
-    const domain = "dev-klhap06xvhqbtvbi.us.auth0.com";
-    const clientId = "9vk8ApGUVUO4txi1wQGOo5PoymgvQrqm";
-    const redirectUri = encodeURIComponent(window.location.origin);
-    
-    // Use Auth0's universal login with password reset
-    window.open(`https://${domain}/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=openid%20profile%20email&screen_hint=password_reset`, '_blank');
+  const handlePasswordChange = async () => {
+    try {
+      await changePassword();
+      toast({
+        title: "Password change email sent",
+        description: "Check your email for instructions to change your password.",
+      });
+    } catch (error) {
+      console.error('Password change error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send password change email. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
   
   const handleDeleteAccount = async () => {

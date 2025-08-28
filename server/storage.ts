@@ -19,6 +19,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
   
   // Bank connection operations
   getBankConnections(userId: string): Promise<BankConnection[]>;
@@ -334,12 +335,41 @@ export class MemStorage implements IStorage {
       ...insertUser, 
       id,
       createdAt: now,
+      updatedAt: now,
       // Ensure undefined becomes null for nullable fields
       firstName: insertUser.firstName ?? null,
       lastName: insertUser.lastName ?? null,
+      displayName: insertUser.displayName ?? null,
+      timezone: insertUser.timezone ?? "UTC",
+      language: insertUser.language ?? "English",
+      profilePicture: insertUser.profilePicture ?? null,
+      userMetadata: insertUser.userMetadata ?? null,
     };
     this.users.set(id, user);
     return user;
+  }
+
+  async updateUser(id: string, updateData: Partial<InsertUser>): Promise<User | undefined> {
+    const existingUser = this.users.get(id);
+    if (!existingUser) return undefined;
+
+    const now = new Date();
+    const updatedUser: User = {
+      ...existingUser,
+      ...updateData,
+      updatedAt: now,
+      // Handle nullable fields properly
+      firstName: updateData.firstName !== undefined ? updateData.firstName : existingUser.firstName,
+      lastName: updateData.lastName !== undefined ? updateData.lastName : existingUser.lastName,
+      displayName: updateData.displayName !== undefined ? updateData.displayName : existingUser.displayName,
+      timezone: updateData.timezone !== undefined ? updateData.timezone : existingUser.timezone,
+      language: updateData.language !== undefined ? updateData.language : existingUser.language,
+      profilePicture: updateData.profilePicture !== undefined ? updateData.profilePicture : existingUser.profilePicture,
+      userMetadata: updateData.userMetadata !== undefined ? updateData.userMetadata : existingUser.userMetadata,
+    };
+
+    this.users.set(id, updatedUser);
+    return updatedUser;
   }
   
   // Bank connection methods
@@ -852,6 +882,40 @@ export class DatabaseStorage implements IStorage {
       .values(userWithId)
       .returning();
     return user;
+  }
+
+  async updateUser(id: string, updateData: Partial<InsertUser>): Promise<User | undefined> {
+    if (!db) {
+      console.log(`❌ Database not available - falling back from DatabaseStorage.updateUser`);
+      return undefined;
+    }
+    
+    console.log(`🗄️ DatabaseStorage.updateUser called for user ${id}`);
+    console.log(`📝 Update data in database:`, updateData);
+    
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        ...updateData,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, id))
+      .returning();
+      
+    console.log(`💾 Database update result:`, updatedUser ? 'User updated successfully' : 'No user found/updated');
+    if (updatedUser) {
+      console.log(`📊 Database returned user:`, {
+        id: updatedUser.id,
+        displayName: updatedUser.displayName,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        timezone: updatedUser.timezone,
+        language: updatedUser.language,
+        updatedAt: updatedUser.updatedAt
+      });
+    }
+    
+    return updatedUser || undefined;
   }
   
   // Bank connection operations
