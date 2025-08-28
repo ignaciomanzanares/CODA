@@ -10,7 +10,13 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   firstName: text("first_name"),
   lastName: text("last_name"),
+  displayName: text("display_name"),
+  timezone: text("timezone").default("UTC"),
+  language: text("language").default("English"),
+  profilePicture: text("profile_picture"),
+  userMetadata: jsonb("user_metadata"), // Store additional user preferences
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Bank connections table

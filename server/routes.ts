@@ -863,25 +863,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Profile routes
   app.get("/api/profile", checkJwt, async (req, res) => {
-    const userId = getUserIdFromAuth(req);
-    // For now, return basic profile info from Auth0
-    res.json({
-      id: userId,
-      displayName: req.auth?.payload?.name || "",
-      email: req.auth?.payload?.email || "",
-      timezone: "UTC",
-      language: "English"
-    });
+    try {
+      const userId = getUserIdFromAuth(req);
+      
+      console.log(`👀 Profile GET request for user ${userId}`);
+      
+      // Try to get user from database first
+      let user = await storage.getUser(userId);
+      
+      console.log(`🗄️ Database user data:`, user ? {
+        id: user.id,
+        displayName: user.displayName,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        timezone: user.timezone,
+        language: user.language,
+        updatedAt: user.updatedAt
+      } : 'NOT FOUND');
+      
+      console.log(`🎫 Auth0 JWT payload data:`, {
+        name: req.auth?.payload?.name,
+        given_name: req.auth?.payload?.given_name,
+        family_name: req.auth?.payload?.family_name,
+        email: req.auth?.payload?.email
+      });
+      
+      // If user doesn't exist in our database, get from Auth0 and create
+      if (!user) {
+        console.log(`➕ User not found in database, creating from Auth0 data`);
+        try {
+          const auth0User = await Auth0ManagementService.getUser(userId);
+          const newUser = await storage.createUser({
+            id: userId,
+            username: auth0User.email?.split('@')[0] || userId,
+            email: auth0User.email as string,
+            firstName: auth0User.given_name as string || null,
+            lastName: auth0User.family_name as string || null,
+            displayName: auth0User.name as string || null,
+            profilePicture: auth0User.picture as string || null,
+          });
+          user = newUser;
+        } catch (error) {
+          console.error('Error creating user from Auth0 data:', error);
+          // Fallback to Auth0 payload
+          return res.json({
+            id: userId,
+            displayName: req.auth?.payload?.name || "",
+            email: req.auth?.payload?.email || "",
+            timezone: "UTC",
+            language: "English"
+          });
+        }
+      }
+      
+      // Always use database displayName directly - don't fall back to Auth0
+      console.log(`📤 Profile GET response - displayName from database: "${user.displayName}"`);
+      
+      // Return user profile data
+      res.json({
+        id: user.id,
+        displayName: user.displayName,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        timezone: user.timezone || "UTC",
+        language: user.language || "English",
+        profilePicture: user.profilePicture,
+        userMetadata: user.userMetadata,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      });
+    } catch (error) {
+      console.error('Profile get error:', error);
+      res.status(500).json({ message: 'Failed to get profile' });
+    }
   });
 
   app.put("/api/profile", checkJwt, async (req, res) => {
-    const userId = getUserIdFromAuth(req);
-    // For now, just return success (in a real app, you'd save to database)
-    res.json({
-      id: userId,
-      ...req.body,
-      updatedAt: new Date().toISOString()
-    });
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { displayName, firstName, lastName, timezone, language, userMetadata } = req.body;
+      
+      console.log(`🔄 Profile update request for user ${userId}`);
+      console.log(`📝 Update data:`, { displayName, firstName, lastName, timezone, language, userMetadata });
+      
+      // First check if user exists, if not create them
+      let user = await storage.getUser(userId);
+      console.log(`👤 Existing user found:`, user ? 'YES' : 'NO');
+      
+      if (!user) {
+        console.log(`➕ Creating new user ${userId}`);
+        // Create user from Auth0 payload if they don't exist
+        try {
+          user = await storage.createUser({
+            id: userId,
+            username: req.auth?.payload?.nickname || req.auth?.payload?.email?.split('@')[0] || userId,
+            email: req.auth?.payload?.email as string || `${userId}@unknown.com`,
+            firstName: req.auth?.payload?.given_name as string || null,
+            lastName: req.auth?.payload?.family_name as string || null,
+            displayName: req.auth?.payload?.name as string || null,
+          });
+          console.log(`✅ User created successfully:`, user);
+        } catch (createError) {
+          console.error('Error creating user:', createError);
+          return res.status(500).json({ message: 'Failed to create user profile' });
+        }
+      }
+      
+      console.log(`🔧 Attempting to update user ${userId} with storage type:`, storage.constructor.name);
+      // Update user in database
+      const updatedUser = await storage.updateUser(userId, {
+        displayName,
+        firstName,
+        lastName,
+        timezone,
+        language,
+        userMetadata
+      });
+      
+      console.log(`💾 Update result:`, updatedUser ? 'SUCCESS' : 'FAILED');
+      if (updatedUser) {
+        console.log(`📊 Updated user data:`, {
+          id: updatedUser.id,
+          displayName: updatedUser.displayName,
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          timezone: updatedUser.timezone,
+          language: updatedUser.language,
+          updatedAt: updatedUser.updatedAt
+        });
+      }
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'Failed to update user profile' });
+      }
+      
+      // Also update user metadata in Auth0 if needed
+      try {
+        await Auth0ManagementService.updateUserMetadata(userId, {
+          displayName,
+          timezone,
+          language,
+          ...userMetadata
+        });
+      } catch (error) {
+        console.warn('Failed to update Auth0 metadata:', error);
+        // Don't fail the request if Auth0 update fails
+      }
+      
+      res.json({
+        id: updatedUser.id,
+        displayName: updatedUser.displayName,
+        email: updatedUser.email,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        timezone: updatedUser.timezone,
+        language: updatedUser.language,
+        profilePicture: updatedUser.profilePicture,
+        userMetadata: updatedUser.userMetadata,
+        updatedAt: updatedUser.updatedAt
+      });
+    } catch (error) {
+      console.error('Profile update error:', error);
+      res.status(500).json({ message: 'Failed to update profile' });
+    }
   });
 
   // User management routes
