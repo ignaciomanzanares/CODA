@@ -886,12 +886,8 @@ export class DatabaseStorage implements IStorage {
 
   async updateUser(id: string, updateData: Partial<InsertUser>): Promise<User | undefined> {
     if (!db) {
-      console.log(`❌ Database not available - falling back from DatabaseStorage.updateUser`);
       return undefined;
     }
-    
-    console.log(`🗄️ DatabaseStorage.updateUser called for user ${id}`);
-    console.log(`📝 Update data in database:`, updateData);
     
     const [updatedUser] = await db
       .update(users)
@@ -902,19 +898,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
       
-    console.log(`💾 Database update result:`, updatedUser ? 'User updated successfully' : 'No user found/updated');
-    if (updatedUser) {
-      console.log(`📊 Database returned user:`, {
-        id: updatedUser.id,
-        displayName: updatedUser.displayName,
-        firstName: updatedUser.firstName,
-        lastName: updatedUser.lastName,
-        timezone: updatedUser.timezone,
-        language: updatedUser.language,
-        updatedAt: updatedUser.updatedAt
-      });
-    }
-    
     return updatedUser || undefined;
   }
   
@@ -1191,15 +1174,11 @@ export class DatabaseStorage implements IStorage {
   async getBillSplitsAsParticipant(userId: string): Promise<BillSplit[]> {
     if (!db) return [];
     
-    console.log(`🔍 DEBUG: Looking for participant bill splits for user: ${userId}`);
-    
     // Get bill split IDs where user is a participant
     const participantBillSplitIds = await db
       .select({ billSplitId: billSplitParticipants.billSplitId })
       .from(billSplitParticipants)
       .where(eq(billSplitParticipants.userId, userId));
-    
-    console.log(`🔍 DEBUG: Found ${participantBillSplitIds.length} participant records for user ${userId}:`, participantBillSplitIds);
     
     if (participantBillSplitIds.length === 0) {
       return [];
@@ -1207,21 +1186,18 @@ export class DatabaseStorage implements IStorage {
     
     // Get the bill splits for these IDs
     const billSplitIds = participantBillSplitIds.map(p => p.billSplitId);
-    console.log(`🔍 DEBUG: Bill split IDs to fetch: ${billSplitIds}`);
     
     if (billSplitIds.length === 1) {
       const result = await db
         .select()
         .from(billSplits)
         .where(eq(billSplits.id, billSplitIds[0]));
-      console.log(`🔍 DEBUG: Found ${result.length} bill splits for single ID query`);
       return result;
     } else {
       const result = await db
         .select()
         .from(billSplits)
         .where(inArray(billSplits.id, billSplitIds));
-      console.log(`🔍 DEBUG: Found ${result.length} bill splits for multi ID query`);
       return result;
     }
   }
@@ -1320,20 +1296,21 @@ export class DatabaseStorage implements IStorage {
     }
     
     // Build the base query with all conditions and ordering
-    let query = db.select().from(notifications)
+    const baseQuery = db.select().from(notifications)
       .where(whereConditions.length === 1 ? whereConditions[0] : and(...whereConditions))
       .orderBy(desc(notifications.createdAt)); // Order by most recent first
     
-    // Apply limit and offset based on options
-    if (options?.offset) {
-      query = query.offset(options.offset);
+    // Apply limit and offset - build query step by step to satisfy TypeScript
+    if (options?.limit && options?.offset) {
+      return await baseQuery.limit(options.limit).offset(options.offset);
+    } else if (options?.limit) {
+      return await baseQuery.limit(options.limit);
+    } else if (options?.offset) {
+      // Offset without limit doesn't make much sense, but we'll apply a sensible limit
+      return await baseQuery.limit(100).offset(options.offset);
+    } else {
+      return await baseQuery;
     }
-    
-    if (options?.limit) {
-      query = query.limit(options.limit);
-    }
-    
-    return await query;
   }
   
   async createNotification(insertNotification: InsertNotification): Promise<Notification> {

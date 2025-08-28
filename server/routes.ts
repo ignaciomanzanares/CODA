@@ -328,7 +328,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           email: "demo@example.com",
           firstName: "Demo" as string | null,
           lastName: "User" as string | null,
-          createdAt: new Date() as Date | null
+          displayName: null,
+          timezone: null,
+          language: null,
+          profilePicture: null,
+          userMetadata: null,
+          createdAt: new Date() as Date | null,
+          updatedAt: null
         };
         const calculatedRisk = calculateInsuranceRisk([], defaultUser);
         insuranceRisk = await storage.createInsuranceRisk({
@@ -486,13 +492,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let user = await storage.getUser(userId);
       if (!user && possibleEmail) {
         // Extract user info from Auth0 JWT token
-        const userName = req.auth?.payload?.name || req.auth?.payload?.nickname || 'User';
+        const userName = String(req.auth?.payload?.name || req.auth?.payload?.nickname || 'User');
         const [firstName, ...lastNameParts] = userName.split(' ');
         
         user = await storage.createUser({
-          id: userId, // Use Auth0 ID directly
-          username: req.auth?.payload?.nickname || userId,
-          email: possibleEmail,
+          username: String(req.auth?.payload?.nickname || userId),
+          email: String(possibleEmail),
           firstName: firstName || 'User',
           lastName: lastNameParts.length > 0 ? lastNameParts.join(' ') : null
         });
@@ -500,7 +505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Link existing participant records to this user if they match by email
       if (possibleEmail) {
-        const unlinkedParticipants = await storage.getUnlinkedParticipantsByEmail(possibleEmail);
+        const unlinkedParticipants = await storage.getUnlinkedParticipantsByEmail(String(possibleEmail));
         if (unlinkedParticipants && unlinkedParticipants.length > 0) {
           for (const participant of unlinkedParticipants) {
             await storage.updateBillSplitParticipant(participant.id, { userId: userId });
@@ -558,13 +563,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let user = await storage.getUser(userId);
       if (!user) {
         // Extract user info from Auth0 JWT token
-        const userEmail = req.auth?.payload?.email || `${userId}@unknown.com`;
-        const userName = req.auth?.payload?.name || req.auth?.payload?.nickname || 'User';
+        const userEmail = String(req.auth?.payload?.email || `${userId}@unknown.com`);
+        const userName = String(req.auth?.payload?.name || req.auth?.payload?.nickname || 'User');
         const [firstName, ...lastNameParts] = userName.split(' ');
         
         user = await storage.createUser({
-          id: userId, // Use Auth0 ID directly
-          username: req.auth?.payload?.nickname || userId,
+          username: String(req.auth?.payload?.nickname || userId),
           email: userEmail,
           firstName: firstName || 'User',
           lastName: lastNameParts.length > 0 ? lastNameParts.join(' ') : null
@@ -585,10 +589,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create notification for bill split creation
       try {
-        console.log(`🔔 Creating bill split notification for user ${userId}, title: ${billSplit.title}, amount: $${billSplit.totalAmount}`);
+        console.log(`🔔 Creating bill split notification for user ${userId}, title: ${billSplit.name}, amount: $${billSplit.totalAmount}`);
         await notificationService.notifyBillSplitCreated(
           userId, 
-          billSplit.title || 'New Bill Split', 
+          billSplit.name || 'New Bill Split',
           parseFloat(billSplit.totalAmount),
           billSplit.id as number
         );
@@ -619,7 +623,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             name: participant.name || 'Unknown',
             email: participant.email || null,
             userId: participantUserId,
-            amountOwed: participant.amount || (billSplit.totalAmount as number / participants.length).toString()
+            amountOwed: participant.amountOwed || (parseFloat(String(billSplit.totalAmount)) / participants.length).toString()
           });
           
           // Send email invitation if email is provided
@@ -630,7 +634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 participantName: participant.name,
                 participantEmail: participant.email,
                 amountOwed: newParticipant.amountOwed,
-                creatorName: creatorName
+                creatorName: String(creatorName)
               });
               
               const emailSent = !!emailResult;
@@ -737,7 +741,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await notificationService.createNotification({
             userId: String(billSplit.createdBy),
             title: 'Payment Received',
-            message: `${payerName} has paid their share for "${billSplit.title}".`,
+            message: `${payerName} has paid their share for "${billSplit.name}".`,
             type: 'success',
             category: 'bill_split',
             actionUrl: '/bill-split',
@@ -793,7 +797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const creatorUser = await storage.getUser(userId);
       const creatorName = creatorUser ? 
         `${creatorUser.firstName || ''} ${creatorUser.lastName || ''}`.trim() || creatorUser.username :
-        req.auth?.payload?.name || req.auth?.payload?.nickname || 'Someone';
+        String(req.auth?.payload?.name || req.auth?.payload?.nickname || 'Someone');
       
       const inviteResults = [];
       
@@ -826,7 +830,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               participantName: participant.name,
               participantEmail: participant.email,
               amountOwed: newParticipant.amountOwed,
-              creatorName: creatorName
+              creatorName: String(creatorName)
             });
             
             emailSent = !!emailResult;
@@ -866,36 +870,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserIdFromAuth(req);
       
-      console.log(`👀 Profile GET request for user ${userId}`);
-      
       // Try to get user from database first
       let user = await storage.getUser(userId);
       
-      console.log(`🗄️ Database user data:`, user ? {
-        id: user.id,
-        displayName: user.displayName,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        timezone: user.timezone,
-        language: user.language,
-        updatedAt: user.updatedAt
-      } : 'NOT FOUND');
-      
-      console.log(`🎫 Auth0 JWT payload data:`, {
-        name: req.auth?.payload?.name,
-        given_name: req.auth?.payload?.given_name,
-        family_name: req.auth?.payload?.family_name,
-        email: req.auth?.payload?.email
-      });
-      
       // If user doesn't exist in our database, get from Auth0 and create
       if (!user) {
-        console.log(`➕ User not found in database, creating from Auth0 data`);
         try {
           const auth0User = await Auth0ManagementService.getUser(userId);
           const newUser = await storage.createUser({
-            id: userId,
-            username: auth0User.email?.split('@')[0] || userId,
+            username: (auth0User.email as string)?.split('@')[0] || userId,
             email: auth0User.email as string,
             firstName: auth0User.given_name as string || null,
             lastName: auth0User.family_name as string || null,
@@ -915,9 +898,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       }
-      
-      // Always use database displayName directly - don't fall back to Auth0
-      console.log(`📤 Profile GET response - displayName from database: "${user.displayName}"`);
       
       // Return user profile data
       res.json({
@@ -944,33 +924,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserIdFromAuth(req);
       const { displayName, firstName, lastName, timezone, language, userMetadata } = req.body;
       
-      console.log(`🔄 Profile update request for user ${userId}`);
-      console.log(`📝 Update data:`, { displayName, firstName, lastName, timezone, language, userMetadata });
-      
       // First check if user exists, if not create them
       let user = await storage.getUser(userId);
-      console.log(`👤 Existing user found:`, user ? 'YES' : 'NO');
       
       if (!user) {
-        console.log(`➕ Creating new user ${userId}`);
         // Create user from Auth0 payload if they don't exist
         try {
           user = await storage.createUser({
-            id: userId,
-            username: req.auth?.payload?.nickname || req.auth?.payload?.email?.split('@')[0] || userId,
+            username: String(req.auth?.payload?.nickname || (req.auth?.payload?.email as string)?.split('@')[0] || userId),
             email: req.auth?.payload?.email as string || `${userId}@unknown.com`,
             firstName: req.auth?.payload?.given_name as string || null,
             lastName: req.auth?.payload?.family_name as string || null,
             displayName: req.auth?.payload?.name as string || null,
           });
-          console.log(`✅ User created successfully:`, user);
         } catch (createError) {
           console.error('Error creating user:', createError);
           return res.status(500).json({ message: 'Failed to create user profile' });
         }
       }
       
-      console.log(`🔧 Attempting to update user ${userId} with storage type:`, storage.constructor.name);
       // Update user in database
       const updatedUser = await storage.updateUser(userId, {
         displayName,
@@ -980,19 +952,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         language,
         userMetadata
       });
-      
-      console.log(`💾 Update result:`, updatedUser ? 'SUCCESS' : 'FAILED');
-      if (updatedUser) {
-        console.log(`📊 Updated user data:`, {
-          id: updatedUser.id,
-          displayName: updatedUser.displayName,
-          firstName: updatedUser.firstName,
-          lastName: updatedUser.lastName,
-          timezone: updatedUser.timezone,
-          language: updatedUser.language,
-          updatedAt: updatedUser.updatedAt
-        });
-      }
       
       if (!updatedUser) {
         return res.status(404).json({ message: 'Failed to update user profile' });

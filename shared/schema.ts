@@ -280,3 +280,14 @@ export type BillSplitParticipant = typeof billSplitParticipants.$inferSelect;
 
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
+
+// Extended types with additional properties
+export type BillSplitParticipantWithUser = BillSplitParticipant & {
+  isCurrentUser?: boolean;
+};
+
+export type BillSplitWithParticipants = BillSplit & {
+  participants: BillSplitParticipantWithUser[];
+  userRole?: 'creator' | 'participant' | 'none';
+  createdByName?: string;
+};

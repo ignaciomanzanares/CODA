@@ -12,7 +12,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useApi } from "@/lib/api";
-import type { BillSplit, BillSplitParticipant } from "@shared/schema";
+import type { BillSplitWithParticipants, BillSplitParticipantWithUser } from "@shared/schema";
 import { useAuth0 } from "@auth0/auth0-react";
 import { generateDemoBillSplits } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
@@ -38,11 +38,6 @@ const billSplitFormSchema = z.object({
 
 type BillSplitFormValues = z.infer<typeof billSplitFormSchema>;
 
-interface BillSplitWithParticipants extends BillSplit {
-  participants?: BillSplitParticipant[];
-  userRole?: 'creator' | 'participant' | 'none';
-}
-
 type FilterOption = 'all' | 'active' | 'settled';
 
 export default function BillSplit() {
@@ -54,7 +49,7 @@ export default function BillSplit() {
   const [paymentDialog, setPaymentDialog] = useState<{
     isOpen: boolean;
     billSplit?: BillSplitWithParticipants;
-    participant?: BillSplitParticipant;
+    participant?: BillSplitParticipantWithUser;
   }>({ isOpen: false });
   const queryClient = useQueryClient();
   
@@ -123,11 +118,12 @@ export default function BillSplit() {
         description: billSplit.description,
         date: new Date(billSplit.date),
         participants: billSplit.participants.map(p => ({
-          userId: '', // Will be set by the server
-          amount: amountPerPerson,
+          userId: null, // Will be set by the server
+          name: p.name,
+          email: p.email,
+          amountOwed: amountPerPerson.toString(),
           isPaid: false,
-          ...p,
-        })),
+        }))
       });
     },
     onSuccess: () => {
@@ -633,7 +629,7 @@ export default function BillSplit() {
           amount={parseFloat(paymentDialog.participant.amountOwed).toFixed(2)}
           participantName={paymentDialog.participant.name}
           billName={paymentDialog.billSplit.name}
-          creatorName={paymentDialog.billSplit.createdByName || 'Bill Creator'}
+          creatorName={paymentDialog.billSplit.createdBy || 'Bill Creator'}
           onPaymentComplete={() => {
             if (paymentDialog.billSplit && paymentDialog.participant) {
               handleMarkAsPaid(

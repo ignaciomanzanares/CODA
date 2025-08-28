@@ -59,9 +59,7 @@ export default function Profile() {
     const loadProfile = async () => {
       if (isAuthenticated) {
         try {
-          console.log('🔄 Loading profile from database...');
           const profile = await getUserProfile();
-          console.log('✅ Profile loaded from database:', profile);
           setProfileData({
             displayName: profile.displayName || "",
             email: profile.email || "",
@@ -69,7 +67,7 @@ export default function Profile() {
             language: profile.language || "English"
           });
         } catch (error) {
-          console.error('❌ Failed to load profile, falling back to Auth0 data:', error);
+          console.error('Failed to load profile, falling back to Auth0 data:', error);
           // Fallback to Auth0 data if API fails
           setProfileData({
             displayName: user?.name || "",
@@ -84,7 +82,8 @@ export default function Profile() {
     };
 
     loadProfile();
-  }, [isAuthenticated, user, getUserProfile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user]);
 
   if (!isAuthenticated) {
     return (
@@ -125,13 +124,25 @@ export default function Profile() {
 
   const handleProfileUpdate = async () => {
     try {
-      await updateProfile(profileData);
+      const updatedProfile = await updateProfile(profileData);
+      
+      // Update local state with the response from backend
+      if (updatedProfile) {
+        setProfileData({
+          displayName: updatedProfile.displayName || "",
+          email: updatedProfile.email || "",
+          timezone: updatedProfile.timezone || "UTC",
+          language: updatedProfile.language || "English"
+        });
+      }
+      
       setIsEditing(false);
       toast({
         title: "Profile updated",
         description: "Your profile information has been updated successfully.",
       });
-    } catch {
+    } catch (error) {
+      console.error('Profile update error:', error);
       toast({
         title: "Update failed",
         description: "Failed to update profile. Please try again.",

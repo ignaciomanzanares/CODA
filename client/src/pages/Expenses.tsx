@@ -68,7 +68,7 @@ export default function Expenses() {
       createExpense({
         ...expense,
         amount: parseFloat(expense.amount),
-        date: expense.date, // Keep as string, backend will handle conversion
+        date: new Date(expense.date),
         tags: expense.tags ? expense.tags.split(",").map(t => t.trim()) : [],
       }),
     onMutate: async (newExpense) => {
@@ -135,7 +135,7 @@ export default function Expenses() {
       updateExpense(data.id.toString(), {
         ...data.expense,
         amount: parseFloat(data.expense.amount),
-        date: data.expense.date, // Keep as string, backend will handle conversion
+        date: new Date(data.expense.date),
         tags: data.expense.tags ? data.expense.tags.split(",").map(t => t.trim()) : [],
       }),
     onMutate: async ({ id, expense }) => {

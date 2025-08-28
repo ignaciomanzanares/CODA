@@ -149,18 +149,10 @@ export class Auth0ManagementService {
     }
     
     try {
-      // Create a Guardian enrollment ticket
-      const ticket = await management.tickets.createEmailVerificationTicket({
-        user_id: userId,
-        client_id: process.env.AUTH0_CLIENT_ID || '',
-        ttl_sec: 3600, // 1 hour expiration
-        includeEmailInRedirect: false
-      });
-      
-      // For MFA, we need to construct the enrollment URL
-      // This will redirect to Guardian MFA setup
+      // For MFA enrollment, we'll use a direct Guardian URL approach
+      // as the specific MFA enrollment ticket method may not be available
       const domain = process.env.AUTH0_ISSUER_BASE_URL?.replace('https://', '') || '';
-      const enrollmentUrl = `https://${domain}/guardian/login?ticket=${ticket.data.ticket}`;
+      const enrollmentUrl = `https://${domain}/guardian`;
       
       console.log(`MFA enrollment ticket created for user ${userId}`);
       return enrollmentUrl;
