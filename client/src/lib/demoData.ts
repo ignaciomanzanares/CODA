@@ -1,4 +1,4 @@
-import type { Expense, BillSplit, BillSplitParticipant } from "@shared/schema";
+import type { Expense, BillSplitWithParticipants, BillSplitParticipantWithUser } from "@shared/schema";
 
 // Demo expense data generator
 export function generateDemoExpenses(): Expense[] {
@@ -120,7 +120,7 @@ export function generateDemoExpenses(): Expense[] {
 }
 
 // Demo bill split data generator
-export function generateDemoBillSplits(): (BillSplit & { participants: BillSplitParticipant[] })[] {
+export function generateDemoBillSplits(): BillSplitWithParticipants[] {
   const billNames = [
     "Dinner at Italian Bistro",
     "Weekend Cabin Rental",
@@ -153,7 +153,7 @@ export function generateDemoBillSplits(): (BillSplit & { participants: BillSplit
     "Appreciate everyone chipping in"
   ];
 
-  const demoBillSplits: (BillSplit & { participants: BillSplitParticipant[] })[] = [];
+  const demoBillSplits: BillSplitWithParticipants[] = [];
   const currentDate = new Date();
 
   for (let i = 0; i < 8; i++) {
@@ -171,7 +171,7 @@ export function generateDemoBillSplits(): (BillSplit & { participants: BillSplit
       .sort(() => 0.5 - Math.random())
       .slice(0, numParticipants);
 
-    const participants: BillSplitParticipant[] = selectedParticipants.map((participantName, idx) => {
+    const participants: BillSplitParticipantWithUser[] = selectedParticipants.map((participantName, idx) => {
       const isPaid = Math.random() > 0.4; // 60% chance of being paid
       return {
         id: parseInt(`${i}${idx}`),
@@ -183,6 +183,7 @@ export function generateDemoBillSplits(): (BillSplit & { participants: BillSplit
         amountPaid: isPaid ? amountPerPerson.toFixed(2) : null,
         isPaid: isPaid ? true : null,
         createdAt: billDate,
+        isCurrentUser: false, // Demo data - user is never a participant
       };
     });
 
@@ -198,7 +199,9 @@ export function generateDemoBillSplits(): (BillSplit & { participants: BillSplit
       date: billDate,
       status,
       createdAt: billDate,
-      participants
+      participants,
+      userRole: 'creator' as const, // Demo data - user is always the creator
+      createdByName: 'You'
     });
   }
 
@@ -212,7 +215,7 @@ export function getDemoExpensesByCategory(category: string): Expense[] {
 }
 
 // Helper function to get demo bill splits with specific status
-export function getDemoBillSplitsByStatus(status?: "active" | "settled"): (BillSplit & { participants: BillSplitParticipant[] })[] {
+export function getDemoBillSplitsByStatus(status?: "active" | "settled"): BillSplitWithParticipants[] {
   const allSplits = generateDemoBillSplits();
   return status ? allSplits.filter(split => split.status === status) : allSplits;
 }

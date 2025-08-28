@@ -55,7 +55,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
 
   const notifications = activeTab === 'all' ? allNotifications : filteredNotifications;
   const isLoading = activeTab === 'all' ? allNotificationsLoading : filteredLoading;
-  const unreadCount = allNotifications.filter(n => !n.isRead).length;
+  const unreadCount = allNotifications.filter((n: Notification) => !n.isRead).length;
 
   const markAsReadMutation = useMutation({
     mutationFn: markNotificationAsRead,
@@ -325,7 +325,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {displayNotifications.map((notification) => (
+                    {displayNotifications.map((notification: Notification) => (
                       <Card 
                         key={notification.id}
                         className={`cursor-pointer transition-colors hover:bg-gray-50 ${

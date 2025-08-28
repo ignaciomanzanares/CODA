@@ -88,15 +88,14 @@ export interface BillSplit {
 export interface BillSplitParticipant {
   id: number | string;
   billSplitId: number | string;
-  userId: string;
-  name?: string;
-  email?: string;
+  userId: string | null;
+  name: string;
+  email?: string | null;
   amountOwed: string;
   amountPaid?: string | null;
-  amount: number;
-  isPaid?: boolean;
+  isPaid?: boolean | null;
   isCurrentUser?: boolean;
-  createdAt?: string | Date;
+  createdAt?: string | Date | null;
 }
 
 export interface CreateBillSplitData {
