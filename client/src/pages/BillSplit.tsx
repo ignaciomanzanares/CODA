@@ -60,27 +60,27 @@ export default function BillSplit() {
     
     if (highlightId) {
       if (!authLoading && !isAuthenticated) {
-        // User clicked email link but isn't authenticated, store the bill ID and redirect to login
-        localStorage.setItem('highlightBillAfterAuth', highlightId);
-        loginWithRedirect({
-          appState: { targetUrl: `/bill-split?highlight=${highlightId}` }
-        });
+        // User came from "View Demo Version" button - show demo data with highlight
+        // Don't redirect to login, just set the highlight for demo data
+        setHighlightedBillId(highlightId);
+        // Clear the highlight after 10 seconds 
+        setTimeout(() => setHighlightedBillId(null), 10000);
         return;
       }
       
       if (isAuthenticated) {
         setHighlightedBillId(highlightId);
-        // Clear the highlight after 8 seconds to give more time to see it
-        setTimeout(() => setHighlightedBillId(null), 8000);
+        // Clear the highlight after 10 seconds to give more time to see it
+        setTimeout(() => setHighlightedBillId(null), 10000);
         // Clean up stored bill ID if it exists
         localStorage.removeItem('highlightBillAfterAuth');
       }
     } else if (isAuthenticated) {
-      // Check if there's a stored bill ID from before auth
+      // Check if there's a stored bill ID from before auth (from /invite redirect)
       const storedBillId = localStorage.getItem('highlightBillAfterAuth');
       if (storedBillId) {
         setHighlightedBillId(storedBillId);
-        setTimeout(() => setHighlightedBillId(null), 8000);
+        setTimeout(() => setHighlightedBillId(null), 10000);
         localStorage.removeItem('highlightBillAfterAuth');
         // Update URL to include highlight parameter
         window.history.replaceState(null, '', `/bill-split?highlight=${storedBillId}`);

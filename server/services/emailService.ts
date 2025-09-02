@@ -114,8 +114,8 @@ class EmailService {
 
   private generateInvitationHTML(invitation: BillSplitInvitation): string {
     const { billSplit, participantName, participantEmail, amountOwed, creatorName } = invitation;
-    // Link directly to the bill split page - the page will handle auth redirect if needed
-    const billSplitUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/bill-split?highlight=${billSplit.id}`;
+    // Link to the invitation handler page which will check user existence and handle auth
+    const billSplitUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/invite?billId=${billSplit.id}&email=${encodeURIComponent(participantEmail)}`;
     
     return `
     <!DOCTYPE html>
@@ -228,8 +228,8 @@ class EmailService {
 
   private generateInvitationText(invitation: BillSplitInvitation): string {
     const { billSplit, participantName, participantEmail, amountOwed, creatorName } = invitation;
-    // Link directly to the bill split page - the page will handle auth redirect if needed
-    const billSplitUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/bill-split?highlight=${billSplit.id}`;
+    // Link to the invitation handler page which will check user existence and handle auth
+    const billSplitUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/invite?billId=${billSplit.id}&email=${encodeURIComponent(participantEmail)}`;
     
     return `
 Hi ${participantName},
