@@ -781,6 +781,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to check what users exist (temporary - remove in production)
+  app.get("/api/debug/users", async (req, res) => {
+    try {
+      // This is a dangerous endpoint - only use for debugging!
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(404).json({ message: "Not found" });
+      }
+      
+      // Get all users (limit to email and id for privacy)
+      const users = [];
+      const { MemStorage } = await import('./storage.js');
+      
+      if (storage instanceof MemStorage) {
+        // In-memory storage
+        for (const user of (storage as any).users.values()) {
+          users.push({ id: user.id, email: user.email });
+        }
+      } else {
+        // Database storage - would need a different approach
+        return res.json({ message: "Database storage detected - cannot easily list users" });
+      }
+      
+      res.json({ users, total: users.length });
+    } catch (error) {
+      console.error('Error in debug users:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Check if user exists for email invitation (no auth required)
+  app.get("/api/bill-splits/:id/check-user/:email", async (req, res) => {
+    try {
+      const billSplitId = Number(req.params.id);
+      const email = decodeURIComponent(req.params.email);
+      
+      // Always check if user exists by email first
+      console.log(`🔍 Checking if user exists for email: ${email}`);
+      const user = await storage.getUserByEmail(email);
+      const userExists = !!user;
+      console.log(`🔍 User exists: ${userExists}`, user ? { id: user.id, email: user.email } : 'No user found');
+      
+      // Check if bill split exists
+      const billSplit = await storage.getBillSplit(billSplitId);
+      if (!billSplit) {
+        // Return user exists info even if bill split doesn't exist (for demo purposes)
+        return res.status(404).json({ 
+          message: "Bill split not found", 
+          userExists,
+          billSplitName: "Demo Bill Split",
+          invitedEmail: email,
+          billSplitId: billSplitId
+        });
+      }
+      
+      // Check if the email is actually invited to this bill split
+      const participants = await storage.getBillSplitParticipants(billSplitId);
+      const isInvited = participants.some(p => p.email && p.email.toLowerCase() === email.toLowerCase());
+      
+      if (!isInvited) {
+        return res.status(403).json({ 
+          message: "Email not invited to this bill split", 
+          userExists,
+          billSplitName: billSplit.name,
+          invitedEmail: email,
+          billSplitId: billSplitId
+        });
+      }
+      
+      res.json({ 
+        userExists,
+        billSplitName: billSplit.name,
+        invitedEmail: email,
+        billSplitId: billSplitId
+      });
+    } catch (error) {
+      console.error('Error checking user for invitation:', error);
+      res.status(500).json({ message: 'Internal server error', userExists: false });
+    }
+  });
+
   // Send invitations for a bill split
   app.post("/api/bill-splits/:id/invite", checkJwt, async (req, res) => {
     try {
