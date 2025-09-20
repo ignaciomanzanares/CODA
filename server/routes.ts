@@ -11,8 +11,6 @@ import { auth } from "express-oauth2-jwt-bearer";
 import { Auth0ManagementService } from "./services/auth0Management.js";
 import { emailService } from "./services/emailService.js";
 import crypto from "crypto";
-import { calculateCreditScore } from "./utils/creditScore";
-import { calculateInsuranceRisk } from "./utils/insuranceRisk";
 import { notificationService } from "./services/notificationService";
 
 // Auth0 JWT middleware
@@ -44,6 +42,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api", handleZodError);
 
   // --- Protected routes (require Auth0 JWT) ---
+
+  // Accounts (Open Banking) routes
+  app.get("/api/accounts", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const accts = await storage.getAccounts(userId);
+
+      const body = JSON.stringify(accts);
+      const etag = 'W/"' + crypto.createHash('sha1').update(body).digest('hex') + '"';
+      res.set({ 'Cache-Control': 'private, max-age=30, must-revalidate', 'ETag': etag });
+      const ifNoneMatch = req.headers['if-none-match'];
+      if (ifNoneMatch && ifNoneMatch === etag) return res.status(304).end();
+
+      res.json(accts);
+    } catch (e) {
+      console.error('Error fetching accounts:', e);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post("/api/accounts", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const payload = {
+        ...req.body,
+        userId,
+      };
+      // Minimal validation via Zod using insertAccountSchema if available
+      // @ts-ignore - dynamic import shape
+      const { insertAccountSchema } = await import("@shared/schema");
+      const accountData = insertAccountSchema.parse(payload);
+      const account = await storage.createAccount(accountData);
+      res.status(201).json(account);
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const validationError = fromZodError(err);
+        return res.status(400).json({ message: 'Validation error', errors: validationError.details });
+      }
+      console.error('Error creating account:', err);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Transactions routes
+  app.get("/api/accounts/:id/transactions", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const accountId = Number(req.params.id);
+      const account = await storage.getAccount(accountId);
+      if (!account || String(account.userId) !== userId) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      const { from, to, limit, offset } = req.query;
+      const options = {
+        from: from ? new Date(String(from)) : undefined,
+        to: to ? new Date(String(to)) : undefined,
+        limit: limit ? parseInt(String(limit)) : undefined,
+        offset: offset ? parseInt(String(offset)) : undefined,
+      };
+
+      const txs = await storage.getTransactions(accountId, options);
+      const body = JSON.stringify(txs);
+      const etag = 'W/"' + crypto.createHash('sha1').update(body).digest('hex') + '"';
+      res.set({ 'Cache-Control': 'private, max-age=10, must-revalidate', 'ETag': etag });
+      const ifNoneMatch = req.headers['if-none-match'];
+      if (ifNoneMatch && ifNoneMatch === etag) return res.status(304).end();
+
+      res.json(txs);
+    } catch (e) {
+      console.error('Error fetching transactions:', e);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post("/api/transactions/batch", checkJwt, async (req, res) => {
+    try {
+      // Expect body: { accountId, transactions: InsertTransaction[] }
+      const userId = getUserIdFromAuth(req);
+      const { accountId, transactions } = req.body || {};
+      if (!accountId || !Array.isArray(transactions)) {
+        return res.status(400).json({ message: 'accountId and transactions[] are required' });
+      }
+      const account = await storage.getAccount(Number(accountId));
+      if (!account || String(account.userId) !== userId) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      // Coerce postedAt to Date
+      const normalized = transactions.map((t: any) => ({
+        ...t,
+        accountId: Number(accountId),
+        postedAt: typeof t.postedAt === 'string' ? new Date(t.postedAt) : t.postedAt,
+      }));
+
+      const created = await storage.createTransactionsBulk(normalized);
+      res.status(201).json({ count: created.length });
+    } catch (e) {
+      console.error('Error creating transactions batch:', e);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
 
   // Bank connection routes
   app.get("/api/bank-connections", checkJwt, async (req, res) => {
@@ -288,68 +388,156 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // --- Public/demo routes (no auth required) ---
 
-  // Credit score routes (demo)
-  app.get("/api/credit-score", async (req, res) => {
-    // For demo purposes, use a fixed user ID
-    const userId = "demo-user";
-    
-    // Ensure demo user exists
-    let user = await storage.getUser(userId);
-    if (!user) {
-      user = await storage.createUser({
-        username: "demo",
-        email: "demo@example.com",
-        firstName: "Demo",
-        lastName: "User"
-      });
+  // Local demo ingestion to quickly populate accounts/transactions for demo-user
+  app.post("/api/demo/ingest", async (_req, res) => {
+    try {
+      const { ingestOpenBankingForUser } = await import("./jobs/ingest");
+      await ingestOpenBankingForUser("demo-user");
+      res.json({ message: "Demo ingestion completed" });
+    } catch (e) {
+      console.error('Error running demo ingestion:', e);
+      res.status(500).json({ message: 'Internal server error' });
     }
-    
-    let creditScore = await storage.getCreditScore(userId);
-    if (!creditScore) {
-      const calculatedScore = calculateCreditScore([]);
-      creditScore = await storage.createCreditScore({
-        userId,
-        ...calculatedScore
-      });
-    }
-    res.json(creditScore);
   });
 
-  // Insurance risk routes (demo)
-  app.get("/api/insurance-risk", async (req, res) => {
-    const userId = "demo-user";
-    let insuranceRisk = await storage.getInsuranceRisk(userId);
-    if (!insuranceRisk) {
-      const user = await storage.getUser(userId);
+  app.get("/api/demo/accounts", async (_req, res) => {
+    const accts = await storage.getAccounts("demo-user");
+    res.json(accts);
+  });
+
+  app.get("/api/demo/accounts/:id/transactions", async (req, res) => {
+    const accountId = Number(req.params.id);
+    const account = await storage.getAccount(accountId);
+    if (!account || String(account.userId) !== "demo-user") {
+      return res.status(404).json({ message: "Account not found" });
+    }
+    const { from, to, limit, offset } = req.query;
+    const options = {
+      from: from ? new Date(String(from)) : undefined,
+      to: to ? new Date(String(to)) : undefined,
+      limit: limit ? parseInt(String(limit)) : 20,
+      offset: offset ? parseInt(String(offset)) : 0,
+    };
+    const txs = await storage.getTransactions(accountId, options);
+    res.json(txs);
+  });
+
+  // Credit score routes (demo) — now derived from feature vector + PD
+  app.get("/api/credit-score", async (_req, res) => {
+    try {
+      // For demo purposes, use a fixed user ID
+      const userId = "demo-user";
+
+      // Ensure demo user exists
+      let user = await storage.getUser(userId);
       if (!user) {
-        const defaultUser = {
-          id: "demo-user",
+        user = await storage.createUser({
           username: "demo",
           email: "demo@example.com",
-          firstName: "Demo" as string | null,
-          lastName: "User" as string | null,
-          displayName: null,
-          timezone: null,
-          language: null,
-          profilePicture: null,
-          userMetadata: null,
-          createdAt: new Date() as Date | null,
-          updatedAt: null
-        };
-        const calculatedRisk = calculateInsuranceRisk([], defaultUser);
-        insuranceRisk = await storage.createInsuranceRisk({
-          userId,
-          ...calculatedRisk
-        });
-      } else {
-        const calculatedRisk = calculateInsuranceRisk([], user);
-        insuranceRisk = await storage.createInsuranceRisk({
-          userId,
-          ...calculatedRisk
+          firstName: "Demo",
+          lastName: "User"
         });
       }
+
+      const { buildUserFeatureVector } = await import("./ml/features");
+      const { scorePD } = await import("./services/pdScoring");
+      const { computeCreditScoreFromFeatures } = await import("./utils/creditScore");
+
+      const fv = await buildUserFeatureVector(userId, 90);
+      const { pd } = scorePD(fv);
+      const nextScore = computeCreditScoreFromFeatures(fv, pd);
+
+      const existing = await storage.getCreditScore(userId);
+      let saved;
+      if (existing) {
+        saved = await storage.updateCreditScore(userId, nextScore);
+      } else {
+        saved = await storage.createCreditScore({ userId, ...nextScore });
+      }
+      res.json(saved ?? nextScore);
+    } catch (e) {
+      console.error('Error computing credit score:', e);
+      res.status(500).json({ message: 'Internal server error' });
     }
-    res.json(insuranceRisk);
+  });
+
+  // Insurance risk routes (demo) — now derived from feature vector + PD
+  app.get("/api/insurance-risk", async (_req, res) => {
+    try {
+      const userId = "demo-user";
+      const { buildUserFeatureVector } = await import("./ml/features");
+      const { scorePD } = await import("./services/pdScoring");
+      const { computeInsuranceRiskFromFeatures } = await import("./utils/insuranceRisk");
+
+      // Ensure demo user exists (some consumers read user fields)
+      let user = await storage.getUser(userId);
+      if (!user) {
+        user = await storage.createUser({
+          username: "demo",
+          email: "demo@example.com",
+          firstName: "Demo",
+          lastName: "User"
+        });
+      }
+
+      const fv = await buildUserFeatureVector(userId, 90);
+      const { pd } = scorePD(fv);
+      const nextRisk = computeInsuranceRiskFromFeatures(fv, pd);
+
+      const existing = await storage.getInsuranceRisk(userId);
+      let saved;
+      if (existing) {
+        saved = await storage.updateInsuranceRisk(userId, nextRisk);
+      } else {
+        saved = await storage.createInsuranceRisk({ userId, ...nextRisk });
+      }
+      res.json(saved ?? nextRisk);
+    } catch (e) {
+      console.error('Error computing insurance risk:', e);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // PD Scoring (protected)
+  app.post("/api/scoring/application", checkJwt, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { windowDays } = req.body || {};
+      const { buildUserFeatureVector } = await import("./ml/features");
+      const { scorePD } = await import("./services/pdScoring");
+      const fv = await buildUserFeatureVector(userId, windowDays || 90);
+      const scored = scorePD(fv);
+      res.json({ pd: scored.pd, reasons: scored.reasons, features: fv });
+    } catch (e) {
+      console.error('Error scoring PD:', e);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Demo PD for demo-user
+  app.get("/api/demo/pd", async (_req, res) => {
+    try {
+      const { buildUserFeatureVector } = await import("./ml/features");
+      const { scorePD } = await import("./services/pdScoring");
+      const fv = await buildUserFeatureVector("demo-user", 90);
+      const scored = scorePD(fv);
+      res.json({ pd: scored.pd, reasons: scored.reasons, features: fv });
+    } catch (e) {
+      console.error('Error scoring demo PD:', e);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Demo features for demo-user
+  app.get("/api/demo/features", async (_req, res) => {
+    try {
+      const { buildUserFeatureVector } = await import("./ml/features");
+      const fv = await buildUserFeatureVector("demo-user", 90);
+      res.json(fv);
+    } catch (e) {
+      console.error('Error computing demo features:', e);
+      res.status(500).json({ message: 'Internal server error' });
+    }
   });
 
   // Expenses routes
@@ -483,7 +671,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const userInfo = await response.json();
             possibleEmail = userInfo.email;
           }
-        } catch (error) {
+        } catch {
           // Silently handle userinfo fetch errors
         }
       }

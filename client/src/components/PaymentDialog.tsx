@@ -28,7 +28,7 @@ export default function PaymentDialog({
   isOpen, 
   onClose, 
   amount, 
-  participantName, 
+  participantName: _participantName, 
   billName,
   creatorName,
   onPaymentComplete 
@@ -157,8 +157,8 @@ export default function PaymentDialog({
             <ol className="text-blue-700 space-y-1">
               <li>1. Choose a payment method above</li>
               <li>2. Send ${amount} to {creatorName || 'the bill creator'}</li>
-              <li>3. Include "{billName}" in the memo/note</li>
-              <li>4. Click "I Paid" below when done</li>
+              <li>3. Include &quot;{billName}&quot; in the memo/note</li>
+              <li>4. Click &quot;I Paid&quot; below when done</li>
             </ol>
           </div>
 
@@ -181,7 +181,7 @@ export default function PaymentDialog({
           </div>
 
           <p className="text-xs text-gray-500 text-center">
-            FinHealth doesn't process payments directly. You'll be redirected to your chosen payment app.
+            FinHealth doesn&apos;t process payments directly. You&apos;ll be redirected to your chosen payment app.
           </p>
         </div>
       </DialogContent>

@@ -1,4 +1,5 @@
 import { BankConnection, User } from "@shared/schema";
+import type { FeatureVector } from "../ml/features";
 
 // Risk factors and weights
 const RISK_FACTORS = {
@@ -23,9 +24,32 @@ interface InsuranceRiskResult {
 }
 
 /**
- * Calculate insurance risk based on bank connection data and user profile
- * In a real application, this would use actual financial data
- * This is a simplified simulation for demonstration purposes
+ * NEW: Insurance risk derived from feature vector and PD.
+ * - overall risk follows PD thresholds
+ * - sub-risks use domain proxies for variety
+ */
+export function computeInsuranceRiskFromFeatures(features: FeatureVector, pd: number): InsuranceRiskResult {
+  const overall = pd < 0.05 ? "Low" : pd < 0.12 ? "Medium" : "High";
+
+  // Health risk: more regular income & activity => lower risk
+  const healthScore = 1 - Math.max(0, Math.min(1, 0.7 * features.incomeRegularity + 0.3 * (features.activeDays / Math.max(1, features.windowDays))));
+  const healthRisk = healthScore < RISK_LEVELS.LOW ? "Low" : healthScore < RISK_LEVELS.MEDIUM ? "Medium" : "High";
+
+  // Property risk: heavy spending concentration hints volatility
+  const propertyScore = Math.max(0, Math.min(1, 0.5 * pd + 0.5 * features.topCategoryShare));
+  const propertyRisk = propertyScore < RISK_LEVELS.LOW ? "Low" : propertyScore < RISK_LEVELS.MEDIUM ? "Medium" : "High";
+
+  // Auto risk: debit/credit imbalance + variance
+  const util = features.debitCreditRatio; // higher worse
+  const varNorm = Math.min(1, features.stdAmount / (Math.abs(features.avgAmount) + 1e-6));
+  const autoScore = Math.max(0, Math.min(1, 0.6 * Math.min(util / 2, 1) + 0.4 * varNorm));
+  const autoRisk = autoScore < RISK_LEVELS.LOW ? "Low" : autoScore < RISK_LEVELS.MEDIUM ? "Medium" : "High";
+
+  return { riskLevel: overall, healthRisk, propertyRisk, autoRisk };
+}
+
+/**
+ * Legacy simulated insurance risk based on mock bank connections and user profile.
  */
 export function calculateInsuranceRisk(
   bankConnections: BankConnection[],

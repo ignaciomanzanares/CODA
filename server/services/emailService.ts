@@ -80,7 +80,7 @@ class EmailService {
       return null;
     }
 
-    const { billSplit, participantName, participantEmail, amountOwed, creatorName } = invitation;
+    const { billSplit, amountOwed } = invitation;
     
     // Generate the email content
     const subject = `💰 You've been invited to split "${billSplit.name}" - $${amountOwed} owed`;
@@ -91,7 +91,7 @@ class EmailService {
     try {
       const info = await this.transporter.sendMail({
         from: '"FinHealth" <noreply@finhealth.app>',
-        to: participantEmail,
+        to: invitation.participantEmail,
         subject: subject,
         text: textContent,
         html: htmlContent,

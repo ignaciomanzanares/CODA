@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Users, DollarSign, Check, Clock, Send, Archive, CheckCircle, CreditCard, Smartphone, Mail, Trash2, Filter, ExternalLink } from "lucide-react";
+import { Plus, Users, DollarSign, Check, Clock, Send, Archive, CheckCircle, CreditCard, Trash2, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

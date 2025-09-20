@@ -1,0 +1,79 @@
+import { useEffect, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+export default function DemoPDCard() {
+  const [pd, setPd] = useState<number | null>(null);
+  const [reasons, setReasons] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showFeatures, setShowFeatures] = useState(false);
+  const [features, setFeatures] = useState<Record<string, any> | null>(null);
+
+  async function fetchPD() {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch("/api/demo/pd");
+      if (!res.ok) throw new Error("Failed to fetch PD");
+      const data = await res.json();
+      setPd(data.pd);
+      setReasons(data.reasons || []);
+    } catch (e) {
+      setError("Failed to fetch PD");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchPD();
+  }, []);
+
+  const percent = pd != null ? (pd * 100).toFixed(1) : "-";
+
+  async function fetchFeatures() {
+    try {
+      setShowFeatures(true);
+      const res = await fetch("/api/demo/features");
+      if (res.ok) setFeatures(await res.json());
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold">Default Risk (Demo)</h3>
+          <div className="space-x-2">
+            <Button variant="outline" size="sm" onClick={fetchFeatures}>View Features</Button>
+            <Button variant="outline" size="sm" onClick={fetchPD} disabled={loading}>{loading ? "Updating…" : "Refresh"}</Button>
+          </div>
+        </div>
+        {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
+        <div className="mt-4">
+          <div className="text-3xl font-bold">{percent}%</div>
+          <div className="text-xs text-muted-foreground">Probability of default (demo baseline)</div>
+        </div>
+        {reasons.length > 0 && (
+          <div className="mt-4">
+            <div className="text-sm font-semibold mb-1">Top factors</div>
+            <ul className="text-sm list-disc list-inside text-muted-foreground">
+              {reasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {showFeatures && (
+          <div className="mt-4 p-3 bg-muted rounded border">
+            <div className="text-sm font-semibold mb-1">Computed features</div>
+            <pre className="text-xs overflow-x-auto">{features ? JSON.stringify(features, null, 2) : "Loading..."}</pre>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

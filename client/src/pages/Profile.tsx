@@ -43,10 +43,8 @@ import {
 export default function Profile() {
   const { user, logout, isAuthenticated, isLoading } = useAuth0();
   const { toast } = useToast();
-  const { updateProfile, deleteAccount, changePassword, getMFAStatus, enableMFA, getUserProfile } = useApi();
+  const { updateProfile, deleteAccount, changePassword, getUserProfile } = useApi();
   const [isEditing, setIsEditing] = useState(false);
-  const [mfaStatus, setMfaStatus] = useState({ enabled: false, enrollments: [] });
-  const [profileLoading, setProfileLoading] = useState(true);
   const [profileData, setProfileData] = useState({
     displayName: "",
     email: "",
@@ -75,8 +73,6 @@ export default function Profile() {
             timezone: "UTC",
             language: "English"
           });
-        } finally {
-          setProfileLoading(false);
         }
       }
     };
