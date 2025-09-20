@@ -27,8 +27,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
     getNotifications, 
     markNotificationAsRead, 
     markAllNotificationsAsRead, 
-    deleteNotification,
-    getUnreadNotificationCount 
+    deleteNotification
   } = useApi();
 
   // Get all notifications for counting and filtering

@@ -2,6 +2,7 @@ import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 import pluginReact from "eslint-plugin-react";
+import pluginReactHooks from "eslint-plugin-react-hooks";
 
 export default [
   {
@@ -26,10 +27,17 @@ export default [
         version: "detect",
       },
     },
+    plugins: {
+      "react-hooks": pluginReactHooks,
+    },
     rules: {
       // Modern React doesn't need React import for JSX
       "react/react-in-jsx-scope": "off",
       "react/jsx-uses-react": "off",
+      
+      // React hooks best practices
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
       
       // Allow empty interfaces (common pattern with TypeScript)
       "@typescript-eslint/no-empty-object-type": "off",

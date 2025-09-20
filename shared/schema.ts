@@ -19,6 +19,53 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// -----------------------------------------------------------------------------
+// Open Banking data model (accounts, balances, transactions)
+// -----------------------------------------------------------------------------
+
+export const accounts = pgTable("accounts", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  bankConnectionId: integer("bank_connection_id").references(() => bankConnections.id),
+  providerAccountId: text("provider_account_id"), // external provider ID
+  name: text("name"),
+  officialName: text("official_name"),
+  type: text("type"), // checking/savings/credit_card/loan/etc
+  subtype: text("subtype"),
+  currency: text("currency"),
+  mask: varchar("mask", { length: 8 }),
+  status: text("status").default("active"),
+  openedAt: timestamp("opened_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const balances = pgTable("balances", {
+  id: serial("id").primaryKey(),
+  accountId: integer("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  asOf: timestamp("as_of").notNull().defaultNow(),
+  current: decimal("current", { precision: 14, scale: 2 }).notNull(),
+  available: decimal("available", { precision: 14, scale: 2 }),
+  creditLimit: decimal("credit_limit", { precision: 14, scale: 2 }),
+  currency: text("currency"),
+});
+
+export const transactions = pgTable("transactions", {
+  id: serial("id").primaryKey(),
+  accountId: integer("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  externalId: text("external_id"),
+  postedAt: timestamp("posted_at").notNull(),
+  description: text("description"),
+  merchantName: text("merchant_name"),
+  amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
+  currency: text("currency"),
+  category: text("category"),
+  subcategory: text("subcategory"),
+  pending: boolean("pending").default(false),
+  raw: jsonb("raw"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Bank connections table
 export const bankConnections = pgTable("bank_connections", {
   id: serial("id").primaryKey(),
@@ -147,6 +194,21 @@ export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
 });
 
+export const insertAccountSchema = createInsertSchema(accounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBalanceSchema = createInsertSchema(balances).omit({
+  id: true,
+});
+
+export const insertTransactionSchema = createInsertSchema(transactions).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertBankConnectionSchema = createInsertSchema(bankConnections).omit({
   id: true,
   lastUpdated: true,
@@ -195,6 +257,7 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
 // Define relations
 export const usersRelations = relations(users, ({ many }) => ({
   bankConnections: many(bankConnections),
+  accounts: many(accounts),
   creditScores: many(creditScores),
   insuranceRisks: many(insuranceRisks),
   financialGoals: many(financialGoals),
@@ -204,11 +267,12 @@ export const usersRelations = relations(users, ({ many }) => ({
   notifications: many(notifications),
 }));
 
-export const bankConnectionsRelations = relations(bankConnections, ({ one }) => ({
+export const bankConnectionsRelations = relations(bankConnections, ({ one, many }) => ({
   user: one(users, {
     fields: [bankConnections.userId],
     references: [users.id],
   }),
+  accounts: many(accounts)
 }));
 
 export const creditScoresRelations = relations(creditScores, ({ one }) => ({
@@ -236,6 +300,21 @@ export const expensesRelations = relations(expenses, ({ one }) => ({
   user: one(users, { fields: [expenses.userId], references: [users.id] }),
 }));
 
+export const accountsRelations = relations(accounts, ({ one, many }) => ({
+  user: one(users, { fields: [accounts.userId], references: [users.id] }),
+  bankConnection: one(bankConnections, { fields: [accounts.bankConnectionId], references: [bankConnections.id] }),
+  balances: many(balances),
+  transactions: many(transactions),
+}));
+
+export const balancesRelations = relations(balances, ({ one }) => ({
+  account: one(accounts, { fields: [balances.accountId], references: [accounts.id] })
+}));
+
+export const transactionsRelations = relations(transactions, ({ one }) => ({
+  account: one(accounts, { fields: [transactions.accountId], references: [accounts.id] })
+}));
+
 export const billSplitsRelations = relations(billSplits, ({ one, many }) => ({
   createdByUser: one(users, { fields: [billSplits.createdBy], references: [users.id] }),
   participants: many(billSplitParticipants),
@@ -253,6 +332,15 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+export type InsertAccount = z.infer<typeof insertAccountSchema>;
+export type Account = typeof accounts.$inferSelect;
+
+export type InsertBalance = z.infer<typeof insertBalanceSchema>;
+export type Balance = typeof balances.$inferSelect;
+
+export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+export type Transaction = typeof transactions.$inferSelect;
 
 export type InsertBankConnection = z.infer<typeof insertBankConnectionSchema>;
 export type BankConnection = typeof bankConnections.$inferSelect;

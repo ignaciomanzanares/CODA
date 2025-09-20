@@ -2,8 +2,8 @@ import { useAuth0 } from "@auth0/auth0-react";
 import CreditScoreCard from "@/components/CreditScoreCard";
 import InsuranceRiskCard from "@/components/InsuranceRiskCard";
 import FinancialGoalsCard from "@/components/FinancialGoalsCard";
-import RailwayFinancialData from "@/components/RailwayFinancialData";
-import RailwayCreditScore from "@/components/RailwayCreditScore";
+import DemoOpenBanking from "@/components/DemoOpenBanking";
+import DemoPDCard from "@/components/DemoPDCard";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw } from "lucide-react";
@@ -47,18 +47,14 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      <Tabs defaultValue="railway" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="railway">Railway API Data</TabsTrigger>
+      <Tabs defaultValue="local" className="w-full">
+        <TabsList className="grid w-full grid-cols-1 mb-6">
           <TabsTrigger value="local">Local Demo Data</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="railway" className="space-y-6">
-          <RailwayCreditScore userId="demo123" />
-          <RailwayFinancialData userId="demo123" />
-        </TabsContent>
-        
         <TabsContent value="local" className="space-y-6">
+          <DemoOpenBanking />
+          <DemoPDCard />
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             <CreditScoreCard />
             <InsuranceRiskCard />

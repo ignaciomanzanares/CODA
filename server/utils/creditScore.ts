@@ -1,4 +1,5 @@
 import { BankConnection } from "@shared/schema";
+import type { FeatureVector } from "../ml/features";
 
 // Credit score factors and weights
 const CREDIT_FACTORS = {
@@ -26,9 +27,50 @@ interface CreditScoreResult {
 }
 
 /**
- * Calculate credit score based on bank connection data
- * In a real application, this would use actual financial data
- * This is a simplified simulation for demonstration purposes
+ * NEW: Deterministic credit score from feature vector and PD
+ * - Uses PD (lower is better) + utilization/income regularity + activity
+ * - Returns a 300–850 score and factor labels to fit the existing UI
+ */
+export function computeCreditScoreFromFeatures(features: FeatureVector, pd: number): CreditScoreResult {
+  const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+
+  // Map debit/credit ratio to a 0..1 "utilization score" (higher is better)
+  // ratio ~0.3 => ~0.85 (good), ratio >= 2 => ~0 (poor)
+  const utilRatio = features.debitCreditRatio; // >1 means debits dominate
+  const utilScore = clamp01(1 - Math.min(utilRatio, 2) / 2);
+
+  // Payment history proxy: combine income regularity and activity
+  const activity = features.windowDays > 0 ? features.activeDays / features.windowDays : 0;
+  const paymentHistoryScore = clamp01(0.7 * features.incomeRegularity + 0.3 * activity);
+
+  // Age of credit proxy: sustained activity across window
+  const ageScore = clamp01(activity);
+
+  // Base score from PD (lower PD -> higher score)
+  // Slightly conservative scaling so high PD hurts more
+  const pdScore = clamp01(1 - pd * 1.2);
+
+  // Blend into overall 0..1 score
+  const overall = clamp01(0.5 * pdScore + 0.25 * utilScore + 0.25 * paymentHistoryScore);
+
+  // Convert to 300–850 scale
+  const minScore = 300;
+  const maxScore = 850;
+  const range = maxScore - minScore;
+  const numeric = Math.round(minScore + overall * range);
+
+  return {
+    score: numeric,
+    maxScore,
+    paymentHistory: getRatingFromScore(paymentHistoryScore),
+    utilization: getRatingFromScore(utilScore),
+    ageOfCredit: getRatingFromScore(ageScore),
+  };
+}
+
+/**
+ * Legacy simulated credit score from mock bank connections.
+ * Kept for completeness but not used by the new demo flow.
  */
 export function calculateCreditScore(bankConnections: BankConnection[]): CreditScoreResult {
   // In a production app, we would analyze actual financial data from the bank connections

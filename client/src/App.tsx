@@ -16,22 +16,6 @@ import Expenses from "@/pages/Expenses";
 import BillSplit from "@/pages/BillSplit";
 import EmailInviteHandler from "@/pages/EmailInviteHandler";
 
-function Router() {
-  return (
-    <Switch>
-      <Route path="/invite" component={EmailInviteHandler} />
-      <Route path="/" component={Onboarding} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/expenses" component={Expenses} />
-      <Route path="/bill-split" component={BillSplit} />
-      <Route path="/products" component={Products} />
-      <Route path="/goals" component={Goals} />
-      <Route path="/plan" component={Plan} />
-      <Route path="/profile" component={Profile} />
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
 
 function App() {
   return (

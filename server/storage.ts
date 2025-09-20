@@ -1,6 +1,9 @@
 import { 
   users, type User, type InsertUser,
   bankConnections, type BankConnection, type InsertBankConnection,
+  accounts, type Account, type InsertAccount,
+  balances, type Balance, type InsertBalance,
+  transactions, type Transaction, type InsertTransaction,
   creditScores, type CreditScore, type InsertCreditScore,
   insuranceRisks, type InsuranceRisk, type InsertInsuranceRisk,
   financialGoals, type FinancialGoal, type InsertFinancialGoal, 
@@ -28,6 +31,18 @@ export interface IStorage {
   updateBankConnection(id: number, connection: Partial<InsertBankConnection>): Promise<BankConnection | undefined>;
   deleteBankConnection(id: number): Promise<boolean>;
   
+  // Accounts & transactions (Open Banking) operations
+  getAccounts(userId: string): Promise<Account[]>;
+  getAccount(id: number): Promise<Account | undefined>;
+  createAccount(account: InsertAccount): Promise<Account>;
+  updateAccount(id: number, account: Partial<InsertAccount>): Promise<Account | undefined>;
+
+  upsertBalance(balance: InsertBalance): Promise<Balance>;
+  getBalances(accountId: number): Promise<Balance[]>;
+
+  createTransactionsBulk(transactions: InsertTransaction[]): Promise<Transaction[]>;
+  getTransactions(accountId: number, options?: { from?: Date; to?: Date; limit?: number; offset?: number }): Promise<Transaction[]>;
+  
   // Credit score operations
   getCreditScore(userId: string): Promise<CreditScore | undefined>;
   createCreditScore(creditScore: InsertCreditScore): Promise<CreditScore>;
@@ -36,7 +51,7 @@ export interface IStorage {
   // Insurance risk operations
   getInsuranceRisk(userId: string): Promise<InsuranceRisk | undefined>;
   createInsuranceRisk(insuranceRisk: InsertInsuranceRisk): Promise<InsuranceRisk>;
-  updateInsuranceRisk(userId: string, insuranceRisk: Partial<InsuranceRisk>): Promise<InsuranceRisk | undefined>;
+  updateInsuranceRisk(userId: string, insuranceRisk: Partial<InsertInsuranceRisk>): Promise<InsuranceRisk | undefined>;
   
   // Financial goal operations
   getFinancialGoals(userId: string): Promise<FinancialGoal[]>;
@@ -86,6 +101,9 @@ export interface IStorage {
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private bankConnections: Map<number, BankConnection>;
+  private accounts: Map<number, Account>;
+  private balances: Map<number, Balance>;
+  private transactions: Map<number, Transaction>;
   private creditScores: Map<number, CreditScore>;
   private insuranceRisks: Map<number, InsuranceRisk>;
   private financialGoals: Map<number, FinancialGoal>;
@@ -97,6 +115,9 @@ export class MemStorage implements IStorage {
   
   private currentUserId: number;
   private currentBankConnectionId: number;
+  private currentAccountId: number;
+  private currentBalanceId: number;
+  private currentTransactionId: number;
   private currentCreditScoreId: number;
   private currentInsuranceRiskId: number;
   private currentFinancialGoalId: number;
@@ -109,6 +130,9 @@ export class MemStorage implements IStorage {
   constructor() {
     this.users = new Map();
     this.bankConnections = new Map();
+    this.accounts = new Map();
+    this.balances = new Map();
+    this.transactions = new Map();
     this.creditScores = new Map();
     this.insuranceRisks = new Map();
     this.financialGoals = new Map();
@@ -120,6 +144,9 @@ export class MemStorage implements IStorage {
     
     this.currentUserId = 1;
     this.currentBankConnectionId = 1;
+    this.currentAccountId = 1;
+    this.currentBalanceId = 1;
+    this.currentTransactionId = 1;
     this.currentCreditScoreId = 1;
     this.currentInsuranceRiskId = 1;
     this.currentFinancialGoalId = 1;
@@ -417,6 +444,64 @@ export class MemStorage implements IStorage {
     return this.bankConnections.delete(id);
   }
   
+  // Accounts & transactions (Open Banking) methods
+  async getAccounts(userId: string): Promise<Account[]> {
+    return Array.from(this.accounts.values()).filter(a => a.userId === userId);
+  }
+
+  async getAccount(id: number): Promise<Account | undefined> {
+    return this.accounts.get(id);
+  }
+
+  async createAccount(insertAccount: InsertAccount): Promise<Account> {
+    const account: Account = {
+      id: this.currentAccountId++,
+      ...insertAccount,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as Account;
+    this.accounts.set(account.id as number, account);
+    return account;
+  }
+
+  async updateAccount(id: number, account: Partial<InsertAccount>): Promise<Account | undefined> {
+    const existing = this.accounts.get(id);
+    if (!existing) return undefined;
+    const updated: Account = { ...existing, ...account, updatedAt: new Date() } as Account;
+    this.accounts.set(id, updated);
+    return updated;
+  }
+
+  async upsertBalance(balanceIn: InsertBalance): Promise<Balance> {
+    const balance: Balance = { id: this.currentBalanceId++, ...balanceIn } as Balance;
+    this.balances.set(balance.id as number, balance);
+    return balance;
+  }
+
+  async getBalances(accountId: number): Promise<Balance[]> {
+    return Array.from(this.balances.values()).filter(b => b.accountId === accountId);
+  }
+
+  async createTransactionsBulk(items: InsertTransaction[]): Promise<Transaction[]> {
+    const created: Transaction[] = [];
+    for (const t of items) {
+      const tx: Transaction = { id: this.currentTransactionId++, ...t, createdAt: new Date() } as Transaction;
+      this.transactions.set(tx.id as number, tx);
+      created.push(tx);
+    }
+    return created;
+  }
+
+  async getTransactions(accountId: number, options?: { from?: Date; to?: Date; limit?: number; offset?: number }): Promise<Transaction[]> {
+    let list = Array.from(this.transactions.values()).filter(tx => tx.accountId === accountId);
+    if (options?.from) list = list.filter(tx => tx.postedAt >= options.from!);
+    if (options?.to) list = list.filter(tx => tx.postedAt <= options.to!);
+    list.sort((a, b) => a.postedAt.getTime() - b.postedAt.getTime());
+    if (options?.offset) list = list.slice(options.offset);
+    if (options?.limit) list = list.slice(0, options.limit);
+    return list;
+  }
+
   // Credit score methods
   async getCreditScore(userId: string): Promise<CreditScore | undefined> {
     return Array.from(this.creditScores.values()).find(
@@ -949,6 +1034,67 @@ export class DatabaseStorage implements IStorage {
     return !!result;
   }
   
+  // Accounts & transactions (Open Banking) operations
+  async getAccounts(userId: string): Promise<Account[]> {
+    if (!db) return [];
+    return await db.select().from(accounts).where(eq(accounts.userId, userId));
+  }
+
+  async getAccount(id: number): Promise<Account | undefined> {
+    if (!db) return undefined;
+    const [acc] = await db.select().from(accounts).where(eq(accounts.id, id));
+    return acc || undefined;
+  }
+
+  async createAccount(insertAccount: InsertAccount): Promise<Account> {
+    if (!db) throw new Error("Database not available");
+    const [acc] = await db.insert(accounts).values(insertAccount).returning();
+    return acc;
+  }
+
+  async updateAccount(id: number, account: Partial<InsertAccount>): Promise<Account | undefined> {
+    if (!db) return undefined;
+    const [acc] = await db.update(accounts).set({ ...account, updatedAt: new Date() }).where(eq(accounts.id, id)).returning();
+    return acc || undefined;
+  }
+
+  async upsertBalance(balanceIn: InsertBalance): Promise<Balance> {
+    if (!db) throw new Error("Database not available");
+    // For simplicity, just insert a new balance row (can be replaced with ON CONFLICT if needed)
+    const [bal] = await db.insert(balances).values(balanceIn).returning();
+    return bal;
+  }
+
+  async getBalances(accountId: number): Promise<Balance[]> {
+    if (!db) return [];
+    return await db.select().from(balances).where(eq(balances.accountId, accountId));
+  }
+
+  async createTransactionsBulk(items: InsertTransaction[]): Promise<Transaction[]> {
+    if (!db) throw new Error("Database not available");
+    if (items.length === 0) return [];
+    const inserted = await db.insert(transactions).values(items).returning();
+    return inserted;
+  }
+
+  async getTransactions(accountId: number, options?: { from?: Date; to?: Date; limit?: number; offset?: number }): Promise<Transaction[]> {
+    if (!db) return [];
+    // Build a basic filtered select. For brevity, compose conditions inline.
+    let result = await db.select().from(transactions).where(eq(transactions.accountId, accountId));
+
+    if (options?.from) {
+      result = result.filter(tx => tx.postedAt >= options.from!);
+    }
+    if (options?.to) {
+      result = result.filter(tx => tx.postedAt <= options.to!);
+    }
+    // Sort ascending by postedAt
+    result.sort((a, b) => a.postedAt.getTime() - b.postedAt.getTime());
+    if (options?.offset) result = result.slice(options.offset);
+    if (options?.limit) result = result.slice(0, options.limit);
+    return result;
+  }
+
   // Credit score operations
   async getCreditScore(userId: string): Promise<CreditScore | undefined> {
     if (!db) return undefined;
