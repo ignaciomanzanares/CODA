@@ -1,0 +1,112 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
+
+// Lazy optional import to avoid crashing when dependency is missing
+let ort: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  ort = require("onnxruntime-node");
+} catch {
+  // onnxruntime-node not installed yet; xgb scoring will be disabled until installed
+}
+
+export type ModelManifest = {
+  model_id: string;
+  trained_at?: string;
+  algo?: string; // "xgb" | "xgb_ensemble" | ...
+  metrics?: { auc?: number; gini?: number; ks?: number; brier?: number };
+  feature_meta_path?: string;
+  calibration?: { type: "platt" | "isotonic"; params: any } | null;
+};
+
+export class PDModelRegistry {
+  private static _instance: PDModelRegistry;
+  private baseDir: string;
+  private manifest: ModelManifest | null = null;
+  private session: any = null; // onnxruntime.InferenceSession
+  private featureMeta: { features: string[] } | null = null;
+
+  private constructor() {
+    this.baseDir = path.join(process.cwd(), "server", "ml", "artifacts", "current");
+    this.tryLoad();
+  }
+
+  static instance() {
+    if (!this._instance) this._instance = new PDModelRegistry();
+    return this._instance;
+  }
+
+  get isReady() {
+    return Boolean(this.session && this.featureMeta);
+  }
+
+  getManifest(): ModelManifest | null {
+    return this.manifest;
+  }
+
+  async scoreXGB(featureMap: Record<string, number>): Promise<number> {
+    if (!this.isReady || !ort) throw new Error("XGB model not available");
+    const feats = this.featureMeta!.features.map((k) => Number(featureMap[k] ?? 0));
+    const input = new Float32Array(feats);
+    const tensor = new ort.Tensor("float32", input, [1, feats.length]);
+    const outputs = await this.session.run({ input: tensor });
+    const out = outputs[Object.keys(outputs)[0]];
+    const raw = Array.isArray(out.data) ? out.data[0] : out.data[0];
+    const p = Number(raw);
+    return this.applyCalibration(p);
+  }
+
+  private applyCalibration(p: number): number {
+    const cal = this.manifest?.calibration;
+    if (!cal) return p;
+    if (cal.type === "platt") {
+      const { a, b } = cal.params || {};
+      if (typeof a === "number" && typeof b === "number") {
+        const z = a * p + b;
+        return 1 / (1 + Math.exp(-z));
+      }
+      return p;
+    }
+    if (cal.type === "isotonic" && Array.isArray(cal.params)) {
+      const pts: { x: number; y: number }[] = cal.params;
+      if (pts.length === 0) return p;
+      if (p <= pts[0].x) return pts[0].y;
+      for (let i = 1; i < pts.length; i++) {
+        if (p <= pts[i].x) {
+          const x0 = pts[i - 1].x, y0 = pts[i - 1].y;
+          const x1 = pts[i].x, y1 = pts[i].y;
+          const t = (p - x0) / (x1 - x0 || 1e-6);
+          return y0 + t * (y1 - y0);
+        }
+      }
+      return pts[pts.length - 1].y;
+    }
+    return p;
+  }
+
+  private tryLoad() {
+    try {
+      const manifestPath = path.join(this.baseDir, "manifest.json");
+      if (!fs.existsSync(manifestPath)) return;
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+      this.manifest = manifest;
+      if (!ort) return; // dependency not installed
+      const onnxPath = path.join(this.baseDir, manifest.onnx_path || "xgb_pd.onnx");
+      const featureMetaPath = path.join(this.baseDir, manifest.feature_meta_path || "feature_meta.json");
+      if (!fs.existsSync(onnxPath) || !fs.existsSync(featureMetaPath)) return;
+      this.featureMeta = JSON.parse(fs.readFileSync(featureMetaPath, "utf-8"));
+      // Create session
+      ort.InferenceSession.create(onnxPath, { executionProviders: ["cpu"] }).then((sess: any) => {
+        this.session = sess;
+      }).catch(() => {
+        // ignore
+      });
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("PDModelRegistry load failed", e);
+      this.manifest = null;
+      this.session = null;
+      this.featureMeta = null;
+    }
+  }
+}

@@ -3,7 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default function DemoPDCard() {
-  const [pd, setPd] = useState<number | null>(null);
+const [pd, setPd] = useState<number | null>(null);
+  const [model, setModel] = useState<'baseline'|'xgb'>('baseline');
   const [reasons, setReasons] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -14,7 +15,7 @@ export default function DemoPDCard() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/demo/pd");
+const res = await fetch(`/api/demo/pd?model=${model}`);
       if (!res.ok) throw new Error("Failed to fetch PD");
       const data = await res.json();
       setPd(data.pd);
@@ -47,7 +48,11 @@ export default function DemoPDCard() {
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold">Default Risk (Demo)</h3>
-          <div className="space-x-2">
+<div className="flex items-center gap-2">
+<select className="border rounded px-2 py-1 text-sm" value={model} onChange={(e)=>setModel(e.target.value as any)}>
+              <option value="baseline">Baseline</option>
+              <option value="xgb">XGBoost (if available)</option>
+            </select>
             <Button variant="outline" size="sm" onClick={fetchFeatures}>View Features</Button>
             <Button variant="outline" size="sm" onClick={fetchPD} disabled={loading}>{loading ? "Updating…" : "Refresh"}</Button>
           </div>
