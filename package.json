@@ -13,7 +13,8 @@
     "db:seed": "tsx server/seed.ts",
     "postinstall": "cp ./client/theme.json ./theme.json"
   },
-  "dependencies": {
+"dependencies": {
+    "onnxruntime-node": "^1.19.2",
     "@auth0/auth0-react": "^2.4.0",
     "@hookform/resolvers": "^3.9.1",
     "@jridgewell/trace-mapping": "^0.3.25",

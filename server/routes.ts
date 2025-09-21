@@ -520,6 +520,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { buildUserFeatureVector } = await import("./ml/features");
       const { scorePD } = await import("./services/pdScoring");
       const fv = await buildUserFeatureVector("demo-user", 90);
+      const { PDModelRegistry } = await import("./services/modelRegistry");
+      const modelParam = String(req.query.model || "baseline");
+      if (modelParam.toLowerCase() === "xgb") {
+        try {
+          const reg = PDModelRegistry.instance();
+          if (!reg.isReady) {
+            return res.status(501).json({ message: "XGB model not available", features: fv });
+          }
+          const pd = await reg.scoreXGB(fv as any);
+          return res.json({ pd, reasons: ["model:xgb"], features: fv, model: reg.getManifest() });
+        } catch (err) {
+          console.error("XGB scoring failed, falling back", err);
+        }
+      }
       const scored = scorePD(fv);
       res.json({ pd: scored.pd, reasons: scored.reasons, features: fv });
     } catch (e) {
@@ -536,6 +550,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(fv);
     } catch (e) {
       console.error('Error computing demo features:', e);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Model info (if any trained model is present)
+  app.get("/api/pd/model/info", async (_req, res) => {
+    try {
+      const { PDModelRegistry } = await import("./services/modelRegistry");
+      const reg = PDModelRegistry.instance();
+      if (!reg.getManifest()) return res.status(204).end();
+      res.json(reg.getManifest());
+    } catch (e) {
       res.status(500).json({ message: 'Internal server error' });
     }
   });
