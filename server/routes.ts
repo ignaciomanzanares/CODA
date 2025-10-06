@@ -502,10 +502,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/scoring/application", checkJwt, async (req, res) => {
     try {
       const userId = getUserIdFromAuth(req);
-      const { windowDays } = req.body || {};
+      const { windowDays, model: bodyModel } = req.body || {};
+      const modelParam = String(bodyModel || req.query.model || "baseline").toLowerCase();
       const { buildUserFeatureVector } = await import("./ml/features");
-      const { scorePD } = await import("./services/pdScoring");
       const fv = await buildUserFeatureVector(userId, windowDays || 90);
+
+      if (modelParam === "xgb") {
+        try {
+          const { PDModelRegistry } = await import("./services/modelRegistry");
+          const reg = PDModelRegistry.instance();
+          if (!reg.isReady) {
+            await new Promise((r) => setTimeout(r, 150));
+          }
+          if (reg.isReady) {
+            const pd = await reg.scoreXGB(fv as any);
+            const reasons = ["model:xgb", ...reg.getTopFeatures(5)];
+            return res.json({ pd, reasons, features: fv, model: reg.getManifest() });
+          }
+
+          // Fallback: one-off ONNX scoring if registry not yet ready
+          const pathMod = await import("node:path");
+          const fsMod = await import("node:fs");
+          const baseDir = pathMod.join(process.cwd(), "server", "ml", "artifacts", "current");
+          const manifest = JSON.parse(fsMod.readFileSync(pathMod.join(baseDir, "manifest.json"), "utf-8"));
+          const featureMeta = JSON.parse(
+            fsMod.readFileSync(pathMod.join(baseDir, manifest.feature_meta_path || "feature_meta.json"), "utf-8")
+          );
+          const onnxPath = pathMod.join(baseDir, manifest.onnx_path || "xgb_pd.onnx");
+          const ortMod: any = await import("onnxruntime-node");
+          const ortAny: any = (ortMod as any)?.default ?? ortMod;
+          const feats = featureMeta.features.map((k: string) => Number((fv as any)[k] ?? 0));
+          const input = new Float32Array(feats);
+          const tensor = new ortAny.Tensor("float32", input, [1, feats.length]);
+          const session = await ortAny.InferenceSession.create(onnxPath, { executionProviders: ["cpu"] });
+          const outputs = await session.run({ input: tensor });
+          const out = (outputs as any)[Object.keys(outputs)[0]];
+          let p = Number(Array.isArray(out.data) ? out.data[0] : out.data[0]);
+          const cal = manifest?.calibration;
+          if (cal?.type === "platt" && typeof cal.params?.a === "number" && typeof cal.params?.b === "number") {
+            const z = cal.params.a * p + cal.params.b;
+            p = 1 / (1 + Math.exp(-z));
+          }
+          const reasons = ["model:xgb", ...((manifest?.shap_top || []) as string[]).slice(0, 5)];
+          return res.json({ pd: p, reasons, features: fv, model: manifest });
+        } catch (err) {
+          console.error("XGB scoring failed, falling back to baseline", err);
+        }
+      }
+
+      // Baseline
+      const { scorePD } = await import("./services/pdScoring");
       const scored = scorePD(fv);
       res.json({ pd: scored.pd, reasons: scored.reasons, features: fv });
     } catch (e) {
@@ -515,7 +561,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Demo PD for demo-user
-  app.get("/api/demo/pd", async (_req, res) => {
+  app.get("/api/demo/pd", async (req, res) => {
     try {
       const { buildUserFeatureVector } = await import("./ml/features");
       const { scorePD } = await import("./services/pdScoring");
@@ -525,11 +571,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (modelParam.toLowerCase() === "xgb") {
         try {
           const reg = PDModelRegistry.instance();
+          // Allow a short warm-up window for lazy model load
           if (!reg.isReady) {
-            return res.status(501).json({ message: "XGB model not available", features: fv });
+            await new Promise((r) => setTimeout(r, 150));
           }
-          const pd = await reg.scoreXGB(fv as any);
-          return res.json({ pd, reasons: ["model:xgb"], features: fv, model: reg.getManifest() });
+          if (reg.isReady) {
+            const pd = await reg.scoreXGB(fv as any);
+            const reasons = ["model:xgb", ...reg.getTopFeatures(5)];
+            return res.json({ pd, reasons, features: fv, model: reg.getManifest() });
+          }
+
+          // Fallback: score directly via ONNXRuntime (one-off session) if registry not ready
+          const pathMod = await import("node:path");
+          const fsMod = await import("node:fs");
+          const baseDir = pathMod.join(process.cwd(), "server", "ml", "artifacts", "current");
+          const manifest = JSON.parse(fsMod.readFileSync(pathMod.join(baseDir, "manifest.json"), "utf-8"));
+          const featureMeta = JSON.parse(
+            fsMod.readFileSync(pathMod.join(baseDir, manifest.feature_meta_path || "feature_meta.json"), "utf-8")
+          );
+          const onnxPath = pathMod.join(baseDir, manifest.onnx_path || "xgb_pd.onnx");
+          const ortMod: any = await import("onnxruntime-node");
+          const ortAny: any = (ortMod as any)?.default ?? ortMod;
+          const feats = featureMeta.features.map((k: string) => Number((fv as any)[k] ?? 0));
+          const input = new Float32Array(feats);
+          const tensor = new ortAny.Tensor("float32", input, [1, feats.length]);
+          const session = await ortAny.InferenceSession.create(onnxPath, { executionProviders: ["cpu"] });
+          const outputs = await session.run({ input: tensor });
+          const out = (outputs as any)[Object.keys(outputs)[0]];
+          let p = Number(Array.isArray(out.data) ? out.data[0] : out.data[0]);
+          const cal = manifest?.calibration;
+          if (cal?.type === "platt" && typeof cal.params?.a === "number" && typeof cal.params?.b === "number") {
+            const z = cal.params.a * p + cal.params.b;
+            p = 1 / (1 + Math.exp(-z));
+          }
+          const reasons = ["model:xgb", ...((manifest?.shap_top || []) as string[]).slice(0, 5)];
+          return res.json({ pd: p, reasons, features: fv, model: manifest });
         } catch (err) {
           console.error("XGB scoring failed, falling back", err);
         }
@@ -561,6 +637,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const reg = PDModelRegistry.instance();
       if (!reg.getManifest()) return res.status(204).end();
       res.json(reg.getManifest());
+    } catch (e) {
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Model status (readiness + top features if available)
+  app.get("/api/pd/model/status", async (_req, res) => {
+    try {
+      const { PDModelRegistry } = await import("./services/modelRegistry");
+      const reg = PDModelRegistry.instance();
+      const manifest = reg.getManifest();
+      const isReady = reg.isReady;
+      const topFeatures = reg.getTopFeatures(10);
+      res.json({
+        isReady,
+        hasManifest: !!manifest,
+        manifest,
+        topFeatures,
+      });
+    } catch (e) {
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Demo SHAP explanation (XGB) for demo-user
+  app.get("/api/demo/pd/explain", async (req, res) => {
+    try {
+      const top = Math.max(1, Math.min(20, parseInt(String(req.query.top || '5'), 10)));
+      const { buildUserFeatureVector } = await import("./ml/features");
+      const fv = await buildUserFeatureVector("demo-user", 90);
+
+      // Prepare to call Python explainer
+      const pathMod = await import("node:path");
+      const fsMod = await import("node:fs");
+      const cp = await import("node:child_process");
+
+      const baseDir = pathMod.join(process.cwd(), "server", "ml", "artifacts", "current");
+      const script = pathMod.join(process.cwd(), "server", "ml", "shap_explain.py");
+      const py = pathMod.join(process.cwd(), "server", "ml", ".venv", "bin", "python");
+
+      if (!fsMod.existsSync(script)) {
+        return res.status(501).json({ message: "SHAP explainer not available" });
+      }
+
+      const p = cp.spawn(py, [script, "--artifacts", baseDir, "--top", String(top)], {
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      let out = "";
+      let err = "";
+      p.stdout.on("data", (d: Buffer) => { out += d.toString(); });
+      p.stderr.on("data", (d: Buffer) => { err += d.toString(); });
+      p.on("error", () => {});
+
+      p.stdin.write(JSON.stringify(fv));
+      p.stdin.end();
+
+      p.on("close", (code: number) => {
+        if (code !== 0) {
+          console.error("SHAP explainer failed:", err || out);
+          return res.status(500).json({ message: "Failed to compute explanations" });
+        }
+        try {
+          const parsed = JSON.parse(out);
+          return res.json({ features: fv, explanation: parsed });
+        } catch (e) {
+          console.error("Parse error:", e, out);
+          return res.status(500).json({ message: "Malformed explainer output" });
+        }
+      });
+    } catch (e) {
+      console.error('Error in demo SHAP explain:', e);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Model refresh (protected): reloads artifacts/current
+  app.post("/api/pd/model/refresh", checkJwt, async (_req, res) => {
+    try {
+      const { PDModelRegistry } = await import("./services/modelRegistry");
+      const reg = PDModelRegistry.instance();
+      await reg.reload();
+      res.json({ ok: true, isReady: reg.isReady, manifest: reg.getManifest() });
     } catch (e) {
       res.status(500).json({ message: 'Internal server error' });
     }
@@ -1370,16 +1529,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Utility endpoints (public)
-  app.post("/api/utils/credit-score", (req, res) => {
+  app.post("/api/utils/credit-score", async (req, res) => {
     const { bankData } = req.body;
     if (!bankData || !Array.isArray(bankData) || bankData.length === 0) {
       return res.status(400).json({ message: "Valid bank data is required" });
     }
+    const { calculateCreditScore } = await import("./utils/creditScore");
     const score = calculateCreditScore(bankData);
     res.json(score);
   });
 
-  app.post("/api/utils/insurance-risk", (req, res) => {
+  app.post("/api/utils/insurance-risk", async (req, res) => {
     const { bankData, userProfile } = req.body;
     if (!bankData || !Array.isArray(bankData) || bankData.length === 0) {
       return res.status(400).json({ message: "Valid bank data is required" });
@@ -1387,6 +1547,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!userProfile) {
       return res.status(400).json({ message: "User profile is required" });
     }
+    const { calculateInsuranceRisk } = await import("./utils/insuranceRisk");
     const risk = calculateInsuranceRisk(bankData, userProfile);
     res.json(risk);
   });

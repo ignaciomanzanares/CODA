@@ -24,6 +24,14 @@ const defaultModel: PDModel = {
     debitCreditRatio: 0.25,
     incomeRegularity: -1.0,
     topCategoryShare: 0.4,
+    // New features default to zero weight to preserve baseline behavior
+    monthlyIncome: 0.0,
+    monthlyDebits: 0.0,
+    dti: 0.0,
+    dtiCapped: 0.0,
+    incomeTrend30_90: 0.0,
+    netCashflowVolatility: 0.0,
+    recurringExpenseShare: 0.0,
   },
   scale: 1.0,
 };

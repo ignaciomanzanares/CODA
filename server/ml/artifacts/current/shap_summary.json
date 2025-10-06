@@ -1,0 +1,78 @@
+[
+  {
+    "feature": "totalDebits",
+    "mean_abs_shap": 0.7673456072807312
+  },
+  {
+    "feature": "topCategoryShare",
+    "mean_abs_shap": 0.4507879316806793
+  },
+  {
+    "feature": "activeDays",
+    "mean_abs_shap": 0.4089461863040924
+  },
+  {
+    "feature": "netCashflowVolatility",
+    "mean_abs_shap": 0.37901636958122253
+  },
+  {
+    "feature": "creditCount",
+    "mean_abs_shap": 0.33800673484802246
+  },
+  {
+    "feature": "incomeTrend30_90",
+    "mean_abs_shap": 0.31206217408180237
+  },
+  {
+    "feature": "debitCreditRatio",
+    "mean_abs_shap": 0.29127630591392517
+  },
+  {
+    "feature": "incomeRegularity",
+    "mean_abs_shap": 0.28076428174972534
+  },
+  {
+    "feature": "stdAmount",
+    "mean_abs_shap": 0.23772138357162476
+  },
+  {
+    "feature": "avgAmount",
+    "mean_abs_shap": 0.20044618844985962
+  },
+  {
+    "feature": "debitCount",
+    "mean_abs_shap": 0.17395587265491486
+  },
+  {
+    "feature": "monthlyDebits",
+    "mean_abs_shap": 0.14981165528297424
+  },
+  {
+    "feature": "totalCredits",
+    "mean_abs_shap": 0.13663049042224884
+  },
+  {
+    "feature": "dti",
+    "mean_abs_shap": 0.11193914711475372
+  },
+  {
+    "feature": "txCount",
+    "mean_abs_shap": 0.09975917637348175
+  },
+  {
+    "feature": "monthlyIncome",
+    "mean_abs_shap": 0.039731405675411224
+  },
+  {
+    "feature": "dtiCapped",
+    "mean_abs_shap": 0.026418572291731834
+  },
+  {
+    "feature": "windowDays",
+    "mean_abs_shap": 0.0
+  },
+  {
+    "feature": "recurringExpenseShare",
+    "mean_abs_shap": 0.0
+  }
+]
