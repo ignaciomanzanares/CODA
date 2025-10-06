@@ -22,6 +22,14 @@ export async function materializeFeatures(users: string[], outPath: string, wind
     "debitCreditRatio",
     "incomeRegularity",
     "topCategoryShare",
+    // new DTI-related features
+    "monthlyIncome",
+    "monthlyDebits",
+    "dti",
+    "dtiCapped",
+    "incomeTrend30_90",
+    "netCashflowVolatility",
+    "recurringExpenseShare",
   ];
 
   await fs.promises.mkdir(path.dirname(outPath), { recursive: true });
@@ -50,6 +58,13 @@ export async function materializeFeatures(users: string[], outPath: string, wind
         fv.debitCreditRatio.toFixed(6),
         fv.incomeRegularity.toFixed(6),
         fv.topCategoryShare.toFixed(6),
+        fv.monthlyIncome.toFixed(2),
+        fv.monthlyDebits.toFixed(2),
+        fv.dti.toFixed(6),
+        fv.dtiCapped.toFixed(6),
+        fv.incomeTrend30_90.toFixed(6),
+        fv.netCashflowVolatility.toFixed(6),
+        fv.recurringExpenseShare.toFixed(6),
       ].join(",") + "\n";
       await fs.promises.appendFile(outPath, row, { encoding: "utf-8" });
     } catch (e) {

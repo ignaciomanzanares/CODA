@@ -4,11 +4,12 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import roc_auc_score, brier_score_loss
+import shap
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 import xgboost as xgb
 from skl2onnx import convert_sklearn
-from skl2onnx.common.data_types import FloatTensorType
+from onnxconverter_common.data_types import FloatTensorType as OCCFloatTensorType
 
 
 def time_split_indices(df, n_splits=3, time_col=None):
@@ -56,6 +57,7 @@ def main():
         objective='binary:logistic',
         eval_metric='logloss',
         n_jobs=4,
+        base_score=0.5,
     )
 
     splits = time_split_indices(df, n_splits=3, time_col=args.time_col)
@@ -69,14 +71,41 @@ def main():
     brier = float(np.mean(briers)) if briers else 0.0
     gini = 2*auc - 1
 
+    # Fit on all
     model.fit(X, label)
 
+    # Overall predictions for KS and calibration fit
+    p_all = model.predict_proba(X)[:,1]
+
+    # KS statistic
+    # Empirical CDFs of scores for pos/neg
+    pos = np.sort(p_all[label == 1])
+    neg = np.sort(p_all[label == 0])
+    all_scores = np.sort(np.unique(p_all))
+    def cdf_at(scores, arr):
+        # proportion <= each score
+        return np.searchsorted(arr, scores, side='right') / max(1, len(arr))
+    cdf_pos = cdf_at(all_scores, pos)
+    cdf_neg = cdf_at(all_scores, neg)
+    ks = float(np.max(np.abs(cdf_pos - cdf_neg))) if len(pos) and len(neg) else 0.0
+
+    # Simple calibration: Platt scaling on full data (placeholder)
     lr = LogisticRegression(max_iter=1000)
-    lr.fit(model.predict_proba(X)[:,1].reshape(-1,1), label)
+    lr.fit(p_all.reshape(-1,1), label)
     a = float(lr.coef_[0][0]); b = float(lr.intercept_[0])
 
-    initial_type = [('input', FloatTensorType([None, X.shape[1]]))]
-    onnx_model = convert_sklearn(model, initial_types=initial_type)
+    # Build initial types for both converters
+    initial_type_skl2onnx = [('input', OCCFloatTensorType([None, X.shape[1]]))]
+    # onnxmltools expects its own datatypes
+    from onnxmltools.convert.common.data_types import FloatTensorType as OMLFloatTensorType
+    initial_type_onnxmltools = [('input', OMLFloatTensorType([None, X.shape[1]]))]
+
+    # Try scikit-learn converter first; if unavailable for this XGBoost version, fallback to onnxmltools
+    try:
+        onnx_model = convert_sklearn(model, initial_types=initial_type_skl2onnx)
+    except Exception:
+        from onnxmltools import convert_xgboost
+        onnx_model = convert_xgboost(model, initial_types=initial_type_onnxmltools)
     onnx_path = out_dir / 'xgb_pd.onnx'
     with open(onnx_path, 'wb') as f:
         f.write(onnx_model.SerializeToString())
@@ -84,14 +113,41 @@ def main():
     feature_meta = {'features': feature_cols}
     (out_dir / 'feature_meta.json').write_text(json.dumps(feature_meta, indent=2))
 
+    # SHAP global importance (mean |SHAP| per feature)
+    try:
+        explainer = shap.TreeExplainer(model)
+        shap_vals = explainer.shap_values(X)
+        if isinstance(shap_vals, list):
+            shap_arr = np.array(shap_vals[0])
+        else:
+            shap_arr = np.array(shap_vals)
+        mean_abs = np.mean(np.abs(shap_arr), axis=0)
+        feats = feature_cols
+        shap_summary = [{ 'feature': f, 'mean_abs_shap': float(m) } for f, m in sorted(zip(feats, mean_abs), key=lambda t: t[1], reverse=True)]
+        top_features = [s['feature'] for s in shap_summary[:10]]
+        (out_dir / 'shap_summary.json').write_text(json.dumps(shap_summary, indent=2))
+    except Exception as e:
+        shap_summary = []
+        top_features = []
+
+    # Save native XGBoost model for per-instance SHAP explanations
+    try:
+        booster = model.get_booster()
+        booster.save_model(str(out_dir / 'xgb.json'))
+    except Exception:
+        pass
+
     manifest = {
         'model_id': f"xgb_{int(time.time())}",
         'trained_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
         'algo': 'xgb',
         'onnx_path': 'xgb_pd.onnx',
         'feature_meta_path': 'feature_meta.json',
-        'metrics': { 'auc': auc, 'gini': gini, 'brier': brier },
-        'calibration': { 'type': 'platt', 'params': { 'a': a, 'b': b } }
+        'metrics': { 'auc': auc, 'gini': gini, 'brier': brier, 'ks': ks },
+        'calibration': { 'type': 'platt', 'params': { 'a': a, 'b': b } },
+        'shap_top': top_features,
+        'shap_summary_path': 'shap_summary.json' if shap_summary else None,
+        'xgb_json_path': 'xgb.json'
     }
     (out_dir / 'manifest.json').write_text(json.dumps(manifest, indent=2))
 

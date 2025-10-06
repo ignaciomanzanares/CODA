@@ -10,6 +10,7 @@ const [pd, setPd] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showFeatures, setShowFeatures] = useState(false);
   const [features, setFeatures] = useState<Record<string, any> | null>(null);
+  const [modelInfo, setModelInfo] = useState<any | null>(null);
 
   async function fetchPD() {
     try {
@@ -29,7 +30,15 @@ const res = await fetch(`/api/demo/pd?model=${model}`);
 
   useEffect(() => {
     fetchPD();
-  }, []);
+    if (model === 'xgb') {
+      fetch('/api/pd/model/info').then(async (r)=>{
+        if (r.ok) setModelInfo(await r.json());
+        else setModelInfo(null);
+      }).catch(()=>setModelInfo(null));
+    } else {
+      setModelInfo(null);
+    }
+  }, [model]);
 
   const percent = pd != null ? (pd * 100).toFixed(1) : "-";
 
@@ -60,11 +69,14 @@ const res = await fetch(`/api/demo/pd?model=${model}`);
         {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
         <div className="mt-4">
           <div className="text-3xl font-bold">{percent}%</div>
-          <div className="text-xs text-muted-foreground">Probability of default (demo baseline)</div>
+          <div className="text-xs text-muted-foreground">Probability of default ({model === 'baseline' ? 'demo baseline' : 'XGBoost'})</div>
+          {modelInfo && (
+            <div className="text-xs text-muted-foreground mt-1">AUC: {modelInfo?.metrics?.auc?.toFixed ? modelInfo.metrics.auc.toFixed(3) : modelInfo?.metrics?.auc}</div>
+          )}
         </div>
         {reasons.length > 0 && (
           <div className="mt-4">
-            <div className="text-sm font-semibold mb-1">Top factors</div>
+            <div className="text-sm font-semibold mb-1">{model === 'xgb' ? 'Top SHAP features' : 'Top factors'}</div>
             <ul className="text-sm list-disc list-inside text-muted-foreground">
               {reasons.map((r) => (
                 <li key={r}>{r}</li>

@@ -1,0 +1,23 @@
+{
+  "features": [
+    "windowDays",
+    "txCount",
+    "debitCount",
+    "creditCount",
+    "totalDebits",
+    "totalCredits",
+    "avgAmount",
+    "stdAmount",
+    "activeDays",
+    "debitCreditRatio",
+    "incomeRegularity",
+    "topCategoryShare",
+    "monthlyIncome",
+    "monthlyDebits",
+    "dti",
+    "dtiCapped",
+    "incomeTrend30_90",
+    "netCashflowVolatility",
+    "recurringExpenseShare"
+  ]
+}

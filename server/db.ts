@@ -5,14 +5,15 @@ import * as schema from "@shared/schema";
 // Use the DATABASE_URL from environment variables
 // Use the DATABASE_URL from environment variables or fallback to a default local database connection string
 const connectionString = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/finhealth";
+const forceMem = process.env.USE_MEM_STORAGE === '1';
 
-if (!connectionString) {
+if (!connectionString && !forceMem) {
   console.warn("⚠️  DATABASE_URL not found, falling back to in-memory storage");
   console.warn("   For production use, set DATABASE_URL environment variable");
 }
 
-// Create a postgres client only if DATABASE_URL is provided
-const sql = connectionString ? postgres(connectionString) : null;
+// Create a postgres client only if not forcing memory mode and connection string is provided
+const sql = (!forceMem && connectionString) ? postgres(connectionString) : null;
 
 // Create a drizzle instance with our schema if connection exists  
 // This will be set to null if connection test fails
@@ -20,6 +21,9 @@ let db = sql ? drizzle(sql, { schema }) : null;
 
 // Database health check
 export async function checkDatabaseConnection(): Promise<boolean> {
+  if (forceMem) {
+    return false;
+  }
   if (!db || !sql) {
     return false;
   }
