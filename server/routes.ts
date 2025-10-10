@@ -234,6 +234,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       targetDate: new Date(req.body.targetDate) // Convert string to Date
     });
     const goal = await storage.createFinancialGoal(goalData);
+    // Emit a creation notification (non-blocking)
+    try {
+      await notificationService.notifyGoalCreated(userId, goal.name, goal.id as number);
+    } catch (notificationError) {
+      console.error('Error creating goal created notification:', notificationError);
+    }
     res.status(201).json(goal);
   });
 
@@ -303,19 +309,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       const notifications = await notificationService.getNotifications(userId, options);
-      
-      const body = JSON.stringify(notifications);
-      const etag = 'W/"' + crypto.createHash('sha1').update(body).digest('hex') + '"';
-      res.set({
-        'Cache-Control': 'private, max-age=10, must-revalidate',
-        'ETag': etag,
-      });
-      
-      const ifNoneMatch = req.headers['if-none-match'];
-      if (ifNoneMatch && ifNoneMatch === etag) {
-        return res.status(304).end();
-      }
-      
+      // Return fresh JSON always to avoid client-side 304 handling issues with fetch
+      res.set({ 'Cache-Control': 'private, max-age=0, no-cache' });
       res.json(notifications);
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -360,13 +355,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserIdFromAuth(req);
       const notificationId = Number(req.params.id);
-      
+
       const success = await notificationService.deleteNotification(notificationId, userId);
-      
+
+      // Be idempotent: return 200 even if already deleted or not found for this user.
+      // This prevents stale UI state from causing visible errors.
       if (!success) {
-        return res.status(404).json({ message: "Notification not found" });
+        return res.json({ message: "Notification deleted (or already removed)" });
       }
-      
+
       res.json({ message: "Notification deleted" });
     } catch (error) {
       console.error('Error deleting notification:', error);
@@ -1462,11 +1459,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteUserData(userId);
       console.log(`Database cleanup complete for user: ${userId}`);
 
+      // Check if Auth0 Management API is available
+      const allowLocal = String(process.env.ALLOW_LOCAL_ACCOUNT_DELETE || "").toLowerCase();
+      const allowLocalOnly = allowLocal === "1" || allowLocal === "true";
+
+      if (!Auth0ManagementService.isAvailable()) {
+        const msg = "Account data deleted locally. Auth0 deletion not configured (set AUTH0_M2M_CLIENT_ID/SECRET).";
+        console.warn(msg);
+        if (allowLocalOnly) {
+          return res.json({ message: msg, localOnly: true });
+        }
+        // If not allowed to proceed locally only, throw to surface configuration issue
+        const err = new Error("Auth0 Management API not configured");
+        (err as any).statusCode = 500;
+        throw err;
+      }
+
       // Then, delete the user from Auth0
       await Auth0ManagementService.deleteUser(userId);
       console.log(`Auth0 account deletion successful for user: ${userId}`);
 
-      res.json({ message: "Account deleted successfully from all systems" });
+      res.json({ message: "Account deleted successfully from all systems", localOnly: false });
     } catch (error) {
       // Let the central error handler deal with it
       next(error); 
