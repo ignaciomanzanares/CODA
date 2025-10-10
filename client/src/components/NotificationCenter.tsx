@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bell, BellOff, Check, CheckCheck, X, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,10 @@ export default function NotificationCenter({ className }: NotificationCenterProp
     queryKey: ['notifications', 'all'],
     queryFn: () => getNotifications({}),
     enabled: isAuthenticated && !authLoading,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    staleTime: 0,
   });
 
   // Get filtered notifications for the active tab
@@ -50,11 +54,25 @@ export default function NotificationCenter({ className }: NotificationCenterProp
       }
     },
     enabled: isAuthenticated && !authLoading && activeTab !== 'all',
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    staleTime: 0,
   });
 
   const notifications = activeTab === 'all' ? allNotifications : filteredNotifications;
   const isLoading = activeTab === 'all' ? allNotificationsLoading : filteredLoading;
   const unreadCount = allNotifications.filter((n: Notification) => !n.isRead).length;
+
+  // Force a fresh fetch every time the dialog is opened or tab changes
+  useEffect(() => {
+    if (isOpen) {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      // Also invalidate the active tab specifically for quick refresh
+      queryClient.invalidateQueries({ queryKey: ['notifications', activeTab] });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, activeTab]);
 
   const markAsReadMutation = useMutation({
     mutationFn: markNotificationAsRead,
@@ -66,29 +84,35 @@ export default function NotificationCenter({ className }: NotificationCenterProp
       const previousAll = queryClient.getQueryData<Notification[]>(['notifications', 'all']);
       const previousFiltered = queryClient.getQueryData<Notification[]>(['notifications', activeTab]);
       
-      // Optimistically update to the new value
+      // Optimistically update to the new value in "all"
       if (previousAll) {
         const updatedAll = previousAll.map(notification => 
-          notification.id === notificationId 
+          notification.id === Number(notificationId)
             ? { ...notification, isRead: true, readAt: new Date() }
             : notification
         );
         queryClient.setQueryData<Notification[]>(['notifications', 'all'], updatedAll);
       }
       
+      // For filtered tabs, special-case the 'unread' tab by removing the item immediately
       if (previousFiltered && activeTab !== 'all') {
-        const updatedFiltered = previousFiltered.map(notification => 
-          notification.id === notificationId 
-            ? { ...notification, isRead: true, readAt: new Date() }
-            : notification
-        );
+        let updatedFiltered: Notification[];
+        if (activeTab === 'unread') {
+          updatedFiltered = previousFiltered.filter(n => n.id !== Number(notificationId));
+        } else {
+          updatedFiltered = previousFiltered.map(notification => 
+            notification.id === Number(notificationId)
+              ? { ...notification, isRead: true, readAt: new Date() }
+              : notification
+          );
+        }
         queryClient.setQueryData<Notification[]>(['notifications', activeTab], updatedFiltered);
       }
       
       return { previousAll, previousFiltered };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      // No refetch needed; cache already updated optimistically
       toast({
         title: 'Notification marked as read',
         variant: 'default'
@@ -112,6 +136,22 @@ export default function NotificationCenter({ className }: NotificationCenterProp
 
   const markAllAsReadMutation = useMutation({
     mutationFn: markAllNotificationsAsRead,
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['notifications'] });
+
+      const previousAll = queryClient.getQueryData<Notification[]>(['notifications', 'all']);
+      const previousFiltered = queryClient.getQueryData<Notification[]>(['notifications', activeTab]);
+
+      if (previousAll) {
+        const updatedAll = previousAll.map(n => ({ ...n, isRead: true, readAt: new Date() }));
+        queryClient.setQueryData<Notification[]>(['notifications', 'all'], updatedAll);
+      }
+      if (previousFiltered && activeTab === 'unread') {
+        // Clear unread tab immediately for better UX
+        queryClient.setQueryData<Notification[]>(['notifications', 'unread'], []);
+      }
+      return { previousAll, previousFiltered };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       toast({
@@ -119,7 +159,14 @@ export default function NotificationCenter({ className }: NotificationCenterProp
         variant: 'default'
       });
     },
-    onError: (error) => {
+    onError: (error, _vars, context) => {
+      // Roll back optimistic changes
+      if (context?.previousAll) {
+        queryClient.setQueryData(['notifications', 'all'], context.previousAll);
+      }
+      if (context?.previousFiltered) {
+        queryClient.setQueryData(['notifications', activeTab], context.previousFiltered);
+      }
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to mark all notifications as read',
@@ -152,7 +199,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
       return { previousAll, previousFiltered };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      // No refetch needed; cache already updated optimistically
       toast({
         title: 'Notification deleted',
         variant: 'default'
@@ -365,7 +412,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                                       size="sm"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        markAsReadMutation.mutate(notification.id);
+                                        markAsReadMutation.mutate(Number(notification.id));
                                       }}
                                       disabled={markAsReadMutation.isPending}
                                       className="h-6 w-6 p-0"
@@ -378,7 +425,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                                     size="sm"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      deleteNotificationMutation.mutate(notification.id);
+                                      deleteNotificationMutation.mutate(Number(notification.id));
                                     }}
                                     disabled={deleteNotificationMutation.isPending}
                                     className="h-6 w-6 p-0 text-gray-400 hover:text-red-600"

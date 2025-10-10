@@ -171,18 +171,23 @@ export default function Profile() {
   const handleDeleteAccount = async () => {
     try {
       // Call the backend API to delete the account
-      await deleteAccount();
+      const result = await deleteAccount();
+
+      const localOnly = !!(result && result.localOnly);
+      const description = localOnly
+        ? "Your local FinHealth data was removed. Authentication deletion requires admin setup. You'll be logged out."
+        : "Your account has been permanently deleted. You will now be logged out.";
       
       toast({
         title: "Account deleted",
-        description: "Your account has been permanently deleted. You will now be logged out.",
+        description,
         variant: "destructive",
       });
       
       // Logout the user after successful deletion
       setTimeout(() => {
         handleLogout();
-      }, 2000);
+      }, localOnly ? 1500 : 2000);
     } catch (error) {
       console.error('Delete account error:', error);
       toast({

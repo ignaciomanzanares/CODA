@@ -113,6 +113,8 @@ export default function Goals() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
+      // Also refresh notifications so the goal-created notification appears immediately
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       setIsAddGoalOpen(false);
       addForm.reset();
       toast({

@@ -34,6 +34,11 @@ if (hasManagementCredentials()) {
 
 export class Auth0ManagementService {
   
+  // Expose whether the Management API client is available
+  static isAvailable(): boolean {
+    return !!management;
+  }
+  
   /**
    * Change user password by sending a password reset email
    */

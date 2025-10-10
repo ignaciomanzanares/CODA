@@ -21,7 +21,7 @@ export interface GetNotificationsOptions {
 export const NotificationTemplates = {
   BILL_SPLIT_CREATED: (billName: string, amount: number) => ({
     title: "New Bill Split Created",
-    message: `"${billName}" has been created for $${amount.toFixed(2)}. Check your share!`,
+    message: '"' + billName + '" has been created for $' + amount.toFixed(2) + '. Check your share!',
     type: "info" as const,
     category: "bill_split" as const,
     actionUrl: "/bill-split"
@@ -29,7 +29,7 @@ export const NotificationTemplates = {
 
   BILL_SPLIT_PAYMENT_REMINDER: (billName: string, amount: number) => ({
     title: "Payment Reminder",
-    message: `You owe $${amount.toFixed(2)} for "${billName}". Please settle up!`,
+    message: 'You owe $' + amount.toFixed(2) + ' for "' + billName + '". Please settle up!',
     type: "warning" as const,
     category: "bill_split" as const,
     actionUrl: "/bill-split"
@@ -37,7 +37,7 @@ export const NotificationTemplates = {
 
   BILL_SPLIT_PAID: (billName: string, payer: string) => ({
     title: "Payment Received",
-    message: `${payer} has paid their share for "${billName}".`,
+    message: payer + ' has paid their share for "' + billName + '".',
     type: "success" as const,
     category: "bill_split" as const,
     actionUrl: "/bill-split"
@@ -45,15 +45,23 @@ export const NotificationTemplates = {
 
   CREDIT_SCORE_UPDATED: (newScore: number, change: number) => ({
     title: "Credit Score Updated",
-    message: `Your credit score is now ${newScore} (${change > 0 ? '+' : ''}${change} points).`,
+    message: 'Your credit score is now ' + newScore + ' (' + (change > 0 ? '+' : '') + change + ' points).',
     type: change > 0 ? "success" as const : "warning" as const,
     category: "credit_score" as const,
     actionUrl: "/dashboard"
   }),
 
+  GOAL_CREATED: (goalName: string) => ({
+    title: "Goal Created",
+    message: 'Your goal "' + goalName + '" has been created.',
+    type: "info" as const,
+    category: "goal" as const,
+    actionUrl: "/goals"
+  }),
+
   GOAL_MILESTONE: (goalName: string, progress: number) => ({
     title: "Goal Milestone Reached",
-    message: `Great job! You've reached ${progress}% of your "${goalName}" goal.`,
+    message: 'Great job! You have reached ' + progress + '% of your "' + goalName + '" goal.',
     type: "success" as const,
     category: "goal" as const,
     actionUrl: "/goals"
@@ -61,7 +69,7 @@ export const NotificationTemplates = {
 
   GOAL_DEADLINE_APPROACHING: (goalName: string, daysLeft: number) => ({
     title: "Goal Deadline Approaching",
-    message: `Your "${goalName}" goal is due in ${daysLeft} days. Stay on track!`,
+    message: 'Your "' + goalName + '" goal is due in ' + daysLeft + ' days. Stay on track!',
     type: "warning" as const,
     category: "goal" as const,
     actionUrl: "/goals"
@@ -69,7 +77,7 @@ export const NotificationTemplates = {
 
   EXPENSE_UNUSUAL: (amount: number, category: string) => ({
     title: "Unusual Spending Detected",
-    message: `You spent $${amount.toFixed(2)} on ${category}, which is higher than usual.`,
+    message: 'You spent $' + amount.toFixed(2) + ' on ' + category + ', which is higher than usual.',
     type: "info" as const,
     category: "expense" as const,
     actionUrl: "/expenses"
@@ -77,7 +85,7 @@ export const NotificationTemplates = {
 
   SECURITY_LOGIN: (location: string) => ({
     title: "New Login Detected",
-    message: `A new login was detected from ${location}. If this wasn't you, please secure your account.`,
+    message: 'A new login was detected from ' + location + ". If this wasn't you, please secure your account.",
     type: "warning" as const,
     category: "security" as const,
     actionUrl: "/profile"
@@ -85,7 +93,7 @@ export const NotificationTemplates = {
 
   PRODUCT_RECOMMENDATION: (productType: string) => ({
     title: "New Product Recommendation",
-    message: `We found a ${productType} that might interest you based on your financial profile.`,
+    message: 'We found a ' + productType + ' that might interest you based on your financial profile.',
     type: "info" as const,
     category: "product" as const,
     actionUrl: "/products"
@@ -152,6 +160,15 @@ class NotificationServiceImpl implements NotificationService {
       userId,
       ...template,
       metadata: { goalId, progress }
+    });
+  }
+
+  async notifyGoalCreated(userId: string, goalName: string, goalId?: number): Promise<Notification> {
+    const template = NotificationTemplates.GOAL_CREATED(goalName);
+    return await this.createNotification({
+      userId,
+      ...template,
+      metadata: { goalId }
     });
   }
 
