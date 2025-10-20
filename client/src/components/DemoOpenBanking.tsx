@@ -21,7 +21,11 @@ interface DemoTransaction {
   category?: string | null;
 }
 
-export default function DemoOpenBanking() {
+interface DemoOpenBankingProps {
+  onConnected?: () => void;
+}
+
+export default function DemoOpenBanking({ onConnected }: DemoOpenBankingProps) {
   const [loading, setLoading] = useState(false);
   const [accounts, setAccounts] = useState<DemoAccount[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
@@ -34,6 +38,7 @@ export default function DemoOpenBanking() {
       setError(null);
       await fetch("/api/demo/ingest", { method: "POST" });
       await loadAccounts();
+      onConnected?.();
     } catch (e) {
       setError("Failed to run demo ingestion");
     } finally {

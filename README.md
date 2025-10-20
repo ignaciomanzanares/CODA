@@ -110,6 +110,16 @@ npm run build
 npm start
 ```
 
+### 6. Deploy to Render
+
+See the complete deployment guide in [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+**Quick Start:**
+1. Push code to GitHub
+2. Connect repository to Render
+3. Configure environment variables
+4. Deploy! 🚀
+
 ---
 
 ## 🏗️ Architecture
