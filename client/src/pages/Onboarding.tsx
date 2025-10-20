@@ -2,125 +2,103 @@ import { useEffect, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { useQuery } from "@tanstack/react-query";
 import { useApi } from "@/lib/api";
-import { useLocation } from "wouter";
 import ProgressIndicator from "@/components/ProgressIndicator";
-import BankConnectionCard from "@/components/BankConnectionCard";
 import { Button } from "@/components/ui/button";
-import {
-  CreditCard,
-  Building2,
-  PiggyBank,
-  BadgeDollarSign,
-  Landmark,
-  ChevronsDown
-} from "lucide-react";
-
-// Available banks for connection
-const availableBanks = [
-  {
-    id: 1,
-    name: "WeGroup Demo",
-    icon: <Building2 className="h-8 w-8 text-blue-600" />,
-    description: "Showcase WeGroup credit analysis engine with real Railway API data."
-  },
-  {
-    id: 2,
-    name: "Chase Bank",
-    icon: <Landmark className="h-8 w-8 text-gray-600" />,
-    description: "Connect to demonstrate credit analysis capabilities."
-  },
-  {
-    id: 3,
-    name: "Bank of America",
-    icon: <CreditCard className="h-8 w-8 text-gray-600" />,
-    description: "Connect to demonstrate credit analysis capabilities."
-  },
-  {
-    id: 4,
-    name: "Wells Fargo",
-    icon: <PiggyBank className="h-8 w-8 text-gray-600" />,
-    description: "Connect to demonstrate credit analysis capabilities."
-  },
-  {
-    id: 5,
-    name: "Citibank",
-    icon: <Building2 className="h-8 w-8 text-gray-600" />,
-    description: "Connect to demonstrate credit analysis capabilities."
-  },
-  {
-    id: 6,
-    name: "Capital One",
-    icon: <BadgeDollarSign className="h-8 w-8 text-gray-600" />,
-    description: "Connect to demonstrate credit analysis capabilities."
-  }
-];
+import { Card, CardContent } from "@/components/ui/card";
+import DemoOpenBanking from "@/components/DemoOpenBanking";
+import PDOverview from "@/components/PDOverview";
+import CreditScoreCard from "@/components/CreditScoreCard";
+import InsuranceRiskCard from "@/components/InsuranceRiskCard";
+import FinancialGoalsCard from "@/components/FinancialGoalsCard";
+import Products from "@/pages/Products";
 
 export default function Onboarding() {
   const { isAuthenticated } = useAuth0();
-  const [, navigate] = useLocation();
-  const [showAll, setShowAll] = useState(false);
-  
-  // Steps for onboarding process
-  const steps = [
-    { id: 1, label: "Connect", isActive: true, isCompleted: false },
-    { id: 2, label: "Analyze", isActive: false, isCompleted: false },
-    { id: 3, label: "Compare", isActive: false, isCompleted: false },
-    { id: 4, label: "Plan", isActive: false, isCompleted: false }
-  ];
-
   const { getBankConnections } = useApi();
 
-  // Check if user has connected banks
+  const [active, setActive] = useState<1 | 2 | 3 | 4>(1);
+  const [demoConnected, setDemoConnected] = useState(false);
+
   const { data: bankConnections } = useQuery({
     queryKey: ["/api/bank-connections"],
     queryFn: getBankConnections,
     enabled: isAuthenticated,
-    staleTime: 30000, // Consider data fresh for 30 seconds
-    refetchInterval: 10000, // Check for updates every 10 seconds instead of 3
-    refetchIntervalInBackground: false, // Don't poll when tab is not active
+    staleTime: 30000,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: false,
   });
 
-  // Redirect to dashboard if connections are found
-  useEffect(() => {
-    if (Array.isArray(bankConnections) && bankConnections.length > 0) {
-      navigate("/dashboard");
-    }
-  }, [bankConnections, navigate]);
+  const isConnected = demoConnected || (Array.isArray(bankConnections) && bankConnections.length > 0);
 
-  // Display only 3 banks initially
-  const displayedBanks = showAll ? availableBanks : availableBanks.slice(0, 3);
+  useEffect(() => {
+    if (isConnected && active === 1) setActive(2);
+  }, [isConnected, active]);
+
+  const steps = [
+    { id: 1, label: "Connect", state: isConnected ? "done" : active === 1 ? "active" : "active" as const },
+    { id: 2, label: "Analyze", state: active >= 2 ? "active" : "locked" as const },
+    { id: 3, label: "Compare", state: active >= 3 ? "active" : "locked" as const },
+    { id: 4, label: "Plan", state: active >= 4 ? "active" : "locked" as const },
+  ];
 
   return (
     <div id="onboarding-section" className="mb-12">
       <div className="bg-white shadow rounded-lg p-6 mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4 font-sans">Welcome to FinHealth</h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-2 font-sans">Welcome to FinHealth</h2>
         <p className="text-gray-600 mb-6">
-          Connect your financial accounts to get your personalized credit score and discover financial products tailored to your needs.
+          Connect your accounts, analyze your default risk, compare products, and plan your goals.
         </p>
-        
-        <ProgressIndicator steps={steps} />
-        
-        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {displayedBanks.map((bank) => (
-            <BankConnectionCard
-              key={bank.id}
-              bankName={bank.name}
-              bankLogo={bank.icon}
-              description={bank.description}
-            />
-          ))}
-        </div>
-        
-        <div className="text-center mt-8">
-          <Button
-            variant="outline"
-            className="text-gray-500 bg-gray-100 hover:bg-gray-200"
-            onClick={() => setShowAll(!showAll)}
-          >
-            {showAll ? "Show Less Options" : "Show More Options"}
-            {!showAll && <ChevronsDown className="ml-2 h-4 w-4" />}
-          </Button>
-        </div>
+
+        <ProgressIndicator steps={steps as any} onSelect={(id) => setActive(id as any)} />
+
+        {active === 1 && (
+          <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <Card className="md:col-span-2 lg:col-span-2">
+              <CardContent className="p-6">
+                <DemoOpenBanking onConnected={() => setDemoConnected(true)} />
+              </CardContent>
+            </Card>
+            <Card className="opacity-60 pointer-events-none">
+              <CardContent className="p-6">
+                <div className="font-semibold">Other Banks</div>
+                <div className="text-sm text-muted-foreground">Sandbox connectors coming soon.</div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {active === 2 && (
+          <div className="mt-6 space-y-6">
+            <PDOverview />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <CreditScoreCard />
+              <InsuranceRiskCard />
+            </div>
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setActive(1)}>Back</Button>
+              <Button onClick={() => setActive(3)}>Next: Compare</Button>
+            </div>
+          </div>
+        )}
+
+        {active === 3 && (
+          <div className="mt-6 space-y-6">
+            <Products />
+            <div className="flex justify-between">
+              <Button variant="outline" onClick={() => setActive(2)}>Back</Button>
+              <Button onClick={() => setActive(4)}>Next: Plan</Button>
+            </div>
+          </div>
+        )}
+
+        {active === 4 && (
+          <div className="mt-6 space-y-6">
+            <FinancialGoalsCard />
+            <div className="flex justify-start">
+              <Button variant="outline" onClick={() => setActive(3)}>Back</Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

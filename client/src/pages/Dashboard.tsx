@@ -3,7 +3,7 @@ import CreditScoreCard from "@/components/CreditScoreCard";
 import InsuranceRiskCard from "@/components/InsuranceRiskCard";
 import FinancialGoalsCard from "@/components/FinancialGoalsCard";
 import DemoOpenBanking from "@/components/DemoOpenBanking";
-import DemoPDCard from "@/components/DemoPDCard";
+import PDOverview from "@/components/PDOverview";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw } from "lucide-react";
@@ -54,7 +54,7 @@ export default function Dashboard() {
         
         <TabsContent value="local" className="space-y-6">
           <DemoOpenBanking />
-          <DemoPDCard />
+          <PDOverview />
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             <CreditScoreCard />
             <InsuranceRiskCard />
