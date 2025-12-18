@@ -21,7 +21,7 @@ const res = await fetch(`/api/demo/pd?model=${model}`);
       const data = await res.json();
       setPd(data.pd);
       setReasons(data.reasons || []);
-    } catch (e) {
+    } catch (_e) {
       setError("Failed to fetch PD");
     } finally {
       setLoading(false);
@@ -47,7 +47,7 @@ const res = await fetch(`/api/demo/pd?model=${model}`);
       setShowFeatures(true);
       const res = await fetch("/api/demo/features");
       if (res.ok) setFeatures(await res.json());
-    } catch (_) {
+    } catch (_e) {
       // ignore
     }
   }

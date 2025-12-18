@@ -80,21 +80,21 @@ async function main() {
       await fs.promises.appendFile(outPath, row, { encoding: "utf-8" });
 
       if (i % 25 === 0) {
-        // eslint-disable-next-line no-console
+         
         console.log(`Generated ${i}/${nUsers} synthetic users...`);
       }
     } catch (e) {
-      // eslint-disable-next-line no-console
+       
       console.error(`Failed for user ${userId}`, e);
     }
   }
 
-  // eslint-disable-next-line no-console
+   
   console.log(`Synthetic training data written to ${outPath}`);
 }
 
 main().catch((e) => {
-  // eslint-disable-next-line no-console
+   
   console.error(e);
   process.exit(1);
 });
