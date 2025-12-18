@@ -12,6 +12,7 @@ import { Auth0ManagementService } from "./services/auth0Management.js";
 import { emailService } from "./services/emailService.js";
 import crypto from "crypto";
 import { notificationService } from "./services/notificationService";
+import { apiLimiter, expensiveLimiter, authLimiter } from "./middleware/rateLimiter";
 
 // Auth0 JWT middleware
 const checkJwt = auth({
@@ -27,6 +28,36 @@ function getUserIdFromAuth(req: Request): string {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint (no auth required)
+  app.get("/health", async (_req, res) => {
+    try {
+      const { db } = await import("./db");
+      const dbHealthy = !!db;
+      const { PDModelRegistry } = await import("./services/modelRegistry");
+      const mlReady = PDModelRegistry.instance().isReady;
+      
+      const status = {
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        services: {
+          database: dbHealthy ? "connected" : "in-memory",
+          ml_model: mlReady ? "ready" : "loading",
+          auth: process.env.AUTH0_ISSUER_BASE_URL ? "configured" : "missing",
+        },
+        version: process.env.npm_package_version || "1.0.0",
+      };
+      
+      res.status(200).json(status);
+    } catch (_error) {
+      res.status(503).json({
+        status: "degraded",
+        timestamp: new Date().toISOString(),
+        error: "Health check failed",
+      });
+    }
+  });
+
   // Error handling middleware
   const handleZodError = (err: unknown, _req: Request, res: Response, next: (...args: unknown[]) => unknown) => {
     if (err instanceof ZodError) {
@@ -40,6 +71,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   app.use("/api", handleZodError);
+
+  // Apply rate limiting to all API routes
+  app.use("/api", apiLimiter);
 
   // --- Protected routes (require Auth0 JWT) ---
 
@@ -56,8 +90,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (ifNoneMatch && ifNoneMatch === etag) return res.status(304).end();
 
       res.json(accts);
-    } catch (e) {
-      console.error('Error fetching accounts:', e);
+    } catch (_e) {
+      console.error('Error fetching accounts:', _e);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -69,8 +103,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         userId,
       };
-      // Minimal validation via Zod using insertAccountSchema if available
-      // @ts-ignore - dynamic import shape
       const { insertAccountSchema } = await import("@shared/schema");
       const accountData = insertAccountSchema.parse(payload);
       const account = await storage.createAccount(accountData);
@@ -111,8 +143,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (ifNoneMatch && ifNoneMatch === etag) return res.status(304).end();
 
       res.json(txs);
-    } catch (e) {
-      console.error('Error fetching transactions:', e);
+    } catch (_e) {
+      console.error('Error fetching transactions:', _e);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -139,8 +171,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const created = await storage.createTransactionsBulk(normalized);
       res.status(201).json({ count: created.length });
-    } catch (e) {
-      console.error('Error creating transactions batch:', e);
+    } catch (_e) {
+      console.error('Error creating transactions batch:', _e);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -391,8 +423,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { ingestOpenBankingForUser } = await import("./jobs/ingest");
       await ingestOpenBankingForUser("demo-user");
       res.json({ message: "Demo ingestion completed" });
-    } catch (e) {
-      console.error('Error running demo ingestion:', e);
+    } catch (_e) {
+      console.error('Error running demo ingestion:', _e);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -452,8 +484,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         saved = await storage.createCreditScore({ userId, ...nextScore });
       }
       res.json(saved ?? nextScore);
-    } catch (e) {
-      console.error('Error computing credit score:', e);
+    } catch (_e) {
+      console.error('Error computing credit score:', _e);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -489,14 +521,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         saved = await storage.createInsuranceRisk({ userId, ...nextRisk });
       }
       res.json(saved ?? nextRisk);
-    } catch (e) {
-      console.error('Error computing insurance risk:', e);
+    } catch (_e) {
+      console.error('Error computing insurance risk:', _e);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
 
-  // PD Scoring (protected)
-  app.post("/api/scoring/application", checkJwt, async (req, res) => {
+  // PD Scoring (protected) - Expensive operation
+  app.post("/api/scoring/application", checkJwt, expensiveLimiter, async (req, res) => {
     try {
       const userId = getUserIdFromAuth(req);
       const { windowDays, model: bodyModel } = req.body || {};
@@ -551,8 +583,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { scorePD } = await import("./services/pdScoring");
       const scored = scorePD(fv);
       res.json({ pd: scored.pd, reasons: scored.reasons, features: fv });
-    } catch (e) {
-      console.error('Error scoring PD:', e);
+    } catch (_e) {
+      console.error('Error scoring PD:', _e);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -609,8 +641,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const scored = scorePD(fv);
       res.json({ pd: scored.pd, reasons: scored.reasons, features: fv });
-    } catch (e) {
-      console.error('Error scoring demo PD:', e);
+    } catch (_e) {
+      console.error('Error scoring demo PD:', _e);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -621,8 +653,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { buildUserFeatureVector } = await import("./ml/features");
       const fv = await buildUserFeatureVector("demo-user", 90);
       res.json(fv);
-    } catch (e) {
-      console.error('Error computing demo features:', e);
+    } catch (_e) {
+      console.error('Error computing demo features:', _e);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -634,7 +666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const reg = PDModelRegistry.instance();
       if (!reg.getManifest()) return res.status(204).end();
       res.json(reg.getManifest());
-    } catch (e) {
+    } catch (_e) {
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -653,7 +685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         manifest,
         topFeatures,
       });
-    } catch (e) {
+    } catch (_e) {
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -699,13 +731,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const parsed = JSON.parse(out);
           return res.json({ features: fv, explanation: parsed });
-        } catch (e) {
-          console.error("Parse error:", e, out);
+        } catch (_e) {
+          console.error("Parse error:", _e, out);
           return res.status(500).json({ message: "Malformed explainer output" });
         }
       });
-    } catch (e) {
-      console.error('Error in demo SHAP explain:', e);
+    } catch (_e) {
+      console.error('Error in demo SHAP explain:', _e);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -717,7 +749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const reg = PDModelRegistry.instance();
       await reg.reload();
       res.json({ ok: true, isReady: reg.isReady, manifest: reg.getManifest() });
-    } catch (e) {
+    } catch (_e) {
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -1315,7 +1347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Profile routes
+  // Profile routes - Auth operations should be rate limited
   app.get("/api/profile", checkJwt, async (req, res) => {
     try {
       const userId = getUserIdFromAuth(req);
@@ -1438,8 +1470,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // User management routes
-  app.post("/api/profile/change-password", checkJwt, async (req, res) => {
+  // User management routes - Sensitive operations
+  app.post("/api/profile/change-password", checkJwt, authLimiter, async (req, res) => {
     try {
       const userId = getUserIdFromAuth(req);
       await Auth0ManagementService.sendPasswordChangeEmail(userId);
@@ -1450,7 +1482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/profile/account", checkJwt, async (req, res, next) => {
+  app.delete("/api/profile/account", checkJwt, authLimiter, async (req, res, next) => {
     try {
       const userId = getUserIdFromAuth(req);
       console.log(`Received request to delete account for user: ${userId}`);

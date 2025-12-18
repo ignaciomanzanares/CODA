@@ -5,6 +5,19 @@ import pluginReact from "eslint-plugin-react";
 import pluginReactHooks from "eslint-plugin-react-hooks";
 
 export default [
+  // Ignore patterns (must come first)
+  {
+    ignores: [
+      "dist/**",
+      "build/**",
+      "node_modules/**",
+      "server/ml/.venv/**",
+      "**/.venv/**",
+      "coverage/**",
+      "*.config.js",
+      "**/*.tsbuildinfo",
+    ],
+  },
   {
     files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
     languageOptions: {
@@ -48,6 +61,7 @@ export default [
         {
           argsIgnorePattern: "^_",
           varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
         },
       ],
       

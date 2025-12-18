@@ -39,7 +39,7 @@ export default function DemoOpenBanking({ onConnected }: DemoOpenBankingProps) {
       await fetch("/api/demo/ingest", { method: "POST" });
       await loadAccounts();
       onConnected?.();
-    } catch (e) {
+    } catch (_e) {
       setError("Failed to run demo ingestion");
     } finally {
       setLoading(false);

@@ -153,7 +153,7 @@ export class PDModelRegistry {
           // ignore
         });
     } catch (e) {
-      // eslint-disable-next-line no-console
+       
       console.error("PDModelRegistry load failed", e);
       this.manifest = null;
       this.session = null;

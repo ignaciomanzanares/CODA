@@ -1,12 +1,27 @@
 import "dotenv/config";
-console.log("AUTH0_ISSUER_BASE_URL:", process.env.AUTH0_ISSUER_BASE_URL);
-console.log("AUTH0_AUDIENCE:", process.env.AUTH0_AUDIENCE);
+import { validateEnv } from "./env";
+
+// Validate environment variables on startup
+try {
+  validateEnv();
+  console.log("✅ Environment variables validated successfully");
+} catch (_error) {
+  console.error("Failed to start: Invalid environment configuration");
+  process.exit(1);
+}
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { checkDatabaseConnection } from "./db";
+import { logger, httpLogger } from "./logger";
+import pinoHttp from "pino-http";
 
 const app = express();
+
+// Add Pino HTTP logging middleware (only for API routes to reduce noise)
+app.use("/api", pinoHttp({ logger: httpLogger }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -47,11 +62,11 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
-    console.log("Starting application initialization...");
+    logger.info("🚀 Starting FinHealth application...");
     await checkDatabaseConnection();
-    console.log("Application initialization completed successfully");
+    logger.info("✅ Application initialization completed successfully");
   } catch (error) {
-    console.error("Error during application initialization:", error);
+    logger.error({ error }, "❌ Error during application initialization");
     process.exit(1);
   }
 
@@ -60,6 +75,13 @@ app.use((req, res, next) => {
   app.use((err: Error & { status?: number; statusCode?: number }, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
+
+    // Log the error
+    if (status >= 500) {
+      logger.error({ err, status, message }, "Server error occurred");
+    } else {
+      logger.warn({ status, message }, "Client error occurred");
+    }
 
     res.status(status).json({ message });
     throw err;
@@ -83,6 +105,27 @@ app.use((req, res, next) => {
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
-    log(`serving on port ${port}`);
+    logger.info(`🌐 Server listening on port ${port}`);
+    logger.info(`📊 Environment: ${process.env.NODE_ENV}`);
+    logger.info(`🔗 Health check: http://localhost:${port}/health`);
   });
+
+  // Graceful shutdown
+  const shutdown = async (signal: string) => {
+    logger.info(`${signal} received, starting graceful shutdown...`);
+    
+    server.close(() => {
+      logger.info("HTTP server closed");
+      process.exit(0);
+    });
+
+    // Force shutdown after 10 seconds
+    setTimeout(() => {
+      logger.error("Forced shutdown after timeout");
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 })();
