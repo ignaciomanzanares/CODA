@@ -1,0 +1,51 @@
+{
+  "name": "@coda/api",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "start": "NODE_ENV=production node dist/index.js",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "test:run": "vitest run",
+    "ml:make:synth": "tsx src/ml/make_synth_training.ts",
+    "ml:setup": "python3 -m venv src/ml/.venv && src/ml/.venv/bin/python -m pip install -U pip setuptools wheel && src/ml/.venv/bin/pip install -r src/ml/requirements.txt",
+    "ml:train": "src/ml/.venv/bin/python src/ml/train_xgb.py --in src/ml/out/synth_features.csv --out src/ml/artifacts/current --label label"
+  },
+  "dependencies": {
+    "@coda/db": "*",
+    "dotenv": "^17.2.1",
+    "drizzle-orm": "^0.39.1",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.2.0",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^7.0.5",
+    "onnxruntime-node": "1.19.2",
+    "openai": "^5.7.0",
+    "pino": "^10.1.0",
+    "pino-http": "^11.0.0",
+    "pino-pretty": "^13.1.2",
+    "ws": "^8.18.0",
+    "zod": "^3.23.8",
+    "zod-validation-error": "^3.4.0"
+  },
+  "devDependencies": {
+    "@types/express": "4.17.21",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "20.16.11",
+    "@types/nodemailer": "^7.0.1",
+    "@types/ws": "^8.5.13",
+    "@vitest/coverage-v8": "^4.0.16",
+    "@vitest/ui": "^4.0.5",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.19.1",
+    "typescript": "5.6.3",
+    "vitest": "^4.0.5"
+  },
+  "optionalDependencies": {
+    "bufferutil": "^4.0.8"
+  }
+}
