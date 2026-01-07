@@ -1,260 +1,202 @@
-<div align="center">
-  <h1>🏦 FinHealth</h1>
-  <p><strong>Intelligent Financial Health Platform by WeGroup 🇨🇱</strong></p>
-  
-  <p>A comprehensive financial analysis platform that provides personalized insights into credit scores, insurance risk assessments, expense tracking, and financial goal management.</p>
+# CODA
 
-  ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
-  ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)
-  ![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black)
-  ![Node.js](https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white)
-  ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?logo=postgresql&logoColor=white)
-  ![License](https://img.shields.io/badge/license-MIT-green.svg)
-</div>
+> Plataforma de salud financiera y evaluación de riesgo crediticio para usuarios individuales chilenos
 
----
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-18-blue.svg)](https://react.dev/)
+[![License](https://img.shields.io/badge/License-Proprietary-red.svg)]()
 
-## ✨ Features
+## 📋 Descripción
 
-### 🎯 Core Financial Analysis
-- **Credit Score Monitoring** - Real-time credit score analysis with detailed factor breakdowns
-- **Insurance Risk Assessment** - Comprehensive risk evaluation for auto, home, health, and life insurance
-- **Financial Goal Tracking** - Set, monitor, and achieve your financial objectives with progress visualization
-- **Bank Account Integration** - Secure connection to multiple financial institutions
+CODA es una aplicación de finanzas personales que proporciona monitoreo de credit score en tiempo real con análisis ML, evaluación de riesgo de seguros, seguimiento de gastos con categorización automática por IA, gestión de metas financieras, integración con cuentas bancarias, división de gastos grupales y recomendaciones personalizadas de productos financieros.
 
-### 💰 Advanced Money Management
-- **Expense Tracking & Classification** - AI-powered automatic categorization with confidence scoring
-- **Bill Splitting System** - Smart group expense management with participant tracking
-- **Financial Product Recommendations** - Personalized suggestions for loans, credit cards, and savings accounts
-- **Railway API Integration** - Real-time financial data from external APIs
+## 🏗️ Arquitectura
 
-### 🔐 Security & Authentication
-- **Auth0 Integration** - Enterprise-grade authentication and user management
-- **Session Management** - Secure token-based sessions with automatic renewal
-- **Data Encryption** - Bank-level security for all financial information
+```
+CODA/
+├── apps/
+│   ├── api/          # Backend Node.js + Express (Puerto 5000)
+│   └── web/          # Frontend React 18 + Vite (Puerto 5173)
+├── packages/
+│   └── db/           # Base de datos: Schema Drizzle + PostgreSQL
+```
 
----
+## ✨ Funcionalidades
 
-## 🚀 Quick Start
+### 📊 Dashboard
+- Vista general de salud financiera en tiempo real
+- Tendencias de ingresos vs gastos
+- Seguimiento de patrimonio neto
+- Análisis de flujo de caja
 
-### Prerequisites
-- Node.js 18+ 
+### 💳 Monitoreo de Credit Score
+- Análisis de crédito en tiempo real con ML (XGBoost)
+- Scoring de probabilidad de default (PD)
+- Desglose detallado de factores con explicaciones SHAP
+- Historial y tendencias de credit score
+
+### 🛡️ Evaluación de Riesgo de Seguros
+- Evaluación integral de riesgo para:
+  - Seguro de auto
+  - Seguro de hogar
+  - Seguro de salud
+  - Seguro de vida
+- Scoring basado en patrones de comportamiento financiero
+
+### 💰 Seguimiento de Gastos
+- Categorización automática con IA
+- Confidence scoring para clasificaciones
+- Gestión de categorías y etiquetas personalizadas
+- Análisis de patrones y tendencias de gasto
+
+### 🎯 Metas Financieras
+- Establecer metas de ahorro con montos objetivo y plazos
+- Visualización de progreso e hitos
+- Notificaciones de logros y progreso
+
+### 🏦 Integración Bancaria
+- Conexión segura con múltiples instituciones financieras
+- Sincronización en tiempo real de saldos y transacciones
+- Soporte para Open Banking
+
+### 🧾 División de Gastos
+- Crear y gestionar gastos grupales
+- Seguimiento de contribuciones y pagos de participantes
+- Invitaciones por email a no usuarios
+- Cálculos automáticos de liquidación
+
+### 🔍 Productos Financieros
+- Recomendaciones personalizadas de:
+  - Préstamos (personal, auto, hipotecario)
+  - Tarjetas de crédito
+  - Cuentas de ahorro
+  - Productos de inversión
+- Motor de comparación con tasas, plazos y requisitos
+
+## 🚀 Instalación
+
+### Prerrequisitos
+- Node.js 20+
 - PostgreSQL 14+
-- Auth0 account (for authentication)
-- Railway API access (optional, for external data)
+- npm 10+
+- Auth0 account
 
-### 1. Clone & Install
+### Setup
 
 ```bash
-git clone https://github.com/ignaciomanzanares/FinHealth.git
-cd FinHealth
+# Clonar repositorio
+git clone <repo-url>
+cd CODA
+
+# Instalar dependencias
 npm install
-```
 
-### 2. Environment Setup
+# Configurar variables de entorno
+# Crear archivo .env en la raíz (ver PROMPT.md para variables requeridas)
 
-Create a `.env` file in the root directory:
-
-```env
-# Database
-DATABASE_URL="postgresql://username:password@localhost:5432/finhealth"
-
-# Auth0 Configuration - Backend API
-AUTH0_ISSUER_BASE_URL="https://your-domain.auth0.com/"
-AUTH0_AUDIENCE="https://finhealth-api"
-
-# Auth0 Configuration - Frontend
-VITE_AUTH0_DOMAIN="your-domain.auth0.com"
-VITE_AUTH0_CLIENT_ID="your-client-id"
-VITE_AUTH0_AUDIENCE="https://finhealth-api"
-VITE_AUTH0_REDIRECT_URI="http://localhost:5173"
-
-# Auth0 Management API Configuration (Machine to Machine)
-# Create a Machine to Machine application in Auth0 Dashboard
-AUTH0_M2M_CLIENT_ID="your-m2m-client-id"
-AUTH0_M2M_CLIENT_SECRET="your-m2m-client-secret"
-
-# Railway API (Optional)
-RAILWAY_API_URL="https://wegroup-backend-production.up.railway.app"
-
-# Application
-# The server always listens on port 5000 in this project
-PORT=5000
-NODE_ENV=development
-```
-
-### 3. Database Setup
-
-```bash
-# Push database schema
+# Inicializar base de datos
+cd packages/db
 npm run db:push
-
-# Seed with demo data
 npm run db:seed
+cd ../..
+
+# Iniciar desarrollo
+npm run dev          # Backend en puerto 5000
+npm run dev:web      # Frontend en puerto 5173
 ```
 
-### 4. Development
+### URLs
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:5000
+- **Health Check**: http://localhost:5000/health
+
+## 🔐 Seguridad
+
+- Autenticación Auth0 con JWT
+- Cifrado de nivel bancario para datos financieros
+- Rate limiting en endpoints de API
+- Validación de entrada con esquemas Zod
+- Audit logging para operaciones sensibles
+- Gestión de sesiones segura
+
+## 🧪 Testing
 
 ```bash
-# Start development server (backend + frontend via Express + Vite middleware)
-npm run dev
+# Ejecutar tests
+npm run test -w @coda/api
 
-# Or start the frontend dev server alone (API still proxied to http://localhost:5000):
-npm run dev:frontend
+# Tests con UI
+npm run test:ui -w @coda/api
+
+# Coverage
+npm run test:coverage -w @coda/api
 ```
 
-### 5. Production Build
+## 🤖 ML/AI Features
+
+- Modelo XGBoost para scoring de PD (formato ONNX)
+- Pipeline de ingeniería de features
+- Explicabilidad SHAP para decisiones de crédito
+- Registro y versionado de modelos
+- Clasificación automática de gastos
+
+## 📦 Estructura de Paquetes
+
+### `@coda/api`
+Backend Express.js con TypeScript
+- Endpoints REST API
+- Integración Auth0
+- Modelos ML con ONNX Runtime
+- Conectores a servicios externos
+
+### `@coda/web`
+Frontend React 18 + Vite
+- UI con Radix UI + shadcn/ui
+- State management con TanStack Query
+- Routing con Wouter
+- Estilos con Tailwind CSS
+
+### `@coda/db`
+Schema de base de datos con Drizzle ORM
+- Migraciones
+- Seed data
+- Tipos TypeScript generados
+
+## 🛠️ Scripts Disponibles
 
 ```bash
-npm run build
-npm start
+# Desarrollo
+npm run dev              # Inicia backend
+npm run dev:web          # Inicia frontend
+
+# Base de datos
+npm run db:push          # Aplica schema a DB
+npm run db:seed          # Carga datos de prueba
+
+# Testing
+npm run test             # Ejecuta tests
+
+# Build
+npm run build            # Build de producción
 ```
 
-### 6. Deploy to Render
+## 🌟 Características Técnicas
 
-See the complete deployment guide in [DEPLOYMENT.md](./DEPLOYMENT.md)
+- **TypeScript**: Type safety completo
+- **Monorepo**: Estructura con workspaces de npm
+- **Validación**: Zod schemas en todos los endpoints
+- **Rate Limiting**: Protección contra abuso de API
+- **Logging**: Pino structured logging
+- **Caching**: ETag caching para GET requests
+- **Real-time**: WebSocket support para notificaciones
+- **PWA**: Progressive Web App capabilities
+- **Responsive**: Mobile-first design
 
-**Quick Start:**
-1. Push code to GitHub
-2. Connect repository to Render
-3. Configure environment variables
-4. Deploy! 🚀
+## 📝 Licencia
 
----
-
-## 🏗️ Architecture
-
-### Frontend Stack
-- **React 18** with TypeScript for type-safe development
-- **Vite** for lightning-fast development and optimized builds
-- **TanStack Query** for powerful server state management
-- **Radix UI + shadcn/ui** for accessible, beautiful components
-- **Tailwind CSS** with custom theming for consistent design
-- **Wouter** for lightweight client-side routing
-
-### Backend Stack
-- **Express.js** REST API with TypeScript
-- **PostgreSQL** with **Drizzle ORM** for type-safe database operations
-- **Auth0** for enterprise authentication
-- **Railway API** integration for real-time financial data
-- **ESBuild** for optimized production bundles
-
-### Database Design
-```
-├── users (Auth0 integrated)
-├── bank_connections (Multi-bank support)
-├── credit_scores (Real-time analysis)
-├── insurance_risks (Comprehensive assessment)
-├── financial_goals (Progress tracking)
-├── expenses (AI classification)
-├── bill_splits (Group management)
-├── financial_products (Recommendation engine)
-└── notifications (Real-time alerts)
-```
+Propietario - Todos los derechos reservados
 
 ---
 
-## 📱 Screenshots
-
-<details>
-<summary>🖼️ View Application Screenshots</summary>
-
-### Dashboard Overview
-*Coming soon - Add screenshot of main dashboard*
-
-### Credit Score Analysis
-*Coming soon - Add screenshot of credit score visualization*
-
-### Expense Tracking
-*Coming soon - Add screenshot of expense management interface*
-
-### Bill Splitting
-*Coming soon - Add screenshot of bill splitting feature*
-
-</details>
-
----
-
-## 🛠️ Project Structure
-
-```
-FinHealth/
-├── client/                 # React frontend
-│   ├── src/
-│   │   ├── components/     # Reusable UI components
-│   │   ├── pages/          # Application pages
-│   │   ├── lib/            # Utilities and API clients
-│   │   └── hooks/          # Custom React hooks
-│   ├── public/             # Static assets
-│   └── vite.config.ts      # Vite configuration
-├── server/                 # Express backend
-│   ├── index.ts            # Server entry point
-│   ├── routes.ts           # API route definitions
-│   ├── db.ts               # Database connection
-│   └── storage.ts          # Data layer
-├── shared/                 # Shared types and schemas
-│   └── schema.ts           # Drizzle database schema
-├── package.json            # Dependencies and scripts
-└── drizzle.config.ts       # Database configuration
-```
-
----
-
-## 🔧 API Endpoints
-
-### Authentication
-Auth is handled via Auth0 JWT. There are no explicit `/api/auth/*` routes; instead, protected routes require a valid Bearer token.
-
-### Financial Data
-- `GET /api/credit-score` - Get credit score analysis
-- `GET /api/insurance-risk` - Get insurance risk assessment
-- `GET /api/bank-connections` - List connected accounts
-- `POST /api/bank-connections` - Connect new account
-
-### Goals & Planning
-- `GET /api/financial-goals` - List user goals
-- `POST /api/financial-goals` - Create new goal
-- `PUT /api/financial-goals/:id` - Update goal
-- `DELETE /api/financial-goals/:id` - Delete goal
-
-### Expenses & Bills
-- `GET /api/expenses` - List expenses with filtering
-- `POST /api/expenses` - Add new expense
-- `GET /api/bill-splits` - List bill splits
-- `POST /api/bill-splits` - Create new bill split
-
-### Public
-- `GET /api/financial-products` - List financial products (optional category query)
-- `GET /api/financial-products/:id` - Get product by ID
-- `POST /api/utils/credit-score` - Calculate a score from provided bank data (demo)
-- `POST /api/utils/insurance-risk` - Calculate risk from provided bank data and profile (demo)
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🌟 Support
-
-If you find this project helpful, please consider giving it a ⭐!
-
-**Made with ❤️ by WeGroup 🇨🇱**
-
-<div align="center">
-  <p>For more information, visit our <a href="https://wegroup.cl">website</a> or contact us at <a href="mailto:contact@wegroup.cl">contact@wegroup.cl</a></p>
-</div>
+**Desarrollado con ❤️ por WeGroup 🇨🇱**

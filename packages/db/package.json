@@ -1,0 +1,26 @@
+{
+  "name": "@coda/db",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/schema.ts",
+  "exports": {
+    ".": "./src/schema.ts",
+    "./schema": "./src/schema.ts",
+    "./src/schema": "./src/schema.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "db:push": "drizzle-kit push",
+    "db:seed": "tsx src/seed.ts"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.39.1",
+    "drizzle-zod": "^0.7.0",
+    "postgres": "^3.4.7",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.30.4",
+    "tsx": "^4.19.1"
+  }
+}
