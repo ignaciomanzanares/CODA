@@ -4,7 +4,7 @@
   "private": true,
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages"
   ],
   "scripts": {
     "dev": "npm run dev -w @coda/api",
