@@ -2,25 +2,42 @@
   "name": "@coda/db",
   "version": "1.0.0",
   "type": "module",
-  "main": "./src/schema.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/schema.ts",
-    "./schema": "./src/schema.ts",
-    "./src/schema": "./src/schema.ts"
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./schema": {
+      "import": "./dist/schema.js",
+      "types": "./dist/schema.d.ts"
+    }
   },
   "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
     "check": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:seed": "tsx src/seed.ts"
+    "db:studio": "drizzle-kit studio",
+    "seed": "tsx src/seed.ts",
+    "reset": "rm -f data/finhealth.db && npm run db:push && npm run seed"
   },
   "dependencies": {
-    "drizzle-orm": "^0.39.1",
+    "better-sqlite3": "^11.10.0",
+    "drizzle-orm": "^0.38.4",
     "drizzle-zod": "^0.7.0",
-    "postgres": "^3.4.7",
+    "uuid": "^11.0.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.30.4",
-    "tsx": "^4.19.1"
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.10.2",
+    "@types/uuid": "^10.0.0",
+    "drizzle-kit": "^0.30.6",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
   }
 }

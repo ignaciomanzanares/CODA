@@ -312,7 +312,7 @@ export default function Expenses() {
 
   if (authLoading || (isAuthenticated && isLoading)) {
     return (
-      <div className="space-y-6">
+      <div className="container py-8 space-y-6">
         <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
         <div className="grid gap-4">
           {[1, 2, 3].map(i => (
@@ -324,7 +324,7 @@ export default function Expenses() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container py-8 space-y-6">
       {!isAuthenticated && (
         <SignInBanner 
           title="Viewing Demo Expense Data"

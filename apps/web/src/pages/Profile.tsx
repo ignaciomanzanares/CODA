@@ -83,8 +83,8 @@ export default function Profile() {
 
   if (!isAuthenticated) {
     return (
-      <div className="max-w-4xl mx-auto text-center py-20">
-        <div className="bg-white shadow rounded-lg p-8">
+      <div className="container py-8 text-center">
+        <div className="bg-white shadow rounded-lg p-8 max-w-lg mx-auto">
           <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-4">Authentication Required</h2>
           <p className="text-gray-600">You must be signed in to view your profile.</p>
@@ -95,8 +95,8 @@ export default function Profile() {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto py-20">
-        <div className="flex items-center justify-center">
+      <div className="container py-8">
+        <div className="flex items-center justify-center min-h-[300px]">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </div>
       </div>
@@ -206,7 +206,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="container py-8 space-y-8">
       {/* Header Section */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile Settings</h1>

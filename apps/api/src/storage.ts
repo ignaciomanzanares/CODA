@@ -1,4 +1,5 @@
 import { 
+  db,
   users, type User, type InsertUser,
   bankConnections, type BankConnection, type InsertBankConnection,
   accounts, type Account, type InsertAccount,
@@ -11,10 +12,9 @@ import {
   expenses, type Expense, type InsertExpense,
   billSplits, type BillSplit, type InsertBillSplit,
   billSplitParticipants, type BillSplitParticipant, type InsertBillSplitParticipant,
-  notifications, type Notification, type InsertNotification
-} from "../../../packages/db/src/schema.js";
-import { db } from "./db.js";
-import { eq, and, inArray, isNull, desc } from "drizzle-orm";
+  notifications, type Notification, type InsertNotification,
+  eq, and, inArray, isNull, desc
+} from "./db.js";
 
 export interface IStorage {
   // User operations
@@ -1588,15 +1588,6 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-// Automatically choose storage based on database availability
-function createStorage(): IStorage {
-  if (db) {
-    console.log("🗄️  Using PostgreSQL database storage");
-    return new DatabaseStorage();
-  } else {
-    console.log("💾 Using in-memory storage (development mode)");
-    return new MemStorage();
-  }
-}
-
-export const storage = createStorage();
+// Always use SQLite database storage (no fallback needed)
+console.log("🗄️  Using SQLite database storage");
+export const storage: IStorage = new DatabaseStorage();

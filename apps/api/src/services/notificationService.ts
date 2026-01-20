@@ -1,5 +1,5 @@
 import { storage } from "../storage.js";
-import type { InsertNotification, Notification } from "@coda/db";
+import type { InsertNotification, Notification } from "../schema.js";
 
 export interface NotificationService {
   createNotification(notification: InsertNotification): Promise<Notification>;

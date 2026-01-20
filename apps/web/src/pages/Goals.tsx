@@ -337,7 +337,7 @@ export default function Goals() {
 
   if (authLoading) {
     return (
-      <div className="space-y-6">
+      <div className="container py-8 space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold text-gray-800 font-sans">Financial Goals</h2>
           <Skeleton className="h-10 w-32" />
@@ -354,7 +354,7 @@ export default function Goals() {
 
   if (authLoading || (isAuthenticated && isLoading)) {
     return (
-      <div className="space-y-6">
+      <div className="container py-8 space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold text-gray-800 font-sans">Financial Goals</h2>
           <Skeleton className="h-10 w-32" />
@@ -370,7 +370,7 @@ export default function Goals() {
 
   if (error) {
     return (
-      <div className="text-center py-12">
+      <div className="container py-8 text-center">
         <h2 className="text-2xl font-bold text-gray-800 mb-4 font-sans">Financial Goals</h2>
         <p className="text-red-500 mb-4">
           {error instanceof Error
@@ -387,7 +387,7 @@ export default function Goals() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container py-8 space-y-6">
       {!isAuthenticated && (
         <SignInBanner 
           title="Viewing Demo Financial Goals"

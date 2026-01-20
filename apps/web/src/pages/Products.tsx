@@ -98,7 +98,7 @@ export default function Products() {
 
   if (authLoading || (isAuthenticated && productsLoading)) {
     return (
-      <div className="space-y-6">
+      <div className="container py-8 space-y-6">
         <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
         <div className="grid gap-4">
           {[1, 2, 3].map(i => (
@@ -110,7 +110,7 @@ export default function Products() {
   }
 
   return (
-    <div id="product-section" className="mb-12">
+    <div id="product-section" className="container py-8 space-y-6">
       {!isAuthenticated && (
         <SignInBanner 
           title="Viewing Demo Financial Products"

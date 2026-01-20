@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Wallet } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,8 +10,30 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu } from "lucide-react";
+import { 
+  Menu, 
+  X,
+  LayoutDashboard,
+  Receipt,
+  Users,
+  Package,
+  Target,
+  FileText,
+  LogOut,
+  User,
+  Wallet
+} from "lucide-react";
 import NotificationCenter from "@/components/NotificationCenter";
+import { cn } from "@/lib/utils";
+
+const navItems = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/expenses", label: "Expenses", icon: Receipt },
+  { href: "/bill-split", label: "Bill Split", icon: Users },
+  { href: "/products", label: "Products", icon: Package },
+  { href: "/goals", label: "Goals", icon: Target },
+  { href: "/plan", label: "Plan", icon: FileText },
+];
 
 export default function Header() {
   const [location, setLocation] = useLocation();
@@ -40,110 +61,138 @@ export default function Header() {
     return "U";
   };
 
-  const navigation = [
-    { name: "Dashboard", href: "/dashboard" },
-    { name: "Expenses", href: "/expenses" },
-    { name: "Bill Split", href: "/bill-split" },
-    { name: "Products", href: "/products" },
-    { name: "Goals", href: "/goals" },
-    { name: "Plan", href: "/plan" },
-  ];
-
   return (
-    <header className="bg-white shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-4">
-          <div className="flex items-center">
-            <Wallet className="text-primary-dark mr-2" />
-            <Link href="/">
-              <h1 className="text-xl font-bold text-neutral-dark font-sans cursor-pointer">
-                CODA
-              </h1>
-            </Link>
-          </div>
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 items-center justify-between">
+        <div className="flex items-center">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2 font-semibold mr-8">
+            <div className="rounded-lg bg-primary p-1.5">
+              <Wallet className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <span className="text-lg hidden sm:inline">CODA</span>
+          </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-8">
-            {navigation.map((item) => (
-              <Link key={item.name} href={item.href}>
-                <a
-                  className={`font-medium ${
-                    location === item.href
-                      ? "text-primary"
-                      : "text-neutral-600 hover:text-primary"
-                  }`}
+          <nav className="hidden lg:flex items-center gap-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location === item.href || location.startsWith(`${item.href}/`);
+              
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                    isActive
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
                 >
-                  {item.name}
-                </a>
-              </Link>
-            ))}
+                  <Icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
           </nav>
+        </div>
 
-          <div className="flex items-center space-x-4">
-            {isAuthenticated ? (
-              <>
-                <NotificationCenter />
-                <Button variant="outline" onClick={() => window.location.href = '/'}>Connect Account</Button>
+        {/* User Menu */}
+        <div className="flex items-center gap-4">
+          {isAuthenticated && user ? (
+            <>
+              <NotificationCenter />
+              <div className="hidden sm:flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-sm font-medium">{user.name || user.email}</div>
+                </div>
                 <DropdownMenu>
-                  <DropdownMenuTrigger>
-                    <Avatar>
-                      <AvatarFallback>{getInitials()}</AvatarFallback>
-                    </Avatar>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="rounded-full">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                          {getInitials()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => window.location.href = '/profile'}>
+                    <DropdownMenuItem onClick={() => setLocation('/profile')}>
+                      <User className="h-4 w-4 mr-2" />
                       Profile
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut className="h-4 w-4 mr-2" />
                       Logout
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </>
-            ) : (
-              <Button onClick={() => setLocation("/login")}>Sign In</Button>
-            )}
+              </div>
+            </>
+          ) : (
+            <Button onClick={() => setLocation("/login")}>Sign In</Button>
+          )}
 
-            {/* Mobile Menu Button */}
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild className="md:hidden">
-                <Button variant="ghost" size="icon">
-                  <Menu />
-                </Button>
-              </SheetTrigger>
-              <SheetContent>
-                <div className="flex flex-col space-y-4 mt-8">
-                  {navigation.map((item) => (
-                    <button
-                      key={item.name}
-                      className={`font-medium text-left ${
-                        location === item.href
-                          ? "text-primary"
-                          : "text-neutral-600"
-                      }`}
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        setLocation(item.href);
-                      }}
-                    >
-                      {item.name}
-                    </button>
-                  ))}
-                  {isAuthenticated ? (
-                    <>
+          {/* Mobile Menu Button */}
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetTrigger asChild className="lg:hidden">
+              <Button variant="ghost" size="icon">
+                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-72">
+              <div className="flex flex-col mt-8">
+                <nav className="flex flex-col gap-1">
+                  {navItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location === item.href;
+                    
+                    return (
                       <button
-                        className="font-medium text-neutral-600 text-left"
+                        key={item.href}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-md transition-colors text-left",
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          setLocation(item.href);
+                        }}
+                      >
+                        <Icon className="h-4 w-4" />
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </nav>
+                
+                <div className="border-t mt-4 pt-4">
+                  {isAuthenticated ? (
+                    <div className="flex flex-col gap-2">
+                      <button
+                        className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted hover:text-foreground text-left"
                         onClick={() => {
                           setMobileMenuOpen(false);
                           setLocation('/profile');
                         }}
                       >
+                        <User className="h-4 w-4" />
                         Profile
                       </button>
-                      <Button variant="outline" onClick={handleLogout}>
+                      <button
+                        className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted hover:text-foreground text-left"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          handleLogout();
+                        }}
+                      >
+                        <LogOut className="h-4 w-4" />
                         Logout
-                      </Button>
-                    </>
+                      </button>
+                    </div>
                   ) : (
                     <Button 
                       className="w-full" 
@@ -156,9 +205,9 @@ export default function Header() {
                     </Button>
                   )}
                 </div>
-              </SheetContent>
-            </Sheet>
-          </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>
