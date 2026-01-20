@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import type { BillSplit } from '@coda/db';
+import type { BillSplit } from '../schema.js';
 
 interface BillSplitInvitation {
   billSplit: BillSplit;
@@ -196,7 +196,7 @@ class EmailService {
                 <h3>${billSplit.name}</h3>
                 ${billSplit.description ? `<p><em>${billSplit.description}</em></p>` : ''}
                 <p><strong>Date:</strong> ${new Date(billSplit.date).toLocaleDateString()}</p>
-                <p><strong>Total Amount:</strong> $${parseFloat(billSplit.totalAmount).toFixed(2)}</p>
+                <p><strong>Total Amount:</strong> $${billSplit.totalAmount.toFixed(2)}</p>
                 
                 <div class="amount">
                     Your share: $${amountOwed}
@@ -239,7 +239,7 @@ ${creatorName} has invited you to split the following bill:
 📝 ${billSplit.name}
 ${billSplit.description ? `💭 ${billSplit.description}` : ''}
 📅 Date: ${new Date(billSplit.date).toLocaleDateString()}
-💵 Total Amount: $${parseFloat(billSplit.totalAmount).toFixed(2)}
+💵 Total Amount: $${billSplit.totalAmount.toFixed(2)}
 
 💰 Your share: $${amountOwed}
 

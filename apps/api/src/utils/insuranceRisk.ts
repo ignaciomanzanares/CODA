@@ -1,4 +1,4 @@
-import { BankConnection, User } from "@coda/db";
+import type { BankConnection, User } from "../schema.js";
 import type { FeatureVector } from "../ml/features.js";
 
 // Risk factors and weights

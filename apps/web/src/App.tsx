@@ -36,10 +36,9 @@ function App() {
         
         {/* All other routes with header/footer and protection */}
         <Route>
-          <div className="min-h-screen flex flex-col">
+          <div className="relative flex min-h-screen flex-col">
             <Header />
-            <main className="flex-grow py-8">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <main className="flex-1">
                 <Switch>
                   <Route path="/" component={Onboarding} />
                   <Route path="/dashboard">
@@ -79,7 +78,6 @@ function App() {
                   </Route>
                   <Route component={NotFound} />
                 </Switch>
-              </div>
             </main>
             <Footer />
           </div>

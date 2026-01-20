@@ -1,4 +1,4 @@
-import { BankConnection } from "@coda/db";
+import type { BankConnection } from "../schema.js";
 import type { FeatureVector } from "../ml/features.js";
 
 // Credit score factors and weights

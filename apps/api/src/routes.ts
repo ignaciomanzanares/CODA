@@ -4,7 +4,7 @@ import { storage } from "./storage.js";
 import { 
   insertBankConnectionSchema, 
   insertFinancialGoalSchema
-} from "../../../packages/db/src/schema.js";
+} from "./db.js";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { authenticate, handleLogin, handleLogout, handleMe, type AuthenticatedRequest } from "./middleware/auth.js";
@@ -117,7 +117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         userId,
       };
-      const { insertAccountSchema } = await import("@coda/db");
+      const { insertAccountSchema } = await import("./db.js");
       const accountData = insertAccountSchema.parse(payload);
       const account = await storage.createAccount(accountData);
       res.status(201).json(account);
@@ -476,8 +476,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let user = await storage.getUser(userId);
       if (!user) {
         user = await storage.createUser({
+          id: userId,
           username: "demo",
           email: "demo@example.com",
+          passwordHash: "demo-hash",
           firstName: "Demo",
           lastName: "User"
         });
@@ -517,8 +519,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let user = await storage.getUser(userId);
       if (!user) {
         user = await storage.createUser({
+          id: userId,
           username: "demo",
           email: "demo@example.com",
+          passwordHash: "demo-hash",
           firstName: "Demo",
           lastName: "User"
         });
@@ -803,7 +807,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`🔔 Processing expense notification for user ${userId}, amount: $${expense.amount}, category: ${expense.category}`);
       
       // For testing: create a notification for any expense >= $50
-      const currentAmount = parseFloat(expense.amount);
+      const currentAmount = expense.amount;
       if (currentAmount >= 50) {
         console.log(`🔔 Creating expense notification for $${currentAmount}`);
         await notificationService.createNotification({
@@ -813,7 +817,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: 'info',
           category: 'expense',
           actionUrl: '/expenses',
-          metadata: { expenseId: expense.id, amount: currentAmount, category: expense.category }
+          metadata: JSON.stringify({ expenseId: expense.id, amount: currentAmount, category: expense.category })
         });
         console.log(`✅ Expense notification created successfully`);
       }
@@ -827,7 +831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       if (categoryExpenses.length > 0) {
-        const averageAmount = categoryExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0) / categoryExpenses.length;
+        const averageAmount = categoryExpenses.reduce((sum, e) => sum + e.amount, 0) / categoryExpenses.length;
         
         // Notify if this expense is 2x more than average in this category
         if (currentAmount >= averageAmount * 2 && currentAmount >= 100) { // Also require minimum $100
@@ -890,8 +894,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const [firstName, ...lastNameParts] = userName.split(' ');
         
         user = await storage.createUser({
+          id: userId,
           username: String((req as AuthenticatedRequest).user?.name || userId),
           email: String(possibleEmail),
+          passwordHash: "jwt-auth",
           firstName: firstName || 'User',
           lastName: lastNameParts.length > 0 ? lastNameParts.join(' ') : null
         });
@@ -962,8 +968,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const [firstName, ...lastNameParts] = userName.split(' ');
         
         user = await storage.createUser({
+          id: userId,
           username: String((req as AuthenticatedRequest).user?.name || userId),
           email: userEmail,
+          passwordHash: "jwt-auth",
           firstName: firstName || 'User',
           lastName: lastNameParts.length > 0 ? lastNameParts.join(' ') : null
         });
@@ -987,7 +995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await notificationService.notifyBillSplitCreated(
           userId, 
           billSplit.name || 'New Bill Split',
-          parseFloat(billSplit.totalAmount),
+          billSplit.totalAmount,
           billSplit.id as number
         );
         console.log(`✅ Bill split notification created successfully`);
@@ -1017,7 +1025,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             name: participant.name || 'Unknown',
             email: participant.email || null,
             userId: participantUserId,
-            amountOwed: participant.amountOwed || (parseFloat(String(billSplit.totalAmount)) / participants.length).toString()
+            amountOwed: participant.amountOwed || (billSplit.totalAmount / participants.length).toFixed(2)
           });
           
           // Send email invitation if email is provided
@@ -1027,7 +1035,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 billSplit: billSplit,
                 participantName: participant.name,
                 participantEmail: participant.email,
-                amountOwed: newParticipant.amountOwed,
+                amountOwed: newParticipant.amountOwed.toFixed(2),
                 creatorName: String(creatorName)
               });
               
@@ -1139,7 +1147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             type: 'success',
             category: 'bill_split',
             actionUrl: '/bill-split',
-            metadata: { billSplitId, participantId, paidAmount: participant.amountPaid }
+            metadata: JSON.stringify({ billSplitId, participantId, paidAmount: participant.amountPaid })
           });
         } catch (notificationError) {
           console.error('Error creating payment notification:', notificationError);
@@ -1293,7 +1301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: participant.name,
           email: participant.email || null,
           userId: participantUserId,
-          amountOwed: participant.amount || (parseFloat(billSplit.totalAmount) / participants.length).toString()
+          amountOwed: participant.amount || (billSplit.totalAmount / participants.length).toFixed(2)
         });
         
         // Send email invitation if email is provided
@@ -1303,7 +1311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               billSplit: billSplit,
               participantName: participant.name,
               participantEmail: participant.email,
-              amountOwed: newParticipant.amountOwed,
+              amountOwed: newParticipant.amountOwed.toFixed(2),
               creatorName: String(creatorName)
             });
             
@@ -1352,8 +1360,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const authReq = req as AuthenticatedRequest;
           const newUser = await storage.createUser({
+            id: userId,
             username: authReq.user?.email?.split('@')[0] || userId,
             email: authReq.user?.email || `${userId}@unknown.com`,
+            passwordHash: "jwt-auth",
             firstName: authReq.user?.name || null,
             lastName: null,
             displayName: authReq.user?.name || null,
@@ -1406,8 +1416,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Create user from JWT payload if they don't exist
         try {
           user = await storage.createUser({
+            id: userId,
             username: String((req as AuthenticatedRequest).user?.name || ((req as AuthenticatedRequest).user?.email as string)?.split('@')[0] || userId),
             email: (req as AuthenticatedRequest).user?.email as string || `${userId}@unknown.com`,
+            passwordHash: "jwt-auth",
             firstName: (req as AuthenticatedRequest).user?.name as string || null,
             lastName: null,
             displayName: (req as AuthenticatedRequest).user?.name as string || null,

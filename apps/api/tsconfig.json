@@ -3,12 +3,18 @@
   "compilerOptions": {
     "composite": true,
     "outDir": "./dist",
-    "rootDir": ".",
     "types": ["node"],
+    "moduleResolution": "node",
+    "module": "ESNext",
+    "target": "ES2021",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
     "paths": {
-      "@coda/db": ["../../packages/db"]
+      "@coda/db": ["../../packages/src/index.ts"],
+      "@coda/db/*": ["../../packages/src/*"]
     }
   },
-  "include": ["./**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "ml/.venv"]
 }

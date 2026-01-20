@@ -5,63 +5,70 @@ import FinancialGoalsCard from "@/components/FinancialGoalsCard";
 import DemoOpenBanking from "@/components/DemoOpenBanking";
 import PDOverview from "@/components/PDOverview";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 export default function Dashboard() {
-  const { isLoading: authLoading } = useAuth();
+  const { isLoading: authLoading, user } = useAuth();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // For now, let's make the dashboard work without requiring authentication
-  // This fixes the infinite loading issue
-
   // Function to refresh all data
-  const refreshAllData = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/insurance-risk"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/bank-connections"] });
+  const refreshAllData = async () => {
+    setIsRefreshing(true);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/insurance-risk"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/bank-connections"] }),
+    ]);
+    setTimeout(() => setIsRefreshing(false), 500);
   };
 
-  // Show loading only while Auth0 is determining auth state
+  // Show loading only while determining auth state
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="container py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mb-12">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 font-sans">Your Financial Health</h2>
+    <div className="container py-8 space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Financial Dashboard</h1>
+          <p className="text-muted-foreground">
+            {user ? `Welcome back, ${user.name || user.email}` : 'Your financial health overview'}
+          </p>
+        </div>
+        
         <Button 
-          variant="ghost" 
+          variant="outline" 
           size="sm"
-          className="text-gray-500 hover:text-primary flex items-center"
           onClick={refreshAllData}
+          disabled={isRefreshing}
         >
-          <RefreshCw className="h-4 w-4 mr-1" />
-          <span className="text-sm">Update</span>
+          <RefreshCw className={cn("h-4 w-4 mr-2", isRefreshing && "animate-spin")} />
+          Refresh
         </Button>
       </div>
 
-      <Tabs defaultValue="local" className="w-full">
-        <TabsList className="grid w-full grid-cols-1 mb-6">
-          <TabsTrigger value="local">Local Demo Data</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="local" className="space-y-6">
-          <DemoOpenBanking />
-          <PDOverview />
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <CreditScoreCard />
-            <InsuranceRiskCard />
-            <FinancialGoalsCard />
-          </div>
-        </TabsContent>
-      </Tabs>
+      {/* Main Content */}
+      <div className="space-y-6">
+        <DemoOpenBanking />
+        <PDOverview />
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <CreditScoreCard />
+          <InsuranceRiskCard />
+          <FinancialGoalsCard />
+        </div>
+      </div>
     </div>
   );
 }

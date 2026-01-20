@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { buildUserFeatureVector } from "../ml/features.js";
 import { storage } from "../storage.js";
-import type { InsertAccount, InsertTransaction } from "@coda/db";
+import type { InsertAccount, InsertTransaction } from "../schema.js";
 
 describe("Feature Engineering", () => {
   const TEST_USER_ID = "test-user-features";

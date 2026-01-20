@@ -1,6 +1,6 @@
 import { storage } from "../storage.js";
 import { MockProvider, type OBProvider } from "../connectors/openbanking/mockProvider.js";
-import type { InsertAccount, InsertBalance, InsertTransaction } from "@coda/db";
+import type { InsertAccount, InsertBalance, InsertTransaction } from "../schema.js";
 
 /**
  * Ingest accounts, latest balance, and last 90-day transactions into storage for a given user.

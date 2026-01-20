@@ -196,7 +196,7 @@ export default function Plan() {
 
   if (isLoading) {
     return (
-      <div className="mb-12">
+      <div className="container py-8">
         <Skeleton className="h-10 w-64 mb-6" />
         <Skeleton className="h-[600px] w-full rounded-lg" />
       </div>
@@ -207,7 +207,7 @@ export default function Plan() {
   const timelineGoals = getTimelineGoals();
 
   return (
-    <div id="plan-section" className="mb-12">
+    <div id="plan-section" className="container py-8 space-y-6">
       {!isAuthenticated && (
         <SignInBanner 
           title="Viewing Demo Financial Plan"

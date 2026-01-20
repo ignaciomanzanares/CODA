@@ -1,5 +1,5 @@
 import { storage } from "../storage.js";
-import type { Transaction } from "@coda/db";
+import type { Transaction } from "../schema.js";
 
 export type FeatureVector = {
   windowDays: number;

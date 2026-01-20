@@ -1,20 +1,13 @@
-import { financialProducts, users } from "../../../packages/db/src/schema.js";
-import { db } from "./db.js";
-import { eq } from "drizzle-orm";
+import { financialProducts, users, db, eq } from "./db.js";
 
 /**
  * Seed demo user into the database
  */
 export async function seedDemoUser() {
-  if (!db) {
-    console.log("Database not available. Skipping user seed.");
-    return;
-  }
-
   // Check if demo user with ID "demo-user" already exists
-  const [existingUser] = await db.select().from(users).where(eq(users.id, "demo-user"));
+  const existingUsers = db.select().from(users).where(eq(users.id, "demo-user")).all();
   
-  if (existingUser) {
+  if (existingUsers.length > 0) {
     console.log("Demo user already exists. Skipping user seed.");
     return;
   }
@@ -22,14 +15,14 @@ export async function seedDemoUser() {
   console.log("Creating demo user...");
   
   try {
-    await db.insert(users).values({
+    db.insert(users).values({
       id: "demo-user",
       username: "demo",
       email: "demo@example.com",
+      passwordHash: "$2b$10$demo-password-hash", // Demo password hash
       firstName: "Demo",
       lastName: "User",
-      createdAt: new Date()
-    });
+    }).run();
     console.log("Successfully created demo user");
   } catch (error) {
     console.error("Error creating demo user:", error);
@@ -40,13 +33,8 @@ export async function seedDemoUser() {
  * Seed financial products into the database
  */
 export async function seedFinancialProducts() {
-  if (!db) {
-    console.log("Database not available. Skipping products seed.");
-    return;
-  }
-
   // First check if we already have products
-  const existingProducts = await db.select().from(financialProducts);
+  const existingProducts = db.select().from(financialProducts).all();
   
   if (existingProducts.length > 0) {
     console.log(`Database already has ${existingProducts.length} products. Skipping seed.`);
@@ -187,7 +175,13 @@ features: { annualFee: 0, rewardsRate: 3, introductoryAPR: 0 }
   const allProducts = [...loanProducts, ...creditCardProducts, ...savingsProducts, ...insuranceProducts];
   
   try {
-    await db.insert(financialProducts).values(allProducts);
+    for (const product of allProducts) {
+      db.insert(financialProducts).values({
+        ...product,
+        requirements: product.requirements ? JSON.stringify(product.requirements) : null,
+        features: product.features ? JSON.stringify(product.features) : null,
+      }).run();
+    }
     console.log(`Successfully seeded ${allProducts.length} financial products`);
   } catch (error) {
     console.error("Error seeding financial products:", error);
