@@ -144,6 +144,18 @@ class NotificationServiceImpl implements NotificationService {
     });
   }
 
+  async notifyBillSplitPaymentReceived(userId: string, payerName: string, amount: number, billName: string, billSplitId?: number): Promise<Notification> {
+    return await this.createNotification({
+      userId,
+      title: 'Payment Received! 💰',
+      message: `${payerName} paid $${amount.toFixed(2)} for "${billName}"`,
+      type: 'success',
+      category: 'bill_split',
+      actionUrl: '/bill-split',
+      metadata: JSON.stringify({ billSplitId, payerName, amount })
+    });
+  }
+
   async notifyCreditScoreChange(userId: string, newScore: number, oldScore: number): Promise<Notification> {
     const change = newScore - oldScore;
     const template = NotificationTemplates.CREDIT_SCORE_UPDATED(newScore, change);

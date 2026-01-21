@@ -1,50 +1,336 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Users, DollarSign, Check, Clock, Send, Archive, CheckCircle, CreditCard, Trash2, Filter } from "lucide-react";
+import { 
+  Plus, Users, DollarSign, Check, Clock, Send, 
+  CheckCircle, CreditCard, Trash2, Receipt, 
+  UserPlus, Home, Utensils, Car, Plane, Zap, 
+  MoreHorizontal, RefreshCw, X,
+  Percent, Hash, Equal, ArrowUpRight, ArrowDownLeft,
+  Copy, Share2
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useApi } from "@/lib/api";
-import type { BillSplitWithParticipants, BillSplitParticipantWithUser } from "@coda/db";
+import type { BillSplit, BillSplitParticipant } from "@/types";
 import { useAuth } from "@/lib/auth";
 import { generateDemoBillSplits } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
 import PaymentDialog from "@/components/PaymentDialog";
+import { useToast } from "@/hooks/use-toast";
 
+// Extended types
+type BillSplitParticipantWithUser = BillSplitParticipant & {
+  isCurrentUser?: boolean;
+  userName?: string;
+};
+
+type BillSplitWithParticipants = BillSplit & {
+  participants: BillSplitParticipantWithUser[];
+  userRole?: 'creator' | 'participant' | 'none';
+  createdByName?: string;
+  paidByName?: string;
+  category?: string;
+  shareCode?: string;
+};
+
+// Expense categories with icons and colors
+const EXPENSE_CATEGORIES = [
+  { id: "food", label: "Food & Dining", icon: Utensils, color: "bg-orange-500" },
+  { id: "travel", label: "Travel", icon: Plane, color: "bg-blue-500" },
+  { id: "transport", label: "Transport", icon: Car, color: "bg-green-500" },
+  { id: "utilities", label: "Utilities", icon: Zap, color: "bg-yellow-500" },
+  { id: "rent", label: "Rent", icon: Home, color: "bg-purple-500" },
+  { id: "general", label: "Other", icon: Receipt, color: "bg-gray-500" },
+];
+
+const getCategoryInfo = (categoryId: string) => {
+  return EXPENSE_CATEGORIES.find(c => c.id === categoryId) || EXPENSE_CATEGORIES[5];
+};
+
+// Form schemas
 const participantSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().optional().refine((val) => {
-    if (!val || val === "") return true; // Allow empty string
-    return z.string().email().safeParse(val).success; // Validate email format if provided
-  }, {
-    message: "Please enter a valid email address"
-  }),
+    if (!val || val === "") return true;
+    return z.string().email().safeParse(val).success;
+  }, { message: "Invalid email" }),
+  shareValue: z.string().optional(),
 });
 
 const billSplitFormSchema = z.object({
-  name: z.string().min(1, "Bill name is required"),
-  totalAmount: z.string().min(1, "Total amount is required"),
+  name: z.string().min(1, "Description is required"),
+  totalAmount: z.string().min(1, "Amount is required"),
   description: z.string().optional(),
+  category: z.string().default("general"),
   date: z.string().min(1, "Date is required"),
+  splitType: z.enum(["equal", "exact", "percentage", "shares"]).default("equal"),
   participants: z.array(participantSchema).min(1, "At least one participant required"),
 });
 
 type BillSplitFormValues = z.infer<typeof billSplitFormSchema>;
 
-type FilterOption = 'all' | 'active' | 'settled';
+// Helpers
+const getInitials = (name: string) => {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+};
 
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(Math.abs(amount));
+};
+
+// Balance Summary Card
+function BalanceSummaryCard({ 
+  totalOwed, 
+  totalOwedToYou 
+}: { 
+  totalOwed: number; 
+  totalOwedToYou: number;
+}) {
+  const netBalance = totalOwedToYou - totalOwed;
+  
+  return (
+    <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold opacity-90">Your Balance</h3>
+          <Badge variant="outline" className="border-white/20 text-white">
+            {netBalance >= 0 ? 'All good!' : 'Settle up'}
+          </Badge>
+        </div>
+        
+        <div className="text-center mb-6">
+          <p className={`text-4xl font-bold ${netBalance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            {netBalance < 0 && '-'}{formatCurrency(netBalance)}
+          </p>
+          <p className="text-sm opacity-70 mt-1">
+            {netBalance >= 0 ? 'You\'re in the positive' : 'Overall, you owe money'}
+          </p>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white/10 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <ArrowUpRight className="h-4 w-4 text-red-400" />
+              <span className="text-sm opacity-70">You owe</span>
+            </div>
+            <p className="text-xl font-semibold text-red-400">{formatCurrency(totalOwed)}</p>
+          </div>
+          <div className="bg-white/10 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <ArrowDownLeft className="h-4 w-4 text-green-400" />
+              <span className="text-sm opacity-70">You're owed</span>
+            </div>
+            <p className="text-xl font-semibold text-green-400">{formatCurrency(totalOwedToYou)}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Friend Balance Row
+function FriendBalanceRow({ 
+  name, 
+  balance, 
+  onSettleUp,
+  onRemind
+}: { 
+  name: string; 
+  balance: number; 
+  onSettleUp: () => void;
+  onRemind: () => void;
+}) {
+  const isOwed = balance > 0;
+  const isOwing = balance < 0;
+
+  return (
+    <div className="flex items-center justify-between py-4 px-4 hover:bg-muted/50 rounded-lg transition-colors group">
+      <div className="flex items-center gap-3">
+        <Avatar className="h-12 w-12">
+          <AvatarFallback className={`text-sm font-medium ${isOwed ? 'bg-green-100 text-green-700' : isOwing ? 'bg-red-100 text-red-700' : 'bg-gray-100'}`}>
+            {getInitials(name)}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <p className="font-medium">{name}</p>
+          <p className={`text-sm ${isOwed ? 'text-green-600' : isOwing ? 'text-red-600' : 'text-muted-foreground'}`}>
+            {isOwed ? `owes you ${formatCurrency(balance)}` : 
+             isOwing ? `you owe ${formatCurrency(balance)}` : 
+             'all settled up'}
+          </p>
+        </div>
+      </div>
+      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        {isOwed && (
+          <Button variant="ghost" size="sm" onClick={onRemind}>
+            <Send className="h-4 w-4 mr-1" />
+            Remind
+          </Button>
+        )}
+        {balance !== 0 && (
+          <Button variant="outline" size="sm" onClick={onSettleUp}>
+            Settle up
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Expense Card
+function ExpenseCard({ 
+  expense, 
+  currentUserId,
+  onViewDetails,
+  onDelete
+}: { 
+  expense: BillSplitWithParticipants;
+  currentUserId?: string;
+  onViewDetails: () => void;
+  onDelete: () => void;
+}) {
+  const categoryInfo = getCategoryInfo(expense.category || 'general');
+  const CategoryIcon = categoryInfo.icon;
+  const paidCount = expense.participants?.filter(p => p.isPaid).length || 0;
+  const totalCount = expense.participants?.length || 0;
+  const isCreator = expense.createdBy === currentUserId;
+  const userParticipant = expense.participants?.find(p => p.userId === currentUserId);
+  const progress = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
+  
+  return (
+    <Card 
+      className={`hover:shadow-lg transition-all cursor-pointer border-l-4 ${
+        expense.status === 'settled' ? 'border-l-green-500 bg-green-50/30' : 'border-l-transparent'
+      }`}
+      onClick={onViewDetails}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className={`p-2.5 rounded-xl ${categoryInfo.color} flex-shrink-0`}>
+              <CategoryIcon className="h-5 w-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold truncate">{expense.name}</h3>
+                {expense.status === 'settled' && (
+                  <Badge className="bg-green-100 text-green-700 border-0">
+                    <Check className="h-3 w-3 mr-1" />
+                    Settled
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {new Date(expense.date).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric',
+                })}
+                {expense.createdByName && ` • Added by ${expense.createdByName}`}
+              </p>
+              
+              {/* Progress bar */}
+              <div className="mt-3">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-muted-foreground">{paidCount} of {totalCount} paid</span>
+                  <span className="font-medium">{Math.round(progress)}%</span>
+                </div>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-green-500 transition-all duration-500"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+              
+              {/* Participants */}
+              <div className="flex items-center gap-2 mt-3">
+                <div className="flex -space-x-2">
+                  {expense.participants?.slice(0, 4).map((p) => (
+                    <Avatar key={p.id} className="h-7 w-7 border-2 border-background">
+                      <AvatarFallback className={`text-xs ${p.isPaid ? 'bg-green-100 text-green-700' : 'bg-muted'}`}>
+                        {getInitials(p.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                  ))}
+                  {(expense.participants?.length || 0) > 4 && (
+                    <div className="h-7 w-7 rounded-full bg-muted border-2 border-background flex items-center justify-center">
+                      <span className="text-xs font-medium">+{(expense.participants?.length || 0) - 4}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="text-right flex-shrink-0">
+            <p className="text-xl font-bold">{formatCurrency(parseFloat(String(expense.totalAmount)))}</p>
+            {/* Show "You owe" badge only if user is a participant in someone ELSE's split and hasn't paid */}
+            {userParticipant && !userParticipant.isPaid && !isCreator && expense.status !== 'settled' && (
+              <Badge variant="destructive" className="mt-1">
+                You owe {formatCurrency(parseFloat(String(userParticipant.amountOwed)))}
+              </Badge>
+            )}
+            {isCreator && expense.status !== 'settled' && paidCount < totalCount && (
+              <Badge variant="outline" className="mt-1">
+                <Clock className="h-3 w-3 mr-1" />
+                Pending
+              </Badge>
+            )}
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 mt-2">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onViewDetails(); }}>
+                  View details
+                </DropdownMenuItem>
+                {isCreator && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      className="text-red-600"
+                      onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Main Component
 export default function BillSplit() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { getBillSplits, createBillSplit, markParticipantAsPaid, archiveBillSplit, deleteBillSplit } = useApi();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const { getBillSplits, createBillSplit, markParticipantAsPaid, deleteBillSplit } = useApi();
+  const [activeTab, setActiveTab] = useState("expenses");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [filter, setFilter] = useState<FilterOption>('all');
+  const [isSettleDialogOpen, setIsSettleDialogOpen] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<BillSplitWithParticipants | null>(null);
   const [highlightedBillId, setHighlightedBillId] = useState<string | null>(null);
   const [paymentDialog, setPaymentDialog] = useState<{
     isOpen: boolean;
@@ -52,43 +338,18 @@ export default function BillSplit() {
     participant?: BillSplitParticipantWithUser;
   }>({ isOpen: false });
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   
-  // Check for highlight parameter from email invitations and handle auth
+  // Handle email invitation highlights
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const highlightId = urlParams.get('highlight');
-    
     if (highlightId) {
-      if (!authLoading && !isAuthenticated) {
-        // User came from "View Demo Version" button - show demo data with highlight
-        // Don't redirect to login, just set the highlight for demo data
-        setHighlightedBillId(highlightId);
-        // Clear the highlight after 10 seconds 
-        setTimeout(() => setHighlightedBillId(null), 10000);
-        return;
-      }
-      
-      if (isAuthenticated) {
-        setHighlightedBillId(highlightId);
-        // Clear the highlight after 10 seconds to give more time to see it
-        setTimeout(() => setHighlightedBillId(null), 10000);
-        // Clean up stored bill ID if it exists
-        localStorage.removeItem('highlightBillAfterAuth');
-      }
-    } else if (isAuthenticated) {
-      // Check if there's a stored bill ID from before auth (from /invite redirect)
-      const storedBillId = localStorage.getItem('highlightBillAfterAuth');
-      if (storedBillId) {
-        setHighlightedBillId(storedBillId);
-        setTimeout(() => setHighlightedBillId(null), 10000);
-        localStorage.removeItem('highlightBillAfterAuth');
-        // Update URL to include highlight parameter
-        window.history.replaceState(null, '', `/bill-split?highlight=${storedBillId}`);
-      }
+      setHighlightedBillId(highlightId);
+      setTimeout(() => setHighlightedBillId(null), 10000);
     }
-  }, [authLoading, isAuthenticated]);
+  }, []);
 
-  // Use demo data when not authenticated, real data when authenticated
   const demoBillSplits = generateDemoBillSplits();
   
   const { data: realBillSplits = [], isLoading } = useQuery<BillSplitWithParticipants[]>({
@@ -97,38 +358,138 @@ export default function BillSplit() {
     enabled: isAuthenticated && !authLoading,
   });
 
-  const allBillSplits = isAuthenticated ? realBillSplits : demoBillSplits;
-  
-  // Filter bill splits based on selected filter
-  const filteredBillSplits = allBillSplits.filter(split => {
-    if (filter === 'all') return true;
-    return split.status === filter;
-  });
-  
-  const billSplits = filteredBillSplits;
+  const billSplits = isAuthenticated ? realBillSplits : demoBillSplits;
+  // Show both 'active' and 'pending' statuses as active expenses
+  const activeExpenses = billSplits.filter(s => s.status === 'active' || s.status === 'pending' || !s.status);
+  const settledExpenses = billSplits.filter(s => s.status === 'settled' || s.status === 'fully_paid');
 
+  // Calculate balances - count all unpaid amounts from bill splits you created
+  const calculateBalances = () => {
+    const balances: Record<string, { name: string; balance: number }> = {};
+    
+    billSplits.forEach(split => {
+      if (split.status === 'settled' || split.status === 'fully_paid') return;
+      
+      // If user created this split, all unpaid participants owe them money (except themselves)
+      if (split.createdBy === user?.userId || split.userRole === 'creator') {
+        split.participants?.forEach((p: BillSplitParticipantWithUser) => {
+          // Skip the creator's own entry
+          if (p.userId === user?.userId || p.isCurrentUser) return;
+          if (!p.isPaid) {
+            const key = p.userId || p.email || p.name;
+            if (!balances[key]) {
+              balances[key] = { name: p.name, balance: 0 };
+            }
+            balances[key].balance += parseFloat(String(p.amountOwed));
+          }
+        });
+      }
+      
+      // If user is a participant (not creator), they owe money
+      const ourParticipation = split.participants?.find((p: BillSplitParticipantWithUser) => 
+        p.userId === user?.userId || p.isCurrentUser
+      );
+      if (ourParticipation && !ourParticipation.isPaid && split.createdBy !== user?.userId && split.userRole !== 'creator') {
+        const creatorKey = split.createdBy || 'creator';
+        if (!balances[creatorKey]) {
+          balances[creatorKey] = { name: split.createdByName || 'Bill Creator', balance: 0 };
+        }
+        balances[creatorKey].balance -= parseFloat(String(ourParticipation.amountOwed));
+      }
+    });
+    
+    return Object.entries(balances).map(([oderserId, data]) => ({ oderserId, ...data }));
+  };
+
+  // Calculate totals directly from bill splits for accuracy
+  const calculateTotals = () => {
+    let youAreOwed = 0;
+    let youOwe = 0;
+    
+    billSplits.forEach(split => {
+      if (split.status === 'settled' || split.status === 'fully_paid') return;
+      
+      // If you created this split, sum unpaid amounts (excluding yourself)
+      if (split.createdBy === user?.userId || split.userRole === 'creator') {
+        split.participants?.forEach((p: BillSplitParticipantWithUser) => {
+          // Skip the creator's own entry
+          if (p.userId === user?.userId || p.isCurrentUser) return;
+          if (!p.isPaid) {
+            youAreOwed += parseFloat(String(p.amountOwed));
+          }
+        });
+      }
+      
+      // If you're a participant in someone else's split, you owe that amount
+      if (split.createdBy !== user?.userId && split.userRole !== 'creator') {
+        const myParticipation = split.participants?.find((p: BillSplitParticipantWithUser) => 
+          p.userId === user?.userId || p.isCurrentUser
+        );
+        if (myParticipation && !myParticipation.isPaid) {
+          youOwe += parseFloat(String(myParticipation.amountOwed));
+        }
+      }
+    });
+    
+    return { youAreOwed, youOwe };
+  };
+
+  const { youAreOwed, youOwe } = calculateTotals();
+
+  const userBalances = calculateBalances();
+  const totalYouOwe = userBalances.filter(b => b.balance < 0).reduce((sum, b) => sum + Math.abs(b.balance), 0);
+  const totalOwedToYou = userBalances.filter(b => b.balance > 0).reduce((sum, b) => sum + b.balance, 0);
+
+  // Mutations
   const createBillSplitMutation = useMutation({
     mutationFn: (billSplit: BillSplitFormValues) => {
       const totalAmount = parseFloat(billSplit.totalAmount);
-      const amountPerPerson = totalAmount / billSplit.participants.length;
+      
+      // Add creator ("Me") to participants list for equal splits
+      const creatorName = user?.firstName || user?.username || 'Me';
+      const creatorEmail = user?.email || '';
+      const allParticipants = [
+        { name: creatorName, email: creatorEmail, shareValue: billSplit.participants[0]?.shareValue, isCreator: true },
+        ...billSplit.participants.map(p => ({ ...p, isCreator: false }))
+      ];
+      
+      let participantAmounts: number[] = [];
+      
+      if (billSplit.splitType === 'equal') {
+        const perPerson = totalAmount / allParticipants.length;
+        participantAmounts = allParticipants.map(() => perPerson);
+      } else if (billSplit.splitType === 'exact') {
+        participantAmounts = allParticipants.map(p => parseFloat(p.shareValue || '0'));
+      } else if (billSplit.splitType === 'percentage') {
+        participantAmounts = allParticipants.map(p => {
+          const pct = parseFloat(p.shareValue || '0') / 100;
+          return totalAmount * pct;
+        });
+      } else if (billSplit.splitType === 'shares') {
+        const totalShares = allParticipants.reduce((sum, p) => sum + parseFloat(p.shareValue || '1'), 0);
+        participantAmounts = allParticipants.map(p => {
+          const shares = parseFloat(p.shareValue || '1');
+          return (shares / totalShares) * totalAmount;
+        });
+      }
       
       return createBillSplit({
         name: billSplit.name,
         totalAmount: totalAmount,
         description: billSplit.description,
+        category: billSplit.category,
         date: new Date(billSplit.date),
-        participants: billSplit.participants.map(p => ({
-          userId: null, // Will be set by the server
+        participants: allParticipants.map((p, i) => ({
+          userId: p.isCreator ? user?.userId : null,
           name: p.name,
           email: p.email,
-          amountOwed: amountPerPerson.toString(),
-          isPaid: false,
+          amountOwed: participantAmounts[i].toFixed(2),
+          isPaid: p.isCreator, // Creator's share is auto-marked as paid (they paid the bill)
         }))
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
-      // Invalidate notifications to show bill split notifications
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       setIsCreateDialogOpen(false);
       form.reset();
@@ -141,26 +502,15 @@ export default function BillSplit() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
-      // Invalidate notifications to show payment notifications
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 
-  const archiveSplitMutation = useMutation({
-    mutationFn: (billSplitId: string) => {
-      return archiveBillSplit(billSplitId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
-    },
-  });
-
   const deleteSplitMutation = useMutation({
-    mutationFn: (billSplitId: string) => {
-      return deleteBillSplit(billSplitId);
-    },
+    mutationFn: (billSplitId: string) => deleteBillSplit(billSplitId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
+      setSelectedExpense(null);
     },
   });
 
@@ -170,25 +520,22 @@ export default function BillSplit() {
     }
   };
 
-  const handleArchiveSplit = (billSplitId: string) => {
-    if (isAuthenticated && confirm('Are you sure you want to archive this bill split?')) {
-      archiveSplitMutation.mutate(billSplitId);
-    }
-  };
-
   const handleDeleteSplit = (billSplitId: string) => {
-    if (isAuthenticated && confirm('Are you sure you want to delete this bill split? This action cannot be undone.')) {
+    if (isAuthenticated && confirm('Delete this expense? This cannot be undone.')) {
       deleteSplitMutation.mutate(billSplitId);
     }
   };
 
+  // Form
   const form = useForm<BillSplitFormValues>({
     resolver: zodResolver(billSplitFormSchema),
     defaultValues: {
       name: "",
       totalAmount: "",
       description: "",
+      category: "general",
       date: new Date().toISOString().split('T')[0],
+      splitType: "equal",
       participants: [{ name: "", email: "" }],
     },
   });
@@ -198,27 +545,22 @@ export default function BillSplit() {
     name: "participants",
   });
 
+  const watchSplitType = form.watch("splitType");
+  const watchParticipants = form.watch("participants");
+  const watchAmount = form.watch("totalAmount");
+
   const onSubmit = (values: BillSplitFormValues) => {
     createBillSplitMutation.mutate(values);
   };
 
-  const totalOwed = billSplits.reduce((sum, split) => {
-    const participants = split.participants || [];
-    return sum + participants.reduce((splitSum, p) => splitSum + parseFloat(p.amountOwed), 0);
-  }, 0);
-
-  const totalPaid = billSplits.reduce((sum, split) => {
-    const participants = split.participants || [];
-    return sum + participants.reduce((splitSum, p) => splitSum + parseFloat(p.amountPaid || '0'), 0);
-  }, 0);
-
   if (authLoading || (isAuthenticated && isLoading)) {
     return (
-      <div className="container py-8 space-y-6">
-        <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
-        <div className="grid gap-4">
+      <div className="container py-8 space-y-6 max-w-5xl mx-auto">
+        <div className="h-8 bg-muted rounded animate-pulse"></div>
+        <div className="h-48 bg-muted rounded animate-pulse"></div>
+        <div className="space-y-4">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-32 bg-gray-200 rounded animate-pulse"></div>
+            <div key={i} className="h-32 bg-muted rounded animate-pulse"></div>
           ))}
         </div>
       </div>
@@ -226,416 +568,608 @@ export default function BillSplit() {
   }
 
   return (
-    <div className="container py-8 space-y-6">
+    <div className="container py-8 space-y-6 max-w-5xl mx-auto">
       {!isAuthenticated && (
         <SignInBanner 
-          title="Viewing Demo Bill Splits"
-          description="You're exploring sample bill splitting data. Sign in to create real bill splits, invite friends, and track payments together."
-          actionText="Sign In to Split Real Bills"
+          title="Split Bills Like a Pro"
+          description="Track shared expenses, settle debts easily, and keep friendships money-free. Sign in to start splitting!"
+          actionText="Sign In to Get Started"
         />
       )}
-      <div className="flex items-center justify-between">
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Bill Splitting</h1>
-          <p className="text-gray-600">Split expenses with friends and track payments</p>
+          <h1 className="text-3xl font-bold tracking-tight">Split</h1>
+          <p className="text-muted-foreground">Track and settle shared expenses</p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button disabled={!isAuthenticated}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Split
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Bill Split</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Bill Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Dinner at restaurant" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="totalAmount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Total Amount</FormLabel>
-                      <FormControl>
-                        <Input placeholder="120.00" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Additional details about the expense" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <FormLabel>Participants</FormLabel>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => append({ name: "", email: "" })}
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Person
-                    </Button>
-                  </div>
-                  
-                  {fields.map((field, index) => (
-                    <div key={field.id} className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
-                      <FormField
-                        control={form.control}
-                        name={`participants.${index}.name`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input placeholder="Friend's name" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <div className="flex gap-2">
-                        <FormField
-                          control={form.control}
-                          name={`participants.${index}.email`}
-                          render={({ field }) => (
-                            <FormItem className="flex-1">
-                              <FormControl>
-                                <Input placeholder="Email (optional)" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        {fields.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => remove(index)}
-                          >
-                            Remove
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {form.watch("totalAmount") && form.watch("participants").length > 0 && (
-                  <div className="p-3 bg-gray-50 rounded">
-                    <p className="text-sm text-gray-600">
-                      Each person owes: ${(parseFloat(form.watch("totalAmount") || "0") / form.watch("participants").length).toFixed(2)}
-                    </p>
-                  </div>
-                )}
-
-                <Button 
-                  type="submit" 
-                  className="w-full"
-                  disabled={createBillSplitMutation.isPending}
-                >
-                  {createBillSplitMutation.isPending ? "Creating..." : "Create Bill Split"}
-                </Button>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <DollarSign className="h-8 w-8 text-red-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Owed</p>
-                <p className="text-2xl font-bold">${(totalOwed - totalPaid).toFixed(2)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Check className="h-8 w-8 text-green-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Paid</p>
-                <p className="text-2xl font-bold">${totalPaid.toFixed(2)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Users className="h-8 w-8 text-blue-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Active Splits</p>
-                <p className="text-2xl font-bold">{allBillSplits.filter(s => s.status === "active").length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filter Section */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-gray-600" />
-          <span className="text-sm font-medium text-gray-600">Filter:</span>
-          <div className="flex gap-1">
-            {(['all', 'active', 'settled'] as FilterOption[]).map((filterOption) => (
-              <Button
-                key={filterOption}
-                variant={filter === filterOption ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilter(filterOption)}
-                className="capitalize"
-              >
-                {filterOption === 'all' ? 'All' : filterOption}
-                <Badge 
-                  variant="secondary" 
-                  className="ml-2 text-xs"
-                >
-                  {filterOption === 'all' 
-                    ? allBillSplits.length 
-                    : allBillSplits.filter(s => s.status === filterOption).length
-                  }
-                </Badge>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button 
+            variant="outline" 
+            className="flex-1 sm:flex-none"
+            onClick={() => setIsSettleDialogOpen(true)} 
+            disabled={!isAuthenticated || userBalances.length === 0}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Settle Up
+          </Button>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button disabled={!isAuthenticated} className="flex-1 sm:flex-none">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Expense
               </Button>
-            ))}
-          </div>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Add an expense</DialogTitle>
+                <DialogDescription>
+                  Split a bill with friends
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  {/* Category */}
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <div className="flex flex-wrap gap-2">
+                          {EXPENSE_CATEGORIES.map(cat => {
+                            const Icon = cat.icon;
+                            return (
+                              <Button
+                                key={cat.id}
+                                type="button"
+                                variant={field.value === cat.id ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => field.onChange(cat.id)}
+                                className="gap-1.5"
+                              >
+                                <Icon className="h-4 w-4" />
+                                {cat.label}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Description */}
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Dinner at Mario's" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Amount and Date */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="totalAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Amount</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Input placeholder="0.00" className="pl-9" {...field} />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="date"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Split Type */}
+                  <FormField
+                    control={form.control}
+                    name="splitType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Split method</FormLabel>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[
+                            { value: "equal", label: "Equal", icon: Equal },
+                            { value: "exact", label: "Exact", icon: DollarSign },
+                            { value: "percentage", label: "%", icon: Percent },
+                            { value: "shares", label: "Shares", icon: Hash },
+                          ].map(option => {
+                            const Icon = option.icon;
+                            return (
+                              <Button
+                                key={option.value}
+                                type="button"
+                                variant={field.value === option.value ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => field.onChange(option.value)}
+                                className="flex flex-col h-auto py-2 gap-1"
+                              >
+                                <Icon className="h-4 w-4" />
+                                <span className="text-xs">{option.label}</span>
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Participants */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <FormLabel>Split with</FormLabel>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => append({ name: "", email: "" })}
+                      >
+                        <UserPlus className="w-4 h-4 mr-1" />
+                        Add
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {fields.map((field, index) => (
+                        <div key={field.id} className="flex gap-2 items-start">
+                          <Avatar className="h-9 w-9 mt-0.5 flex-shrink-0">
+                            <AvatarFallback className="text-xs">{index + 1}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 grid grid-cols-2 gap-2">
+                            <FormField
+                              control={form.control}
+                              name={`participants.${index}.name`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input placeholder="Name" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            {watchSplitType === 'equal' ? (
+                              <FormField
+                                control={form.control}
+                                name={`participants.${index}.email`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormControl>
+                                      <Input placeholder="Email" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            ) : (
+                              <FormField
+                                control={form.control}
+                                name={`participants.${index}.shareValue`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormControl>
+                                      <div className="relative">
+                                        <Input 
+                                          placeholder={watchSplitType === 'percentage' ? '50' : watchSplitType === 'shares' ? '1' : '0.00'}
+                                          {...field} 
+                                        />
+                                        <span className="absolute right-3 top-2.5 text-xs text-muted-foreground">
+                                          {watchSplitType === 'percentage' ? '%' : watchSplitType === 'shares' ? 'sh' : '$'}
+                                        </span>
+                                      </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            )}
+                          </div>
+                          {fields.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => remove(index)}
+                              className="h-9 w-9 flex-shrink-0"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Preview */}
+                  {watchAmount && watchParticipants.length > 0 && (
+                    <Card className="bg-muted/50 border-dashed">
+                      <CardContent className="p-4">
+                        <p className="text-sm font-medium mb-2">Split preview</p>
+                        <div className="space-y-1.5">
+                          {watchParticipants.map((p, i) => {
+                            let amount = 0;
+                            const total = parseFloat(watchAmount || '0');
+                            
+                            if (watchSplitType === 'equal') {
+                              amount = total / watchParticipants.length;
+                            } else if (watchSplitType === 'exact') {
+                              amount = parseFloat(p.shareValue || '0');
+                            } else if (watchSplitType === 'percentage') {
+                              amount = total * (parseFloat(p.shareValue || '0') / 100);
+                            } else if (watchSplitType === 'shares') {
+                              const totalShares = watchParticipants.reduce((sum, p) => sum + parseFloat(p.shareValue || '1'), 0);
+                              amount = (parseFloat(p.shareValue || '1') / totalShares) * total;
+                            }
+                            
+                            return (
+                              <div key={i} className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">{p.name || `Person ${i + 1}`}</span>
+                                <span className="font-medium">{formatCurrency(amount)}</span>
+                              </div>
+                            );
+                          })}
+                          <Separator className="my-2" />
+                          <div className="flex justify-between text-sm font-medium">
+                            <span>Total</span>
+                            <span>{formatCurrency(parseFloat(watchAmount || '0'))}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Notes */}
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Notes (optional)</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Add any details..." className="resize-none h-20" {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button 
+                    type="submit" 
+                    className="w-full"
+                    disabled={createBillSplitMutation.isPending}
+                  >
+                    {createBillSplitMutation.isPending ? "Creating..." : "Add Expense"}
+                  </Button>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </div>
-        <p className="text-sm text-gray-500">
-          Showing {billSplits.length} of {allBillSplits.length} splits
-        </p>
       </div>
 
-      {/* Bill Splits List */}
-      <div className="space-y-4">
-        {billSplits.map((split) => {
-          const participants = split.participants || [];
-          const paidParticipants = participants.filter(p => p.isPaid).length;
-          const totalParticipants = participants.length;
-          
-          const isHighlighted = highlightedBillId === String(split.id);
-          
-          return (
-            <Card 
-              key={split.id} 
-              className={isHighlighted ? 'ring-2 ring-blue-500 bg-blue-50/50 transition-all duration-500' : ''}
-            >
-              {isHighlighted && (
-                <div className="bg-blue-100 border-b border-blue-200 px-6 py-2">
-                  <p className="text-sm text-blue-700 font-medium">
-                    📧 You accessed this bill split from an email invitation!
+      {/* Balance Summary - use calculated totals */}
+      <BalanceSummaryCard totalOwed={youOwe} totalOwedToYou={youAreOwed} />
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="expenses" className="gap-2">
+            <Receipt className="h-4 w-4" />
+            <span className="hidden sm:inline">Expenses</span>
+            {activeExpenses.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5">{activeExpenses.length}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="friends" className="gap-2">
+            <Users className="h-4 w-4" />
+            <span className="hidden sm:inline">Balances</span>
+            {userBalances.filter(b => b.balance !== 0).length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5">{userBalances.filter(b => b.balance !== 0).length}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="history" className="gap-2">
+            <Check className="h-4 w-4" />
+            <span className="hidden sm:inline">Settled</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Expenses Tab */}
+        <TabsContent value="expenses" className="space-y-4 mt-4">
+          {activeExpenses.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="p-12 text-center">
+                <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <Receipt className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">No active expenses</h3>
+                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+                  Add your first shared expense and start tracking who owes what
+                </p>
+                <Button onClick={() => setIsCreateDialogOpen(true)} disabled={!isAuthenticated}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Expense
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {activeExpenses.map(expense => (
+                <ExpenseCard
+                  key={expense.id}
+                  expense={expense}
+                  currentUserId={user?.userId}
+                  onViewDetails={() => setSelectedExpense(expense)}
+                  onDelete={() => handleDeleteSplit(String(expense.id))}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Balances Tab */}
+        <TabsContent value="friends" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Friend Balances</CardTitle>
+              <CardDescription>Who owes you and who you owe</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {userBalances.length === 0 ? (
+                <div className="p-12 text-center">
+                  <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                    <Check className="w-8 h-8 text-green-600" />
+                  </div>
+                  <h3 className="font-semibold text-lg mb-2">All settled up!</h3>
+                  <p className="text-muted-foreground">
+                    You don't have any outstanding balances
                   </p>
                 </div>
+              ) : (
+                <div className="divide-y">
+                  {userBalances.map(balance => (
+                    <FriendBalanceRow
+                      key={balance.oderserId}
+                      name={balance.name}
+                      balance={balance.balance}
+                      onSettleUp={() => setIsSettleDialogOpen(true)}
+                      onRemind={() => alert('Reminder sent!')}
+                    />
+                  ))}
+                </div>
               )}
-              <CardHeader>
-                <div className="flex items-center justify-between">
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* History Tab */}
+        <TabsContent value="history" className="space-y-4 mt-4">
+          {settledExpenses.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="p-12 text-center">
+                <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <Clock className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">No history yet</h3>
+                <p className="text-muted-foreground">
+                  Settled expenses will appear here
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {settledExpenses.map(expense => (
+                <ExpenseCard
+                  key={expense.id}
+                  expense={expense}
+                  currentUserId={user?.userId}
+                  onViewDetails={() => setSelectedExpense(expense)}
+                  onDelete={() => handleDeleteSplit(String(expense.id))}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Expense Detail Dialog */}
+      <Dialog open={!!selectedExpense} onOpenChange={() => setSelectedExpense(null)}>
+        <DialogContent className="max-w-lg">
+          {selectedExpense && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-3">
+                  {(() => {
+                    const cat = getCategoryInfo(selectedExpense.category || 'general');
+                    const Icon = cat.icon;
+                    return (
+                      <div className={`p-3 rounded-xl ${cat.color}`}>
+                        <Icon className="h-6 w-6 text-white" />
+                      </div>
+                    );
+                  })()}
                   <div>
-                    <CardTitle className="text-lg">{split.name}</CardTitle>
-                    <p className="text-sm text-gray-600">
-                      {new Date(split.date).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="text-right flex items-center gap-3">
-                    <div>
-                      <p className="text-2xl font-bold">${parseFloat(split.totalAmount).toFixed(2)}</p>
-                      <Badge variant={split.status === "active" ? "default" : "secondary"}>
-                        {split.status}
-                      </Badge>
-                    </div>
-                    {/* Complete button for active bills that are fully paid */}
-                    {isAuthenticated && split.userRole === 'creator' && split.status === "active" && paidParticipants === totalParticipants && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleArchiveSplit(String(split.id))}
-                        disabled={archiveSplitMutation.isPending}
-                        className="text-green-600 border-green-600 hover:bg-green-50"
-                      >
-                        <Archive className="w-4 h-4 mr-1" />
-                        Complete
-                      </Button>
-                    )}
-                    {/* Delete button for settled bills */}
-                    {isAuthenticated && split.userRole === 'creator' && split.status === "settled" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteSplit(String(split.id))}
-                        disabled={deleteSplitMutation.isPending}
-                        className="text-red-600 border-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="w-4 h-4 mr-1" />
-                        Delete
-                      </Button>
-                    )}
+                    <DialogTitle className="text-xl">{selectedExpense.name}</DialogTitle>
+                    <DialogDescription>
+                      {new Date(selectedExpense.date).toLocaleDateString('en-US', { 
+                        weekday: 'long',
+                        month: 'long', 
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </DialogDescription>
                   </div>
                 </div>
-                {split.description && (
-                  <p className="text-sm text-gray-600">{split.description}</p>
-                )}
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Payment Progress</span>
-                    <span>{paidParticipants}/{totalParticipants} paid</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-green-600 h-2 rounded-full transition-all duration-300" 
-                      style={{ width: `${(paidParticipants / totalParticipants) * 100}%` }}
-                    ></div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
-                    {participants.map((participant) => (
-                      <div 
-                        key={participant.id} 
-                        className="flex items-center justify-between p-3 border rounded"
+              </DialogHeader>
+
+              <div className="space-y-6">
+                <div className="text-center py-4 bg-muted/50 rounded-lg">
+                  <p className="text-sm text-muted-foreground mb-1">Total amount</p>
+                  <p className="text-4xl font-bold">{formatCurrency(parseFloat(String(selectedExpense.totalAmount)))}</p>
+                  {selectedExpense.description && (
+                    <p className="text-sm text-muted-foreground mt-2">{selectedExpense.description}</p>
+                  )}
+                </div>
+
+                {/* Share Link Section */}
+                {selectedExpense.shareCode && (
+                  <div className="border rounded-lg p-4 bg-gradient-to-r from-primary/5 to-primary/10">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-semibold flex items-center gap-2">
+                        <Share2 className="h-4 w-4 text-primary" />
+                        Share with Friends
+                      </h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Send this link to friends so they can view the bill and pay their share
+                    </p>
+                    <div className="flex gap-2">
+                      <Input 
+                        value={`${window.location.origin}/split/${selectedExpense.shareCode}`}
+                        readOnly
+                        className="text-sm font-mono bg-background"
+                      />
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/split/${selectedExpense.shareCode}`);
+                          toast({
+                            title: "Link copied!",
+                            description: "Share link copied to clipboard",
+                          });
+                        }}
                       >
-                        <div>
-                          <p className="font-medium">{participant.name}</p>
-                          <p className="text-sm text-gray-600">
-                            ${parseFloat(participant.amountOwed).toFixed(2)}
-                          </p>
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <h4 className="font-semibold mb-3 flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Participants
+                  </h4>
+                  <div className="space-y-2">
+                    {selectedExpense.participants?.map(p => (
+                      <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarFallback className={p.isPaid ? 'bg-green-100 text-green-700' : 'bg-muted'}>
+                              {getInitials(p.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{p.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {p.isPaid ? `Paid ${formatCurrency(parseFloat(String(p.amountPaid || p.amountOwed)))}` : `Owes ${formatCurrency(parseFloat(String(p.amountOwed)))}`}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {participant.isPaid ? (
-                            <Badge variant="secondary" className="bg-green-100 text-green-800">
-                              <Check className="w-3 h-3 mr-1" />
-                              Paid
-                            </Badge>
-                          ) : (
-                            <>
-                              <Badge variant="outline">
-                                <Clock className="w-3 h-3 mr-1" />
-                                Pending
-                              </Badge>
-                              {/* Creators can mark any participant as paid */}
-                              {isAuthenticated && split.userRole === 'creator' && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleMarkAsPaid(
-                                    String(split.id),
-                                    String(participant.id),
-                                    parseFloat(participant.amountOwed)
-                                  )}
-                                  disabled={markAsPaidMutation.isPending}
-                                  className="text-green-600 border-green-600 hover:bg-green-50"
-                                >
-                                  <CheckCircle className="w-3 h-3 mr-1" />
-                                  Mark Paid
-                                </Button>
-                              )}
-                              {/* Participants can pay their share */}
-                              {isAuthenticated && split.userRole === 'participant' && participant.isCurrentUser && (
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  onClick={() => setPaymentDialog({
-                                    isOpen: true,
-                                    billSplit: split,
-                                    participant: participant
-                                  })}
-                                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                                >
-                                  <CreditCard className="w-3 h-3 mr-1" />
-                                  Pay Now
-                                </Button>
-                              )}
-                              {!participant.isPaid && participant.email && (
-                                <Button variant="outline" size="sm" disabled={!isAuthenticated}>
-                                  <Send className="w-3 h-3" />
-                                </Button>
-                              )}
-                            </>
-                          )}
-                        </div>
+                        {p.isPaid ? (
+                          <Badge className="bg-green-100 text-green-700 border-0">
+                            <Check className="h-3 w-3 mr-1" />
+                            Paid
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Pending
+                          </Badge>
+                        )}
                       </div>
                     ))}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-        {billSplits.length === 0 && (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <Users className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-500">
-                {allBillSplits.length === 0 
-                  ? "No bill splits yet. Create your first split to get started!"
-                  : `No ${filter === 'all' ? '' : filter} bill splits found. Try switching filters.`
-                }
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+              </div>
+
+              <DialogFooter className="mt-4">
+                <Button variant="outline" onClick={() => setSelectedExpense(null)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Settle Up Dialog */}
+      <Dialog open={isSettleDialogOpen} onOpenChange={setIsSettleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Settle Up</DialogTitle>
+            <DialogDescription>
+              Choose a payment method to settle with a friend
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { name: 'Venmo', color: 'bg-blue-500', url: 'https://venmo.com' },
+                { name: 'PayPal', color: 'bg-blue-600', url: 'https://paypal.com' },
+                { name: 'Zelle', color: 'bg-purple-500', url: 'https://zellepay.com' },
+                { name: 'Cash App', color: 'bg-green-500', url: 'https://cash.app' },
+              ].map(method => (
+                <Button 
+                  key={method.name}
+                  variant="outline" 
+                  className="h-auto py-4 justify-start"
+                  onClick={() => window.open(method.url, '_blank')}
+                >
+                  <div className={`w-3 h-3 rounded-full ${method.color} mr-3`} />
+                  {method.name}
+                </Button>
+              ))}
+            </div>
+            <Separator />
+            <Button variant="secondary" className="w-full" onClick={() => setIsSettleDialogOpen(false)}>
+              <CreditCard className="h-4 w-4 mr-2" />
+              Record cash payment
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Payment Dialog */}
       {paymentDialog.isOpen && paymentDialog.billSplit && paymentDialog.participant && (
         <PaymentDialog
           isOpen={paymentDialog.isOpen}
           onClose={() => setPaymentDialog({ isOpen: false })}
-          amount={parseFloat(paymentDialog.participant.amountOwed).toFixed(2)}
+          amount={parseFloat(String(paymentDialog.participant.amountOwed)).toFixed(2)}
           participantName={paymentDialog.participant.name}
           billName={paymentDialog.billSplit.name}
-          creatorName={paymentDialog.billSplit.createdBy || 'Bill Creator'}
+          creatorName={paymentDialog.billSplit.createdByName || 'Bill Creator'}
           onPaymentComplete={() => {
             if (paymentDialog.billSplit && paymentDialog.participant) {
               handleMarkAsPaid(
                 String(paymentDialog.billSplit.id),
                 String(paymentDialog.participant.id),
-                parseFloat(paymentDialog.participant.amountOwed)
+                parseFloat(String(paymentDialog.participant.amountOwed))
               );
             }
           }}

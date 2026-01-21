@@ -7,7 +7,13 @@ export const idParamSchema = z.object({
   id: z.string().regex(/^\d+$/).transform(Number)
 });
 
-export const dateSchema = z.string().datetime().or(z.date());
+// Flexible date schema that accepts multiple formats
+export const dateSchema = z.union([
+  z.string().datetime(), // ISO 8601 with time: 2026-01-21T10:30:00Z
+  z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // Simple date: 2026-01-21
+  z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/), // ISO without Z
+  z.date(), // Date object
+]);
 
 // Bank Connections schemas
 export const createBankConnectionSchema = z.object({
@@ -29,126 +35,118 @@ export const updateBankConnectionSchema = z.object({
 // Financial Goals schemas
 export const createFinancialGoalSchema = z.object({
   name: z.string().min(1, "Goal name is required").max(200),
-  targetAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").or(z.number().positive()),
-  currentAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").or(z.number().nonnegative()).optional().default("0"),
-  deadline: dateSchema.optional(),
-  category: z.enum([
-    "savings",
-    "investment",
-    "emergency_fund",
-    "retirement",
-    "education",
-    "vacation",
-    "home",
-    "vehicle",
-    "debt_payoff",
-    "other"
-  ]).optional().default("other"),
+  targetAmount: z.union([
+    z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+    z.number().positive()
+  ]),
+  currentAmount: z.union([
+    z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+    z.number().nonnegative()
+  ]).optional().default(0),
+  targetDate: dateSchema,
+  category: z.string().max(100).optional().default("other"),
   priority: z.enum(["low", "medium", "high"]).optional().default("medium"),
   status: z.enum(["active", "completed", "paused", "abandoned"]).optional().default("active")
-});
+}).passthrough();
 
 export const updateFinancialGoalSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  targetAmount: z.string().regex(/^\d+(\.\d{1,2})?$/).or(z.number().positive()).optional(),
-  currentAmount: z.string().regex(/^\d+(\.\d{1,2})?$/).or(z.number().nonnegative()).optional(),
-  deadline: dateSchema.optional(),
-  category: z.enum([
-    "savings",
-    "investment",
-    "emergency_fund",
-    "retirement",
-    "education",
-    "vacation",
-    "home",
-    "vehicle",
-    "debt_payoff",
-    "other"
+  targetAmount: z.union([
+    z.string().regex(/^\d+(\.\d{1,2})?$/),
+    z.number().positive()
   ]).optional(),
+  currentAmount: z.union([
+    z.string().regex(/^\d+(\.\d{1,2})?$/),
+    z.number().nonnegative()
+  ]).optional(),
+  targetDate: dateSchema.optional(),
+  category: z.string().max(100).optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
   status: z.enum(["active", "completed", "paused", "abandoned"]).optional()
-});
+}).passthrough();
 
 // Expense schemas
 export const createExpenseSchema = z.object({
-  amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").or(z.number().positive("Amount must be positive")),
-  category: z.enum([
-    "food",
-    "transportation",
-    "utilities",
-    "entertainment",
-    "healthcare",
-    "shopping",
-    "housing",
-    "education",
-    "insurance",
-    "savings",
-    "debt",
-    "other"
+  amount: z.union([
+    z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+    z.number().positive("Amount must be positive")
   ]),
+  category: z.string().min(1, "Category is required").max(100),
   description: z.string().min(1, "Description is required").max(500),
   date: dateSchema,
-  merchant: z.string().max(200).optional(),
-  paymentMethod: z.enum(["cash", "credit_card", "debit_card", "bank_transfer", "other"]).optional(),
-  tags: z.array(z.string()).optional(),
-  receiptUrl: z.string().url().optional(),
+  merchant: z.string().max(200).optional().or(z.literal("")),
+  merchantName: z.string().max(200).optional().or(z.literal("")),
+  subcategory: z.string().max(100).optional().or(z.literal("")),
+  paymentMethod: z.string().max(50).optional().or(z.literal("")),
+  tags: z.array(z.string()).optional().or(z.null()),
+  notes: z.string().max(1000).optional().or(z.literal("")),
+  receiptUrl: z.string().url().optional().or(z.literal("")).or(z.null()),
   isRecurring: z.boolean().optional().default(false),
-  metadata: z.record(z.any()).optional()
-});
+  isAutoClassified: z.boolean().optional().default(true),
+  metadata: z.record(z.any()).optional().or(z.null())
+}).passthrough(); // Allow extra fields without failing
 
 export const updateExpenseSchema = z.object({
-  amount: z.string().regex(/^\d+(\.\d{1,2})?$/).or(z.number().positive()).optional(),
-  category: z.enum([
-    "food",
-    "transportation",
-    "utilities",
-    "entertainment",
-    "healthcare",
-    "shopping",
-    "housing",
-    "education",
-    "insurance",
-    "savings",
-    "debt",
-    "other"
+  amount: z.union([
+    z.string().regex(/^\d+(\.\d{1,2})?$/),
+    z.number().positive()
   ]).optional(),
+  category: z.string().min(1).max(100).optional(),
   description: z.string().min(1).max(500).optional(),
   date: dateSchema.optional(),
-  merchant: z.string().max(200).optional(),
-  paymentMethod: z.enum(["cash", "credit_card", "debit_card", "bank_transfer", "other"]).optional(),
-  tags: z.array(z.string()).optional(),
-  receiptUrl: z.string().url().optional(),
+  merchant: z.string().max(200).optional().or(z.literal("")),
+  merchantName: z.string().max(200).optional().or(z.literal("")),
+  subcategory: z.string().max(100).optional().or(z.literal("")),
+  paymentMethod: z.string().max(50).optional().or(z.literal("")),
+  tags: z.array(z.string()).optional().or(z.null()),
+  notes: z.string().max(1000).optional().or(z.literal("")),
+  receiptUrl: z.string().url().optional().or(z.literal("")).or(z.null()),
   isRecurring: z.boolean().optional(),
-  metadata: z.record(z.any()).optional()
-});
+  isAutoClassified: z.boolean().optional(),
+  metadata: z.record(z.any()).optional().or(z.null())
+}).passthrough(); // Allow extra fields without failing
 
 // Bill Split schemas
 export const billSplitParticipantSchema = z.object({
   name: z.string().min(1, "Participant name is required").max(200),
-  email: z.string().email("Invalid email format").optional(),
-  shareAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").or(z.number().nonnegative()),
+  email: z.string().email("Invalid email format").optional().or(z.literal("")).or(z.null()),
+  amountOwed: z.union([
+    z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+    z.number().nonnegative()
+  ]).optional(), // Optional - will be calculated for equal splits
+  amountPaid: z.union([
+    z.string().regex(/^\d+(\.\d{1,2})?$/),
+    z.number().nonnegative()
+  ]).optional().default(0),
   isPaid: z.boolean().optional().default(false),
-  userId: z.string().optional()
+  userId: z.string().optional().or(z.null())
 });
 
 export const createBillSplitSchema = z.object({
   name: z.string().min(1, "Bill name is required").max(200),
-  totalAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format").or(z.number().positive("Total must be positive")),
-  description: z.string().max(1000).optional(),
-  date: dateSchema,
-  category: z.string().max(100).optional(),
+  totalAmount: z.union([
+    z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+    z.number().positive("Total must be positive")
+  ]),
+  description: z.string().max(1000).optional().or(z.literal("")),
+  date: dateSchema.optional(), // Optional - defaults to today
+  category: z.string().max(100).optional().or(z.literal("")),
+  splitType: z.enum(["equal", "exact", "percentage", "shares"]).optional().default("equal"),
   status: z.enum(["pending", "partially_paid", "fully_paid", "cancelled"]).optional().default("pending"),
   participants: z.array(billSplitParticipantSchema).min(1, "At least one participant required")
-});
+}).passthrough();
 
 export const updateBillSplitSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  totalAmount: z.string().regex(/^\d+(\.\d{1,2})?$/).or(z.number().positive()).optional(),
-  description: z.string().max(1000).optional(),
+  totalAmount: z.union([
+    z.string().regex(/^\d+(\.\d{1,2})?$/),
+    z.number().positive()
+  ]).optional(),
+  description: z.string().max(1000).optional().or(z.literal("")),
   date: dateSchema.optional(),
-  category: z.string().max(100).optional(),
+  category: z.string().max(100).optional().or(z.literal("")),
   status: z.enum(["pending", "partially_paid", "fully_paid", "cancelled"]).optional()
-});
+}).passthrough();
 
 export const updateBillSplitParticipantSchema = z.object({
   shareAmount: z.string().regex(/^\d+(\.\d{1,2})?$/).or(z.number().nonnegative()).optional(),

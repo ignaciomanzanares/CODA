@@ -275,10 +275,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/financial-goals", authenticate, validateBody(createFinancialGoalSchema), async (req, res) => {
     const userId = getUserIdFromAuth(req);
+    
+    // Ensure user exists in database (create if needed for foreign key constraint)
+    let user = await storage.getUser(userId);
+    if (!user) {
+      const userEmail = String((req as AuthenticatedRequest).user?.email || `${userId}@unknown.com`);
+      const userName = String((req as AuthenticatedRequest).user?.name || userId);
+      const [firstName, ...lastNameParts] = userName.split(' ');
+      
+      user = await storage.createUser({
+        id: userId,
+        username: userName,
+        email: userEmail,
+        passwordHash: "jwt-auth",
+        firstName: firstName || 'User',
+        lastName: lastNameParts.length > 0 ? lastNameParts.join(' ') : null
+      });
+      console.log(`✅ Created new user for goal: ${userId} (${userEmail})`);
+    }
+    
     const goalData = insertFinancialGoalSchema.parse({
       ...req.body,
       userId,
-      targetDate: new Date(req.body.targetDate) // Convert string to Date
+      targetDate: typeof req.body.targetDate === 'string' 
+        ? req.body.targetDate 
+        : new Date(req.body.targetDate).toISOString() // Keep as ISO string for SQLite
     });
     const goal = await storage.createFinancialGoal(goalData);
     // Emit a creation notification (non-blocking)
@@ -299,7 +320,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     const updateData = req.body.targetDate ? {
       ...req.body,
-      targetDate: new Date(req.body.targetDate) // Convert string to Date if present
+      targetDate: typeof req.body.targetDate === 'string' 
+        ? req.body.targetDate 
+        : new Date(req.body.targetDate).toISOString() // Keep as ISO string for SQLite
     } : req.body;
     const updatedGoal = await storage.updateFinancialGoal(goalId, updateData);
     
@@ -794,11 +817,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/expenses", authenticate, validateBody(createExpenseSchema), async (req, res) => {
     const userId = getUserIdFromAuth(req);
+    
+    // Ensure user exists in database (create if needed for foreign key constraint)
+    let user = await storage.getUser(userId);
+    if (!user) {
+      const userEmail = String((req as AuthenticatedRequest).user?.email || `${userId}@unknown.com`);
+      const userName = String((req as AuthenticatedRequest).user?.name || userId);
+      const [firstName, ...lastNameParts] = userName.split(' ');
+      
+      user = await storage.createUser({
+        id: userId,
+        username: userName,
+        email: userEmail,
+        passwordHash: "jwt-auth",
+        firstName: firstName || 'User',
+        lastName: lastNameParts.length > 0 ? lastNameParts.join(' ') : null
+      });
+      console.log(`✅ Created new user for expense: ${userId} (${userEmail})`);
+    }
+    
     const expenseData = {
       ...req.body,
       userId,
-      // Convert date string to Date object if it's a string
-      date: typeof req.body.date === 'string' ? new Date(req.body.date) : req.body.date
+      // Keep date as ISO string for SQLite
+      date: typeof req.body.date === 'string' 
+        ? req.body.date 
+        : new Date(req.body.date).toISOString()
     };
     const expense = await storage.createExpense(expenseData);
     
@@ -860,8 +904,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     const updateData = {
       ...req.body,
-      // Convert date string to Date object if it's a string
-      ...(req.body.date && typeof req.body.date === 'string' && { date: new Date(req.body.date) })
+      // Keep date as ISO string for SQLite
+      ...(req.body.date && { date: typeof req.body.date === 'string' ? req.body.date : new Date(req.body.date).toISOString() })
     };
     const updatedExpense = await storage.updateExpense(expenseId, updateData);
     res.json(updatedExpense);
@@ -876,6 +920,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     await storage.deleteExpense(expenseId);
     res.json({ message: "Expense deleted" });
+  });
+
+  // =============================================
+  // PUBLIC BILL SPLIT ROUTES (No authentication)
+  // =============================================
+  
+  // Get bill split by share code (public - anyone with link can view)
+  app.get("/api/share/:code", async (req, res) => {
+    try {
+      const { code } = req.params;
+      const billSplit = await storage.getBillSplitByShareCode(code);
+      
+      if (!billSplit) {
+        return res.status(404).json({ message: "Bill split not found or link expired" });
+      }
+      
+      // Get participants
+      const participants = await storage.getBillSplitParticipants(billSplit.id as number);
+      
+      // Get creator name
+      const creator = await storage.getUser(billSplit.createdBy);
+      const creatorName = creator ? 
+        `${creator.firstName || ''} ${creator.lastName || ''}`.trim() || creator.username : 
+        'Unknown';
+      
+      // Calculate progress
+      const paidCount = participants.filter(p => p.isPaid).length;
+      const totalPaid = participants.reduce((sum, p) => sum + (p.isPaid ? parseFloat(String(p.amountOwed)) : 0), 0);
+      
+      res.json({
+        id: billSplit.id,
+        name: billSplit.name,
+        description: billSplit.description,
+        totalAmount: billSplit.totalAmount,
+        date: billSplit.date,
+        status: billSplit.status,
+        createdByName: creatorName,
+        shareCode: billSplit.shareCode,
+        participants: participants.map(p => ({
+          id: p.id,
+          name: p.name,
+          amountOwed: p.amountOwed,
+          isPaid: p.isPaid,
+          amountPaid: p.amountPaid
+        })),
+        progress: {
+          paidCount,
+          totalCount: participants.length,
+          totalPaid,
+          percentPaid: participants.length > 0 ? Math.round((paidCount / participants.length) * 100) : 0
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching shared bill split:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  // Pay your share (public - identify by name/email)
+  app.post("/api/share/:code/pay", async (req, res) => {
+    try {
+      const { code } = req.params;
+      const { participantId, name, email, paymentMethod } = req.body;
+      
+      const billSplit = await storage.getBillSplitByShareCode(code);
+      if (!billSplit) {
+        return res.status(404).json({ message: "Bill split not found" });
+      }
+      
+      const participants = await storage.getBillSplitParticipants(billSplit.id as number);
+      
+      // Find participant by ID, name, or email
+      let participant = participants.find(p => 
+        (participantId && p.id === participantId) ||
+        (name && p.name.toLowerCase() === name.toLowerCase()) ||
+        (email && p.email && p.email.toLowerCase() === email.toLowerCase())
+      );
+      
+      if (!participant) {
+        return res.status(404).json({ 
+          message: "Participant not found. Please check your name matches exactly.",
+          availableNames: participants.filter(p => !p.isPaid).map(p => p.name)
+        });
+      }
+      
+      if (participant.isPaid) {
+        return res.status(400).json({ message: "This participant has already paid" });
+      }
+      
+      // Mark as paid
+      const updatedParticipant = await storage.updateBillSplitParticipant(participant.id as number, {
+        isPaid: true,
+        amountPaid: participant.amountOwed
+      });
+      
+      // Notify the bill creator
+      try {
+        await notificationService.notifyBillSplitPaymentReceived(
+          billSplit.createdBy,
+          participant.name,
+          parseFloat(String(participant.amountOwed)),
+          billSplit.name,
+          billSplit.id as number
+        );
+      } catch (err) {
+        console.error('Error sending payment notification:', err);
+      }
+      
+      // Check if all participants have paid
+      const updatedParticipants = await storage.getBillSplitParticipants(billSplit.id as number);
+      const allPaid = updatedParticipants.every(p => p.isPaid);
+      
+      if (allPaid) {
+        await storage.updateBillSplit(billSplit.id as number, { status: 'settled' });
+      }
+      
+      res.json({ 
+        message: `Payment confirmed! Thank you, ${participant.name}!`,
+        participant: {
+          id: updatedParticipant?.id,
+          name: updatedParticipant?.name,
+          amountPaid: updatedParticipant?.amountOwed,
+          isPaid: true
+        },
+        allPaid,
+        paymentMethod: paymentMethod || 'other'
+      });
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
   });
 
   // Bill splits routes
@@ -1024,8 +1199,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             billSplitId: billSplit.id as number,
             name: participant.name || 'Unknown',
             email: participant.email || null,
-            userId: participantUserId,
-            amountOwed: participant.amountOwed || (billSplit.totalAmount / participants.length).toFixed(2)
+            userId: participantUserId || participant.userId || null,
+            amountOwed: participant.amountOwed || (billSplit.totalAmount / participants.length).toFixed(2),
+            isPaid: participant.isPaid || false,
+            amountPaid: participant.isPaid ? (participant.amountOwed || 0) : 0
           });
           
           // Send email invitation if email is provided
@@ -1047,6 +1224,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.error('Error sending email invitation:', emailError);
             }
           }
+        }
+        
+        // Check if all participants are already paid (auto-settle)
+        const allParticipants = await storage.getBillSplitParticipants(billSplit.id as number);
+        const allPaid = allParticipants.length > 0 && allParticipants.every(p => p.isPaid);
+        if (allPaid) {
+          await storage.updateBillSplit(billSplit.id as number, { status: 'settled' });
+          billSplit.status = 'settled';
         }
       }
       
