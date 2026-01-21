@@ -157,7 +157,8 @@ export const billSplits = sqliteTable("bill_splits", {
   description: text("description"),
   date: text("date").notNull(),
   createdBy: text("created_by").references(() => users.id).notNull(),
-  status: text("status").default("active"),
+  status: text("status").default("active"), // active, settled, deleted
+  shareCode: text("share_code"), // Unique code for shareable links
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -322,10 +323,28 @@ export type Notification = typeof notifications.$inferSelect;
 // Extended types with additional properties
 export type BillSplitParticipantWithUser = BillSplitParticipant & {
   isCurrentUser?: boolean;
+  userName?: string;
 };
 
 export type BillSplitWithParticipants = BillSplit & {
   participants: BillSplitParticipantWithUser[];
   userRole?: 'creator' | 'participant' | 'none';
   createdByName?: string;
+};
+
+export type UserBalance = {
+  userId: string;
+  userName: string;
+  email?: string;
+  balance: number; // positive = they owe you, negative = you owe them
+};
+
+export type SettlementWithUsers = Settlement & {
+  fromUserName: string;
+  toUserName: string;
+};
+
+export type ActivityFeedItem = BillSplitActivity & {
+  userName: string;
+  userAvatar?: string;
 };

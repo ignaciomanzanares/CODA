@@ -76,6 +76,7 @@ export interface IStorage {
   getBillSplits(userId: string): Promise<BillSplit[]>;
   getBillSplitsAsParticipant(userId: string): Promise<BillSplit[]>;
   getBillSplit(id: number): Promise<BillSplit | undefined>;
+  getBillSplitByShareCode(shareCode: string): Promise<BillSplit | undefined>;
   createBillSplit(billSplit: InsertBillSplit): Promise<BillSplit>;
   updateBillSplit(id: number, billSplit: Partial<InsertBillSplit>): Promise<BillSplit | undefined>;
   deleteBillSplit(id: number): Promise<boolean>;
@@ -223,10 +224,17 @@ export class MemStorage implements IStorage {
     return this.billSplits.get(id);
   }
 
+  async getBillSplitByShareCode(shareCode: string): Promise<BillSplit | undefined> {
+    return Array.from(this.billSplits.values()).find(b => b.shareCode === shareCode);
+  }
+
   async createBillSplit(insertBillSplit: InsertBillSplit): Promise<BillSplit> {
+    // Generate share code if not provided
+    const shareCode = insertBillSplit.shareCode || Math.random().toString(36).substring(2, 10);
     const billSplit: BillSplit = {
       id: this.currentBillSplitId++,
       ...insertBillSplit,
+      shareCode,
       createdAt: new Date(),
       // Ensure undefined values become null for nullable fields
       description: insertBillSplit.description ?? null,
@@ -246,6 +254,13 @@ export class MemStorage implements IStorage {
   }
 
   async deleteBillSplit(id: number): Promise<boolean> {
+    // Delete participants first
+    Array.from(this.billSplitParticipants.keys()).forEach(key => {
+      const participant = this.billSplitParticipants.get(key);
+      if (participant && participant.billSplitId === id) {
+        this.billSplitParticipants.delete(key);
+      }
+    });
     return this.billSplits.delete(id);
   }
 
@@ -1180,10 +1195,14 @@ export class DatabaseStorage implements IStorage {
   async createFinancialGoal(insertGoal: InsertFinancialGoal): Promise<FinancialGoal> {
     if (!db) throw new Error("Database not available");
     
-    // Ensure targetDate is a proper Date object
+    // Convert targetDate to ISO string for SQLite
+    const dateValue = insertGoal.targetDate instanceof Date 
+      ? insertGoal.targetDate.toISOString() 
+      : (typeof insertGoal.targetDate === 'string' ? insertGoal.targetDate : new Date(insertGoal.targetDate as any).toISOString());
+    
     const goalData = {
       ...insertGoal,
-      targetDate: insertGoal.targetDate instanceof Date ? insertGoal.targetDate : new Date(insertGoal.targetDate)
+      targetDate: dateValue
     };
     
     const [goal] = await db
@@ -1196,11 +1215,13 @@ export class DatabaseStorage implements IStorage {
   async updateFinancialGoal(id: number, goal: Partial<InsertFinancialGoal>): Promise<FinancialGoal | undefined> {
     if (!db) return undefined;
     
-    // Ensure targetDate is a proper Date object if provided
-    const goalData = goal.targetDate ? {
-      ...goal,
-      targetDate: goal.targetDate instanceof Date ? goal.targetDate : new Date(goal.targetDate)
-    } : goal;
+    // Convert targetDate to ISO string for SQLite if provided
+    const goalData: Record<string, any> = { ...goal };
+    if (goal.targetDate) {
+      goalData.targetDate = goal.targetDate instanceof Date 
+        ? goal.targetDate.toISOString() 
+        : (typeof goal.targetDate === 'string' ? goal.targetDate : new Date(goal.targetDate as any).toISOString());
+    }
     
     const [updatedGoal] = await db
       .update(financialGoals)
@@ -1270,10 +1291,16 @@ export class DatabaseStorage implements IStorage {
   async createExpense(insertExpense: InsertExpense): Promise<Expense> {
     if (!db) throw new Error("Database not available");
     
-    // Ensure date is a proper Date object
+    // Convert Date to ISO string for SQLite, and arrays to JSON strings
+    const dateValue = insertExpense.date instanceof Date 
+      ? insertExpense.date.toISOString() 
+      : (typeof insertExpense.date === 'string' ? insertExpense.date : new Date(insertExpense.date as any).toISOString());
+    
     const expenseData = {
       ...insertExpense,
-      date: insertExpense.date instanceof Date ? insertExpense.date : new Date(insertExpense.date)
+      date: dateValue,
+      // Convert tags array to JSON string for SQLite
+      tags: insertExpense.tags ? JSON.stringify(insertExpense.tags) : null,
     };
     
     const [expense] = await db
@@ -1286,11 +1313,16 @@ export class DatabaseStorage implements IStorage {
   async updateExpense(id: number, expense: Partial<InsertExpense>): Promise<Expense | undefined> {
     if (!db) return undefined;
     
-    // Ensure date is a proper Date object if provided
-    const expenseData = expense.date ? {
-      ...expense,
-      date: expense.date instanceof Date ? expense.date : new Date(expense.date)
-    } : expense;
+    // Convert Date to ISO string for SQLite if provided
+    const expenseData: Record<string, any> = { ...expense };
+    if (expense.date) {
+      expenseData.date = expense.date instanceof Date 
+        ? expense.date.toISOString() 
+        : (typeof expense.date === 'string' ? expense.date : new Date(expense.date as any).toISOString());
+    }
+    if (expense.tags !== undefined) {
+      expenseData.tags = expense.tags ? JSON.stringify(expense.tags) : null;
+    }
     
     const [updatedExpense] = await db
       .update(expenses)
@@ -1357,20 +1389,53 @@ export class DatabaseStorage implements IStorage {
     return billSplit || undefined;
   }
   
+  async getBillSplitByShareCode(shareCode: string): Promise<BillSplit | undefined> {
+    if (!db) return undefined;
+    const [billSplit] = await db
+      .select()
+      .from(billSplits)
+      .where(eq(billSplits.shareCode, shareCode));
+    return billSplit || undefined;
+  }
+  
   async createBillSplit(insertBillSplit: InsertBillSplit): Promise<BillSplit> {
     if (!db) throw new Error("Database not available");
+    
+    // Convert date to ISO string for SQLite
+    const dateValue = insertBillSplit.date instanceof Date 
+      ? insertBillSplit.date.toISOString() 
+      : (typeof insertBillSplit.date === 'string' ? insertBillSplit.date : new Date(insertBillSplit.date as any).toISOString());
+    
+    // Generate share code if not provided
+    const shareCode = insertBillSplit.shareCode || Math.random().toString(36).substring(2, 10);
+    
+    const billSplitData = {
+      ...insertBillSplit,
+      date: dateValue,
+      shareCode
+    };
+    
     const [billSplit] = await db
       .insert(billSplits)
-      .values(insertBillSplit)
+      .values(billSplitData)
       .returning();
     return billSplit;
   }
   
   async updateBillSplit(id: number, billSplit: Partial<InsertBillSplit>): Promise<BillSplit | undefined> {
     if (!db) return undefined;
+    
+    // Convert date to ISO string for SQLite if provided
+    const billSplitData: Record<string, any> = { ...billSplit };
+    if (billSplit.date) {
+      billSplitData.date = billSplit.date instanceof Date 
+        ? billSplit.date.toISOString() 
+        : (typeof billSplit.date === 'string' ? billSplit.date : new Date(billSplit.date as any).toISOString());
+    }
+    
     const [updatedBillSplit] = await db
       .update(billSplits)
-      .set(billSplit)
+      .set(billSplitData)
       .where(eq(billSplits.id, id))
       .returning();
     return updatedBillSplit || undefined;
@@ -1378,6 +1443,11 @@ export class DatabaseStorage implements IStorage {
   
   async deleteBillSplit(id: number): Promise<boolean> {
     if (!db) return false;
+    // Delete participants first due to foreign key constraint
+    await db
+      .delete(billSplitParticipants)
+      .where(eq(billSplitParticipants.billSplitId, id));
+    // Then delete the bill split
     const result = await db
       .delete(billSplits)
       .where(eq(billSplits.id, id));
@@ -1461,9 +1531,20 @@ export class DatabaseStorage implements IStorage {
   
   async createNotification(insertNotification: InsertNotification): Promise<Notification> {
     if (!db) throw new Error("Database not available");
+    
+    // Ensure metadata is a JSON string for SQLite
+    const notificationData = {
+      ...insertNotification,
+      metadata: insertNotification.metadata 
+        ? (typeof insertNotification.metadata === 'string' 
+            ? insertNotification.metadata 
+            : JSON.stringify(insertNotification.metadata))
+        : null,
+    };
+    
     const [notification] = await db
       .insert(notifications)
-      .values(insertNotification)
+      .values(notificationData)
       .returning();
     return notification;
   }
@@ -1473,7 +1554,7 @@ export class DatabaseStorage implements IStorage {
     try {
       const result = await db
         .update(notifications)
-        .set({ isRead: true, readAt: new Date() })
+        .set({ isRead: true, readAt: new Date().toISOString() })
         .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)))
         .returning();
       return result.length > 0;

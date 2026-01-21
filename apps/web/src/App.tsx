@@ -17,6 +17,7 @@ import Profile from "@/pages/Profile";
 import Expenses from "@/pages/Expenses";
 import BillSplit from "@/pages/BillSplit";
 import EmailInviteHandler from "@/pages/EmailInviteHandler";
+import ShareBillSplit from "@/pages/ShareBillSplit";
 
 
 function App() {
@@ -32,6 +33,16 @@ function App() {
             <EmailInviteHandler />
             <Toaster />
           </div>
+        </Route>
+        
+        {/* Public route for shared bill splits - no auth required */}
+        <Route path="/split/:code">
+          {(params) => (
+            <div className="min-h-screen">
+              <ShareBillSplit code={params.code} />
+              <Toaster />
+            </div>
+          )}
         </Route>
         
         {/* All other routes with header/footer and protection */}

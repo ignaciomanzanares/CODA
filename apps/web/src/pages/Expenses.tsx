@@ -19,6 +19,22 @@ import { generateDemoExpenses } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
 import { useToast } from "@/hooks/use-toast";
 
+// Helper to parse tags that might be a JSON string or already an array
+function parseTags(tags: string | string[] | null | undefined): string[] {
+  if (!tags) return [];
+  if (Array.isArray(tags)) return tags;
+  if (typeof tags === 'string') {
+    try {
+      const parsed = JSON.parse(tags);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      // If it's not valid JSON, treat as comma-separated
+      return tags.split(',').map(t => t.trim()).filter(Boolean);
+    }
+  }
+  return [];
+}
+
 const expenseFormSchema = z.object({
   amount: z.string().min(1, "Amount is required"),
   description: z.string().min(1, "Description is required"),
@@ -303,7 +319,7 @@ export default function Expenses() {
       date: formattedDate,
       paymentMethod: expense.paymentMethod || "",
       isRecurring: expense.isRecurring || false,
-      tags: expense.tags?.join(", ") || "",
+      tags: parseTags(expense.tags).join(", "),
       notes: expense.notes || "",
       isAutoClassified: expense.isAutoClassified || false,
     });
@@ -564,10 +580,10 @@ export default function Expenses() {
                       <p><span className="font-medium">Merchant:</span> {expense.merchantName}</p>
                     )}
                     <p><span className="font-medium">Date:</span> {new Date(expense.date).toLocaleDateString()}</p>
-                    {expense.tags && expense.tags.length > 0 && (
+                    {parseTags(expense.tags).length > 0 && (
                       <div className="flex items-center gap-1">
                         <span className="font-medium">Tags:</span>
-                        {expense.tags.map((tag, index) => (
+                        {parseTags(expense.tags).map((tag, index) => (
                           <Badge key={index} variant="outline" className="text-xs">
                             {tag}
                           </Badge>

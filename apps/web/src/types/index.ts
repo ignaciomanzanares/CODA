@@ -78,8 +78,15 @@ export interface BillSplit {
   id: number | string;
   name: string;
   description?: string;
-  totalAmount: number;
+  totalAmount: number | string;
+  category?: string;
+  date: string | Date;
   createdBy: string;
+  paidBy?: string | null;
+  splitType?: 'equal' | 'exact' | 'percentage' | 'shares';
+  status?: 'active' | 'settled' | 'deleted';
+  receiptUrl?: string | null;
+  notes?: string | null;
   participants?: BillSplitParticipant[];
   createdAt?: string | Date;
   updatedAt?: string | Date;
@@ -91,9 +98,11 @@ export interface BillSplitParticipant {
   userId: string | null;
   name: string;
   email?: string | null;
-  amountOwed: string;
-  amountPaid?: string | null;
+  amountOwed: number | string;
+  amountPaid?: number | string | null;
+  shareValue?: number | null;
   isPaid?: boolean | null;
+  paidAt?: string | null;
   isCurrentUser?: boolean;
   createdAt?: string | Date | null;
 }
@@ -102,7 +111,9 @@ export interface CreateBillSplitData {
   name: string;
   description?: string;
   totalAmount: number;
+  category?: string;
   date: Date;
+  splitType?: 'equal' | 'exact' | 'percentage' | 'shares';
   participants?: Omit<BillSplitParticipant, 'id' | 'billSplitId'>[];
 }
 

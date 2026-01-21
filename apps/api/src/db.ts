@@ -42,5 +42,15 @@ export { eq, and, or, gt, gte, lt, lte, ne, isNull, isNotNull, inArray, notInArr
 // SQLite is always available (file-based), so connection check always succeeds
 export async function checkDatabaseConnection(): Promise<boolean> {
   console.log("🗄️  Using SQLite database");
+  
+  // Import and run seed functions to ensure demo data exists
+  try {
+    const { seedDemoUser, seedFinancialProducts } = await import('./seed.js');
+    await seedDemoUser();
+    await seedFinancialProducts();
+  } catch (error) {
+    console.warn("⚠️  Could not seed database:", error);
+  }
+  
   return true;
 }
