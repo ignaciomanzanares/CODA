@@ -338,13 +338,3 @@ export type UserBalance = {
   email?: string;
   balance: number; // positive = they owe you, negative = you owe them
 };
-
-export type SettlementWithUsers = Settlement & {
-  fromUserName: string;
-  toUserName: string;
-};
-
-export type ActivityFeedItem = BillSplitActivity & {
-  userName: string;
-  userAvatar?: string;
-};
