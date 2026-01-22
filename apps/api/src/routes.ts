@@ -1052,6 +1052,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: 'Internal server error' });
     }
   });
+  
+  // Join a bill split (link participant to logged-in user's account)
+  app.post("/api/share/:code/join", authenticate, async (req, res) => {
+    try {
+      const { code } = req.params;
+      const { participantId } = req.body;
+      const userId = getUserIdFromAuth(req);
+      
+      const billSplit = await storage.getBillSplitByShareCode(code);
+      if (!billSplit) {
+        return res.status(404).json({ message: "Bill split not found" });
+      }
+      
+      const participants = await storage.getBillSplitParticipants(billSplit.id as number);
+      
+      // Find the participant
+      const participant = participants.find(p => p.id === participantId);
+      if (!participant) {
+        return res.status(404).json({ message: "Participant not found" });
+      }
+      
+      // Check if participant is already linked to a user
+      if (participant.userId) {
+        return res.status(400).json({ message: "This participant is already linked to an account" });
+      }
+      
+      // Check if current user is already a participant in this split
+      const existingParticipation = participants.find(p => p.userId === userId);
+      if (existingParticipation) {
+        return res.status(400).json({ message: "You are already a participant in this split" });
+      }
+      
+      // Link the participant to the current user
+      const updatedParticipant = await storage.updateBillSplitParticipant(participant.id as number, {
+        userId: userId
+      });
+      
+      // Get user info for notification
+      const user = await storage.getUser(userId);
+      const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : 'Someone';
+      
+      // Notify the bill creator
+      try {
+        await storage.createNotification({
+          userId: billSplit.createdBy,
+          type: 'bill_split',
+          title: 'Someone joined your split',
+          message: `${userName} joined "${billSplit.name}" as ${participant.name}`,
+          relatedId: billSplit.id as number
+        });
+      } catch (err) {
+        console.error('Error sending join notification:', err);
+      }
+      
+      res.json({ 
+        message: `You've been added as ${participant.name} to this split!`,
+        participant: {
+          id: updatedParticipant?.id,
+          name: updatedParticipant?.name,
+          amountOwed: updatedParticipant?.amountOwed,
+          isPaid: updatedParticipant?.isPaid
+        }
+      });
+    } catch (error) {
+      console.error('Error joining bill split:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
 
   // Bill splits routes
   app.get("/api/bill-splits", authenticate, async (req, res) => {

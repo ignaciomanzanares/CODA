@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, formatDistanceToNow, differenceInDays } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { 
   Dialog, 
   DialogContent, 
@@ -46,11 +47,31 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Target, PiggyBank, School, Home, ArrowDown, Landmark } from "lucide-react";
+import { 
+  Plus, 
+  Pencil, 
+  Trash2, 
+  Target, 
+  PiggyBank, 
+  GraduationCap, 
+  Home, 
+  CreditCard,
+  Briefcase,
+  MoreHorizontal,
+  Calendar,
+  TrendingUp,
+  CheckCircle,
+  Clock,
+  AlertTriangle,
+  Sparkles,
+  ChevronRight,
+  DollarSign
+} from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { generateDemoFinancialGoals } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
 import type { Goal, UpdateGoalData } from "@/types";
+import { cn } from "@/lib/utils";
 
 // Form schema for adding/editing a goal
 const goalFormSchema = z.object({
@@ -304,17 +325,34 @@ export default function Goals() {
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case "savings":
-        return <PiggyBank className="h-6 w-6" />;
+        return PiggyBank;
       case "debt_repayment":
-        return <ArrowDown className="h-6 w-6" />;
+        return CreditCard;
       case "retirement":
-        return <Landmark className="h-6 w-6" />;
+        return Briefcase;
       case "home":
-        return <Home className="h-6 w-6" />;
+        return Home;
       case "education":
-        return <School className="h-6 w-6" />;
+        return GraduationCap;
       default:
-        return <Target className="h-6 w-6" />;
+        return Target;
+    }
+  };
+
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case "savings":
+        return "bg-green-500";
+      case "debt_repayment":
+        return "bg-red-500";
+      case "retirement":
+        return "bg-purple-500";
+      case "home":
+        return "bg-blue-500";
+      case "education":
+        return "bg-orange-500";
+      default:
+        return "bg-gray-500";
     }
   };
 
@@ -335,34 +373,41 @@ export default function Goals() {
     }
   };
 
-  if (authLoading) {
-    return (
-      <div className="container py-8 space-y-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-800 font-sans">Financial Goals</h2>
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-64 w-full" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
+  const getGoalStatus = (goal: Goal) => {
+    const progress = calculateProgress(goal.currentAmount, goal.targetAmount);
+    const targetDate = new Date(goal.targetDate);
+    const daysLeft = differenceInDays(targetDate, new Date());
+    
+    if (progress >= 100) {
+      return { label: 'Complete!', color: 'bg-green-100 text-green-700', icon: CheckCircle };
+    }
+    if (daysLeft < 0) {
+      return { label: 'Overdue', color: 'bg-red-100 text-red-700', icon: AlertTriangle };
+    }
+    if (daysLeft < 30) {
+      return { label: 'Due Soon', color: 'bg-yellow-100 text-yellow-700', icon: Clock };
+    }
+    return { label: 'On Track', color: 'bg-blue-100 text-blue-700', icon: TrendingUp };
+  };
 
   if (authLoading || (isAuthenticated && isLoading)) {
     return (
-      <div className="container py-8 space-y-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-800 font-sans">Financial Goals</h2>
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-64 w-full" />
-          ))}
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+        <div className="container py-8 space-y-6">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-10 w-48" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-24 w-full" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Skeleton key={i} className="h-64 w-full" />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -370,41 +415,61 @@ export default function Goals() {
 
   if (error) {
     return (
-      <div className="container py-8 text-center">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4 font-sans">Financial Goals</h2>
-        <p className="text-red-500 mb-4">
-          {error instanceof Error
-            ? error.message
-            : "Failed to load financial goals"}
-        </p>
-        <Button
-          onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] })}
-        >
-          Retry
-        </Button>
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+        <div className="container py-8 text-center">
+          <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+            <AlertTriangle className="h-8 w-8 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold mb-4">Failed to Load Goals</h2>
+          <p className="text-muted-foreground mb-6">
+            {error instanceof Error ? error.message : "An error occurred"}
+          </p>
+          <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] })}>
+            Try Again
+          </Button>
+        </div>
       </div>
     );
   }
 
+  // Calculate summary stats
+  const totalTarget = goals?.reduce((sum: number, g: Goal) => sum + g.targetAmount, 0) || 0;
+  const totalCurrent = goals?.reduce((sum: number, g: Goal) => sum + g.currentAmount, 0) || 0;
+  const overallProgress = totalTarget > 0 ? Math.round((totalCurrent / totalTarget) * 100) : 0;
+  const completedGoals = goals?.filter((g: Goal) => g.currentAmount >= g.targetAmount).length || 0;
+  const activeGoals = (goals?.length || 0) - completedGoals;
+
   return (
-    <div className="container py-8 space-y-6">
-      {!isAuthenticated && (
-        <SignInBanner 
-          title="Viewing Demo Financial Goals"
-          description="You're exploring sample financial goals with progress tracking. Sign in to create and manage your real financial objectives, set target dates, and track your progress."
-          actionText="Sign In to Track Real Goals"
-        />
-      )}
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-800 font-sans">Financial Goals</h2>
-        <Dialog open={isAddGoalOpen} onOpenChange={setIsAddGoalOpen}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-2" disabled={!isAuthenticated}>
-              <Plus className="h-4 w-4" />
-              Add Goal
-            </Button>
-          </DialogTrigger>
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      <div className="container py-8 space-y-6">
+        {!isAuthenticated && (
+          <SignInBanner 
+            title="Viewing Demo Financial Goals"
+            description="You're exploring sample financial goals with progress tracking. Sign in to create and manage your real financial objectives, set target dates, and track your progress."
+            actionText="Sign In to Track Real Goals"
+          />
+        )}
+        
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/10">
+                <Target className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold">Financial Goals</h1>
+                <p className="text-muted-foreground">Track your progress towards financial freedom</p>
+              </div>
+            </div>
+          </div>
+          <Dialog open={isAddGoalOpen} onOpenChange={setIsAddGoalOpen}>
+            <DialogTrigger asChild>
+              <Button size="lg" className="gap-2" disabled={!isAuthenticated}>
+                <Plus className="h-4 w-4" />
+                Add Goal
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add Financial Goal</DialogTitle>
@@ -505,97 +570,207 @@ export default function Goals() {
             </Form>
           </DialogContent>
         </Dialog>
-      </div>
+        </div>
 
-      {/* Goals Grid */}
-      {goals && goals.length > 0 ? (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {goals.map((goal: Goal) => (
-            <Card key={goal.id} className="relative">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {getCategoryIcon(goal.category)}
-                    <div>
-                      <CardTitle className="text-lg">{goal.name}</CardTitle>
-                      <CardDescription>{getCategoryLabel(goal.category)}</CardDescription>
+        {/* Summary Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Saved</p>
+                  <p className="text-2xl font-bold mt-1">{formatCurrency(totalCurrent)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">of {formatCurrency(totalTarget)} target</p>
+                </div>
+                <div className="p-3 rounded-xl bg-green-500">
+                  <DollarSign className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Overall Progress</p>
+                  <p className="text-2xl font-bold mt-1">{overallProgress}%</p>
+                  <Progress value={overallProgress} className="h-2 mt-2 w-24" />
+                </div>
+                <div className="p-3 rounded-xl bg-blue-500">
+                  <TrendingUp className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Active Goals</p>
+                  <p className="text-2xl font-bold mt-1">{activeGoals}</p>
+                  <p className="text-xs text-muted-foreground mt-1">In progress</p>
+                </div>
+                <div className="p-3 rounded-xl bg-purple-500">
+                  <Target className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Completed</p>
+                  <p className="text-2xl font-bold mt-1">{completedGoals}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Goals achieved</p>
+                </div>
+                <div className="p-3 rounded-xl bg-orange-500">
+                  <CheckCircle className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Goals Grid */}
+        {goals && goals.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {goals.map((goal: Goal) => {
+              const Icon = getCategoryIcon(goal.category);
+              const colorClass = getCategoryColor(goal.category);
+              const progress = calculateProgress(goal.currentAmount, goal.targetAmount);
+              const status = getGoalStatus(goal);
+              const StatusIcon = status.icon;
+              const targetDate = new Date(goal.targetDate);
+              const daysLeft = differenceInDays(targetDate, new Date());
+              
+              return (
+                <Card key={goal.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                  <div className={cn("h-1", colorClass)} />
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={cn("p-2 rounded-xl text-white", colorClass)}>
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">{goal.name}</CardTitle>
+                          <CardDescription>{getCategoryLabel(goal.category)}</CardDescription>
+                        </div>
+                      </div>
+                      <Badge variant="secondary" className={cn("text-xs", status.color)}>
+                        <StatusIcon className="h-3 w-3 mr-1" />
+                        {status.label}
+                      </Badge>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditGoal(goal)}
-                      disabled={!isAuthenticated}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm" disabled={!isAuthenticated}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Goal</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete &quot;{goal.name}&quot;? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteGoal(goal.id)}
-                            className="bg-red-600 hover:bg-red-700"
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Progress */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span className="font-semibold">{progress}%</span>
+                      </div>
+                      <Progress value={progress} className="h-2" />
+                    </div>
+                    
+                    {/* Amounts */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground">Current</p>
+                        <p className="text-lg font-bold">{formatCurrency(goal.currentAmount)}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground">Target</p>
+                        <p className="text-lg font-bold">{formatCurrency(goal.targetAmount)}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Target Date */}
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                        <span>{format(targetDate, "MMM dd, yyyy")}</span>
+                      </div>
+                      <span className={cn(
+                        "font-medium",
+                        daysLeft < 0 ? "text-red-600" : 
+                        daysLeft < 30 ? "text-yellow-600" : 
+                        "text-muted-foreground"
+                      )}>
+                        {daysLeft < 0 ? `${Math.abs(daysLeft)} days overdue` :
+                         daysLeft === 0 ? "Due today" :
+                         `${daysLeft} days left`}
+                      </span>
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleEditGoal(goal)}
+                        disabled={!isAuthenticated}
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                            disabled={!isAuthenticated}
                           >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Progress</span>
-                    <span>{calculateProgress(goal.currentAmount, goal.targetAmount)}%</span>
-                  </div>
-                  <Progress value={calculateProgress(goal.currentAmount, goal.targetAmount)} />
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-600">Current</p>
-                    <p className="font-semibold">{formatCurrency(goal.currentAmount)}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Target</p>
-                    <p className="font-semibold">{formatCurrency(goal.targetAmount)}</p>
-                  </div>
-                </div>
-                <div className="text-sm">
-                  <p className="text-gray-600">Target Date</p>
-                  <p className="font-semibold">{format(new Date(goal.targetDate), "MMM dd, yyyy")}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-12">
-          <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Set a &quot;SMART&quot; Goal</h3>
-          <p className="text-gray-600 mb-6">Create your first financial goal to start tracking your progress.</p>
-          <Button onClick={() => setIsAddGoalOpen(true)} disabled={!isAuthenticated}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Your First Goal
-          </Button>
-        </div>
-      )}
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Goal</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete &quot;{goal.name}&quot;? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteGoal(goal.id)}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <Target className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">Set Your First Goal</h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                Start your journey to financial freedom by creating a SMART goal - 
+                Specific, Measurable, Achievable, Relevant, and Time-bound.
+              </p>
+              <Button onClick={() => setIsAddGoalOpen(true)} disabled={!isAuthenticated} size="lg">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Your First Goal
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
-      {/* Edit Goal Dialog */}
+        {/* Edit Goal Dialog */}
       <Dialog open={isEditGoalOpen} onOpenChange={setIsEditGoalOpen}>
         <DialogContent>
           <DialogHeader>
@@ -697,6 +872,7 @@ export default function Goals() {
           </Form>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

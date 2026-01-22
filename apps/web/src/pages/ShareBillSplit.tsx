@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'wouter';
+import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/lib/auth';
+import { useApi } from '@/lib/api';
 import { 
   Receipt, 
   Users, 
@@ -21,7 +23,9 @@ import {
   CheckCircle,
   Loader2,
   AlertCircle,
-  PartyPopper
+  PartyPopper,
+  UserPlus,
+  LogIn
 } from 'lucide-react';
 
 interface Participant {
@@ -77,14 +81,18 @@ const PaymentMethods = [
 
 export default function ShareBillSplit() {
   const { code } = useParams<{ code: string }>();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isAuthenticated, user, token } = useAuth();
   
   const [payingParticipant, setPayingParticipant] = useState<Participant | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
   const [identifyName, setIdentifyName] = useState('');
   const [showIdentifyDialog, setShowIdentifyDialog] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [showJoinDialog, setShowJoinDialog] = useState(false);
+  const [selectedParticipantToJoin, setSelectedParticipantToJoin] = useState<Participant | null>(null);
 
   // Fetch bill split data
   const { data: billSplit, isLoading, error } = useQuery<SharedBillSplit>({
@@ -119,7 +127,7 @@ export default function ShareBillSplit() {
       setSelectedPaymentMethod(null);
       setShowSuccessDialog(true);
       toast({
-        title: '🎉 Payment Confirmed!',
+        title: 'Payment Confirmed!',
         description: data.message,
       });
     },
@@ -132,9 +140,55 @@ export default function ShareBillSplit() {
     },
   });
 
+  // Join split mutation - link participant to logged-in user's account
+  const joinMutation = useMutation({
+    mutationFn: async ({ participantId }: { participantId: number }) => {
+      const response = await fetch(`/api/share/${code}/join`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ participantId }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to join split');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['shared-bill', code] });
+      queryClient.invalidateQueries({ queryKey: ['/api/bill-splits'] });
+      setShowJoinDialog(false);
+      setSelectedParticipantToJoin(null);
+      toast({
+        title: '✅ Joined Successfully!',
+        description: 'This split has been added to your account.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to Join',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handlePayClick = (participant: Participant) => {
     setPayingParticipant(participant);
     setIdentifyName(participant.name);
+  };
+
+  const handleJoinClick = (participant: Participant) => {
+    setSelectedParticipantToJoin(participant);
+    setShowJoinDialog(true);
+  };
+
+  const handleConfirmJoin = () => {
+    if (!selectedParticipantToJoin) return;
+    joinMutation.mutate({ participantId: selectedParticipantToJoin.id });
   };
 
   const handleConfirmPayment = () => {
@@ -290,6 +344,69 @@ export default function ShareBillSplit() {
           </CardContent>
 
           <CardFooter className="flex-col gap-4 bg-muted/30 rounded-b-lg">
+            {/* Join to account option for logged-in users */}
+            {isAuthenticated ? (
+              <div className="w-full p-4 bg-primary/5 rounded-lg border border-primary/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-full">
+                      <UserPlus className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Track this in your account</p>
+                      <p className="text-sm text-muted-foreground">
+                        Add this split to your Bill Split page
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="default"
+                    onClick={() => {
+                      // Find unpaid participant that matches user or let them choose
+                      const unpaidParticipants = billSplit.participants.filter(p => !p.isPaid);
+                      if (unpaidParticipants.length === 1) {
+                        handleJoinClick(unpaidParticipants[0]);
+                      } else if (unpaidParticipants.length > 1) {
+                        setShowJoinDialog(true);
+                      } else {
+                        toast({
+                          title: 'Already complete',
+                          description: 'All participants have already paid.',
+                        });
+                      }
+                    }}
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Add to My Splits
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-muted rounded-full">
+                      <LogIn className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Have a CODA account?</p>
+                      <p className="text-xs text-muted-foreground">
+                        Sign in to track this split in your account
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/login?redirect=/split/${code}`)}
+                  >
+                    <LogIn className="h-4 w-4 mr-2" />
+                    Sign In
+                  </Button>
+                </div>
+              </div>
+            )}
+            
             <p className="text-sm text-muted-foreground text-center">
               Click your name above to mark your payment as complete.
               <br />
@@ -400,6 +517,74 @@ export default function ShareBillSplit() {
           <DialogFooter>
             <Button onClick={() => setShowSuccessDialog(false)} className="w-full">
               Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Join Split Dialog */}
+      <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" />
+              Add to Your Account
+            </DialogTitle>
+            <DialogDescription>
+              Select which participant you are to add this split to your Bill Split page.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-4">
+            {billSplit?.participants.filter(p => !p.isPaid).map((participant) => (
+              <Button
+                key={participant.id}
+                variant={selectedParticipantToJoin?.id === participant.id ? 'default' : 'outline'}
+                className="w-full justify-start h-auto p-4"
+                onClick={() => setSelectedParticipantToJoin(participant)}
+              >
+                <Avatar className="h-10 w-10 mr-3">
+                  <AvatarFallback>{getInitials(participant.name)}</AvatarFallback>
+                </Avatar>
+                <div className="text-left">
+                  <p className="font-semibold">{participant.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Owes {formatCurrency(participant.amountOwed)}
+                  </p>
+                </div>
+                {selectedParticipantToJoin?.id === participant.id && (
+                  <Check className="h-5 w-5 ml-auto" />
+                )}
+              </Button>
+            ))}
+            
+            {billSplit?.participants.filter(p => !p.isPaid).length === 0 && (
+              <p className="text-center text-muted-foreground py-4">
+                All participants have already paid. Nothing to join.
+              </p>
+            )}
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowJoinDialog(false)} className="w-full sm:w-auto">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmJoin}
+              disabled={!selectedParticipantToJoin || joinMutation.isPending}
+              className="w-full sm:w-auto"
+            >
+              {joinMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Add to My Splits
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

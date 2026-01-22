@@ -3,9 +3,24 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useFinancialGoals } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { 
+  Plus, 
+  Target, 
+  PiggyBank, 
+  Home, 
+  GraduationCap, 
+  CreditCard,
+  Briefcase,
+  MoreHorizontal,
+  ChevronRight,
+  Calendar,
+  TrendingUp,
+  Info
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -26,11 +41,12 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Link } from "wouter";
+import { cn } from "@/lib/utils";
 
 // Define the interface for a financial goal
 interface FinancialGoal {
@@ -56,6 +72,84 @@ const goalFormSchema = z.object({
 
 type GoalFormValues = z.infer<typeof goalFormSchema>;
 
+// Get icon for category
+function getCategoryIcon(category: string) {
+  switch (category) {
+    case 'savings': return PiggyBank;
+    case 'debt_repayment': return CreditCard;
+    case 'retirement': return Briefcase;
+    case 'home': return Home;
+    case 'education': return GraduationCap;
+    default: return Target;
+  }
+}
+
+// Get color for category
+function getCategoryColor(category: string) {
+  switch (category) {
+    case 'savings': return 'bg-green-500';
+    case 'debt_repayment': return 'bg-red-500';
+    case 'retirement': return 'bg-purple-500';
+    case 'home': return 'bg-blue-500';
+    case 'education': return 'bg-orange-500';
+    default: return 'bg-gray-500';
+  }
+}
+
+function GoalItem({ goal }: { goal: FinancialGoal }) {
+  const progress = Math.min(Math.round((goal.currentAmount / goal.targetAmount) * 100), 100);
+  const Icon = getCategoryIcon(goal.category);
+  const colorClass = getCategoryColor(goal.category);
+  
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const remaining = goal.targetAmount - goal.currentAmount;
+  const targetDate = new Date(goal.targetDate);
+  const isOverdue = targetDate < new Date() && progress < 100;
+
+  return (
+    <div className="p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+      <div className="flex items-start gap-3">
+        <div className={cn("p-2 rounded-lg text-white", colorClass)}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-1">
+            <p className="font-medium truncate">{goal.name}</p>
+            <Badge 
+              variant="secondary" 
+              className={cn(
+                "text-xs",
+                progress >= 100 ? "bg-green-100 text-green-700" :
+                isOverdue ? "bg-red-100 text-red-700" :
+                "bg-blue-100 text-blue-700"
+              )}
+            >
+              {progress >= 100 ? 'Complete!' : isOverdue ? 'Overdue' : `${progress}%`}
+            </Badge>
+          </div>
+          
+          <Progress value={progress} className="h-2 mb-2" />
+          
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>{formatCurrency(goal.currentAmount)} of {formatCurrency(goal.targetAmount)}</span>
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {format(targetDate, "MMM yyyy")}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function FinancialGoalsCard() {
   const [isAddGoalOpen, setIsAddGoalOpen] = useState(false);
   const { toast } = useToast();
@@ -72,6 +166,7 @@ export default function FinancialGoalsCard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
       setIsAddGoalOpen(false);
+      form.reset();
       toast({
         title: "Goal created",
         description: "Your financial goal has been created successfully.",
@@ -105,28 +200,18 @@ export default function FinancialGoalsCard() {
     });
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const calculateProgress = (current: number, target: number) => {
-    return Math.round((current / target) * 100);
-  };
-
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex justify-between items-start mb-4">
-            <h3 className="text-lg font-bold">Financial Goals</h3>
-            <Skeleton className="h-6 w-24" />
+      <Card className="h-full">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-8 w-24" />
           </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-20 w-full mb-4" />
+            <Skeleton key={i} className="h-20 w-full" />
           ))}
           <Skeleton className="h-10 w-full mt-4" />
         </CardContent>
@@ -136,18 +221,25 @@ export default function FinancialGoalsCard() {
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <h3 className="text-lg font-bold mb-4">Financial Goals</h3>
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" />
+            Financial Goals
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           <div className="text-center py-8">
-            <p className="text-red-500">
+            <div className="mx-auto w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+              <Info className="h-6 w-6 text-red-600" />
+            </div>
+            <p className="text-muted-foreground mb-4">
               {error instanceof Error
                 ? error.message
                 : "Failed to load financial goals"}
             </p>
             <Button
               variant="outline"
-              className="mt-4"
               onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] })}
             >
               Retry
@@ -158,16 +250,24 @@ export default function FinancialGoalsCard() {
     );
   }
 
+  // Calculate total progress
+  const totalTarget = goals?.reduce((sum: number, g: FinancialGoal) => sum + g.targetAmount, 0) || 0;
+  const totalCurrent = goals?.reduce((sum: number, g: FinancialGoal) => sum + g.currentAmount, 0) || 0;
+  const overallProgress = totalTarget > 0 ? Math.round((totalCurrent / totalTarget) * 100) : 0;
+
   return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="flex justify-between items-start mb-4">
-          <h3 className="text-lg font-bold">Financial Goals</h3>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" />
+            Financial Goals
+          </CardTitle>
           <Dialog open={isAddGoalOpen} onOpenChange={setIsAddGoalOpen}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-primary flex items-center text-sm font-medium">
+              <Button variant="outline" size="sm">
                 <Plus className="h-4 w-4 mr-1" />
-                Add Goal
+                Add
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -287,48 +387,49 @@ export default function FinancialGoalsCard() {
             </DialogContent>
           </Dialog>
         </div>
+        <CardDescription>Track your progress towards financial milestones</CardDescription>
+      </CardHeader>
 
-        <div className="space-y-4">
+      <CardContent className="flex-1 flex flex-col">
+        {/* Overall Progress Summary */}
+        {goals && goals.length > 0 && (
+          <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">Overall Progress</span>
+              <span className="text-sm font-bold text-primary">{overallProgress}%</span>
+            </div>
+            <Progress value={overallProgress} className="h-2" />
+            <p className="text-xs text-muted-foreground mt-2">
+              <TrendingUp className="h-3 w-3 inline mr-1" />
+              You're on track with {goals.length} active goal{goals.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+        )}
+
+        {/* Goals List */}
+        <div className="space-y-2 flex-1 overflow-auto">
           {goals && goals.length > 0 ? (
-            goals.map((goal: FinancialGoal) => (
-              <div
-                key={goal.id}
-                className="border border-gray-200 rounded-lg p-3 hover:border-primary transition-colors"
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <div className="font-medium">{goal.name}</div>
-                  <div className="text-xs text-gray-500">
-                    By {format(new Date(goal.targetDate), "MMM yyyy")}
-                  </div>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                  <div
-                    className="bg-primary h-2 rounded-full"
-                    style={{
-                      width: `${calculateProgress(goal.currentAmount, goal.targetAmount)}%`,
-                    }}
-                  ></div>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <div className="text-gray-500">
-                    {formatCurrency(goal.currentAmount)} of {formatCurrency(goal.targetAmount)}
-                  </div>
-                  <div className="text-primary font-medium">
-                    {calculateProgress(goal.currentAmount, goal.targetAmount)}%
-                  </div>
-                </div>
-              </div>
+            goals.slice(0, 3).map((goal: FinancialGoal) => (
+              <GoalItem key={goal.id} goal={goal} />
             ))
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              <p>No financial goals yet. Add your first goal to start tracking your progress.</p>
+            <div className="text-center py-8">
+              <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                <Target className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <p className="text-muted-foreground text-sm">
+                No goals yet. Start tracking your financial milestones.
+              </p>
             </div>
           )}
         </div>
 
+        {/* View All Button */}
         <Link href="/goals">
-          <Button variant="outline" className="mt-6 w-full">
-            Manage Goals
+          <Button className="w-full mt-4 group">
+            <Target className="h-4 w-4 mr-2" />
+            {goals && goals.length > 3 ? `View All ${goals.length} Goals` : 'Manage Goals'}
+            <ChevronRight className="h-4 w-4 ml-auto group-hover:translate-x-1 transition-transform" />
           </Button>
         </Link>
       </CardContent>
