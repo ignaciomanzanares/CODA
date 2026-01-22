@@ -175,7 +175,7 @@ export class MemStorage implements IStorage {
     const expense: Expense = {
       id: this.currentExpenseId++,
       ...insertExpense,
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
       // Ensure undefined values become null for nullable fields
       subcategory: insertExpense.subcategory ?? null,
       merchantName: insertExpense.merchantName ?? null,
@@ -235,7 +235,7 @@ export class MemStorage implements IStorage {
       id: this.currentBillSplitId++,
       ...insertBillSplit,
       shareCode,
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
       // Ensure undefined values become null for nullable fields
       description: insertBillSplit.description ?? null,
       status: insertBillSplit.status ?? null,
@@ -273,7 +273,7 @@ export class MemStorage implements IStorage {
     const participant: BillSplitParticipant = {
       id: this.currentBillSplitParticipantId++,
       ...insertParticipant,
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
       // Ensure undefined values become null for nullable fields
       email: insertParticipant.email ?? null,
       userId: insertParticipant.userId ?? null,
@@ -318,38 +318,46 @@ export class MemStorage implements IStorage {
       },
       {
         userId: "1",
-        amount: "1200.00",
+        amount: 1200.00,
         description: "Monthly rent payment",
         category: "Housing",
         subcategory: "Rent",
         merchantName: "Property Management Co",
-        date: new Date("2024-01-01"),
+        date: "2024-01-01T00:00:00.000Z",
         paymentMethod: "Bank Transfer",
         isRecurring: true,
         tags: ["rent", "housing"],
         notes: "Monthly rent",
         isAutoClassified: true,
-        confidence: "0.99"
+        confidence: 0.99
       },
       {
         userId: "1",
-        amount: "45.00",
+        amount: 45.00,
         description: "Gas station fill-up",
         category: "Transportation",
         subcategory: "Fuel",
         merchantName: "Shell",
-        date: new Date("2024-01-10"),
+        date: "2024-01-10T00:00:00.000Z",
         paymentMethod: "Debit Card",
         isRecurring: false,
         tags: ["gas", "car"],
         notes: "Tank fill-up",
         isAutoClassified: true,
-        confidence: "0.92"
+        confidence: 0.92
       }
     ];
 
     for (const expense of sampleExpenses) {
-      await this.createExpense(expense);
+      // Ensure date is a string, amount and confidence are numbers, tags is a string
+      const fixedExpense = {
+        ...expense,
+        date: typeof expense.date === 'string' ? expense.date : new Date(expense.date as any).toISOString(),
+        amount: typeof expense.amount === 'number' ? expense.amount : Number(expense.amount),
+        confidence: typeof expense.confidence === 'number' ? expense.confidence : Number(expense.confidence),
+        tags: Array.isArray(expense.tags) ? JSON.stringify(expense.tags) : expense.tags
+      };
+      await this.createExpense(fixedExpense);
     }
   }
 
@@ -372,7 +380,7 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = String(this.currentUserId++);
-    const now = new Date();
+    const now = new Date().toISOString();
     const user: User = { 
       ...insertUser, 
       id,
@@ -395,7 +403,7 @@ export class MemStorage implements IStorage {
     const existingUser = this.users.get(id);
     if (!existingUser) return undefined;
 
-    const now = new Date();
+    const now = new Date().toISOString();
     const updatedUser: User = {
       ...existingUser,
       ...updateData,
@@ -427,7 +435,7 @@ export class MemStorage implements IStorage {
   
   async createBankConnection(insertConnection: InsertBankConnection): Promise<BankConnection> {
     const id = this.currentBankConnectionId++;
-    const now = new Date();
+    const now = new Date().toISOString();
     const connection: BankConnection = {
       ...insertConnection,
       id,
@@ -444,7 +452,7 @@ export class MemStorage implements IStorage {
     const existingConnection = this.bankConnections.get(id);
     if (!existingConnection) return undefined;
     
-    const now = new Date();
+    const now = new Date().toISOString();
     const updatedConnection: BankConnection = {
       ...existingConnection,
       ...connection,
@@ -469,11 +477,12 @@ export class MemStorage implements IStorage {
   }
 
   async createAccount(insertAccount: InsertAccount): Promise<Account> {
+    const now = new Date().toISOString();
     const account: Account = {
       id: this.currentAccountId++,
       ...insertAccount,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     } as Account;
     this.accounts.set(account.id as number, account);
     return account;
@@ -482,7 +491,7 @@ export class MemStorage implements IStorage {
   async updateAccount(id: number, account: Partial<InsertAccount>): Promise<Account | undefined> {
     const existing = this.accounts.get(id);
     if (!existing) return undefined;
-    const updated: Account = { ...existing, ...account, updatedAt: new Date() } as Account;
+    const updated: Account = { ...existing, ...account, updatedAt: new Date().toISOString() } as Account;
     this.accounts.set(id, updated);
     return updated;
   }
@@ -500,7 +509,7 @@ export class MemStorage implements IStorage {
   async createTransactionsBulk(items: InsertTransaction[]): Promise<Transaction[]> {
     const created: Transaction[] = [];
     for (const t of items) {
-      const tx: Transaction = { id: this.currentTransactionId++, ...t, createdAt: new Date() } as Transaction;
+      const tx: Transaction = { id: this.currentTransactionId++, ...t, createdAt: new Date().toISOString() } as Transaction;
       this.transactions.set(tx.id as number, tx);
       created.push(tx);
     }
@@ -509,9 +518,9 @@ export class MemStorage implements IStorage {
 
   async getTransactions(accountId: number, options?: { from?: Date; to?: Date; limit?: number; offset?: number }): Promise<Transaction[]> {
     let list = Array.from(this.transactions.values()).filter(tx => tx.accountId === accountId);
-    if (options?.from) list = list.filter(tx => tx.postedAt >= options.from!);
-    if (options?.to) list = list.filter(tx => tx.postedAt <= options.to!);
-    list.sort((a, b) => a.postedAt.getTime() - b.postedAt.getTime());
+    if (options?.from) list = list.filter(tx => new Date(tx.postedAt) >= options.from!);
+    if (options?.to) list = list.filter(tx => new Date(tx.postedAt) <= options.to!);
+    list.sort((a, b) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime());
     if (options?.offset) list = list.slice(options.offset);
     if (options?.limit) list = list.slice(0, options.limit);
     return list;
@@ -526,7 +535,7 @@ export class MemStorage implements IStorage {
   
   async createCreditScore(insertCreditScore: InsertCreditScore): Promise<CreditScore> {
     const id = this.currentCreditScoreId++;
-    const now = new Date();
+    const now = new Date().toISOString();
     const creditScore: CreditScore = {
       ...insertCreditScore,
       id,
@@ -545,7 +554,7 @@ export class MemStorage implements IStorage {
     
     if (!existingScore) return undefined;
     
-    const now = new Date();
+    const now = new Date().toISOString();
     const updatedScore: CreditScore = {
       ...existingScore,
       ...creditScore,
@@ -565,7 +574,7 @@ export class MemStorage implements IStorage {
   
   async createInsuranceRisk(insertInsuranceRisk: InsertInsuranceRisk): Promise<InsuranceRisk> {
     const id = this.currentInsuranceRiskId++;
-    const now = new Date();
+    const now = new Date().toISOString();
     const insuranceRisk: InsuranceRisk = {
       ...insertInsuranceRisk,
       id,
@@ -582,7 +591,7 @@ export class MemStorage implements IStorage {
     
     if (!existingRisk) return undefined;
     
-    const now = new Date();
+    const now = new Date().toISOString();
     const updatedRisk: InsuranceRisk = {
       ...existingRisk,
       ...insuranceRisk,
@@ -606,7 +615,7 @@ export class MemStorage implements IStorage {
   
   async createFinancialGoal(insertGoal: InsertFinancialGoal): Promise<FinancialGoal> {
     const id = this.currentFinancialGoalId++;
-    const now = new Date();
+    const now = new Date().toISOString();
     const goal: FinancialGoal = {
       ...insertGoal,
       id,
@@ -729,7 +738,14 @@ export class MemStorage implements IStorage {
         features: { preApproval: true, autoPay: true }
       }
     ].forEach(product => {
-      this.createFinancialProduct(product);
+      const insertObj: any = { ...product };
+      if ('requirements' in product) {
+        insertObj.requirements = product.requirements ? JSON.stringify(product.requirements) : null;
+      }
+      if ('features' in product) {
+        insertObj.features = product.features ? JSON.stringify(product.features) : null;
+      }
+      this.createFinancialProduct(insertObj);
     });
     
     // Credit card products
@@ -755,7 +771,14 @@ export class MemStorage implements IStorage {
         features: { annualFee: 95, rewardsRate: 2, signupBonus: 60000 }
       }
     ].forEach(product => {
-      this.createFinancialProduct(product);
+      const insertObj: any = { ...product };
+      if ('requirements' in product) {
+        insertObj.requirements = product.requirements ? JSON.stringify(product.requirements) : null;
+      }
+      if ('features' in product) {
+        insertObj.features = product.features ? JSON.stringify(product.features) : null;
+      }
+      this.createFinancialProduct(insertObj);
     });
     
     // Savings products
@@ -781,7 +804,14 @@ export class MemStorage implements IStorage {
         features: { minimumBalance: 500, fdic: true, penalty: true }
       }
     ].forEach(product => {
-      this.createFinancialProduct(product);
+      const insertObj: any = { ...product };
+      if ('requirements' in product) {
+        insertObj.requirements = product.requirements ? JSON.stringify(product.requirements) : null;
+      }
+      if ('features' in product) {
+        insertObj.features = product.features ? JSON.stringify(product.features) : null;
+      }
+      this.createFinancialProduct(insertObj);
     });
     
     // Insurance products
@@ -803,7 +833,14 @@ export class MemStorage implements IStorage {
         features: { replacementCost: true, floodCoverage: false, bundleDiscount: true }
       }
     ].forEach(product => {
-      this.createFinancialProduct(product);
+      const insertObj: any = { ...product };
+      if ('requirements' in product) {
+        insertObj.requirements = product.requirements ? JSON.stringify(product.requirements) : null;
+      }
+      if ('features' in product) {
+        insertObj.features = product.features ? JSON.stringify(product.features) : null;
+      }
+      this.createFinancialProduct(insertObj);
     });
   }
 
@@ -820,7 +857,7 @@ export class MemStorage implements IStorage {
     }
     
     // Sort by creation date (most recent first)
-    notifications.sort((a, b) => b.createdAt!.getTime() - a.createdAt!.getTime());
+    notifications.sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
     
     if (options?.offset) {
       notifications = notifications.slice(options.offset);
@@ -837,7 +874,7 @@ export class MemStorage implements IStorage {
     const notification: Notification = {
       id: this.currentNotificationId++,
       ...insertNotification,
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
       readAt: null,
       // Ensure nullable metadata field is handled properly
       metadata: insertNotification.metadata ?? null,
@@ -857,7 +894,7 @@ export class MemStorage implements IStorage {
     }
     
     notification.isRead = true;
-    notification.readAt = new Date();
+    notification.readAt = new Date().toISOString();
     this.notifications.set(notificationId, notification);
     return true;
   }
@@ -867,7 +904,7 @@ export class MemStorage implements IStorage {
       notification => notification.userId === userId && !notification.isRead
     );
     
-    const now = new Date();
+    const now = new Date().toISOString();
     userNotifications.forEach(notification => {
       notification.isRead = true;
       notification.readAt = now;
@@ -993,7 +1030,7 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set({
         ...updateData,
-        updatedAt: new Date()
+        updatedAt: new Date().toISOString()
       })
       .where(eq(users.id, id))
       .returning();
@@ -1034,7 +1071,7 @@ export class DatabaseStorage implements IStorage {
       .update(bankConnections)
       .set({
         ...connection,
-        lastUpdated: new Date()
+        lastUpdated: new Date().toISOString()
       })
       .where(eq(bankConnections.id, id))
       .returning();
@@ -1069,7 +1106,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateAccount(id: number, account: Partial<InsertAccount>): Promise<Account | undefined> {
     if (!db) return undefined;
-    const [acc] = await db.update(accounts).set({ ...account, updatedAt: new Date() }).where(eq(accounts.id, id)).returning();
+    const [acc] = await db.update(accounts).set({ ...account, updatedAt: new Date().toISOString() }).where(eq(accounts.id, id)).returning();
     return acc || undefined;
   }
 
@@ -1098,13 +1135,13 @@ export class DatabaseStorage implements IStorage {
     let result = await db.select().from(transactions).where(eq(transactions.accountId, accountId));
 
     if (options?.from) {
-      result = result.filter(tx => tx.postedAt >= options.from!);
+      result = result.filter(tx => new Date(tx.postedAt) >= options.from!);
     }
     if (options?.to) {
-      result = result.filter(tx => tx.postedAt <= options.to!);
+      result = result.filter(tx => new Date(tx.postedAt) <= options.to!);
     }
     // Sort ascending by postedAt
-    result.sort((a, b) => a.postedAt.getTime() - b.postedAt.getTime());
+    result.sort((a, b) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime());
     if (options?.offset) result = result.slice(options.offset);
     if (options?.limit) result = result.slice(0, options.limit);
     return result;
@@ -1135,7 +1172,7 @@ export class DatabaseStorage implements IStorage {
       .update(creditScores)
       .set({
         ...creditScore,
-        lastUpdated: new Date()
+        lastUpdated: new Date().toISOString()
       })
       .where(eq(creditScores.userId, userId))
       .returning();
@@ -1167,7 +1204,7 @@ export class DatabaseStorage implements IStorage {
       .update(insuranceRisks)
       .set({
         ...insuranceRisk,
-        lastUpdated: new Date()
+        lastUpdated: new Date().toISOString()
       })
       .where(eq(insuranceRisks.userId, userId))
       .returning();
@@ -1195,11 +1232,8 @@ export class DatabaseStorage implements IStorage {
   async createFinancialGoal(insertGoal: InsertFinancialGoal): Promise<FinancialGoal> {
     if (!db) throw new Error("Database not available");
     
-    // Convert targetDate to ISO string for SQLite
-    const dateValue = insertGoal.targetDate instanceof Date 
-      ? insertGoal.targetDate.toISOString() 
-      : (typeof insertGoal.targetDate === 'string' ? insertGoal.targetDate : new Date(insertGoal.targetDate as any).toISOString());
-    
+    // Ensure targetDate is a string
+    const dateValue = typeof insertGoal.targetDate === 'string' ? insertGoal.targetDate : new Date(insertGoal.targetDate as any).toISOString();
     const goalData = {
       ...insertGoal,
       targetDate: dateValue
@@ -1218,9 +1252,7 @@ export class DatabaseStorage implements IStorage {
     // Convert targetDate to ISO string for SQLite if provided
     const goalData: Record<string, any> = { ...goal };
     if (goal.targetDate) {
-      goalData.targetDate = goal.targetDate instanceof Date 
-        ? goal.targetDate.toISOString() 
-        : (typeof goal.targetDate === 'string' ? goal.targetDate : new Date(goal.targetDate as any).toISOString());
+      goalData.targetDate = typeof goal.targetDate === 'string' ? goal.targetDate : new Date(goal.targetDate as any).toISOString();
     }
     
     const [updatedGoal] = await db
@@ -1290,12 +1322,13 @@ export class DatabaseStorage implements IStorage {
   
   async createExpense(insertExpense: InsertExpense): Promise<Expense> {
     if (!db) throw new Error("Database not available");
-    
-    // Convert Date to ISO string for SQLite, and arrays to JSON strings
-    const dateValue = insertExpense.date instanceof Date 
-      ? insertExpense.date.toISOString() 
-      : (typeof insertExpense.date === 'string' ? insertExpense.date : new Date(insertExpense.date as any).toISOString());
-    
+    // Always convert date to ISO string if not already a string
+    let dateValue: string;
+    if (typeof insertExpense.date === 'string') {
+      dateValue = insertExpense.date;
+    } else {
+      dateValue = new Date(insertExpense.date as any).toISOString();
+    }
     const expenseData = {
       ...insertExpense,
       date: dateValue,
@@ -1316,9 +1349,7 @@ export class DatabaseStorage implements IStorage {
     // Convert Date to ISO string for SQLite if provided
     const expenseData: Record<string, any> = { ...expense };
     if (expense.date) {
-      expenseData.date = expense.date instanceof Date 
-        ? expense.date.toISOString() 
-        : (typeof expense.date === 'string' ? expense.date : new Date(expense.date as any).toISOString());
+      expenseData.date = typeof expense.date === 'string' ? expense.date : new Date(expense.date as any).toISOString();
     }
     if (expense.tags !== undefined) {
       expenseData.tags = expense.tags ? JSON.stringify(expense.tags) : null;
@@ -1400,15 +1431,15 @@ export class DatabaseStorage implements IStorage {
   
   async createBillSplit(insertBillSplit: InsertBillSplit): Promise<BillSplit> {
     if (!db) throw new Error("Database not available");
-    
-    // Convert date to ISO string for SQLite
-    const dateValue = insertBillSplit.date instanceof Date 
-      ? insertBillSplit.date.toISOString() 
-      : (typeof insertBillSplit.date === 'string' ? insertBillSplit.date : new Date(insertBillSplit.date as any).toISOString());
-    
+    // Always convert date to ISO string if not already a string
+    let dateValue: string;
+    if (typeof insertBillSplit.date === 'string') {
+      dateValue = insertBillSplit.date;
+    } else {
+      dateValue = new Date(insertBillSplit.date as any).toISOString();
+    }
     // Generate share code if not provided
     const shareCode = insertBillSplit.shareCode || Math.random().toString(36).substring(2, 10);
-    
     const billSplitData = {
       ...insertBillSplit,
       date: dateValue,
@@ -1428,9 +1459,7 @@ export class DatabaseStorage implements IStorage {
     // Convert date to ISO string for SQLite if provided
     const billSplitData: Record<string, any> = { ...billSplit };
     if (billSplit.date) {
-      billSplitData.date = billSplit.date instanceof Date 
-        ? billSplit.date.toISOString() 
-        : (typeof billSplit.date === 'string' ? billSplit.date : new Date(billSplit.date as any).toISOString());
+      billSplitData.date = typeof billSplit.date === 'string' ? billSplit.date : new Date(billSplit.date as any).toISOString();
     }
     
     const [updatedBillSplit] = await db
@@ -1569,7 +1598,7 @@ export class DatabaseStorage implements IStorage {
     try {
       const result = await db
         .update(notifications)
-        .set({ isRead: true, readAt: new Date() })
+        .set({ isRead: true, readAt: new Date().toISOString() })
         .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)))
         .returning();
       return result.length > 0;

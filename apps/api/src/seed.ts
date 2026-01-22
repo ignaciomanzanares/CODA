@@ -176,11 +176,14 @@ features: { annualFee: 0, rewardsRate: 3, introductoryAPR: 0 }
   
   try {
     for (const product of allProducts) {
-      db.insert(financialProducts).values({
-        ...product,
-        requirements: product.requirements ? JSON.stringify(product.requirements) : null,
-        features: product.features ? JSON.stringify(product.features) : null,
-      }).run();
+      const insertObj: any = { ...product };
+      if ('requirements' in product) {
+        insertObj.requirements = product.requirements ? JSON.stringify(product.requirements) : null;
+      }
+      if ('features' in product) {
+        insertObj.features = product.features ? JSON.stringify(product.features) : null;
+      }
+      db.insert(financialProducts).values(insertObj).run();
     }
     console.log(`Successfully seeded ${allProducts.length} financial products`);
   } catch (error) {
