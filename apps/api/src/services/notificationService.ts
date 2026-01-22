@@ -131,7 +131,7 @@ class NotificationServiceImpl implements NotificationService {
     return await this.createNotification({
       userId,
       ...template,
-      metadata: { billSplitId }
+      metadata: JSON.stringify({ billSplitId })
     });
   }
 
@@ -140,7 +140,7 @@ class NotificationServiceImpl implements NotificationService {
     return await this.createNotification({
       userId,
       ...template,
-      metadata: { billSplitId }
+      metadata: JSON.stringify({ billSplitId })
     });
   }
 
@@ -162,7 +162,7 @@ class NotificationServiceImpl implements NotificationService {
     return await this.createNotification({
       userId,
       ...template,
-      metadata: { newScore, oldScore, change }
+      metadata: JSON.stringify({ newScore, oldScore, change })
     });
   }
 
@@ -171,7 +171,7 @@ class NotificationServiceImpl implements NotificationService {
     return await this.createNotification({
       userId,
       ...template,
-      metadata: { goalId, progress }
+      metadata: JSON.stringify({ goalId, progress })
     });
   }
 
@@ -180,7 +180,7 @@ class NotificationServiceImpl implements NotificationService {
     return await this.createNotification({
       userId,
       ...template,
-      metadata: { goalId }
+      metadata: JSON.stringify({ goalId })
     });
   }
 
@@ -189,7 +189,7 @@ class NotificationServiceImpl implements NotificationService {
     return await this.createNotification({
       userId,
       ...template,
-      metadata: { expenseId, amount, category }
+      metadata: JSON.stringify({ expenseId, amount, category })
     });
   }
 
@@ -198,7 +198,7 @@ class NotificationServiceImpl implements NotificationService {
     return await this.createNotification({
       userId,
       ...template,
-      metadata: { location, timestamp: new Date().toISOString() }
+      metadata: JSON.stringify({ location, timestamp: new Date().toISOString() })
     });
   }
 }

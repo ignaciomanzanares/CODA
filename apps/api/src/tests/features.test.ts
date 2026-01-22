@@ -9,8 +9,12 @@ describe("Feature Engineering", () => {
   beforeEach(async () => {
     // Create test user
     await storage.createUser({
+      id: "test-user-id",
       username: "testuser",
       email: "test@example.com",
+      passwordHash: "testhash",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
 
     // Create test account
@@ -27,18 +31,18 @@ describe("Feature Engineering", () => {
       // Credits (income)
       {
         accountId: account.id as number,
-        postedAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+        postedAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
         description: "Salary",
-        amount: "5000.00",
+        amount: 5000.00,
         currency: "USD",
         category: "income",
         pending: false,
       },
       {
         accountId: account.id as number,
-        postedAt: new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000), // 35 days ago
+        postedAt: new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000).toISOString(), // 35 days ago
         description: "Salary",
-        amount: "5000.00",
+        amount: 5000.00,
         currency: "USD",
         category: "income",
         pending: false,
@@ -46,30 +50,30 @@ describe("Feature Engineering", () => {
       // Debits (expenses)
       {
         accountId: account.id as number,
-        postedAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+        postedAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
         description: "Rent",
         merchantName: "Landlord LLC",
-        amount: "-1500.00",
+        amount: -1500.00,
         currency: "USD",
         category: "housing",
         pending: false,
       },
       {
         accountId: account.id as number,
-        postedAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000),
+        postedAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(),
         description: "Groceries",
         merchantName: "Whole Foods",
-        amount: "-150.00",
+        amount: -150.00,
         currency: "USD",
         category: "groceries",
         pending: false,
       },
       {
         accountId: account.id as number,
-        postedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+        postedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000).toISOString(),
         description: "Groceries",
         merchantName: "Whole Foods",
-        amount: "-145.00",
+        amount: -145.00,
         currency: "USD",
         category: "groceries",
         pending: false,
@@ -137,8 +141,12 @@ describe("Feature Engineering", () => {
   it("should handle empty transaction history", async () => {
     const emptyUser = "empty-user";
     await storage.createUser({
+      id: emptyUser,
       username: "emptyuser",
       email: "empty@example.com",
+      passwordHash: "testhash",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
 
     const features = await buildUserFeatureVector(emptyUser, 90);

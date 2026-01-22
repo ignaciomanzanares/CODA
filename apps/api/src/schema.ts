@@ -320,6 +320,11 @@ export type BillSplitParticipant = typeof billSplitParticipants.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
 
+// Temporary minimal domain types to satisfy references in this module.
+// Replace with concrete shapes once the domain models are implemented.
+export type Settlement = { [key: string]: unknown };
+export type BillSplitActivity = { [key: string]: unknown };
+
 // Extended types with additional properties
 export type BillSplitParticipantWithUser = BillSplitParticipant & {
   isCurrentUser?: boolean;

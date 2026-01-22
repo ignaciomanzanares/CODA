@@ -1098,9 +1098,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.createNotification({
           userId: billSplit.createdBy,
           type: 'bill_split',
+          category: 'bill_split',
           title: 'Someone joined your split',
-          message: `${userName} joined "${billSplit.name}" as ${participant.name}`,
-          relatedId: billSplit.id as number
+          message: `${userName} joined "${billSplit.name}" as ${participant.name}`
         });
       } catch (err) {
         console.error('Error sending join notification:', err);
