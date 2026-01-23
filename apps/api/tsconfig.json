@@ -21,6 +21,7 @@
     "dist",
     "ml/.venv",
     "src/**/*.test.ts",
-    "src/tests/**"
+    "src/tests/**",
+    "src/vite.ts"
   ]
 }
