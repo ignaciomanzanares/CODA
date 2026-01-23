@@ -16,5 +16,11 @@
     }
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "ml/.venv"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "ml/.venv",
+    "src/**/*.test.ts",
+    "src/tests/**"
+  ]
 }
