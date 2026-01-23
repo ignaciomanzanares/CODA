@@ -6,7 +6,7 @@
     "dev": "tsx src/index.ts",
     "build": "tsc",
     "check": "tsc --noEmit",
-    "start": "NODE_ENV=production node dist/index.js",
+    "start": "NODE_ENV=production node dist/src/index.js",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
