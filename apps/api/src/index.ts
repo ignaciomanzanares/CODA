@@ -42,6 +42,8 @@ app.use((req, res, next) => {
       logger.info(logLine);
     }
   });
+  next();
+});
 
 app.use((req: Request, res: Response, next: NextFunction) => {
   next();
@@ -50,7 +52,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 (async () => {
   try {
     logger.info("🚀 Starting FinHealth application...");
-    return originalResJson.apply(res, [bodyJson, ...args]);
     logger.info("✅ Application initialization completed successfully");
   } catch (error) {
     logger.error({ error }, "❌ Error during application initialization");
@@ -89,16 +90,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     logger.info(`📊 Environment: ${process.env.NODE_ENV}`);
     logger.info(`🔗 Health check: http://localhost:${port}/health`);
   });
-  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+
   // Graceful shutdown
   const shutdown = async (signal: string) => {
     logger.info(`${signal} received, starting graceful shutdown...`);
-    
     server.close(() => {
       logger.info("HTTP server closed");
       process.exit(0);
     });
-
     // Force shutdown after 10 seconds
     setTimeout(() => {
       logger.error("Forced shutdown after timeout");
