@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage.js";
 import { 
@@ -1437,7 +1437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Debug endpoint to check what users exist (temporary - remove in production)
-  app.get("/api/debug/users", async (req, res) => {
+  app.get("/api/debug/users", async (req: Request, res: Response) => {
     try {
       // This is a dangerous endpoint - only use for debugging!
       if (process.env.NODE_ENV === 'production') {
@@ -1466,7 +1466,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Check if user exists for email invitation (no auth required)
-  app.get("/api/bill-splits/:id/check-user/:email", async (req, res) => {
+  app.get("/api/bill-splits/:id/check-user/:email", async (req: Request, res: Response) => {
     try {
       const billSplitId = Number(req.params.id);
       const email = decodeURIComponent(req.params.email);
@@ -1517,7 +1517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Send invitations for a bill split
-  app.post("/api/bill-splits/:id/invite", authenticate, async (req, res) => {
+  app.post("/api/bill-splits/:id/invite", authenticate, async (req: Request, res: Response) => {
     try {
       const userId = getUserIdFromAuth(req);
       const billSplitId = Number(req.params.id);
@@ -1601,7 +1601,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Profile routes - Auth operations should be rate limited
-  app.get("/api/profile", authenticate, async (req, res) => {
+  app.get("/api/profile", authenticate, async (req: Request, res: Response) => {
     try {
       const userId = getUserIdFromAuth(req);
       
@@ -1657,7 +1657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/profile", authenticate, async (req, res) => {
+  app.put("/api/profile", authenticate, async (req: Request, res: Response) => {
     try {
       const userId = getUserIdFromAuth(req);
       const { displayName, firstName, lastName, timezone, language, userMetadata } = req.body;
@@ -1716,7 +1716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User management routes - Sensitive operations
-  app.post("/api/profile/change-password", authenticate, authLimiter, async (req, res) => {
+  app.post("/api/profile/change-password", authenticate, authLimiter, async (req: Request, res: Response) => {
     try {
       const userId = getUserIdFromAuth(req);
       // TODO: Implement password change for JWT auth
@@ -1727,7 +1727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/profile/account", authenticate, authLimiter, async (req, res, next) => {
+  app.delete("/api/profile/account", authenticate, authLimiter, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = getUserIdFromAuth(req);
       console.log(`Received request to delete account for user: ${userId}`);
@@ -1745,7 +1745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/profile/mfa-status", authenticate, async (req, res) => {
+  app.get("/api/profile/mfa-status", authenticate, async (req: Request, res: Response) => {
     try {
       const userId = getUserIdFromAuth(req);
       // MFA not implemented for JWT auth
@@ -1756,7 +1756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/profile/enable-mfa", authenticate, async (req, res) => {
+  app.post("/api/profile/enable-mfa", authenticate, async (req: Request, res: Response) => {
     try {
       const userId = getUserIdFromAuth(req);
       // MFA not implemented for JWT auth
@@ -1768,7 +1768,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Financial products routes (public)
-  app.get("/api/financial-products", async (req, res) => {
+  app.get("/api/financial-products", async (req: Request, res: Response) => {
     try {
       const category = req.query.category as string | undefined;
       const products = await storage.getFinancialProducts(category);
@@ -1791,7 +1791,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/financial-products/:id", async (req, res) => {
+  app.get("/api/financial-products/:id", async (req: Request, res: Response) => {
     const productId = Number(req.params.id);
     const product = await storage.getFinancialProduct(productId);
     if (!product) {
@@ -1801,7 +1801,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Utility endpoints (public)
-  app.post("/api/utils/credit-score", async (req, res) => {
+  app.post("/api/utils/credit-score", async (req: Request, res: Response) => {
     const { bankData } = req.body;
     if (!bankData || !Array.isArray(bankData) || bankData.length === 0) {
       return res.status(400).json({ message: "Valid bank data is required" });
@@ -1811,7 +1811,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(score);
   });
 
-  app.post("/api/utils/insurance-risk", async (req, res) => {
+  app.post("/api/utils/insurance-risk", async (req: Request, res: Response) => {
     const { bankData, userProfile } = req.body;
     if (!bankData || !Array.isArray(bankData) || bankData.length === 0) {
       return res.status(400).json({ message: "Valid bank data is required" });
