@@ -13,13 +13,13 @@ const app = express();
 
 
 // Robust CORS: allow only Vercel and localhost, handle preflight and dynamic origin
+
 const allowedOrigins = [
   "https://coda-web-steel.vercel.app",
   "http://localhost:5173"
 ];
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, Postman)
+const corsOptions = {
+  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
@@ -31,7 +31,11 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
   optionsSuccessStatus: 200
-}));
+};
+
+// Handle all OPTIONS preflight requests before any other middleware
+app.options("*", cors(corsOptions));
+app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
