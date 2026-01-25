@@ -1,10 +1,10 @@
 import { defineConfig } from 'drizzle-kit';
 
 export default defineConfig({
-  schema: './packages/src/schema.ts',
+  schema: './src/schema.ts',
   out: './packages/drizzle',
-  dialect: 'sqlite',
+  dialect: 'postgresql',
   dbCredentials: {
-    url: './packages/data/coda.db',
+    url: process.env.DATABASE_URL!,
   },
 });
