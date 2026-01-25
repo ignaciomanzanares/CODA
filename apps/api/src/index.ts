@@ -11,24 +11,22 @@ import { logger, httpLogger } from "./logger.js";
 const app = express();
 
 
-// Allow requests from Vercel and localhost, handle preflight for all methods/headers
-app.use(cors({
-  origin: [
-    "https://coda-web-steel.vercel.app",
-    "http://localhost:5173"
-  ],
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
-  optionsSuccessStatus: 200
-}));
 
-// Explicitly handle preflight OPTIONS requests for all routes
-app.options("*", cors({
-  origin: [
-    "https://coda-web-steel.vercel.app",
-    "http://localhost:5173"
-  ],
+// Robust CORS: allow only Vercel and localhost, handle preflight and dynamic origin
+const allowedOrigins = [
+  "https://coda-web-steel.vercel.app",
+  "http://localhost:5173"
+];
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("Not allowed by CORS"));
+    }
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
