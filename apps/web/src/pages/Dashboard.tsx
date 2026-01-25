@@ -82,12 +82,14 @@ export default function Dashboard() {
     queryFn: async () => {
       const token = localStorage.getItem('auth_token');
       if (!token) return 0;
-      const res = await fetch('/api/notifications/unread-count', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) return 0;
-      const data = await res.json();
-      return data.count || 0;
+      try {
+        const data = await apiFetch('/api/notifications/unread-count', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        return data.count || 0;
+      } catch {
+        return 0;
+      }
     }
   });
   

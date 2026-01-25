@@ -98,11 +98,11 @@ export default function ShareBillSplit() {
   const { data: billSplit, isLoading, error } = useQuery<SharedBillSplit>({
     queryKey: ['shared-bill', code],
     queryFn: async () => {
-      const response = await fetch(`/api/share/${code}`);
-      if (!response.ok) {
+      try {
+        return await apiFetch(`/api/share/${code}`);
+      } catch {
         throw new Error('Bill split not found');
       }
-      return response.json();
     },
     refetchInterval: 5000, // Refresh every 5 seconds for real-time updates
   });
@@ -110,16 +110,15 @@ export default function ShareBillSplit() {
   // Pay mutation
   const payMutation = useMutation({
     mutationFn: async ({ participantId, name, paymentMethod }: { participantId: number; name: string; paymentMethod: string }) => {
-      const response = await fetch(`/api/share/${code}/pay`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ participantId, name, paymentMethod }),
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Payment failed');
+      try {
+        return await apiFetch(`/api/share/${code}/pay`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ participantId, name, paymentMethod }),
+        });
+      } catch (error: any) {
+        throw new Error(error?.message || 'Payment failed');
       }
-      return response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['shared-bill', code] });
@@ -143,19 +142,18 @@ export default function ShareBillSplit() {
   // Join split mutation - link participant to logged-in user's account
   const joinMutation = useMutation({
     mutationFn: async ({ participantId }: { participantId: number }) => {
-      const response = await fetch(`/api/share/${code}/join`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ participantId }),
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to join split');
+      try {
+        return await apiFetch(`/api/share/${code}/join`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ participantId }),
+        });
+      } catch (error: any) {
+        throw new Error(error?.message || 'Failed to join split');
       }
-      return response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['shared-bill', code] });

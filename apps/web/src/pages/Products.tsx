@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useApi } from "@/lib/api";
+import { useApi } from "@/lib/api.tsx";
 import TabsComponent from "@/components/TabsComponent";
 import FiltersSection from "@/components/FiltersSection";
 import ProductsTable from "@/components/ProductsTable";

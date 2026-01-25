@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { API_URL, apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -36,7 +37,7 @@ export default function DemoOpenBanking({ onConnected }: DemoOpenBankingProps) {
     try {
       setLoading(true);
       setError(null);
-      await fetch("/api/demo/ingest", { method: "POST" });
+      await apiFetch("/api/demo/ingest", { method: "POST" });
       await loadAccounts();
       onConnected?.();
     } catch (_e) {
@@ -47,19 +48,21 @@ export default function DemoOpenBanking({ onConnected }: DemoOpenBankingProps) {
   }
 
   async function loadAccounts() {
-    const res = await fetch("/api/demo/accounts");
-    if (res.ok) {
-      const data = await res.json();
+    try {
+      const data = await apiFetch("/api/demo/accounts");
       setAccounts(data);
+    } catch {
+      // ignore
     }
   }
 
   async function loadTransactions(accountId: number) {
     setSelected(accountId);
-    const res = await fetch(`/api/demo/accounts/${accountId}/transactions?limit=25`);
-    if (res.ok) {
-      const data = await res.json();
+    try {
+      const data = await apiFetch(`/api/demo/accounts/${accountId}/transactions?limit=25`);
       setTxs(data);
+    } catch {
+      // ignore
     }
   }
 
