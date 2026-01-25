@@ -1,32 +1,21 @@
-import Database, { type Database as DatabaseType } from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { eq, and, or, gt, gte, lt, lte, ne, isNull, isNotNull, inArray, notInArray, sql, desc, asc } from 'drizzle-orm';
-import { existsSync, mkdirSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
-
-// Import schema from packages
-import * as schema from './schema.js';
-
-// Get the directory of this module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-
-// In production, fail if DATABASE_URL is missing
-const isProd = process.env.NODE_ENV === 'production';
-if (isProd && !process.env.DATABASE_URL) {
-  throw new Error('❌ DATABASE_URL is required in production. Set it in your environment variables.');
-}
-
+import { env } from './env.js';
 let db: any;
-let sqlite: DatabaseType | undefined = undefined;
+let sqlite: any = undefined;
 
-if (isProd) {
-  // In production, always use PostgreSQL (handled by API, not this file)
-  throw new Error('❌ Do not use SQLite in production. Use PostgreSQL via Drizzle ORM.');
+if (env.nodeEnv === 'production') {
+  // Use PostgreSQL Drizzle client in production
+  const pg = await import('./db.postgres.js');
+  db = pg.db;
 } else {
-  // Development: allow SQLite for local dev
+  // Use SQLite Drizzle client in development
+  const Database = (await import('better-sqlite3')).default;
+  const { drizzle } = await import('drizzle-orm/better-sqlite3');
+  const { existsSync, mkdirSync } = await import('fs');
+  const { dirname, join } = await import('path');
+  const { fileURLToPath } = await import('url');
+  const schema = await import('./schema.js');
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
   const dbPath = process.env.DATABASE_URL || join(__dirname, '..', '..', '..', 'packages', 'data', 'coda.db');
   const dbDir = dirname(dbPath);
   if (!existsSync(dbDir)) {
@@ -39,24 +28,32 @@ if (isProd) {
 
 export { db, sqlite };
 
-// Re-export schema
+// Re-export schema and Drizzle ORM operators only once
 export * from './schema.js';
+export { eq, and, or, gt, gte, lt, lte, ne, isNull, isNotNull, inArray, notInArray, sql, desc, asc } from 'drizzle-orm';
 
-// Re-export drizzle operators
-export { eq, and, or, gt, gte, lt, lte, ne, isNull, isNotNull, inArray, notInArray, sql, desc, asc };
-
-// SQLite is always available (file-based), so connection check always succeeds
+// Check database connection for both environments
 export async function checkDatabaseConnection(): Promise<boolean> {
-  console.log("🗄️  Using SQLite database");
-  
-  // Import and run seed functions to ensure demo data exists
-  try {
-    const { seedDemoUser, seedFinancialProducts } = await import('./seed.js');
-    await seedDemoUser();
-    await seedFinancialProducts();
-  } catch (error) {
-    console.warn("⚠️  Could not seed database:", error);
+  if (env.nodeEnv === 'production') {
+    // Try a simple query on PostgreSQL
+    try {
+      await db.query`SELECT 1`;
+      console.log('🐘 Connected to PostgreSQL database');
+      return true;
+    } catch (error) {
+      console.error('❌ PostgreSQL connection failed:', error);
+      return false;
+    }
+  } else {
+    // SQLite: run seeders for dev
+    console.log('🗄️  Using SQLite database');
+    try {
+      const { seedDemoUser, seedFinancialProducts } = await import('./seed.js');
+      await seedDemoUser();
+      await seedFinancialProducts();
+    } catch (error) {
+      console.warn('⚠️  Could not seed database:', error);
+    }
+    return true;
   }
-  
-  return true;
 }
