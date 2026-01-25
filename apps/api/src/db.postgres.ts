@@ -8,9 +8,8 @@ if (!connectionString) {
   throw new Error('❌ DATABASE_URL is required for PostgreSQL connection.');
 }
 
-// Use SSL if required by the connection string
-const ssl = connectionString.includes('sslmode=require');
-const client = postgres(connectionString, { ssl });
+// Always use SSL for managed Postgres (Render, etc.)
+const client = postgres(connectionString, { ssl: { rejectUnauthorized: false } });
 
 export const db = drizzle(client, { schema });
 export * from './schema.js';
