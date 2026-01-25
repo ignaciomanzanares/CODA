@@ -1,7 +1,7 @@
 import { useAuth } from "@/lib/auth";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useApi } from "@/lib/api";
+import { useApi } from "@/lib/api.tsx";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";

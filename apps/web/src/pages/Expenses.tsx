@@ -37,7 +37,7 @@ import { Switch } from "@/components/ui/switch";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useApi } from "@/lib/api";
+import { useApi } from "@/lib/api.tsx";
 import type { Expense } from "@coda/db";
 import { useAuth } from "@/lib/auth";
 import { generateDemoExpenses } from "@/lib/demoData";

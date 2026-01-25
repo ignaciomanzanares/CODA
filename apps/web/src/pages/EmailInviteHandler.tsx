@@ -35,8 +35,7 @@ export default function EmailInviteHandler() {
 
       try {
         // Check if user exists for this invitation
-        const response = await fetch(`/api/bill-splits/${billSplitId}/check-user/${encodeURIComponent(email)}`);
-        const result = await response.json();
+        const result = await apiFetch(`/api/bill-splits/${billSplitId}/check-user/${encodeURIComponent(email)}`);
         
         let finalResult = result;
         

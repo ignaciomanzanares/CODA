@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { API_URL, apiFetch } from "@/lib/api";
 
 function bandForPD(pd: number) {
   if (pd < 0.05) return { label: "Low", color: "text-emerald-600", ring: "#10b981" };
@@ -24,9 +25,7 @@ export default function PDOverview() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/demo/pd?model=${model}`);
-      if (!res.ok) throw new Error('Failed');
-      const data = await res.json();
+      const data = await apiFetch(`/api/demo/pd?model=${model}`);
       setPd(Number(data.pd));
       setReasons(Array.isArray(data.reasons) ? data.reasons : []);
       setFeatures(data.features || null);
@@ -39,9 +38,7 @@ export default function PDOverview() {
 
   async function fetchExplain() {
     try {
-      const res = await fetch('/api/demo/pd/explain?top=6');
-      if (!res.ok) return setExplain(null);
-      const data = await res.json();
+      const data = await apiFetch('/api/demo/pd/explain?top=6');
       const items = (data?.explanation?.top || data?.explanation || []) as any[];
       const mapped = items.map((it: any) => ({ feature: it.feature || String(it[0] ?? ''), value: it.value, shap: it.shap ?? it.importance }));
       setExplain(mapped);
@@ -53,9 +50,8 @@ export default function PDOverview() {
   async function fetchModel() {
     if (model !== 'xgb') { setModelInfo(null); return; }
     try {
-      const res = await fetch('/api/pd/model/info');
-      if (res.ok) setModelInfo(await res.json());
-      else setModelInfo(null);
+      const data = await apiFetch('/api/pd/model/info');
+      setModelInfo(data);
     } catch { setModelInfo(null); }
   }
 

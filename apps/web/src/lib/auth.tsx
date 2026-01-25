@@ -45,18 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await fetch('/api/auth/login', {
+      const data = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Login failed' }));
-        throw new Error(error.message || 'Login failed');
-      }
-
-      const data = await response.json();
       
       if (!data.token || !data.user) {
         throw new Error('Invalid response from server');
@@ -77,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     // Call logout endpoint (best effort - don't wait)
     if (token) {
-      fetch('/api/auth/logout', {
+      apiFetch('/api/auth/logout', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}` 

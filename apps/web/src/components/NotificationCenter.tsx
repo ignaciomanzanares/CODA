@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 import { formatRelativeTime, truncateText } from '@/lib/utils';
 import type { Notification } from '@coda/db';
-import { useApi } from '@/lib/api';
+import { useApi } from '@/lib/api.tsx';
 import { useAuth } from '@/lib/auth';
 
 interface NotificationCenterProps {

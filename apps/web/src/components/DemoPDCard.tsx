@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { API_URL, apiFetch } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -16,9 +17,7 @@ const [pd, setPd] = useState<number | null>(null);
     try {
       setLoading(true);
       setError(null);
-const res = await fetch(`/api/demo/pd?model=${model}`);
-      if (!res.ok) throw new Error("Failed to fetch PD");
-      const data = await res.json();
+      const data = await apiFetch(`/api/demo/pd?model=${model}`);
       setPd(data.pd);
       setReasons(data.reasons || []);
     } catch (_e) {
@@ -31,10 +30,9 @@ const res = await fetch(`/api/demo/pd?model=${model}`);
   useEffect(() => {
     fetchPD();
     if (model === 'xgb') {
-      fetch('/api/pd/model/info').then(async (r)=>{
-        if (r.ok) setModelInfo(await r.json());
-        else setModelInfo(null);
-      }).catch(()=>setModelInfo(null));
+      apiFetch('/api/pd/model/info')
+        .then((data) => setModelInfo(data))
+        .catch(() => setModelInfo(null));
     } else {
       setModelInfo(null);
     }
@@ -45,8 +43,8 @@ const res = await fetch(`/api/demo/pd?model=${model}`);
   async function fetchFeatures() {
     try {
       setShowFeatures(true);
-      const res = await fetch("/api/demo/features");
-      if (res.ok) setFeatures(await res.json());
+      const data = await apiFetch("/api/demo/features");
+      setFeatures(data);
     } catch (_e) {
       // ignore
     }
