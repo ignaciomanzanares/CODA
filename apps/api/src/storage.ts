@@ -1135,13 +1135,13 @@ export class DatabaseStorage implements IStorage {
     let result = await db.select().from(transactions).where(eq(transactions.accountId, accountId));
 
     if (options?.from) {
-      result = result.filter(tx => new Date(tx.postedAt) >= options.from!);
+      result = result.filter((tx: any) => new Date(tx.postedAt) >= options.from!);
     }
     if (options?.to) {
-      result = result.filter(tx => new Date(tx.postedAt) <= options.to!);
+      result = result.filter((tx: any) => new Date(tx.postedAt) <= options.to!);
     }
     // Sort ascending by postedAt
-    result.sort((a, b) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime());
+    result.sort((a: any, b: any) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime());
     if (options?.offset) result = result.slice(options.offset);
     if (options?.limit) result = result.slice(0, options.limit);
     return result;
@@ -1394,7 +1394,7 @@ export class DatabaseStorage implements IStorage {
     }
     
     // Get the bill splits for these IDs
-    const billSplitIds = participantBillSplitIds.map(p => p.billSplitId);
+    const billSplitIds = participantBillSplitIds.map((p: any) => p.billSplitId);
     
     if (billSplitIds.length === 1) {
       const result = await db
