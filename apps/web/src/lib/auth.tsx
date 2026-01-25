@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { apiFetch } from './api';
 
 interface User {
   userId: string;
