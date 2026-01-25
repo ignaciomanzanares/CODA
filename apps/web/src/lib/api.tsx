@@ -1,4 +1,5 @@
 import { useAuth } from "@/lib/auth";
+import { API_BASE_URL } from "@/lib/apiBase";
 import type {
   CreateBankConnectionData,
   CreateGoalData,
@@ -41,7 +42,9 @@ export function useApi() {
       Authorization: `Bearer ${token}`,
     };
 
-    const res = await fetch(url, {
+    // Prepend API_BASE_URL if url starts with '/api'
+    const fullUrl = url.startsWith("/api") ? `${API_BASE_URL}${url.replace(/^\/api/, "")}` : url;
+    const res = await fetch(fullUrl, {
       method,
       headers,
       body: data ? JSON.stringify(data) : undefined,
@@ -111,9 +114,8 @@ export function useApi() {
   // Example: get financial products (public endpoint)
   const getFinancialProducts = async (category?: string) => {
     const url = category
-      ? `/api/financial-products?category=${encodeURIComponent(category)}`
-      : "/api/financial-products";
-    
+      ? `${API_BASE_URL}/financial-products?category=${encodeURIComponent(category)}`
+      : `${API_BASE_URL}/financial-products`;
     // Financial products is a public endpoint, don't require auth
     const res = await fetch(url, {
       method: "GET",
@@ -121,11 +123,9 @@ export function useApi() {
         "Content-Type": "application/json"
       }
     });
-    
     if (!res.ok) {
       throw new Error("Failed to fetch financial products");
     }
-    
     return res.json();
   };
 
