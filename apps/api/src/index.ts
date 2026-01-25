@@ -33,9 +33,18 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
-// Handle all OPTIONS preflight requests before any other middleware
-app.options("*", cors(corsOptions));
-app.use(cors(corsOptions));
+
+// Universal CORS preflight handler for all routes (always respond with CORS headers)
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", allowedOrigins.includes(req.headers.origin || "") ? req.headers.origin : "");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH");
+  res.header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Requested-With,Accept");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
