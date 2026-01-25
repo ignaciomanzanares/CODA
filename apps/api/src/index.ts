@@ -2,11 +2,22 @@ import "dotenv/config";
 import "./env.js";
 
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes.js";
 import { checkDatabaseConnection } from "./db.js";
 import { logger, httpLogger } from "./logger.js";
 
+
 const app = express();
+
+// Allow requests from Vercel and localhost
+app.use(cors({
+  origin: [
+    "https://coda-web-steel.vercel.app",
+    "http://localhost:5173"
+  ],
+  credentials: true
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
