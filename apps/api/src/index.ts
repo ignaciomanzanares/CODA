@@ -8,7 +8,10 @@ import { checkDatabaseConnection } from "./db.js";
 import { logger, httpLogger } from "./logger.js";
 
 
+
 const app = express();
+// Required for correct client IPs and secure cookies on Render
+app.set("trust proxy", 1);
 
 
 

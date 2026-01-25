@@ -5,8 +5,16 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Database path - use in-memory by default for development
-const useMemStorage = process.env.USE_MEM_STORAGE === '1' || !process.env.DATABASE_URL;
+
+// In production, DATABASE_URL is required and must be PostgreSQL
+const isProd = process.env.NODE_ENV === 'production';
+if (isProd && !process.env.DATABASE_URL) {
+  // Fail fast if missing
+  throw new Error('❌ DATABASE_URL is required in production. Set it in your environment variables.');
+}
+
+// Only allow SQLite fallback in development
+const useMemStorage = !isProd && (process.env.USE_MEM_STORAGE === '1' || !process.env.DATABASE_URL);
 
 if (!useMemStorage && process.env.DATABASE_URL) {
   console.log(`📂 Database: ${process.env.DATABASE_URL}`);

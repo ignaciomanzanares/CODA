@@ -10,24 +10,33 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Database path - relative to packages folder
-const dbPath = process.env.DATABASE_URL || join(__dirname, '..', 'data', 'coda.db');
-const dbDir = dirname(dbPath);
 
-// Ensure data directory exists
-if (!existsSync(dbDir)) {
-  mkdirSync(dbDir, { recursive: true });
+// In production, fail if DATABASE_URL is missing
+const isProd = process.env.NODE_ENV === 'production';
+if (isProd && !process.env.DATABASE_URL) {
+  throw new Error('❌ DATABASE_URL is required in production. Set it in your environment variables.');
 }
 
-// Create SQLite connection with WAL mode for better concurrency
-const sqlite: DatabaseType = new Database(dbPath);
-sqlite.pragma('journal_mode = WAL');
+let db: any;
+let sqlite: DatabaseType | undefined = undefined;
 
-// Create Drizzle ORM instance
-export const db = drizzle(sqlite, { schema });
+if (isProd) {
+  // In production, always use PostgreSQL (handled by API, not this package)
+  // This package should not be used directly for DB in production
+  throw new Error('❌ Do not use @coda/db (sqlite) in production. Use the API backend for all DB access.');
+} else {
+  // Development: allow SQLite for local dev
+  const dbPath = process.env.DATABASE_URL || join(__dirname, '..', 'data', 'coda.db');
+  const dbDir = dirname(dbPath);
+  if (!existsSync(dbDir)) {
+    mkdirSync(dbDir, { recursive: true });
+  }
+  sqlite = new Database(dbPath);
+  sqlite.pragma('journal_mode = WAL');
+  db = drizzle(sqlite, { schema });
+}
 
-// Export raw sqlite for direct access if needed
-export { sqlite };
+export { db, sqlite };
 
 // Re-export schema
 export * from './schema.js';
