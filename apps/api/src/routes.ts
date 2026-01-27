@@ -1225,7 +1225,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const billSplitData = {
         ...billSplitFields,
-        createdBy: userId,
+        // Use canonical DB user id (returned from createUser) when available
+        createdBy: (user && user.id) ? user.id : userId,
         // Ensure date is a proper Date object
         date: req.body.date ? new Date(req.body.date) : new Date()
       };
