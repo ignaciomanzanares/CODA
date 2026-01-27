@@ -15,15 +15,24 @@ export async function seedDemoUser() {
   console.log("Creating demo user...");
   
   try {
-    db.insert(users).values({
-      id: "demo-user",
-      username: "demo",
-      email: "demo@example.com",
-      passwordHash: "$2b$10$demo-password-hash", // Demo password hash
-      firstName: "Demo",
-      lastName: "User",
-    }).run();
-    console.log("Successfully created demo user");
+    try {
+      db.insert(users).values({
+        id: "demo-user",
+        username: "demo",
+        email: "demo@example.com",
+        passwordHash: "$2b$10$demo-password-hash", // Demo password hash
+        firstName: "Demo",
+        lastName: "User",
+      }).run();
+      console.log("Successfully created demo user");
+    } catch (err: any) {
+      // Ignore unique-violation if demo user already created concurrently
+      if (err && err.code === '23505') {
+        console.log('Demo user already present (concurrent seed).');
+      } else {
+        throw err;
+      }
+    }
   } catch (error) {
     console.error("Error creating demo user:", error);
   }

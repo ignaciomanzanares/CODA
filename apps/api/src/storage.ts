@@ -148,11 +148,27 @@ export class DatabaseStorage implements IStorage {
       ...insertUser,
       id: insertUser.id || Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9)
     };
-    const [user] = await db
-      .insert(users)
-      .values(userWithId)
-      .returning();
-    return user;
+
+    try {
+      const [user] = await db.insert(users).values(userWithId).returning();
+      return user;
+    } catch (err: any) {
+      // Handle concurrent insert race: Postgres unique_violation code is '23505'
+      if (err && err.code === '23505') {
+        // Try to fetch existing user by id or email
+        let existing: any = null;
+        if (userWithId.id) {
+          const rows = await db.select().from(users).where(eq(users.id, userWithId.id));
+          existing = rows && rows.length ? rows[0] : null;
+        }
+        if (!existing && userWithId.email) {
+          const rows = await db.select().from(users).where(eq(users.email, userWithId.email));
+          existing = rows && rows.length ? rows[0] : null;
+        }
+        if (existing) return existing;
+      }
+      throw err;
+    }
   }
 
   async updateUser(id: string, updateData: Partial<InsertUser>): Promise<User | undefined> {
@@ -662,7 +678,14 @@ export class DatabaseStorage implements IStorage {
 
   async createExpense(expenseData: any): Promise<any> {
     if (db) {
-      const [exp] = await db.insert(expenses).values(expenseData).returning();
+      const toInsert: any = { ...expenseData };
+      // Coerce boolean flags to integers expected by the DB schema
+      if (typeof toInsert.isRecurring === 'boolean') toInsert.isRecurring = toInsert.isRecurring ? 1 : 0;
+      if (typeof toInsert.isAutoClassified === 'boolean') toInsert.isAutoClassified = toInsert.isAutoClassified ? 1 : 0;
+      // Ensure numeric amount
+      if (typeof toInsert.amount === 'string') toInsert.amount = parseFloat(toInsert.amount);
+
+      const [exp] = await db.insert(expenses).values(toInsert).returning();
       return exp;
     }
     const id = this.currentExpenseId++;
@@ -682,7 +705,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateExpense(id: number, updateData: any): Promise<any | undefined> {
     if (db) {
-      const [exp] = await db.update(expenses).set({ ...updateData }).where(eq(expenses.id, id)).returning();
+      const toUpdate: any = { ...updateData };
+      if (typeof toUpdate.isRecurring === 'boolean') toUpdate.isRecurring = toUpdate.isRecurring ? 1 : 0;
+      if (typeof toUpdate.isAutoClassified === 'boolean') toUpdate.isAutoClassified = toUpdate.isAutoClassified ? 1 : 0;
+      if (typeof toUpdate.amount === 'string') toUpdate.amount = parseFloat(toUpdate.amount);
+      const [exp] = await db.update(expenses).set({ ...toUpdate }).where(eq(expenses.id, id)).returning();
       return exp || undefined;
     }
     const existing = this.expenses.get(id);
