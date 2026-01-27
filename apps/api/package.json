@@ -7,7 +7,7 @@
     "prebuild": "npm --prefix ../../packages run build",
     "build": "tsc",
     "check": "tsc --noEmit",
-    "start": "NODE_ENV=production node dist/src/index.js",
+    "start": "NODE_ENV=production node -e \"(async()=>{ if(process.env.NODE_ENV==='production' && !process.env.DATABASE_URL){ console.error('ERROR: DATABASE_URL is required in production. Set the DATABASE_URL environment variable to your Postgres connection string.'); process.exit(1);} const fs=require('fs');const path=require('path');const candidates=['./dist/src/index.js','./dist/apps/api/src/index.js','./dist/index.js']; for(const c of candidates){ if(fs.existsSync(c)){ await import(path.resolve(c)); return;} } console.error('No entry found. Candidates:',candidates); process.exit(1); })()\"",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
