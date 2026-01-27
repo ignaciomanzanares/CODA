@@ -1,4 +1,4 @@
-import { financialProducts, users, db, eq } from "./db.js";
+import { financialProducts, users, db, eq } from "./db/index.js";
 
 /**
  * Seed demo user into the database

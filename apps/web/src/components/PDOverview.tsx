@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { API_URL, apiFetch } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 
 function bandForPD(pd: number) {
   if (pd < 0.05) return { label: "Low", color: "text-emerald-600", ring: "#10b981" };

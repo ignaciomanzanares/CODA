@@ -11,7 +11,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
-import { useApi } from '@/lib/api';
+import { useApi } from '@/lib/api.tsx';
+import { apiFetch } from '@/lib/api';
 import { 
   Receipt, 
   Users, 

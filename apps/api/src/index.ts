@@ -4,7 +4,7 @@ import "./env.js";
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { registerRoutes } from "./routes.js";
-import { checkDatabaseConnection } from "./db.js";
+import { checkDatabaseConnection } from "./db/index.js";
 import { logger, httpLogger } from "./logger.js";
 
 

@@ -1,10 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage.js";
-import { 
-  insertBankConnectionSchema, 
-  insertFinancialGoalSchema
-} from "./db.js";
+import { db, dialect, users, bankConnections, accounts, balances, transactions, creditScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc, insertAccountSchema, insertBankConnectionSchema, insertFinancialGoalSchema } from "./db/index.js";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { authenticate, handleLogin, handleLogout, handleMe, type AuthenticatedRequest } from "./middleware/auth.js";
@@ -40,7 +37,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint (no auth required)
   app.get("/health", async (_req, res) => {
     try {
-      const { db } = await import("./db.js");
+      // Import DB dynamically; the module may export `db` or fall back to undefined
+      const dbModule: any = await import("./db/index.js");
+      const db = dbModule.db;
       const dbHealthy = !!db;
       const { PDModelRegistry } = await import("./services/modelRegistry.js");
       const mlReady = PDModelRegistry.instance().isReady;
@@ -117,7 +116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         userId,
       };
-      const { insertAccountSchema } = await import("./db.js");
+      // insertAccountSchema is now imported statically
       const accountData = insertAccountSchema.parse(payload);
       const account = await storage.createAccount(accountData);
       res.status(201).json(account);

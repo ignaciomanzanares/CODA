@@ -1,4 +1,4 @@
-import type { Expense, BillSplitWithParticipants, BillSplitParticipantWithUser } from "@coda/db";
+import type { Expense, BillSplit, BillSplitParticipant, BillSplitWithParticipants, BillSplitParticipantWithUser } from "@/types";
 
 // Demo expense data generator
 export function generateDemoExpenses(): Expense[] {
@@ -100,18 +100,18 @@ export function generateDemoExpenses(): Expense[] {
     demoExpenses.push({
       id: i + 1,
       userId: "demo-user",
-      amount: amount.toString(),
+      amount: amount,
       description,
       category,
-      subcategory: Math.random() > 0.7 ? `${category} Subcategory` : null,
+      subcategory: Math.random() > 0.7 ? `${category} Subcategory` : undefined,
       merchantName: merchant,
       date: expenseDate,
       paymentMethod: Math.random() > 0.5 ? "Credit Card" : "Debit Card",
       isRecurring,
       tags,
-      notes: Math.random() > 0.8 ? "Demo expense note" : null,
+      notes: Math.random() > 0.8 ? "Demo expense note" : undefined,
       isAutoClassified,
-      confidence: isAutoClassified ? (Math.round((Math.random() * 30 + 70) * 100) / 100).toString() : null,
+      confidence: isAutoClassified ? (Math.round((Math.random() * 30 + 70) * 100) / 100) : null,
       createdAt: expenseDate,
     });
   }
@@ -179,8 +179,8 @@ export function generateDemoBillSplits(): BillSplitWithParticipants[] {
         name: participantName,
         email: `${participantName.toLowerCase().replace(' ', '.')}@email.com`,
         userId: null,
-        amountOwed: amountPerPerson.toFixed(2),
-        amountPaid: isPaid ? amountPerPerson.toFixed(2) : null,
+        amountOwed: Number(amountPerPerson.toFixed(2)),
+        amountPaid: isPaid ? Number(amountPerPerson.toFixed(2)) : null,
         isPaid: isPaid ? true : null,
         createdAt: billDate,
         isCurrentUser: false, // Demo data - user is never a participant
@@ -194,7 +194,7 @@ export function generateDemoBillSplits(): BillSplitWithParticipants[] {
       id: i + 1,
       createdBy: "demo-user",
       name,
-      totalAmount: totalAmount.toString(),
+      totalAmount: totalAmount,
       description: descriptions[i % descriptions.length],
       date: billDate,
       status,

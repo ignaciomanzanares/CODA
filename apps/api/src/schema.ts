@@ -1,10 +1,70 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+// --- Additional tables for full MVP coverage ---
+
+// Credit score history
+export const creditScoreHistory = pgTable("credit_score_history", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  score: integer("score").notNull(),
+  maxScore: integer("max_score").notNull().default(850),
+  calculatedAt: text("calculated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  factors: text("factors"), // JSON string for SHAP/factor breakdown
+});
+
+// Goal progress
+export const goalProgress = pgTable("goal_progress", {
+  id: serial("id").primaryKey(),
+  goalId: integer("goal_id").notNull().references(() => financialGoals.id),
+  userId: text("user_id").notNull().references(() => users.id),
+  amount: integer("amount").notNull(),
+  progressDate: text("progress_date").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+// Audit logs
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").references(() => users.id),
+  action: text("action").notNull(),
+  entity: text("entity"),
+  entityId: text("entity_id"),
+  timestamp: text("timestamp").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  details: text("details"), // JSON string
+  ip: text("ip"),
+});
+
+// Expense categories
+export const expenseCategories = pgTable("expense_categories", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  parentId: integer("parent_id"), // Remove circular reference
+  description: text("description"),
+});
+
+// Risk factors
+export const riskFactors = pgTable("risk_factors", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").references(() => users.id),
+  type: text("type").notNull(),
+  value: text("value").notNull(),
+  score: integer("score"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+// Product recommendations
+export const productRecommendations = pgTable("product_recommendations", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  productId: integer("product_id").notNull().references(() => financialProducts.id),
+  recommendedAt: text("recommended_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  reason: text("reason"),
+  status: text("status").default("pending"), // pending, applied, rejected
+});
+import { pgTable, text, integer, real, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations, sql } from "drizzle-orm";
 
 // Users table
-export const users = sqliteTable("users", {
+export const users = pgTable("users", {
   id: text("id").primaryKey(), // Text ID to support JWT user IDs
   username: text("username").notNull().unique(),
   email: text("email").notNull().unique(),
@@ -24,10 +84,10 @@ export const users = sqliteTable("users", {
 // Open Banking data model (accounts, balances, transactions)
 // -----------------------------------------------------------------------------
 
-export const accounts = sqliteTable("accounts", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const accounts = pgTable("accounts", {
+  id: serial("id").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id),
-  bankConnectionId: integer("bank_connection_id").references(() => bankConnections.id),
+  bankConnectionId: integer("bank_connection_id"), // Add references if bankConnections is defined as pgTable
   providerAccountId: text("provider_account_id"), // external provider ID
   name: text("name"),
   officialName: text("official_name"),
@@ -41,8 +101,8 @@ export const accounts = sqliteTable("accounts", {
   updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const balances = sqliteTable("balances", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const balances = pgTable("balances", {
+  id: serial("id").primaryKey(),
   accountId: integer("account_id").notNull().references(() => accounts.id),
   asOf: text("as_of").default(sql`CURRENT_TIMESTAMP`).notNull(),
   current: real("current").notNull(),
@@ -51,8 +111,8 @@ export const balances = sqliteTable("balances", {
   currency: text("currency"),
 });
 
-export const transactions = sqliteTable("transactions", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const transactions = pgTable("transactions", {
+  id: serial("id").primaryKey(),
   accountId: integer("account_id").notNull().references(() => accounts.id),
   externalId: text("external_id"),
   postedAt: text("posted_at").notNull(),
@@ -62,14 +122,14 @@ export const transactions = sqliteTable("transactions", {
   currency: text("currency"),
   category: text("category"),
   subcategory: text("subcategory"),
-  pending: integer("pending", { mode: "boolean" }).default(false),
+  pending: integer("pending").default(0),
   raw: text("raw"), // JSON string
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 // Bank connections table
-export const bankConnections = sqliteTable("bank_connections", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const bankConnections = pgTable("bank_connections", {
+  id: serial("id").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id),
   bankName: text("bank_name").notNull(),
   accountType: text("account_type").notNull(),
@@ -79,8 +139,8 @@ export const bankConnections = sqliteTable("bank_connections", {
 });
 
 // Credit scores table
-export const creditScores = sqliteTable("credit_scores", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const creditScores = pgTable("credit_scores", {
+  id: serial("id").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id),
   score: integer("score").notNull(),
   maxScore: integer("max_score").notNull().default(850),
@@ -91,8 +151,8 @@ export const creditScores = sqliteTable("credit_scores", {
 });
 
 // Insurance risks table
-export const insuranceRisks = sqliteTable("insurance_risks", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const insuranceRisks = pgTable("insurance_risks", {
+  id: serial("id").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id),
   riskLevel: text("risk_level").notNull(),
   healthRisk: text("health_risk").notNull(),
@@ -102,8 +162,8 @@ export const insuranceRisks = sqliteTable("insurance_risks", {
 });
 
 // Financial goals table
-export const financialGoals = sqliteTable("financial_goals", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const financialGoals = pgTable("financial_goals", {
+  id: serial("id").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
   targetAmount: integer("target_amount").notNull(),
@@ -114,8 +174,8 @@ export const financialGoals = sqliteTable("financial_goals", {
 });
 
 // Financial products table
-export const financialProducts = sqliteTable("financial_products", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const financialProducts = pgTable("financial_products", {
+  id: serial("id").primaryKey(),
   productName: text("product_name").notNull(),
   provider: text("provider").notNull(),
   productType: text("product_type").notNull(),
@@ -131,8 +191,8 @@ export const financialProducts = sqliteTable("financial_products", {
 });
 
 // Expenses table
-export const expenses = sqliteTable("expenses", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const expenses = pgTable("expenses", {
+  id: serial("id").primaryKey(),
   userId: text("user_id").references(() => users.id).notNull(),
   amount: real("amount").notNull(),
   description: text("description").notNull(),
@@ -141,17 +201,17 @@ export const expenses = sqliteTable("expenses", {
   merchantName: text("merchant_name"),
   date: text("date").notNull(),
   paymentMethod: text("payment_method"),
-  isRecurring: integer("is_recurring", { mode: "boolean" }).default(false),
+  isRecurring: integer("is_recurring").default(0),
   tags: text("tags"), // JSON array string
   notes: text("notes"),
-  isAutoClassified: integer("is_auto_classified", { mode: "boolean" }).default(true),
+  isAutoClassified: integer("is_auto_classified").default(1),
   confidence: real("confidence"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 // Bill splits table
-export const billSplits = sqliteTable("bill_splits", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const billSplits = pgTable("bill_splits", {
+  id: serial("id").primaryKey(),
   name: text("name").notNull(),
   totalAmount: real("total_amount").notNull(),
   description: text("description"),
@@ -163,27 +223,27 @@ export const billSplits = sqliteTable("bill_splits", {
 });
 
 // Bill split participants table
-export const billSplitParticipants = sqliteTable("bill_split_participants", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const billSplitParticipants = pgTable("bill_split_participants", {
+  id: serial("id").primaryKey(),
   billSplitId: integer("bill_split_id").references(() => billSplits.id).notNull(),
   userId: text("user_id").references(() => users.id),
   name: text("name").notNull(),
   email: text("email"),
   amountOwed: real("amount_owed").notNull(),
   amountPaid: real("amount_paid").default(0),
-  isPaid: integer("is_paid", { mode: "boolean" }).default(false),
+  isPaid: integer("is_paid").default(0),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 // Notifications table
-export const notifications = sqliteTable("notifications", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
   userId: text("user_id").references(() => users.id).notNull(),
   title: text("title").notNull(),
   message: text("message").notNull(),
   type: text("type").notNull(), // info, warning, success, error
   category: text("category").notNull(), // bill_split, credit_score, goal, expense, security
-  isRead: integer("is_read", { mode: "boolean" }).default(false),
+  isRead: integer("is_read").default(0),
   actionUrl: text("action_url"), // Optional URL for click actions
   metadata: text("metadata"), // JSON string for additional data
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
@@ -204,6 +264,12 @@ export const insertExpenseSchema = createInsertSchema(expenses);
 export const insertBillSplitSchema = createInsertSchema(billSplits);
 export const insertBillSplitParticipantSchema = createInsertSchema(billSplitParticipants);
 export const insertNotificationSchema = createInsertSchema(notifications);
+export const insertCreditScoreHistorySchema = createInsertSchema(creditScoreHistory);
+export const insertGoalProgressSchema = createInsertSchema(goalProgress);
+export const insertAuditLogSchema = createInsertSchema(auditLogs);
+export const insertExpenseCategorySchema = createInsertSchema(expenseCategories);
+export const insertRiskFactorSchema = createInsertSchema(riskFactors);
+export const insertProductRecommendationSchema = createInsertSchema(productRecommendations);
 
 // Define relations
 export const usersRelations = relations(users, ({ many }) => ({
@@ -319,6 +385,24 @@ export type BillSplitParticipant = typeof billSplitParticipants.$inferSelect;
 
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
+
+export type InsertCreditScoreHistory = z.infer<typeof insertCreditScoreHistorySchema>;
+export type CreditScoreHistory = typeof creditScoreHistory.$inferSelect;
+
+export type InsertGoalProgress = z.infer<typeof insertGoalProgressSchema>;
+export type GoalProgress = typeof goalProgress.$inferSelect;
+
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
+
+export type InsertExpenseCategory = z.infer<typeof insertExpenseCategorySchema>;
+export type ExpenseCategory = typeof expenseCategories.$inferSelect;
+
+export type InsertRiskFactor = z.infer<typeof insertRiskFactorSchema>;
+export type RiskFactor = typeof riskFactors.$inferSelect;
+
+export type InsertProductRecommendation = z.infer<typeof insertProductRecommendationSchema>;
+export type ProductRecommendation = typeof productRecommendations.$inferSelect;
 
 // Temporary minimal domain types to satisfy references in this module.
 // Replace with concrete shapes once the domain models are implemented.

@@ -39,7 +39,7 @@ function App() {
         <Route path="/split/:code">
           {(params) => (
             <div className="min-h-screen">
-              <ShareBillSplit code={params.code} />
+              <ShareBillSplit />
               <Toaster />
             </div>
           )}
