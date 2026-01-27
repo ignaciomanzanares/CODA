@@ -4,7 +4,7 @@
 
 
 import { eq, and, inArray, isNull, desc } from 'drizzle-orm';
-import * as schema from '@coda/db';
+import * as schema from '@coda/db/schema';
 // Re-export tables and helper schemas for consumption by other modules
 export const {
   users,
@@ -48,7 +48,7 @@ if (dbUrl && (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://
 
 // Export only db, dialect, and all tables from schema
 export { db, dialect, eq, and, inArray, isNull, desc };
-export * from '@coda/db';
+export * from '@coda/db/schema';
 
 export function checkDatabaseConnection(): boolean {
   return !!db;
