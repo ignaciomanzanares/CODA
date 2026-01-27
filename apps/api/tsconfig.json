@@ -8,14 +8,15 @@
     "module": "ESNext",
     "target": "ES2021",
     "esModuleInterop": true,
+    "rootDir": "../../",
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@coda/db": ["../../packages/dist/index"],
-      "@coda/db/*": ["../../packages/dist/*"]
+      "@coda/db": ["../../packages/src/index.ts"],
+      "@coda/db/*": ["../../packages/src/*"]
     }
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "../../packages/src/**/*.ts"],
   "exclude": [
     "node_modules",
     "dist",
