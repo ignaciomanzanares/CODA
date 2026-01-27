@@ -39,8 +39,8 @@ if (process.env.NODE_ENV === 'production' && !dbUrl) {
 if (dbUrl && (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://'))) {
   // Production: PostgreSQL (explicit postgres URL)
   const client = postgres(dbUrl, { max: 1 });
-  const drizzleModule: any = await import('drizzle-orm');
-  const drizzleFn = drizzleModule.drizzle ?? drizzleModule.default ?? drizzleModule;
+  // Import the postgres-specific drizzle adapter which exports `drizzle`
+  const { drizzle: drizzleFn } = await import('drizzle-orm/postgres-js');
   db = drizzleFn(client, { schema });
   dialect = 'postgres';
 } else {
