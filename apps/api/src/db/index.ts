@@ -32,6 +32,10 @@ let db: any;
 let dialect: 'postgres' | 'sqlite';
 
 const dbUrl = process.env.DATABASE_URL;
+// In production, DATABASE_URL must be set. Fail early with a clear message instead
+if (process.env.NODE_ENV === 'production' && !dbUrl) {
+  throw new Error('DATABASE_URL is required in production. Set the DATABASE_URL environment variable to your Postgres connection string.');
+}
 if (dbUrl && (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://'))) {
   // Production: PostgreSQL (explicit postgres URL)
   const client = postgres(dbUrl, { max: 1 });
