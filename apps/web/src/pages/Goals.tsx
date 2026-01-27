@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useApi } from "@/lib/api.tsx";
+import { useApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { format, formatDistanceToNow, differenceInDays } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";

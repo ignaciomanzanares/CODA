@@ -27,17 +27,18 @@ export interface Expense {
   amount: string | number;
   description: string;
   category: string;
-  subcategory?: string;
-  merchantName?: string;
+  subcategory?: string | null;
+  merchantName?: string | null;
   date: string | Date;
-  paymentMethod?: string;
+  paymentMethod?: string | null;
   isRecurring?: boolean;
-  tags?: string[];
-  notes?: string;
+  tags?: string[] | null;
+  notes?: string | null;
   isAutoClassified?: boolean;
   userId?: string;
   createdAt?: string | Date;
   updatedAt?: string | Date;
+  confidence?: number | null;
 }
 
 export interface CreateExpenseData {
@@ -84,12 +85,17 @@ export interface BillSplit {
   createdBy: string;
   paidBy?: string | null;
   splitType?: 'equal' | 'exact' | 'percentage' | 'shares';
-  status?: 'active' | 'settled' | 'deleted';
+  status?: 'active' | 'settled' | 'deleted' | 'pending' | 'fully_paid';
   receiptUrl?: string | null;
   notes?: string | null;
   participants?: BillSplitParticipant[];
   createdAt?: string | Date;
   updatedAt?: string | Date;
+  // Optional compatibility fields used by some UI components
+  userRole?: 'none' | 'creator' | 'participant';
+  createdByName?: string | null;
+  paidByName?: string | null;
+  shareCode?: string | null;
 }
 
 export interface BillSplitParticipant {
@@ -105,6 +111,32 @@ export interface BillSplitParticipant {
   paidAt?: string | null;
   isCurrentUser?: boolean;
   createdAt?: string | Date | null;
+}
+
+// Compatibility types used across the UI
+export type BillSplitWithParticipants = BillSplit & {
+  participants: BillSplitParticipant[];
+  userRole?: 'none' | 'creator' | 'participant';
+  createdByName?: string;
+  paidByName?: string;
+  category?: string;
+  shareCode?: string;
+};
+
+export type BillSplitParticipantWithUser = BillSplitParticipant & {
+  isCurrentUser?: boolean;
+  user?: User | null;
+};
+
+export interface Notification {
+  id?: number | string;
+  title?: string;
+  message?: string;
+  category?: string;
+  isRead?: boolean;
+  actionUrl?: string | null;
+  type?: string;
+  createdAt?: string | Date;
 }
 
 export interface CreateBillSplitData {
@@ -212,4 +244,16 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   message?: string;
   error?: string;
+}
+
+// Basic User type used across the UI. Keep optional fields
+// because server types may be richer.
+export interface User {
+  id?: string;
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  email?: string;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
 }

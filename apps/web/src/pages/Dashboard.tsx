@@ -26,6 +26,7 @@ import { queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from '@/lib/api';
 
 // Quick stat card component
 function QuickStatCard({ 

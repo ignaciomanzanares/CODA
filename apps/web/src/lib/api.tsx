@@ -12,15 +12,76 @@ import type {
   ProfileData
 } from "@/types";
 
-export function useApi() {
+export type ApiClient = {
+  apiRequest: <T = unknown>(method: string, url: string, data?: unknown, options?: RequestInit) => Promise<T>;
+  getBankConnections: () => Promise<import("@/types").BankConnection[]>;
+  connectBank: (bankData: import("@/types").CreateBankConnectionData) => Promise<import("@/types").BankConnection>;
+  getFinancialGoals: () => Promise<any[]>;
+  createFinancialGoal: (goalData: import("@/types").CreateGoalData) => Promise<import("@/types").Goal>;
+  updateFinancialGoal: (goalId: string, goalData: import("@/types").UpdateGoalData) => Promise<import("@/types").Goal>;
+  deleteFinancialGoal: (goalId: string) => Promise<import("@/types").ApiResponse>;
+  getCreditScore: () => Promise<{ score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string }>;
+  getInsuranceRisk: () => Promise<{ riskLevel: string; healthRisk: string; propertyRisk: string; autoRisk: string }>;
+  getFinancialProducts: (category?: string) => Promise<import("@/types").FinancialProduct[]>;
+  getExpenses: () => Promise<import("@/types").Expense[]>;
+  createExpense: (expenseData: import("@/types").CreateExpenseData) => Promise<import("@/types").Expense>;
+  updateExpense: (expenseId: string, expenseData: import("@/types").UpdateExpenseData) => Promise<import("@/types").Expense>;
+  deleteExpense: (expenseId: string) => Promise<import("@/types").ApiResponse>;
+  getBillSplits: () => Promise<any[]>;
+  createBillSplit: (billSplitData: import("@/types").CreateBillSplitData) => Promise<import("@/types").BillSplit>;
+  updateBillSplit: (billSplitId: string, billSplitData: import("@/types").UpdateBillSplitData) => Promise<import("@/types").BillSplit>;
+  deleteBillSplit: (billSplitId: string) => Promise<import("@/types").ApiResponse>;
+  updateBillSplitParticipant: (billSplitId: string, participantId: string, participantData: import("@/types").UpdateBillSplitParticipantData) => Promise<import("@/types").BillSplitParticipant>;
+  markParticipantAsPaid: (billSplitId: string, participantId: string, amountPaid?: number) => Promise<import("@/types").ApiResponse>;
+  archiveBillSplit: (billSplitId: string) => Promise<import("@/types").ApiResponse>;
+  updateProfile: (profileData: import("@/types").ProfileData) => Promise<any>;
+  getUserProfile: () => Promise<any>;
+  deleteAccount: () => Promise<any>;
+  changePassword: () => Promise<import("@/types").ApiResponse>;
+  getMFAStatus: () => Promise<import("@/types").ApiResponse>;
+  enableMFA: () => Promise<import("@/types").ApiResponse>;
+  getNotifications: (options?: { category?: string; unreadOnly?: boolean; limit?: number; offset?: number }) => Promise<any[]>;
+  markNotificationAsRead: (notificationId: number) => Promise<import("@/types").ApiResponse>;
+  markAllNotificationsAsRead: () => Promise<import("@/types").ApiResponse>;
+  deleteNotification: (notificationId: number) => Promise<import("@/types").ApiResponse>;
+  getUnreadNotificationCount: () => Promise<number>;
+};
+
+export function useApi(): ApiClient {
   const { token, isAuthenticated } = useAuth();
 
-  const apiRequest = async (
+  // Local response shapes used by the UI components
+  type CreditScore = {
+    score: number;
+    maxScore: number;
+    paymentHistory: string;
+    utilization: string;
+    ageOfCredit: string;
+  };
+
+  type InsuranceRisk = {
+    riskLevel: string;
+    healthRisk: string;
+    propertyRisk: string;
+    autoRisk: string;
+  };
+
+  type Notification = {
+    id: number;
+    title?: string;
+    body?: string;
+    isRead?: boolean;
+    category?: string;
+    createdAt?: string;
+    [key: string]: any;
+  };
+
+  const apiRequest = async <T = unknown>(
     method: string,
     url: string,
     data?: unknown,
     options?: RequestInit
-  ) => {
+  ): Promise<T> => {
     // If not authenticated, throw error
     if (!isAuthenticated || !token) {
       throw new Error("User not authenticated");
@@ -51,68 +112,72 @@ export function useApi() {
       ...options,
     });
 
+    const contentType = res.headers.get("content-type") || "";
+
     if (!res.ok) {
-      const error = await res.json().catch(() => ({}));
-      // Don't throw for 401 errors, let React Query handle them
+      const errorBody = contentType.includes("application/json") ? await res.json().catch(() => ({})) : { message: await res.text().catch(() => "") };
       if (res.status === 401) {
         throw new Error("Unauthorized");
       }
-      throw new Error(error.message || "API request failed");
+      throw new Error((errorBody && (errorBody as any).message) || "API request failed");
     }
 
-    return res;
+    if (res.status === 204) {
+      return undefined as unknown as T;
+    }
+
+    if (contentType.includes("application/json")) {
+      const body = (await res.json()) as unknown;
+      return body as T;
+    }
+
+    // Fallback to text
+    const text = await res.text();
+    return (text as unknown) as T;
   };
 
   // Example: get bank connections
-  const getBankConnections = async () => {
-    const res = await apiRequest("GET", "/api/bank-connections");
-    return res.json();
+  const getBankConnections = async (): Promise<import("@/types").BankConnection[]> => {
+    return await apiRequest<import("@/types").BankConnection[]>("GET", "/api/bank-connections");
   };
 
   // Example: connect a bank
-  const connectBank = async (bankData: CreateBankConnectionData) => {
-    const res = await apiRequest("POST", "/api/bank-connections", bankData);
-    return res.json();
+  const connectBank = async (bankData: CreateBankConnectionData): Promise<import("@/types").BankConnection> => {
+    return await apiRequest<import("@/types").BankConnection>("POST", "/api/bank-connections", bankData);
   };
 
   // Example: get financial goals
-  const getFinancialGoals = async () => {
-    const res = await apiRequest("GET", "/api/financial-goals");
-    return res.json();
+  const getFinancialGoals = async (): Promise<(import("@/types").Goal & { status: string })[]> => {
+    return await apiRequest<(import("@/types").Goal & { status: string })[]>("GET", "/api/financial-goals");
   };
 
   // Example: create a financial goal
-  const createFinancialGoal = async (goalData: CreateGoalData) => {
-    const res = await apiRequest("POST", "/api/financial-goals", goalData);
-    return res.json();
+  const createFinancialGoal = async (goalData: CreateGoalData): Promise<import("@/types").Goal> => {
+    return await apiRequest<import("@/types").Goal>("POST", "/api/financial-goals", goalData);
   };
 
   // Example: update a financial goal
-  const updateFinancialGoal = async (goalId: string, goalData: UpdateGoalData) => {
-    const res = await apiRequest("PUT", `/api/financial-goals/${goalId}`, goalData);
-    return res.json();
+  const updateFinancialGoal = async (goalId: string, goalData: UpdateGoalData): Promise<import("@/types").Goal> => {
+    return await apiRequest<import("@/types").Goal>("PUT", `/api/financial-goals/${goalId}`, goalData);
   };
 
   // Example: delete a financial goal
-  const deleteFinancialGoal = async (goalId: string) => {
-    const res = await apiRequest("DELETE", `/api/financial-goals/${goalId}`);
-    return res.json();
+  const deleteFinancialGoal = async (goalId: string): Promise<import("@/types").ApiResponse> => {
+    return await apiRequest<import("@/types").ApiResponse>("DELETE", `/api/financial-goals/${goalId}`);
   };
 
   // Example: get credit score
-  const getCreditScore = async () => {
-    const res = await apiRequest("GET", "/api/credit-score");
-    return res.json();
+  const getCreditScore = async (): Promise<CreditScore> => {
+    return await apiRequest<CreditScore>("GET", "/api/credit-score");
   };
 
   // Example: get insurance risk
-  const getInsuranceRisk = async () => {
-    const res = await apiRequest("GET", "/api/insurance-risk");
-    return res.json();
+  const getInsuranceRisk = async (): Promise<InsuranceRisk> => {
+    return await apiRequest<InsuranceRisk>("GET", "/api/insurance-risk");
   };
 
   // Example: get financial products (public endpoint)
-  const getFinancialProducts = async (category?: string) => {
+  const getFinancialProducts = async (category?: string): Promise<import("@/types").FinancialProduct[]> => {
     const url = category
       ? `${API_BASE_URL}/financial-products?category=${encodeURIComponent(category)}`
       : `${API_BASE_URL}/financial-products`;
@@ -126,96 +191,79 @@ export function useApi() {
     if (!res.ok) {
       throw new Error("Failed to fetch financial products");
     }
-    return res.json();
+    return (await res.json()) as import("@/types").FinancialProduct[];
   };
 
   // Expenses API functions
-  const getExpenses = async () => {
-    const res = await apiRequest("GET", "/api/expenses");
-    return res.json();
+  const getExpenses = async (): Promise<import("@/types").Expense[]> => {
+    return await apiRequest<import("@/types").Expense[]>("GET", "/api/expenses");
   };
 
-  const createExpense = async (expenseData: CreateExpenseData) => {
-    const res = await apiRequest("POST", "/api/expenses", expenseData);
-    return res.json();
+  const createExpense = async (expenseData: CreateExpenseData): Promise<import("@/types").Expense> => {
+    return await apiRequest<import("@/types").Expense>("POST", "/api/expenses", expenseData);
   };
 
-  const updateExpense = async (expenseId: string, expenseData: UpdateExpenseData) => {
-    const res = await apiRequest("PUT", `/api/expenses/${expenseId}`, expenseData);
-    return res.json();
+  const updateExpense = async (expenseId: string, expenseData: UpdateExpenseData): Promise<import("@/types").Expense> => {
+    return await apiRequest<import("@/types").Expense>("PUT", `/api/expenses/${expenseId}`, expenseData);
   };
 
-  const deleteExpense = async (expenseId: string) => {
-    const res = await apiRequest("DELETE", `/api/expenses/${expenseId}`);
-    return res.json();
+  const deleteExpense = async (expenseId: string): Promise<import("@/types").ApiResponse> => {
+    return await apiRequest<import("@/types").ApiResponse>("DELETE", `/api/expenses/${expenseId}`);
   };
 
   // Bill Split API functions
-  const getBillSplits = async () => {
-    const res = await apiRequest("GET", "/api/bill-splits");
-    return res.json();
+  const getBillSplits = async (): Promise<(import("@/types").BillSplit & { participants?: import("@/types").BillSplitParticipant[] })[]> => {
+    return await apiRequest<(import("@/types").BillSplit & { participants?: import("@/types").BillSplitParticipant[] })[]>("GET", "/api/bill-splits");
   };
 
-  const createBillSplit = async (billSplitData: CreateBillSplitData) => {
-    const res = await apiRequest("POST", "/api/bill-splits", billSplitData);
-    return res.json();
+  const createBillSplit = async (billSplitData: CreateBillSplitData): Promise<import("@/types").BillSplit> => {
+    return await apiRequest<import("@/types").BillSplit>("POST", "/api/bill-splits", billSplitData);
   };
 
-  const updateBillSplit = async (billSplitId: string, billSplitData: UpdateBillSplitData) => {
-    const res = await apiRequest("PUT", `/api/bill-splits/${billSplitId}`, billSplitData);
-    return res.json();
+  const updateBillSplit = async (billSplitId: string, billSplitData: UpdateBillSplitData): Promise<import("@/types").BillSplit> => {
+    return await apiRequest<import("@/types").BillSplit>("PUT", `/api/bill-splits/${billSplitId}`, billSplitData);
   };
 
-  const deleteBillSplit = async (billSplitId: string) => {
-    const res = await apiRequest("DELETE", `/api/bill-splits/${billSplitId}`);
-    return res.json();
+  const deleteBillSplit = async (billSplitId: string): Promise<import("@/types").ApiResponse> => {
+    return await apiRequest<import("@/types").ApiResponse>("DELETE", `/api/bill-splits/${billSplitId}`);
   };
 
-  const updateBillSplitParticipant = async (billSplitId: string, participantId: string, participantData: UpdateBillSplitParticipantData) => {
-    const res = await apiRequest("PUT", `/api/bill-splits/${billSplitId}/participants/${participantId}`, participantData);
-    return res.json();
+  const updateBillSplitParticipant = async (billSplitId: string, participantId: string, participantData: UpdateBillSplitParticipantData): Promise<import("@/types").BillSplitParticipant> => {
+    return await apiRequest<import("@/types").BillSplitParticipant>("PUT", `/api/bill-splits/${billSplitId}/participants/${participantId}`, participantData);
   };
 
-  const markParticipantAsPaid = async (billSplitId: string, participantId: string, amountPaid?: number) => {
-    const res = await apiRequest("POST", `/api/bill-splits/${billSplitId}/participants/${participantId}/pay`, { amountPaid });
-    return res.json();
+  const markParticipantAsPaid = async (billSplitId: string, participantId: string, amountPaid?: number): Promise<import("@/types").ApiResponse> => {
+    return await apiRequest<import("@/types").ApiResponse>("POST", `/api/bill-splits/${billSplitId}/participants/${participantId}/pay`, { amountPaid });
   };
 
-  const archiveBillSplit = async (billSplitId: string) => {
-    const res = await apiRequest("POST", `/api/bill-splits/${billSplitId}/archive`);
-    return res.json();
+  const archiveBillSplit = async (billSplitId: string): Promise<import("@/types").ApiResponse> => {
+    return await apiRequest<import("@/types").ApiResponse>("POST", `/api/bill-splits/${billSplitId}/archive`);
   };
 
   // Profile API functions
-  const updateProfile = async (profileData: ProfileData) => {
-    const res = await apiRequest("PUT", "/api/profile", profileData);
-    return res.json();
+  const updateProfile = async (profileData: ProfileData): Promise<import("@/types").ApiResponse> => {
+    return await apiRequest<import("@/types").ApiResponse>("PUT", "/api/profile", profileData);
   };
 
-  const getUserProfile = async () => {
-    const res = await apiRequest("GET", "/api/profile");
-    return res.json();
+  const getUserProfile = async (): Promise<import("@/types").User> => {
+    return await apiRequest<import("@/types").User>("GET", "/api/profile");
   };
 
   // User management API functions
-  const deleteAccount = async () => {
-    const res = await apiRequest("DELETE", "/api/profile/account");
-    return res.json();
+  const deleteAccount = async (): Promise<import("@/types").ApiResponse> => {
+    return await apiRequest<import("@/types").ApiResponse>("DELETE", "/api/profile/account");
   };
 
-  const changePassword = async () => {
-    const res = await apiRequest("POST", "/api/profile/change-password");
-    return res.json();
+  const changePassword = async (): Promise<import("@/types").ApiResponse> => {
+    return await apiRequest<import("@/types").ApiResponse>("POST", "/api/profile/change-password");
   };
 
-  const getMFAStatus = async () => {
-    const res = await apiRequest("GET", "/api/profile/mfa-status");
-    return res.json();
+  const getMFAStatus = async (): Promise<import("@/types").ApiResponse> => {
+    return await apiRequest<import("@/types").ApiResponse>("GET", "/api/profile/mfa-status");
   };
 
-  const enableMFA = async () => {
-    const res = await apiRequest("POST", "/api/profile/enable-mfa");
-    return res.json();
+  const enableMFA = async (): Promise<import("@/types").ApiResponse> => {
+    return await apiRequest<import("@/types").ApiResponse>("POST", "/api/profile/enable-mfa");
   };
 
   // Notification API functions
@@ -232,28 +280,23 @@ export function useApi() {
     if (options?.offset) params.append('offset', options.offset.toString());
     
     const url = `/api/notifications${params.toString() ? `?${params.toString()}` : ''}`;
-    const res = await apiRequest("GET", url);
-    return res.json();
+    return await apiRequest<Notification[]>("GET", url);
   };
 
-  const markNotificationAsRead = async (notificationId: number) => {
-    const res = await apiRequest("PUT", `/api/notifications/${notificationId}/read`);
-    return res.json();
+  const markNotificationAsRead = async (notificationId: number): Promise<import("@/types").ApiResponse> => {
+    return await apiRequest<import("@/types").ApiResponse>("PUT", `/api/notifications/${notificationId}/read`);
   };
 
-  const markAllNotificationsAsRead = async () => {
-    const res = await apiRequest("PUT", "/api/notifications/read-all");
-    return res.json();
+  const markAllNotificationsAsRead = async (): Promise<import("@/types").ApiResponse> => {
+    return await apiRequest<import("@/types").ApiResponse>("PUT", "/api/notifications/read-all");
   };
 
-  const deleteNotification = async (notificationId: number) => {
-    const res = await apiRequest("DELETE", `/api/notifications/${notificationId}`);
-    return res.json();
+  const deleteNotification = async (notificationId: number): Promise<import("@/types").ApiResponse> => {
+    return await apiRequest<import("@/types").ApiResponse>("DELETE", `/api/notifications/${notificationId}`);
   };
 
-  const getUnreadNotificationCount = async () => {
-    const res = await apiRequest("GET", "/api/notifications/unread-count");
-    return res.json();
+  const getUnreadNotificationCount = async (): Promise<number> => {
+    return await apiRequest<number>("GET", "/api/notifications/unread-count");
   };
 
   return {

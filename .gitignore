@@ -5,3 +5,16 @@ server/public
 vite.config.ts.*
 *.tar.gz
 .env
+
+# Local development DB (SQLite) for the API
+/apps/api/*.db
+/apps/api/*.db-*
+
+# Editor and workspace settings
+.vscode/
+
+# Generated TypeScript declarations and JS artifacts accidentally placed in `src`
+/packages/src/*.d.ts
+/packages/src/*.js
+/apps/web/src/lib/*.d.ts
+/apps/web/src/types/*.d.ts

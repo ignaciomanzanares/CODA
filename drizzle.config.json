@@ -1,8 +1,8 @@
 {
   "schema": "./apps/api/src/schema.ts",
   "out": "./drizzle",
-  "dialect": "postgresql",
+  "dialect": "${DIALECT:-sqlite}",
   "dbCredentials": {
-    "url": "${DATABASE_URL}"
+    "url": "${DATABASE_URL:-./packages/data/coda.db}"
   }
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,26 +37,15 @@ export default function EmailInviteHandler() {
       try {
         // Check if user exists for this invitation
         const result = await apiFetch(`/api/bill-splits/${billSplitId}/check-user/${encodeURIComponent(email)}`);
-        
-        let finalResult = result;
-        
-        if (!response.ok) {
-          // The API now returns user info even for non-existent bill splits
-          if (result.message?.includes('Bill split not found') || result.message?.includes('not invited')) {
-            // Use the result from the API which includes userExists info
-            finalResult = {
-              userExists: result.userExists || false,
-              billSplitName: result.billSplitName || 'Demo Bill Split',
-              invitedEmail: result.invitedEmail || email,
-              billSplitId: result.billSplitId || parseInt(billSplitId)
-            };
-            setCheckResult(finalResult);
-          } else {
-            throw new Error(result.message || 'Failed to check invitation');
-          }
-        } else {
-          setCheckResult(finalResult);
-        }
+
+        const finalResult = {
+          userExists: !!result?.userExists,
+          billSplitName: result?.billSplitName || 'Demo Bill Split',
+          invitedEmail: result?.invitedEmail || email,
+          billSplitId: result?.billSplitId ? Number(result.billSplitId) : parseInt(billSplitId),
+        } as InvitationCheckResult;
+
+        setCheckResult(finalResult);
         
         // Handle different scenarios based on user existence and authentication status
         if (finalResult.userExists) {

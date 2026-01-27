@@ -22,7 +22,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useApi } from "@/lib/api.tsx";
+import { useApi } from "@/lib/api";
 import type { BillSplit, BillSplitParticipant } from "@/types";
 import { useAuth } from "@/lib/auth";
 import { generateDemoBillSplits } from "@/lib/demoData";
@@ -446,8 +446,8 @@ export default function BillSplit() {
       const totalAmount = parseFloat(billSplit.totalAmount);
       
       // Add creator ("Me") to participants list for equal splits
-      const creatorName = user?.firstName || user?.username || 'Me';
-      const creatorEmail = user?.email || '';
+      const creatorName = (user as any)?.firstName || (user as any)?.username || (user as any)?.name || (user as any)?.email || 'Me';
+      const creatorEmail = (user as any)?.email || '';
       const allParticipants = [
         { name: creatorName, email: creatorEmail, shareValue: billSplit.participants[0]?.shareValue, isCreator: true },
         ...billSplit.participants.map(p => ({ ...p, isCreator: false }))
@@ -480,7 +480,7 @@ export default function BillSplit() {
         category: billSplit.category,
         date: new Date(billSplit.date),
         participants: allParticipants.map((p, i) => ({
-          userId: p.isCreator ? user?.userId : null,
+          userId: p.isCreator ? (user?.userId ?? null) : null,
           name: p.name,
           email: p.email,
           amountOwed: participantAmounts[i].toFixed(2),

@@ -40,6 +40,8 @@ export { db, sqlite };
 
 // Re-export schema
 export * from './schema.js';
+// Re-export lightweight shared types
+export * from './types.js';
 
 // Re-export drizzle operators to avoid version conflicts
 export { eq, and, or, gt, gte, lt, lte, ne, isNull, isNotNull, inArray, notInArray, sql, desc, asc };

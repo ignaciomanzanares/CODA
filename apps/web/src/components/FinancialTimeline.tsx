@@ -1,7 +1,7 @@
 import { CheckCircle, Clock, ArrowRight } from "lucide-react";
 
 interface TimelineGoal {
-  id: number;
+  id: number | string;
   name: string;
   status: string; // 'completed', 'in_progress', 'not_started'
   timeframe: string; // 'now', 'next (3-6 months)', '6-12 months', '1-2 years'

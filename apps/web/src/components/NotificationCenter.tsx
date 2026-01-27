@@ -9,8 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 import { formatRelativeTime, truncateText } from '@/lib/utils';
-import type { Notification } from '@coda/db';
-import { useApi } from '@/lib/api.tsx';
+import type { Notification } from '@/types';
+import { useApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
 interface NotificationCenterProps {
@@ -31,7 +31,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
   } = useApi();
 
   // Get all notifications for counting and filtering
-  const { data: allNotifications = [], isLoading: allNotificationsLoading } = useQuery({
+  const { data: allNotifications = [], isLoading: allNotificationsLoading } = useQuery<Notification[]>({
     queryKey: ['notifications', 'all'],
     queryFn: () => getNotifications({}),
     enabled: isAuthenticated && !authLoading,
@@ -42,7 +42,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
   });
 
   // Get filtered notifications for the active tab
-  const { data: filteredNotifications = [], isLoading: filteredLoading } = useQuery({
+  const { data: filteredNotifications = [], isLoading: filteredLoading } = useQuery<Notification[]>({
     queryKey: ['notifications', activeTab],
     queryFn: () => {
       if (activeTab === 'all') {
@@ -270,11 +270,11 @@ export default function NotificationCenter({ className }: NotificationCenterProp
 
   const handleNotificationClick = (notification: Notification) => {
     if (!notification.isRead) {
-      markAsReadMutation.mutate(notification.id);
+      markAsReadMutation.mutate(Number(notification.id) as any);
     }
     if (notification.actionUrl) {
       // In real app, navigate to the URL
-      window.location.href = notification.actionUrl;
+      window.location.href = String(notification.actionUrl ?? '');
     }
     setIsOpen(false);
   };
@@ -382,8 +382,8 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                         <CardContent className="p-4">
                           <div className="flex items-start gap-3">
                             <div className="flex-shrink-0">
-                              <div className={`p-2 rounded-full ${getTypeColor(notification.type)}`}>
-                                {getNotificationIcon(notification.type)}
+                              <div className={`p-2 rounded-full ${getTypeColor(String(notification.type ?? 'info'))}`}>
+                                {getNotificationIcon(String(notification.type ?? 'info'))}
                               </div>
                             </div>
                             <div className="flex-1 min-w-0">
@@ -395,15 +395,15 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                                   <span className="text-xs text-gray-500 whitespace-nowrap">
                                     {notification.createdAt ? formatRelativeTime(notification.createdAt) : 'N/A'}
                                   </span>
-                                  <span className="text-lg">{getCategoryIcon(notification.category)}</span>
+                                  <span className="text-lg">{getCategoryIcon(String(notification.category ?? ''))}</span>
                                 </div>
                               </div>
                               <p className="text-sm text-gray-600 mb-2">
-                                {truncateText(notification.message, 100)}
+                                {truncateText(String(notification.message ?? ''), 100)}
                               </p>
                               <div className="flex items-center justify-between">
-                                <Badge variant="outline" className="text-xs capitalize">
-                                  {notification.category.replace('_', ' ')}
+                                  <Badge variant="outline" className="text-xs capitalize">
+                                  {(notification.category ?? '').replace('_', ' ')}
                                 </Badge>
                                 <div className="flex items-center gap-1">
                                   {!notification.isRead && (
@@ -412,7 +412,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                                       size="sm"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        markAsReadMutation.mutate(Number(notification.id));
+                                        markAsReadMutation.mutate(Number(notification.id) as any);
                                       }}
                                       disabled={markAsReadMutation.isPending}
                                       className="h-6 w-6 p-0"
@@ -425,7 +425,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                                     size="sm"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      deleteNotificationMutation.mutate(Number(notification.id));
+                                      deleteNotificationMutation.mutate(Number(notification.id) as any);
                                     }}
                                     disabled={deleteNotificationMutation.isPending}
                                     className="h-6 w-6 p-0 text-gray-400 hover:text-red-600"

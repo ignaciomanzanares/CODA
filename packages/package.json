@@ -13,17 +13,23 @@
       "import": "./dist/schema.js",
       "types": "./dist/schema.d.ts"
     }
+    ,
+    "./types": {
+      "import": "./dist/types.js",
+      "types": "./dist/types.d.ts"
+    }
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "check": "tsc --noEmit",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
+    "db:generate": "drizzle-kit generate --config=../drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config=../drizzle.config.ts",
+    "db:push": "drizzle-kit push --config=../drizzle.config.ts",
+    "db:studio": "drizzle-kit studio --config=../drizzle.config.ts",
     "seed": "tsx src/seed.ts",
-    "reset": "rm -f data/finhealth.db && npm run db:push && npm run seed"
+    "reset:sqlite": "rm -f ../data/coda.db && SQLITE_PATH=../data/coda.db DIALECT=sqlite npm run db:push && npm run seed",
+    "reset:postgres": "DATABASE_URL=$DATABASE_URL DIALECT=postgresql npm run db:push && npm run seed"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",

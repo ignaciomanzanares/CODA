@@ -37,8 +37,8 @@ import { Switch } from "@/components/ui/switch";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useApi } from "@/lib/api.tsx";
-import type { Expense } from "@coda/db";
+import { useApi } from "@/lib/api";
+import type { Expense } from "@/types";
 import { useAuth } from "@/lib/auth";
 import { generateDemoExpenses } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
@@ -207,20 +207,20 @@ export default function Expenses() {
         const optimisticExpense: Expense = {
           id: Date.now(), // Temporary ID
           userId: "temp",
-          amount: newExpense.amount.toString(),
+          amount: String(newExpense.amount),
           description: newExpense.description,
           category: newExpense.category,
-          subcategory: newExpense.subcategory || null,
-          merchantName: newExpense.merchantName || null,
+          subcategory: newExpense.subcategory || undefined,
+          merchantName: newExpense.merchantName || undefined,
           // Create a Date object that treats the date as local time, not UTC
           date: (() => {
             const [year, month, day] = newExpense.date.split('-').map(Number);
             return new Date(year, month - 1, day); // month is 0-indexed
           })(),
-          paymentMethod: newExpense.paymentMethod || null,
+          paymentMethod: newExpense.paymentMethod || undefined,
           isRecurring: newExpense.isRecurring || false,
-          tags: newExpense.tags ? newExpense.tags.split(",").map(t => t.trim()) : null,
-          notes: newExpense.notes || null,
+          tags: newExpense.tags ? newExpense.tags.split(",").map(t => t.trim()) : undefined,
+          notes: newExpense.notes || undefined,
           isAutoClassified: newExpense.isAutoClassified || true,
           confidence: null,
           createdAt: new Date()
@@ -401,7 +401,7 @@ export default function Expenses() {
     return matchesSearch && matchesCategory;
   });
 
-  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
+  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
 
   const onSubmit = (values: ExpenseFormValues) => {
     createExpenseMutation.mutate(values);
@@ -461,7 +461,7 @@ export default function Expenses() {
     return expDate.getMonth() === thisMonth.getMonth() && 
            expDate.getFullYear() === thisMonth.getFullYear();
   });
-  const thisMonthTotal = thisMonthExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+  const thisMonthTotal = thisMonthExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
   const avgPerDay = thisMonthTotal / new Date().getDate();
 
   return (
@@ -753,7 +753,7 @@ export default function Expenses() {
                         
                         {/* Amount and Actions */}
                         <div className="text-right flex items-center gap-4">
-                          <p className="text-xl font-bold">${parseFloat(expense.amount).toFixed(2)}</p>
+                                          <p className="text-xl font-bold">${Number(expense.amount).toFixed(2)}</p>
                           <div className="flex gap-1">
                             <Button 
                               variant="ghost" 
@@ -768,7 +768,7 @@ export default function Expenses() {
                               variant="ghost" 
                               size="icon"
                               className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                              onClick={() => deleteExpenseMutation.mutate(expense.id)}
+                              onClick={() => deleteExpenseMutation.mutate(Number(expense.id) as any)}
                               disabled={deleteExpenseMutation.isPending || !isAuthenticated}
                             >
                               <Trash2 className="w-4 h-4" />
