@@ -154,7 +154,9 @@ export class DatabaseStorage implements IStorage {
       return user;
     } catch (err: any) {
       // Handle concurrent insert race: Postgres unique_violation code is '23505'
-      if (err && err.code === '23505') {
+      // SQLite unique constraint uses 'SQLITE_CONSTRAINT_UNIQUE' and message contains 'UNIQUE constraint failed'
+      const isUniqueViolation = err && (err.code === '23505' || err.code === 'SQLITE_CONSTRAINT_UNIQUE' || String(err.message).includes('UNIQUE constraint failed'));
+      if (isUniqueViolation) {
         // Try to fetch existing user by id or email
         let existing: any = null;
         if (userWithId.id) {
@@ -743,7 +745,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateBillSplitParticipant(id: number, updateData: any): Promise<any | undefined> {
     if (db) {
-      const [p] = await db.update(billSplitParticipants).set(updateData).where(eq(billSplitParticipants.id, id)).returning();
+      const toUpdate: any = { ...updateData };
+      if (typeof toUpdate.amountOwed === 'string') toUpdate.amountOwed = parseFloat(toUpdate.amountOwed);
+      if (typeof toUpdate.amountPaid === 'string') toUpdate.amountPaid = parseFloat(toUpdate.amountPaid);
+      if (typeof toUpdate.isPaid === 'boolean') toUpdate.isPaid = toUpdate.isPaid ? 1 : 0;
+      const [p] = await db.update(billSplitParticipants).set(toUpdate).where(eq(billSplitParticipants.id, id)).returning();
       return p || undefined;
     }
     const existing = this.billSplitParticipants.get(id);
@@ -768,7 +774,23 @@ export class DatabaseStorage implements IStorage {
 
   async createBillSplit(data: any): Promise<any> {
     if (db) {
-      const [bs] = await db.insert(billSplits).values(data).returning();
+      const toInsert: any = { ...data };
+      // Coerce date to ISO string when Date instance provided
+      if (toInsert.date instanceof Date) toInsert.date = toInsert.date.toISOString();
+      if (typeof toInsert.date === 'string') {
+        // leave as-is
+      }
+      // Ensure numeric totalAmount
+      if (typeof toInsert.totalAmount === 'string') toInsert.totalAmount = parseFloat(toInsert.totalAmount);
+      let [bs] = await db.insert(billSplits).values(toInsert).returning();
+      // Some SQLite drivers may not return the inserted row; fall back to selecting the most recent matching row
+      if ((!bs || !bs.id) && toInsert.createdBy) {
+        const rows = await db.select().from(billSplits).where(eq(billSplits.createdBy, toInsert.createdBy));
+        if (rows && rows.length) {
+          rows.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          bs = rows[0];
+        }
+      }
       return bs;
     }
     const id = this.currentBillSplitId++;
@@ -780,7 +802,23 @@ export class DatabaseStorage implements IStorage {
 
   async createBillSplitParticipant(data: any): Promise<any> {
     if (db) {
-      const [p] = await db.insert(billSplitParticipants).values(data).returning();
+      const toInsert: any = { ...data };
+      // Coerce numeric and boolean fields
+      if (typeof toInsert.amountOwed === 'string') toInsert.amountOwed = parseFloat(toInsert.amountOwed);
+      if (typeof toInsert.amountPaid === 'string') toInsert.amountPaid = parseFloat(toInsert.amountPaid);
+      if (typeof toInsert.isPaid === 'boolean') toInsert.isPaid = toInsert.isPaid ? 1 : 0;
+      // Ensure billSplitId is numeric
+      if (typeof toInsert.billSplitId === 'string') toInsert.billSplitId = parseInt(toInsert.billSplitId as any);
+      const [p] = await db.insert(billSplitParticipants).values(toInsert).returning();
+      // If insert didn't return the row (SQLite fallback), try selecting by billSplitId and email/name
+      let participant = p;
+      if ((!participant || !participant.id) && toInsert.billSplitId) {
+        const candidates = await db.select().from(billSplitParticipants).where(eq(billSplitParticipants.billSplitId, toInsert.billSplitId));
+        if (candidates && candidates.length) {
+          participant = candidates.find((c: any) => (toInsert.email && c.email === toInsert.email) || (toInsert.name && c.name === toInsert.name)) || candidates[0];
+        }
+      }
+      return participant;
       return p;
     }
     const id = this.currentBillSplitParticipantId++;
@@ -799,7 +837,10 @@ export class DatabaseStorage implements IStorage {
 
   async updateBillSplit(id: number, updateData: any): Promise<any | undefined> {
     if (db) {
-      const [bs] = await db.update(billSplits).set(updateData).where(eq(billSplits.id, id)).returning();
+      const toUpdate: any = { ...updateData };
+      if (toUpdate.date instanceof Date) toUpdate.date = toUpdate.date.toISOString();
+      if (typeof toUpdate.totalAmount === 'string') toUpdate.totalAmount = parseFloat(toUpdate.totalAmount);
+      const [bs] = await db.update(billSplits).set(toUpdate).where(eq(billSplits.id, id)).returning();
       return bs || undefined;
     }
     const existing = this.billSplits.get(id);
