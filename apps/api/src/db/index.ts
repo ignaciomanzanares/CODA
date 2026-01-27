@@ -26,7 +26,6 @@ export const {
   insertExpenseSchema
 } = schema as any;
 import postgres from 'postgres';
-import Database from 'better-sqlite3';
 
 let db: any;
 let dialect: 'postgres' | 'sqlite';
@@ -44,10 +43,11 @@ if (dbUrl && (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://
   db = drizzleFn(client, { schema });
   dialect = 'postgres';
 } else {
-  // Local: reuse the package's SQLite-based DB instance (or local file path)
-  const pkg = await import('@coda/db');
-  db = pkg.db;
-  dialect = 'sqlite';
+  // Local: only import the package's SQLite-based DB instance when DATABASE_URL is absent.
+  // This avoids loading sqlite-related modules in production.
+    const pkg = await import('@coda/db');
+    db = pkg.db;
+    dialect = 'sqlite';
 }
 
 // Export only db, dialect, and all tables from schema

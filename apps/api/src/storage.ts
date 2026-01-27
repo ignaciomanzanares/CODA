@@ -858,8 +858,13 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-// Always use SQLite database storage (no fallback needed)
-console.log("🗄️  Using SQLite database storage");
+// Use SQLite database storage in non-production only.
+if (process.env.NODE_ENV !== 'production') {
+  console.log("🗄️  Using SQLite database storage");
+}
+
 export const MemStorage = DatabaseStorage;
 
+// Export a storage instance. In production this will still use the same
+// implementation, but the informational SQLite log above is suppressed.
 export const storage: IStorage = new DatabaseStorage();
