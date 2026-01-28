@@ -93,7 +93,8 @@ cd CODA
 npm install
 
 # Configurar variables de entorno
-# Crear archivo .env en la raíz (ver PROMPT.md para variables requeridas)
+cp apps/api/.env.example apps/api/.env
+# Editar apps/api/.env con tus valores
 
 # Inicializar base de datos
 cd packages/db
@@ -105,6 +106,20 @@ cd ../..
 npm run dev          # Backend en puerto 5000
 npm run dev:web      # Frontend en puerto 5173
 ```
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `PORT` | No | API server port (default: 5000) |
+| `NODE_ENV` | No | Environment mode: `development` or `production` |
+| `DATABASE_URL` | Yes (prod) | PostgreSQL connection string |
+| `SQLITE_PATH` | No | SQLite file path for development |
+| `JWT_SECRET` | Yes | Secret for JWT signing |
+| `CORS_ORIGINS` | No | Comma-separated allowed origins |
+| `DEBUG_ENDPOINTS` | No | Enable debug endpoints (dev only) |
+
+See `apps/api/.env.example` for full documentation.
 
 ### URLs
 - **Frontend**: http://localhost:5173
@@ -119,6 +134,102 @@ npm run dev:web      # Frontend en puerto 5173
 - Validación de entrada con esquemas Zod
 - Audit logging para operaciones sensibles
 - Gestión de sesiones segura
+
+## 🛡️ Hardening Checklist (Production Deployment)
+
+Use this checklist before deploying to production:
+
+### Environment & Secrets
+- [ ] **JWT_SECRET**: Use a strong random secret (32+ bytes), generate with `openssl rand -base64 32`
+- [ ] **DATABASE_URL**: Use PostgreSQL with SSL (`?sslmode=require`)
+- [ ] **CORS_ORIGINS**: Set to only your production frontend domain(s)
+- [ ] **NODE_ENV**: Set to `production`
+- [ ] **DEBUG_ENDPOINTS**: Ensure this is `false` or unset
+- [ ] Verify `.env` and `.env.production` files are in `.gitignore`
+- [ ] Use a secrets manager (e.g., AWS Secrets Manager, Vault) for sensitive values
+
+### API Security
+- [ ] Rate limiting is enabled (configured in `middleware/rateLimiter.ts`)
+- [ ] All sensitive endpoints require authentication
+- [ ] Input validation is enforced with Zod schemas
+- [ ] CORS is properly configured (no wildcards in production)
+- [ ] Debug endpoints are disabled (`DEBUG_ENDPOINTS=false`)
+
+### Database
+- [ ] Database connection uses SSL/TLS
+- [ ] Database credentials are rotated regularly
+- [ ] Database backups are configured and tested
+- [ ] Use least-privilege database user
+
+### Infrastructure
+- [ ] HTTPS is enforced (redirect HTTP → HTTPS)
+- [ ] Security headers are configured (CSP, HSTS, X-Frame-Options)
+- [ ] Logging is configured (but not logging sensitive data)
+- [ ] Error messages don't leak internal details in production
+- [ ] Health check endpoint (`/health`) is accessible for monitoring
+
+### ML/AI
+- [ ] Model artifacts are present in `apps/api/src/ml/artifacts/current/`
+- [ ] ONNX model is validated before deployment
+- [ ] Feature metadata matches expected schema
+
+### Monitoring & Observability
+- [ ] Application logging is enabled (Pino)
+- [ ] Error tracking service is configured (e.g., Sentry)
+- [ ] Performance monitoring is in place
+- [ ] Alerts are configured for critical errors
+
+## 🚀 Production Deployment
+
+### Backend (Render)
+
+1. **Create a new Web Service** in Render Dashboard
+2. **Connect your repository** and select the CODA repo
+3. **Configure the service:**
+   - **Root Directory**: `apps/api`
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm start`
+   - **Health Check Path**: `/health`
+
+4. **Set Environment Variables** in Render Dashboard:
+   ```
+   NODE_ENV=production
+   PORT=5000
+   DATABASE_URL=<from Render PostgreSQL internal URL>
+   JWT_SECRET=<generate with: openssl rand -base64 32>
+   CORS_ORIGINS=https://coda-web-steel.vercel.app
+   DEBUG_ENDPOINTS=false
+   ```
+
+5. **Create PostgreSQL Database** in Render and link to the web service
+
+> **Important**: Use the **Internal Database URL** from Render for better performance and security.
+
+### Frontend (Vercel)
+
+1. **Import your repository** in Vercel Dashboard
+2. **Configure the project:**
+   - **Root Directory**: `apps/web` (or leave empty if using root vercel.json)
+   - **Framework Preset**: Vite
+   - **Build Command**: `npm run build` (auto-detected)
+   - **Output Directory**: `dist`
+
+3. **Set Environment Variables** in Vercel Dashboard:
+   ```
+   VITE_API_URL=https://coda-api-fplk.onrender.com
+   VITE_ENV=production
+   ```
+
+4. **Deploy** - Vercel will automatically deploy on push to main
+
+### Post-Deployment Checklist
+
+- [ ] Verify health check: `curl https://your-api.onrender.com/health`
+- [ ] Test authentication flow end-to-end
+- [ ] Verify CORS is working (no browser console errors)
+- [ ] Check database connection (API logs in Render)
+- [ ] Test ML scoring endpoints
+- [ ] Verify email notifications (if configured)
 
 ## 🧪 Testing
 

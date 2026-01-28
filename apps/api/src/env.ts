@@ -6,11 +6,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 
-// In production, DATABASE_URL is required and must be PostgreSQL
+// In production, DATABASE_URL and JWT_SECRET are required
 const isProd = process.env.NODE_ENV === 'production';
-if (isProd && !process.env.DATABASE_URL) {
-  // Fail fast if missing
-  throw new Error('❌ DATABASE_URL is required in production. Set it in your environment variables.');
+if (isProd) {
+  if (!process.env.DATABASE_URL) {
+    throw new Error('❌ DATABASE_URL is required in production. Set it in your environment variables.');
+  }
+  if (!process.env.JWT_SECRET) {
+    throw new Error('❌ JWT_SECRET is required in production. Generate one with: openssl rand -base64 32');
+  }
+  // Warn if JWT_SECRET looks weak
+  if (process.env.JWT_SECRET.length < 32) {
+    console.warn('⚠️  JWT_SECRET should be at least 32 characters for security');
+  }
 }
 
 // Only allow SQLite fallback in development

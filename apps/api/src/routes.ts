@@ -33,6 +33,25 @@ function getUserIdFromAuth(req: Request): string {
   return authReq.user?.userId || '';
 }
 
+// Helper to resolve ML artifacts directory
+// Supports running from repo root, apps/api, or compiled output
+async function getMLArtifactsDir(): Promise<string> {
+  const pathMod = await import("node:path");
+  const fsMod = await import("node:fs");
+  
+  const possiblePaths = [
+    pathMod.join(process.cwd(), "apps", "api", "src", "ml", "artifacts", "current"),
+    pathMod.join(process.cwd(), "src", "ml", "artifacts", "current"),
+  ];
+  
+  for (const p of possiblePaths) {
+    if (fsMod.existsSync(p)) return p;
+  }
+  
+  // Default fallback
+  return possiblePaths[0];
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint (no auth required)
   app.get("/health", async (_req, res) => {
@@ -593,7 +612,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Fallback: one-off ONNX scoring if registry not yet ready
           const pathMod = await import("node:path");
           const fsMod = await import("node:fs");
-          const baseDir = pathMod.join(process.cwd(), "server", "ml", "artifacts", "current");
+          const baseDir = await getMLArtifactsDir();
           const manifest = JSON.parse(fsMod.readFileSync(pathMod.join(baseDir, "manifest.json"), "utf-8"));
           const featureMeta = JSON.parse(
             fsMod.readFileSync(pathMod.join(baseDir, manifest.feature_meta_path || "feature_meta.json"), "utf-8")
@@ -654,7 +673,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Fallback: score directly via ONNXRuntime (one-off session) if registry not ready
           const pathMod = await import("node:path");
           const fsMod = await import("node:fs");
-          const baseDir = pathMod.join(process.cwd(), "server", "ml", "artifacts", "current");
+          const baseDir = await getMLArtifactsDir();
           const manifest = JSON.parse(fsMod.readFileSync(pathMod.join(baseDir, "manifest.json"), "utf-8"));
           const featureMeta = JSON.parse(
             fsMod.readFileSync(pathMod.join(baseDir, manifest.feature_meta_path || "feature_meta.json"), "utf-8")
@@ -802,9 +821,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fsMod = await import("node:fs");
       const cp = await import("node:child_process");
 
-      const baseDir = pathMod.join(process.cwd(), "server", "ml", "artifacts", "current");
-      const script = pathMod.join(process.cwd(), "server", "ml", "shap_explain.py");
-      const py = pathMod.join(process.cwd(), "server", "ml", ".venv", "bin", "python");
+      const baseDir = await getMLArtifactsDir();
+      // Derive ML root from artifacts dir (go up from artifacts/current to ml/)
+      const mlRoot = pathMod.dirname(pathMod.dirname(baseDir));
+      const script = pathMod.join(mlRoot, "shap_explain.py");
+      const py = pathMod.join(mlRoot, ".venv", "bin", "python");
 
       if (!fsMod.existsSync(script)) {
         // SHAP explainer script not present on this host. Provide a lightweight
@@ -1526,34 +1547,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Debug endpoint to check what users exist (temporary - remove in production)
-  app.get("/api/debug/users", async (req: Request, res: Response) => {
-    try {
-      // This is a dangerous endpoint - only use for debugging!
-      if (process.env.NODE_ENV === 'production') {
-        return res.status(404).json({ message: "Not found" });
-      }
-      
-      // Get all users (limit to email and id for privacy)
-      const users = [];
-      const { MemStorage } = await import('./storage.js');
-      
-      if (storage instanceof MemStorage) {
-        // In-memory storage
-        for (const user of (storage as any).users.values()) {
-          users.push({ id: user.id, email: user.email });
+  // Debug endpoint to check what users exist
+  // SECURITY: Only available when DEBUG_ENDPOINTS=true AND not in production
+  // This endpoint should NEVER be enabled in production deployments
+  if (process.env.DEBUG_ENDPOINTS === 'true' && process.env.NODE_ENV !== 'production') {
+    app.get("/api/debug/users", async (req: Request, res: Response) => {
+      try {
+        // Get all users (limit to email and id for privacy)
+        const users = [];
+        const { MemStorage } = await import('./storage.js');
+        
+        if (storage instanceof MemStorage) {
+          // In-memory storage
+          for (const user of (storage as any).users.values()) {
+            users.push({ id: user.id, email: user.email });
+          }
+        } else {
+          // Database storage - would need a different approach
+          return res.json({ message: "Database storage detected - cannot easily list users" });
         }
-      } else {
-        // Database storage - would need a different approach
-        return res.json({ message: "Database storage detected - cannot easily list users" });
+        
+        res.json({ users, total: users.length });
+      } catch (error) {
+        console.error('Error in debug users:', error);
+        res.status(500).json({ message: 'Internal server error' });
       }
-      
-      res.json({ users, total: users.length });
-    } catch (error) {
-      console.error('Error in debug users:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  });
+    });
+  }
 
   // Check if user exists for email invitation (no auth required)
   app.get("/api/bill-splits/:id/check-user/:email", async (req: Request, res: Response) => {
@@ -1826,9 +1846,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteUserData(userId);
       console.log(`Database cleanup complete for user: ${userId}`);
 
-      // Check if JWT authentication is available
-      res.json({ message: "Account deleted successfully", localOnly: true });
-      res.json({ message: "Account deleted successfully from all systems", localOnly: false });
+      // Account deleted successfully from local database
+      res.json({ message: "Account deleted successfully" });
     } catch (error) {
       // Let the central error handler deal with it
       next(error); 

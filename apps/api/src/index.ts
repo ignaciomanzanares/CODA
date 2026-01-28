@@ -15,12 +15,22 @@ app.set("trust proxy", 1);
 
 
 
-// Robust CORS: allow only Vercel and localhost, handle preflight and dynamic origin
+// Robust CORS: allow configurable origins via environment variable
+// CORS_ORIGINS should be a comma-separated list of allowed origins
+// Example: CORS_ORIGINS=https://coda-web-steel.vercel.app,http://localhost:5173
 
-const allowedOrigins = [
+const defaultOrigins = [
+  // Production: Vercel frontend
   "https://coda-web-steel.vercel.app",
-  "http://localhost:5173"
+  // Development: local Vite dev server
+  "http://localhost:5173",
+  // Preview deployments (Vercel generates unique URLs)
+  // Add specific preview URLs to CORS_ORIGINS env var as needed
 ];
+
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(",").map(o => o.trim()).filter(Boolean)
+  : defaultOrigins;
 const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
     if (!origin) return callback(null, true);
