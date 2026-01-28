@@ -90,7 +90,7 @@ class EmailService {
 
     try {
       const info = await this.transporter.sendMail({
-        from: '"FinHealth" <noreply@finhealth.app>',
+        from: '"CODA" <noreply@coda.app>',
         to: invitation.participantEmail,
         subject: subject,
         text: textContent,
@@ -184,7 +184,7 @@ class EmailService {
     <body>
         <div class="container">
             <div class="header">
-                <h1>💰 FinHealth Bill Split</h1>
+                <h1>💰 CODA Bill Split</h1>
                 <p>You've been invited to split a bill!</p>
             </div>
             
@@ -211,13 +211,13 @@ class EmailService {
             
             <p><strong>What happens next?</strong></p>
             <ul>
-                <li>Sign in to your FinHealth account (or create one with this email: ${participantEmail})</li>
+                <li>Sign in to your CODA account (or create one with this email: ${participantEmail})</li>
                 <li>View the bill split details</li>
                 <li>Mark as paid when you've settled your portion</li>
             </ul>
             
             <div class="footer">
-                <p>This invitation was sent by FinHealth on behalf of ${creatorName}.</p>
+                <p>This invitation was sent by CODA on behalf of ${creatorName}.</p>
                 <p>If you didn't expect this invitation, you can safely ignore this email.</p>
             </div>
         </div>
@@ -247,15 +247,15 @@ To view the bill and manage your payment, visit:
 ${billSplitUrl}
 
 What happens next?
-1. Sign in to your FinHealth account (or create one with this email: ${participantEmail})
+1. Sign in to your CODA account (or create one with this email: ${participantEmail})
 2. View the bill split details
 3. Mark as paid when you've settled your portion
 
-This invitation was sent by FinHealth on behalf of ${creatorName}.
+This invitation was sent by CODA on behalf of ${creatorName}.
 If you didn't expect this invitation, you can safely ignore this email.
 
 ---
-FinHealth - Smart expense management
+CODA - Smart expense management
     `;
   }
 }

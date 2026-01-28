@@ -102,7 +102,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 (async () => {
   try {
-    logger.info("🚀 Starting FinHealth application...");
+    logger.info("🚀 Starting CODA application...");
     logger.info("✅ Application initialization completed successfully");
   } catch (error) {
     logger.error({ error }, "❌ Error during application initialization");

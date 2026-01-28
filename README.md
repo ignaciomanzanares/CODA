@@ -187,9 +187,11 @@ Use this checklist before deploying to production:
 2. **Connect your repository** and select the CODA repo
 3. **Configure the service:**
    - **Root Directory**: `apps/api`
-   - **Build Command**: `npm install && npm run build`
+   - **Build Command**: `npm install --include=dev && npm run build`
    - **Start Command**: `npm start`
    - **Health Check Path**: `/health`
+
+   > **Note**: The `--include=dev` flag is required because TypeScript and `@types/*` packages are in devDependencies but needed for compilation.
 
 4. **Set Environment Variables** in Render Dashboard:
    ```
