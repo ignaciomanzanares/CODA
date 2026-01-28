@@ -4,7 +4,19 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Environment files - NEVER commit secrets
 .env
+.env.local
+.env.production
+.env.*.local
+apps/**/.env
+apps/**/.env.local
+apps/**/.env.production
+
+# BUT allow .env.example files (templates without secrets)
+!.env.example
+!apps/**/.env.example
 
 # Local development DB (SQLite) for the API
 /apps/api/*.db

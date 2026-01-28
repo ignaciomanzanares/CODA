@@ -25,7 +25,15 @@ export class PDModelRegistry {
   private featureMeta: { features: string[] } | null = null;
 
   private constructor() {
-    this.baseDir = path.join(process.cwd(), "server", "ml", "artifacts", "current");
+    // ML artifacts are located in apps/api/src/ml/artifacts/current
+    // Support both running from repo root and from apps/api directory
+    const possiblePaths = [
+      path.join(process.cwd(), "apps", "api", "src", "ml", "artifacts", "current"),
+      path.join(process.cwd(), "src", "ml", "artifacts", "current"),
+      path.join(__dirname, "..", "ml", "artifacts", "current"),
+    ];
+    
+    this.baseDir = possiblePaths.find(p => fs.existsSync(p)) || possiblePaths[0];
     this.tryLoad();
   }
 
