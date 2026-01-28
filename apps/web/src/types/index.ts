@@ -1,4 +1,4 @@
-// Basic data model interfaces for the FinHealth application
+// Basic data model interfaces for the CODA application
 
 export interface Goal {
   id: number | string;
