@@ -739,7 +739,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getBillSplitParticipants(billSplitId: number): Promise<any[]> {
-    if (db) return await db.select().from(billSplitParticipants).where(eq(billSplitParticipants.billSplitId, billSplitId));
+    if (db) {
+      const rows = await db.select().from(billSplitParticipants).where(eq(billSplitParticipants.billSplitId, billSplitId));
+      return rows.map((r: any) => ({
+        ...r,
+        isPaid: !!r.isPaid,
+        amountPaid: r.amountPaid ? Number(r.amountPaid) : 0,
+        amountOwed: r.amountOwed ? Number(r.amountOwed) : 0,
+      }));
+    }
     return Array.from(this.billSplitParticipants.values()).filter(p => p.billSplitId === billSplitId);
   }
 
@@ -750,6 +758,11 @@ export class DatabaseStorage implements IStorage {
       if (typeof toUpdate.amountPaid === 'string') toUpdate.amountPaid = parseFloat(toUpdate.amountPaid);
       if (typeof toUpdate.isPaid === 'boolean') toUpdate.isPaid = toUpdate.isPaid ? 1 : 0;
       const [p] = await db.update(billSplitParticipants).set(toUpdate).where(eq(billSplitParticipants.id, id)).returning();
+      if (p) {
+        p.isPaid = !!p.isPaid;
+        p.amountPaid = p.amountPaid ? Number(p.amountPaid) : 0;
+        p.amountOwed = p.amountOwed ? Number(p.amountOwed) : 0;
+      }
       return p || undefined;
     }
     const existing = this.billSplitParticipants.get(id);
@@ -818,8 +831,14 @@ export class DatabaseStorage implements IStorage {
           participant = candidates.find((c: any) => (toInsert.email && c.email === toInsert.email) || (toInsert.name && c.name === toInsert.name)) || candidates[0];
         }
       }
-      return participant;
-      return p;
+      // Normalize returned participant fields for consistent API responses
+      const resp = participant || p;
+      if (resp) {
+        resp.isPaid = !!resp.isPaid;
+        resp.amountPaid = resp.amountPaid ? Number(resp.amountPaid) : 0;
+        resp.amountOwed = resp.amountOwed ? Number(resp.amountOwed) : 0;
+      }
+      return resp;
     }
     const id = this.currentBillSplitParticipantId++;
     const p = { id, ...data, createdAt: new Date().toISOString() };
