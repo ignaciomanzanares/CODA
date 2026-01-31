@@ -1,4 +1,5 @@
 import { db, users, bankConnections, accounts, balances, transactions, creditScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc } from "./db/index.js";
+import { logger } from "./logger.js";
 import type {
   User,
   InsertUser,
@@ -939,15 +940,10 @@ export class DatabaseStorage implements IStorage {
       
       return true;
     } catch (error) {
-      console.error('Error deleting user data:', error);
+      logger.error({ err: error }, 'Error deleting user data');
       return false;
     }
   }
-}
-
-// Use SQLite database storage in non-production only.
-if (process.env.NODE_ENV !== 'production') {
-  console.log("🗄️  Using SQLite database storage");
 }
 
 export const MemStorage = DatabaseStorage;

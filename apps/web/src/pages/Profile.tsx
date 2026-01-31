@@ -201,8 +201,15 @@ export default function Profile() {
   
   const handleEnable2FA = () => {
     // Redirect to Auth0 MFA enrollment
-    const domain = "dev-klhap06xvhqbtvbi.us.auth0.com";
+    const domain = import.meta.env.VITE_AUTH0_DOMAIN || "dev-klhap06xvhqbtvbi.us.auth0.com";
     window.open(`https://${domain}/mfa`, '_blank');
+  };
+
+  const handleComingSoon = () => {
+    toast({
+      title: "Coming Soon",
+      description: "This feature will be available in a future update.",
+    });
   };
 
   return (
@@ -244,7 +251,7 @@ export default function Profile() {
               </div>
             </div>
             <div className="flex space-x-2">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleComingSoon}>
                 <Camera className="h-4 w-4 mr-2" />
                 Change Photo
               </Button>
@@ -426,7 +433,7 @@ export default function Profile() {
                       <span className="text-sm text-gray-600">Email notifications for new logins</span>
                       <p className="text-xs text-gray-500">Get notified of suspicious activity</p>
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={handleComingSoon}>
                       <Bell className="h-4 w-4 mr-2" />
                       Configure
                     </Button>
@@ -439,7 +446,7 @@ export default function Profile() {
                       <span className="text-sm text-gray-600">Recovery email: {user?.email}</span>
                       <p className="text-xs text-gray-500">Managed by Auth0</p>
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={handleComingSoon}>
                       <Key className="h-4 w-4 mr-2" />
                       Update
                     </Button>
@@ -497,14 +504,14 @@ export default function Profile() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Email Notifications</span>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={handleComingSoon}>
                         <Bell className="h-4 w-4 mr-2" />
                         Configure
                       </Button>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Push Notifications</span>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={handleComingSoon}>
                         <Bell className="h-4 w-4 mr-2" />
                         Configure
                       </Button>
@@ -529,7 +536,7 @@ export default function Profile() {
                   <Label>Data Sharing</Label>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Share financial data for analysis</span>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={handleComingSoon}>
                       Configure
                     </Button>
                   </div>
@@ -538,7 +545,7 @@ export default function Profile() {
                   <Label>Privacy Settings</Label>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Manage data privacy</span>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={handleComingSoon}>
                       View Settings
                     </Button>
                   </div>
@@ -574,13 +581,13 @@ export default function Profile() {
                 </div>
                 <div className="space-y-2">
                   <Label>Billing</Label>
-                  <Button variant="outline" size="sm" className="w-full">
+                  <Button variant="outline" size="sm" className="w-full" onClick={handleComingSoon}>
                     Manage Billing
                   </Button>
                 </div>
                 <div className="space-y-2">
                   <Label>Export Data</Label>
-                  <Button variant="outline" size="sm" className="w-full">
+                  <Button variant="outline" size="sm" className="w-full" onClick={handleComingSoon}>
                     Export My Data
                   </Button>
                 </div>

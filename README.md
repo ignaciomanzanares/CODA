@@ -200,7 +200,9 @@ Use this checklist before deploying to production:
    DATABASE_URL=<from Render PostgreSQL internal URL>
    JWT_SECRET=<generate with: openssl rand -base64 32>
    CORS_ORIGINS=https://coda-web-steel.vercel.app
+   CLIENT_URL=https://coda-web-steel.vercel.app
    DEBUG_ENDPOINTS=false
+   DEMO_MODE=true  # Set to false for real production
    ```
 
 5. **Create PostgreSQL Database** in Render and link to the web service

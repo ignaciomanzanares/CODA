@@ -1,6 +1,4 @@
-// Set your backend API base URL for production (Render) and development (local)
-// IMPORTANT: Set your actual Render backend URL below
-export const API_BASE_URL =
-  import.meta.env.MODE === "production"
-    ? "https://coda-api-fplk.onrender.com/api"
-    : "/api"; // Local dev uses Vite proxy
+// API base URL - uses VITE_API_URL in production, Vite proxy in development
+export const API_BASE_URL = import.meta.env.VITE_API_URL 
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : "/api";

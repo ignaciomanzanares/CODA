@@ -122,8 +122,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
       logger.warn({ status, message }, "Client error occurred");
     }
 
-    res.status(status).json({ message });
-    throw err;
+    // Don't send response if headers already sent
+    if (!res.headersSent) {
+      res.status(status).json({ message });
+    }
   });
 
   // CODA serves API only (like CODA-Empresas)
