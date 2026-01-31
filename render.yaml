@@ -22,8 +22,12 @@ services:
         value: 5000
       - key: CORS_ORIGINS
         value: https://coda-web-steel.vercel.app
+      - key: CLIENT_URL
+        value: https://coda-web-steel.vercel.app
       - key: DEBUG_ENDPOINTS
         value: false
+      - key: DEMO_MODE
+        value: true  # Set to false for real production deployment
       # Database URL - automatically injected from Render PostgreSQL
       - key: DATABASE_URL
         fromDatabase:

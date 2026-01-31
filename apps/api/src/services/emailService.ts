@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import type { BillSplit } from '../schema.js';
 import { logger } from '../logger.js';
+import { env } from '../env.js';
 
 interface BillSplitInvitation {
   billSplit: BillSplit;
@@ -112,7 +113,7 @@ class EmailService {
   private generateInvitationHTML(invitation: BillSplitInvitation): string {
     const { billSplit, participantName, participantEmail, amountOwed, creatorName } = invitation;
     // Link to the invitation handler page which will check user existence and handle auth
-    const billSplitUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/invite?billId=${billSplit.id}&email=${encodeURIComponent(participantEmail)}`;
+    const billSplitUrl = `${env.clientUrl}/invite?billId=${billSplit.id}&email=${encodeURIComponent(participantEmail)}`;
     
     return `
     <!DOCTYPE html>
@@ -226,7 +227,7 @@ class EmailService {
   private generateInvitationText(invitation: BillSplitInvitation): string {
     const { billSplit, participantName, participantEmail, amountOwed, creatorName } = invitation;
     // Link to the invitation handler page which will check user existence and handle auth
-    const billSplitUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/invite?billId=${billSplit.id}&email=${encodeURIComponent(participantEmail)}`;
+    const billSplitUrl = `${env.clientUrl}/invite?billId=${billSplit.id}&email=${encodeURIComponent(participantEmail)}`;
     
     return `
 Hi ${participantName},

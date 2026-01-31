@@ -112,8 +112,9 @@ export function optionalAuth(req: AuthenticatedRequest, res: Response, next: Nex
 // =============================================================================
 
 /**
- * Login handler - for demo purposes, accepts any email/password
- * In production, validate against database with hashed passwords
+ * Login handler
+ * In development: accepts demo password for testing
+ * In production: requires DEMO_MODE=true env var to enable demo auth
  */
 export async function handleLogin(req: Request, res: Response) {
   const { email, password } = req.body;
@@ -125,8 +126,22 @@ export async function handleLogin(req: Request, res: Response) {
     });
   }
 
-  // For demo/development: accept any email with password "demo123"
-  if (password !== 'demo123') {
+  // Demo authentication - only allowed in development or when explicitly enabled
+  const isProduction = process.env.NODE_ENV === 'production';
+  const demoModeEnabled = process.env.DEMO_MODE === 'true';
+  const demoPassword = process.env.DEMO_PASSWORD || 'demo123';
+  
+  if (isProduction && !demoModeEnabled) {
+    // In production without demo mode, reject all login attempts
+    // Real authentication should use Auth0 or another provider
+    return res.status(401).json({ 
+      error: 'Unauthorized', 
+      message: 'Demo authentication is disabled in production' 
+    });
+  }
+
+  // Validate demo password
+  if (password !== demoPassword) {
     return res.status(401).json({ 
       error: 'Unauthorized', 
       message: 'Invalid email or password' 
@@ -135,7 +150,7 @@ export async function handleLogin(req: Request, res: Response) {
 
   // Generate token
   const tokenPayload: TokenPayload = {
-    userId: email.split('@')[0], // Use email prefix as userId for demo
+    userId: email.split('@')[0],
     email: email,
     name: email.split('@')[0],
   };

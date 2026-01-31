@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { mlLogger as logger } from "../logger.js";
 
 // Lazy optional import to avoid crashing when dependency is missing
 let ort: any = null;
@@ -161,8 +162,7 @@ export class PDModelRegistry {
           // ignore
         });
     } catch (e) {
-       
-      console.error("PDModelRegistry load failed", e);
+      logger.error({ err: e }, "PDModelRegistry load failed");
       this.manifest = null;
       this.session = null;
       this.featureMeta = null;
