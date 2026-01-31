@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import type { BillSplit } from '../schema.js';
+import { logger } from '../logger.js';
 
 interface BillSplitInvitation {
   billSplit: BillSplit;
@@ -30,8 +31,7 @@ class EmailService {
           pass: gmailPass, // This should be an App Password, not your regular password
         },
       });
-      console.log('📧 Email service initialized with Gmail SMTP for real email delivery');
-      console.log('📧 Sending from:', gmailUser);
+      logger.info({ provider: 'gmail', user: gmailUser }, 'Email service initialized');
     } else if (process.env.NODE_ENV === 'production') {
       // Production SMTP configuration (you'll need to set these environment variables)
       this.transporter = nodemailer.createTransport({
@@ -43,7 +43,7 @@ class EmailService {
           pass: process.env.SMTP_PASS,
         },
       });
-      console.log('📧 Email service initialized with custom SMTP for production');
+      logger.info({ provider: 'smtp' }, 'Email service initialized');
     } else {
       // Development: Use Ethereal Email for testing (fake emails)
       try {
@@ -59,11 +59,9 @@ class EmailService {
           },
         });
         
-        console.log('📧 Email service initialized with Ethereal Email for development (FAKE EMAILS)');
-        console.log('📧 ⚠️  To send real emails, set GMAIL_USER and GMAIL_APP_PASSWORD environment variables');
-        console.log('Test account:', testAccount.user);
+        logger.info({ provider: 'ethereal', user: testAccount.user }, 'Email service initialized (development mode)');
       } catch (error) {
-        console.error('Failed to create test email account:', error);
+        logger.error({ err: error }, 'Failed to create test email account');
         // Fallback to a simple configuration
         this.transporter = nodemailer.createTransport({
           host: 'localhost',
@@ -76,7 +74,7 @@ class EmailService {
 
   async sendBillSplitInvitation(invitation: BillSplitInvitation): Promise<string | null> {
     if (!this.transporter) {
-      console.error('Email transporter not initialized');
+      logger.error('Email transporter not initialized');
       return null;
     }
 
@@ -97,17 +95,16 @@ class EmailService {
         html: htmlContent,
       });
 
-      console.log('📧 Bill split invitation sent successfully');
-      console.log('Message ID:', info.messageId);
+      logger.info({ messageId: info.messageId }, 'Bill split invitation sent');
       
       // For development with Ethereal Email, log the preview URL
       if (process.env.NODE_ENV !== 'production') {
-        console.log('📧 Preview URL:', nodemailer.getTestMessageUrl(info));
+        logger.debug({ previewUrl: nodemailer.getTestMessageUrl(info) }, 'Email preview available');
       }
       
       return info.messageId;
     } catch (error) {
-      console.error('Failed to send bill split invitation:', error);
+      logger.error({ err: error }, 'Failed to send bill split invitation');
       return null;
     }
   }

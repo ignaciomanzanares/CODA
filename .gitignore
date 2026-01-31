@@ -1,11 +1,15 @@
-node_modules
-dist
-.DS_Store
-server/public
-vite.config.ts.*
-*.tar.gz
+# Dependencies
+node_modules/
 
-# Environment files - NEVER commit secrets
+# Build outputs
+dist/
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files (NEVER commit secrets)
 .env
 .env.local
 .env.production
@@ -13,28 +17,29 @@ vite.config.ts.*
 apps/**/.env
 apps/**/.env.local
 apps/**/.env.production
-
-# BUT allow .env.example files (templates without secrets)
 !.env.example
 !apps/**/.env.example
 
-# Local development DB (SQLite) for the API
-/apps/api/*.db
-/apps/api/*.db-*
+# Database files (SQLite)
+*.db
+*.db-shm
+*.db-wal
 
-# Editor and workspace settings
+# Editor settings
 .vscode/
+.idea/
 
-# Generated TypeScript declarations and JS artifacts accidentally placed in `src`
+# Generated files
 /packages/src/*.d.ts
 /packages/src/*.js
 /apps/web/src/lib/*.d.ts
 /apps/web/src/types/*.d.ts
 
-# Local SQLite DB files created during development - do NOT commit
-packages/data/*.db
-packages/data/*.db-* 
+# Logs
+*.log
+npm-debug.log*
 
-# Temporary smoke test script
-apps/api/tmp-inprocess-smoke.js
-
+# Misc
+*.tar.gz
+*.tmp
+tmp-*
