@@ -9,6 +9,7 @@ import { emailService } from "./services/emailService.js";
 import crypto from "crypto";
 import { notificationService } from "./services/notificationService.js";
 import { apiLimiter, expensiveLimiter, authLimiter } from "./middleware/rateLimiter.js";
+import { logger } from "./logger.js";
 import {
   validateBody,
   validateParams,
@@ -123,7 +124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(accts);
     } catch (_e) {
-      console.error('Error fetching accounts:', _e);
+      logger.error({ err: _e }, 'Error fetching accounts');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -144,7 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const validationError = fromZodError(err);
         return res.status(400).json({ message: 'Validation error', errors: validationError.details });
       }
-      console.error('Error creating account:', err);
+      logger.error({ err }, 'Error creating account');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -176,7 +177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(txs);
     } catch (_e) {
-      console.error('Error fetching transactions:', _e);
+      logger.error({ err: _e }, 'Error fetching transactions');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -205,7 +206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const created = await storage.createTransactionsBulk(normalized);
       res.status(201).json({ count: created.length });
     } catch (_e) {
-      console.error('Error creating transactions batch:', _e);
+      logger.error({ err: _e }, 'Error creating transactions batch');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -232,7 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(connections);
     } catch (error) {
-      console.error('Error in bank connections:', error);
+      logger.error({ err: error }, 'Error in bank connections');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -309,7 +310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: firstName || 'User',
         lastName: lastNameParts.length > 0 ? lastNameParts.join(' ') : null
       });
-      console.log(`✅ Created new user for goal: ${userId} (${userEmail})`);
+      logger.info({ userId, email: userEmail }, 'Created new user for goal');
     }
     
     const goalData = insertFinancialGoalSchema.parse({
@@ -324,7 +325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       await notificationService.notifyGoalCreated(userId, goal.name, goal.id as number);
     } catch (notificationError) {
-      console.error('Error creating goal created notification:', notificationError);
+      logger.error({ err: notificationError }, 'Error creating goal notification');
     }
     res.status(201).json(goal);
   });
@@ -365,7 +366,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
         }
       } catch (notificationError) {
-        console.error('Error creating goal milestone notification:', notificationError);
+        logger.error({ err: notificationError }, 'Error creating goal milestone notification');
       }
     }
     
@@ -401,7 +402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.set({ 'Cache-Control': 'private, max-age=0, no-cache' });
       res.json(notifications);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      logger.error({ err: error }, 'Error fetching notifications');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -419,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ message: "Notification marked as read" });
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      logger.error({ err: error }, 'Error marking notification as read');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -434,7 +435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: success ? "All notifications marked as read" : "No unread notifications found"
       });
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      logger.error({ err: error }, 'Error marking all notifications as read');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -454,7 +455,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ message: "Notification deleted" });
     } catch (error) {
-      console.error('Error deleting notification:', error);
+      logger.error({ err: error }, 'Error deleting notification');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -466,7 +467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ count });
     } catch (error) {
-      console.error('Error fetching unread count:', error);
+      logger.error({ err: error }, 'Error fetching unread count');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -480,7 +481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await ingestOpenBankingForUser("demo-user");
       res.json({ message: "Demo ingestion completed" });
     } catch (_e) {
-      console.error('Error running demo ingestion:', _e);
+      logger.error({ err: _e }, 'Error running demo ingestion');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -543,7 +544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(saved ?? nextScore);
     } catch (_e) {
-      console.error('Error computing credit score:', _e);
+      logger.error({ err: _e }, 'Error computing credit score');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -582,7 +583,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(saved ?? nextRisk);
     } catch (_e) {
-      console.error('Error computing insurance risk:', _e);
+      logger.error({ err: _e }, 'Error computing insurance risk');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -635,7 +636,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const reasons = ["model:xgb", ...((manifest?.shap_top || []) as string[]).slice(0, 5)];
           return res.json({ pd: p, reasons, features: fv, model: manifest });
         } catch (err) {
-          console.error("XGB scoring failed, falling back to baseline", err);
+          logger.warn({ err }, 'XGB scoring failed, falling back to baseline');
         }
       }
 
@@ -644,7 +645,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const scored = scorePD(fv);
       res.json({ pd: scored.pd, reasons: scored.reasons, features: fv });
     } catch (_e) {
-      console.error('Error scoring PD:', _e);
+      logger.error({ err: _e }, 'Error scoring PD');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -696,13 +697,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const reasons = ["model:xgb", ...((manifest?.shap_top || []) as string[]).slice(0, 5)];
           return res.json({ pd: p, reasons, features: fv, model: manifest });
         } catch (err) {
-          console.error("XGB scoring failed, falling back", err);
+          logger.warn({ err }, 'XGB scoring failed, falling back');
         }
       }
       const scored = scorePD(fv);
       res.json({ pd: scored.pd, reasons: scored.reasons, features: fv });
     } catch (_e) {
-      console.error('Error scoring demo PD:', _e);
+      logger.error({ err: _e }, 'Error scoring demo PD');
       // Return a safe fallback PD score so the frontend continues to work
       return res.json({ pd: 0.5, reasons: ['fallback'], features: { fallback: 1 } });
     }
@@ -735,7 +736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error('buildUserFeatureVector not available');
           }
         } catch (fvErr) {
-          console.error('Failed to import/build feature vector for demo user, using fallback vector:', fvErr);
+          logger.warn({ err: fvErr }, 'Failed to build feature vector for demo user, using fallback');
           // Provide a minimal fallback feature vector so explanations can still be returned
           fv = { fallback: 1 };
         }
@@ -744,7 +745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(fv);
     } catch (_e) {
-      console.error('Error computing demo features:', _e);
+      logger.error({ err: _e }, 'Error computing demo features');
       // Return a lightweight fallback vector instead of failing the request
       return res.json({ fallback: true, features: { fallback: 1 } });
     }
@@ -809,7 +810,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error('buildUserFeatureVector not available');
           }
         } catch (fvErr) {
-          console.error('Failed to import/build feature vector for demo explain, using fallback:', fvErr);
+          logger.warn({ err: fvErr }, 'Failed to build feature vector for demo explain, using fallback');
           fv = { fallback: 1 };
         }
       } else {
@@ -859,19 +860,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       p.on("close", (code: number) => {
         if (code !== 0) {
-          console.error("SHAP explainer failed:", err || out);
+          logger.error({ stderr: err, stdout: out }, 'SHAP explainer failed');
           return res.status(500).json({ message: "Failed to compute explanations" });
         }
         try {
           const parsed = JSON.parse(out);
           return res.json({ features: fv, explanation: parsed });
         } catch (_e) {
-          console.error("Parse error:", _e, out);
+          logger.error({ err: _e, stdout: out }, 'SHAP explainer parse error');
           return res.status(500).json({ message: "Malformed explainer output" });
         }
       });
     } catch (_e) {
-      console.error('Error in demo SHAP explain:', _e);
+      logger.error({ err: _e }, 'Error in demo SHAP explain');
       // Return a safe fallback so the frontend does not receive 501/500 errors
       return res.json({ features: { fallback: 1 }, explanation: { method: 'fallback', topFeatures: [] } });
     }
@@ -926,7 +927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: firstName || 'User',
         lastName: lastNameParts.length > 0 ? lastNameParts.join(' ') : null
       });
-      console.log(`✅ Created new user for expense: ${userId} (${userEmail})`);
+      logger.info({ userId, email: userEmail }, 'Created new user for expense');
     }
     
     const expenseData = {
@@ -941,12 +942,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // Check for unusual spending patterns and create notification
     try {
-      console.log(`🔔 Processing expense notification for user ${userId}, amount: $${expense.amount}, category: ${expense.category}`);
+      logger.debug({ userId, amount: expense.amount, category: expense.category }, 'Processing expense notification');
       
       // For testing: create a notification for any expense >= $50
       const currentAmount = expense.amount;
       if (currentAmount >= 50) {
-        console.log(`🔔 Creating expense notification for $${currentAmount}`);
+        logger.debug({ amount: currentAmount }, 'Creating expense notification');
         await notificationService.createNotification({
           userId,
           title: 'New Expense Added',
@@ -956,7 +957,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           actionUrl: '/expenses',
           metadata: JSON.stringify({ expenseId: expense.id, amount: currentAmount, category: expense.category })
         });
-        console.log(`✅ Expense notification created successfully`);
+        logger.debug('Expense notification created');
       }
       
       // Original logic for unusual spending (keep this too)
@@ -972,7 +973,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Notify if this expense is 2x more than average in this category
         if (currentAmount >= averageAmount * 2 && currentAmount >= 100) { // Also require minimum $100
-          console.log(`🔔 Creating unusual expense notification: $${currentAmount} vs avg $${averageAmount.toFixed(2)}`);
+          logger.debug({ currentAmount, averageAmount }, 'Creating unusual expense notification');
           await notificationService.notifyUnusualExpense(
             userId,
             currentAmount,
@@ -982,7 +983,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
     } catch (notificationError) {
-      console.error('❌ Error creating expense notification:', notificationError);
+      logger.error({ err: notificationError }, 'Error creating expense notification');
     }
     
     res.status(201).json(expense);
@@ -1066,7 +1067,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error) {
-      console.error('Error fetching shared bill split:', error);
+      logger.error({ err: error }, 'Error fetching shared bill split');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -1118,7 +1119,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           billSplit.id as number
         );
       } catch (err) {
-        console.error('Error sending payment notification:', err);
+        logger.error({ err }, 'Error sending payment notification');
       }
       
       // Check if all participants have paid
@@ -1141,7 +1142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paymentMethod: paymentMethod || 'other'
       });
     } catch (error) {
-      console.error('Error processing payment:', error);
+      logger.error({ err: error }, 'Error processing payment');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -1196,7 +1197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: `${userName} joined "${billSplit.name}" as ${participant.name}`
         });
       } catch (err) {
-        console.error('Error sending join notification:', err);
+        logger.error({ err }, 'Error sending join notification');
       }
       
       res.json({ 
@@ -1209,7 +1210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error) {
-      console.error('Error joining bill split:', error);
+      logger.error({ err: error }, 'Error joining bill split');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -1286,7 +1287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(billSplitsWithParticipants);
     } catch (error) {
-      console.error('Error fetching bill splits:', error);
+      logger.error({ err: error }, 'Error fetching bill splits');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -1311,7 +1312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           firstName: firstName || 'User',
           lastName: lastNameParts.length > 0 ? lastNameParts.join(' ') : null
         });
-        console.log(`✅ Created new user: ${userId} (${userEmail})`);
+        logger.info({ userId, email: userEmail }, 'Created new user');
       }
       
       // Extract participants from request body (don't include in bill split data)
@@ -1328,16 +1329,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create notification for bill split creation
       try {
-        console.log(`🔔 Creating bill split notification for user ${userId}, title: ${billSplit.name}, amount: $${billSplit.totalAmount}`);
+        logger.debug({ userId, name: billSplit.name, amount: billSplit.totalAmount }, 'Creating bill split notification');
         await notificationService.notifyBillSplitCreated(
           userId, 
           billSplit.name || 'New Bill Split',
           billSplit.totalAmount,
           billSplit.id as number
         );
-        console.log(`✅ Bill split notification created successfully`);
+        logger.debug('Bill split notification created');
       } catch (notificationError) {
-        console.error('❌ Error creating bill split notification:', notificationError);
+        logger.error({ err: notificationError }, 'Error creating bill split notification');
       }
       
       // Create participants if provided and send email invitations
@@ -1380,10 +1381,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               const emailSent = !!emailResult;
               if (emailSent) {
-                console.log(`Email invitation sent to ${participant.email}`);
+                logger.info({ email: participant.email }, 'Email invitation sent');
               }
             } catch (emailError) {
-              console.error('Error sending email invitation:', emailError);
+              logger.error({ err: emailError }, 'Error sending email invitation');
             }
           }
         }
@@ -1399,7 +1400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json(billSplit);
     } catch (error) {
-      console.error('Error creating bill split:', error);
+      logger.error({ err: error }, 'Error creating bill split');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -1497,7 +1498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             metadata: JSON.stringify({ billSplitId, participantId, paidAmount: participant.amountPaid })
           });
         } catch (notificationError) {
-          console.error('Error creating payment notification:', notificationError);
+          logger.error({ err: notificationError }, 'Error creating payment notification');
         }
       }
       
@@ -1516,11 +1517,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json({ message: "Payment marked successfully", participant, billSplit: updatedBillSplit });
       } catch (e) {
         // If anything goes wrong updating settlement status, still return success for payment
-        console.error('Error updating bill split settlement status after payment:', e);
+        logger.error({ err: e }, 'Error updating bill split settlement status');
         res.json({ message: "Payment marked successfully", participant });
       }
     } catch (error) {
-      console.error('Error marking payment:', error);
+      logger.error({ err: error }, 'Error marking payment');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -1542,7 +1543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ message: "Bill split archived successfully", billSplit: updatedBillSplit });
     } catch (error) {
-      console.error('Error archiving bill split:', error);
+      logger.error({ err: error }, 'Error archiving bill split');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -1569,7 +1570,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         res.json({ users, total: users.length });
       } catch (error) {
-        console.error('Error in debug users:', error);
+        logger.error({ err: error }, 'Error in debug users');
         res.status(500).json({ message: 'Internal server error' });
       }
     });
@@ -1582,10 +1583,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const email = decodeURIComponent(req.params.email);
       
       // Always check if user exists by email first
-      console.log(`🔍 Checking if user exists for email: ${email}`);
+      logger.debug({ email }, 'Checking if user exists');
       const user = await storage.getUserByEmail(email);
       const userExists = !!user;
-      console.log(`🔍 User exists: ${userExists}`, user ? { id: user.id, email: user.email } : 'No user found');
+      logger.debug({ userExists, userId: user?.id }, 'User existence check result');
       
       // Check if bill split exists
       const billSplit = await storage.getBillSplit(billSplitId);
@@ -1621,7 +1622,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         billSplitId: billSplitId
       });
     } catch (error) {
-      console.error('Error checking user for invitation:', error);
+      logger.error({ err: error }, 'Error checking user for invitation');
       res.status(500).json({ message: 'Internal server error', userExists: false });
     }
   });
@@ -1679,9 +1680,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             
             emailSent = !!emailResult;
-            console.log(`📧 Email invitation ${emailSent ? 'sent' : 'failed'} to ${participant.email}`);
+            logger.info({ email: participant.email, sent: emailSent }, 'Email invitation status');
           } catch (emailError) {
-            console.error('Error sending email invitation:', emailError);
+            logger.error({ err: emailError }, 'Error sending email invitation');
             emailSent = false;
           }
         }
@@ -1705,7 +1706,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalInvites: inviteResults.length
       });
     } catch (error) {
-      console.error('Error processing invitations:', error);
+      logger.error({ err: error }, 'Error processing invitations');
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -1734,7 +1735,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           user = newUser;
         } catch (error) {
-          console.error('Error creating user from JWT data:', error);
+          logger.error({ err: error }, 'Error creating user from JWT data');
           const authReq = req as AuthenticatedRequest;
           // Fallback to JWT payload
           return res.json({
@@ -1762,7 +1763,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: user.updatedAt
       });
     } catch (error) {
-      console.error('Profile get error:', error);
+      logger.error({ err: error }, 'Profile get error');
       res.status(500).json({ message: 'Failed to get profile' });
     }
   });
@@ -1788,7 +1789,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             displayName: (req as AuthenticatedRequest).user?.name as string || null,
           });
         } catch (createError) {
-          console.error('Error creating user:', createError);
+          logger.error({ err: createError }, 'Error creating user');
           return res.status(500).json({ message: 'Failed to create user profile' });
         }
       }
@@ -1820,7 +1821,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: updatedUser.updatedAt
       });
     } catch (error) {
-      console.error('Profile update error:', error);
+      logger.error({ err: error }, 'Profile update error');
       res.status(500).json({ message: 'Failed to update profile' });
     }
   });
@@ -1832,7 +1833,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // TODO: Implement password change for JWT auth
       res.json({ message: "Password change email sent successfully" });
     } catch (error) {
-      console.error('Password change error:', error);
+      logger.error({ err: error }, 'Password change error');
       res.status(500).json({ message: "Failed to send password change email" });
     }
   });
@@ -1840,11 +1841,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/profile/account", authenticate, authLimiter, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = getUserIdFromAuth(req);
-      console.log(`Received request to delete account for user: ${userId}`);
+      logger.info({ userId }, 'Received request to delete account');
 
       // First, delete user data from our application's database
       await storage.deleteUserData(userId);
-      console.log(`Database cleanup complete for user: ${userId}`);
+      logger.info({ userId }, 'Database cleanup complete');
 
       // Account deleted successfully from local database
       res.json({ message: "Account deleted successfully" });
@@ -1860,7 +1861,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // MFA not implemented for JWT auth
       res.json({ enrolled: false, methods: [] });
     } catch (error) {
-      console.error('MFA status error:', error);
+      logger.error({ err: error }, 'MFA status error');
       res.status(500).json({ message: "Failed to get MFA status" });
     }
   });
@@ -1871,7 +1872,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // MFA not implemented for JWT auth
       res.status(501).json({ message: "MFA not implemented for JWT authentication" });
     } catch (error) {
-      console.error('MFA enrollment error:', error);
+      logger.error({ err: error }, 'MFA enrollment error');
       res.status(500).json({ message: "Failed to enable MFA" });
     }
   });
