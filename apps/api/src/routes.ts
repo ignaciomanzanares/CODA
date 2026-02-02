@@ -143,28 +143,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserIdFromAuth(req);
       
       // Get all accounts for user
-      const userAccounts = await storage.getAccountsByUserId(userId);
+      const userAccounts = await storage.getAccounts(userId);
       
       // Get latest balances for each account
       const accountsWithBalances = await Promise.all(
-        userAccounts.map(async (account) => {
-          const balance = await storage.getLatestBalance(account.id);
+        userAccounts.map(async (account: { id: number; type?: string; subtype?: string; name?: string; officialName?: string; bankConnectionId?: number }) => {
+          const balances = await storage.getBalances(account.id);
+          const balance = balances.length > 0 ? balances[balances.length - 1] : null;
           return { ...account, balance };
         })
       );
 
       // Categorize accounts
       const accountsByType = {
-        checking: accountsWithBalances.filter(a => a.type === 'checking' || a.type === 'depository'),
-        savings: accountsWithBalances.filter(a => a.type === 'savings'),
-        creditCards: accountsWithBalances.filter(a => a.type === 'credit' || a.subtype === 'credit card'),
-        loans: accountsWithBalances.filter(a => a.type === 'loan' || a.subtype === 'line of credit'),
-        investments: accountsWithBalances.filter(a => a.type === 'investment' || a.type === 'brokerage'),
+        checking: accountsWithBalances.filter((a: any) => a.type === 'checking' || a.type === 'depository'),
+        savings: accountsWithBalances.filter((a: any) => a.type === 'savings'),
+        creditCards: accountsWithBalances.filter((a: any) => a.type === 'credit' || a.subtype === 'credit card'),
+        loans: accountsWithBalances.filter((a: any) => a.type === 'loan' || a.subtype === 'line of credit'),
+        investments: accountsWithBalances.filter((a: any) => a.type === 'investment' || a.type === 'brokerage'),
       };
 
       // Calculate totals
-      const calculateTotal = (accounts: typeof accountsWithBalances) => 
-        accounts.reduce((sum, a) => sum + parseFloat(a.balance?.current || '0'), 0);
+      const calculateTotal = (accounts: any[]) => 
+        accounts.reduce((sum: number, a: any) => sum + parseFloat(a.balance?.current || '0'), 0);
 
       const checkingTotal = calculateTotal(accountsByType.checking);
       const savingsTotal = calculateTotal(accountsByType.savings);
@@ -181,24 +182,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
       
       const allTransactions = await Promise.all(
-        userAccounts.map(account => storage.getTransactionsByAccountId(account.id))
+        userAccounts.map((account: { id: number }) => storage.getTransactions(account.id, { from: ninetyDaysAgo }))
       );
-      const transactions = allTransactions.flat().filter(t => 
+      const transactions = allTransactions.flat().filter((t: any) => 
         new Date(t.postedAt) >= ninetyDaysAgo
       );
 
       // Calculate monthly income and expenses (last 30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const recentTransactions = transactions.filter(t => new Date(t.postedAt) >= thirtyDaysAgo);
+      const recentTransactions = transactions.filter((t: any) => new Date(t.postedAt) >= thirtyDaysAgo);
       
       const monthlyIncome = recentTransactions
-        .filter(t => parseFloat(t.amount) > 0)
-        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+        .filter((t: any) => parseFloat(t.amount) > 0)
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
       
       const monthlyExpenses = Math.abs(recentTransactions
-        .filter(t => parseFloat(t.amount) < 0)
-        .reduce((sum, t) => sum + parseFloat(t.amount), 0));
+        .filter((t: any) => parseFloat(t.amount) < 0)
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0));
 
       const savingsRate = monthlyIncome > 0 
         ? Math.round(((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100) 
@@ -207,8 +208,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Spending by category (last 30 days)
       const spendingByCategory: Record<string, number> = {};
       recentTransactions
-        .filter(t => parseFloat(t.amount) < 0)
-        .forEach(t => {
+        .filter((t: any) => parseFloat(t.amount) < 0)
+        .forEach((t: any) => {
           const category = t.category || 'Other';
           spendingByCategory[category] = (spendingByCategory[category] || 0) + Math.abs(parseFloat(t.amount));
         });
@@ -270,7 +271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           checking: {
             count: accountsByType.checking.length,
             total: Math.round(checkingTotal),
-            accounts: accountsByType.checking.map(a => ({
+            accounts: accountsByType.checking.map((a: any) => ({
               id: a.id,
               name: a.name || a.officialName,
               balance: parseFloat(a.balance?.current || '0'),
@@ -280,7 +281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           savings: {
             count: accountsByType.savings.length,
             total: Math.round(savingsTotal),
-            accounts: accountsByType.savings.map(a => ({
+            accounts: accountsByType.savings.map((a: any) => ({
               id: a.id,
               name: a.name || a.officialName,
               balance: parseFloat(a.balance?.current || '0'),
@@ -289,7 +290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           creditCards: {
             count: accountsByType.creditCards.length,
             total: Math.round(creditCardDebt),
-            accounts: accountsByType.creditCards.map(a => ({
+            accounts: accountsByType.creditCards.map((a: any) => ({
               id: a.id,
               name: a.name || a.officialName,
               balance: Math.abs(parseFloat(a.balance?.current || '0')),
@@ -299,7 +300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           loans: {
             count: accountsByType.loans.length,
             total: Math.round(loansTotal),
-            accounts: accountsByType.loans.map(a => ({
+            accounts: accountsByType.loans.map((a: any) => ({
               id: a.id,
               name: a.name || a.officialName,
               balance: Math.abs(parseFloat(a.balance?.current || '0')),
@@ -308,7 +309,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           investments: {
             count: accountsByType.investments.length,
             total: Math.round(investmentsTotal),
-            accounts: accountsByType.investments.map(a => ({
+            accounts: accountsByType.investments.map((a: any) => ({
               id: a.id,
               name: a.name || a.officialName,
               balance: parseFloat(a.balance?.current || '0'),
@@ -447,24 +448,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       try {
         // Get accounts and balances
-        const userAccounts = await storage.getAccountsByUserId(userId);
+        const userAccounts = await storage.getAccounts(userId);
         const accountsWithBalances = await Promise.all(
-          userAccounts.map(async (account) => {
-            const balance = await storage.getLatestBalance(account.id);
+          userAccounts.map(async (account: { id: number }) => {
+            const balances = await storage.getBalances(account.id);
+            const balance = balances.length > 0 ? balances[balances.length - 1] : null;
             return { ...account, balance };
           })
         );
         
         // Calculate totals
-        const totalBalance = accountsWithBalances.reduce((sum, a) => 
+        const totalBalance = accountsWithBalances.reduce((sum: number, a: any) => 
           sum + parseFloat(a.balance?.current || '0'), 0);
         
         // Get credit score
-        const creditScores = await storage.getCreditScoresByUserId(userId);
-        const latestScore = creditScores[0];
+        const creditScoreData = await storage.getCreditScore(userId);
 
         // Get financial goals
-        const goals = await storage.getFinancialGoalsByUserId(userId);
+        const goals = await storage.getFinancialGoals(userId);
 
         financialContext = {
           totalBalance: Math.round(totalBalance),
@@ -472,18 +473,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           monthlyExpenses: 3845, // Would calculate from transactions
           savingsRate: 28,
           netWorth: Math.round(totalBalance * 1.5), // Simplified
-          creditScore: latestScore?.score || 720,
+          creditScore: creditScoreData?.score || 720,
           topSpendingCategories: [
             { name: 'Housing', amount: 1500 },
             { name: 'Food & Dining', amount: 680 },
             { name: 'Transportation', amount: 420 },
           ],
-          financialGoals: goals.slice(0, 5).map(g => ({
+          financialGoals: goals.slice(0, 5).map((g: any) => ({
             name: g.name,
             progress: Math.round((g.currentAmount / g.targetAmount) * 100),
           })),
         };
-      } catch (e) {
+      } catch (_e) {
         // Use demo context if we can't fetch real data
         financialContext = {
           totalBalance: 24562,
