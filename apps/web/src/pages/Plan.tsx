@@ -179,15 +179,37 @@ export default function Plan() {
   const recommendations = getRecommendations();
 
   // Convert goals to timeline format
-  const getTimelineItems = () => {
+  const getTimelineGoals = () => {
     if (!goals || !Array.isArray(goals)) return [];
     
-    return goals.map((goal: Goal) => ({
-      title: goal.name,
-      target: `$${goal.targetAmount.toLocaleString()}`,
-      progress: Math.round((goal.currentAmount / goal.targetAmount) * 100),
-      date: goal.targetDate ? new Date(goal.targetDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'No date',
-    }));
+    return goals.map((goal: Goal, index: number) => {
+      const progress = goal.targetAmount > 0 
+        ? Math.round((goal.currentAmount / goal.targetAmount) * 100) 
+        : 0;
+      
+      // Determine status based on progress
+      let status = 'not_started';
+      if (progress >= 100) status = 'completed';
+      else if (progress > 0) status = 'in_progress';
+      
+      // Determine timeframe based on target date
+      let timeframe = 'now';
+      if (goal.targetDate) {
+        const monthsUntil = Math.ceil((new Date(goal.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30));
+        if (monthsUntil <= 3) timeframe = 'now';
+        else if (monthsUntil <= 6) timeframe = 'next (3-6 months)';
+        else if (monthsUntil <= 12) timeframe = '6-12 months';
+        else timeframe = '1-2 years';
+      }
+      
+      return {
+        id: goal.id || index,
+        name: goal.name,
+        status,
+        timeframe,
+        progress,
+      };
+    });
   };
 
   if (isLoading) {
@@ -296,7 +318,15 @@ export default function Plan() {
                 </h3>
                 <Card>
                   <CardContent className="p-6">
-                    <FinancialTimeline items={getTimelineItems()} />
+                    {getTimelineGoals().length > 0 ? (
+                      <FinancialTimeline goals={getTimelineGoals()} />
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>No goals set yet</p>
+                        <p className="text-sm">Create your first financial goal to see your timeline</p>
+                      </div>
+                    )}
                     <div className="mt-6 pt-4 border-t">
                       <Link href="/goals">
                         <Button variant="outline" className="w-full">

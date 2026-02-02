@@ -236,10 +236,9 @@ function ExpenseCard({
                 )}
               </div>
               <p className="text-sm text-muted-foreground">
-                {new Date(expense.date).toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric',
-                })}
+                {expense.date && !isNaN(new Date(expense.date).getTime()) 
+                  ? new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  : 'No date'}
                 {expense.createdByName && ` • Added by ${expense.createdByName}`}
               </p>
               
@@ -278,11 +277,11 @@ function ExpenseCard({
           </div>
           
           <div className="text-right flex-shrink-0">
-            <p className="text-xl font-bold">{formatCurrency(parseFloat(String(expense.totalAmount)))}</p>
+            <p className="text-xl font-bold">{formatCurrency(parseFloat(String(expense.totalAmount)) || 0)}</p>
             {/* Show "You owe" badge only if user is a participant in someone ELSE's split and hasn't paid */}
             {userParticipant && !userParticipant.isPaid && !isCreator && expense.status !== 'settled' && (
               <Badge variant="destructive" className="mt-1">
-                You owe {formatCurrency(parseFloat(String(userParticipant.amountOwed)))}
+                You owe {formatCurrency(parseFloat(String(userParticipant.amountOwed)) || 0)}
               </Badge>
             )}
             {isCreator && expense.status !== 'settled' && paidCount < totalCount && (
@@ -380,7 +379,7 @@ export default function BillSplit() {
             if (!balances[key]) {
               balances[key] = { name: p.name, balance: 0 };
             }
-            balances[key].balance += parseFloat(String(p.amountOwed));
+            balances[key].balance += parseFloat(String(p.amountOwed)) || 0;
           }
         });
       }
@@ -394,7 +393,7 @@ export default function BillSplit() {
         if (!balances[creatorKey]) {
           balances[creatorKey] = { name: split.createdByName || 'Bill Creator', balance: 0 };
         }
-        balances[creatorKey].balance -= parseFloat(String(ourParticipation.amountOwed));
+        balances[creatorKey].balance -= parseFloat(String(ourParticipation.amountOwed)) || 0;
       }
     });
     
@@ -415,7 +414,7 @@ export default function BillSplit() {
           // Skip the creator's own entry
           if (p.userId === user?.userId || p.isCurrentUser) return;
           if (!p.isPaid) {
-            youAreOwed += parseFloat(String(p.amountOwed));
+            youAreOwed += parseFloat(String(p.amountOwed)) || 0;
           }
         });
       }
@@ -426,7 +425,7 @@ export default function BillSplit() {
           p.userId === user?.userId || p.isCurrentUser
         );
         if (myParticipation && !myParticipation.isPaid) {
-          youOwe += parseFloat(String(myParticipation.amountOwed));
+          youOwe += parseFloat(String(myParticipation.amountOwed)) || 0;
         }
       }
     });
@@ -1015,12 +1014,14 @@ export default function BillSplit() {
                   <div>
                     <DialogTitle className="text-xl">{selectedExpense.name}</DialogTitle>
                     <DialogDescription>
-                      {new Date(selectedExpense.date).toLocaleDateString('en-US', { 
-                        weekday: 'long',
-                        month: 'long', 
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
+                      {selectedExpense.date && !isNaN(new Date(selectedExpense.date).getTime())
+                        ? new Date(selectedExpense.date).toLocaleDateString('en-US', { 
+                            weekday: 'long',
+                            month: 'long', 
+                            day: 'numeric',
+                            year: 'numeric'
+                          })
+                        : 'No date set'}
                     </DialogDescription>
                   </div>
                 </div>
@@ -1029,7 +1030,7 @@ export default function BillSplit() {
               <div className="space-y-6">
                 <div className="text-center py-4 bg-muted/50 rounded-lg">
                   <p className="text-sm text-muted-foreground mb-1">Total amount</p>
-                  <p className="text-4xl font-bold">{formatCurrency(parseFloat(String(selectedExpense.totalAmount)))}</p>
+                  <p className="text-4xl font-bold">{formatCurrency(parseFloat(String(selectedExpense.totalAmount)) || 0)}</p>
                   {selectedExpense.description && (
                     <p className="text-sm text-muted-foreground mt-2">{selectedExpense.description}</p>
                   )}
@@ -1087,7 +1088,7 @@ export default function BillSplit() {
                           <div>
                             <p className="font-medium">{p.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              {p.isPaid ? `Paid ${formatCurrency(parseFloat(String(p.amountPaid || p.amountOwed)))}` : `Owes ${formatCurrency(parseFloat(String(p.amountOwed)))}`}
+                              {p.isPaid ? `Paid ${formatCurrency(parseFloat(String(p.amountPaid || p.amountOwed)) || 0)}` : `Owes ${formatCurrency(parseFloat(String(p.amountOwed)) || 0)}`}
                             </p>
                           </div>
                         </div>
