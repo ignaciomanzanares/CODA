@@ -8,6 +8,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/Login";
+import Landing from "@/pages/Landing";
 import Dashboard from "@/pages/Dashboard";
 import Onboarding from "@/pages/Onboarding";
 import Products from "@/pages/Products";
@@ -24,6 +25,17 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Switch>
+        {/* Landing page - custom layout */}
+        <Route path="/">
+          <div className="relative flex min-h-screen flex-col">
+            <Header />
+            <main className="flex-1">
+              <Landing />
+            </main>
+            <Footer />
+          </div>
+        </Route>
+
         {/* Public routes */}
         <Route path="/login" component={Login} />
         
@@ -37,7 +49,7 @@ function App() {
         
         {/* Public route for shared bill splits - no auth required */}
         <Route path="/split/:code">
-          {(params) => (
+          {() => (
             <div className="min-h-screen">
               <ShareBillSplit />
               <Toaster />
@@ -51,7 +63,7 @@ function App() {
             <Header />
             <main className="flex-1">
                 <Switch>
-                  <Route path="/" component={Onboarding} />
+                  <Route path="/onboarding" component={Onboarding} />
                   <Route path="/dashboard">
                     <ProtectedRoute>
                       <Dashboard />
