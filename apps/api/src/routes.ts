@@ -4,7 +4,19 @@ import { storage } from "./storage.js";
 import { db, dialect, users, bankConnections, accounts, balances, transactions, creditScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc, insertAccountSchema, insertBankConnectionSchema, insertFinancialGoalSchema } from "./db/index.js";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
-import { authenticate, handleLogin, handleLogout, handleMe, type AuthenticatedRequest } from "./middleware/auth.js";
+import { 
+  authenticate, 
+  handleLogin, 
+  handleLoginWithDB,
+  handleLogout, 
+  handleMe, 
+  handleRegister,
+  handleVerify2FA,
+  handleEnable2FA,
+  handleDisable2FA,
+  handleResend2FA,
+  type AuthenticatedRequest 
+} from "./middleware/auth.js";
 import { emailService } from "./services/emailService.js";
 import crypto from "crypto";
 import { notificationService } from "./services/notificationService.js";
@@ -86,10 +98,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Auth routes (no auth required)
-  app.post("/api/auth/login", authLimiter, handleLogin);
+  // Auth routes
+  app.post("/api/auth/register", authLimiter, handleRegister);
+  app.post("/api/auth/login", authLimiter, handleLoginWithDB);
   app.post("/api/auth/logout", authenticate, handleLogout);
   app.get("/api/auth/me", authenticate, handleMe);
+  
+  // 2FA routes
+  app.post("/api/auth/2fa/verify", authLimiter, handleVerify2FA);
+  app.post("/api/auth/2fa/resend", authLimiter, handleResend2FA);
+  app.post("/api/auth/2fa/enable", authenticate, handleEnable2FA);
+  app.post("/api/auth/2fa/disable", authenticate, handleDisable2FA);
 
   // Error handling middleware
   const handleZodError = (err: unknown, _req: Request, res: Response, next: (...args: unknown[]) => unknown) => {
