@@ -22,6 +22,7 @@ import {
   Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocation } from "wouter";
 
 function FactorCard({ 
   icon: Icon, 
@@ -58,6 +59,7 @@ function FactorCard({
 
 export default function CreditScoreCard() {
   const { getCreditScore, refreshCreditScore } = useCreditScore();
+  const [, navigate] = useLocation();
 
   const { data: creditScore, isLoading, error } = useQuery({
     queryKey: ["/api/credit-score"],
@@ -202,11 +204,10 @@ export default function CreditScoreCard() {
         {/* Action Button */}
         <Button
           className="w-full mt-4 group"
-          onClick={() => mutation.mutate()}
-          disabled={mutation.isPending}
+          onClick={() => navigate("/plan")}
         >
           <Sparkles className="h-4 w-4 mr-2" />
-          {mutation.isPending ? "Loading..." : "View Full Report"}
+          View Full Report
           <ChevronRight className="h-4 w-4 ml-auto group-hover:translate-x-1 transition-transform" />
         </Button>
       </CardContent>

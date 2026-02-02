@@ -4,6 +4,7 @@ import { apiFetch } from '@/lib/api';
 import { queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { useLocation } from "wouter";
 
 // Existing components
 import CreditScoreCard from "@/components/CreditScoreCard";
@@ -75,6 +76,7 @@ export default function Dashboard() {
   const { isLoading: authLoading, user } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [, navigate] = useLocation();
   
   // Fetch notifications count
   const { data: unreadCount } = useQuery({
@@ -227,7 +229,11 @@ export default function Dashboard() {
                         </>
                       )}
                     </p>
-                    <Button variant="link" className="p-0 h-auto mt-2">
+                    <Button 
+                      variant="link" 
+                      className="p-0 h-auto mt-2"
+                      onClick={() => navigate("/plan")}
+                    >
                       View detailed analysis →
                     </Button>
                   </div>
@@ -324,19 +330,35 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Button variant="outline" className="h-auto py-4 flex-col gap-2">
+              <Button 
+                variant="outline" 
+                className="h-auto py-4 flex-col gap-2"
+                onClick={() => navigate("/bill-split")}
+              >
                 <CreditCard className="h-5 w-5" />
                 <span className="text-sm">Pay Bills</span>
               </Button>
-              <Button variant="outline" className="h-auto py-4 flex-col gap-2">
+              <Button 
+                variant="outline" 
+                className="h-auto py-4 flex-col gap-2"
+                onClick={() => navigate("/goals")}
+              >
                 <PiggyBank className="h-5 w-5" />
                 <span className="text-sm">Add Savings</span>
               </Button>
-              <Button variant="outline" className="h-auto py-4 flex-col gap-2">
+              <Button 
+                variant="outline" 
+                className="h-auto py-4 flex-col gap-2"
+                onClick={() => navigate("/products?category=insurance")}
+              >
                 <Shield className="h-5 w-5" />
                 <span className="text-sm">View Insurance</span>
               </Button>
-              <Button variant="outline" className="h-auto py-4 flex-col gap-2">
+              <Button 
+                variant="outline" 
+                className="h-auto py-4 flex-col gap-2"
+                onClick={() => navigate("/goals")}
+              >
                 <Target className="h-5 w-5" />
                 <span className="text-sm">Set Goal</span>
               </Button>

@@ -805,34 +805,49 @@ export default function BillSplit() {
                     </div>
                   </div>
 
-                  {/* Preview */}
+                  {/* Preview - includes you (the creator) in the split */}
                   {watchAmount && watchParticipants.length > 0 && (
                     <Card className="bg-muted/50 border-dashed">
                       <CardContent className="p-4">
                         <p className="text-sm font-medium mb-2">Split preview</p>
                         <div className="space-y-1.5">
-                          {watchParticipants.map((p, i) => {
-                            let amount = 0;
+                          {/* Show all participants including the creator (you) */}
+                          {(() => {
                             const total = parseFloat(watchAmount || '0');
+                            const creatorName = (user as any)?.firstName || (user as any)?.username || (user as any)?.name || 'You';
+                            // Total participant count = creator + other participants
+                            const totalParticipantCount = watchParticipants.length + 1;
                             
-                            if (watchSplitType === 'equal') {
-                              amount = total / watchParticipants.length;
-                            } else if (watchSplitType === 'exact') {
-                              amount = parseFloat(p.shareValue || '0');
-                            } else if (watchSplitType === 'percentage') {
-                              amount = total * (parseFloat(p.shareValue || '0') / 100);
-                            } else if (watchSplitType === 'shares') {
-                              const totalShares = watchParticipants.reduce((sum, p) => sum + parseFloat(p.shareValue || '1'), 0);
-                              amount = (parseFloat(p.shareValue || '1') / totalShares) * total;
-                            }
+                            // Calculate amounts for all participants (creator + others)
+                            const allParticipants = [
+                              { name: `${creatorName} (you)`, shareValue: watchParticipants[0]?.shareValue, isCreator: true },
+                              ...watchParticipants.map((p, i) => ({ ...p, isCreator: false }))
+                            ];
                             
-                            return (
-                              <div key={i} className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">{p.name || `Person ${i + 1}`}</span>
-                                <span className="font-medium">{formatCurrency(amount)}</span>
-                              </div>
-                            );
-                          })}
+                            return allParticipants.map((p, i) => {
+                              let amount = 0;
+                              
+                              if (watchSplitType === 'equal') {
+                                amount = total / totalParticipantCount;
+                              } else if (watchSplitType === 'exact') {
+                                amount = parseFloat(p.shareValue || '0');
+                              } else if (watchSplitType === 'percentage') {
+                                amount = total * (parseFloat(p.shareValue || '0') / 100);
+                              } else if (watchSplitType === 'shares') {
+                                const totalShares = allParticipants.reduce((sum, p) => sum + parseFloat(p.shareValue || '1'), 0);
+                                amount = (parseFloat(p.shareValue || '1') / totalShares) * total;
+                              }
+                              
+                              return (
+                                <div key={i} className="flex justify-between text-sm">
+                                  <span className={p.isCreator ? "text-primary font-medium" : "text-muted-foreground"}>
+                                    {p.name || `Person ${i + 1}`}
+                                  </span>
+                                  <span className="font-medium">{formatCurrency(amount)}</span>
+                                </div>
+                              );
+                            });
+                          })()}
                           <Separator className="my-2" />
                           <div className="flex justify-between text-sm font-medium">
                             <span>Total</span>

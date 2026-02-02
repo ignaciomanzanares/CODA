@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useApi } from "@/lib/api";
 import TabsComponent from "@/components/TabsComponent";
@@ -19,6 +19,7 @@ import {
   TrendingUp,
   Percent
 } from "lucide-react";
+import { useSearch } from "wouter";
 
 // Define a type for your filters
 type ProductFilters = {
@@ -32,8 +33,27 @@ type ProductFilters = {
 export default function Products() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { getFinancialProducts } = useApi(); // <-- Add this line
-  const [activeCategory, setActiveCategory] = useState("loans");
+  const searchString = useSearch();
+  const urlParams = new URLSearchParams(searchString);
+  const categoryFromUrl = urlParams.get("category");
+  
+  const [activeCategory, setActiveCategory] = useState(() => {
+    // Check if category from URL is valid
+    const validCategories = ["loans", "credit_cards", "savings", "insurance"];
+    if (categoryFromUrl && validCategories.includes(categoryFromUrl)) {
+      return categoryFromUrl;
+    }
+    return "loans";
+  });
   const [filters, setFilters] = useState<ProductFilters>({});
+  
+  // Update active category when URL changes
+  useEffect(() => {
+    const validCategories = ["loans", "credit_cards", "savings", "insurance"];
+    if (categoryFromUrl && validCategories.includes(categoryFromUrl)) {
+      setActiveCategory(categoryFromUrl);
+    }
+  }, [categoryFromUrl]);
 
   // Use demo data when not authenticated, real data when authenticated
   const demoProducts = getDemoFinancialProductsByCategory(activeCategory);
