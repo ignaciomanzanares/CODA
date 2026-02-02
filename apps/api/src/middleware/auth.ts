@@ -349,6 +349,7 @@ export async function handleRegister(req: Request, res: Response) {
 
 /**
  * Login handler with proper database authentication
+ * Supports both registered users and demo users
  */
 export async function handleLoginWithDB(req: Request, res: Response) {
   const { email, password } = req.body;
@@ -357,6 +358,29 @@ export async function handleLoginWithDB(req: Request, res: Response) {
     return res.status(400).json({ 
       error: 'Bad Request', 
       message: 'Email and password are required' 
+    });
+  }
+
+  // Check demo authentication FIRST (for quick demo access)
+  const isProduction = process.env.NODE_ENV === 'production';
+  const demoModeEnabled = process.env.DEMO_MODE === 'true';
+  const demoPassword = process.env.DEMO_PASSWORD || 'demo123';
+  
+  // Allow demo login in development OR when DEMO_MODE is enabled in production
+  if ((!isProduction || demoModeEnabled) && password === demoPassword) {
+    // Create demo user token
+    const tokenPayload: TokenPayload = {
+      userId: email.split('@')[0],
+      email: email,
+      name: email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1),
+    };
+
+    const token = generateToken(tokenPayload);
+
+    return res.json({
+      success: true,
+      token,
+      user: tokenPayload,
     });
   }
 
@@ -380,7 +404,6 @@ export async function handleLoginWithDB(req: Request, res: Response) {
         storeOTP(email, otpCode);
         
         // In production, send email here
-        // For now, we'll return that 2FA is required
         // TODO: Integrate with email service
         console.log(`2FA code for ${email}: ${otpCode}`); // Remove in production
         
@@ -407,30 +430,7 @@ export async function handleLoginWithDB(req: Request, res: Response) {
       });
     }
 
-    // Fall back to demo authentication if enabled
-    const isProduction = process.env.NODE_ENV === 'production';
-    const demoModeEnabled = process.env.DEMO_MODE === 'true';
-    const demoPassword = process.env.DEMO_PASSWORD || 'demo123';
-    
-    if (!isProduction || demoModeEnabled) {
-      if (password === demoPassword) {
-        // Create demo user token
-        const tokenPayload: TokenPayload = {
-          userId: email.split('@')[0],
-          email: email,
-          name: email.split('@')[0],
-        };
-
-        const token = generateToken(tokenPayload);
-
-        return res.json({
-          success: true,
-          token,
-          user: tokenPayload,
-        });
-      }
-    }
-
+    // No user found and not a demo login
     return res.status(401).json({ 
       error: 'Unauthorized', 
       message: 'Invalid email or password' 
