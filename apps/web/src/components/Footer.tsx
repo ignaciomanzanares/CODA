@@ -21,23 +21,23 @@ export default function Footer() {
             <h4 className="text-white font-medium mb-4">Features</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/dashboard">
-                  <a className="text-gray-300 hover:text-white">Credit Score</a>
+                <Link href="/plan" className="text-gray-300 hover:text-white">
+                  Credit Score
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard">
-                  <a className="text-gray-300 hover:text-white">Insurance Risk</a>
+                <Link href="/products?category=insurance" className="text-gray-300 hover:text-white">
+                  Insurance Risk
                 </Link>
               </li>
               <li>
-                <Link href="/goals">
-                  <a className="text-gray-300 hover:text-white">Financial Goals</a>
+                <Link href="/goals" className="text-gray-300 hover:text-white">
+                  Financial Goals
                 </Link>
               </li>
               <li>
-                <Link href="/products">
-                  <a className="text-gray-300 hover:text-white">Product Comparison</a>
+                <Link href="/products" className="text-gray-300 hover:text-white">
+                  Product Comparison
                 </Link>
               </li>
             </ul>
