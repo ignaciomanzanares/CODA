@@ -68,7 +68,7 @@ export const users = pgTable("users", {
   id: text("id").primaryKey(), // Text ID to support JWT user IDs
   username: text("username").notNull().unique(),
   email: text("email").notNull().unique(),
-  passwordHash: text("password_hash").notNull(), // For JWT auth
+  passwordHash: text("password_hash"), // For JWT auth (nullable for demo users)
   firstName: text("first_name"),
   lastName: text("last_name"),
   displayName: text("display_name"),
@@ -76,6 +76,7 @@ export const users = pgTable("users", {
   language: text("language").default("English"),
   profilePicture: text("profile_picture"),
   userMetadata: text("user_metadata"), // JSON string for additional user preferences
+  twoFactorEnabled: integer("two_factor_enabled").default(0), // 0 = false, 1 = true
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

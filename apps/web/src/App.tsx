@@ -8,6 +8,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/Login";
+import SignUp from "@/pages/SignUp";
 import Landing from "@/pages/Landing";
 import Dashboard from "@/pages/Dashboard";
 import Onboarding from "@/pages/Onboarding";
@@ -38,6 +39,7 @@ function App() {
 
         {/* Public routes */}
         <Route path="/login" component={Login} />
+        <Route path="/signup" component={SignUp} />
         
         {/* Special route for email invitations - no header/footer */}
         <Route path="/invite">
