@@ -166,12 +166,13 @@ function StatCard({
 
 export default function Expenses() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { getExpenses, createExpense, updateExpense, deleteExpense } = useApi();
+  const { getExpenses, createExpense, updateExpense, deleteExpense, classifyExpense } = useApi();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [isClassifying, setIsClassifying] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -195,45 +196,18 @@ export default function Expenses() {
         date: new Date(expense.date),
         tags: expense.tags ? expense.tags.split(",").map(t => t.trim()) : [],
       }),
-    onMutate: async (newExpense) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["/api/expenses"] });
-      
-      // Snapshot previous value
+    onSuccess: (data) => {
+      // Immediately update the cache with the real data from server
       const previousExpenses = queryClient.getQueryData<Expense[]>(["/api/expenses"]);
-      
-      // Optimistically update to new value
-      if (previousExpenses) {
-        const optimisticExpense: Expense = {
-          id: Date.now(), // Temporary ID
-          userId: "temp",
-          amount: String(newExpense.amount),
-          description: newExpense.description,
-          category: newExpense.category,
-          subcategory: newExpense.subcategory || undefined,
-          merchantName: newExpense.merchantName || undefined,
-          // Create a Date object that treats the date as local time, not UTC
-          date: (() => {
-            const [year, month, day] = newExpense.date.split('-').map(Number);
-            return new Date(year, month - 1, day); // month is 0-indexed
-          })(),
-          paymentMethod: newExpense.paymentMethod || undefined,
-          isRecurring: newExpense.isRecurring || false,
-          tags: newExpense.tags ? newExpense.tags.split(",").map(t => t.trim()) : undefined,
-          notes: newExpense.notes || undefined,
-          isAutoClassified: newExpense.isAutoClassified || true,
-          confidence: null,
-          createdAt: new Date()
-        };
-        queryClient.setQueryData<Expense[]>(["/api/expenses"], [...previousExpenses, optimisticExpense]);
+      if (previousExpenses && data) {
+        queryClient.setQueryData<Expense[]>(["/api/expenses"], [...previousExpenses, data]);
       }
       
-      return { previousExpenses };
-    },
-    onSuccess: () => {
+      // Also invalidate to ensure we have the latest data
       queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
       // Invalidate notifications to show new expense notifications
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      
       setIsAddDialogOpen(false);
       form.reset();
       toast({
@@ -241,11 +215,7 @@ export default function Expenses() {
         description: "Your expense has been added successfully.",
       });
     },
-    onError: (error, newExpense, context) => {
-      // Rollback on error
-      if (context?.previousExpenses) {
-        queryClient.setQueryData(["/api/expenses"], context.previousExpenses);
-      }
+    onError: (error) => {
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to add expense",
@@ -403,6 +373,59 @@ export default function Expenses() {
 
   const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
 
+  // AI Classification function with debouncing
+  const classifyExpenseAI = async (description: string, merchantName?: string, amount?: string, targetForm?: 'add' | 'edit') => {
+    if (!isAuthenticated || !description.trim()) {
+      return;
+    }
+
+    const currentForm = targetForm === 'edit' ? editForm : form;
+    const isAutoClassifyEnabled = targetForm === 'edit' ? editForm.watch('isAutoClassified') : form.watch('isAutoClassified');
+
+    if (!isAutoClassifyEnabled) {
+      return;
+    }
+
+    setIsClassifying(true);
+    try {
+      const result = await classifyExpense(
+        description,
+        merchantName,
+        amount ? parseFloat(amount) : undefined
+      );
+      
+      if (result.confidence >= 0.7) {
+        currentForm.setValue('category', result.category);
+        if (result.subcategory) {
+          currentForm.setValue('subcategory', result.subcategory);
+        }
+        toast({
+          title: "AI Classification",
+          description: `Categorized as "${result.category}" with ${Math.round(result.confidence * 100)}% confidence`,
+        });
+      }
+    } catch (error) {
+      console.error('AI classification failed:', error);
+    } finally {
+      setIsClassifying(false);
+    }
+  };
+
+  // Debounced classification
+  const [classificationTimeout, setClassificationTimeout] = useState<NodeJS.Timeout | null>(null);
+  
+  const debouncedClassify = (description: string, merchantName?: string, amount?: string, targetForm?: 'add' | 'edit') => {
+    if (classificationTimeout) {
+      clearTimeout(classificationTimeout);
+    }
+    
+    const timeout = setTimeout(() => {
+      classifyExpenseAI(description, merchantName, amount, targetForm);
+    }, 1000); // 1 second delay
+    
+    setClassificationTimeout(timeout);
+  };
+
   const onSubmit = (values: ExpenseFormValues) => {
     createExpenseMutation.mutate(values);
   };
@@ -521,7 +544,21 @@ export default function Expenses() {
                       <FormItem>
                         <FormLabel>Description</FormLabel>
                         <FormControl>
-                          <Input placeholder="What did you buy?" {...field} />
+                          <Input 
+                            placeholder="What did you buy?" 
+                            {...field} 
+                            onChange={(e) => {
+                              field.onChange(e);
+                              if (form.watch('isAutoClassified')) {
+                              debouncedClassify(
+                                e.target.value,
+                                form.watch('merchantName'),
+                                form.watch('amount'),
+                                'add'
+                              );
+                              }
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -558,7 +595,21 @@ export default function Expenses() {
                     <FormItem>
                       <FormLabel>Merchant (Optional)</FormLabel>
                       <FormControl>
-                        <Input placeholder="Store or business name" {...field} />
+                        <Input 
+                          placeholder="Store or business name" 
+                          {...field} 
+                          onChange={(e) => {
+                            field.onChange(e);
+                            if (form.watch('isAutoClassified')) {
+                            debouncedClassify(
+                              form.watch('description'),
+                              e.target.value,
+                              form.watch('amount'),
+                              'add'
+                            );
+                            }
+                          }}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -596,15 +647,28 @@ export default function Expenses() {
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                       <div className="space-y-0.5">
-                        <FormLabel className="text-base">Auto-classify</FormLabel>
+                        <FormLabel className="text-base flex items-center gap-2">
+                          Auto-classify
+                          {isClassifying && <Sparkles className="h-4 w-4 animate-pulse text-primary" />}
+                        </FormLabel>
                         <div className="text-sm text-gray-500">
-                          Let AI categorize this expense
+                          {isClassifying ? "AI is analyzing..." : "Let AI categorize this expense"}
                         </div>
                       </div>
                       <FormControl>
                         <Switch
                           checked={field.value}
-                          onCheckedChange={field.onChange}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked);
+                            if (checked && form.watch('description')) {
+                            debouncedClassify(
+                              form.watch('description'),
+                              form.watch('merchantName'),
+                              form.watch('amount'),
+                              'add'
+                            );
+                            }
+                          }}
                         />
                       </FormControl>
                     </FormItem>
@@ -832,7 +896,21 @@ export default function Expenses() {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Input placeholder="What did you buy?" {...field} />
+                      <Input 
+                        placeholder="What did you buy?" 
+                        {...field} 
+                        onChange={(e) => {
+                          field.onChange(e);
+                          if (editForm.watch('isAutoClassified')) {
+                            debouncedClassify(
+                              e.target.value,
+                              editForm.watch('merchantName'),
+                              editForm.watch('amount'),
+                              'edit'
+                            );
+                          }
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -869,7 +947,21 @@ export default function Expenses() {
                   <FormItem>
                     <FormLabel>Merchant (Optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Store or business name" {...field} />
+                      <Input 
+                        placeholder="Store or business name" 
+                        {...field} 
+                        onChange={(e) => {
+                          field.onChange(e);
+                          if (editForm.watch('isAutoClassified')) {
+                            debouncedClassify(
+                              editForm.watch('description'),
+                              e.target.value,
+                              editForm.watch('amount'),
+                              'edit'
+                            );
+                          }
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -907,15 +999,28 @@ export default function Expenses() {
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                     <div className="space-y-0.5">
-                      <FormLabel className="text-base">Auto-classify</FormLabel>
+                      <FormLabel className="text-base flex items-center gap-2">
+                        Auto-classify
+                        {isClassifying && <Sparkles className="h-4 w-4 animate-pulse text-primary" />}
+                      </FormLabel>
                       <div className="text-sm text-gray-500">
-                        Let AI categorize this expense
+                        {isClassifying ? "AI is analyzing..." : "Let AI categorize this expense"}
                       </div>
                     </div>
                     <FormControl>
                       <Switch
                         checked={field.value}
-                        onCheckedChange={field.onChange}
+                        onCheckedChange={(checked) => {
+                          field.onChange(checked);
+                          if (checked && editForm.watch('description')) {
+                            debouncedClassify(
+                              editForm.watch('description'),
+                              editForm.watch('merchantName'),
+                              editForm.watch('amount'),
+                              'edit'
+                            );
+                          }
+                        }}
                       />
                     </FormControl>
                   </FormItem>

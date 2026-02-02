@@ -1,8 +1,9 @@
 /**
  * Expense classification utility
- * In a real application, this would use machine learning or AI for classification
- * This is a simplified rule-based classifier for demonstration purposes
+ * Supports both rule-based classification and AI-powered classification using Groq
  */
+
+import { logger } from '../logger.js';
 
 interface ClassificationResult {
   category: string;
@@ -250,4 +251,97 @@ export function getExpenseInsights(expenses: Array<{ amount: string | number; ca
     monthlyTrend,
     avgPerCategory
   };
+}
+
+/**
+ * AI-powered expense classification using Groq
+ */
+export async function classifyExpenseWithAI(
+  description: string,
+  merchantName?: string,
+  amount?: number
+): Promise<ClassificationResult> {
+  const apiKey = process.env.GROQ_API_KEY;
+  
+  if (!apiKey) {
+    logger.warn('GROQ_API_KEY not configured, falling back to rule-based classification');
+    return classifyExpense(description, merchantName, amount);
+  }
+
+  try {
+    const prompt = `You are an expense categorization AI. Categorize the following expense into one of these categories: Groceries, Dining, Transportation, Housing, Healthcare, Entertainment, Shopping, Utilities, Education, Travel, Other.
+
+Expense details:
+- Description: ${description}
+- Merchant: ${merchantName || 'Unknown'}
+- Amount: $${amount || 'Unknown'}
+
+Respond with ONLY a JSON object in this exact format:
+{
+  "category": "CategoryName",
+  "subcategory": "SubcategoryName",
+  "confidence": 0.95
+}
+
+The confidence should be between 0.0 and 1.0. Choose the most appropriate category and subcategory based on the expense details.`;
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama3-70b-8192',
+        messages: [
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: 150,
+        temperature: 0.1, // Low temperature for consistent categorization
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Groq API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const aiResponse = data.choices[0]?.message?.content?.trim();
+
+    if (!aiResponse) {
+      throw new Error('Empty response from Groq API');
+    }
+
+    // Parse the JSON response
+    const parsed = JSON.parse(aiResponse);
+    
+    // Validate the response structure
+    if (!parsed.category || typeof parsed.confidence !== 'number') {
+      throw new Error('Invalid response format from AI');
+    }
+
+    logger.info({ 
+      description, 
+      merchantName, 
+      amount, 
+      aiCategory: parsed.category, 
+      confidence: parsed.confidence 
+    }, 'AI expense classification successful');
+
+    return {
+      category: parsed.category,
+      subcategory: parsed.subcategory || undefined,
+      confidence: Math.max(0.7, parsed.confidence) // Ensure minimum confidence for AI classifications
+    };
+
+  } catch (error) {
+    logger.error({ err: error, description, merchantName, amount }, 'AI expense classification failed, falling back to rule-based');
+    
+    // Fallback to rule-based classification
+    const fallbackResult = classifyExpense(description, merchantName, amount);
+    return {
+      ...fallbackResult,
+      confidence: Math.min(fallbackResult.confidence, 0.6) // Lower confidence for fallback
+    };
+  }
 }

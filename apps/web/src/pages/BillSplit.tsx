@@ -365,71 +365,88 @@ export default function BillSplit() {
   // Calculate balances - count all unpaid amounts from bill splits you created
   const calculateBalances = () => {
     const balances: Record<string, { name: string; balance: number }> = {};
-    
-    billSplits.forEach(split => {
+    const currentUserId = user?.userId ?? null;
+
+    (billSplits || []).forEach((split) => {
       if (split.status === 'settled' || split.status === 'fully_paid') return;
-      
-      // If user created this split, all unpaid participants owe them money (except themselves)
-      if (split.createdBy === user?.userId || split.userRole === 'creator') {
-        split.participants?.forEach((p: BillSplitParticipantWithUser) => {
-          // Skip the creator's own entry
-          if (p.userId === user?.userId || p.isCurrentUser) return;
-          if (!p.isPaid) {
-            const key = p.userId || p.email || p.name;
-            if (!balances[key]) {
-              balances[key] = { name: p.name, balance: 0 };
-            }
-            balances[key].balance += parseFloat(String(p.amountOwed)) || 0;
+
+      // Creator: match by id or by role (API sets userRole)
+      const isCreator =
+        (currentUserId != null && String(split.createdBy) === String(currentUserId)) ||
+        split.userRole === 'creator';
+
+      if (isCreator) {
+        (split.participants || []).forEach((p: BillSplitParticipantWithUser) => {
+          const isCurrentUserParticipant =
+            (currentUserId != null && String(p.userId) === String(currentUserId)) || Boolean(p.isCurrentUser);
+          if (isCurrentUserParticipant) return;
+
+          // Treat any non-true as unpaid (handles 0, false, undefined from API)
+          const isPaid = Boolean(p.isPaid ?? (p as { is_paid?: number }).is_paid);
+          if (!isPaid) {
+            const rawOwed = p.amountOwed ?? (p as { amount_owed?: number }).amount_owed;
+            const amount = Number(rawOwed) || parseFloat(String(rawOwed ?? 0)) || 0;
+            if (amount <= 0) return;
+            const key = p.userId || p.email || `p-${p.id}`;
+            if (!balances[key]) balances[key] = { name: p.name, balance: 0 };
+            balances[key].balance += amount;
           }
         });
       }
-      
-      // If user is a participant (not creator), they owe money
-      const ourParticipation = split.participants?.find((p: BillSplitParticipantWithUser) => 
-        p.userId === user?.userId || p.isCurrentUser
+
+      const ourParticipation = (split.participants || []).find(
+        (p: BillSplitParticipantWithUser) =>
+          (currentUserId != null && String(p.userId) === String(currentUserId)) || Boolean(p.isCurrentUser)
       );
-      if (ourParticipation && !ourParticipation.isPaid && split.createdBy !== user?.userId && split.userRole !== 'creator') {
-        const creatorKey = split.createdBy || 'creator';
-        if (!balances[creatorKey]) {
-          balances[creatorKey] = { name: split.createdByName || 'Bill Creator', balance: 0 };
-        }
-        balances[creatorKey].balance -= parseFloat(String(ourParticipation.amountOwed)) || 0;
+      if (ourParticipation && !Boolean(ourParticipation.isPaid ?? (ourParticipation as { is_paid?: number }).is_paid) && !isCreator) {
+        const creatorKey = String(split.createdBy ?? 'creator');
+        const rawOwed = ourParticipation.amountOwed ?? (ourParticipation as { amount_owed?: number }).amount_owed;
+        const amount = Number(rawOwed) || parseFloat(String(rawOwed ?? 0)) || 0;
+        if (!balances[creatorKey]) balances[creatorKey] = { name: split.createdByName || 'Bill Creator', balance: 0 };
+        balances[creatorKey].balance -= amount;
       }
     });
-    
-    return Object.entries(balances).map(([oderserId, data]) => ({ oderserId, ...data }));
+
+    return Object.entries(balances).map(([userId, data]) => ({ userId, ...data }));
   };
 
   // Calculate totals directly from bill splits for accuracy
   const calculateTotals = () => {
     let youAreOwed = 0;
     let youOwe = 0;
-    
-    billSplits.forEach(split => {
+    const currentUserId = user?.userId ?? null;
+
+    (billSplits || []).forEach((split) => {
       if (split.status === 'settled' || split.status === 'fully_paid') return;
-      
-      // If you created this split, sum unpaid amounts (excluding yourself)
-      if (split.createdBy === user?.userId || split.userRole === 'creator') {
-        split.participants?.forEach((p: BillSplitParticipantWithUser) => {
-          // Skip the creator's own entry
-          if (p.userId === user?.userId || p.isCurrentUser) return;
-          if (!p.isPaid) {
-            youAreOwed += parseFloat(String(p.amountOwed)) || 0;
+
+      const isCreator =
+        (currentUserId != null && String(split.createdBy) === String(currentUserId)) ||
+        split.userRole === 'creator';
+
+      if (isCreator) {
+        (split.participants || []).forEach((p: BillSplitParticipantWithUser) => {
+          const isCurrentUserParticipant =
+            (currentUserId != null && String(p.userId) === String(currentUserId)) || Boolean(p.isCurrentUser);
+          if (isCurrentUserParticipant) return;
+          if (!Boolean(p.isPaid ?? (p as { is_paid?: number }).is_paid)) {
+            const rawOwed = p.amountOwed ?? (p as { amount_owed?: number }).amount_owed;
+            youAreOwed += Number(rawOwed) || parseFloat(String(rawOwed ?? 0)) || 0;
           }
         });
       }
-      
-      // If you're a participant in someone else's split, you owe that amount
-      if (split.createdBy !== user?.userId && split.userRole !== 'creator') {
-        const myParticipation = split.participants?.find((p: BillSplitParticipantWithUser) => 
-          p.userId === user?.userId || p.isCurrentUser
+
+      if (!isCreator) {
+        const myParticipation = (split.participants || []).find(
+          (p: BillSplitParticipantWithUser) =>
+            (currentUserId != null && String(p.userId) === String(currentUserId)) || Boolean(p.isCurrentUser)
         );
-        if (myParticipation && !myParticipation.isPaid) {
-          youOwe += parseFloat(String(myParticipation.amountOwed)) || 0;
+        if (myParticipation && !Boolean(myParticipation.isPaid ?? (myParticipation as { is_paid?: number }).is_paid)) {
+          const rawOwed = myParticipation.amountOwed ?? (myParticipation as { amount_owed?: number }).amount_owed;
+          youOwe += Number(rawOwed) || parseFloat(String(rawOwed ?? 0)) || 0;
         }
       }
     });
-    
+
     return { youAreOwed, youOwe };
   };
 
@@ -967,7 +984,7 @@ export default function BillSplit() {
                 <div className="divide-y">
                   {userBalances.map(balance => (
                     <FriendBalanceRow
-                      key={balance.oderserId}
+                      key={balance.userId}
                       name={balance.name}
                       balance={balance.balance}
                       onSettleUp={() => setIsSettleDialogOpen(true)}
