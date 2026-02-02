@@ -784,7 +784,7 @@ export class DatabaseStorage implements IStorage {
       const participantRecords = await db.select().from(billSplitParticipants).where(eq(billSplitParticipants.userId, userId));
       
       // Get the unique bill split IDs
-      const billSplitIds = [...new Set(participantRecords.map(p => p.billSplitId))];
+      const billSplitIds = [...new Set(participantRecords.map((p: any) => p.billSplitId))];
       
       if (billSplitIds.length === 0) {
         return [];
@@ -795,9 +795,9 @@ export class DatabaseStorage implements IStorage {
       return splits;
     }
     // In-memory fallback: get participant records and then fetch corresponding bill splits
-    const participantRecords = Array.from(this.billSplitParticipants.values()).filter(p => p.userId === userId);
-    const billSplitIds = [...new Set(participantRecords.map(p => p.billSplitId))];
-    return Array.from(this.billSplits.values()).filter(b => billSplitIds.includes(b.id));
+    const participantRecords = Array.from(this.billSplitParticipants.values()).filter((p: any) => p.userId === userId);
+    const billSplitIds = [...new Set(participantRecords.map((p: any) => p.billSplitId))];
+    return Array.from(this.billSplits.values()).filter((b: any) => billSplitIds.includes(b.id));
   }
 
   async createBillSplit(data: any): Promise<any> {
