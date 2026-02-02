@@ -920,6 +920,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // --- Public/demo routes (no auth required) ---
 
+  // ==========================================================================
+  // SEED DATA ENDPOINT - Populate database with test data
+  // ==========================================================================
+  
+  /**
+   * POST /api/seed
+   * Populates the database with comprehensive test data for the demo user
+   */
+  app.post("/api/seed", authenticate, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      logger.info({ userId }, 'Seeding database with test data');
+
+      // Clear existing data for this user (optional, based on query param)
+      const clearExisting = req.query.clear === 'true';
+
+      // 1. Create Financial Goals
+      const goalsData = [
+        { name: 'Emergency Fund', targetAmount: 15000, currentAmount: 12000, targetDate: new Date('2026-06-01'), category: 'savings' },
+        { name: 'Vacation to Europe', targetAmount: 5000, currentAmount: 2250, targetDate: new Date('2026-08-15'), category: 'travel' },
+        { name: 'New Car Down Payment', targetAmount: 10000, currentAmount: 3500, targetDate: new Date('2027-01-01'), category: 'purchase' },
+        { name: 'Investment Portfolio', targetAmount: 50000, currentAmount: 28000, targetDate: new Date('2028-12-31'), category: 'investment' },
+      ];
+
+      const createdGoals = [];
+      for (const goal of goalsData) {
+        const created = await storage.createFinancialGoal({ ...goal, userId });
+        createdGoals.push(created);
+      }
+
+      // 2. Create Expenses
+      const expensesData = [
+        { description: 'Grocery Shopping', amount: 156.78, category: 'Groceries', merchantName: 'Whole Foods', date: new Date('2026-01-25') },
+        { description: 'Monthly Gym Membership', amount: 49.99, category: 'Healthcare', merchantName: 'Planet Fitness', date: new Date('2026-01-20'), isRecurring: true },
+        { description: 'Dinner with Friends', amount: 85.50, category: 'Dining', merchantName: 'The Italian Place', date: new Date('2026-01-22') },
+        { description: 'Gas Station', amount: 45.00, category: 'Transportation', merchantName: 'Shell', date: new Date('2026-01-24') },
+        { description: 'Netflix Subscription', amount: 15.99, category: 'Entertainment', merchantName: 'Netflix', date: new Date('2026-01-15'), isRecurring: true },
+        { description: 'Electric Bill', amount: 125.00, category: 'Utilities', merchantName: 'City Power', date: new Date('2026-01-10'), isRecurring: true },
+        { description: 'New Headphones', amount: 199.99, category: 'Shopping', merchantName: 'Best Buy', date: new Date('2026-01-18') },
+        { description: 'Coffee Shop', amount: 6.50, category: 'Dining', merchantName: 'Starbucks', date: new Date('2026-01-27') },
+        { description: 'Uber Ride', amount: 24.50, category: 'Transportation', merchantName: 'Uber', date: new Date('2026-01-26') },
+        { description: 'Online Course', amount: 99.00, category: 'Education', merchantName: 'Udemy', date: new Date('2026-01-12') },
+      ];
+
+      const createdExpenses = [];
+      for (const expense of expensesData) {
+        const created = await storage.createExpense({ ...expense, userId, isAutoClassified: true });
+        createdExpenses.push(created);
+      }
+
+      // 3. Create Financial Products (if not exists)
+      const productsData = [
+        { name: 'Chase Sapphire Preferred', category: 'credit-cards', interestRate: '21.49', description: 'Premium travel rewards card with 2x points on travel and dining', features: ['60,000 bonus points', 'No foreign transaction fees', '$50 annual hotel credit'] },
+        { name: 'Discover it Cash Back', category: 'credit-cards', interestRate: '18.24', description: 'Rotating 5% cash back categories', features: ['5% cash back categories', 'Cash back match first year', 'No annual fee'] },
+        { name: 'Marcus Personal Loan', category: 'loans', interestRate: '7.49', description: 'No-fee personal loans for debt consolidation', features: ['No fees', 'Flexible terms', 'On-time payment reward'] },
+        { name: 'SoFi Student Loan Refi', category: 'loans', interestRate: '4.99', description: 'Refinance student loans at competitive rates', features: ['No fees', 'Unemployment protection', 'Career coaching'] },
+        { name: 'Ally High Yield Savings', category: 'savings', interestRate: '4.25', description: 'Online savings account with competitive APY', features: ['No minimum balance', 'No monthly fees', 'FDIC insured'] },
+        { name: 'Wealthfront Cash Account', category: 'savings', interestRate: '5.00', description: 'High-yield cash account with FDIC insurance', features: ['5.00% APY', 'FDIC insured up to $8M', 'No fees'] },
+        { name: 'Progressive Auto Insurance', category: 'insurance', interestRate: '0', description: 'Comprehensive auto coverage with discounts', features: ['Name Your Price tool', 'Snapshot discount', '24/7 claims'] },
+        { name: 'Lemonade Renters Insurance', category: 'insurance', interestRate: '0', description: 'AI-powered renters insurance', features: ['Instant coverage', 'Claims in 3 minutes', 'Giveback program'] },
+      ];
+
+      const createdProducts = [];
+      for (const product of productsData) {
+        try {
+          const created = await storage.createFinancialProduct(product);
+          createdProducts.push(created);
+        } catch (e) {
+          // Product might already exist
+        }
+      }
+
+      // 4. Create a Credit Score entry
+      try {
+        await storage.createCreditScore({
+          userId,
+          score: 742,
+          provider: 'CODA',
+          factors: JSON.stringify([
+            { factor: 'Payment History', status: 'Excellent', impact: 'positive' },
+            { factor: 'Credit Utilization', status: '23%', impact: 'positive' },
+            { factor: 'Credit Age', status: '4.2 years', impact: 'neutral' },
+            { factor: 'Credit Mix', status: 'Good', impact: 'positive' },
+            { factor: 'Recent Inquiries', status: '2', impact: 'neutral' },
+          ]),
+        });
+      } catch (e) {
+        // Update if exists
+        await storage.updateCreditScore(userId, { score: 742 });
+      }
+
+      // 5. Create Insurance Risk entry
+      try {
+        await storage.createInsuranceRisk({
+          userId,
+          overallRisk: 'Low',
+          healthRisk: 'Low',
+          autoRisk: 'Low',
+          propertyRisk: 'Medium',
+          factors: JSON.stringify([
+            { category: 'Health', factor: 'Non-smoker', impact: 'positive' },
+            { category: 'Auto', factor: 'Clean driving record', impact: 'positive' },
+            { category: 'Property', factor: 'Urban area', impact: 'neutral' },
+          ]),
+        });
+      } catch (e) {
+        // Update if exists
+        await storage.updateInsuranceRisk(userId, { overallRisk: 'Low' });
+      }
+
+      res.json({
+        success: true,
+        message: 'Database seeded successfully',
+        created: {
+          goals: createdGoals.length,
+          expenses: createdExpenses.length,
+          products: createdProducts.length,
+        }
+      });
+    } catch (error) {
+      logger.error({ err: error }, 'Error seeding database');
+      res.status(500).json({ error: 'Failed to seed database' });
+    }
+  });
+
   // Local demo ingestion to quickly populate accounts/transactions for demo-user
   app.post("/api/demo/ingest", async (_req, res) => {
     try {
