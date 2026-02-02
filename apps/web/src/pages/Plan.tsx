@@ -1,12 +1,26 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useApi } from "@/lib/api";
-import { Card, CardContent } from "@/components/ui/card";
+import { useApi, apiFetch } from "@/lib/api";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "wouter";
 import RecommendationCard from "@/components/RecommendationCard";
 import FinancialTimeline from "@/components/FinancialTimeline";
-import { TrendingUp, Landmark, ShieldCheck, Home, DollarSign, GraduationCap } from "lucide-react";
+import { MonthlyTracker, AnnualProjection } from "@/components/dashboard";
+import { 
+  TrendingUp, 
+  Landmark, 
+  ShieldCheck, 
+  Home, 
+  DollarSign, 
+  GraduationCap,
+  Calendar,
+  LineChart,
+  Lightbulb,
+  Target
+} from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { generateDemoCreditScore, generateDemoInsuranceRisk, generateDemoFinancialGoals } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
@@ -21,8 +35,22 @@ type InsuranceRisk = {
   autoRisk?: string;
 };
 
+interface FinancialSummaryData {
+  summary: {
+    totalBalance: number;
+    totalAssets: number;
+    totalLiabilities: number;
+    netWorth: number;
+    monthlyIncome: number;
+    monthlyExpenses: number;
+    savingsRate: number;
+    accountCount: number;
+  };
+}
+
 export default function Plan() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const [activeTab, setActiveTab] = useState("recommendations");
   
   // Get API functions from useApi hook
   const { getCreditScore, getInsuranceRisk, getFinancialGoals } = useApi();
@@ -47,6 +75,27 @@ export default function Plan() {
     queryKey: ["/api/financial-goals"],
     queryFn: getFinancialGoals,
     enabled: isAuthenticated && !authLoading,
+  });
+
+  // Fetch financial summary for projections
+  const { data: financialData } = useQuery<FinancialSummaryData>({
+    queryKey: ['financial-summary'],
+    queryFn: async () => {
+      try {
+        const token = localStorage.getItem('jwt_token');
+        if (token) {
+          const data = await apiFetch('/api/financial-summary', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (data.summary?.accountCount > 0) {
+            return data;
+          }
+        }
+      } catch {
+        // Fall through to demo data
+      }
+      return await apiFetch('/api/financial-summary/demo');
+    },
   });
   
   const creditScore = isAuthenticated ? realCreditScore : demoCreditScore;
@@ -98,182 +147,187 @@ export default function Plan() {
           id: 3,
           icon: <ShieldCheck />,
           title: "Complete Your Insurance Coverage",
-          description: "Based on your profile, we recommend increasing your auto insurance coverage to reduce your risk level.",
-          actionText: "Review Insurance",
+          description: "Based on your risk profile, adding umbrella insurance could protect your growing assets.",
+          actionText: "Get Quotes",
           actionLink: "/products?category=insurance",
         });
       }
     }
 
-    // Add more personalized recommendations based on goals
-    if (goals && goals.length > 0) {
-      const homeGoal = goals.find((goal: Goal) => goal.category === "home");
-      if (homeGoal) {
-        recommendations.push({
-          id: 4,
-          icon: <Home />,
-          title: "Save for Home Down Payment",
-          description: `You're ${Math.round((homeGoal.currentAmount / homeGoal.targetAmount) * 100)}% towards your home down payment. Consider a high-yield savings account to reach your goal faster.`,
-          actionText: "Explore Savings Options",
-          actionLink: "/products?category=savings",
-        });
-      }
+    // General recommendations
+    recommendations.push({
+      id: 4,
+      icon: <Home />,
+      title: "Explore First-Time Buyer Programs",
+      description: "Based on your income and credit, you may qualify for programs with 3% down payment and lower rates.",
+      actionText: "Check Eligibility",
+      actionLink: "/products?category=mortgage",
+    });
 
-      // Check for retirement goal
-      const retirementGoal = goals.find((goal: Goal) => goal.category === "retirement");
-      if (!retirementGoal) {
-        recommendations.push({
-          id: 5,
-          icon: <DollarSign />,
-          title: "Start Retirement Planning",
-          description: "You don't have a retirement savings goal yet. We recommend saving at least 15% of your income for retirement.",
-          actionText: "Create Retirement Goal",
-          actionLink: "/goals",
-        });
-      }
-
-      // Check for education goal
-      const educationGoal = goals.find((goal: Goal) => goal.category === "education");
-      if (educationGoal) {
-        recommendations.push({
-          id: 6,
-          icon: <GraduationCap />,
-          title: "Education Savings Strategy",
-          description: "Consider a 529 plan or education savings account for tax advantages when saving for education.",
-          actionText: "Learn More",
-          actionLink: "/products?category=savings",
-        });
-      }
-    }
+    recommendations.push({
+      id: 5,
+      icon: <GraduationCap />,
+      title: "Optimize Student Loan Repayment",
+      description: "Refinancing at current rates could save you $2,400 over the life of your loans.",
+      actionText: "Compare Rates",
+      actionLink: "/products?category=loans",
+    });
 
     return recommendations;
   };
 
-  // Get goals for timeline
-  const getTimelineGoals = () => {
-    if (!goals || goals.length === 0) return [];
+  const recommendations = getRecommendations();
 
-    return goals.map((goal: Goal) => {
-      const progress = Math.round((goal.currentAmount / goal.targetAmount) * 100);
-      let status = "not_started";
-      
-      if (progress >= 100) {
-        status = "completed";
-      } else if (progress > 0) {
-        status = "in_progress";
-      }
-      
-      // Calculate months until target date
-      const today = new Date();
-      const targetDate = new Date(goal.targetDate);
-      const monthsDiff = (targetDate.getFullYear() - today.getFullYear()) * 12 + 
-                          (targetDate.getMonth() - today.getMonth());
-      
-      let timeframe = "now";
-      
-      if (monthsDiff > 24) {
-        timeframe = "1-2 years";
-      } else if (monthsDiff > 12) {
-        timeframe = "6-12 months";
-      } else if (monthsDiff > 6) {
-        timeframe = "next (3-6 months)";
-      } else {
-        timeframe = "now";
-      }
-      
-      return {
-        ...goal,
-        status,
-        timeframe,
-        progress
-      };
-    }).sort((a: Goal & { timeframe: string }, b: Goal & { timeframe: string }) => {
-      // Sort by timeframe (now first, then next, etc.)
-      const timeOrder = { "now": 0, "next (3-6 months)": 1, "6-12 months": 2, "1-2 years": 3 };
-      return timeOrder[a.timeframe as keyof typeof timeOrder] - timeOrder[b.timeframe as keyof typeof timeOrder];
-    });
+  // Convert goals to timeline format
+  const getTimelineItems = () => {
+    if (!goals || !Array.isArray(goals)) return [];
+    
+    return goals.map((goal: Goal) => ({
+      title: goal.name,
+      target: `$${goal.targetAmount.toLocaleString()}`,
+      progress: Math.round((goal.currentAmount / goal.targetAmount) * 100),
+      date: goal.targetDate ? new Date(goal.targetDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'No date',
+    }));
   };
 
   if (isLoading) {
     return (
-      <div className="container py-8">
-        <Skeleton className="h-10 w-64 mb-6" />
-        <Skeleton className="h-[600px] w-full rounded-lg" />
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+        <div className="container py-8 space-y-6">
+          <Skeleton className="h-10 w-64" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-48" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
 
-  const recommendations = getRecommendations();
-  const timelineGoals = getTimelineGoals();
-
   return (
-    <div id="plan-section" className="container py-8 space-y-6">
-      {!isAuthenticated && (
-        <SignInBanner 
-          title="Viewing Demo Financial Plan"
-          description="You're exploring a sample financial plan with personalized recommendations and timeline. Sign in to get real recommendations based on your financial profile, goals, and credit data."
-          actionText="Sign In for Personal Planning"
-        />
-      )}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6 font-sans">Your Financial Plan</h2>
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      <div className="container py-8 space-y-6">
+        {!isAuthenticated && (
+          <SignInBanner 
+            title="Viewing Demo Financial Plan"
+            description="You're seeing sample data. Sign in to get personalized recommendations based on your actual financial situation."
+            actionText="Sign In for Personalized Plan"
+          />
+        )}
         
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <h3 className="text-lg font-bold mb-4 font-sans">Recommendations</h3>
-            
-            <div className="space-y-4">
-              {recommendations.length > 0 ? (
-                recommendations.map((recommendation) => (
-                  <RecommendationCard
-                    key={recommendation.id}
-                    icon={recommendation.icon}
-                    title={recommendation.title}
-                    description={recommendation.description}
-                    actionText={recommendation.actionText}
-                    actionLink={recommendation.actionLink}
-                  />
-                ))
-              ) : (
-                <Card className="p-6 text-center">
-                  <p className="text-gray-500">
-                    Connect more financial accounts to get personalized recommendations.
-                  </p>
-                  <Link href="/">
-                    <Button className="mt-4" disabled={!isAuthenticated}>Connect Accounts</Button>
-                  </Link>
-                </Card>
-              )}
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-primary/10">
+              <Target className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold">Financial Plan</h1>
+              <p className="text-muted-foreground">Track, budget, and reach your financial goals</p>
             </div>
           </div>
-          
-          <div>
-            <h3 className="text-lg font-bold mb-4 font-sans">Financial Timeline</h3>
-            
-            <Card className="border border-gray-200 rounded-lg">
-              <CardContent className="p-4">
-                {timelineGoals.length > 0 ? (
-                  <FinancialTimeline goals={timelineGoals} />
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500 mb-4">
-                      You haven&apos;t set any financial goals yet.
-                    </p>
-                    <Link href="/goals">
-                      <Button disabled={!isAuthenticated}>Create Goals</Button>
-                    </Link>
+        </div>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full max-w-lg grid-cols-3">
+            <TabsTrigger value="recommendations" className="flex items-center gap-2">
+              <Lightbulb className="h-4 w-4" />
+              <span className="hidden sm:inline">Recommendations</span>
+              <span className="sm:hidden">Tips</span>
+            </TabsTrigger>
+            <TabsTrigger value="monthly" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              <span className="hidden sm:inline">Monthly Budget</span>
+              <span className="sm:hidden">Budget</span>
+            </TabsTrigger>
+            <TabsTrigger value="annual" className="flex items-center gap-2">
+              <LineChart className="h-4 w-4" />
+              <span className="hidden sm:inline">Annual Plan</span>
+              <span className="sm:hidden">Annual</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Recommendations Tab */}
+          <TabsContent value="recommendations" className="space-y-6">
+            <Card className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-blue-200 dark:border-blue-800">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-blue-500/10 rounded-xl">
+                    <DollarSign className="h-6 w-6 text-blue-600" />
                   </div>
-                )}
+                  <div>
+                    <h2 className="text-xl font-semibold mb-2">Your Personalized Financial Plan</h2>
+                    <p className="text-muted-foreground">
+                      Based on your financial profile, we've identified {recommendations.length} opportunities 
+                      to optimize your finances. Following these recommendations could save you an estimated 
+                      <strong className="text-foreground"> $3,600+ per year</strong>.
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-            
-            <Link href="/goals">
-              <Button className="mt-4 w-full" disabled={!isAuthenticated}>
-                Customize Timeline
-              </Button>
-            </Link>
-          </div>
-        </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Recommendations */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Lightbulb className="h-5 w-5 text-yellow-500" />
+                  Smart Recommendations
+                </h3>
+                {recommendations.map((rec) => (
+                  <RecommendationCard
+                    key={rec.id}
+                    icon={rec.icon}
+                    title={rec.title}
+                    description={rec.description}
+                    actionText={rec.actionText}
+                    actionLink={rec.actionLink}
+                  />
+                ))}
+              </div>
+
+              {/* Financial Timeline */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Target className="h-5 w-5 text-green-500" />
+                  Goals Timeline
+                </h3>
+                <Card>
+                  <CardContent className="p-6">
+                    <FinancialTimeline items={getTimelineItems()} />
+                    <div className="mt-6 pt-4 border-t">
+                      <Link href="/goals">
+                        <Button variant="outline" className="w-full">
+                          Manage Goals
+                        </Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Monthly Budget Tab */}
+          <TabsContent value="monthly" className="space-y-6">
+            <MonthlyTracker 
+              totalBudget={financialData?.summary?.monthlyIncome ? financialData.summary.monthlyIncome * 0.7 : 5000}
+              totalSpent={financialData?.summary?.monthlyExpenses || 3845}
+            />
+          </TabsContent>
+
+          {/* Annual Plan Tab */}
+          <TabsContent value="annual" className="space-y-6">
+            <AnnualProjection 
+              monthlyIncome={financialData?.summary?.monthlyIncome || 7500}
+              monthlyExpenses={financialData?.summary?.monthlyExpenses || 3845}
+              currentSavings={financialData?.summary?.totalAssets ? financialData.summary.totalAssets * 0.1 : 16000}
+              savingsGoal={50000}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
