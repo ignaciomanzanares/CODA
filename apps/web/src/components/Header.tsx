@@ -73,29 +73,31 @@ export default function Header() {
             <span className="text-lg hidden sm:inline">CODA</span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location === item.href || location.startsWith(`${item.href}/`);
-              
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+          {/* Desktop Navigation - only show when authenticated */}
+          {isAuthenticated && (
+            <nav className="hidden lg:flex items-center gap-1">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location === item.href || location.startsWith(`${item.href}/`);
+                
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
         </div>
 
         {/* User Menu */}
@@ -143,33 +145,36 @@ export default function Header() {
             </SheetTrigger>
             <SheetContent side="right" className="w-72">
               <div className="flex flex-col mt-8">
-                <nav className="flex flex-col gap-1">
-                  {navItems.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = location === item.href;
-                    
-                    return (
-                      <button
-                        key={item.href}
-                        className={cn(
-                          "flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-md transition-colors text-left",
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                        )}
-                        onClick={() => {
-                          setMobileMenuOpen(false);
-                          setLocation(item.href);
-                        }}
-                      >
-                        <Icon className="h-4 w-4" />
-                        {item.label}
-                      </button>
-                    );
-                  })}
-                </nav>
+                {/* Only show nav items when authenticated */}
+                {isAuthenticated && (
+                  <nav className="flex flex-col gap-1">
+                    {navItems.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = location === item.href;
+                      
+                      return (
+                        <button
+                          key={item.href}
+                          className={cn(
+                            "flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-md transition-colors text-left",
+                            isActive
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          )}
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            setLocation(item.href);
+                          }}
+                        >
+                          <Icon className="h-4 w-4" />
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </nav>
+                )}
                 
-                <div className="border-t mt-4 pt-4">
+                <div className={isAuthenticated ? "border-t mt-4 pt-4" : ""}>
                   {isAuthenticated ? (
                     <div className="flex flex-col gap-2">
                       <button
