@@ -20,6 +20,7 @@ import Expenses from "@/pages/Expenses";
 import BillSplit from "@/pages/BillSplit";
 import EmailInviteHandler from "@/pages/EmailInviteHandler";
 import ShareBillSplit from "@/pages/ShareBillSplit";
+import FinancialAssistant from "@/components/FinancialAssistant";
 
 
 function App() {
@@ -109,6 +110,8 @@ function App() {
         </Route>
       </Switch>
       <Toaster />
+      {/* Floating AI Assistant - available on all pages */}
+      <FinancialAssistant />
     </QueryClientProvider>
   );
 }
