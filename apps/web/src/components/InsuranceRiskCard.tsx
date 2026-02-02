@@ -22,6 +22,7 @@ import {
   Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocation } from "wouter";
 
 function RiskFactorCard({ 
   icon: Icon, 
@@ -76,6 +77,7 @@ function RiskFactorCard({
 
 export default function InsuranceRiskCard() {
   const { getInsuranceRisk, refreshInsuranceRisk } = useInsuranceRisk();
+  const [, navigate] = useLocation();
   
   const { data: insuranceRisk, isLoading, error } = useQuery({
     queryKey: ["/api/insurance-risk"],
@@ -225,11 +227,10 @@ export default function InsuranceRiskCard() {
         {/* Action Button */}
         <Button
           className="w-full mt-4 group"
-          onClick={() => mutation.mutate()}
-          disabled={mutation.isPending}
+          onClick={() => navigate("/products?category=insurance")}
         >
           <Shield className="h-4 w-4 mr-2" />
-          {mutation.isPending ? "Loading..." : "View Insurance Options"}
+          View Insurance Options
           <ChevronRight className="h-4 w-4 ml-auto group-hover:translate-x-1 transition-transform" />
         </Button>
       </CardContent>

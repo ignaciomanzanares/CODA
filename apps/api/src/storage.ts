@@ -780,10 +780,24 @@ export class DatabaseStorage implements IStorage {
 
   async getBillSplitsAsParticipant(userId: string): Promise<any[]> {
     if (db) {
-      const joins = await db.select().from(billSplitParticipants).where(eq(billSplitParticipants.userId, userId));
-      return joins;
+      // Get participant records for this user
+      const participantRecords = await db.select().from(billSplitParticipants).where(eq(billSplitParticipants.userId, userId));
+      
+      // Get the unique bill split IDs
+      const billSplitIds = [...new Set(participantRecords.map(p => p.billSplitId))];
+      
+      if (billSplitIds.length === 0) {
+        return [];
+      }
+      
+      // Fetch the actual bill splits
+      const splits = await db.select().from(billSplits).where(inArray(billSplits.id, billSplitIds));
+      return splits;
     }
-    return Array.from(this.billSplitParticipants.values()).filter(p => p.userId === userId);
+    // In-memory fallback: get participant records and then fetch corresponding bill splits
+    const participantRecords = Array.from(this.billSplitParticipants.values()).filter(p => p.userId === userId);
+    const billSplitIds = [...new Set(participantRecords.map(p => p.billSplitId))];
+    return Array.from(this.billSplits.values()).filter(b => billSplitIds.includes(b.id));
   }
 
   async createBillSplit(data: any): Promise<any> {

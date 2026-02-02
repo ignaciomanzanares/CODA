@@ -1889,12 +1889,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Extract participants from request body (don't include in bill split data)
       const { participants, ...billSplitFields } = req.body;
       
+      // Generate a unique share code for the bill split
+      const shareCode = `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
+      
       const billSplitData = {
         ...billSplitFields,
         // Use canonical DB user id (returned from createUser) when available
         createdBy: (user && user.id) ? user.id : userId,
         // Ensure date is a proper Date object
-        date: req.body.date ? new Date(req.body.date) : new Date()
+        date: req.body.date ? new Date(req.body.date) : new Date(),
+        // Add share code for sharing the bill split
+        shareCode: shareCode
       };
       const billSplit = await storage.createBillSplit(billSplitData);
       
