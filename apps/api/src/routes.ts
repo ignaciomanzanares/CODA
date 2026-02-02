@@ -1501,7 +1501,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.info({ userId, email: userEmail }, 'Created new user for expense');
     }
     
-    const expenseData = {
+    let expenseData = {
       ...req.body,
       userId,
       // Keep date as ISO string for SQLite
@@ -1509,6 +1509,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? req.body.date 
         : new Date(req.body.date).toISOString()
     };
+
+    // Use AI classification if auto-classify is enabled
+    if (req.body.isAutoClassified) {
+      try {
+        const { classifyExpenseWithAI } = await import("./utils/expenseClassifier.js");
+        const classification = await classifyExpenseWithAI(
+          req.body.description,
+          req.body.merchantName,
+          typeof req.body.amount === 'string' ? parseFloat(req.body.amount) : req.body.amount
+        );
+        
+        // Override category and subcategory with AI suggestions if confidence is high enough
+        if (classification.confidence >= 0.7) {
+          expenseData = {
+            ...expenseData,
+            category: classification.category,
+            subcategory: classification.subcategory || expenseData.subcategory,
+            confidence: classification.confidence
+          };
+          logger.info({ 
+            originalCategory: req.body.category, 
+            aiCategory: classification.category, 
+            confidence: classification.confidence 
+          }, 'Applied AI classification to expense');
+        }
+      } catch (error) {
+        logger.error({ err: error }, 'Failed to apply AI classification, using original category');
+        // Continue with original data if AI classification fails
+      }
+    }
+
     const expense = await storage.createExpense(expenseData);
     
     // Check for unusual spending patterns and create notification
@@ -1585,6 +1616,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     await storage.deleteExpense(expenseId);
     res.json({ message: "Expense deleted" });
+  });
+
+  // AI Expense Classification endpoint
+  app.post("/api/expenses/classify", authenticate, async (req, res) => {
+    try {
+      const { description, merchantName, amount } = req.body;
+      
+      if (!description) {
+        return res.status(400).json({ message: "Description is required" });
+      }
+
+      const { classifyExpenseWithAI } = await import("./utils/expenseClassifier.js");
+      const result = await classifyExpenseWithAI(
+        description,
+        merchantName,
+        typeof amount === 'string' ? parseFloat(amount) : amount
+      );
+
+      res.json(result);
+    } catch (error) {
+      logger.error({ err: error }, 'Error classifying expense');
+      res.status(500).json({ message: 'Failed to classify expense' });
+    }
   });
 
   // =============================================
