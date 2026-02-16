@@ -12,7 +12,7 @@
     "build": "npm run build -ws",
     "test": "npm run test -w @coda/api",
     "check": "tsc",
-    "db:push": "npm run db:push -w @coda/db",
+    "db:push": "drizzle-kit push --config=./drizzle.config.ts",
     "db:seed": "npm run db:seed -w @coda/db",
     "db:reset:sqlite": "npm run reset:sqlite -w @coda/db",
     "db:reset:postgres": "npm run reset:postgres -w @coda/db"
