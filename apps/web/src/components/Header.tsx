@@ -62,20 +62,29 @@ export default function Header() {
     return "U";
   };
 
+  const isEmpresas = location.startsWith("/empresas");
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
+      <div className="container mx-auto max-w-6xl flex h-16 items-center justify-between px-4">
         <div className="flex items-center">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 font-semibold mr-8">
-            <div className="rounded-lg bg-primary p-1.5">
-              <Wallet className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="text-lg hidden sm:inline">CODA</span>
-          </Link>
+          {/* Logo / Brand - en Empresas solo volver a Personal */}
+          {isEmpresas ? (
+            <Link href="/" className="flex items-center gap-2 font-medium text-muted-foreground hover:text-foreground mr-4">
+              <Wallet className="h-5 w-5" />
+              <span className="text-sm hidden sm:inline">Volver a CODA Personal</span>
+            </Link>
+          ) : (
+            <>
+              <Link href="/" className="flex items-center gap-2 font-semibold mr-8">
+                <div className="rounded-lg bg-primary p-1.5">
+                  <Wallet className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <span className="text-lg hidden sm:inline">CODA</span>
+              </Link>
 
-          {/* Desktop Navigation - only show when authenticated */}
-          {isAuthenticated && (
+              {/* Desktop Navigation - only show when authenticated */}
+              {isAuthenticated && (
             <nav className="hidden lg:flex items-center gap-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -98,19 +107,22 @@ export default function Header() {
                 );
               })}
             </nav>
+              )}
+            </>
           )}
         </div>
 
         {/* User Menu */}
         <div className="flex items-center gap-4">
-          {/* CODA Empresas Link */}
-          <Link href="/empresas">
-            <Button variant="outline" size="sm" className="hidden md:flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              <span>CODA Empresas</span>
-            </Button>
-          </Link>
-          
+          {/* CODA Empresas Link - solo fuera de la sección Empresas */}
+          {!isEmpresas && (
+            <Link href="/empresas">
+              <Button variant="outline" size="sm" className="hidden md:flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                <span>CODA Empresas</span>
+              </Button>
+            </Link>
+          )}
           {isAuthenticated && user ? (
             <>
               <NotificationCenter />
