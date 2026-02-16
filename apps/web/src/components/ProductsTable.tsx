@@ -82,39 +82,39 @@ export default function ProductsTable({
     switch (category) {
       case "loans":
         return [
-          { key: "provider", label: "Provider" },
-          { key: "productType", label: "Loan Type" },
-          { key: "interestRate", label: "Interest Rate" },
-          { key: "monthlyPayment", label: "Monthly Payment" },
-          { key: "term", label: "Term" },
-          { key: "action", label: "Action" },
+          { key: "provider", label: "Proveedor" },
+          { key: "productType", label: "Tipo de crédito" },
+          { key: "interestRate", label: "Tasa de interés" },
+          { key: "monthlyPayment", label: "Cuota mensual" },
+          { key: "term", label: "Plazo" },
+          { key: "action", label: "Acción" },
         ];
       case "credit_cards":
         return [
-          { key: "provider", label: "Provider" },
-          { key: "productType", label: "Card Type" },
+          { key: "provider", label: "Proveedor" },
+          { key: "productType", label: "Tipo de tarjeta" },
           { key: "interestRate", label: "APR" },
-          { key: "rewardsRate", label: "Rewards" },
-          { key: "annualFee", label: "Annual Fee" },
-          { key: "action", label: "Action" },
+          { key: "rewardsRate", label: "Beneficios" },
+          { key: "annualFee", label: "Anualidad" },
+          { key: "action", label: "Acción" },
         ];
       case "savings":
         return [
-          { key: "provider", label: "Provider" },
-          { key: "productType", label: "Account Type" },
+          { key: "provider", label: "Proveedor" },
+          { key: "productType", label: "Tipo de cuenta" },
           { key: "interestRate", label: "APY" },
-          { key: "minimumBalance", label: "Minimum Balance" },
-          { key: "features", label: "Features" },
-          { key: "action", label: "Action" },
+          { key: "minimumBalance", label: "Saldo mínimo" },
+          { key: "features", label: "Características" },
+          { key: "action", label: "Acción" },
         ];
       case "insurance":
         return [
-          { key: "provider", label: "Provider" },
-          { key: "productType", label: "Insurance Type" },
-          { key: "coverage", label: "Coverage" },
-          { key: "premium", label: "Premium" },
-          { key: "features", label: "Features" },
-          { key: "action", label: "Action" },
+          { key: "provider", label: "Proveedor" },
+          { key: "productType", label: "Tipo de seguro" },
+          { key: "coverage", label: "Cobertura" },
+          { key: "premium", label: "Prima" },
+          { key: "features", label: "Características" },
+          { key: "action", label: "Acción" },
         ];
       default:
         return [
@@ -237,13 +237,13 @@ export default function ProductsTable({
       case "premium":
         return (
           <div className="text-sm text-gray-900">
-            Varies by profile
+            Varía según perfil
           </div>
         );
       case "action":
         return (
           <Button variant="link" className="text-primary hover:text-primary-dark font-medium">
-            Apply
+            Solicitar
           </Button>
         );
       default:
@@ -292,9 +292,9 @@ export default function ProductsTable({
         <p className="text-red-500">
           {error instanceof Error
             ? error.message
-            : "Failed to load financial products"}
+            : "No se pudieron cargar los productos financieros"}
         </p>
-        <Button className="mt-4">Retry</Button>
+        <Button className="mt-4">Reintentar</Button>
       </Card>
     );
   }
@@ -302,7 +302,7 @@ export default function ProductsTable({
   if (products.length === 0) {
     return (
       <Card className="p-6 text-center">
-        <p className="text-gray-500">No products found matching your criteria. Try adjusting your filters.</p>
+        <p className="text-gray-500">No hay productos que coincidan con tus criterios. Prueba a ajustar los filtros.</p>
       </Card>
     );
   }
@@ -337,7 +337,7 @@ export default function ProductsTable({
       <div className="px-6 py-4 bg-gray-50">
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-500">
-            Showing {indexOfFirstProduct + 1} to {Math.min(indexOfLastProduct, products.length)} of {products.length} products
+            Mostrando {indexOfFirstProduct + 1} a {Math.min(indexOfLastProduct, products.length)} de {products.length} productos
           </div>
           
           {totalPages > 1 && (

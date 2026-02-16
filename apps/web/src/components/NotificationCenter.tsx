@@ -114,7 +114,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
     onSuccess: () => {
       // No refetch needed; cache already updated optimistically
       toast({
-        title: 'Notification marked as read',
+        title: 'Notificación marcada como leída',
         variant: 'default'
       });
     },
@@ -128,7 +128,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
       }
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to mark notification as read',
+        description: error instanceof Error ? error.message : 'No se pudo marcar la notificación como leída',
         variant: 'destructive'
       });
     }
@@ -155,7 +155,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       toast({
-        title: 'All notifications marked as read',
+        title: 'Todas las notificaciones marcadas como leídas',
         variant: 'default'
       });
     },
@@ -169,7 +169,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
       }
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to mark all notifications as read',
+        description: error instanceof Error ? error.message : 'No se pudo marcar todas como leídas',
         variant: 'destructive'
       });
     }
@@ -201,7 +201,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
     onSuccess: () => {
       // No refetch needed; cache already updated optimistically
       toast({
-        title: 'Notification deleted',
+        title: 'Notificación eliminada',
         variant: 'default'
       });
     },
@@ -215,7 +215,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
       }
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to delete notification',
+        description: error instanceof Error ? error.message : 'No se pudo eliminar la notificación',
         variant: 'destructive'
       });
     }
@@ -309,9 +309,9 @@ export default function NotificationCenter({ className }: NotificationCenterProp
             <div className="flex items-center justify-between">
               <DialogTitle className="flex items-center gap-2">
                 <Bell className="h-5 w-5" />
-                Notifications
+                Notificaciones
                 {unreadCount > 0 && (
-                  <Badge variant="secondary">{unreadCount} new</Badge>
+                  <Badge variant="secondary">{unreadCount} nuevas</Badge>
                 )}
               </DialogTitle>
               <div className="flex items-center gap-2">
@@ -323,7 +323,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                     disabled={markAllAsReadMutation.isPending}
                   >
                     <CheckCheck className="h-4 w-4 mr-2" />
-                    Mark all read
+                    Marcar todas como leídas
                   </Button>
                 )}
                 <Button variant="ghost" size="sm">
@@ -336,18 +336,18 @@ export default function NotificationCenter({ className }: NotificationCenterProp
           <div className="px-6">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="all">Todas</TabsTrigger>
                 <TabsTrigger value="unread" className="relative">
-                  Unread
+                  No leídas
                   {unreadCount > 0 && (
                     <Badge variant="destructive" className="ml-1 h-4 w-4 p-0 text-xs">
                       {unreadCount}
                     </Badge>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="bill_split">Bills</TabsTrigger>
-                <TabsTrigger value="credit_score">Credit</TabsTrigger>
-                <TabsTrigger value="goal">Goals</TabsTrigger>
+                <TabsTrigger value="bill_split">Cuentas</TabsTrigger>
+                <TabsTrigger value="credit_score">Crédito</TabsTrigger>
+                <TabsTrigger value="goal">Metas</TabsTrigger>
               </TabsList>
 
               <TabsContent value={activeTab} className="mt-4 max-h-[400px] overflow-y-auto">
@@ -366,7 +366,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                   <div className="text-center py-12">
                     <BellOff className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                     <p className="text-gray-500">
-                      {activeTab === 'unread' ? 'No unread notifications' : 'No notifications yet'}
+                      {activeTab === 'unread' ? 'No hay notificaciones sin leer' : 'Aún no hay notificaciones'}
                     </p>
                   </div>
                 ) : (
@@ -448,9 +448,9 @@ export default function NotificationCenter({ className }: NotificationCenterProp
           <div className="p-6 pt-4 border-t">
             <div className="text-center">
               <p className="text-sm text-gray-500">
-                Manage notification preferences in your{' '}
+                Gestiona las preferencias de notificaciones en tu{' '}
                 <Button variant="link" className="p-0 h-auto text-blue-600">
-                  profile settings
+                  configuración de perfil
                 </Button>
               </p>
             </div>

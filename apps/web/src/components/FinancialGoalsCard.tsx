@@ -63,10 +63,10 @@ interface FinancialGoal {
 
 // Form schema for adding/editing a goal
 const goalFormSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  targetAmount: z.coerce.number().min(1, "Target amount is required"),
-  currentAmount: z.coerce.number().min(0, "Current amount must be 0 or more"),
-  targetDate: z.string().min(1, "Target date is required"),
+  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+  targetAmount: z.coerce.number().min(1, "El monto objetivo es obligatorio"),
+  currentAmount: z.coerce.number().min(0, "El monto actual debe ser 0 o más"),
+  targetDate: z.string().min(1, "La fecha objetivo es obligatoria"),
   category: z.enum(["savings", "debt_repayment", "retirement", "home", "education", "other"]),
 });
 
@@ -131,14 +131,14 @@ function GoalItem({ goal }: { goal: FinancialGoal }) {
                 "bg-blue-100 text-blue-700"
               )}
             >
-              {progress >= 100 ? 'Complete!' : isOverdue ? 'Overdue' : `${progress}%`}
+              {progress >= 100 ? '¡Completada!' : isOverdue ? 'Vencida' : `${progress}%`}
             </Badge>
           </div>
           
           <Progress value={progress} className="h-2 mb-2" />
           
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{formatCurrency(goal.currentAmount)} of {formatCurrency(goal.targetAmount)}</span>
+            <span>{formatCurrency(goal.currentAmount)} de {formatCurrency(goal.targetAmount)}</span>
             <span className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
               {format(targetDate, "MMM yyyy")}
@@ -168,14 +168,14 @@ export default function FinancialGoalsCard() {
       setIsAddGoalOpen(false);
       form.reset();
       toast({
-        title: "Goal created",
-        description: "Your financial goal has been created successfully.",
+        title: "Meta creada",
+        description: "Tu meta financiera se ha creado correctamente.",
       });
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create financial goal",
+        description: error instanceof Error ? error.message : "No se pudo crear la meta",
         variant: "destructive",
       });
     },
@@ -225,7 +225,7 @@ export default function FinancialGoalsCard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Target className="h-5 w-5 text-primary" />
-            Financial Goals
+            Metas financieras
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -236,13 +236,13 @@ export default function FinancialGoalsCard() {
             <p className="text-muted-foreground mb-4">
               {error instanceof Error
                 ? error.message
-                : "Failed to load financial goals"}
+                : "Error al cargar las metas financieras"}
             </p>
             <Button
               variant="outline"
               onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] })}
             >
-              Retry
+              Reintentar
             </Button>
           </div>
         </CardContent>
@@ -261,20 +261,20 @@ export default function FinancialGoalsCard() {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Target className="h-5 w-5 text-primary" />
-            Financial Goals
+            Metas financieras
           </CardTitle>
           <Dialog open={isAddGoalOpen} onOpenChange={setIsAddGoalOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">
                 <Plus className="h-4 w-4 mr-1" />
-                Add
+                Añadir
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add Financial Goal</DialogTitle>
+                <DialogTitle>Añadir meta financiera</DialogTitle>
                 <DialogDescription>
-                  Set a new financial goal to track your progress.
+                  Define una nueva meta para seguir tu progreso.
                 </DialogDescription>
               </DialogHeader>
 
@@ -285,9 +285,9 @@ export default function FinancialGoalsCard() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Goal Name</FormLabel>
+                        <FormLabel>Nombre de la meta</FormLabel>
                         <FormControl>
-                          <Input placeholder="E.g., Emergency Fund" {...field} />
+                          <Input placeholder="Ej. Fondo de emergencia" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -299,23 +299,23 @@ export default function FinancialGoalsCard() {
                     name="category"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Category</FormLabel>
+                        <FormLabel>Categoría</FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select a category" />
+                              <SelectValue placeholder="Elegir categoría" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="savings">Savings</SelectItem>
-                            <SelectItem value="debt_repayment">Debt Repayment</SelectItem>
-                            <SelectItem value="retirement">Retirement</SelectItem>
-                            <SelectItem value="home">Home</SelectItem>
-                            <SelectItem value="education">Education</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
+                            <SelectItem value="savings">Ahorro</SelectItem>
+                            <SelectItem value="debt_repayment">Pago de deudas</SelectItem>
+                            <SelectItem value="retirement">Jubilación</SelectItem>
+                            <SelectItem value="home">Vivienda</SelectItem>
+                            <SelectItem value="education">Educación</SelectItem>
+                            <SelectItem value="other">Otros</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -329,7 +329,7 @@ export default function FinancialGoalsCard() {
                       name="targetAmount"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Target Amount ($)</FormLabel>
+                          <FormLabel>Monto objetivo ($)</FormLabel>
                           <FormControl>
                             <Input type="number" min="0" step="100" {...field} />
                           </FormControl>
@@ -343,7 +343,7 @@ export default function FinancialGoalsCard() {
                       name="currentAmount"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Current Amount ($)</FormLabel>
+                          <FormLabel>Monto actual ($)</FormLabel>
                           <FormControl>
                             <Input type="number" min="0" step="100" {...field} />
                           </FormControl>
@@ -358,7 +358,7 @@ export default function FinancialGoalsCard() {
                     name="targetDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Target Date</FormLabel>
+                        <FormLabel>Fecha objetivo</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} />
                         </FormControl>
@@ -373,13 +373,13 @@ export default function FinancialGoalsCard() {
                       variant="outline"
                       onClick={() => setIsAddGoalOpen(false)}
                     >
-                      Cancel
+                      Cancelar
                     </Button>
                     <Button 
                       type="submit"
                       disabled={addGoalMutation.isPending}
                     >
-                      {addGoalMutation.isPending ? "Adding..." : "Add Goal"}
+                      {addGoalMutation.isPending ? "Añadiendo..." : "Añadir meta"}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -387,7 +387,7 @@ export default function FinancialGoalsCard() {
             </DialogContent>
           </Dialog>
         </div>
-        <CardDescription>Track your progress towards financial milestones</CardDescription>
+        <CardDescription>Sigue tu avance hacia tus hitos financieros</CardDescription>
       </CardHeader>
 
       <CardContent className="flex-1 flex flex-col">
@@ -395,13 +395,13 @@ export default function FinancialGoalsCard() {
         {goals && goals.length > 0 && (
           <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 mb-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Overall Progress</span>
+              <span className="text-sm font-medium">Progreso total</span>
               <span className="text-sm font-bold text-primary">{overallProgress}%</span>
             </div>
             <Progress value={overallProgress} className="h-2" />
             <p className="text-xs text-muted-foreground mt-2">
               <TrendingUp className="h-3 w-3 inline mr-1" />
-              You're on track with {goals.length} active goal{goals.length !== 1 ? 's' : ''}
+              Vas bien con {goals.length} meta{goals.length !== 1 ? 's' : ''} activa{goals.length !== 1 ? 's' : ''}
             </p>
           </div>
         )}
@@ -418,7 +418,7 @@ export default function FinancialGoalsCard() {
                 <Target className="h-6 w-6 text-muted-foreground" />
               </div>
               <p className="text-muted-foreground text-sm">
-                No goals yet. Start tracking your financial milestones.
+                Aún no hay metas. Empieza a seguir tus hitos financieros.
               </p>
             </div>
           )}
@@ -428,7 +428,7 @@ export default function FinancialGoalsCard() {
         <Link href="/goals">
           <Button className="w-full mt-4 group">
             <Target className="h-4 w-4 mr-2" />
-            {goals && goals.length > 3 ? `View All ${goals.length} Goals` : 'Manage Goals'}
+            {goals && goals.length > 3 ? `Ver las ${goals.length} metas` : 'Gestionar metas'}
             <ChevronRight className="h-4 w-4 ml-auto group-hover:translate-x-1 transition-transform" />
           </Button>
         </Link>

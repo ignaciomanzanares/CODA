@@ -174,10 +174,10 @@ export default function InsuranceRiskCard() {
             variant="outline" 
             className={cn("font-semibold", getStatusBadgeStyle())}
           >
-            {insuranceRisk.riskLevel} Risk
+            Riesgo {insuranceRisk.riskLevel === 'Low' ? 'bajo' : insuranceRisk.riskLevel === 'Medium' ? 'moderado' : 'alto'}
           </Badge>
         </div>
-        <CardDescription>Your insurance profile assessment</CardDescription>
+        <CardDescription>Evaluación de tu perfil de seguros</CardDescription>
       </CardHeader>
 
       <CardContent className="flex-1 flex flex-col">
@@ -185,9 +185,9 @@ export default function InsuranceRiskCard() {
         <div className="flex justify-center py-2">
           <ProgressRing progress={progress} color={riskColor}>
             <div className="text-xl font-bold">
-              {insuranceRisk.riskLevel}
+              {insuranceRisk.riskLevel === 'Low' ? 'Bajo' : insuranceRisk.riskLevel === 'Medium' ? 'Moderado' : 'Alto'}
             </div>
-            <div className="text-xs text-muted-foreground">Risk Level</div>
+            <div className="text-xs text-muted-foreground">Nivel de riesgo</div>
           </ProgressRing>
         </div>
 
@@ -195,10 +195,10 @@ export default function InsuranceRiskCard() {
         <div className="flex items-center justify-center gap-2 mb-4">
           <span className="text-sm text-muted-foreground">
             {insuranceRisk.riskLevel === 'Low' 
-              ? 'Great! You qualify for lower premiums' 
+              ? 'Genial: puedes optar a primas más bajas' 
               : insuranceRisk.riskLevel === 'Medium'
-              ? 'Room for improvement on some factors'
-              : 'Consider reviewing your coverage options'}
+              ? 'Hay margen para mejorar en algunos factores'
+              : 'Revisa tus opciones de cobertura'}
           </span>
         </div>
 
@@ -206,21 +206,21 @@ export default function InsuranceRiskCard() {
         <div className="space-y-2 flex-1">
           <RiskFactorCard
             icon={Heart}
-            label="Health Insurance"
+            label="Seguro de salud"
             riskLevel={insuranceRisk.healthRisk.replace(' Risk', '')}
-            description="Based on lifestyle factors"
+            description="Según estilo de vida"
           />
           <RiskFactorCard
             icon={Home}
-            label="Property Insurance"
+            label="Seguro de hogar"
             riskLevel={insuranceRisk.propertyRisk}
-            description="Home and belongings"
+            description="Casa y pertenencias"
           />
           <RiskFactorCard
             icon={Car}
-            label="Auto Insurance"
+            label="Seguro de auto"
             riskLevel={insuranceRisk.autoRisk}
-            description="Vehicle coverage"
+            description="Cobertura del vehículo"
           />
         </div>
 
@@ -230,7 +230,7 @@ export default function InsuranceRiskCard() {
           onClick={() => navigate("/products?category=insurance")}
         >
           <Shield className="h-4 w-4 mr-2" />
-          View Insurance Options
+          Ver opciones de seguros
           <ChevronRight className="h-4 w-4 ml-auto group-hover:translate-x-1 transition-transform" />
         </Button>
       </CardContent>

@@ -62,63 +62,63 @@ export default function FiltersSection({
     switch (category) {
       case "loans":
         return [
-          { value: "all", label: "All Loan Types" },
-          { value: "personal", label: "Personal Loans" },
-          { value: "auto", label: "Auto Loans" },
-          { value: "mortgage", label: "Mortgages" },
-          { value: "student", label: "Student Loans" },
+          { value: "all", label: "Todos los tipos" },
+          { value: "personal", label: "Créditos de consumo" },
+          { value: "auto", label: "Créditos vehiculares" },
+          { value: "mortgage", label: "Hipotecarios" },
+          { value: "student", label: "Créditos estudiantiles" },
         ];
       case "credit_cards":
         return [
-          { value: "all", label: "All Card Types" },
-          { value: "cashback", label: "Cash Back" },
-          { value: "travel", label: "Travel Rewards" },
-          { value: "balance_transfer", label: "Balance Transfer" },
-          { value: "secured", label: "Secured Cards" },
+          { value: "all", label: "Todos los tipos" },
+          { value: "cashback", label: "Cashback" },
+          { value: "travel", label: "Viajes" },
+          { value: "balance_transfer", label: "Transferencia de saldo" },
+          { value: "secured", label: "Tarjetas aseguradas" },
         ];
       case "savings":
         return [
-          { value: "all", label: "All Account Types" },
-          { value: "savings", label: "Savings Accounts" },
-          { value: "checking", label: "Checking Accounts" },
-          { value: "cd", label: "Certificates of Deposit" },
-          { value: "money_market", label: "Money Market Accounts" },
+          { value: "all", label: "Todos los tipos" },
+          { value: "savings", label: "Cuentas de ahorro" },
+          { value: "checking", label: "Cuentas corrientes" },
+          { value: "cd", label: "Depósitos a plazo" },
+          { value: "money_market", label: "Cuentas de mercado monetario" },
         ];
       case "insurance":
         return [
-          { value: "all", label: "All Insurance Types" },
-          { value: "auto", label: "Auto Insurance" },
-          { value: "home", label: "Home Insurance" },
-          { value: "life", label: "Life Insurance" },
-          { value: "health", label: "Health Insurance" },
+          { value: "all", label: "Todos los tipos" },
+          { value: "auto", label: "Seguro automotriz" },
+          { value: "home", label: "Seguro de hogar" },
+          { value: "life", label: "Seguro de vida" },
+          { value: "health", label: "Seguro de salud" },
         ];
       default:
-        return [{ value: "all", label: "All Types" }];
+        return [{ value: "all", label: "Todos los tipos" }];
     }
   };
 
   const getRateOptions = () => {
     if (category === "loans" || category === "credit_cards" || category === "savings") {
       return [
-        { value: "any", label: "Any Rate" },
-        { value: "below_5", label: "Below 5%" },
+        { value: "any", label: "Cualquier tasa" },
+        { value: "below_5", label: "Menos de 5%" },
         { value: "5_to_10", label: "5% - 10%" },
-        { value: "above_10", label: "Above 10%" },
+        { value: "above_10", label: "Más de 10%" },
       ];
     }
-    return [{ value: "any", label: "Any Rate" }];
+    return [{ value: "any", label: "Cualquier tasa" }];
   };
 
   const getTermOptions = () => {
     if (category === "loans" || category === "savings") {
       return [
-        { value: "any", label: "Any Term" },
-        { value: "12", label: "12 Months" },
-        { value: "24", label: "24 Months" },
-        { value: "36", label: "36+ Months" },
+        { value: "any", label: "Cualquier plazo" },
+        { value: "12", label: "12 meses" },
+        { value: "24", label: "24 meses" },
+        { value: "36", label: "36+ meses" },
       ];
     }
-    return [{ value: "any", label: "Any Term" }];
+    return [{ value: "any", label: "Cualquier plazo" }];
   };
 
   const typeOptions = getTypeOptions();
@@ -127,12 +127,12 @@ export default function FiltersSection({
 
   return (
     <div className={cn("bg-gray-50 p-4 rounded-lg mb-6 flex flex-wrap items-center gap-4", className)}>
-      <div className="font-medium text-gray-700">Filters:</div>
+      <div className="font-medium text-gray-700">Filtros:</div>
 
       <div className="relative">
         <Select value={filters.type} onValueChange={(value) => handleFilterChange("type", value)}>
           <SelectTrigger className="w-40 bg-white">
-            <SelectValue placeholder="Select type" />
+            <SelectValue placeholder="Tipo" />
           </SelectTrigger>
           <SelectContent>
             {typeOptions.map((option) => (
@@ -148,7 +148,7 @@ export default function FiltersSection({
         <div className="relative">
           <Select value={filters.rate} onValueChange={(value) => handleFilterChange("rate", value)}>
             <SelectTrigger className="w-40 bg-white">
-              <SelectValue placeholder="Select rate" />
+              <SelectValue placeholder="Tasa" />
             </SelectTrigger>
             <SelectContent>
               {rateOptions.map((option) => (
@@ -165,7 +165,7 @@ export default function FiltersSection({
         <div className="relative">
           <Select value={filters.term} onValueChange={(value) => handleFilterChange("term", value)}>
             <SelectTrigger className="w-40 bg-white">
-              <SelectValue placeholder="Select term" />
+              <SelectValue placeholder="Plazo" />
             </SelectTrigger>
             <SelectContent>
               {termOptions.map((option) => (
@@ -182,22 +182,22 @@ export default function FiltersSection({
         <SheetTrigger asChild>
           <Button className="ml-auto" variant="default">
             <Sliders className="mr-2 h-4 w-4" />
-            More Filters
+            Más filtros
           </Button>
         </SheetTrigger>
         <SheetContent>
           <SheetHeader>
-            <SheetTitle>Advanced Filters</SheetTitle>
+            <SheetTitle>Filtros avanzados</SheetTitle>
             <SheetDescription>
-              Fine-tune your search to find the perfect financial products
-              for your needs.
+              Ajusta la búsqueda para encontrar los productos financieros
+              que mejor se adapten a ti.
             </SheetDescription>
           </SheetHeader>
 
           <div className="py-6 space-y-6">
             {(category === "loans" || category === "insurance") && (
               <div className="space-y-2">
-                <Label>Amount Range</Label>
+                <Label>Rango de monto</Label>
                 <div className="flex items-center justify-between">
                   <span>${advancedFilters.minAmount}</span>
                   <span>${advancedFilters.maxAmount}</span>
@@ -216,7 +216,7 @@ export default function FiltersSection({
 
             {category === "loans" && (
               <div className="flex items-center justify-between">
-                <Label htmlFor="requires-collateral">Requires Collateral</Label>
+                <Label htmlFor="requires-collateral">Requiere garantía</Label>
                 <Switch
                   id="requires-collateral"
                   checked={advancedFilters.requiresCollateral}
@@ -228,7 +228,7 @@ export default function FiltersSection({
             )}
 
             <div className="flex items-center justify-between">
-              <Label htmlFor="online-application">Online Application</Label>
+              <Label htmlFor="online-application">Postulación en línea</Label>
               <Switch
                 id="online-application"
                 checked={advancedFilters.onlineApplication}
@@ -239,7 +239,7 @@ export default function FiltersSection({
             </div>
 
             <div className="flex items-center justify-between">
-              <Label htmlFor="pre-approved">Pre-Approved Only</Label>
+              <Label htmlFor="pre-approved">Solo preaprobados</Label>
               <Switch
                 id="pre-approved"
                 checked={advancedFilters.preApproved}
@@ -252,7 +252,7 @@ export default function FiltersSection({
 
           <SheetFooter>
             <SheetClose asChild>
-              <Button variant="outline">Apply Filters</Button>
+              <Button variant="outline">Aplicar filtros</Button>
             </SheetClose>
           </SheetFooter>
         </SheetContent>

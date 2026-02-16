@@ -102,7 +102,7 @@ export default function ShareBillSplit() {
       try {
         return await apiFetch(`/api/share/${code}`);
       } catch {
-        throw new Error('Bill split not found');
+        throw new Error('Cuenta dividida no encontrada');
       }
     },
     refetchInterval: 5000, // Refresh every 5 seconds for real-time updates
@@ -118,7 +118,7 @@ export default function ShareBillSplit() {
           body: JSON.stringify({ participantId, name, paymentMethod }),
         });
       } catch (error: any) {
-        throw new Error(error?.message || 'Payment failed');
+        throw new Error(error?.message || 'Error al registrar el pago');
       }
     },
     onSuccess: (data) => {
@@ -127,13 +127,13 @@ export default function ShareBillSplit() {
       setSelectedPaymentMethod(null);
       setShowSuccessDialog(true);
       toast({
-        title: 'Payment Confirmed!',
+        title: '¡Pago confirmado!',
         description: data.message,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Payment Failed',
+        title: 'Error al registrar el pago',
         description: error.message,
         variant: 'destructive',
       });
@@ -153,7 +153,7 @@ export default function ShareBillSplit() {
           body: JSON.stringify({ participantId }),
         });
       } catch (error: any) {
-        throw new Error(error?.message || 'Failed to join split');
+        throw new Error(error?.message || 'Error al unir la cuenta');
       }
     },
     onSuccess: (data) => {
@@ -162,13 +162,13 @@ export default function ShareBillSplit() {
       setShowJoinDialog(false);
       setSelectedParticipantToJoin(null);
       toast({
-        title: '✅ Joined Successfully!',
-        description: 'This split has been added to your account.',
+        title: '✅ ¡Unido correctamente!',
+        description: 'Esta cuenta se ha añadido a tu panel.',
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Failed to Join',
+        title: 'Error al unir',
         description: error.message,
         variant: 'destructive',
       });
@@ -212,7 +212,7 @@ export default function ShareBillSplit() {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-white/70">Loading bill split...</p>
+          <p className="text-white/70">Cargando cuenta dividida...</p>
         </div>
       </div>
     );
@@ -224,9 +224,9 @@ export default function ShareBillSplit() {
         <Card className="max-w-md w-full">
           <CardContent className="pt-6 text-center">
             <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">Bill Split Not Found</h2>
+            <h2 className="text-xl font-bold mb-2">Cuenta dividida no encontrada</h2>
             <p className="text-muted-foreground">
-              This link may be invalid or expired. Please ask the bill creator for a new link.
+              Este enlace puede ser inválido o haber caducado. Pide al creador del gasto un nuevo enlace.
             </p>
           </CardContent>
         </Card>
@@ -243,11 +243,11 @@ export default function ShareBillSplit() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-4">
             <Receipt className="h-5 w-5" />
-            <span className="font-medium">CODA Bill Split</span>
+            <span className="font-medium">CODA Dividir cuenta</span>
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">{billSplit.name}</h1>
           <p className="text-white/60">
-            Created by {billSplit.createdByName} • {formatDate(billSplit.date)}
+            Creado por {billSplit.createdByName} • {formatDate(billSplit.date)}
           </p>
         </div>
 
@@ -256,7 +256,7 @@ export default function ShareBillSplit() {
           <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-t-lg">
             <div className="flex items-center justify-between">
               <div>
-                <CardDescription>Total Amount</CardDescription>
+                <CardDescription>Total</CardDescription>
                 <CardTitle className="text-4xl font-bold">
                   {formatCurrency(billSplit.totalAmount)}
                 </CardTitle>
@@ -264,12 +264,12 @@ export default function ShareBillSplit() {
               {allPaid ? (
                 <Badge className="bg-green-500 text-white text-lg px-4 py-2">
                   <Check className="h-5 w-5 mr-2" />
-                  Settled!
+                  ¡Saldado!
                 </Badge>
               ) : (
                 <Badge variant="outline" className="text-lg px-4 py-2">
                   <Clock className="h-5 w-5 mr-2" />
-                  {billSplit.progress.paidCount}/{billSplit.progress.totalCount} Paid
+                  {billSplit.progress.paidCount}/{billSplit.progress.totalCount} pagado
                 </Badge>
               )}
             </div>
@@ -282,12 +282,12 @@ export default function ShareBillSplit() {
             {/* Progress */}
             <div className="mb-6">
               <div className="flex justify-between text-sm mb-2">
-                <span className="text-muted-foreground">Payment Progress</span>
-                <span className="font-medium">{billSplit.progress.percentPaid}% Complete</span>
+                <span className="text-muted-foreground">Progreso del pago</span>
+                <span className="font-medium">{billSplit.progress.percentPaid}% completado</span>
               </div>
               <Progress value={billSplit.progress.percentPaid} className="h-3" />
               <p className="text-sm text-muted-foreground mt-2">
-                {formatCurrency(billSplit.progress.totalPaid)} of {formatCurrency(billSplit.totalAmount)} collected
+                {formatCurrency(billSplit.progress.totalPaid)} de {formatCurrency(billSplit.totalAmount)} cobrado
               </p>
             </div>
 
@@ -295,7 +295,7 @@ export default function ShareBillSplit() {
             <div>
               <h3 className="font-semibold flex items-center gap-2 mb-4">
                 <Users className="h-5 w-5" />
-                Who's Paying
+                Quién paga
               </h3>
               <div className="space-y-3">
                 {billSplit.participants.map((participant) => (
@@ -316,7 +316,7 @@ export default function ShareBillSplit() {
                       <div>
                         <p className="font-semibold text-lg">{participant.name}</p>
                         <p className={`text-sm ${participant.isPaid ? 'text-green-600' : 'text-muted-foreground'}`}>
-                          {participant.isPaid ? '✓ Paid' : 'Owes'} {formatCurrency(participant.amountOwed)}
+                          {participant.isPaid ? '✓ Pagado' : 'Debe'} {formatCurrency(participant.amountOwed)}
                         </p>
                       </div>
                     </div>
@@ -324,7 +324,7 @@ export default function ShareBillSplit() {
                     {participant.isPaid ? (
                       <Badge className="bg-green-500 text-white px-4 py-2">
                         <CheckCircle className="h-4 w-4 mr-1" />
-                        Paid
+                        Pagado
                       </Badge>
                     ) : (
                       <Button 
@@ -333,7 +333,7 @@ export default function ShareBillSplit() {
                         className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                       >
                         <CreditCard className="h-4 w-4 mr-2" />
-                        I'm {participant.name} - Pay Now
+                        Soy {participant.name} - Pagar ahora
                       </Button>
                     )}
                   </div>
@@ -352,9 +352,9 @@ export default function ShareBillSplit() {
                       <UserPlus className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-medium">Track this in your account</p>
+                      <p className="font-medium">Sigue esta cuenta en tu panel</p>
                       <p className="text-sm text-muted-foreground">
-                        Add this split to your Bill Split page
+                        Añade esta cuenta a tu página Dividir cuenta
                       </p>
                     </div>
                   </div>
@@ -369,14 +369,14 @@ export default function ShareBillSplit() {
                         setShowJoinDialog(true);
                       } else {
                         toast({
-                          title: 'Already complete',
-                          description: 'All participants have already paid.',
+                          title: 'Ya está completo',
+                          description: 'Todos los participantes ya han pagado.',
                         });
                       }
                     }}
                   >
                     <UserPlus className="h-4 w-4 mr-2" />
-                    Add to My Splits
+                    Añadir a mis cuentas
                   </Button>
                 </div>
               </div>
@@ -388,9 +388,9 @@ export default function ShareBillSplit() {
                       <LogIn className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <div>
-                      <p className="font-medium text-sm">Have a CODA account?</p>
+                      <p className="font-medium text-sm">¿Tienes cuenta en CODA?</p>
                       <p className="text-xs text-muted-foreground">
-                        Sign in to track this split in your account
+                        Inicia sesión para seguir esta cuenta en tu panel
                       </p>
                     </div>
                   </div>
@@ -400,23 +400,23 @@ export default function ShareBillSplit() {
                     onClick={() => navigate(`/login?redirect=/split/${code}`)}
                   >
                     <LogIn className="h-4 w-4 mr-2" />
-                    Sign In
+                    Iniciar sesión
                   </Button>
                 </div>
               </div>
             )}
             
             <p className="text-sm text-muted-foreground text-center">
-              Click your name above to mark your payment as complete.
+              Haz clic en tu nombre arriba para marcar tu pago como completado.
               <br />
-              The bill creator will be notified instantly!
+              ¡El creador del gasto recibirá una notificación al instante!
             </p>
           </CardFooter>
         </Card>
 
         {/* Powered by */}
         <p className="text-center text-white/40 text-sm">
-          Powered by CODA • Split bills with friends easily
+          Desarrollado por CODA • Divide gastos con amigos fácilmente
         </p>
       </div>
 
@@ -426,12 +426,12 @@ export default function ShareBillSplit() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-primary" />
-              Confirm Your Payment
+              Confirma tu pago
             </DialogTitle>
             <DialogDescription>
               {payingParticipant && (
                 <>
-                  You're paying <strong>{formatCurrency(payingParticipant.amountOwed)}</strong> for "{billSplit.name}"
+                  Vas a pagar <strong>{formatCurrency(payingParticipant.amountOwed)}</strong> por "{billSplit.name}"
                 </>
               )}
             </DialogDescription>
@@ -440,22 +440,22 @@ export default function ShareBillSplit() {
           <div className="space-y-4 py-4">
             {/* Verify Name */}
             <div>
-              <Label htmlFor="name">Confirm Your Name</Label>
+              <Label htmlFor="name">Confirma tu nombre</Label>
               <Input
                 id="name"
                 value={identifyName}
                 onChange={(e) => setIdentifyName(e.target.value)}
-                placeholder="Enter your name"
+                placeholder="Introduce tu nombre"
                 className="mt-1"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Must match the name on the bill: <strong>{payingParticipant?.name}</strong>
+                Debe coincidir con el nombre en la cuenta: <strong>{payingParticipant?.name}</strong>
               </p>
             </div>
 
             {/* Payment Methods */}
             <div>
-              <Label>How did you pay?</Label>
+              <Label>¿Cómo pagaste?</Label>
               <div className="grid grid-cols-2 gap-2 mt-2">
                 {PaymentMethods.map((method) => (
                   <Button
@@ -473,14 +473,14 @@ export default function ShareBillSplit() {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Select your payment method. If it has a link, complete the payment there first.
+                Elige tu método de pago. Si tiene enlace, completa el pago allí primero.
               </p>
             </div>
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setPayingParticipant(null)} className="w-full sm:w-auto">
-              Cancel
+              Cancelar
             </Button>
             <Button 
               onClick={handleConfirmPayment}
@@ -490,12 +490,12 @@ export default function ShareBillSplit() {
               {payMutation.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Confirming...
+                  Confirmando...
                 </>
               ) : (
                 <>
                   <CheckCircle className="h-4 w-4 mr-2" />
-                  Confirm Payment
+                  Confirmar pago
                 </>
               )}
             </Button>
@@ -508,14 +508,14 @@ export default function ShareBillSplit() {
         <DialogContent className="max-w-sm text-center">
           <div className="py-6">
             <PartyPopper className="h-16 w-16 text-primary mx-auto mb-4" />
-            <DialogTitle className="text-2xl mb-2">Payment Confirmed!</DialogTitle>
+            <DialogTitle className="text-2xl mb-2">¡Pago confirmado!</DialogTitle>
             <DialogDescription className="text-base">
-              Thank you for paying your share. The bill creator has been notified.
+              Gracias por pagar tu parte. El creador del gasto ha sido notificado.
             </DialogDescription>
           </div>
           <DialogFooter>
             <Button onClick={() => setShowSuccessDialog(false)} className="w-full">
-              Done
+              Listo
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -527,10 +527,10 @@ export default function ShareBillSplit() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-primary" />
-              Add to Your Account
+              Añadir a tu cuenta
             </DialogTitle>
             <DialogDescription>
-              Select which participant you are to add this split to your Bill Split page.
+              Indica qué participante eres para añadir esta cuenta a tu página Dividir cuenta.
             </DialogDescription>
           </DialogHeader>
 
@@ -548,7 +548,7 @@ export default function ShareBillSplit() {
                 <div className="text-left">
                   <p className="font-semibold">{participant.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    Owes {formatCurrency(participant.amountOwed)}
+                    Debe {formatCurrency(participant.amountOwed)}
                   </p>
                 </div>
                 {selectedParticipantToJoin?.id === participant.id && (
@@ -559,14 +559,14 @@ export default function ShareBillSplit() {
             
             {billSplit?.participants.filter(p => !p.isPaid).length === 0 && (
               <p className="text-center text-muted-foreground py-4">
-                All participants have already paid. Nothing to join.
+                Todos los participantes ya han pagado. Nada que unir.
               </p>
             )}
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setShowJoinDialog(false)} className="w-full sm:w-auto">
-              Cancel
+              Cancelar
             </Button>
             <Button 
               onClick={handleConfirmJoin}
@@ -576,12 +576,12 @@ export default function ShareBillSplit() {
               {joinMutation.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Adding...
+                  Añadiendo...
                 </>
               ) : (
                 <>
                   <UserPlus className="h-4 w-4 mr-2" />
-                  Add to My Splits
+                  Añadir a mis cuentas
                 </>
               )}
             </Button>

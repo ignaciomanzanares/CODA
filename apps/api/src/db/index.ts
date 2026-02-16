@@ -3,7 +3,7 @@
 
 
 
-import { eq, and, inArray, isNull, desc } from 'drizzle-orm';
+import { eq, and, inArray, isNull, desc, sql } from 'drizzle-orm';
 import * as schema from '@coda/db/schema';
 // Re-export tables and helper schemas for consumption by other modules
 export const {
@@ -23,7 +23,26 @@ export const {
   insertAccountSchema,
   insertBankConnectionSchema,
   insertFinancialGoalSchema,
-  insertExpenseSchema
+  insertExpenseSchema,
+  // CODA Empresas (misma BD)
+  empresasCompanies,
+  empresasUsers,
+  empresasMemberships,
+  empresasAuditLogs,
+  empresasBankAccounts,
+  empresasBankTransactions,
+  empresasBankBalances,
+  empresasDteDocuments,
+  empresasPurchaseOrders,
+  empresasReconciliationMatches,
+  empresasReconciliationRules,
+  empresasChartOfAccounts,
+  empresasVendorCategoryMappings,
+  empresasAccountingPeriods,
+  empresasJournalEntries,
+  empresasJournalLines,
+  empresasRiskScores,
+  empresasRiskFactors,
 } = schema as any;
 import postgres from 'postgres';
 
@@ -51,7 +70,7 @@ if (dbUrl && (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://
 }
 
 // Export only db, dialect, and all tables from schema
-export { db, dialect, eq, and, inArray, isNull, desc };
+export { db, dialect, eq, and, inArray, isNull, desc, sql };
 export * from '@coda/db/schema';
 
 export function checkDatabaseConnection(): boolean {

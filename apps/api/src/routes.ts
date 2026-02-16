@@ -1,5 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import { registerEmpresasRoutes } from "./routes-empresas.js";
 import { storage } from "./storage.js";
 import { db, dialect, users, bankConnections, accounts, balances, transactions, creditScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc, insertAccountSchema, insertBankConnectionSchema, insertFinancialGoalSchema } from "./db/index.js";
 import { ZodError } from "zod";
@@ -126,6 +127,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Apply rate limiting to all API routes
   app.use("/api", apiLimiter);
+
+  // CODA Empresas API (misma BD, prefijo /api/empresas)
+  registerEmpresasRoutes(app);
 
   // --- Protected routes (require JWT authentication) ---
 
