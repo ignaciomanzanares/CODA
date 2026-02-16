@@ -24,9 +24,11 @@ const DEMO_USERS = [
 ];
 
 export default function Login() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { login, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const isEmpresas = location === "/empresas/login";
+  const defaultRedirect = isEmpresas ? "/empresas/dashboard" : "/dashboard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -38,7 +40,7 @@ export default function Login() {
 
   // Redirect if already authenticated
   if (isAuthenticated) {
-    setLocation("/dashboard");
+    setLocation(defaultRedirect);
     return null;
   }
 
@@ -71,7 +73,7 @@ export default function Login() {
         localStorage.removeItem('redirectAfterLogin');
         setLocation(redirectUrl);
       } else {
-        setLocation("/dashboard");
+        setLocation(defaultRedirect);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Credenciales inválidas");
@@ -108,7 +110,7 @@ export default function Login() {
         });
         
         // Force a page reload to update auth state
-        window.location.href = '/dashboard';
+        window.location.href = defaultRedirect;
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Código de verificación inválido");
@@ -154,7 +156,7 @@ export default function Login() {
         title: "Sesión iniciada",
         description: `¡Bienvenido, ${demoUser.name}!`,
       });
-      setLocation("/dashboard");
+      setLocation(defaultRedirect);
     } catch (err) {
       setError("Error al iniciar sesión con usuario demo");
     } finally {
@@ -171,10 +173,12 @@ export default function Login() {
             <Wallet className="h-9 w-9 text-primary-foreground" />
           </div>
           <h1 className="mt-6 text-3xl font-bold text-gray-900">
-            CODA
+            {isEmpresas ? "CODA Empresas" : "CODA"}
           </h1>
           <p className="mt-2 text-sm text-gray-600">
-            Plataforma de finanzas personales y gestión de crédito
+            {isEmpresas
+              ? "Gestión financiera para empresas"
+              : "Plataforma de finanzas personales y gestión de crédito"}
           </p>
         </div>
 
@@ -379,12 +383,21 @@ export default function Login() {
           </Card>
         )}
 
-        {/* Back to Home */}
-        <div className="text-center">
+        {/* Back to Home / Switch context */}
+        <div className="text-center space-y-2">
           <Link href="/" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
             <ArrowLeft className="h-4 w-4 mr-1" />
             Volver al inicio
           </Link>
+          {isEmpresas ? (
+            <p className="text-sm text-gray-500">
+              <Link href="/login" className="text-primary hover:underline">Iniciar sesión en CODA Personal</Link>
+            </p>
+          ) : (
+            <p className="text-sm text-gray-500">
+              <Link href="/empresas/login" className="text-primary hover:underline">¿Eres empresa? CODA Empresas</Link>
+            </p>
+          )}
         </div>
 
         {/* Footer */}
