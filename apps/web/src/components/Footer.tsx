@@ -21,12 +21,12 @@ export default function Footer() {
             <h4 className="text-white font-medium mb-4">Features</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/plan" className="text-gray-300 hover:text-white">
+                <Link href="/info/credit-score" className="text-gray-300 hover:text-white">
                   Credit Score
                 </Link>
               </li>
               <li>
-                <Link href="/products?category=insurance" className="text-gray-300 hover:text-white">
+                <Link href="/info/insurance-risk" className="text-gray-300 hover:text-white">
                   Insurance Risk
                 </Link>
               </li>
@@ -44,12 +44,12 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="text-white font-medium mb-4">Resources</h4>
+            <h4 className="text-white font-medium mb-4">Recursos</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <a href="#" className="text-gray-300 hover:text-white">
-                  Financial Education
-                </a>
+                <Link href="/about" className="text-gray-300 hover:text-white">
+                  Sobre Nosotros
+                </Link>
               </li>
               <li>
                 <a href="#" className="text-gray-300 hover:text-white">
@@ -63,7 +63,7 @@ export default function Footer() {
               </li>
               <li>
                 <a href="#" className="text-gray-300 hover:text-white">
-                  Support
+                  Soporte
                 </a>
               </li>
             </ul>

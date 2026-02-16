@@ -10,6 +10,10 @@ import NotFound from "@/pages/not-found";
 import Login from "@/pages/Login";
 import SignUp from "@/pages/SignUp";
 import Landing from "@/pages/Landing";
+import About from "@/pages/About";
+import CreditScoreInfo from "@/pages/CreditScoreInfo";
+import InsuranceRiskInfo from "@/pages/InsuranceRiskInfo";
+import Empresas from "@/pages/Empresas";
 import Dashboard from "@/pages/Dashboard";
 import Onboarding from "@/pages/Onboarding";
 import Products from "@/pages/Products";
@@ -41,6 +45,10 @@ function App() {
         {/* Public routes */}
         <Route path="/login" component={Login} />
         <Route path="/signup" component={SignUp} />
+        <Route path="/about" component={About} />
+        <Route path="/empresas" component={Empresas} />
+        <Route path="/info/credit-score" component={CreditScoreInfo} />
+        <Route path="/info/insurance-risk" component={InsuranceRiskInfo} />
         
         {/* Special route for email invitations - no header/footer */}
         <Route path="/invite">

@@ -57,14 +57,14 @@ export default function Landing() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <a href="#features">
-                <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 px-8 py-6 text-lg">
-                  Learn More
+              <Link href="/about">
+                <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white hover:text-blue-700 transition-colors px-8 py-6 text-lg">
+                  Conoce Más
                 </Button>
-              </a>
+              </Link>
             </div>
             <p className="mt-6 text-blue-200 text-sm">
-              No credit card required. Start in seconds.
+              No payment required. Start in seconds.
             </p>
           </div>
         </div>
@@ -110,7 +110,7 @@ export default function Landing() {
             <FeatureCard
               icon={<Wallet className="h-8 w-8" />}
               title="Expense Tracking"
-              description="Categorize and track all your spending automatically. Know where every dollar goes."
+              description="Categorize and track all your spending automatically. Know where every peso goes."
               color="orange"
             />
             <FeatureCard
@@ -185,8 +185,8 @@ export default function Landing() {
                     <span className="text-gray-600">Total Balance</span>
                     <TrendingUp className="h-5 w-5 text-green-500" />
                   </div>
-                  <div className="text-3xl font-bold text-gray-900">$24,562.80</div>
-                  <div className="text-sm text-green-600">+$1,240 this month</div>
+                  <div className="text-3xl font-bold text-gray-900">$15.450.000</div>
+                  <div className="text-sm text-green-600">+$780.000 this month</div>
                   <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div className="h-full w-3/4 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full" />
                   </div>
@@ -197,7 +197,7 @@ export default function Landing() {
                     </div>
                     <div>
                       <div className="text-sm text-gray-500">Net Worth</div>
-                      <div className="text-lg font-semibold text-gray-900">$142,350</div>
+                      <div className="text-lg font-semibold text-gray-900">$89.500.000</div>
                     </div>
                   </div>
                 </div>

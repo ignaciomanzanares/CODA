@@ -21,7 +21,8 @@ import {
   FileText,
   LogOut,
   User,
-  Wallet
+  Wallet,
+  Building2
 } from "lucide-react";
 import NotificationCenter from "@/components/NotificationCenter";
 import { cn } from "@/lib/utils";
@@ -102,6 +103,14 @@ export default function Header() {
 
         {/* User Menu */}
         <div className="flex items-center gap-4">
+          {/* CODA Empresas Link */}
+          <Link href="/empresas">
+            <Button variant="outline" size="sm" className="hidden md:flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              <span>CODA Empresas</span>
+            </Button>
+          </Link>
+          
           {isAuthenticated && user ? (
             <>
               <NotificationCenter />
