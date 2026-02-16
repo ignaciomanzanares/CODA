@@ -4,13 +4,18 @@ import * as sqliteCore from "drizzle-orm/sqlite-core";
 
 // Producción (deploy/Render) = Postgres. Local = SQLite (poco uso).
 const isProd = process.env.NODE_ENV === "production" || (!!process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith("postgres"));
-const table = isProd ? pgCore.pgTable : sqliteCore.sqliteTable;
-const text = isProd ? pgCore.text : sqliteCore.text;
-const integer = isProd ? pgCore.integer : sqliteCore.integer;
-const real = isProd ? pgCore.real : sqliteCore.real;
-const serialOrInt = isProd
-  ? pgCore.serial
-  : (name: string) => sqliteCore.integer(name, { mode: "number" }).primaryKey({ autoIncrement: true });
+
+// Casts para que TS compile con ambos dialectos (pgTable/sqliteTable tienen firmas distintas en unión).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const table = (isProd ? pgCore.pgTable : sqliteCore.sqliteTable) as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const text = (isProd ? pgCore.text : sqliteCore.text) as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const integer = (isProd ? pgCore.integer : sqliteCore.integer) as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const real = (isProd ? pgCore.real : sqliteCore.real) as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const serialOrInt = isProd ? (pgCore.serial as any) : ((name: string) => sqliteCore.integer(name, { mode: "number" }).primaryKey({ autoIncrement: true }));
 
 // --- Table Definitions ---
 export const users = table('users', {
