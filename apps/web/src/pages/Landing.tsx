@@ -44,27 +44,27 @@ export default function Landing() {
         <div className="container mx-auto px-4 py-20 md:py-32 relative">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-              Take Control of Your{" "}
-              <span className="text-blue-200">Financial Future</span>
+              Toma el control de tu{" "}
+              <span className="text-blue-200">futuro financiero</span>
             </h1>
             <p className="text-xl md:text-2xl text-blue-100 mb-8 leading-relaxed">
-              AI-powered insights to track spending, analyze risk, split bills with friends, and reach your financial goals faster.
+              Información impulsada por IA para controlar gastos, analizar riesgos, dividir cuentas con amigos y alcanzar tus metas financieras más rápido.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/login">
                 <Button size="lg" className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg">
-                  Get Started Free
+                  Comenzar gratis
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
               <Link href="/about">
                 <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white hover:text-blue-700 transition-colors px-8 py-6 text-lg">
-                  Conoce Más
+                  Conoce más
                 </Button>
               </Link>
             </div>
             <p className="mt-6 text-blue-200 text-sm">
-              No payment required. Start in seconds.
+              Sin pago requerido. Comienza en segundos.
             </p>
           </div>
         </div>
@@ -81,48 +81,48 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Everything You Need to Manage Your Money
+              Todo lo que necesitas para gestionar tu dinero
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Powerful tools to understand your finances, reduce risk, and build wealth.
+              Herramientas potentes para entender tus finanzas, reducir riesgos y construir patrimonio.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             <FeatureCard
               icon={<BarChart3 className="h-8 w-8" />}
-              title="Smart Dashboard"
-              description="Get a complete overview of your finances with real-time insights and beautiful visualizations."
+              title="Panel inteligente"
+              description="Visión completa de tus finanzas con información en tiempo real y visualizaciones claras."
               color="blue"
             />
             <FeatureCard
               icon={<Shield className="h-8 w-8" />}
-              title="Risk Analysis"
-              description="AI-powered credit score and insurance risk assessment to help you make informed decisions."
+              title="Análisis de riesgo"
+              description="Evaluación de score de crédito y riesgo de seguros con IA para decisiones informadas."
               color="green"
             />
             <FeatureCard
               icon={<Split className="h-8 w-8" />}
-              title="Bill Splitting"
-              description="Split expenses with friends and family effortlessly. Share via link or email."
+              title="División de cuentas"
+              description="Divide gastos con amigos y familia sin esfuerzo. Comparte por enlace o correo."
               color="purple"
             />
             <FeatureCard
               icon={<Wallet className="h-8 w-8" />}
-              title="Expense Tracking"
-              description="Categorize and track all your spending automatically. Know where every peso goes."
+              title="Control de gastos"
+              description="Categoriza y sigue todos tus gastos de forma automática. Sabe a dónde va cada peso."
               color="orange"
             />
             <FeatureCard
               icon={<Target className="h-8 w-8" />}
-              title="Financial Goals"
-              description="Set savings goals and track your progress. Achieve your dreams faster."
+              title="Metas financieras"
+              description="Define metas de ahorro y sigue tu avance. Alcanza tus objetivos más rápido."
               color="pink"
             />
             <FeatureCard
               icon={<CreditCard className="h-8 w-8" />}
-              title="Product Comparison"
-              description="Compare financial products and find the best rates for loans, cards, and more."
+              title="Comparación de productos"
+              description="Compara productos financieros y encuentra las mejores tasas en créditos, tarjetas y más."
               color="cyan"
             />
           </div>
@@ -134,28 +134,28 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Get Started in Minutes
+              Comienza en minutos
             </h2>
             <p className="text-xl text-gray-600">
-              Three simple steps to financial clarity
+              Tres pasos simples hacia la claridad financiera
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <StepCard
               number="1"
-              title="Connect"
-              description="Securely link your bank accounts or use demo data to explore."
+              title="Conecta"
+              description="Vincula tus cuentas bancarias de forma segura o usa datos de prueba para explorar."
             />
             <StepCard
               number="2"
-              title="Analyze"
-              description="Get instant insights into your spending patterns and financial health."
+              title="Analiza"
+              description="Obtén información inmediata sobre tus patrones de gasto y salud financiera."
             />
             <StepCard
               number="3"
-              title="Optimize"
-              description="Follow personalized recommendations to improve your finances."
+              title="Optimiza"
+              description="Sigue recomendaciones personalizadas para mejorar tus finanzas."
             />
           </div>
         </div>
@@ -167,36 +167,36 @@ export default function Landing() {
           <div className="grid md:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
             <div>
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                Why Choose CODA?
+                ¿Por qué elegir CODA?
               </h2>
               <div className="space-y-4">
-                <BenefitItem text="Free to use with no hidden fees" />
-                <BenefitItem text="Bank-level security for your data" />
-                <BenefitItem text="AI-powered insights and recommendations" />
-                <BenefitItem text="Split bills with anyone, even non-users" />
-                <BenefitItem text="Beautiful, intuitive interface" />
-                <BenefitItem text="Works on any device" />
+                <BenefitItem text="Gratuito, sin cargos ocultos" />
+                <BenefitItem text="Seguridad de nivel bancario para tus datos" />
+                <BenefitItem text="Información y recomendaciones impulsadas por IA" />
+                <BenefitItem text="Divide cuentas con quien quieras, incluso sin cuenta" />
+                <BenefitItem text="Interfaz clara e intuitiva" />
+                <BenefitItem text="Disponible en cualquier dispositivo" />
               </div>
             </div>
             <div className="relative">
               <div className="bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl p-8">
                 <div className="bg-white rounded-xl shadow-lg p-6 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Total Balance</span>
+                    <span className="text-gray-600">Saldo total</span>
                     <TrendingUp className="h-5 w-5 text-green-500" />
                   </div>
                   <div className="text-3xl font-bold text-gray-900">$15.450.000</div>
-                  <div className="text-sm text-green-600">+$780.000 this month</div>
+                  <div className="text-sm text-green-600">+$780.000 este mes</div>
                   <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div className="h-full w-3/4 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full" />
                   </div>
                   <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                     <div>
-                      <div className="text-sm text-gray-500">Savings Rate</div>
+                      <div className="text-sm text-gray-500">Tasa de ahorro</div>
                       <div className="text-lg font-semibold text-gray-900">28%</div>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-500">Net Worth</div>
+                      <div className="text-sm text-gray-500">Patrimonio neto</div>
                       <div className="text-lg font-semibold text-gray-900">$89.500.000</div>
                     </div>
                   </div>
@@ -211,14 +211,14 @@ export default function Landing() {
       <section className="py-20 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Ready to Transform Your Finances?
+            ¿Listo para transformar tus finanzas?
           </h2>
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Join thousands of users who are already making smarter financial decisions with CODA.
+            Únete a miles de usuarios que ya toman mejores decisiones financieras con CODA.
           </p>
           <Link href="/login">
             <Button size="lg" className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg">
-              Start Your Free Account
+              Crear cuenta gratis
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </Link>

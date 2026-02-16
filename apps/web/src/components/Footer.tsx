@@ -12,32 +12,32 @@ export default function Footer() {
               <h3 className="text-white font-bold text-lg font-sans">CODA</h3>
             </div>
             <p className="text-gray-300 text-sm">
-              Helping you make smarter financial decisions with personalized
-              insights and recommendations.
+              Te ayudamos a tomar mejores decisiones financieras con información
+              personalizada y recomendaciones.
             </p>
           </div>
 
           <div>
-            <h4 className="text-white font-medium mb-4">Features</h4>
+            <h4 className="text-white font-medium mb-4">Funcionalidades</h4>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/info/credit-score" className="text-gray-300 hover:text-white">
-                  Credit Score
+                  Score de crédito
                 </Link>
               </li>
               <li>
                 <Link href="/info/insurance-risk" className="text-gray-300 hover:text-white">
-                  Insurance Risk
+                  Riesgo de seguros
                 </Link>
               </li>
               <li>
                 <Link href="/goals" className="text-gray-300 hover:text-white">
-                  Financial Goals
+                  Metas financieras
                 </Link>
               </li>
               <li>
                 <Link href="/products" className="text-gray-300 hover:text-white">
-                  Product Comparison
+                  Comparación de productos
                 </Link>
               </li>
             </ul>
@@ -74,17 +74,17 @@ export default function Footer() {
             <ul className="space-y-2 text-sm">
               <li>
                 <a href="#" className="text-gray-300 hover:text-white">
-                  Privacy Policy
+                  Política de privacidad
                 </a>
               </li>
               <li>
                 <a href="#" className="text-gray-300 hover:text-white">
-                  Terms of Service
+                  Términos de servicio
                 </a>
               </li>
               <li>
                 <a href="#" className="text-gray-300 hover:text-white">
-                  Data Security
+                  Seguridad de datos
                 </a>
               </li>
               <li>
@@ -98,7 +98,7 @@ export default function Footer() {
 
         <div className="mt-8 pt-8 border-t border-gray-700 flex flex-col md:flex-row justify-between items-center">
           <div className="text-gray-300 text-sm mb-4 md:mb-0">
-            &copy; {new Date().getFullYear()} CODA. All rights reserved.
+            &copy; {new Date().getFullYear()} CODA. Todos los derechos reservados.
           </div>
 
           <div className="flex space-x-4">

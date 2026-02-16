@@ -86,8 +86,8 @@ export default function Profile() {
       <div className="container py-8 text-center">
         <div className="bg-white shadow rounded-lg p-8 max-w-lg mx-auto">
           <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Authentication Required</h2>
-          <p className="text-gray-600">You must be signed in to view your profile.</p>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Autenticación requerida</h2>
+          <p className="text-gray-600">Debes iniciar sesión para ver tu perfil.</p>
         </div>
       </div>
     );
@@ -135,14 +135,14 @@ export default function Profile() {
       
       setIsEditing(false);
       toast({
-        title: "Profile updated",
-        description: "Your profile information has been updated successfully.",
+        title: "Perfil actualizado",
+        description: "Tu perfil se ha actualizado correctamente.",
       });
     } catch (error) {
       console.error('Profile update error:', error);
       toast({
-        title: "Update failed",
-        description: "Failed to update profile. Please try again.",
+        title: "Error al actualizar",
+        description: "No se pudo actualizar el perfil. Intenta de nuevo.",
         variant: "destructive",
       });
     }
@@ -156,14 +156,14 @@ export default function Profile() {
     try {
       await changePassword();
       toast({
-        title: "Password change email sent",
-        description: "Check your email for instructions to change your password.",
+        title: "Correo enviado",
+        description: "Revisa tu correo para las instrucciones para cambiar tu contraseña.",
       });
     } catch (error) {
       console.error('Password change error:', error);
       toast({
         title: "Error",
-        description: "Failed to send password change email. Please try again.",
+        description: "No se pudo enviar el correo. Intenta de nuevo.",
         variant: "destructive",
       });
     }
@@ -207,8 +207,8 @@ export default function Profile() {
 
   const handleComingSoon = () => {
     toast({
-      title: "Coming Soon",
-      description: "This feature will be available in a future update.",
+      title: "Próximamente",
+      description: "Esta función estará disponible en una futura actualización.",
     });
   };
 
@@ -216,8 +216,8 @@ export default function Profile() {
     <div className="container py-8 space-y-8">
       {/* Header Section */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile Settings</h1>
-        <p className="text-gray-600">Manage your account settings and preferences</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Configuración del perfil</h1>
+        <p className="text-gray-600">Gestiona tu cuenta y preferencias</p>
       </div>
 
       {/* Profile Overview Card */}
@@ -241,11 +241,11 @@ export default function Profile() {
                 <div className="flex items-center mt-2">
                   <Badge variant="secondary" className="mr-2">
                     <CheckCircle className="h-3 w-3 mr-1" />
-                    Verified Account
+                    Cuenta verificada
                   </Badge>
                   <Badge variant="outline">
                     <Calendar className="h-3 w-3 mr-1" />
-                    Member since {new Date().toLocaleDateString()}
+                    Miembro desde {new Date().toLocaleDateString()}
                   </Badge>
                 </div>
               </div>
@@ -253,11 +253,11 @@ export default function Profile() {
             <div className="flex space-x-2">
               <Button variant="outline" size="sm" onClick={handleComingSoon}>
                 <Camera className="h-4 w-4 mr-2" />
-                Change Photo
+                Cambiar foto
               </Button>
               <Button variant="outline" size="sm" onClick={() => setIsEditing(!isEditing)}>
                 <Edit className="h-4 w-4 mr-2" />
-                Edit Profile
+                Editar perfil
               </Button>
             </div>
           </div>
@@ -269,19 +269,19 @@ export default function Profile() {
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="profile" className="flex items-center">
             <User className="h-4 w-4 mr-2" />
-            Profile
+            Perfil
           </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center">
             <Shield className="h-4 w-4 mr-2" />
-            Security
+            Seguridad
           </TabsTrigger>
           <TabsTrigger value="preferences" className="flex items-center">
             <Settings className="h-4 w-4 mr-2" />
-            Preferences
+            Preferencias
           </TabsTrigger>
           <TabsTrigger value="account" className="flex items-center">
             <CreditCard className="h-4 w-4 mr-2" />
-            Account
+            Cuenta
           </TabsTrigger>
         </TabsList>
 
@@ -292,15 +292,15 @@ export default function Profile() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <User className="h-5 w-5 mr-2" />
-                  Personal Information
+                  Información personal
                 </CardTitle>
                 <CardDescription>
-                  Update your personal details and contact information
+                  Actualiza tus datos y datos de contacto
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="displayName">Display Name</Label>
+                  <Label htmlFor="displayName">Nombre para mostrar</Label>
                   <Input
                     id="displayName"
                     value={profileData.displayName}
@@ -309,7 +309,7 @@ export default function Profile() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
+                  <Label htmlFor="email">Correo electrónico</Label>
                   <Input
                     id="email"
                     type="email"
@@ -317,11 +317,11 @@ export default function Profile() {
                     disabled
                     className="bg-gray-50"
                   />
-                  <p className="text-sm text-gray-500">Email is managed by Auth0</p>
+                  <p className="text-sm text-gray-500">El correo se gestiona con Auth0</p>
                 </div>
                 {isEditing && (
                   <Button onClick={handleProfileUpdate} className="w-full">
-                    Save Changes
+                    Guardar cambios
                   </Button>
                 )}
               </CardContent>
@@ -385,7 +385,7 @@ export default function Profile() {
                     <span className="text-sm text-gray-600">••••••••</span>
                     <Button variant="outline" size="sm" onClick={handlePasswordChange}>
                       <Key className="h-4 w-4 mr-2" />
-                      Change Password
+                      Cambiar contraseña
                     </Button>
                   </div>
                 </div>
@@ -430,7 +430,7 @@ export default function Profile() {
                   <Label>Login Notifications</Label>
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm text-gray-600">Email notifications for new logins</span>
+                      <span className="text-sm text-gray-600">Notificaciones por correo al iniciar sesión</span>
                       <p className="text-xs text-gray-500">Get notified of suspicious activity</p>
                     </div>
                     <Button variant="outline" size="sm" onClick={handleComingSoon}>
@@ -472,7 +472,7 @@ export default function Profile() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="language">Language</Label>
+                  <Label htmlFor="language">Idioma</Label>
                   <select 
                     id="language" 
                     className="w-full p-2 border rounded"
@@ -485,7 +485,7 @@ export default function Profile() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="timezone">Timezone</Label>
+                  <Label htmlFor="timezone">Zona horaria</Label>
                   <select 
                     id="timezone" 
                     className="w-full p-2 border rounded"
@@ -503,7 +503,7 @@ export default function Profile() {
                   <Label>Notifications</Label>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm">Email Notifications</span>
+                      <span className="text-sm">Notificaciones por correo</span>
                       <Button variant="outline" size="sm" onClick={handleComingSoon}>
                         <Bell className="h-4 w-4 mr-2" />
                         Configure
@@ -620,24 +620,24 @@ export default function Profile() {
                   <AlertDialogTrigger asChild>
                     <Button variant="destructive" className="w-full">
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Account
+                      Eliminar cuenta
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Account</AlertDialogTitle>
+                      <AlertDialogTitle>Eliminar cuenta</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete your account
-                        and remove all your data from our servers.
+                        Esta acción no se puede deshacer. Se eliminará tu cuenta de forma permanente
+                        y todos tus datos de nuestros servidores.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
                       <AlertDialogAction 
                         className="bg-red-500 hover:bg-red-600"
                         onClick={handleDeleteAccount}
                       >
-                        Delete Account
+                        Eliminar cuenta
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>

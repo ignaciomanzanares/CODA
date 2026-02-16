@@ -14,6 +14,7 @@ import About from "@/pages/About";
 import CreditScoreInfo from "@/pages/CreditScoreInfo";
 import InsuranceRiskInfo from "@/pages/InsuranceRiskInfo";
 import Empresas from "@/pages/Empresas";
+import EmpresasTransition from "@/pages/empresas/EmpresasTransition";
 import Dashboard from "@/pages/Dashboard";
 import Onboarding from "@/pages/Onboarding";
 import Products from "@/pages/Products";
@@ -75,6 +76,13 @@ function App() {
             <main className="flex-1">
                 <Switch>
                   <Route path="/onboarding" component={Onboarding} />
+                  {/* CODA Empresas: rutas en transición hacia plataforma unificada */}
+                  <Route path="/empresas/dashboard" component={EmpresasTransition} />
+                  <Route path="/empresas/companies" component={EmpresasTransition} />
+                  <Route path="/empresas/transactions" component={EmpresasTransition} />
+                  <Route path="/empresas/reconciliation" component={EmpresasTransition} />
+                  <Route path="/empresas/statements" component={EmpresasTransition} />
+                  <Route path="/empresas/risk" component={EmpresasTransition} />
                   <Route path="/dashboard">
                     <ProtectedRoute>
                       <Dashboard />

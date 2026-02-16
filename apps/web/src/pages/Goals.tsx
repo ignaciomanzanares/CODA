@@ -75,10 +75,10 @@ import { cn } from "@/lib/utils";
 
 // Form schema for adding/editing a goal
 const goalFormSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  targetAmount: z.coerce.number().min(1, "Target amount is required"),
-  currentAmount: z.coerce.number().min(0, "Current amount must be 0 or more"),
-  targetDate: z.string().min(1, "Target date is required"),
+  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+  targetAmount: z.coerce.number().min(1, "El monto objetivo es obligatorio"),
+  currentAmount: z.coerce.number().min(0, "El monto actual debe ser 0 o más"),
+  targetDate: z.string().min(1, "La fecha objetivo es obligatoria"),
   category: z.enum(["savings", "debt_repayment", "retirement", "home", "education", "other"]),
 });
 
@@ -139,8 +139,8 @@ export default function Goals() {
       setIsAddGoalOpen(false);
       addForm.reset();
       toast({
-        title: "Goal created",
-        description: "Your financial goal has been created successfully.",
+        title: "Meta creada",
+        description: "Tu meta financiera se ha creado correctamente.",
       });
     },
     onError: (error, newGoal, context) => {
@@ -149,7 +149,7 @@ export default function Goals() {
       }
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create financial goal",
+        description: error instanceof Error ? error.message : "No se pudo crear la meta financiera",
         variant: "destructive",
       });
     },
@@ -193,8 +193,8 @@ export default function Goals() {
       setSelectedGoal(null);
       editForm.reset();
       toast({
-        title: "Goal updated",
-        description: "Your financial goal has been updated successfully.",
+        title: "Meta actualizada",
+        description: "Tu meta financiera se ha actualizado correctamente.",
       });
     },
     onError: (error, variables, context) => {
@@ -203,7 +203,7 @@ export default function Goals() {
       }
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update financial goal",
+        description: error instanceof Error ? error.message : "No se pudo actualizar la meta",
         variant: "destructive",
       });
     },
@@ -227,8 +227,8 @@ export default function Goals() {
     onSuccess: () => {
       // Don't invalidate - the optimistic update already removed it
       toast({
-        title: "Goal deleted",
-        description: "Your financial goal has been deleted.",
+        title: "Meta eliminada",
+        description: "La meta financiera ha sido eliminada.",
       });
     },
     onError: (error, goalId, context) => {
@@ -237,7 +237,7 @@ export default function Goals() {
       }
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete financial goal",
+        description: error instanceof Error ? error.message : "No se pudo eliminar la meta",
         variant: "destructive",
       });
     },
@@ -359,17 +359,17 @@ export default function Goals() {
   const getCategoryLabel = (category: string) => {
     switch (category) {
       case "savings":
-        return "Savings";
+        return "Ahorro";
       case "debt_repayment":
-        return "Debt Repayment";
+        return "Pago de deudas";
       case "retirement":
-        return "Retirement";
+        return "Jubilación";
       case "home":
-        return "Home";
+        return "Vivienda";
       case "education":
-        return "Education";
+        return "Educación";
       default:
-        return "Other";
+        return "Otros";
     }
   };
 
@@ -379,15 +379,15 @@ export default function Goals() {
     const daysLeft = differenceInDays(targetDate, new Date());
     
     if (progress >= 100) {
-      return { label: 'Complete!', color: 'bg-green-100 text-green-700', icon: CheckCircle };
+      return { label: '¡Completada!', color: 'bg-green-100 text-green-700', icon: CheckCircle };
     }
     if (daysLeft < 0) {
-      return { label: 'Overdue', color: 'bg-red-100 text-red-700', icon: AlertTriangle };
+      return { label: 'Vencida', color: 'bg-red-100 text-red-700', icon: AlertTriangle };
     }
     if (daysLeft < 30) {
-      return { label: 'Due Soon', color: 'bg-yellow-100 text-yellow-700', icon: Clock };
+      return { label: 'Próxima', color: 'bg-yellow-100 text-yellow-700', icon: Clock };
     }
-    return { label: 'On Track', color: 'bg-blue-100 text-blue-700', icon: TrendingUp };
+    return { label: 'En curso', color: 'bg-blue-100 text-blue-700', icon: TrendingUp };
   };
 
   if (authLoading || (isAuthenticated && isLoading)) {
@@ -420,12 +420,12 @@ export default function Goals() {
           <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
             <AlertTriangle className="h-8 w-8 text-red-600" />
           </div>
-          <h2 className="text-2xl font-bold mb-4">Failed to Load Goals</h2>
+          <h2 className="text-2xl font-bold mb-4">Error al cargar las metas</h2>
           <p className="text-muted-foreground mb-6">
-            {error instanceof Error ? error.message : "An error occurred"}
+            {error instanceof Error ? error.message : "Ha ocurrido un error"}
           </p>
           <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] })}>
-            Try Again
+            Reintentar
           </Button>
         </div>
       </div>
@@ -444,9 +444,9 @@ export default function Goals() {
       <div className="container py-8 space-y-6">
         {!isAuthenticated && (
           <SignInBanner 
-            title="Viewing Demo Financial Goals"
-            description="You're exploring sample financial goals with progress tracking. Sign in to create and manage your real financial objectives, set target dates, and track your progress."
-            actionText="Sign In to Track Real Goals"
+            title="Viendo metas financieras de demostración"
+            description="Estás explorando metas de ejemplo con seguimiento de progreso. Inicia sesión para crear y gestionar tus metas reales, definir fechas y seguir tu avance."
+            actionText="Iniciar sesión para metas reales"
           />
         )}
         
@@ -458,8 +458,8 @@ export default function Goals() {
                 <Target className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold">Financial Goals</h1>
-                <p className="text-muted-foreground">Track your progress towards financial freedom</p>
+                <h1 className="text-3xl font-bold">Metas financieras</h1>
+                <p className="text-muted-foreground">Sigue tu avance hacia la libertad financiera</p>
               </div>
             </div>
           </div>
@@ -467,14 +467,14 @@ export default function Goals() {
             <DialogTrigger asChild>
               <Button size="lg" className="gap-2" disabled={!isAuthenticated}>
                 <Plus className="h-4 w-4" />
-                Add Goal
+                Añadir meta
               </Button>
             </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Financial Goal</DialogTitle>
+              <DialogTitle>Añadir meta financiera</DialogTitle>
               <DialogDescription>
-                Create a new financial goal to track your progress.
+                Crea una nueva meta para seguir tu progreso.
               </DialogDescription>
             </DialogHeader>
             <Form {...addForm}>
@@ -484,9 +484,9 @@ export default function Goals() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Goal Name</FormLabel>
+                      <FormLabel>Nombre de la meta</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Emergency Fund" {...field} />
+                        <Input placeholder="ej. Fondo de emergencia" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -497,20 +497,20 @@ export default function Goals() {
                   name="category"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category</FormLabel>
+                      <FormLabel>Categoría</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a category" />
+                            <SelectValue placeholder="Elegir categoría" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="savings">Savings</SelectItem>
-                          <SelectItem value="debt_repayment">Debt Repayment</SelectItem>
-                          <SelectItem value="retirement">Retirement</SelectItem>
-                          <SelectItem value="home">Home</SelectItem>
-                          <SelectItem value="education">Education</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
+                          <SelectItem value="savings">Ahorro</SelectItem>
+                          <SelectItem value="debt_repayment">Pago de deudas</SelectItem>
+                          <SelectItem value="retirement">Jubilación</SelectItem>
+                          <SelectItem value="home">Vivienda</SelectItem>
+                          <SelectItem value="education">Educación</SelectItem>
+                          <SelectItem value="other">Otros</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -523,7 +523,7 @@ export default function Goals() {
                     name="targetAmount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Target Amount</FormLabel>
+                        <FormLabel>Monto objetivo</FormLabel>
                         <FormControl>
                           <Input type="number" placeholder="0" {...field} />
                         </FormControl>
@@ -536,7 +536,7 @@ export default function Goals() {
                     name="currentAmount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Current Amount</FormLabel>
+                        <FormLabel>Monto actual</FormLabel>
                         <FormControl>
                           <Input type="number" placeholder="0" {...field} />
                         </FormControl>
@@ -550,7 +550,7 @@ export default function Goals() {
                   name="targetDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Target Date</FormLabel>
+                      <FormLabel>Fecha objetivo</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} />
                       </FormControl>
@@ -560,10 +560,10 @@ export default function Goals() {
                 />
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setIsAddGoalOpen(false)}>
-                    Cancel
+                    Cancelar
                   </Button>
                   <Button type="submit" disabled={addGoalMutation.isPending}>
-                    {addGoalMutation.isPending ? "Creating..." : "Create Goal"}
+                    {addGoalMutation.isPending ? "Creando..." : "Crear meta"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -578,9 +578,9 @@ export default function Goals() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Saved</p>
+                  <p className="text-sm font-medium text-muted-foreground">Total ahorrado</p>
                   <p className="text-2xl font-bold mt-1">{formatCurrency(totalCurrent)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">of {formatCurrency(totalTarget)} target</p>
+                  <p className="text-xs text-muted-foreground mt-1">de {formatCurrency(totalTarget)} objetivo</p>
                 </div>
                 <div className="p-3 rounded-xl bg-green-500">
                   <DollarSign className="h-6 w-6 text-white" />
@@ -592,7 +592,7 @@ export default function Goals() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Overall Progress</p>
+                  <p className="text-sm font-medium text-muted-foreground">Progreso total</p>
                   <p className="text-2xl font-bold mt-1">{overallProgress}%</p>
                   <Progress value={overallProgress} className="h-2 mt-2 w-24" />
                 </div>
@@ -606,9 +606,9 @@ export default function Goals() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Active Goals</p>
+                  <p className="text-sm font-medium text-muted-foreground">Metas activas</p>
                   <p className="text-2xl font-bold mt-1">{activeGoals}</p>
-                  <p className="text-xs text-muted-foreground mt-1">In progress</p>
+                  <p className="text-xs text-muted-foreground mt-1">En progreso</p>
                 </div>
                 <div className="p-3 rounded-xl bg-purple-500">
                   <Target className="h-6 w-6 text-white" />
@@ -620,9 +620,9 @@ export default function Goals() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Completed</p>
+                  <p className="text-sm font-medium text-muted-foreground">Completadas</p>
                   <p className="text-2xl font-bold mt-1">{completedGoals}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Goals achieved</p>
+                  <p className="text-xs text-muted-foreground mt-1">Metas alcanzadas</p>
                 </div>
                 <div className="p-3 rounded-xl bg-orange-500">
                   <CheckCircle className="h-6 w-6 text-white" />
@@ -668,7 +668,7 @@ export default function Goals() {
                     {/* Progress */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Progress</span>
+                        <span className="text-muted-foreground">Progreso</span>
                         <span className="font-semibold">{progress}%</span>
                       </div>
                       <Progress value={progress} className="h-2" />
@@ -677,11 +677,11 @@ export default function Goals() {
                     {/* Amounts */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Current</p>
+                        <p className="text-xs text-muted-foreground">Actual</p>
                         <p className="text-lg font-bold">{formatCurrency(goal.currentAmount)}</p>
                       </div>
                       <div className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Target</p>
+                        <p className="text-xs text-muted-foreground">Objetivo</p>
                         <p className="text-lg font-bold">{formatCurrency(goal.targetAmount)}</p>
                       </div>
                     </div>
@@ -698,9 +698,9 @@ export default function Goals() {
                         daysLeft < 30 ? "text-yellow-600" : 
                         "text-muted-foreground"
                       )}>
-                        {daysLeft < 0 ? `${Math.abs(daysLeft)} days overdue` :
-                         daysLeft === 0 ? "Due today" :
-                         `${daysLeft} days left`}
+                        {daysLeft < 0 ? `${Math.abs(daysLeft)} días de retraso` :
+                         daysLeft === 0 ? "Vence hoy" :
+                         `${daysLeft} días restantes`}
                       </span>
                     </div>
                     
@@ -714,7 +714,7 @@ export default function Goals() {
                         disabled={!isAuthenticated}
                       >
                         <Pencil className="h-4 w-4 mr-2" />
-                        Edit
+                        Editar
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -729,18 +729,18 @@ export default function Goals() {
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Goal</AlertDialogTitle>
+                            <AlertDialogTitle>Eliminar meta</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to delete &quot;{goal.name}&quot;? This action cannot be undone.
+                              ¿Estás seguro de que quieres eliminar &quot;{goal.name}&quot;? Esta acción no se puede deshacer.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => handleDeleteGoal(goal.id)}
                               className="bg-red-600 hover:bg-red-700"
                             >
-                              Delete
+                              Eliminar
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -757,14 +757,14 @@ export default function Goals() {
               <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
                 <Target className="h-8 w-8 text-muted-foreground" />
               </div>
-              <h3 className="text-xl font-semibold mb-2">Set Your First Goal</h3>
+              <h3 className="text-xl font-semibold mb-2">Define tu primera meta</h3>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                Start your journey to financial freedom by creating a SMART goal - 
-                Specific, Measurable, Achievable, Relevant, and Time-bound.
+                Comienza tu camino hacia la libertad financiera creando una meta SMART: 
+                Específica, Medible, Alcanzable, Relevante y con plazos.
               </p>
               <Button onClick={() => setIsAddGoalOpen(true)} disabled={!isAuthenticated} size="lg">
                 <Plus className="h-4 w-4 mr-2" />
-                Create Your First Goal
+                Crear tu primera meta
               </Button>
             </CardContent>
           </Card>
@@ -774,9 +774,9 @@ export default function Goals() {
       <Dialog open={isEditGoalOpen} onOpenChange={setIsEditGoalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Financial Goal</DialogTitle>
+            <DialogTitle>Editar meta financiera</DialogTitle>
             <DialogDescription>
-              Update your financial goal details.
+              Actualiza los datos de tu meta financiera.
             </DialogDescription>
           </DialogHeader>
           <Form {...editForm}>
@@ -825,7 +825,7 @@ export default function Goals() {
                   name="targetAmount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Target Amount</FormLabel>
+                      <FormLabel>Monto objetivo</FormLabel>
                       <FormControl>
                         <Input type="number" placeholder="0" {...field} />
                       </FormControl>
@@ -838,7 +838,7 @@ export default function Goals() {
                   name="currentAmount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Current Amount</FormLabel>
+                      <FormLabel>Monto actual</FormLabel>
                       <FormControl>
                         <Input type="number" placeholder="0" {...field} />
                       </FormControl>
@@ -852,7 +852,7 @@ export default function Goals() {
                 name="targetDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Target Date</FormLabel>
+                    <FormLabel>Fecha objetivo</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -862,10 +862,10 @@ export default function Goals() {
               />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsEditGoalOpen(false)}>
-                  Cancel
+                  Cancelar
                 </Button>
                 <Button type="submit" disabled={editGoalMutation.isPending}>
-                  {editGoalMutation.isPending ? "Updating..." : "Update Goal"}
+                  {editGoalMutation.isPending ? "Guardando..." : "Actualizar meta"}
                 </Button>
               </DialogFooter>
             </form>

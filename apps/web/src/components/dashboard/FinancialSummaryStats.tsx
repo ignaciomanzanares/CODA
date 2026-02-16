@@ -92,43 +92,43 @@ export default function FinancialSummaryStats({ data }: FinancialSummaryStatsPro
   const savingsThisMonth = data.monthlyIncome - data.monthlyExpenses;
   const expensesBudgetDiff = data.monthlyIncome * 0.5 - data.monthlyExpenses; // Assuming 50% budget
   const budgetStatus = expensesBudgetDiff >= 0 
-    ? `${Math.round((expensesBudgetDiff / (data.monthlyIncome * 0.5)) * 100)}% under budget`
-    : `${Math.round(Math.abs(expensesBudgetDiff / (data.monthlyIncome * 0.5)) * 100)}% over budget`;
+    ? `${Math.round((expensesBudgetDiff / (data.monthlyIncome * 0.5)) * 100)}% bajo presupuesto`
+    : `${Math.round(Math.abs(expensesBudgetDiff / (data.monthlyIncome * 0.5)) * 100)}% sobre presupuesto`;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <StatCard
-        title="Total Balance"
+        title="Saldo total"
         value={formatCurrency(data.totalBalance)}
-        subValue={`${data.accountCount} accounts`}
-        change={savingsThisMonth >= 0 ? `+${formatCurrency(savingsThisMonth)} this month` : `${formatCurrency(savingsThisMonth)} this month`}
+        subValue={`${data.accountCount} cuentas`}
+        change={savingsThisMonth >= 0 ? `+${formatCurrency(savingsThisMonth)} este mes` : `${formatCurrency(savingsThisMonth)} este mes`}
         changeType={savingsThisMonth >= 0 ? 'positive' : 'negative'}
         icon={Wallet}
         color="bg-blue-500"
       />
       <StatCard
-        title="Monthly Spending"
+        title="Gastos mensuales"
         value={formatCurrency(data.monthlyExpenses)}
-        subValue="Last 30 days"
+        subValue="Últimos 30 días"
         change={budgetStatus}
         changeType={expensesBudgetDiff >= 0 ? 'positive' : 'negative'}
         icon={CreditCard}
         color="bg-purple-500"
       />
       <StatCard
-        title="Savings Rate"
+        title="Tasa de ahorro"
         value={`${data.savingsRate}%`}
-        subValue={`${formatCurrency(savingsThisMonth)}/month`}
-        change={data.savingsRate >= 20 ? "On track" : "Below target"}
+        subValue={`${formatCurrency(savingsThisMonth)}/mes`}
+        change={data.savingsRate >= 20 ? "En buen camino" : "Por debajo del objetivo"}
         changeType={data.savingsRate >= 20 ? 'positive' : 'negative'}
         icon={PiggyBank}
         color="bg-green-500"
       />
       <StatCard
-        title="Net Worth"
+        title="Patrimonio neto"
         value={formatCurrency(data.netWorth)}
         subValue={`${formatCurrency(data.totalAssets)} - ${formatCurrency(data.totalLiabilities)}`}
-        change={`+${formatCurrency(netWorthChange)} this month`}
+        change={`+${formatCurrency(netWorthChange)} este mes`}
         changeType="positive"
         icon={TrendingUp}
         color="bg-orange-500"
