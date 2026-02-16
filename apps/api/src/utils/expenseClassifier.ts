@@ -292,7 +292,7 @@ The confidence should be between 0.0 and 1.0. Choose the most appropriate catego
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama3-70b-8192',
+        model: 'llama-3.3-70b-versatile',
         messages: [
           { role: 'user', content: prompt }
         ],

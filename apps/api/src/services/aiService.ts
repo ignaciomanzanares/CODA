@@ -164,7 +164,7 @@ async function callGroq(messages: Message[], apiKey: string): Promise<string> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'llama3-70b-8192',
+      model: 'llama-3.3-70b-versatile',
       messages: messages.map(m => ({ role: m.role, content: m.content })),
       max_tokens: 500,
       temperature: 0.7,
