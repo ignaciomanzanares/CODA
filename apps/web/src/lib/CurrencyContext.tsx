@@ -3,8 +3,23 @@ import type { CurrencyCode } from "@/lib/utils";
 import { setExchangeRate } from "@/lib/utils";
 
 const STORAGE_KEY = "coda_currency";
-const RATE_URL = "https://api.frankfurter.dev/latest?from=USD&to=CLP";
 const RATE_REFRESH_MS = 60 * 60 * 1000; // 1 hora
+
+// Fuentes de tasa USD → CLP (primera que responda gana)
+const RATE_SOURCES: { url: string; getRate: (data: any) => number | null }[] = [
+  {
+    url: "https://api.frankfurter.dev/v1/latest?from=USD&to=CLP",
+    getRate: (data) => (data?.rates?.CLP != null ? Number(data.rates.CLP) : null),
+  },
+  {
+    url: "https://api.frankfurter.dev/v1/latest?base=USD&symbols=CLP",
+    getRate: (data) => (data?.rates?.CLP != null ? Number(data.rates.CLP) : null),
+  },
+  {
+    url: "https://open.er-api.com/v6/latest/USD",
+    getRate: (data) => (data?.conversion_rates?.CLP != null ? Number(data.conversion_rates.CLP) : null),
+  },
+];
 
 type CurrencyContextValue = {
   currency: CurrencyCode;
@@ -30,19 +45,26 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchRate = useCallback(async () => {
-    try {
-      const res = await fetch(RATE_URL);
-      const data = await res.json();
-      const rate = data?.rates?.CLP;
-      if (typeof rate === "number" && rate > 0) {
-        setExchangeRate(rate);
-        setRateUsdToClp(rate);
+    for (const { url, getRate } of RATE_SOURCES) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      try {
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const rate = getRate(data);
+        if (typeof rate === "number" && rate > 0) {
+          setExchangeRate(rate);
+          setRateUsdToClp(rate);
+          break;
+        }
+      } catch {
+        clearTimeout(timeoutId);
+        continue;
       }
-    } catch {
-      // mantiene fallback en utils (1000)
-    } finally {
-      setRateLoading(false);
     }
+    setRateLoading(false);
   }, []);
 
   useEffect(() => {
