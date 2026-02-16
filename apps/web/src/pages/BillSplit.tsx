@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Plus, Users, DollarSign, Check, Clock, Send, 
@@ -347,12 +347,16 @@ export default function BillSplit() {
     }
   }, []);
 
-  const demoBillSplits = generateDemoBillSplits();
-  
-  const { data: realBillSplits = [], isLoading } = useQuery<BillSplitWithParticipants[]>({
+  const demoBillSplits = useMemo(
+    () => (isAuthenticated ? [] : generateDemoBillSplits()),
+    [isAuthenticated]
+  );
+
+  const { data: realBillSplits = [], isLoading, isError } = useQuery<BillSplitWithParticipants[]>({
     queryKey: ["/api/bill-splits"],
     queryFn: getBillSplits,
     enabled: isAuthenticated && !authLoading,
+    retry: false,
   });
 
   const billSplits = isAuthenticated ? realBillSplits : demoBillSplits;
@@ -567,22 +571,27 @@ export default function BillSplit() {
     createBillSplitMutation.mutate(values);
   };
 
-  if (authLoading || (isAuthenticated && isLoading)) {
-    return (
-      <div className="container py-8 space-y-6 max-w-5xl mx-auto">
-        <div className="h-8 bg-muted rounded animate-pulse"></div>
-        <div className="h-48 bg-muted rounded animate-pulse"></div>
-        <div className="space-y-4">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-32 bg-muted rounded animate-pulse"></div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const showLoading = authLoading || (isAuthenticated && isLoading);
 
   return (
     <div className="container py-8 space-y-6 max-w-5xl mx-auto">
+      {showLoading ? (
+        <>
+          <div className="h-8 bg-muted rounded animate-pulse w-48" />
+          <div className="h-48 bg-muted rounded animate-pulse" />
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-32 bg-muted rounded animate-pulse" />
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+      {isAuthenticated && isError && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 text-sm text-amber-800 dark:text-amber-200">
+          No se pudieron cargar tus gastos compartidos. Revisa la conexión o intenta más tarde.
+        </div>
+      )}
       {!isAuthenticated && (
         <SignInBanner 
           title="Divide cuentas como un pro"
@@ -1205,6 +1214,8 @@ export default function BillSplit() {
             }
           }}
         />
+      )}
+        </>
       )}
     </div>
   );
