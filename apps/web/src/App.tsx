@@ -115,9 +115,7 @@ function App() {
                     </ProtectedRoute>
                   </Route>
                   <Route path="/bill-split">
-                    <ProtectedRoute>
-                      <BillSplit />
-                    </ProtectedRoute>
+                    <BillSplit />
                   </Route>
                   <Route path="/products">
                     <ProtectedRoute>
