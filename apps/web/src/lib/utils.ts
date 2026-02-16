@@ -5,13 +5,32 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
+export type CurrencyCode = "CLP" | "USD";
+
+export function formatCurrency(amount: number, currency: CurrencyCode = "CLP"): string {
+  if (currency === "USD") {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  }
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount)
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+/** Formato corto para gráficos (ej. $1.2M, $45K o 1,2M $) */
+export function formatCurrencyShort(amount: number, currency: CurrencyCode = "CLP"): string {
+  const sym = currency === "USD" ? "$" : "$"; // CLP también se muestra como $ en Chile
+  const abs = Math.abs(amount);
+  if (abs >= 1_000_000) return `${amount < 0 ? "-" : ""}${sym}${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${amount < 0 ? "-" : ""}${sym}${(abs / 1_000).toFixed(0)}K`;
+  return formatCurrency(amount, currency);
 }
 
 export function formatDate(date: Date | string): string {

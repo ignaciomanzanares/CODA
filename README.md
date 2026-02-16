@@ -50,6 +50,11 @@ psql "$DATABASE_URL" -f scripts/empresas-tables-postgres.sql
 ```
 (Usar la **External** URL completa, p. ej. `...@host.virginia-postgres.render.com/db?sslmode=require`). O pegar el contenido del script en la consola SQL de Render.
 
+**Datos de ejemplo Empresas:** Para ver el dashboard con 1–2 empresas de prueba:
+```bash
+DATABASE_URL="postgresql://..." npm run seed:empresas -w @coda/api
+```
+
 **Frontend (Vercel)**  
 Root `apps/web`, variables `VITE_API_URL` (URL del API en Render) y `VITE_ENV=production`.
 
@@ -63,6 +68,7 @@ Root `apps/web`, variables `VITE_API_URL` (URL del API en Render) y `VITE_ENV=pr
 | `npm run dev:web` | Web             |
 | `npm run db:push` | Aplicar schema (raíz; con `DATABASE_URL` = Postgres) |
 | `npm run db:seed` | Seed (opcional) |
+| `npm run seed:empresas` | Seed empresas de ejemplo (desde raíz: `npm run seed:empresas -w @coda/api`; requiere `DATABASE_URL`) |
 | `npm run build`   | Build producción |
 | `npm run test`    | Tests API        |
 
