@@ -1,0 +1,70 @@
+{
+  "nav": {
+    "dashboard": "Panel",
+    "expenses": "Gastos",
+    "billSplit": "Dividir cuenta",
+    "products": "Productos",
+    "goals": "Metas",
+    "plan": "Plan",
+    "profile": "Perfil",
+    "logout": "Cerrar sesión",
+    "signIn": "Iniciar sesión",
+    "empresas": "CODA Empresas"
+  },
+  "landing": {
+    "heroTitle": "Toma el control de tu",
+    "heroTitleHighlight": "futuro financiero",
+    "heroSubtitle": "Información impulsada por IA para controlar gastos, analizar riesgos, dividir cuentas con amigos y alcanzar tus metas financieras más rápido.",
+    "getStarted": "Comenzar gratis",
+    "learnMore": "Conoce más",
+    "noPaymentRequired": "Sin pago requerido. Comienza en segundos.",
+    "featuresTitle": "Todo lo que necesitas para gestionar tu dinero",
+    "featuresSubtitle": "Herramientas potentes para entender tus finanzas, reducir riesgos y construir patrimonio.",
+    "howItWorksTitle": "Comienza en minutos",
+    "howItWorksSubtitle": "Tres pasos simples hacia la claridad financiera",
+    "step1Title": "Conecta",
+    "step1Desc": "Vincula tus cuentas bancarias de forma segura o usa datos de prueba para explorar.",
+    "step2Title": "Analiza",
+    "step2Desc": "Obtén información inmediata sobre tus patrones de gasto y salud financiera.",
+    "step3Title": "Optimiza",
+    "step3Desc": "Sigue recomendaciones personalizadas para mejorar tus finanzas.",
+    "whyChooseTitle": "¿Por qué elegir CODA?",
+    "ctaTitle": "¿Listo para transformar tus finanzas?",
+    "ctaSubtitle": "Únete a miles de usuarios que ya toman mejores decisiones financieras con CODA.",
+    "createAccount": "Crear cuenta gratis"
+  },
+  "auth": {
+    "signIn": "Iniciar sesión",
+    "signUp": "Registro",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "createAccount": "Crear cuenta",
+    "backToHome": "Volver al inicio",
+    "allRightsReserved": "Todos los derechos reservados"
+  },
+  "dashboard": {
+    "goodMorning": "Buenos días",
+    "goodAfternoon": "Buenas tardes",
+    "goodEvening": "Buenas noches",
+    "overviewSubtitle": "Aquí está tu resumen financiero",
+    "refresh": "Actualizar",
+    "overview": "Resumen",
+    "analytics": "Análisis",
+    "accounts": "Cuentas",
+    "quickActions": "Acciones rápidas",
+    "quickActionsDesc": "Tareas frecuentes y accesos directos",
+    "payBills": "Dividir cuenta",
+    "addSavings": "Añadir ahorro",
+    "viewInsurance": "Ver seguros",
+    "setGoal": "Definir meta"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar"
+  }
+}

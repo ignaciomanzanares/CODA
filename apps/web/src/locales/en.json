@@ -1,0 +1,70 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "expenses": "Expenses",
+    "billSplit": "Bill Split",
+    "products": "Products",
+    "goals": "Goals",
+    "plan": "Plan",
+    "profile": "Profile",
+    "logout": "Log out",
+    "signIn": "Sign In",
+    "empresas": "CODA Empresas"
+  },
+  "landing": {
+    "heroTitle": "Take control of your",
+    "heroTitleHighlight": "financial future",
+    "heroSubtitle": "AI-powered insights to track spending, analyze risk, split bills with friends, and reach your financial goals faster.",
+    "getStarted": "Get Started Free",
+    "learnMore": "Learn More",
+    "noPaymentRequired": "No payment required. Start in seconds.",
+    "featuresTitle": "Everything You Need to Manage Your Money",
+    "featuresSubtitle": "Powerful tools to understand your finances, reduce risk, and build wealth.",
+    "howItWorksTitle": "Get Started in Minutes",
+    "howItWorksSubtitle": "Three simple steps to financial clarity",
+    "step1Title": "Connect",
+    "step1Desc": "Securely link your bank accounts or use demo data to explore.",
+    "step2Title": "Analyze",
+    "step2Desc": "Get instant insights into your spending patterns and financial health.",
+    "step3Title": "Optimize",
+    "step3Desc": "Follow personalized recommendations to improve your finances.",
+    "whyChooseTitle": "Why Choose CODA?",
+    "ctaTitle": "Ready to Transform Your Finances?",
+    "ctaSubtitle": "Join thousands of users who are already making smarter financial decisions with CODA.",
+    "createAccount": "Start Your Free Account"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "createAccount": "Create Account",
+    "backToHome": "Back to home",
+    "allRightsReserved": "All rights reserved"
+  },
+  "dashboard": {
+    "goodMorning": "Good morning",
+    "goodAfternoon": "Good afternoon",
+    "goodEvening": "Good evening",
+    "overviewSubtitle": "Here's your complete financial overview",
+    "refresh": "Refresh",
+    "overview": "Overview",
+    "analytics": "Analytics",
+    "accounts": "Accounts",
+    "quickActions": "Quick Actions",
+    "quickActionsDesc": "Common tasks and shortcuts",
+    "payBills": "Pay Bills",
+    "addSavings": "Add Savings",
+    "viewInsurance": "View Insurance",
+    "setGoal": "Set Goal"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close"
+  }
+}

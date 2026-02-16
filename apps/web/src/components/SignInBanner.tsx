@@ -12,7 +12,7 @@ interface SignInBannerProps {
 export default function SignInBanner({ 
   title, 
   description, 
-  actionText = "Sign In to Get Started" 
+  actionText = "Iniciar sesión para comenzar" 
 }: SignInBannerProps) {
   const [, setLocation] = useLocation();
 

@@ -62,12 +62,12 @@ function parseTags(tags: string | string[] | null | undefined): string[] {
 }
 
 const expenseFormSchema = z.object({
-  amount: z.string().min(1, "Amount is required"),
-  description: z.string().min(1, "Description is required"),
-  category: z.string().min(1, "Category is required"),
+  amount: z.string().min(1, "El monto es obligatorio"),
+  description: z.string().min(1, "La descripción es obligatoria"),
+  category: z.string().min(1, "La categoría es obligatoria"),
   subcategory: z.string().optional(),
   merchantName: z.string().optional(),
-  date: z.string().min(1, "Date is required"),
+  date: z.string().min(1, "La fecha es obligatoria"),
   paymentMethod: z.string().optional(),
   isRecurring: z.boolean().default(false),
   tags: z.string().optional(),
@@ -78,9 +78,23 @@ const expenseFormSchema = z.object({
 type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
 
 const categories = [
-  "Groceries", "Dining", "Transportation", "Housing", "Healthcare", 
+  "Groceries", "Dining", "Transportation", "Housing", "Healthcare",
   "Entertainment", "Shopping", "Utilities", "Education", "Travel", "Other"
 ];
+
+const categoryLabels: Record<string, string> = {
+  Groceries: "Supermercado",
+  Dining: "Restaurantes",
+  Transportation: "Transporte",
+  Housing: "Vivienda",
+  Healthcare: "Salud",
+  Entertainment: "Entretenimiento",
+  Shopping: "Compras",
+  Utilities: "Servicios",
+  Education: "Educación",
+  Travel: "Viajes",
+  Other: "Otros",
+};
 
 // Get icon for category
 function getCategoryIcon(category: string) {
@@ -211,14 +225,14 @@ export default function Expenses() {
       setIsAddDialogOpen(false);
       form.reset();
       toast({
-        title: "Expense added",
-        description: "Your expense has been added successfully.",
+        title: "Gasto añadido",
+        description: "El gasto se ha registrado correctamente.",
       });
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add expense",
+        description: error instanceof Error ? error.message : "No se pudo añadir el gasto",
         variant: "destructive",
       });
     },
@@ -281,8 +295,8 @@ export default function Expenses() {
       setSelectedExpense(null);
       editForm.reset();
       toast({
-        title: "Expense updated",
-        description: "Your expense has been updated successfully.",
+        title: "Gasto actualizado",
+        description: "El gasto se ha actualizado correctamente.",
       });
     },
     onError: (error, variables, context) => {
@@ -291,7 +305,7 @@ export default function Expenses() {
       }
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update expense",
+        description: error instanceof Error ? error.message : "No se pudo actualizar el gasto",
         variant: "destructive",
       });
     },
@@ -314,8 +328,8 @@ export default function Expenses() {
     onSuccess: () => {
       // Don't invalidate - the optimistic update already removed it
       toast({
-        title: "Expense deleted",
-        description: "Your expense has been deleted successfully.",
+        title: "Gasto eliminado",
+        description: "El gasto se ha eliminado correctamente.",
       });
     },
     onError: (error, id, context) => {
@@ -324,7 +338,7 @@ export default function Expenses() {
       }
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete expense",
+        description: error instanceof Error ? error.message : "No se pudo eliminar el gasto",
         variant: "destructive",
       });
     },
@@ -400,8 +414,8 @@ export default function Expenses() {
           currentForm.setValue('subcategory', result.subcategory);
         }
         toast({
-          title: "AI Classification",
-          description: `Categorized as "${result.category}" with ${Math.round(result.confidence * 100)}% confidence`,
+          title: "Clasificación con IA",
+          description: `Categorizado como "${categoryLabels[result.category] || result.category}" con ${Math.round(result.confidence * 100)}% de confianza`,
         });
       }
     } catch (error) {
@@ -492,9 +506,9 @@ export default function Expenses() {
       <div className="container py-8 space-y-6">
         {!isAuthenticated && (
           <SignInBanner 
-            title="Viewing Demo Expense Data"
-            description="You're seeing sample expense data to explore our features. Sign in to track your real expenses, add new transactions, and sync with your bank accounts."
-            actionText="Sign In to Track Real Expenses"
+            title="Viendo datos de gastos de demostración"
+            description="Estás viendo datos de ejemplo para explorar las funciones. Inicia sesión para registrar tus gastos reales, añadir transacciones y sincronizar con tus cuentas bancarias."
+            actionText="Iniciar sesión para registrar gastos reales"
           />
         )}
         
@@ -506,8 +520,8 @@ export default function Expenses() {
                 <Receipt className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold">Expenses</h1>
-                <p className="text-muted-foreground">Track and categorize your spending</p>
+                <h1 className="text-3xl font-bold">Gastos</h1>
+                <p className="text-muted-foreground">Registra y categoriza tus gastos</p>
               </div>
             </div>
           </div>
@@ -515,12 +529,12 @@ export default function Expenses() {
             <DialogTrigger asChild>
               <Button disabled={!isAuthenticated} size="lg" className="gap-2">
                 <Plus className="w-4 h-4" />
-                Add Expense
+                Añadir gasto
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Add New Expense</DialogTitle>
+                <DialogTitle>Añadir nuevo gasto</DialogTitle>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -529,7 +543,7 @@ export default function Expenses() {
                     name="amount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Amount</FormLabel>
+                        <FormLabel>Monto</FormLabel>
                         <FormControl>
                           <Input placeholder="0.00" {...field} />
                         </FormControl>
@@ -542,10 +556,10 @@ export default function Expenses() {
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Description</FormLabel>
+                        <FormLabel>Descripción</FormLabel>
                         <FormControl>
                           <Input 
-                            placeholder="What did you buy?" 
+                            placeholder="¿Qué compraste?" 
                             {...field} 
                             onChange={(e) => {
                               field.onChange(e);
@@ -569,17 +583,17 @@ export default function Expenses() {
                     name="category"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Category</FormLabel>
+                        <FormLabel>Categoría</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select category" />
+                            <SelectValue placeholder="Elegir categoría" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {categories.map((category) => (
                             <SelectItem key={category} value={category}>
-                              {category}
+                              {categoryLabels[category]}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -593,10 +607,10 @@ export default function Expenses() {
                   name="merchantName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Merchant (Optional)</FormLabel>
+                      <FormLabel>Comercio (opcional)</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Store or business name" 
+                          placeholder="Nombre del local o negocio" 
                           {...field} 
                           onChange={(e) => {
                             field.onChange(e);
@@ -620,7 +634,7 @@ export default function Expenses() {
                   name="date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Date</FormLabel>
+                      <FormLabel>Fecha</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} />
                       </FormControl>
@@ -635,7 +649,7 @@ export default function Expenses() {
                     <FormItem>
                       <FormLabel>Tags (Optional)</FormLabel>
                       <FormControl>
-                        <Input placeholder="vacation, work, gift (comma separated)" {...field} />
+                        <Input placeholder="vacaciones, trabajo, regalo (separados por coma)" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -648,11 +662,11 @@ export default function Expenses() {
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                       <div className="space-y-0.5">
                         <FormLabel className="text-base flex items-center gap-2">
-                          Auto-classify
+                          Auto-clasificar
                           {isClassifying && <Sparkles className="h-4 w-4 animate-pulse text-primary" />}
                         </FormLabel>
                         <div className="text-sm text-gray-500">
-                          {isClassifying ? "AI is analyzing..." : "Let AI categorize this expense"}
+                          {isClassifying ? "La IA está analizando..." : "Deja que la IA categorice este gasto"}
                         </div>
                       </div>
                       <FormControl>
@@ -679,7 +693,7 @@ export default function Expenses() {
                   className="w-full"
                   disabled={createExpenseMutation.isPending}
                 >
-                  {createExpenseMutation.isPending ? "Adding..." : "Add Expense"}
+                  {createExpenseMutation.isPending ? "Añadiendo..." : "Añadir gasto"}
                 </Button>
               </form>
             </Form>
@@ -690,30 +704,30 @@ export default function Expenses() {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
-            title="Total This Month"
+            title="Total este mes"
             value={`$${thisMonthTotal.toFixed(2)}`}
-            trend={{ value: '12% vs last month', type: 'up' }}
+            trend={{ value: '12% vs mes anterior', type: 'up' }}
             icon={DollarSign}
             color="bg-green-500"
           />
           <StatCard
-            title="Daily Average"
+            title="Promedio diario"
             value={`$${avgPerDay.toFixed(2)}`}
-            subtext="Based on this month"
+            subtext="Según este mes"
             icon={TrendingDown}
             color="bg-blue-500"
           />
           <StatCard
-            title="Categories"
+            title="Categorías"
             value={new Set(expenses.map(e => e.category)).size.toString()}
-            subtext="Active categories"
+            subtext="Categorías activas"
             icon={Tag}
             color="bg-purple-500"
           />
           <StatCard
-            title="Transactions"
+            title="Transacciones"
             value={filteredExpenses.length.toString()}
-            subtext={`${thisMonthExpenses.length} this month`}
+            subtext={`${thisMonthExpenses.length} este mes`}
             icon={Receipt}
             color="bg-orange-500"
           />
@@ -726,7 +740,7 @@ export default function Expenses() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search expenses..."
+                  placeholder="Buscar gastos..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -735,13 +749,13 @@ export default function Expenses() {
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                 <SelectTrigger className="w-full sm:w-48">
                   <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="All categories" />
+                  <SelectValue placeholder="Todas las categorías" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="all">Todas las categorías</SelectItem>
                   {categories.map((category) => (
                     <SelectItem key={category} value={category}>
-                      {category}
+                      {categoryLabels[category]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -782,14 +796,14 @@ export default function Expenses() {
                             )}
                             {expense.isRecurring && (
                               <Badge variant="outline" className="text-xs">
-                                Recurring
+                                Recurrente
                               </Badge>
                             )}
                           </div>
                           <div className="flex items-center gap-4 text-sm text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Tag className="h-3 w-3" />
-                              {expense.category}
+                              {categoryLabels[expense.category] || expense.category}
                             </span>
                             {expense.merchantName && (
                               <span className="truncate">{expense.merchantName}</span>
@@ -851,16 +865,16 @@ export default function Expenses() {
                 <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
                   <Receipt className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h3 className="font-semibold mb-2">No expenses found</h3>
+                <h3 className="font-semibold mb-2">No se encontraron gastos</h3>
                 <p className="text-muted-foreground mb-4">
                   {searchTerm || selectedCategory !== 'all' 
-                    ? 'Try adjusting your filters'
-                    : 'Add your first expense to get started!'}
+                    ? 'Prueba a ajustar los filtros'
+                    : '¡Añade tu primer gasto para comenzar!'}
                 </p>
                 {!searchTerm && selectedCategory === 'all' && (
                   <Button onClick={() => setIsAddDialogOpen(true)} disabled={!isAuthenticated}>
                     <Plus className="w-4 h-4 mr-2" />
-                    Add Expense
+                    Añadir gasto
                   </Button>
                 )}
               </CardContent>
@@ -872,7 +886,7 @@ export default function Expenses() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Expense</DialogTitle>
+            <DialogTitle>Editar gasto</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
@@ -881,7 +895,7 @@ export default function Expenses() {
                 name="amount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Amount</FormLabel>
+                    <FormLabel>Monto</FormLabel>
                     <FormControl>
                       <Input placeholder="0.00" {...field} />
                     </FormControl>
@@ -894,10 +908,10 @@ export default function Expenses() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>Descripción</FormLabel>
                     <FormControl>
                       <Input 
-                        placeholder="What did you buy?" 
+                        placeholder="¿Qué compraste?" 
                         {...field} 
                         onChange={(e) => {
                           field.onChange(e);
@@ -921,11 +935,11 @@ export default function Expenses() {
                 name="category"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category</FormLabel>
+                    <FormLabel>Categoría</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
+                          <SelectValue placeholder="Elegir categoría" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -945,10 +959,10 @@ export default function Expenses() {
                 name="merchantName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Merchant (Optional)</FormLabel>
+                    <FormLabel>Comercio (opcional)</FormLabel>
                     <FormControl>
                       <Input 
-                        placeholder="Store or business name" 
+                        placeholder="Nombre del local o negocio" 
                         {...field} 
                         onChange={(e) => {
                           field.onChange(e);
@@ -972,7 +986,7 @@ export default function Expenses() {
                 name="date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Date</FormLabel>
+                    <FormLabel>Fecha</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -987,7 +1001,7 @@ export default function Expenses() {
                   <FormItem>
                     <FormLabel>Tags (Optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="vacation, work, gift (comma separated)" {...field} />
+                      <Input placeholder="vacaciones, trabajo, regalo (separados por coma)" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1040,7 +1054,7 @@ export default function Expenses() {
                   className="flex-1"
                   disabled={updateExpenseMutation.isPending}
                 >
-                  {updateExpenseMutation.isPending ? "Updating..." : "Update Expense"}
+                  {updateExpenseMutation.isPending ? "Guardando..." : "Actualizar gasto"}
                 </Button>
               </div>
             </form>

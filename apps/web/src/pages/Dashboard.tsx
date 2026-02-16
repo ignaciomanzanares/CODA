@@ -144,8 +144,8 @@ export default function Dashboard() {
     );
   }
 
-  const firstName = user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'there';
-  const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening';
+  const firstName = user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'usuario';
+  const greeting = new Date().getHours() < 12 ? 'Buenos días' : new Date().getHours() < 18 ? 'Buenas tardes' : 'Buenas noches';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -154,16 +154,16 @@ export default function Dashboard() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold">{greeting}, {firstName}!</h1>
+              <h1 className="text-3xl font-bold">{greeting}, {firstName}.</h1>
               {unreadCount > 0 && (
                 <Badge variant="destructive" className="animate-pulse">
                   <Bell className="h-3 w-3 mr-1" />
-                  {unreadCount} new
+                  {unreadCount} nuevas
                 </Badge>
               )}
             </div>
             <p className="text-muted-foreground">
-              Here's your complete financial overview
+              Aquí está tu resumen financiero
             </p>
           </div>
           
@@ -175,7 +175,7 @@ export default function Dashboard() {
               disabled={isRefreshing}
             >
               <RefreshCw className={cn("h-4 w-4 mr-2", isRefreshing && "animate-spin")} />
-              Refresh
+              Actualizar
             </Button>
           </div>
         </div>
@@ -190,15 +190,15 @@ export default function Dashboard() {
           <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <LayoutDashboard className="h-4 w-4" />
-              <span className="hidden sm:inline">Overview</span>
+              <span className="hidden sm:inline">Resumen</span>
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Analytics</span>
+              <span className="hidden sm:inline">Análisis</span>
             </TabsTrigger>
             <TabsTrigger value="accounts" className="flex items-center gap-2">
               <Wallet className="h-4 w-4" />
-              <span className="hidden sm:inline">Accounts</span>
+              <span className="hidden sm:inline">Cuentas</span>
             </TabsTrigger>
           </TabsList>
 
@@ -212,20 +212,20 @@ export default function Dashboard() {
                     <Sparkles className="h-6 w-6 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-lg mb-1">AI Financial Insight</h3>
+                    <h3 className="font-semibold text-lg mb-1">Información financiera con IA</h3>
                     <p className="text-muted-foreground">
                       {financialData && financialData.summary.savingsRate >= 20 ? (
                         <>
-                          Great job! Your savings rate of <strong className="text-foreground">{financialData.summary.savingsRate}%</strong> is 
-                          above the recommended 20%. At this rate, you're saving approximately{' '}
+                          Muy bien. Tu tasa de ahorro del <strong className="text-foreground">{financialData.summary.savingsRate}%</strong> está 
+                          por encima del 20% recomendado. A este ritmo, ahorras aproximadamente{' '}
                           <strong className="text-foreground">
                             ${Math.round((financialData.summary.monthlyIncome - financialData.summary.monthlyExpenses) * 12).toLocaleString()}
-                          </strong>{' '}per year.
+                          </strong>{' '}al año.
                         </>
                       ) : (
                         <>
-                          Based on your spending patterns, you could save an additional <strong className="text-foreground">$320/month</strong> by 
-                          optimizing your subscription services. Your dining expenses are 23% higher than last month.
+                          Según tus gastos, podrías ahorrar <strong className="text-foreground">$320/mes</strong> adicionales 
+                          optimizando suscripciones. Tus gastos en restaurantes son un 23% mayores que el mes pasado.
                         </>
                       )}
                     </p>
@@ -234,7 +234,7 @@ export default function Dashboard() {
                       className="p-0 h-auto mt-2"
                       onClick={() => navigate("/plan")}
                     >
-                      View detailed analysis →
+                      Ver análisis detallado →
                     </Button>
                   </div>
                 </div>
@@ -324,9 +324,9 @@ export default function Dashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Target className="h-5 w-5 text-primary" />
-              Quick Actions
+              Acciones rápidas
             </CardTitle>
-            <CardDescription>Common tasks and shortcuts</CardDescription>
+            <CardDescription>Tareas frecuentes y accesos directos</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -336,7 +336,7 @@ export default function Dashboard() {
                 onClick={() => navigate("/bill-split")}
               >
                 <CreditCard className="h-5 w-5" />
-                <span className="text-sm">Pay Bills</span>
+                <span className="text-sm">Dividir cuenta</span>
               </Button>
               <Button 
                 variant="outline" 
@@ -344,7 +344,7 @@ export default function Dashboard() {
                 onClick={() => navigate("/goals")}
               >
                 <PiggyBank className="h-5 w-5" />
-                <span className="text-sm">Add Savings</span>
+                <span className="text-sm">Añadir ahorro</span>
               </Button>
               <Button 
                 variant="outline" 
@@ -352,7 +352,7 @@ export default function Dashboard() {
                 onClick={() => navigate("/products?category=insurance")}
               >
                 <Shield className="h-5 w-5" />
-                <span className="text-sm">View Insurance</span>
+                <span className="text-sm">Ver seguros</span>
               </Button>
               <Button 
                 variant="outline" 
@@ -360,7 +360,7 @@ export default function Dashboard() {
                 onClick={() => navigate("/goals")}
               >
                 <Target className="h-5 w-5" />
-                <span className="text-sm">Set Goal</span>
+                <span className="text-sm">Definir meta</span>
               </Button>
             </div>
           </CardContent>

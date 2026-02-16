@@ -118,9 +118,9 @@ export default function Plan() {
         recommendations.push({
           id: 1,
           icon: <TrendingUp />,
-          title: "Improve Credit Utilization",
-          description: "Your credit utilization is at 35%. Reducing it below 30% could boost your score by 15-25 points.",
-          actionText: "Learn More",
+          title: "Mejorar la utilización de crédito",
+          description: "Tu utilización de crédito está en 35%. Reducirla por debajo del 30% podría subir tu score entre 15 y 25 puntos.",
+          actionText: "Saber más",
           actionLink: "/products",
         });
       }
@@ -132,9 +132,9 @@ export default function Plan() {
         recommendations.push({
           id: 2,
           icon: <Landmark />,
-          title: "Consolidate High-Interest Debt",
-          description: "We found you could save $1,200 in interest by consolidating your credit card debt with a 7.49% personal loan.",
-          actionText: "See Options",
+          title: "Consolidar deuda con alto interés",
+          description: "Podrías ahorrar $1.200 en intereses consolidando tu deuda de tarjetas con un crédito de consumo al 7,49%.",
+          actionText: "Ver opciones",
           actionLink: "/products?category=loans",
         });
       }

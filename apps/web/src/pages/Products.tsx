@@ -121,10 +121,10 @@ export default function Products() {
   const filteredProducts = products ? filterProducts(products) : [];
 
   const tabs = [
-    { id: "loans", label: "Loans" },
-    { id: "credit_cards", label: "Credit Cards" },
-    { id: "savings", label: "Savings" },
-    { id: "insurance", label: "Insurance" },
+    { id: "loans", label: "Créditos" },
+    { id: "credit_cards", label: "Tarjetas de crédito" },
+    { id: "savings", label: "Ahorro" },
+    { id: "insurance", label: "Seguros" },
   ];
 
   if (authLoading || (isAuthenticated && productsLoading)) {
@@ -153,15 +153,15 @@ export default function Products() {
     const count = filteredProducts.length;
     switch (activeCategory) {
       case 'loans':
-        return { icon: Wallet, color: 'bg-blue-500', label: 'Available Loans', count };
+        return { icon: Wallet, color: 'bg-blue-500', label: 'Créditos disponibles', count };
       case 'credit_cards':
-        return { icon: CreditCard, color: 'bg-purple-500', label: 'Credit Cards', count };
+        return { icon: CreditCard, color: 'bg-purple-500', label: 'Tarjetas de crédito', count };
       case 'savings':
-        return { icon: PiggyBank, color: 'bg-green-500', label: 'Savings Accounts', count };
+        return { icon: PiggyBank, color: 'bg-green-500', label: 'Cuentas de ahorro', count };
       case 'insurance':
-        return { icon: Shield, color: 'bg-orange-500', label: 'Insurance Plans', count };
+        return { icon: Shield, color: 'bg-orange-500', label: 'Planes de seguro', count };
       default:
-        return { icon: Wallet, color: 'bg-gray-500', label: 'Products', count };
+        return { icon: Wallet, color: 'bg-gray-500', label: 'Productos', count };
     }
   };
 
@@ -173,9 +173,9 @@ export default function Products() {
       <div id="product-section" className="container py-8 space-y-6">
         {!isAuthenticated && (
           <SignInBanner 
-            title="Viewing Demo Financial Products"
-            description="You're exploring sample financial products including loans, credit cards, savings accounts, and insurance. Sign in to get personalized product recommendations based on your financial profile."
-            actionText="Sign In for Personal Recommendations"
+            title="Viendo productos financieros de demostración"
+            description="Estás explorando productos de ejemplo: créditos, tarjetas, ahorro y seguros. Inicia sesión para recibir recomendaciones personalizadas según tu perfil."
+            actionText="Iniciar sesión para recomendaciones"
           />
         )}
         
@@ -187,14 +187,14 @@ export default function Products() {
                 <Wallet className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold">Financial Products</h1>
-                <p className="text-muted-foreground">Personalized recommendations based on your profile</p>
+                <h1 className="text-3xl font-bold">Productos financieros</h1>
+                <p className="text-muted-foreground">Recomendaciones personalizadas según tu perfil</p>
               </div>
             </div>
           </div>
           <Badge variant="secondary" className="gap-2 px-4 py-2 text-sm">
             <Sparkles className="h-4 w-4" />
-            AI-Powered Matching
+            Coincidencia con IA
           </Badge>
         </div>
 
@@ -207,7 +207,7 @@ export default function Products() {
                   <Wallet className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Best Loan Rate</p>
+                  <p className="text-sm text-muted-foreground">Mejor tasa de crédito</p>
                   <p className="text-lg font-bold">3.99% APR</p>
                 </div>
               </div>
@@ -220,7 +220,7 @@ export default function Products() {
                   <CreditCard className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Top Rewards</p>
+                  <p className="text-sm text-muted-foreground">Mejores beneficios</p>
                   <p className="text-lg font-bold">5% Cashback</p>
                 </div>
               </div>
@@ -233,7 +233,7 @@ export default function Products() {
                   <PiggyBank className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Best APY</p>
+                  <p className="text-sm text-muted-foreground">Mejor APY</p>
                   <p className="text-lg font-bold">5.25% APY</p>
                 </div>
               </div>

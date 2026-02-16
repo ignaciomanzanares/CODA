@@ -28,11 +28,11 @@ import NotificationCenter from "@/components/NotificationCenter";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/expenses", label: "Expenses", icon: Receipt },
-  { href: "/bill-split", label: "Bill Split", icon: Users },
-  { href: "/products", label: "Products", icon: Package },
-  { href: "/goals", label: "Goals", icon: Target },
+  { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
+  { href: "/expenses", label: "Gastos", icon: Receipt },
+  { href: "/bill-split", label: "Dividir cuenta", icon: Users },
+  { href: "/products", label: "Productos", icon: Package },
+  { href: "/goals", label: "Metas", icon: Target },
   { href: "/plan", label: "Plan", icon: FileText },
 ];
 
@@ -131,18 +131,18 @@ export default function Header() {
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => setLocation('/profile')}>
                       <User className="h-4 w-4 mr-2" />
-                      Profile
+                      Perfil
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleLogout}>
                       <LogOut className="h-4 w-4 mr-2" />
-                      Logout
+                      Cerrar sesión
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
             </>
           ) : (
-            <Button onClick={() => setLocation("/login")}>Sign In</Button>
+            <Button onClick={() => setLocation("/login")}>Iniciar sesión</Button>
           )}
 
           {/* Mobile Menu Button */}
@@ -194,7 +194,7 @@ export default function Header() {
                         }}
                       >
                         <User className="h-4 w-4" />
-                        Profile
+                        Perfil
                       </button>
                       <button
                         className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted hover:text-foreground text-left"
@@ -204,7 +204,7 @@ export default function Header() {
                         }}
                       >
                         <LogOut className="h-4 w-4" />
-                        Logout
+                        Cerrar sesión
                       </button>
                     </div>
                   ) : (
@@ -215,7 +215,7 @@ export default function Header() {
                         setLocation("/login");
                       }}
                     >
-                      Sign In
+                      Iniciar sesión
                     </Button>
                   )}
                 </div>

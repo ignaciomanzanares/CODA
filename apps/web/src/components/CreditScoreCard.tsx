@@ -101,9 +101,9 @@ export default function CreditScoreCard() {
     return (
       <Card className="h-full">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-primary" />
-            Credit Score
+            Score de crédito
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -114,13 +114,13 @@ export default function CreditScoreCard() {
             <p className="text-muted-foreground mb-4">
               {error instanceof Error
                 ? error.message
-                : "Connect a bank account to see your credit score"}
+                : "Conecta una cuenta bancaria para ver tu score de crédito"}
             </p>
             <Button
               variant="outline"
               onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] })}
             >
-              Retry
+              Reintentar
             </Button>
           </div>
         </CardContent>
@@ -143,9 +143,9 @@ export default function CreditScoreCard() {
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-primary" />
-            Credit Score
+            Score de crédito
           </CardTitle>
           <Badge 
             variant="outline" 
@@ -154,7 +154,7 @@ export default function CreditScoreCard() {
             {scoreStatus.label}
           </Badge>
         </div>
-        <CardDescription>Your credit health overview</CardDescription>
+        <CardDescription>Resumen de tu salud crediticia</CardDescription>
       </CardHeader>
 
       <CardContent className="flex-1 flex flex-col">
@@ -165,7 +165,7 @@ export default function CreditScoreCard() {
               {creditScore.score}
             </div>
             <div className="text-xs text-muted-foreground">
-              of {creditScore.maxScore}
+              de {creditScore.maxScore}
             </div>
           </ProgressRing>
         </div>
@@ -176,27 +176,27 @@ export default function CreditScoreCard() {
             <TrendingUp className="h-4 w-4" />
             <span className="font-medium">+12 pts</span>
           </div>
-          <span className="text-xs text-muted-foreground">from last month</span>
+          <span className="text-xs text-muted-foreground">desde el mes pasado</span>
         </div>
 
         {/* Factors */}
         <div className="space-y-2 flex-1">
           <FactorCard
             icon={CreditCard}
-            label="Payment History"
-            value="All payments on time"
+            label="Historial de pagos"
+            value="Todos los pagos a tiempo"
             status={creditScore.paymentHistory}
           />
           <FactorCard
             icon={Percent}
-            label="Credit Utilization"
-            value="23% of available credit"
+            label="Utilización de crédito"
+            value="23% del crédito disponible"
             status={creditScore.utilization}
           />
           <FactorCard
             icon={Clock}
-            label="Credit Age"
-            value="Average 4.2 years"
+            label="Antigüedad del crédito"
+            value="Promedio 4,2 años"
             status={creditScore.ageOfCredit}
           />
         </div>
@@ -207,7 +207,7 @@ export default function CreditScoreCard() {
           onClick={() => navigate("/plan")}
         >
           <Sparkles className="h-4 w-4 mr-2" />
-          View Full Report
+          Ver informe completo
           <ChevronRight className="h-4 w-4 ml-auto group-hover:translate-x-1 transition-transform" />
         </Button>
       </CardContent>

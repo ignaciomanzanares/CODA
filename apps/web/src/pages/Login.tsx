@@ -7,19 +7,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Wallet, User, Lock, Loader2, ArrowLeft, Shield, RefreshCw } from "lucide-react";
 
-// Demo users for quick login
+// Usuarios demo para acceso rápido
 const DEMO_USERS = [
   { 
     email: 'user@example.com', 
     password: 'demo123', 
-    name: 'Demo User', 
-    description: 'Full access to all features'
+    name: 'Usuario demo', 
+    description: 'Acceso completo a todas las funciones'
   },
   { 
     email: 'investor@example.com', 
     password: 'demo123', 
-    name: 'Demo Investor', 
-    description: 'Investment portfolio view'
+    name: 'Inversor demo', 
+    description: 'Vista de portafolio de inversiones'
   },
 ];
 
@@ -54,16 +54,16 @@ export default function Login() {
       if (result?.requires2FA) {
         setRequires2FA(true);
         toast({
-          title: "Verification required",
-          description: "A verification code has been sent to your email.",
+          title: "Verificación requerida",
+          description: "Se ha enviado un código de verificación a tu correo.",
         });
         setIsLoading(false);
         return;
       }
       
       toast({
-        title: "Login successful",
-        description: "Welcome back!",
+        title: "Sesión iniciada",
+        description: "¡Bienvenido de nuevo!",
       });
       
       const redirectUrl = localStorage.getItem('redirectAfterLogin');
@@ -74,10 +74,10 @@ export default function Login() {
         setLocation("/dashboard");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid credentials");
+      setError(err instanceof Error ? err.message : "Credenciales inválidas");
       toast({
-        title: "Login failed",
-        description: err instanceof Error ? err.message : "Invalid credentials",
+        title: "Error al iniciar sesión",
+        description: err instanceof Error ? err.message : "Credenciales inválidas",
         variant: "destructive",
       });
     } finally {
@@ -111,10 +111,10 @@ export default function Login() {
         window.location.href = '/dashboard';
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid verification code");
+      setError(err instanceof Error ? err.message : "Código de verificación inválido");
       toast({
-        title: "Verification failed",
-        description: err instanceof Error ? err.message : "Invalid verification code",
+        title: "Verificación fallida",
+        description: err instanceof Error ? err.message : "Código de verificación inválido",
         variant: "destructive",
       });
     } finally {
@@ -134,8 +134,8 @@ export default function Login() {
       });
       
       toast({
-        title: "Code sent",
-        description: "A new verification code has been sent to your email.",
+        title: "Código enviado",
+        description: "Se ha enviado un nuevo código de verificación a tu correo.",
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to resend code");
@@ -152,11 +152,11 @@ export default function Login() {
       await login(demoUser.email, demoUser.password);
       toast({
         title: "Login successful",
-        description: `Welcome, ${demoUser.name}!`,
+        description: `¡Bienvenido, ${demoUser.name}!`,
       });
       setLocation("/dashboard");
     } catch (err) {
-      setError("Error logging in with demo user");
+      setError("Error al iniciar sesión con usuario demo");
     } finally {
       setIsLoading(false);
     }
@@ -174,18 +174,18 @@ export default function Login() {
             CODA
           </h1>
           <p className="mt-2 text-sm text-gray-600">
-            Personal finance & credit management platform
+            Plataforma de finanzas personales y gestión de crédito
           </p>
         </div>
 
         {/* Login Form or 2FA Verification */}
         <Card>
           <CardHeader>
-            <CardTitle>{requires2FA ? "Two-Factor Authentication" : "Sign In"}</CardTitle>
+            <CardTitle>{requires2FA ? "Autenticación en dos pasos" : "Iniciar sesión"}</CardTitle>
             <CardDescription>
               {requires2FA 
-                ? "Enter the verification code sent to your email"
-                : "Enter your credentials to access your account"
+                ? "Ingresa el código de verificación enviado a tu correo"
+                : "Ingresa tus credenciales para acceder a tu cuenta"
               }
             </CardDescription>
           </CardHeader>
@@ -201,7 +201,7 @@ export default function Login() {
                 
                 <div className="space-y-2">
                   <label htmlFor="otp" className="block text-sm font-medium text-gray-700">
-                    Verification Code
+                    Código de verificación
                   </label>
                   <div className="relative">
                     <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -222,7 +222,7 @@ export default function Login() {
                     />
                   </div>
                   <p className="text-xs text-gray-500">
-                    Check your email ({email}) for the 6-digit code
+                    Revisa tu correo ({email}) para el código de 6 dígitos
                   </p>
                 </div>
 
@@ -234,10 +234,10 @@ export default function Login() {
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Verifying...
+                      Verificando...
                     </>
                   ) : (
-                    'Verify Code'
+                    'Verificar código'
                   )}
                 </Button>
 
@@ -253,7 +253,7 @@ export default function Login() {
                     }}
                   >
                     <ArrowLeft className="h-4 w-4 mr-1" />
-                    Back to login
+                    Volver al inicio de sesión
                   </Button>
                   <Button
                     type="button"
@@ -263,7 +263,7 @@ export default function Login() {
                     disabled={isLoading}
                   >
                     <RefreshCw className="h-4 w-4 mr-1" />
-                    Resend code
+                    Reenviar código
                   </Button>
                 </div>
               </form>
@@ -278,7 +278,7 @@ export default function Login() {
                 
                 <div className="space-y-2">
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                    Email
+                    Correo electrónico
                   </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -299,7 +299,7 @@ export default function Login() {
                 
                 <div className="space-y-2">
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                    Password
+                    Contraseña
                   </label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -326,10 +326,10 @@ export default function Login() {
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Signing in...
+                      Iniciando sesión...
                     </>
                   ) : (
-                    'Sign In'
+                    'Iniciar sesión'
                   )}
                 </Button>
               </form>
@@ -339,9 +339,9 @@ export default function Login() {
             {!requires2FA && (
               <div className="mt-6 text-center">
                 <p className="text-sm text-gray-600">
-                  Don't have an account?{" "}
+                  ¿No tienes cuenta?{" "}
                   <Link href="/signup" className="font-medium text-primary hover:underline">
-                    Create account
+                    Crear cuenta
                   </Link>
                 </p>
               </div>
@@ -353,9 +353,9 @@ export default function Login() {
         {!requires2FA && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Demo Users</CardTitle>
+              <CardTitle className="text-base">Usuarios demo</CardTitle>
               <CardDescription>
-                Click to sign in automatically
+                Haz clic para iniciar sesión automáticamente
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -383,13 +383,13 @@ export default function Login() {
         <div className="text-center">
           <Link href="/" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
             <ArrowLeft className="h-4 w-4 mr-1" />
-            Back to home
+            Volver al inicio
           </Link>
         </div>
 
         {/* Footer */}
         <p className="text-center text-xs text-gray-500">
-          © {new Date().getFullYear()} CODA. All rights reserved.
+          © {new Date().getFullYear()} CODA. Todos los derechos reservados.
         </p>
       </div>
     </div>

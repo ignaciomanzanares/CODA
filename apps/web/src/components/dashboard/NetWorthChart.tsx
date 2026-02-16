@@ -61,8 +61,8 @@ export default function NetWorthChart({ data, currentNetWorth }: NetWorthChartPr
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-lg">Net Worth Trend</CardTitle>
-            <CardDescription>Your wealth over the last 6 months</CardDescription>
+            <CardTitle className="text-lg">Evolución del patrimonio</CardTitle>
+            <CardDescription>Tu patrimonio en los últimos 6 meses</CardDescription>
           </div>
           <div className="text-right">
             <p className="text-2xl font-bold">{formatCurrency(currentNetWorth)}</p>
@@ -109,7 +109,7 @@ export default function NetWorthChart({ data, currentNetWorth }: NetWorthChartPr
               <Area
                 type="monotone"
                 dataKey="assets"
-                name="Assets"
+                name="Activos"
                 stroke="#22c55e"
                 strokeWidth={2}
                 fillOpacity={1}
@@ -118,7 +118,7 @@ export default function NetWorthChart({ data, currentNetWorth }: NetWorthChartPr
               <Area
                 type="monotone"
                 dataKey="netWorth"
-                name="Net Worth"
+                name="Patrimonio neto"
                 stroke="#3b82f6"
                 strokeWidth={2}
                 fillOpacity={1}

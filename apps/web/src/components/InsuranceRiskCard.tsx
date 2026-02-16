@@ -121,7 +121,7 @@ export default function InsuranceRiskCard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
-            Insurance Risk
+            Riesgo de seguros
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -132,13 +132,13 @@ export default function InsuranceRiskCard() {
             <p className="text-muted-foreground mb-4">
               {error instanceof Error
                 ? error.message
-                : "Connect a bank account to assess your insurance risk"}
+                : "Conecta una cuenta bancaria para evaluar tu riesgo de seguros"}
             </p>
             <Button
               variant="outline"
               onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/insurance-risk"] })}
             >
-              Retry
+              Reintentar
             </Button>
           </div>
         </CardContent>
@@ -168,7 +168,7 @@ export default function InsuranceRiskCard() {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
-            Insurance Risk
+            Riesgo de seguros
           </CardTitle>
           <Badge 
             variant="outline" 

@@ -41,7 +41,7 @@ export default function DemoOpenBanking({ onConnected }: DemoOpenBankingProps) {
       await loadAccounts();
       onConnected?.();
     } catch (_e) {
-      setError("Failed to run demo ingestion");
+      setError("Error al ejecutar la carga demo");
     } finally {
       setLoading(false);
     }
@@ -70,14 +70,14 @@ export default function DemoOpenBanking({ onConnected }: DemoOpenBankingProps) {
     <Card>
       <CardContent className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold">Demo: Open Banking Ingestion</h3>
+          <h3 className="text-lg font-bold">Demo: Carga Open Banking</h3>
           <Button onClick={runIngestion} disabled={loading}>
-            {loading ? "Running…" : "Connect & Analyze (Demo)"}
+            {loading ? "Ejecutando…" : "Conectar y analizar (demo)"}
           </Button>
         </div>
 
         <div className="text-sm text-muted-foreground">
-          This will generate example accounts, balances, and last 90 days of transactions for a demo user.
+          Se generarán cuentas de ejemplo, saldos y transacciones de los últimos 90 días para un usuario demo.
         </div>
 
         {error && <div className="text-red-500 text-sm">{error}</div>}
@@ -87,12 +87,12 @@ export default function DemoOpenBanking({ onConnected }: DemoOpenBankingProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="md:col-span-1 space-y-2">
             <div className="flex items-center justify-between">
-              <h4 className="font-semibold">Accounts</h4>
-              <Button variant="outline" size="sm" onClick={loadAccounts}>Refresh</Button>
+              <h4 className="font-semibold">Cuentas</h4>
+              <Button variant="outline" size="sm" onClick={loadAccounts}>Actualizar</Button>
             </div>
             <div className="space-y-2">
               {accounts.length === 0 && (
-                <div className="text-sm text-muted-foreground">No demo accounts yet. Click Connect & Analyze.</div>
+                <div className="text-sm text-muted-foreground">Aún no hay cuentas demo. Haz clic en Conectar y analizar.</div>
               )}
               {accounts.map(a => (
                 <div key={a.id} className={`p-3 border rounded cursor-pointer ${selected===a.id? 'bg-accent' : ''}`} onClick={() => loadTransactions(a.id)}>

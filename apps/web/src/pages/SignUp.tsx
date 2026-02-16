@@ -25,10 +25,10 @@ export default function SignUp() {
 
   const validatePassword = (pwd: string): string[] => {
     const issues: string[] = [];
-    if (pwd.length < 8) issues.push("At least 8 characters");
-    if (!/[A-Z]/.test(pwd)) issues.push("One uppercase letter");
-    if (!/[a-z]/.test(pwd)) issues.push("One lowercase letter");
-    if (!/[0-9]/.test(pwd)) issues.push("One number");
+    if (pwd.length < 8) issues.push("Al menos 8 caracteres");
+    if (!/[A-Z]/.test(pwd)) issues.push("Una letra mayúscula");
+    if (!/[a-z]/.test(pwd)) issues.push("Una letra minúscula");
+    if (!/[0-9]/.test(pwd)) issues.push("Un número");
     return issues;
   };
 
@@ -41,12 +41,12 @@ export default function SignUp() {
     setError("");
 
     if (!isPasswordValid) {
-      setError("Please meet all password requirements");
+      setError("La contraseña debe cumplir todos los requisitos");
       return;
     }
 
     if (!passwordsMatch) {
-      setError("Passwords do not match");
+      setError("Las contraseñas no coinciden");
       return;
     }
 
@@ -55,15 +55,15 @@ export default function SignUp() {
     try {
       await register(name, email, password);
       toast({
-        title: "Account created!",
-        description: "Welcome to CODA. Let's get started!",
+        title: "¡Cuenta creada!",
+        description: "Bienvenido a CODA. ¡Comencemos!",
       });
       setLocation("/dashboard");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Registration failed";
+      const message = err instanceof Error ? err.message : "Error al registrarse";
       setError(message);
       toast({
-        title: "Registration failed",
+        title: "Error al crear la cuenta",
         description: message,
         variant: "destructive",
       });
@@ -81,19 +81,19 @@ export default function SignUp() {
             <Wallet className="h-9 w-9 text-primary-foreground" />
           </div>
           <h1 className="mt-6 text-3xl font-bold text-gray-900">
-            Create Account
+            Crear cuenta
           </h1>
           <p className="mt-2 text-sm text-gray-600">
-            Start your financial journey with CODA
+            Comienza tu camino financiero con CODA
           </p>
         </div>
 
         {/* Sign Up Form */}
         <Card>
           <CardHeader>
-            <CardTitle>Sign Up</CardTitle>
+            <CardTitle>Registro</CardTitle>
             <CardDescription>
-              Create your free account to get started
+              Crea tu cuenta gratuita para comenzar
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -107,7 +107,7 @@ export default function SignUp() {
               {/* Name */}
               <div className="space-y-2">
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                  Full Name
+                  Nombre completo
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -129,7 +129,7 @@ export default function SignUp() {
               {/* Email */}
               <div className="space-y-2">
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Email
+                  Correo electrónico
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -151,7 +151,7 @@ export default function SignUp() {
               {/* Password */}
               <div className="space-y-2">
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Password
+                  Contraseña
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -171,10 +171,10 @@ export default function SignUp() {
                 {/* Password Requirements */}
                 {password.length > 0 && (
                   <div className="mt-2 space-y-1">
-                    <PasswordRequirement met={password.length >= 8} text="At least 8 characters" />
-                    <PasswordRequirement met={/[A-Z]/.test(password)} text="One uppercase letter" />
-                    <PasswordRequirement met={/[a-z]/.test(password)} text="One lowercase letter" />
-                    <PasswordRequirement met={/[0-9]/.test(password)} text="One number" />
+                    <PasswordRequirement met={password.length >= 8} text="Al menos 8 caracteres" />
+                    <PasswordRequirement met={/[A-Z]/.test(password)} text="Una letra mayúscula" />
+                    <PasswordRequirement met={/[a-z]/.test(password)} text="Una letra minúscula" />
+                    <PasswordRequirement met={/[0-9]/.test(password)} text="Un número" />
                   </div>
                 )}
               </div>
@@ -182,7 +182,7 @@ export default function SignUp() {
               {/* Confirm Password */}
               <div className="space-y-2">
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                  Confirm Password
+                  Confirmar contraseña
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -202,7 +202,7 @@ export default function SignUp() {
                 {confirmPassword.length > 0 && (
                   <PasswordRequirement 
                     met={passwordsMatch} 
-                    text={passwordsMatch ? "Passwords match" : "Passwords do not match"} 
+                    text={passwordsMatch ? "Las contraseñas coinciden" : "Las contraseñas no coinciden"} 
                   />
                 )}
               </div>
@@ -215,10 +215,10 @@ export default function SignUp() {
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating account...
+                    Creando cuenta...
                   </>
                 ) : (
-                  'Create Account'
+                  'Crear cuenta'
                 )}
               </Button>
             </form>
@@ -226,9 +226,9 @@ export default function SignUp() {
             {/* Sign In Link */}
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600">
-                Already have an account?{" "}
+                ¿Ya tienes cuenta?{" "}
                 <Link href="/login" className="font-medium text-primary hover:underline">
-                  Sign in
+                  Iniciar sesión
                 </Link>
               </p>
             </div>
@@ -239,16 +239,16 @@ export default function SignUp() {
         <div className="text-center">
           <Link href="/" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
             <ArrowLeft className="h-4 w-4 mr-1" />
-            Back to home
+            Volver al inicio
           </Link>
         </div>
 
         {/* Footer */}
         <p className="text-center text-xs text-gray-500">
-          By creating an account, you agree to our{" "}
-          <a href="#" className="underline hover:text-gray-700">Terms of Service</a>
-          {" "}and{" "}
-          <a href="#" className="underline hover:text-gray-700">Privacy Policy</a>
+          Al crear una cuenta, aceptas nuestros{" "}
+          <a href="#" className="underline hover:text-gray-700">Términos de servicio</a>
+          {" "}y nuestra{" "}
+          <a href="#" className="underline hover:text-gray-700">Política de privacidad</a>
         </p>
       </div>
     </div>

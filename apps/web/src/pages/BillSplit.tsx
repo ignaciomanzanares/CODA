@@ -47,12 +47,12 @@ type BillSplitWithParticipants = BillSplit & {
 
 // Expense categories with icons and colors
 const EXPENSE_CATEGORIES = [
-  { id: "food", label: "Food & Dining", icon: Utensils, color: "bg-orange-500" },
-  { id: "travel", label: "Travel", icon: Plane, color: "bg-blue-500" },
-  { id: "transport", label: "Transport", icon: Car, color: "bg-green-500" },
-  { id: "utilities", label: "Utilities", icon: Zap, color: "bg-yellow-500" },
-  { id: "rent", label: "Rent", icon: Home, color: "bg-purple-500" },
-  { id: "general", label: "Other", icon: Receipt, color: "bg-gray-500" },
+  { id: "food", label: "Comida y restaurantes", icon: Utensils, color: "bg-orange-500" },
+  { id: "travel", label: "Viajes", icon: Plane, color: "bg-blue-500" },
+  { id: "transport", label: "Transporte", icon: Car, color: "bg-green-500" },
+  { id: "utilities", label: "Servicios", icon: Zap, color: "bg-yellow-500" },
+  { id: "rent", label: "Arriendo", icon: Home, color: "bg-purple-500" },
+  { id: "general", label: "Otros", icon: Receipt, color: "bg-gray-500" },
 ];
 
 const getCategoryInfo = (categoryId: string) => {
@@ -61,22 +61,22 @@ const getCategoryInfo = (categoryId: string) => {
 
 // Form schemas
 const participantSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "El nombre es obligatorio"),
   email: z.string().optional().refine((val) => {
     if (!val || val === "") return true;
     return z.string().email().safeParse(val).success;
-  }, { message: "Invalid email" }),
+  }, { message: "Correo no válido" }),
   shareValue: z.string().optional(),
 });
 
 const billSplitFormSchema = z.object({
-  name: z.string().min(1, "Description is required"),
-  totalAmount: z.string().min(1, "Amount is required"),
+  name: z.string().min(1, "La descripción es obligatoria"),
+  totalAmount: z.string().min(1, "El monto es obligatorio"),
   description: z.string().optional(),
   category: z.string().default("general"),
-  date: z.string().min(1, "Date is required"),
+  date: z.string().min(1, "La fecha es obligatoria"),
   splitType: z.enum(["equal", "exact", "percentage", "shares"]).default("equal"),
-  participants: z.array(participantSchema).min(1, "At least one participant required"),
+  participants: z.array(participantSchema).min(1, "Se requiere al menos un participante"),
 });
 
 type BillSplitFormValues = z.infer<typeof billSplitFormSchema>;
@@ -107,9 +107,9 @@ function BalanceSummaryCard({
     <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white">
       <CardContent className="p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold opacity-90">Your Balance</h3>
+          <h3 className="text-lg font-semibold opacity-90">Tu saldo</h3>
           <Badge variant="outline" className="border-white/20 text-white">
-            {netBalance >= 0 ? 'All good!' : 'Settle up'}
+            {netBalance >= 0 ? '¡Todo al día!' : 'Saldar'}
           </Badge>
         </div>
         
@@ -118,7 +118,7 @@ function BalanceSummaryCard({
             {netBalance < 0 && '-'}{formatCurrency(netBalance)}
           </p>
           <p className="text-sm opacity-70 mt-1">
-            {netBalance >= 0 ? 'You\'re in the positive' : 'Overall, you owe money'}
+            {netBalance >= 0 ? 'Estás en positivo' : 'En total, debes dinero'}
           </p>
         </div>
         
@@ -126,14 +126,14 @@ function BalanceSummaryCard({
           <div className="bg-white/10 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-1">
               <ArrowUpRight className="h-4 w-4 text-red-400" />
-              <span className="text-sm opacity-70">You owe</span>
+              <span className="text-sm opacity-70">Debes</span>
             </div>
             <p className="text-xl font-semibold text-red-400">{formatCurrency(totalOwed)}</p>
           </div>
           <div className="bg-white/10 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-1">
               <ArrowDownLeft className="h-4 w-4 text-green-400" />
-              <span className="text-sm opacity-70">You're owed</span>
+              <span className="text-sm opacity-70">Te deben</span>
             </div>
             <p className="text-xl font-semibold text-green-400">{formatCurrency(totalOwedToYou)}</p>
           </div>
@@ -169,9 +169,9 @@ function FriendBalanceRow({
         <div>
           <p className="font-medium">{name}</p>
           <p className={`text-sm ${isOwed ? 'text-green-600' : isOwing ? 'text-red-600' : 'text-muted-foreground'}`}>
-            {isOwed ? `owes you ${formatCurrency(balance)}` : 
-             isOwing ? `you owe ${formatCurrency(balance)}` : 
-             'all settled up'}
+            {isOwed ? `te debe ${formatCurrency(balance)}` : 
+             isOwing ? `le debes ${formatCurrency(balance)}` : 
+             'al día'}
           </p>
         </div>
       </div>
@@ -179,12 +179,12 @@ function FriendBalanceRow({
         {isOwed && (
           <Button variant="ghost" size="sm" onClick={onRemind}>
             <Send className="h-4 w-4 mr-1" />
-            Remind
+            Recordar
           </Button>
         )}
         {balance !== 0 && (
           <Button variant="outline" size="sm" onClick={onSettleUp}>
-            Settle up
+            Saldar
           </Button>
         )}
       </div>
@@ -231,21 +231,21 @@ function ExpenseCard({
                 {expense.status === 'settled' && (
                   <Badge className="bg-green-100 text-green-700 border-0">
                     <Check className="h-3 w-3 mr-1" />
-                    Settled
+                    Saldado
                   </Badge>
                 )}
               </div>
               <p className="text-sm text-muted-foreground">
                 {expense.date && !isNaN(new Date(expense.date).getTime()) 
-                  ? new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                  : 'No date'}
-                {expense.createdByName && ` • Added by ${expense.createdByName}`}
+                  ? new Date(expense.date).toLocaleDateString('es-CL', { month: 'short', day: 'numeric' })
+                  : 'Sin fecha'}
+                {expense.createdByName && ` • Añadido por ${expense.createdByName}`}
               </p>
               
               {/* Progress bar */}
               <div className="mt-3">
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-muted-foreground">{paidCount} of {totalCount} paid</span>
+                  <span className="text-muted-foreground">{paidCount} de {totalCount} pagaron</span>
                   <span className="font-medium">{Math.round(progress)}%</span>
                 </div>
                 <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -281,13 +281,13 @@ function ExpenseCard({
             {/* Show "You owe" badge only if user is a participant in someone ELSE's split and hasn't paid */}
             {userParticipant && !userParticipant.isPaid && !isCreator && expense.status !== 'settled' && (
               <Badge variant="destructive" className="mt-1">
-                You owe {formatCurrency(parseFloat(String(userParticipant.amountOwed)) || 0)}
+                Debes {formatCurrency(parseFloat(String(userParticipant.amountOwed)) || 0)}
               </Badge>
             )}
             {isCreator && expense.status !== 'settled' && paidCount < totalCount && (
               <Badge variant="outline" className="mt-1">
                 <Clock className="h-3 w-3 mr-1" />
-                Pending
+                Pendiente
               </Badge>
             )}
             
@@ -299,7 +299,7 @@ function ExpenseCard({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onViewDetails(); }}>
-                  View details
+                  Ver detalle
                 </DropdownMenuItem>
                 {isCreator && (
                   <>
@@ -309,7 +309,7 @@ function ExpenseCard({
                       onClick={(e) => { e.stopPropagation(); onDelete(); }}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
+                      Eliminar
                     </DropdownMenuItem>
                   </>
                 )}
@@ -537,7 +537,7 @@ export default function BillSplit() {
   };
 
   const handleDeleteSplit = (billSplitId: string) => {
-    if (isAuthenticated && confirm('Delete this expense? This cannot be undone.')) {
+    if (isAuthenticated && confirm('¿Eliminar este gasto? No se puede deshacer.')) {
       deleteSplitMutation.mutate(billSplitId);
     }
   };
@@ -587,17 +587,17 @@ export default function BillSplit() {
     <div className="container py-8 space-y-6 max-w-5xl mx-auto">
       {!isAuthenticated && (
         <SignInBanner 
-          title="Split Bills Like a Pro"
-          description="Track shared expenses, settle debts easily, and keep friendships money-free. Sign in to start splitting!"
-          actionText="Sign In to Get Started"
+          title="Divide cuentas como un pro"
+          description="Registra gastos compartidos, salda deudas fácilmente y mantén la amistad sin líos de dinero. ¡Inicia sesión para empezar!"
+          actionText="Iniciar sesión para comenzar"
         />
       )}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Split</h1>
-          <p className="text-muted-foreground">Track and settle shared expenses</p>
+          <h1 className="text-3xl font-bold tracking-tight">Dividir cuenta</h1>
+          <p className="text-muted-foreground">Registra y salda gastos compartidos</p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <Button 
@@ -607,20 +607,20 @@ export default function BillSplit() {
             disabled={!isAuthenticated || userBalances.length === 0}
           >
             <RefreshCw className="w-4 h-4 mr-2" />
-            Settle Up
+            Saldar
           </Button>
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button disabled={!isAuthenticated} className="flex-1 sm:flex-none">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Expense
+                Añadir gasto
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Add an expense</DialogTitle>
+                <DialogTitle>Añadir un gasto</DialogTitle>
                 <DialogDescription>
-                  Split a bill with friends
+                  Divide una cuenta con amigos
                 </DialogDescription>
               </DialogHeader>
               <Form {...form}>
@@ -631,7 +631,7 @@ export default function BillSplit() {
                     name="category"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Category</FormLabel>
+                        <FormLabel>Categoría</FormLabel>
                         <div className="flex flex-wrap gap-2">
                           {EXPENSE_CATEGORIES.map(cat => {
                             const Icon = cat.icon;
@@ -660,7 +660,7 @@ export default function BillSplit() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Description</FormLabel>
+                        <FormLabel>Descripción</FormLabel>
                         <FormControl>
                           <Input placeholder="Dinner at Mario's" {...field} />
                         </FormControl>
@@ -676,7 +676,7 @@ export default function BillSplit() {
                       name="totalAmount"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Amount</FormLabel>
+                          <FormLabel>Monto</FormLabel>
                           <FormControl>
                             <div className="relative">
                               <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -708,7 +708,7 @@ export default function BillSplit() {
                     name="splitType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Split method</FormLabel>
+                        <FormLabel>Forma de dividir</FormLabel>
                         <div className="grid grid-cols-4 gap-2">
                           {[
                             { value: "equal", label: "Equal", icon: Equal },
@@ -739,7 +739,7 @@ export default function BillSplit() {
                   {/* Participants */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <FormLabel>Split with</FormLabel>
+                      <FormLabel>Dividir con</FormLabel>
                       <Button
                         type="button"
                         variant="ghost"
@@ -826,7 +826,7 @@ export default function BillSplit() {
                   {watchAmount && watchParticipants.length > 0 && (
                     <Card className="bg-muted/50 border-dashed">
                       <CardContent className="p-4">
-                        <p className="text-sm font-medium mb-2">Split preview</p>
+                        <p className="text-sm font-medium mb-2">Vista previa del reparto</p>
                         <div className="space-y-1.5">
                           {/* Show all participants including the creator (you) */}
                           {(() => {
@@ -883,7 +883,7 @@ export default function BillSplit() {
                       <FormItem>
                         <FormLabel>Notes (optional)</FormLabel>
                         <FormControl>
-                          <Textarea placeholder="Add any details..." className="resize-none h-20" {...field} />
+                          <Textarea placeholder="Añade detalles (opcional)..." className="resize-none h-20" {...field} />
                         </FormControl>
                       </FormItem>
                     )}
@@ -894,7 +894,7 @@ export default function BillSplit() {
                     className="w-full"
                     disabled={createBillSplitMutation.isPending}
                   >
-                    {createBillSplitMutation.isPending ? "Creating..." : "Add Expense"}
+                    {createBillSplitMutation.isPending ? "Creando..." : "Añadir gasto"}
                   </Button>
                 </form>
               </Form>
@@ -911,7 +911,7 @@ export default function BillSplit() {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="expenses" className="gap-2">
             <Receipt className="h-4 w-4" />
-            <span className="hidden sm:inline">Expenses</span>
+            <span className="hidden sm:inline">Gastos</span>
             {activeExpenses.length > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 px-1.5">{activeExpenses.length}</Badge>
             )}
@@ -925,7 +925,7 @@ export default function BillSplit() {
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-2">
             <Check className="h-4 w-4" />
-            <span className="hidden sm:inline">Settled</span>
+            <span className="hidden sm:inline">Saldados</span>
           </TabsTrigger>
         </TabsList>
 
@@ -937,13 +937,13 @@ export default function BillSplit() {
                 <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
                   <Receipt className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <h3 className="font-semibold text-lg mb-2">No active expenses</h3>
+                <h3 className="font-semibold text-lg mb-2">No hay gastos activos</h3>
                 <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                  Add your first shared expense and start tracking who owes what
+                  Añade tu primer gasto compartido y empieza a llevar quién debe qué
                 </p>
                 <Button onClick={() => setIsCreateDialogOpen(true)} disabled={!isAuthenticated}>
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Expense
+                  Añadir gasto
                 </Button>
               </CardContent>
             </Card>
@@ -966,8 +966,8 @@ export default function BillSplit() {
         <TabsContent value="friends" className="space-y-4 mt-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Friend Balances</CardTitle>
-              <CardDescription>Who owes you and who you owe</CardDescription>
+              <CardTitle className="text-lg">Saldos con amigos</CardTitle>
+              <CardDescription>Quién te debe y a quién debes</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {userBalances.length === 0 ? (
@@ -975,9 +975,9 @@ export default function BillSplit() {
                   <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
                     <Check className="w-8 h-8 text-green-600" />
                   </div>
-                  <h3 className="font-semibold text-lg mb-2">All settled up!</h3>
+                  <h3 className="font-semibold text-lg mb-2">¡Todo al día!</h3>
                   <p className="text-muted-foreground">
-                    You don't have any outstanding balances
+                    No tienes saldos pendientes
                   </p>
                 </div>
               ) : (
@@ -988,7 +988,7 @@ export default function BillSplit() {
                       name={balance.name}
                       balance={balance.balance}
                       onSettleUp={() => setIsSettleDialogOpen(true)}
-                      onRemind={() => alert('Reminder sent!')}
+                      onRemind={() => alert('¡Recordatorio enviado!')}
                     />
                   ))}
                 </div>
@@ -1005,9 +1005,9 @@ export default function BillSplit() {
                 <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
                   <Clock className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <h3 className="font-semibold text-lg mb-2">No history yet</h3>
+                <h3 className="font-semibold text-lg mb-2">Aún no hay historial</h3>
                 <p className="text-muted-foreground">
-                  Settled expenses will appear here
+                  Los gastos saldados aparecerán aquí
                 </p>
               </CardContent>
             </Card>
@@ -1061,7 +1061,7 @@ export default function BillSplit() {
 
               <div className="space-y-6">
                 <div className="text-center py-4 bg-muted/50 rounded-lg">
-                  <p className="text-sm text-muted-foreground mb-1">Total amount</p>
+                  <p className="text-sm text-muted-foreground mb-1">Monto total</p>
                   <p className="text-4xl font-bold">{formatCurrency(parseFloat(String(selectedExpense.totalAmount)) || 0)}</p>
                   {selectedExpense.description && (
                     <p className="text-sm text-muted-foreground mt-2">{selectedExpense.description}</p>
@@ -1106,7 +1106,7 @@ export default function BillSplit() {
                 <div>
                   <h4 className="font-semibold mb-3 flex items-center gap-2">
                     <Users className="h-4 w-4" />
-                    Participants
+                    Participantes
                   </h4>
                   <div className="space-y-2">
                     {selectedExpense.participants?.map(p => (
