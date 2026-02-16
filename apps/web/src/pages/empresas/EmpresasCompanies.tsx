@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEmpresasCompaniesWithSummary, type CompanyWithSummary } from "@/lib/empresasApi";
 import { Building2, ArrowRight, Wallet, FileText } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/lib/CurrencyContext";
 
 function getRiskBadgeClass(rating: string | null): string {
   switch (rating) {
@@ -17,6 +18,7 @@ function getRiskBadgeClass(rating: string | null): string {
 }
 
 export default function EmpresasCompanies() {
+  const { currency } = useCurrency();
   const { data: companies, isLoading, error } = useQuery({
     queryKey: ["empresas", "companies-summary"],
     queryFn: getEmpresasCompaniesWithSummary,
@@ -68,7 +70,7 @@ export default function EmpresasCompanies() {
               <CardContent className="space-y-3 text-sm">
                 <div className="flex items-center gap-2">
                   <Wallet className="h-4 w-4 text-muted-foreground" />
-                  <span>{formatCurrency(company.summary?.cashBalance ?? 0)}</span>
+                  <span>{formatCurrency(company.summary?.cashBalance ?? 0, currency)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground" />

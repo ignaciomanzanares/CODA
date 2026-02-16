@@ -1,5 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { formatCurrencyShort } from "@/lib/utils";
+import { useCurrency } from "@/lib/CurrencyContext";
 import {
   BarChart,
   Bar,
@@ -25,15 +27,10 @@ interface CashFlowChartProps {
 }
 
 export default function CashFlowChart({ data, monthlyIncome, monthlyExpenses }: CashFlowChartProps) {
+  const { currency } = useCurrency();
   const netCashFlow = monthlyIncome - monthlyExpenses;
   const isPositive = netCashFlow >= 0;
-
-  const formatCurrency = (value: number) => {
-    if (value >= 1000) {
-      return `$${(value / 1000).toFixed(1)}K`;
-    }
-    return `$${value}`;
-  };
+  const formatCurrency = (value: number) => formatCurrencyShort(value, currency);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {

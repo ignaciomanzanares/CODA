@@ -1,5 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import { formatCurrencyShort } from "@/lib/utils";
+import { useCurrency } from "@/lib/CurrencyContext";
 import {
   AreaChart,
   Area,
@@ -24,21 +26,12 @@ interface NetWorthChartProps {
 }
 
 export default function NetWorthChart({ data, currentNetWorth }: NetWorthChartProps) {
-  // Calculate change from first to last data point
+  const { currency } = useCurrency();
   const firstValue = data[0]?.netWorth || 0;
   const change = currentNetWorth - firstValue;
   const changePercent = firstValue > 0 ? ((change / firstValue) * 100).toFixed(1) : 0;
   const isPositive = change >= 0;
-
-  const formatCurrency = (value: number) => {
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    }
-    if (value >= 1000) {
-      return `$${(value / 1000).toFixed(0)}K`;
-    }
-    return `$${value}`;
-  };
+  const formatCurrency = (value: number) => formatCurrencyShort(value, currency);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {

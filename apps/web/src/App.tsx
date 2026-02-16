@@ -1,6 +1,7 @@
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
+import { CurrencyProvider } from "./lib/CurrencyContext";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -37,6 +38,7 @@ import FinancialAssistant from "@/components/FinancialAssistant";
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <CurrencyProvider>
       <Switch>
         {/* Landing page - custom layout */}
         <Route path="/">
@@ -147,6 +149,7 @@ function App() {
       <Toaster />
       {/* Floating AI Assistant - available on all pages */}
       <FinancialAssistant />
+      </CurrencyProvider>
     </QueryClientProvider>
   );
 }
