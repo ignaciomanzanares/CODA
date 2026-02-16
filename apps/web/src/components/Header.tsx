@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import NotificationCenter from "@/components/NotificationCenter";
 import { cn } from "@/lib/utils";
+import { useCurrency } from "@/lib/CurrencyContext";
+import type { CurrencyCode } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
@@ -39,6 +41,7 @@ const navItems = [
 export default function Header() {
   const [location, setLocation] = useLocation();
   const { isAuthenticated, user, logout } = useAuth();
+  const { currency, setCurrency } = useCurrency();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
@@ -114,6 +117,18 @@ export default function Header() {
 
         {/* User Menu */}
         <div className="flex items-center gap-4">
+          {/* Moneda: CLP por defecto, opción USD */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                {currency === "CLP" ? "CLP $" : "USD $"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setCurrency("CLP" as CurrencyCode)}>Pesos (CLP)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setCurrency("USD" as CurrencyCode)}>Dólares (USD)</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {/* CODA Empresas Link - solo fuera de la sección Empresas */}
           {!isEmpresas && (
             <Link href="/empresas">

@@ -29,6 +29,8 @@ import { generateDemoBillSplits } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
 import PaymentDialog from "@/components/PaymentDialog";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/lib/CurrencyContext";
 
 // Extended types
 type BillSplitParticipantWithUser = BillSplitParticipant & {
@@ -86,20 +88,15 @@ const getInitials = (name: string) => {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 };
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(Math.abs(amount));
-};
-
 // Balance Summary Card
 function BalanceSummaryCard({ 
   totalOwed, 
-  totalOwedToYou 
-}: { 
+  totalOwedToYou,
+  currency,
+}: {
   totalOwed: number; 
   totalOwedToYou: number;
+  currency: 'CLP' | 'USD';
 }) {
   const netBalance = totalOwedToYou - totalOwed;
   
@@ -115,7 +112,7 @@ function BalanceSummaryCard({
         
         <div className="text-center mb-6">
           <p className={`text-4xl font-bold ${netBalance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {netBalance < 0 && '-'}{formatCurrency(netBalance)}
+            {netBalance < 0 && '-'}{formatCurrency(Math.abs(netBalance), currency)}
           </p>
           <p className="text-sm opacity-70 mt-1">
             {netBalance >= 0 ? 'Estás en positivo' : 'En total, debes dinero'}
@@ -128,14 +125,14 @@ function BalanceSummaryCard({
               <ArrowUpRight className="h-4 w-4 text-red-400" />
               <span className="text-sm opacity-70">Debes</span>
             </div>
-            <p className="text-xl font-semibold text-red-400">{formatCurrency(totalOwed)}</p>
+            <p className="text-xl font-semibold text-red-400">{formatCurrency(totalOwed, currency)}</p>
           </div>
           <div className="bg-white/10 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-1">
               <ArrowDownLeft className="h-4 w-4 text-green-400" />
               <span className="text-sm opacity-70">Te deben</span>
             </div>
-            <p className="text-xl font-semibold text-green-400">{formatCurrency(totalOwedToYou)}</p>
+            <p className="text-xl font-semibold text-green-400">{formatCurrency(totalOwedToYou, currency)}</p>
           </div>
         </div>
       </CardContent>
@@ -169,8 +166,8 @@ function FriendBalanceRow({
         <div>
           <p className="font-medium">{name}</p>
           <p className={`text-sm ${isOwed ? 'text-green-600' : isOwing ? 'text-red-600' : 'text-muted-foreground'}`}>
-            {isOwed ? `te debe ${formatCurrency(balance)}` : 
-             isOwing ? `le debes ${formatCurrency(balance)}` : 
+            {isOwed ? `te debe ${formatCurrency(balance, currency)}` : 
+             isOwing ? `le debes ${formatCurrency(balance, currency)}` : 
              'al día'}
           </p>
         </div>
@@ -277,11 +274,11 @@ function ExpenseCard({
           </div>
           
           <div className="text-right flex-shrink-0">
-            <p className="text-xl font-bold">{formatCurrency(parseFloat(String(expense.totalAmount)) || 0)}</p>
+            <p className="text-xl font-bold">{formatCurrency(parseFloat(String(expense.totalAmount)) || 0, currency)}</p>
             {/* Show "You owe" badge only if user is a participant in someone ELSE's split and hasn't paid */}
             {userParticipant && !userParticipant.isPaid && !isCreator && expense.status !== 'settled' && (
               <Badge variant="destructive" className="mt-1">
-                Debes {formatCurrency(parseFloat(String(userParticipant.amountOwed)) || 0)}
+                Debes {formatCurrency(parseFloat(String(userParticipant.amountOwed)) || 0, currency)}
               </Badge>
             )}
             {isCreator && expense.status !== 'settled' && paidCount < totalCount && (
@@ -325,6 +322,7 @@ function ExpenseCard({
 // Main Component
 export default function BillSplit() {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const { currency } = useCurrency();
   const { getBillSplits, createBillSplit, markParticipantAsPaid, deleteBillSplit } = useApi();
   const [activeTab, setActiveTab] = useState("expenses");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -860,7 +858,7 @@ export default function BillSplit() {
                                   <span className={p.isCreator ? "text-primary font-medium" : "text-muted-foreground"}>
                                     {p.name || `Person ${i + 1}`}
                                   </span>
-                                  <span className="font-medium">{formatCurrency(amount)}</span>
+                                  <span className="font-medium">{formatCurrency(amount, currency)}</span>
                                 </div>
                               );
                             });
@@ -868,7 +866,7 @@ export default function BillSplit() {
                           <Separator className="my-2" />
                           <div className="flex justify-between text-sm font-medium">
                             <span>Total</span>
-                            <span>{formatCurrency(parseFloat(watchAmount || '0'))}</span>
+                            <span>{formatCurrency(parseFloat(watchAmount || '0'), currency)}</span>
                           </div>
                         </div>
                       </CardContent>
@@ -904,7 +902,7 @@ export default function BillSplit() {
       </div>
 
       {/* Balance Summary - use calculated totals */}
-      <BalanceSummaryCard totalOwed={youOwe} totalOwedToYou={youAreOwed} />
+      <BalanceSummaryCard totalOwed={youOwe} totalOwedToYou={youAreOwed} currency={currency} />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -1062,7 +1060,7 @@ export default function BillSplit() {
               <div className="space-y-6">
                 <div className="text-center py-4 bg-muted/50 rounded-lg">
                   <p className="text-sm text-muted-foreground mb-1">Monto total</p>
-                  <p className="text-4xl font-bold">{formatCurrency(parseFloat(String(selectedExpense.totalAmount)) || 0)}</p>
+                  <p className="text-4xl font-bold">{formatCurrency(parseFloat(String(selectedExpense.totalAmount)) || 0, currency)}</p>
                   {selectedExpense.description && (
                     <p className="text-sm text-muted-foreground mt-2">{selectedExpense.description}</p>
                   )}
@@ -1120,7 +1118,7 @@ export default function BillSplit() {
                           <div>
                             <p className="font-medium">{p.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              {p.isPaid ? `Pagado ${formatCurrency(parseFloat(String(p.amountPaid || p.amountOwed)) || 0)}` : `Debe ${formatCurrency(parseFloat(String(p.amountOwed)) || 0)}`}
+                              {p.isPaid ? `Pagado ${formatCurrency(parseFloat(String(p.amountPaid || p.amountOwed)) || 0, currency)}` : `Debe ${formatCurrency(parseFloat(String(p.amountOwed)) || 0, currency)}`}
                             </p>
                           </div>
                         </div>

@@ -2,7 +2,8 @@ import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from '@/lib/api';
 import { queryClient } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/lib/CurrencyContext";
 import { useState } from "react";
 import { useLocation } from "wouter";
 
@@ -144,8 +145,10 @@ export default function Dashboard() {
     );
   }
 
+  const { currency } = useCurrency();
   const firstName = user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'usuario';
   const greeting = new Date().getHours() < 12 ? 'Buenos días' : new Date().getHours() < 18 ? 'Buenas tardes' : 'Buenas noches';
+  const annualSavings = financialData ? (financialData.summary.monthlyIncome - financialData.summary.monthlyExpenses) * 12 : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -219,12 +222,12 @@ export default function Dashboard() {
                           Muy bien. Tu tasa de ahorro del <strong className="text-foreground">{financialData.summary.savingsRate}%</strong> está 
                           por encima del 20% recomendado. A este ritmo, ahorras aproximadamente{' '}
                           <strong className="text-foreground">
-                            ${Math.round((financialData.summary.monthlyIncome - financialData.summary.monthlyExpenses) * 12).toLocaleString()}
+                            {formatCurrency(Math.round(annualSavings), currency)}
                           </strong>{' '}al año.
                         </>
                       ) : (
                         <>
-                          Según tus gastos, podrías ahorrar <strong className="text-foreground">$320/mes</strong> adicionales 
+                          Según tus gastos, podrías ahorrar <strong className="text-foreground">{formatCurrency(320, currency)}/mes</strong> adicionales 
                           optimizando suscripciones. Tus gastos en restaurantes son un 23% mayores que el mes pasado.
                         </>
                       )}

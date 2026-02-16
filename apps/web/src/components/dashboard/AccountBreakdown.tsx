@@ -10,7 +10,8 @@ import {
   ChevronRight,
   Building2
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/lib/CurrencyContext";
 
 interface Account {
   id: number;
@@ -84,14 +85,8 @@ const categoryConfig = {
 };
 
 export default function AccountBreakdown({ data, totalAssets, totalLiabilities }: AccountBreakdownProps) {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
+  const { currency } = useCurrency();
+  const fmt = (value: number) => formatCurrency(value, currency);
 
   const renderCategory = (key: keyof typeof categoryConfig, category: AccountCategory) => {
     const config = categoryConfig[key];
@@ -117,7 +112,7 @@ export default function AccountBreakdown({ data, totalAssets, totalLiabilities }
           </div>
           <div className="text-right">
             <p className={cn("font-bold", config.textColor)}>
-              {isLiability ? '-' : ''}{formatCurrency(category.total)}
+              {isLiability ? '-' : ''}{fmt(category.total)}
             </p>
             <p className="text-xs text-muted-foreground">{percentage.toFixed(0)}% del {isLiability ? 'pasivo' : 'activo'}</p>
           </div>
@@ -136,7 +131,7 @@ export default function AccountBreakdown({ data, totalAssets, totalLiabilities }
               </div>
               <div className="text-right">
                 <span className="text-sm font-medium">
-                  {isLiability ? '-' : ''}{formatCurrency(account.balance)}
+                  {isLiability ? '-' : ''}{fmt(account.balance)}
                 </span>
                 {account.limit && (
                   <div className="mt-1">
@@ -175,7 +170,7 @@ export default function AccountBreakdown({ data, totalAssets, totalLiabilities }
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-medium text-muted-foreground">Assets</h4>
             <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400">
-              {formatCurrency(totalAssets)}
+              {fmt(totalAssets)}
             </Badge>
           </div>
           <div className="space-y-3">
@@ -191,7 +186,7 @@ export default function AccountBreakdown({ data, totalAssets, totalLiabilities }
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium text-muted-foreground">Liabilities</h4>
               <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400">
-                {formatCurrency(totalLiabilities)}
+                {fmt(totalLiabilities)}
               </Badge>
             </div>
             <div className="space-y-3">

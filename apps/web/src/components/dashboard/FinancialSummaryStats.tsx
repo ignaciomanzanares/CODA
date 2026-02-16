@@ -10,7 +10,8 @@ import {
   Building2,
   Percent,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency as formatCurrencyUtil, formatCurrencyShort } from "@/lib/utils";
+import { useCurrency } from "@/lib/CurrencyContext";
 
 interface FinancialSummary {
   totalBalance: number;
@@ -72,19 +73,15 @@ function StatCard({ title, value, subValue, change, changeType, icon: Icon, colo
 }
 
 export default function FinancialSummaryStats({ data }: FinancialSummaryStatsProps) {
+  const { currency } = useCurrency();
   const formatCurrency = (value: number) => {
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(2)}M`;
+    if (currency === "CLP" && (value >= 1_000_000 || value <= -1_000_000)) {
+      return formatCurrencyShort(value, "CLP");
     }
-    if (value >= 100000) {
-      return `$${(value / 1000).toFixed(0)}K`;
+    if (currency === "USD" && (Math.abs(value) >= 100_000)) {
+      return formatCurrencyShort(value, "USD");
     }
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(value);
+    return formatCurrencyUtil(value, currency);
   };
 
   // Calculate month-over-month changes (simulated for demo)

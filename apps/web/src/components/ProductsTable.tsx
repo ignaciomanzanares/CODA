@@ -25,6 +25,8 @@ import {
   Landmark
 } from "lucide-react";
 import type { FinancialProduct, LoanProduct } from "@/types";
+import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/lib/CurrencyContext";
 
 interface ProductsTableProps {
   products: FinancialProduct[];
@@ -52,14 +54,8 @@ export default function ProductsTable({
     setCurrentPage(page);
   };
 
-  // Function to format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  const { currency } = useCurrency();
+  const formatCurrencyFn = (amount: number) => formatCurrency(amount, currency);
 
   // Function to get icon based on provider
   const getProviderIcon = (category: string) => {
@@ -176,7 +172,7 @@ export default function ProductsTable({
                 ${product.monthlyPayment}
               </div>
               <div className="text-xs text-gray-500">
-                For {formatCurrency(product.loanAmount)}
+                For {formatCurrencyFn(product.loanAmount)}
               </div>
             </>
           );
@@ -203,7 +199,7 @@ export default function ProductsTable({
         const fee = (product.features?.annualFee as number) || 0;
         return (
           <div className="text-sm text-gray-900">
-            {fee > 0 ? formatCurrency(fee) : "No Fee"}
+            {fee > 0 ? formatCurrencyFn(fee) : "No Fee"}
           </div>
         );
       }
@@ -211,7 +207,7 @@ export default function ProductsTable({
         const minBalance = (product.features?.minimumBalance as number) || 0;
         return (
           <div className="text-sm text-gray-900">
-            {minBalance > 0 ? formatCurrency(minBalance) : "No Minimum"}
+            {minBalance > 0 ? formatCurrencyFn(minBalance) : "No Minimum"}
           </div>
         );
       }

@@ -3,9 +3,11 @@ import { useSearch } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { getEmpresasCompaniesWithSummary, getEmpresasTransactions } from "@/lib/empresasApi";
 import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/lib/CurrencyContext";
 import { Building2, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 
 export default function EmpresasTransactions() {
+  const { currency } = useCurrency();
   const search = useSearch();
   const params = new URLSearchParams(search);
   const companyId = params.get("company_id") ? parseInt(params.get("company_id")!, 10) : null;
@@ -65,7 +67,7 @@ export default function EmpresasTransactions() {
                       <td className="p-3">{t.counterpartyName ?? "—"}</td>
                       <td className={`p-3 text-right font-medium ${t.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
                         {t.amount >= 0 ? <ArrowDownLeft className="inline h-3 w-3 mr-0.5" /> : <ArrowUpRight className="inline h-3 w-3 mr-0.5" />}
-                        {formatCurrency(t.amount)}
+                        {formatCurrency(t.amount, currency)}
                       </td>
                     </tr>
                   ))}

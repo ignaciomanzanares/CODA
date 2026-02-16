@@ -22,6 +22,8 @@ import {
   Info
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/lib/CurrencyContext";
 import {
   Dialog,
   DialogContent,
@@ -97,17 +99,10 @@ function getCategoryColor(category: string) {
 }
 
 function GoalItem({ goal }: { goal: FinancialGoal }) {
+  const { currency } = useCurrency();
   const progress = Math.min(Math.round((goal.currentAmount / goal.targetAmount) * 100), 100);
   const Icon = getCategoryIcon(goal.category);
   const colorClass = getCategoryColor(goal.category);
-  
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
 
   const remaining = goal.targetAmount - goal.currentAmount;
   const targetDate = new Date(goal.targetDate);
@@ -138,7 +133,7 @@ function GoalItem({ goal }: { goal: FinancialGoal }) {
           <Progress value={progress} className="h-2 mb-2" />
           
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{formatCurrency(goal.currentAmount)} de {formatCurrency(goal.targetAmount)}</span>
+            <span>{formatCurrency(goal.currentAmount, currency)} de {formatCurrency(goal.targetAmount, currency)}</span>
             <span className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
               {format(targetDate, "MMM yyyy")}
