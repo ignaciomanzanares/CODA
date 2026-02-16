@@ -14,7 +14,13 @@ import About from "@/pages/About";
 import CreditScoreInfo from "@/pages/CreditScoreInfo";
 import InsuranceRiskInfo from "@/pages/InsuranceRiskInfo";
 import Empresas from "@/pages/Empresas";
-import EmpresasTransition from "@/pages/empresas/EmpresasTransition";
+import EmpresasLayout from "@/pages/empresas/EmpresasLayout";
+import EmpresasDashboard from "@/pages/empresas/EmpresasDashboard";
+import EmpresasCompanies from "@/pages/empresas/EmpresasCompanies";
+import EmpresasTransactions from "@/pages/empresas/EmpresasTransactions";
+import EmpresasReconciliation from "@/pages/empresas/EmpresasReconciliation";
+import EmpresasStatements from "@/pages/empresas/EmpresasStatements";
+import EmpresasRisk from "@/pages/empresas/EmpresasRisk";
 import Dashboard from "@/pages/Dashboard";
 import Onboarding from "@/pages/Onboarding";
 import Products from "@/pages/Products";
@@ -76,13 +82,25 @@ function App() {
             <main className="flex-1">
                 <Switch>
                   <Route path="/onboarding" component={Onboarding} />
-                  {/* CODA Empresas: rutas en transición hacia plataforma unificada */}
-                  <Route path="/empresas/dashboard" component={EmpresasTransition} />
-                  <Route path="/empresas/companies" component={EmpresasTransition} />
-                  <Route path="/empresas/transactions" component={EmpresasTransition} />
-                  <Route path="/empresas/reconciliation" component={EmpresasTransition} />
-                  <Route path="/empresas/statements" component={EmpresasTransition} />
-                  <Route path="/empresas/risk" component={EmpresasTransition} />
+                  {/* CODA Empresas: integrado en la misma app y misma BD */}
+                  <Route path="/empresas/dashboard">
+                    <EmpresasLayout><EmpresasDashboard /></EmpresasLayout>
+                  </Route>
+                  <Route path="/empresas/companies">
+                    <EmpresasLayout><EmpresasCompanies /></EmpresasLayout>
+                  </Route>
+                  <Route path="/empresas/transactions">
+                    <EmpresasLayout><EmpresasTransactions /></EmpresasLayout>
+                  </Route>
+                  <Route path="/empresas/reconciliation">
+                    <EmpresasLayout><EmpresasReconciliation /></EmpresasLayout>
+                  </Route>
+                  <Route path="/empresas/statements">
+                    <EmpresasLayout><EmpresasStatements /></EmpresasLayout>
+                  </Route>
+                  <Route path="/empresas/risk">
+                    <EmpresasLayout><EmpresasRisk /></EmpresasLayout>
+                  </Route>
                   <Route path="/dashboard">
                     <ProtectedRoute>
                       <Dashboard />
