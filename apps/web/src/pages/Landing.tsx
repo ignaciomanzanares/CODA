@@ -58,7 +58,7 @@ export default function Landing() {
                 </Button>
               </Link>
               <Link href="/about">
-                <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white hover:text-blue-700 transition-colors px-8 py-6 text-lg">
+                <Button size="lg" variant="outline" className="border-2 border-white bg-transparent !text-white hover:bg-white hover:!text-blue-700 transition-colors px-8 py-6 text-lg">
                   Conoce más
                 </Button>
               </Link>
