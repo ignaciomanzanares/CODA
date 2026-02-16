@@ -1,26 +1,16 @@
 import { sql } from "drizzle-orm";
-import { createRequire } from "module";
+import * as pgCore from "drizzle-orm/pg-core";
+import * as sqliteCore from "drizzle-orm/sqlite-core";
 
-const require = createRequire(import.meta.url);
-
-// --- Environment-aware table factory (sync for drizzle-kit compatibility) ---
-const isProd = process.env.NODE_ENV === 'production' || (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgres'));
-let table: any, serialOrInt: any, text: any, integer: any, real: any;
-if (isProd) {
-  const pgCore = require('drizzle-orm/pg-core');
-  table = pgCore.pgTable;
-  serialOrInt = pgCore.serial;
-  text = pgCore.text;
-  integer = pgCore.integer;
-  real = pgCore.real;
-} else {
-  const sqliteCore = require('drizzle-orm/sqlite-core');
-  table = sqliteCore.sqliteTable;
-  integer = sqliteCore.integer;
-  text = sqliteCore.text;
-  real = sqliteCore.real;
-  serialOrInt = (name: string) => integer(name, { mode: 'number' }).primaryKey({ autoIncrement: true });
-}
+// Producción (deploy/Render) = Postgres. Local = SQLite (poco uso).
+const isProd = process.env.NODE_ENV === "production" || (!!process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith("postgres"));
+const table = isProd ? pgCore.pgTable : sqliteCore.sqliteTable;
+const text = isProd ? pgCore.text : sqliteCore.text;
+const integer = isProd ? pgCore.integer : sqliteCore.integer;
+const real = isProd ? pgCore.real : sqliteCore.real;
+const serialOrInt = isProd
+  ? pgCore.serial
+  : (name: string) => sqliteCore.integer(name, { mode: "number" }).primaryKey({ autoIncrement: true });
 
 // --- Table Definitions ---
 export const users = table('users', {
