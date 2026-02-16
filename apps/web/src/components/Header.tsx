@@ -41,7 +41,7 @@ const navItems = [
 export default function Header() {
   const [location, setLocation] = useLocation();
   const { isAuthenticated, user, logout } = useAuth();
-  const { currency, setCurrency } = useCurrency();
+  const { currency, setCurrency, rateUsdToClp, rateLoading } = useCurrency();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
@@ -117,11 +117,14 @@ export default function Header() {
 
         {/* User Menu */}
         <div className="flex items-center gap-4">
-          {/* Moneda: CLP por defecto, opción USD */}
+          {/* Moneda: CLP por defecto, opción USD; se muestra tasa real cuando hay CLP */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                 {currency === "CLP" ? "CLP $" : "USD $"}
+                {currency === "CLP" && rateUsdToClp != null && !rateLoading && (
+                  <span className="ml-1 hidden md:inline text-xs opacity-80">1 USD = ${Number(rateUsdToClp).toLocaleString("es-CL")}</span>
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
