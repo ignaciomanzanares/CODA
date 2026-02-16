@@ -1435,15 +1435,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       p.on("close", (code: number) => {
         if (code !== 0) {
-          logger.error({ stderr: err, stdout: out }, 'SHAP explainer failed');
-          return res.status(500).json({ message: "Failed to compute explanations" });
+          logger.warn({ stderr: err, stdout: out }, 'SHAP explainer failed, returning heuristic fallback');
+          const featureKeys = Object.keys(fv || {});
+          const ranked = featureKeys
+            .map((k) => ({ feature: k, value: (fv as any)[k] }))
+            .sort((a, b) => Math.abs((b.value || 0) as number) - Math.abs((a.value || 0) as number))
+            .slice(0, top);
+          return res.json({ features: fv, explanation: { method: 'heuristic', topFeatures: ranked } });
         }
         try {
           const parsed = JSON.parse(out);
           return res.json({ features: fv, explanation: parsed });
         } catch (_e) {
-          logger.error({ err: _e, stdout: out }, 'SHAP explainer parse error');
-          return res.status(500).json({ message: "Malformed explainer output" });
+          logger.warn({ err: _e, stdout: out }, 'SHAP explainer parse error, returning heuristic fallback');
+          const featureKeys = Object.keys(fv || {});
+          const ranked = featureKeys
+            .map((k) => ({ feature: k, value: (fv as any)[k] }))
+            .sort((a, b) => Math.abs((b.value || 0) as number) - Math.abs((a.value || 0) as number))
+            .slice(0, top);
+          return res.json({ features: fv, explanation: { method: 'heuristic', topFeatures: ranked } });
         }
       });
     } catch (_e) {
