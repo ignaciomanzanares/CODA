@@ -37,12 +37,12 @@ export default function Empresas() {
               para PYMEs chilenas.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="http://localhost:3001" target="_blank" rel="noopener noreferrer">
+              <Link href="/empresas/dashboard">
                 <Button size="lg" className="bg-white text-purple-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg">
                   Ir a CODA Empresas
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-              </a>
+              </Link>
             </div>
             <p className="mt-6 text-blue-200 text-sm">
               Gestión financiera integral para tu PYME
@@ -203,14 +203,14 @@ export default function Empresas() {
           <p className="text-xl text-indigo-100 mb-8 max-w-2xl mx-auto">
             Únete a las PYMEs que ya están tomando mejores decisiones financieras.
           </p>
-          <a href="http://localhost:3001" target="_blank" rel="noopener noreferrer">
+          <Link href="/empresas/dashboard">
             <Button size="lg" className="bg-white text-purple-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg">
               Comenzar con CODA Empresas
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-          </a>
+          </Link>
           <p className="mt-6 text-indigo-200 text-sm">
-            Nota: CODA Empresas corre en puerto 3001 en desarrollo
+            Todo integrado en la misma plataforma CODA
           </p>
         </div>
       </section>
@@ -256,7 +256,7 @@ export default function Empresas() {
                     <li>✓ Rating crediticio corporativo</li>
                     <li>✓ Reconciliación de facturas</li>
                     <li>✓ Estados financieros automáticos</li>
-                    <li>✓ Next.js 14</li>
+                    <li>✓ Integrado en la misma plataforma</li>
                   </ul>
                 </CardContent>
               </Card>
