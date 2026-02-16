@@ -67,7 +67,7 @@ export default function EmpresasTransactions() {
                       <td className="p-3">{t.counterpartyName ?? "—"}</td>
                       <td className={`p-3 text-right font-medium ${t.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
                         {t.amount >= 0 ? <ArrowDownLeft className="inline h-3 w-3 mr-0.5" /> : <ArrowUpRight className="inline h-3 w-3 mr-0.5" />}
-                        {formatCurrency(t.amount, currency)}
+                        {formatCurrency(t.amount, currency, { sourceCurrency: "CLP" })}
                       </td>
                     </tr>
                   ))}

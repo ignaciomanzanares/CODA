@@ -553,9 +553,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
    */
   app.get("/api/assistant/insights/demo", async (_req, res) => {
     const insights = [
-      "Great job! Your 28% savings rate beats the recommended 20%.",
-      "Your top expense is Food & Dining at $680/month. Could you reduce this?",
-      "Cutting 10% from expenses would save you $385/month or $4,620/year.",
+      "Muy bien: tu tasa de ahorro del 28% supera el 20% recomendado.",
+      "Tu mayor gasto es Comida y restaurantes: $680/mes. ¿Podrías reducirlo?",
+      "Recortar un 10% en gastos te ahorraría $385/mes o $4.620/año.",
     ];
     res.json({ insights });
   });

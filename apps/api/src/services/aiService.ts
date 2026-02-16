@@ -42,10 +42,12 @@ const getProvider = (): AIProvider => {
 // System prompt for the financial assistant
 const SYSTEM_PROMPT = `You are CODA's AI Financial Assistant - a helpful, friendly, and knowledgeable advisor focused on personal finance. Your goal is to help users improve their financial health.
 
+IMPORTANT: You must always respond in Spanish (Chile). All messages, suggestions, and action items must be in Spanish. Use "pesos" or "CLP" when referring to money unless the user explicitly uses dollars.
+
 Key behaviors:
 1. Be conversational and friendly, but professional
 2. Provide specific, actionable advice based on the user's financial data
-3. When you see opportunities to save money, be specific (e.g., "Reducing your $340/month dining expenses by 20% would save you $816/year")
+3. When you see opportunities to save money, be specific with amounts
 4. Suggest relevant products or features when appropriate
 5. Be encouraging about progress and realistic about challenges
 6. Never share specific account numbers or sensitive data in responses
@@ -55,7 +57,8 @@ Response format:
 - Keep responses concise (2-3 paragraphs max)
 - Use bullet points for lists
 - Include specific numbers when available
-- End with a clear action item or question when appropriate`;
+- End with a clear action item or question when appropriate
+- Always write in Spanish`;
 
 // Build context prompt from user's financial data
 function buildContextPrompt(context: FinancialContext): string {
@@ -181,126 +184,127 @@ async function callGroq(messages: Message[], apiKey: string): Promise<string> {
 function generateDemoResponse(userMessage: string, context: FinancialContext): AIResponse {
   const message = userMessage.toLowerCase();
   
-  // Analyze spending patterns
-  if (message.includes('save') || message.includes('saving') || message.includes('budget')) {
+  // Analyze spending patterns (ahorro / ahorrar / presupuesto)
+  if (message.includes('save') || message.includes('saving') || message.includes('budget') || message.includes('ahorro') || message.includes('ahorrar') || message.includes('presupuesto')) {
     const coffeeEstimate = 5 * 20; // $5/day * 20 work days
     const potentialSavings = Math.round(coffeeEstimate * 12);
     
     return {
-      message: `Great question about saving! Looking at your spending patterns, here are some opportunities I've identified:
+      message: `Buena pregunta sobre el ahorro. Según tu perfil, estas son algunas oportunidades:
 
-**Quick wins:**
-• If you're buying coffee daily (~$5/day), making it at home could save you **$${potentialSavings}/year**
-• Your dining expenses of $${context.topSpendingCategories?.[1]?.amount || 680}/month are above average - reducing by 15% saves $${Math.round((context.topSpendingCategories?.[1]?.amount || 680) * 0.15 * 12)}/year
+**Ganancias rápidas:**
+• Si compras café a diario (~$5/día), prepararlo en casa podría ahorrarte **$${potentialSavings}/año**
+• Tus gastos en comida de $${context.topSpendingCategories?.[1]?.amount || 680}/mes están por encima del promedio; reducir 15% te ahorraría $${Math.round((context.topSpendingCategories?.[1]?.amount || 680) * 0.15 * 12)}/año
 
-Your current savings rate of **${context.savingsRate || 28}%** is actually great! The recommended rate is 20%, so you're ahead of the curve.
+Tu tasa de ahorro actual de **${context.savingsRate || 28}%** es muy buena. Lo recomendado es 20%, así que vas bien.
 
-Would you like specific tips for any particular spending category?`,
+¿Quieres consejos para alguna categoría en particular?`,
       suggestions: [
-        'Show me dining expense details',
-        'How can I automate savings?',
-        'Compare my spending to others'
+        'Ver detalle de gastos en comida',
+        '¿Cómo automatizar el ahorro?',
+        'Comparar mis gastos con otros'
       ],
       actionItems: [
-        { title: 'Set up automatic transfers', description: 'Move 10% of income to savings automatically', link: '/goals' },
-        { title: 'Review subscriptions', description: 'Check for unused monthly subscriptions', link: '/expenses' },
+        { title: 'Configurar transferencias automáticas', description: 'Traslada el 10% de tu ingreso al ahorro automáticamente', link: '/goals' },
+        { title: 'Revisar suscripciones', description: 'Revisa suscripciones mensuales que no uses', link: '/expenses' },
       ]
     };
   }
   
-  // Credit card offers
-  if (message.includes('credit') || message.includes('card') || message.includes('offer')) {
+  // Credit card offers (crédito / tarjeta / ofertas)
+  if (message.includes('credit') || message.includes('card') || message.includes('offer') || message.includes('crédito') || message.includes('tarjeta') || message.includes('ofertas')) {
     return {
-      message: `Based on your credit score of **${context.creditScore || 720}** and spending habits, here are some opportunities:
+      message: `Según tu puntaje de crédito **${context.creditScore || 720}** y tus gastos, estas son algunas opciones:
 
-**Recommended Credit Cards:**
-• **Cash Back Card**: With your $${context.monthlyExpenses?.toLocaleString() || '3,845'}/month spending, a 2% cash back card could earn you **$${Math.round((context.monthlyExpenses || 3845) * 0.02 * 12)}/year**
-• **Travel Rewards**: If you travel, your spending could earn 50,000+ points annually
+**Tarjetas recomendadas:**
+• **Cashback**: Con $${context.monthlyExpenses?.toLocaleString() || '3,845'}/mes en gastos, una tarjeta con 2% de cashback podría darte **$${Math.round((context.monthlyExpenses || 3845) * 0.02 * 12)}/año**
+• **Viajes**: Si viajas, tus gastos podrían sumar más de 50.000 puntos al año
 
-Your current credit utilization looks healthy. Would you like me to show you specific card offers that match your profile?`,
+Tu uso de crédito se ve saludable. ¿Quieres que te muestre ofertas de tarjetas para tu perfil?`,
       suggestions: [
-        'Show me cash back cards',
-        'Compare travel rewards cards',
-        'How do I improve my credit score?'
+        'Ver tarjetas con cashback',
+        'Comparar tarjetas de viajes',
+        '¿Cómo mejorar mi puntaje de crédito?'
       ],
       actionItems: [
-        { title: 'Compare credit cards', description: 'See personalized card recommendations', link: '/products?category=credit-cards' },
+        { title: 'Comparar tarjetas', description: 'Ver recomendaciones personalizadas', link: '/products?category=credit-cards' },
       ]
     };
   }
   
-  // Investment advice
-  if (message.includes('invest') || message.includes('retirement') || message.includes('401k')) {
+  // Investment advice (invertir / jubilación)
+  if (message.includes('invest') || message.includes('retirement') || message.includes('401k') || message.includes('invertir') || message.includes('jubilación') || message.includes('afp')) {
     const monthlyToInvest = Math.round((context.monthlyIncome || 7500) * 0.15);
     
     return {
-      message: `Smart thinking about investments! Here's what I see:
+      message: `Buena idea pensar en inversiones. Esto es lo que veo:
 
-**Your Investment Potential:**
-• With your income of $${(context.monthlyIncome || 7500).toLocaleString()}/month, you could invest **$${monthlyToInvest}/month** (15%)
-• At 7% average returns, that's approximately **$${Math.round(monthlyToInvest * 12 * 1.07)}** after your first year
+**Tu potencial de inversión:**
+• Con un ingreso de $${(context.monthlyIncome || 7500).toLocaleString()}/mes, podrías invertir **$${monthlyToInvest}/mes** (15%)
+• Con un 7% de retorno promedio, sería aproximadamente **$${Math.round(monthlyToInvest * 12 * 1.07)}** al primer año
 
-**Recommendations:**
-1. Max out any employer 401(k) match first - that's free money!
-2. Consider a Roth IRA if you haven't already
-3. For remaining funds, a diversified index fund is a solid choice
+**Recomendaciones:**
+1. Aprovecha primero el aporte patronal a tu AFP o fondo de pensiones
+2. Considera un ahorro voluntario en tu AFP si aún no lo tienes
+3. Para el resto, un fondo mutuo diversificado es una opción sólida
 
-Want me to help you set up an investment goal to track your progress?`,
+¿Quieres que te ayude a crear una meta de inversión para seguir tu avance?`,
       suggestions: [
-        'Set up investment goal',
-        'Explain Roth vs Traditional IRA',
-        'Show me index fund options'
+        'Crear meta de inversión',
+        'Explicar AFP y ahorro voluntario',
+        'Ver opciones de fondos mutuos'
       ],
       actionItems: [
-        { title: 'Create investment goal', description: 'Track your investment progress', link: '/goals' },
+        { title: 'Crear meta de inversión', description: 'Seguir tu avance de inversión', link: '/goals' },
       ]
     };
   }
 
-  // Goals and progress
-  if (message.includes('goal') || message.includes('progress') || message.includes('track')) {
+  // Goals and progress (metas / progreso)
+  if (message.includes('goal') || message.includes('progress') || message.includes('track') || message.includes('meta') || message.includes('progreso')) {
     return {
-      message: `Let me check on your financial goals! 📊
+      message: `Aquí está el avance de tus metas financieras 📊
 
-**Current Progress:**
-${context.financialGoals?.map(g => `• **${g.name}**: ${g.progress}% complete`).join('\n') || '• No goals set yet - would you like to create one?'}
+**Progreso actual:**
+${context.financialGoals?.map(g => `• **${g.name}**: ${g.progress}% completado`).join('\n') || '• Aún no tienes metas; ¿quieres crear una?'}
 
-**Insights:**
-At your current savings rate of ${context.savingsRate || 28}%, you're making excellent progress. Your net worth of **$${(context.netWorth || 142350).toLocaleString()}** puts you in a strong position.
+**Resumen:**
+Con una tasa de ahorro del ${context.savingsRate || 28}% vas muy bien. Tu patrimonio de **$${(context.netWorth || 142350).toLocaleString()}** te deja en buena posición.
 
-Keep it up! Would you like to add a new goal or adjust your existing ones?`,
+¿Quieres agregar una meta nueva o ajustar las que tienes?`,
       suggestions: [
-        'Add a new savings goal',
-        'Adjust my emergency fund target',
-        'Set a vacation fund goal'
+        'Agregar una meta de ahorro',
+        'Ajustar mi fondo de emergencia',
+        'Crear meta para vacaciones'
       ],
       actionItems: [
-        { title: 'Manage goals', description: 'View and edit your financial goals', link: '/goals' },
+        { title: 'Gestionar metas', description: 'Ver y editar tus metas financieras', link: '/goals' },
       ]
     };
   }
 
   // Default response
+  const monthlySavings = ((context.monthlyIncome || 7500) - (context.monthlyExpenses || 3845)).toLocaleString();
   return {
-    message: `Hi! I'm your CODA Financial Assistant. I can help you with:
+    message: `Hola, soy tu Asistente Financiero CODA. Puedo ayudarte con:
 
-**What I can do:**
-• 💰 Analyze your spending and find savings opportunities
-• 💳 Recommend credit cards and financial products
-• 📈 Help you reach your financial goals
-• 📊 Explain your credit score and how to improve it
+**Qué puedo hacer:**
+• 💰 Analizar tus gastos y encontrar oportunidades de ahorro
+• 💳 Recomendar tarjetas y productos financieros
+• 📈 Ayudarte a cumplir tus metas financieras
+• 📊 Explicar tu puntaje de crédito y cómo mejorarlo
 
-**Your Quick Stats:**
-• Net Worth: $${(context.netWorth || 142350).toLocaleString()}
-• Monthly Savings: $${((context.monthlyIncome || 7500) - (context.monthlyExpenses || 3845)).toLocaleString()}
-• Savings Rate: ${context.savingsRate || 28}%
+**Tus números rápidos:**
+• Patrimonio: $${(context.netWorth || 142350).toLocaleString()}
+• Ahorro mensual: $${monthlySavings}
+• Tasa de ahorro: ${context.savingsRate || 28}%
 
-What would you like to know about your finances?`,
+¿Qué te gustaría saber sobre tus finanzas?`,
     suggestions: [
-      'How can I save more money?',
-      'Show me credit card offers',
-      'How am I doing compared to my goals?',
-      'What should I invest in?'
+      '¿Cómo puedo ahorrar más?',
+      'Ver ofertas de tarjetas de crédito',
+      '¿Cómo voy con mis metas?',
+      '¿En qué debería invertir?'
     ]
   };
 }
@@ -379,50 +383,45 @@ function extractSuggestions(response: string): string[] {
     }
   }
 
-  // Default suggestions if none found
+  // Default suggestions if none found (español)
   if (suggestions.length === 0) {
     return [
-      'Tell me more',
-      'How can I improve?',
-      'What else should I know?'
+      'Cuéntame más',
+      '¿Cómo puedo mejorar?',
+      '¿Qué más debería saber?'
     ];
   }
 
   return suggestions.slice(0, 3);
 }
 
-// Get quick insights (for dashboard widgets)
+// Get quick insights (for dashboard widgets) — en español
 export function getQuickInsights(context: FinancialContext): string[] {
   const insights: string[] = [];
   
-  // Savings rate insight
   if (context.savingsRate) {
     if (context.savingsRate >= 20) {
-      insights.push(`Great job! Your ${context.savingsRate}% savings rate beats the recommended 20%.`);
+      insights.push(`Muy bien: tu tasa de ahorro del ${context.savingsRate}% supera el 20% recomendado.`);
     } else {
-      insights.push(`Your savings rate is ${context.savingsRate}%. Try to reach 20% for better financial health.`);
+      insights.push(`Tu tasa de ahorro es ${context.savingsRate}%. Intenta llegar al 20% para una mejor salud financiera.`);
     }
   }
 
-  // Spending insights
   if (context.topSpendingCategories && context.topSpendingCategories.length > 0) {
     const topCategory = context.topSpendingCategories[0];
-    if (topCategory.name.toLowerCase() !== 'housing') {
-      insights.push(`Your top expense is ${topCategory.name} at $${topCategory.amount}/month. Could you reduce this?`);
-    }
+    const catName = topCategory.name === 'Housing' ? 'Vivienda' : topCategory.name === 'Food & Dining' ? 'Comida y restaurantes' : topCategory.name === 'Transportation' ? 'Transporte' : topCategory.name;
+    insights.push(`Tu mayor gasto es ${catName}: $${topCategory.amount}/mes. ¿Podrías reducirlo?`);
   }
 
-  // Coffee/dining insight (common savings opportunity)
   if (context.monthlyExpenses) {
     const potentialSavings = Math.round(context.monthlyExpenses * 0.1);
-    insights.push(`Cutting 10% from expenses would save you $${potentialSavings}/month or $${potentialSavings * 12}/year.`);
+    insights.push(`Recortar un 10% en gastos te ahorraría $${potentialSavings}/mes o $${potentialSavings * 12}/año.`);
   }
 
-  // Net worth insight
   if (context.netWorth && context.monthlyIncome) {
     const months = context.netWorth / context.monthlyIncome;
     if (months >= 6) {
-      insights.push(`Your net worth covers ${months.toFixed(0)} months of income. Great emergency fund!`);
+      insights.push(`Tu patrimonio equivale a ${months.toFixed(0)} meses de ingreso. ¡Buen fondo de emergencia!`);
     }
   }
 

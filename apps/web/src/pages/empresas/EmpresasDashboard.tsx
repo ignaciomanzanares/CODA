@@ -53,7 +53,7 @@ export default function EmpresasDashboard() {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Caja</span>
-                  <span className="font-medium">{formatCurrency(company.summary?.cashBalance ?? 0, currency)}</span>
+                  <span className="font-medium">{formatCurrency(company.summary?.cashBalance ?? 0, currency, { sourceCurrency: "CLP" })}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Transacciones</span>
@@ -92,7 +92,7 @@ export function EmpresasDashboardCompany({ companyId }: { companyId: number }) {
           <TrendingUp className="h-4 w-4 text-green-600" />
         </CardHeader>
         <CardContent>
-          <p className="text-2xl font-bold">{formatCurrency(m.revenue, currency)}</p>
+          <p className="text-2xl font-bold">{formatCurrency(m.revenue, currency, { sourceCurrency: "CLP" })}</p>
         </CardContent>
       </Card>
       <Card>
@@ -101,7 +101,7 @@ export function EmpresasDashboardCompany({ companyId }: { companyId: number }) {
           <TrendingDown className="h-4 w-4 text-red-600" />
         </CardHeader>
         <CardContent>
-          <p className="text-2xl font-bold">{formatCurrency(m.expenses, currency)}</p>
+          <p className="text-2xl font-bold">{formatCurrency(m.expenses, currency, { sourceCurrency: "CLP" })}</p>
         </CardContent>
       </Card>
       <Card>
@@ -110,7 +110,7 @@ export function EmpresasDashboardCompany({ companyId }: { companyId: number }) {
           <Wallet className="h-4 w-4 text-primary" />
         </CardHeader>
         <CardContent>
-          <p className="text-2xl font-bold">{formatCurrency(m.cashBalance, currency)}</p>
+          <p className="text-2xl font-bold">{formatCurrency(m.cashBalance, currency, { sourceCurrency: "CLP" })}</p>
         </CardContent>
       </Card>
       <Card>

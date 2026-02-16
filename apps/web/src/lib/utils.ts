@@ -7,30 +7,91 @@ export function cn(...inputs: ClassValue[]) {
 
 export type CurrencyCode = "CLP" | "USD";
 
-export function formatCurrency(amount: number, currency: CurrencyCode = "CLP"): string {
+/** Tasa USD → CLP en tiempo real (se actualiza desde CurrencyContext). Fallback 1000. */
+let currentRateUsdToClp = Number(import.meta.env.VITE_USD_TO_CLP) || 1000;
+
+/** Actualiza la tasa USD/CLP (llamado desde CurrencyProvider al obtener la cotización). */
+export function setExchangeRate(rate: number): void {
+  if (rate > 0) currentRateUsdToClp = rate;
+}
+
+/** Devuelve la tasa actual (para mostrar en UI si se quiere). */
+export function getExchangeRate(): number {
+  return currentRateUsdToClp;
+}
+
+/** Convierte USD → CLP. */
+export function usdToClp(amountUsd: number): number {
+  return Math.round(amountUsd * currentRateUsdToClp);
+}
+
+/** Convierte CLP → USD. */
+export function clpToUsd(amountClp: number): number {
+  return amountClp / currentRateUsdToClp;
+}
+
+export type SourceCurrency = "USD" | "CLP";
+
+/**
+ * Convierte amount a la moneda de visualización.
+ * - sourceCurrency "USD" (default): datos en dólares (dashboard personal, etc.).
+ * - sourceCurrency "CLP": datos ya en pesos (ej. CODA Empresas).
+ */
+function toDisplayAmount(amount: number, displayCurrency: CurrencyCode, sourceCurrency: SourceCurrency): number {
+  if (sourceCurrency === displayCurrency) return amount;
+  if (displayCurrency === "CLP" && sourceCurrency === "USD") return usdToClp(amount);
+  if (displayCurrency === "USD" && sourceCurrency === "CLP") return clpToUsd(amount);
+  return amount;
+}
+
+export interface FormatCurrencyOptions {
+  /** Moneda en la que viene el amount. Por defecto "USD" (dashboard, dividir cuenta, etc.). Usar "CLP" en Empresas. */
+  sourceCurrency?: SourceCurrency;
+}
+
+/**
+ * Formatea un monto con conversión real.
+ * Si amount está en USD y visualizas en CLP, se convierte (ej. 100 USD → $100.000).
+ * Si amount está en CLP (sourceCurrency: "CLP"), no se convierte al mostrar en CLP.
+ */
+export function formatCurrency(
+  amount: number,
+  currency: CurrencyCode = "CLP",
+  options?: FormatCurrencyOptions
+): string {
+  const source = options?.sourceCurrency ?? "USD";
+  const value = toDisplayAmount(amount, currency, source);
   if (currency === "USD") {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
-    }).format(amount);
+    }).format(value);
   }
   return new Intl.NumberFormat("es-CL", {
     style: "currency",
     currency: "CLP",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(value);
 }
 
-/** Formato corto para gráficos (ej. $1.2M, $45K o 1,2M $) */
-export function formatCurrencyShort(amount: number, currency: CurrencyCode = "CLP"): string {
-  const sym = currency === "USD" ? "$" : "$"; // CLP también se muestra como $ en Chile
-  const abs = Math.abs(amount);
-  if (abs >= 1_000_000) return `${amount < 0 ? "-" : ""}${sym}${(abs / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1_000) return `${amount < 0 ? "-" : ""}${sym}${(abs / 1_000).toFixed(0)}K`;
-  return formatCurrency(amount, currency);
+/**
+ * Formato corto para gráficos. Misma conversión que formatCurrency.
+ */
+export function formatCurrencyShort(
+  amount: number,
+  currency: CurrencyCode = "CLP",
+  options?: FormatCurrencyOptions
+): string {
+  const source = options?.sourceCurrency ?? "USD";
+  const value = toDisplayAmount(amount, currency, source);
+  const abs = Math.abs(value);
+  const sym = "$";
+  if (abs >= 1_000_000) return `${value < 0 ? "-" : ""}${sym}${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${value < 0 ? "-" : ""}${sym}${(abs / 1_000).toFixed(0)}K`;
+  return formatCurrency(amount, currency, options);
 }
 
 export function formatDate(date: Date | string): string {

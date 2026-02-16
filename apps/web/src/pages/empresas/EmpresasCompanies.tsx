@@ -70,7 +70,7 @@ export default function EmpresasCompanies() {
               <CardContent className="space-y-3 text-sm">
                 <div className="flex items-center gap-2">
                   <Wallet className="h-4 w-4 text-muted-foreground" />
-                  <span>{formatCurrency(company.summary?.cashBalance ?? 0, currency)}</span>
+                  <span>{formatCurrency(company.summary?.cashBalance ?? 0, currency, { sourceCurrency: "CLP" })}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground" />
