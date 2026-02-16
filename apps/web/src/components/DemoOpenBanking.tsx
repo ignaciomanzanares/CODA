@@ -96,25 +96,25 @@ export default function DemoOpenBanking({ onConnected }: DemoOpenBankingProps) {
               )}
               {accounts.map(a => (
                 <div key={a.id} className={`p-3 border rounded cursor-pointer ${selected===a.id? 'bg-accent' : ''}`} onClick={() => loadTransactions(a.id)}>
-                  <div className="font-medium">{a.name || a.type || 'Account'} {a.mask ? `•${a.mask}` : ''}</div>
+                  <div className="font-medium">{a.name || a.type || 'Cuenta'} {a.mask ? `•${a.mask}` : ''}</div>
                   <div className="text-xs text-muted-foreground">{a.type || ''} {a.currency? `• ${a.currency}`: ''}</div>
                 </div>
               ))}
             </div>
           </div>
           <div className="md:col-span-2">
-            <h4 className="font-semibold mb-2">Recent Transactions</h4>
+            <h4 className="font-semibold mb-2">Transacciones recientes</h4>
             {selected === null ? (
-              <div className="text-sm text-muted-foreground">Select an account to view recent transactions.</div>
+              <div className="text-sm text-muted-foreground">Elige una cuenta para ver las transacciones recientes.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left border-b">
-                      <th className="py-2 pr-4">Date</th>
-                      <th className="py-2 pr-4">Description</th>
-                      <th className="py-2 pr-4">Merchant</th>
-                      <th className="py-2 pr-4 text-right">Amount</th>
+                      <th className="py-2 pr-4">Fecha</th>
+                      <th className="py-2 pr-4">Descripción</th>
+                      <th className="py-2 pr-4">Comercio</th>
+                      <th className="py-2 pr-4 text-right">Importe</th>
                     </tr>
                   </thead>
                   <tbody>

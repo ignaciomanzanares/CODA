@@ -42,7 +42,7 @@ interface AccountBreakdownProps {
 
 const categoryConfig = {
   checking: {
-    label: "Checking Accounts",
+    label: "Cuentas corrientes",
     icon: Wallet,
     color: "bg-blue-500",
     bgColor: "bg-blue-50 dark:bg-blue-950/30",
@@ -50,7 +50,7 @@ const categoryConfig = {
     type: "asset",
   },
   savings: {
-    label: "Savings",
+    label: "Ahorro",
     icon: PiggyBank,
     color: "bg-green-500",
     bgColor: "bg-green-50 dark:bg-green-950/30",
@@ -58,7 +58,7 @@ const categoryConfig = {
     type: "asset",
   },
   investments: {
-    label: "Investments",
+    label: "Inversiones",
     icon: TrendingUp,
     color: "bg-purple-500",
     bgColor: "bg-purple-50 dark:bg-purple-950/30",
@@ -66,7 +66,7 @@ const categoryConfig = {
     type: "asset",
   },
   creditCards: {
-    label: "Credit Cards",
+    label: "Tarjetas de crédito",
     icon: CreditCard,
     color: "bg-orange-500",
     bgColor: "bg-orange-50 dark:bg-orange-950/30",
@@ -74,7 +74,7 @@ const categoryConfig = {
     type: "liability",
   },
   loans: {
-    label: "Loans & Credit Lines",
+    label: "Créditos y líneas",
     icon: Landmark,
     color: "bg-red-500",
     bgColor: "bg-red-50 dark:bg-red-950/30",
@@ -119,7 +119,7 @@ export default function AccountBreakdown({ data, totalAssets, totalLiabilities }
             <p className={cn("font-bold", config.textColor)}>
               {isLiability ? '-' : ''}{formatCurrency(category.total)}
             </p>
-            <p className="text-xs text-muted-foreground">{percentage.toFixed(0)}% of {isLiability ? 'debt' : 'assets'}</p>
+            <p className="text-xs text-muted-foreground">{percentage.toFixed(0)}% del {isLiability ? 'pasivo' : 'activo'}</p>
           </div>
         </div>
 

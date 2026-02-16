@@ -402,7 +402,7 @@ export default function BillSplit() {
         const creatorKey = String(split.createdBy ?? 'creator');
         const rawOwed = ourParticipation.amountOwed ?? (ourParticipation as { amount_owed?: number }).amount_owed;
         const amount = Number(rawOwed) || parseFloat(String(rawOwed ?? 0)) || 0;
-        if (!balances[creatorKey]) balances[creatorKey] = { name: split.createdByName || 'Bill Creator', balance: 0 };
+        if (!balances[creatorKey]) balances[creatorKey] = { name: split.createdByName || 'Creador del gasto', balance: 0 };
         balances[creatorKey].balance -= amount;
       }
     });
@@ -711,10 +711,10 @@ export default function BillSplit() {
                         <FormLabel>Forma de dividir</FormLabel>
                         <div className="grid grid-cols-4 gap-2">
                           {[
-                            { value: "equal", label: "Equal", icon: Equal },
-                            { value: "exact", label: "Exact", icon: DollarSign },
+                            { value: "equal", label: "Igual", icon: Equal },
+                            { value: "exact", label: "Exacto", icon: DollarSign },
                             { value: "percentage", label: "%", icon: Percent },
-                            { value: "shares", label: "Shares", icon: Hash },
+                            { value: "shares", label: "Partes", icon: Hash },
                           ].map(option => {
                             const Icon = option.icon;
                             return (
@@ -764,7 +764,7 @@ export default function BillSplit() {
                               render={({ field }) => (
                                 <FormItem>
                                   <FormControl>
-                                    <Input placeholder="Name" {...field} />
+                                    <Input placeholder="Nombre" {...field} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -777,7 +777,7 @@ export default function BillSplit() {
                                 render={({ field }) => (
                                   <FormItem>
                                     <FormControl>
-                                      <Input placeholder="Email" {...field} />
+                                      <Input placeholder="Correo" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -837,7 +837,7 @@ export default function BillSplit() {
                             
                             // Calculate amounts for all participants (creator + others)
                             const allParticipants = [
-                              { name: `${creatorName} (you)`, shareValue: watchParticipants[0]?.shareValue, isCreator: true },
+                              { name: `${creatorName} (tú)`, shareValue: watchParticipants[0]?.shareValue, isCreator: true },
                               ...watchParticipants.map((p, i) => ({ ...p, isCreator: false }))
                             ];
                             
@@ -1074,11 +1074,11 @@ export default function BillSplit() {
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-semibold flex items-center gap-2">
                         <Share2 className="h-4 w-4 text-primary" />
-                        Share with Friends
+                        Compartir con amigos
                       </h4>
                     </div>
                     <p className="text-sm text-muted-foreground mb-3">
-                      Send this link to friends so they can view the bill and pay their share
+                      Envía este enlace a tus amigos para que vean la cuenta y paguen su parte
                     </p>
                     <div className="flex gap-2">
                       <Input 
@@ -1092,8 +1092,8 @@ export default function BillSplit() {
                         onClick={() => {
                           navigator.clipboard.writeText(`${window.location.origin}/split/${selectedExpense.shareCode}`);
                           toast({
-                            title: "Link copied!",
-                            description: "Share link copied to clipboard",
+                            title: "¡Enlace copiado!",
+                            description: "Enlace copiado al portapapeles",
                           });
                         }}
                       >
@@ -1120,7 +1120,7 @@ export default function BillSplit() {
                           <div>
                             <p className="font-medium">{p.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              {p.isPaid ? `Paid ${formatCurrency(parseFloat(String(p.amountPaid || p.amountOwed)) || 0)}` : `Owes ${formatCurrency(parseFloat(String(p.amountOwed)) || 0)}`}
+                              {p.isPaid ? `Pagado ${formatCurrency(parseFloat(String(p.amountPaid || p.amountOwed)) || 0)}` : `Debe ${formatCurrency(parseFloat(String(p.amountOwed)) || 0)}`}
                             </p>
                           </div>
                         </div>

@@ -40,7 +40,7 @@ export default function PaymentDialog({
       id: 'venmo',
       name: 'Venmo',
       icon: <Smartphone className="w-5 h-5" />,
-      description: 'Quick mobile payments',
+      description: 'Pagos rápidos desde el móvil',
       url: `https://venmo.com/`,
       color: 'bg-blue-500 hover:bg-blue-600',
       isPopular: true
@@ -49,7 +49,7 @@ export default function PaymentDialog({
       id: 'paypal',
       name: 'PayPal',
       icon: <CreditCard className="w-5 h-5" />,
-      description: 'Secure online payments',
+      description: 'Pagos seguros en línea',
       url: `https://www.paypal.com/paypalme/`,
       color: 'bg-blue-600 hover:bg-blue-700',
       isPopular: true
@@ -58,7 +58,7 @@ export default function PaymentDialog({
       id: 'zelle',
       name: 'Zelle',
       icon: <Smartphone className="w-5 h-5" />,
-      description: 'Bank-to-bank transfer',
+      description: 'Transferencia entre bancos',
       url: `https://www.zellepay.com/`,
       color: 'bg-purple-500 hover:bg-purple-600'
     },
@@ -66,7 +66,7 @@ export default function PaymentDialog({
       id: 'cashapp',
       name: 'Cash App',
       icon: <Smartphone className="w-5 h-5" />,
-      description: 'Mobile payments',
+      description: 'Pagos desde el móvil',
       url: `https://cash.app/`,
       color: 'bg-green-500 hover:bg-green-600'
     },
@@ -74,7 +74,7 @@ export default function PaymentDialog({
       id: 'apple-pay',
       name: 'Apple Pay',
       icon: <Smartphone className="w-5 h-5" />,
-      description: 'Apple device payments',
+      description: 'Pagos con dispositivos Apple',
       url: `https://www.apple.com/apple-pay/`,
       color: 'bg-gray-800 hover:bg-gray-900'
     },
@@ -82,7 +82,7 @@ export default function PaymentDialog({
       id: 'google-pay',
       name: 'Google Pay',
       icon: <Smartphone className="w-5 h-5" />,
-      description: 'Android payments',
+      description: 'Pagos con Android',
       url: `https://pay.google.com/`,
       color: 'bg-red-500 hover:bg-red-600'
     }
@@ -104,7 +104,7 @@ export default function PaymentDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center">
-            💰 Pay Your Share
+            💰 Paga tu parte
           </DialogTitle>
         </DialogHeader>
         
@@ -113,19 +113,19 @@ export default function PaymentDialog({
           <div className="bg-gray-50 p-4 rounded-lg text-center">
             <h3 className="font-semibold text-lg">{billName}</h3>
             <p className="text-gray-600 text-sm">
-              {creatorName && `Requested by ${creatorName}`}
+              {creatorName && `Solicitado por ${creatorName}`}
             </p>
             <div className="text-3xl font-bold text-green-600 mt-2">
               ${amount}
             </div>
             <p className="text-sm text-gray-500">
-              Your share of the bill
+              Tu parte del gasto
             </p>
           </div>
 
           {/* Payment Options */}
           <div>
-            <h4 className="font-medium mb-3 text-center">Choose your payment method:</h4>
+            <h4 className="font-medium mb-3 text-center">Elige tu método de pago:</h4>
             <div className="grid grid-cols-2 gap-3">
               {paymentOptions.map((option) => (
                 <Button
@@ -153,12 +153,12 @@ export default function PaymentDialog({
 
           {/* Instructions */}
           <div className="bg-blue-50 p-3 rounded-lg text-sm">
-            <p className="text-blue-800 font-medium mb-1">How to pay:</p>
+            <p className="text-blue-800 font-medium mb-1">Cómo pagar:</p>
             <ol className="text-blue-700 space-y-1">
-              <li>1. Choose a payment method above</li>
-              <li>2. Send ${amount} to {creatorName || 'the bill creator'}</li>
-              <li>3. Include &quot;{billName}&quot; in the memo/note</li>
-              <li>4. Click &quot;I Paid&quot; below when done</li>
+              <li>1. Elige un método de pago arriba</li>
+              <li>2. Envía ${amount} a {creatorName || 'el creador del gasto'}</li>
+              <li>3. Incluye &quot;{billName}&quot; en el concepto o nota</li>
+              <li>4. Haz clic en &quot;Ya pagué&quot; cuando termines</li>
             </ol>
           </div>
 
@@ -169,19 +169,19 @@ export default function PaymentDialog({
               onClick={onClose}
               className="flex-1"
             >
-              Cancel
+              Cancelar
             </Button>
             <Button
               onClick={handleMarkAsPaid}
               className="flex-1 bg-green-600 hover:bg-green-700"
             >
               <CreditCard className="w-4 h-4 mr-2" />
-              I Paid
+              Ya pagué
             </Button>
           </div>
 
           <p className="text-xs text-gray-500 text-center">
-            CODA doesn&apos;t process payments directly. You&apos;ll be redirected to your chosen payment app.
+            CODA no procesa pagos directamente. Serás redirigido a la app de pago que elijas.
           </p>
         </div>
       </DialogContent>

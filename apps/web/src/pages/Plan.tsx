@@ -146,9 +146,9 @@ export default function Plan() {
         recommendations.push({
           id: 3,
           icon: <ShieldCheck />,
-          title: "Complete Your Insurance Coverage",
-          description: "Based on your risk profile, adding umbrella insurance could protect your growing assets.",
-          actionText: "Get Quotes",
+          title: "Completa tu cobertura de seguros",
+          description: "Según tu perfil de riesgo, un seguro de responsabilidad civil podría proteger tu patrimonio.",
+          actionText: "Pedir cotizaciones",
           actionLink: "/products?category=insurance",
         });
       }
@@ -158,18 +158,18 @@ export default function Plan() {
     recommendations.push({
       id: 4,
       icon: <Home />,
-      title: "Explore First-Time Buyer Programs",
-      description: "Based on your income and credit, you may qualify for programs with 3% down payment and lower rates.",
-      actionText: "Check Eligibility",
+      title: "Explora programas para compradores primerizos",
+      description: "Según tus ingresos y crédito, podrías calificar para programas con 3% de pie y tasas más bajas.",
+      actionText: "Ver elegibilidad",
       actionLink: "/products?category=mortgage",
     });
 
     recommendations.push({
       id: 5,
       icon: <GraduationCap />,
-      title: "Optimize Student Loan Repayment",
-      description: "Refinancing at current rates could save you $2,400 over the life of your loans.",
-      actionText: "Compare Rates",
+      title: "Optimiza el pago de créditos estudiantiles",
+      description: "Refinanciar a tasas actuales podría ahorrarte $2.400 durante la vida del crédito.",
+      actionText: "Comparar tasas",
       actionLink: "/products?category=loans",
     });
 
@@ -232,9 +232,9 @@ export default function Plan() {
       <div className="container py-8 space-y-6">
         {!isAuthenticated && (
           <SignInBanner 
-            title="Viewing Demo Financial Plan"
-            description="You're seeing sample data. Sign in to get personalized recommendations based on your actual financial situation."
-            actionText="Sign In for Personalized Plan"
+            title="Viendo plan financiero de demostración"
+            description="Estás viendo datos de ejemplo. Inicia sesión para recibir recomendaciones personalizadas según tu situación real."
+            actionText="Iniciar sesión para plan personalizado"
           />
         )}
         
@@ -245,8 +245,8 @@ export default function Plan() {
               <Target className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">Financial Plan</h1>
-              <p className="text-muted-foreground">Track, budget, and reach your financial goals</p>
+              <h1 className="text-3xl font-bold">Plan financiero</h1>
+              <p className="text-muted-foreground">Sigue, presupuesta y alcanza tus metas financieras</p>
             </div>
           </div>
         </div>
@@ -256,18 +256,18 @@ export default function Plan() {
           <TabsList className="grid w-full max-w-lg grid-cols-3">
             <TabsTrigger value="recommendations" className="flex items-center gap-2">
               <Lightbulb className="h-4 w-4" />
-              <span className="hidden sm:inline">Recommendations</span>
+              <span className="hidden sm:inline">Recomendaciones</span>
               <span className="sm:hidden">Tips</span>
             </TabsTrigger>
             <TabsTrigger value="monthly" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              <span className="hidden sm:inline">Monthly Budget</span>
-              <span className="sm:hidden">Budget</span>
+              <span className="hidden sm:inline">Presupuesto mensual</span>
+              <span className="sm:hidden">Presupuesto</span>
             </TabsTrigger>
             <TabsTrigger value="annual" className="flex items-center gap-2">
               <LineChart className="h-4 w-4" />
-              <span className="hidden sm:inline">Annual Plan</span>
-              <span className="sm:hidden">Annual</span>
+              <span className="hidden sm:inline">Plan anual</span>
+              <span className="sm:hidden">Anual</span>
             </TabsTrigger>
           </TabsList>
 
@@ -280,11 +280,11 @@ export default function Plan() {
                     <DollarSign className="h-6 w-6 text-blue-600" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-semibold mb-2">Your Personalized Financial Plan</h2>
+                    <h2 className="text-xl font-semibold mb-2">Tu plan financiero personalizado</h2>
                     <p className="text-muted-foreground">
-                      Based on your financial profile, we've identified {recommendations.length} opportunities 
-                      to optimize your finances. Following these recommendations could save you an estimated 
-                      <strong className="text-foreground"> $3,600+ per year</strong>.
+                      Según tu perfil financiero, hemos identificado {recommendations.length} oportunidades 
+                      para optimizar tus finanzas. Seguir estas recomendaciones podría ahorrarte aproximadamente 
+                      <strong className="text-foreground"> $3.600+ al año</strong>.
                     </p>
                   </div>
                 </div>
@@ -296,7 +296,7 @@ export default function Plan() {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Lightbulb className="h-5 w-5 text-yellow-500" />
-                  Smart Recommendations
+                  Recomendaciones inteligentes
                 </h3>
                 {recommendations.map((rec) => (
                   <RecommendationCard
@@ -314,7 +314,7 @@ export default function Plan() {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Target className="h-5 w-5 text-green-500" />
-                  Goals Timeline
+                  Línea de tiempo de metas
                 </h3>
                 <Card>
                   <CardContent className="p-6">
@@ -323,14 +323,14 @@ export default function Plan() {
                     ) : (
                       <div className="text-center py-8 text-muted-foreground">
                         <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>No goals set yet</p>
-                        <p className="text-sm">Create your first financial goal to see your timeline</p>
+                        <p>Aún no hay metas definidas</p>
+                        <p className="text-sm">Crea tu primera meta financiera para ver la línea de tiempo</p>
                       </div>
                     )}
                     <div className="mt-6 pt-4 border-t">
                       <Link href="/goals">
                         <Button variant="outline" className="w-full">
-                          Manage Goals
+                          Gestionar metas
                         </Button>
                       </Link>
                     </div>

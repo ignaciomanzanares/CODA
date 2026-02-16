@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api";
 
 function bandForPD(pd: number) {
-  if (pd < 0.05) return { label: "Low", color: "text-emerald-600", ring: "#10b981" };
-  if (pd < 0.15) return { label: "Moderate", color: "text-amber-600", ring: "#f59e0b" };
-  if (pd < 0.30) return { label: "High", color: "text-orange-600", ring: "#f97316" };
-  return { label: "Very High", color: "text-red-600", ring: "#ef4444" };
+  if (pd < 0.05) return { label: "Bajo", color: "text-emerald-600", ring: "#10b981" };
+  if (pd < 0.15) return { label: "Moderado", color: "text-amber-600", ring: "#f59e0b" };
+  if (pd < 0.30) return { label: "Alto", color: "text-orange-600", ring: "#f97316" };
+  return { label: "Muy alto", color: "text-red-600", ring: "#ef4444" };
 }
 
 export default function PDOverview() {
@@ -30,7 +30,7 @@ export default function PDOverview() {
       setReasons(Array.isArray(data.reasons) ? data.reasons : []);
       setFeatures(data.features || null);
     } catch {
-      setError("Failed to fetch PD");
+      setError("Error al cargar el PD");
     } finally {
       setLoading(false);
     }
@@ -74,16 +74,16 @@ export default function PDOverview() {
       <CardContent className="p-6 space-y-4">
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-lg font-bold">Default Risk</h3>
-            <div className={`text-sm ${band.color}`}>{band.label} risk</div>
+            <h3 className="text-lg font-bold">Riesgo de impago</h3>
+            <div className={`text-sm ${band.color}`}>Riesgo {band.label}</div>
           </div>
           <div className="flex items-center gap-2">
             <select className="border rounded px-2 py-1 text-sm" value={model} onChange={(e)=>setModel(e.target.value as any)}>
               <option value="baseline">Baseline</option>
               <option value="xgb">XGBoost</option>
             </select>
-            <Button variant="outline" size="sm" onClick={()=>setShowFeatures(v=>!v)}>Features</Button>
-            <Button variant="outline" size="sm" onClick={fetchPD} disabled={loading}>{loading? 'Updating…':'Refresh'}</Button>
+            <Button variant="outline" size="sm" onClick={()=>setShowFeatures(v=>!v)}>Variables</Button>
+            <Button variant="outline" size="sm" onClick={fetchPD} disabled={loading}>{loading? 'Actualizando…':'Actualizar'}</Button>
           </div>
         </div>
 
@@ -94,7 +94,7 @@ export default function PDOverview() {
             <div className="relative w-40 h-40 rounded-full" style={ringStyle}>
               <div className="absolute inset-2 bg-white rounded-full flex flex-col items-center justify-center">
                 <div className="text-3xl font-bold">{percent}%</div>
-                <div className="text-xs text-muted-foreground">Probability of default</div>
+                <div className="text-xs text-muted-foreground">Probabilidad de impago</div>
               </div>
             </div>
           </div>
@@ -109,7 +109,7 @@ export default function PDOverview() {
               </div>
             )}
             <div>
-              <div className="text-sm font-semibold mb-2">{model === 'xgb' ? 'Top contributing features' : 'Top factors'}</div>
+              <div className="text-sm font-semibold mb-2">{model === 'xgb' ? 'Variables más relevantes' : 'Principales factores'}</div>
               {topItems && topItems.length > 0 ? (
                 <ul className="space-y-1">
                   {topItems.slice(0,6).map((it:any) => (

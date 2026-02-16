@@ -32,18 +32,18 @@ export default function Onboarding() {
   }, [isConnected, active]);
 
   const steps = [
-    { id: 1, label: "Connect", state: isConnected ? "done" : active === 1 ? "active" : "active" as const },
-    { id: 2, label: "Analyze", state: active >= 2 ? "active" : "locked" as const },
-    { id: 3, label: "Compare", state: active >= 3 ? "active" : "locked" as const },
-    { id: 4, label: "Plan", state: active >= 4 ? "active" : "locked" as const },
+    { id: 1, label: "Conectar", state: isConnected ? "done" : active === 1 ? "active" : "active" as const },
+    { id: 2, label: "Analizar", state: active >= 2 ? "active" : "locked" as const },
+    { id: 3, label: "Comparar", state: active >= 3 ? "active" : "locked" as const },
+    { id: 4, label: "Planificar", state: active >= 4 ? "active" : "locked" as const },
   ];
 
   return (
     <div id="onboarding-section" className="mb-12">
       <div className="bg-white shadow rounded-lg p-6 mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2 font-sans">Welcome to CODA</h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-2 font-sans">Bienvenido a CODA</h2>
         <p className="text-gray-600 mb-6">
-          Connect your accounts, analyze your default risk, compare products, and plan your goals.
+          Conecta tus cuentas, analiza tu riesgo de impago, compara productos y planifica tus metas.
         </p>
 
         <ProgressIndicator steps={steps as any} onSelect={(id) => setActive(id as any)} />
@@ -57,8 +57,8 @@ export default function Onboarding() {
             </Card>
             <Card className="opacity-60 pointer-events-none">
               <CardContent className="p-6">
-                <div className="font-semibold">Other Banks</div>
-                <div className="text-sm text-muted-foreground">Sandbox connectors coming soon.</div>
+                <div className="font-semibold">Otros bancos</div>
+                <div className="text-sm text-muted-foreground">Conectores en sandbox próximamente.</div>
               </CardContent>
             </Card>
           </div>
@@ -72,8 +72,8 @@ export default function Onboarding() {
               <InsuranceRiskCard />
             </div>
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setActive(1)}>Back</Button>
-              <Button onClick={() => setActive(3)}>Next: Compare</Button>
+              <Button variant="outline" onClick={() => setActive(1)}>Atrás</Button>
+              <Button onClick={() => setActive(3)}>Siguiente: Comparar</Button>
             </div>
           </div>
         )}
@@ -82,8 +82,8 @@ export default function Onboarding() {
           <div className="mt-6 space-y-6">
             <Products />
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setActive(2)}>Back</Button>
-              <Button onClick={() => setActive(4)}>Next: Plan</Button>
+              <Button variant="outline" onClick={() => setActive(2)}>Atrás</Button>
+              <Button onClick={() => setActive(4)}>Siguiente: Planificar</Button>
             </div>
           </div>
         )}
@@ -92,7 +92,7 @@ export default function Onboarding() {
           <div className="mt-6 space-y-6">
             <FinancialGoalsCard />
             <div className="flex justify-start">
-              <Button variant="outline" onClick={() => setActive(3)}>Back</Button>
+              <Button variant="outline" onClick={() => setActive(3)}>Atrás</Button>
             </div>
           </div>
         )}

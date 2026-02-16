@@ -1,22 +1,25 @@
 import { sql } from "drizzle-orm";
+import { createRequire } from "module";
 
-// --- Environment-aware table factory ---
+const require = createRequire(import.meta.url);
+
+// --- Environment-aware table factory (sync for drizzle-kit compatibility) ---
 const isProd = process.env.NODE_ENV === 'production' || (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgres'));
 let table: any, serialOrInt: any, text: any, integer: any, real: any;
 if (isProd) {
-  const pgCore = await import('drizzle-orm/pg-core');
-  table = (pgCore as any).pgTable;
-  serialOrInt = (pgCore as any).serial;
-  text = (pgCore as any).text;
-  integer = (pgCore as any).integer;
-  real = (pgCore as any).real;
+  const pgCore = require('drizzle-orm/pg-core');
+  table = pgCore.pgTable;
+  serialOrInt = pgCore.serial;
+  text = pgCore.text;
+  integer = pgCore.integer;
+  real = pgCore.real;
 } else {
-  const sqliteCore = await import('drizzle-orm/sqlite-core');
-  table = (sqliteCore as any).sqliteTable;
-  integer = (sqliteCore as any).integer;
-  text = (sqliteCore as any).text;
-  real = (sqliteCore as any).real;
-  serialOrInt = (name: string) => (integer as any)(name, { mode: 'number' }).primaryKey({ autoIncrement: true });
+  const sqliteCore = require('drizzle-orm/sqlite-core');
+  table = sqliteCore.sqliteTable;
+  integer = sqliteCore.integer;
+  text = sqliteCore.text;
+  real = sqliteCore.real;
+  serialOrInt = (name: string) => integer(name, { mode: 'number' }).primaryKey({ autoIncrement: true });
 }
 
 // --- Table Definitions ---
@@ -244,4 +247,221 @@ export const auditLogs = table('audit_logs', {
   timestamp: text('timestamp').default(sql`CURRENT_TIMESTAMP`).notNull(),
   details: text('details'),
   ip: text('ip'),
+});
+
+// =============================================================================
+// CODA EMPRESAS (misma BD, prefijo empresas_)
+// =============================================================================
+
+export const empresasCompanies = table('empresas_companies', {
+  id: serialOrInt('id'),
+  name: text('name').notNull(),
+  rut: text('rut').notNull(),
+  industry: text('industry'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasUsers = table('empresas_users', {
+  id: serialOrInt('id'),
+  email: text('email').notNull(),
+  passwordHash: text('password_hash').notNull(),
+  name: text('name').notNull(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasMemberships = table('empresas_memberships', {
+  id: serialOrInt('id'),
+  userId: integer('user_id').notNull().references(() => empresasUsers.id),
+  companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
+  role: text('role').notNull(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasAuditLogs = table('empresas_audit_logs', {
+  id: serialOrInt('id'),
+  companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
+  userId: integer('user_id').references(() => empresasUsers.id),
+  action: text('action').notNull(),
+  entityType: text('entity_type'),
+  entityId: integer('entity_id'),
+  metadata: text('metadata'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasBankAccounts = table('empresas_bank_accounts', {
+  id: serialOrInt('id'),
+  companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
+  bankName: text('bank_name').notNull(),
+  accountNumber: text('account_number').notNull(),
+  accountType: text('account_type'),
+  currency: text('currency').default('CLP').notNull(),
+  isActive: integer('is_active'),
+  lastSyncAt: text('last_sync_at'),
+  syncCursor: text('sync_cursor'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasBankTransactions = table('empresas_bank_transactions', {
+  id: serialOrInt('id'),
+  companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
+  bankAccountId: integer('bank_account_id').notNull().references(() => empresasBankAccounts.id),
+  externalId: text('external_id'),
+  transactionDate: text('transaction_date').notNull(),
+  postedDate: text('posted_date'),
+  amount: real('amount').notNull(),
+  currency: text('currency').default('CLP').notNull(),
+  description: text('description'),
+  counterpartyName: text('counterparty_name'),
+  counterpartyRut: text('counterparty_rut'),
+  reference: text('reference'),
+  status: text('status'),
+  category: text('category'),
+  rawData: text('raw_data'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasBankBalances = table('empresas_bank_balances', {
+  id: serialOrInt('id'),
+  bankAccountId: integer('bank_account_id').notNull().references(() => empresasBankAccounts.id),
+  balanceDate: text('balance_date').notNull(),
+  availableBalance: real('available_balance'),
+  currentBalance: real('current_balance'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasDteDocuments = table('empresas_dte_documents', {
+  id: serialOrInt('id'),
+  companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
+  documentType: text('document_type').notNull(),
+  direction: text('direction').notNull(),
+  folio: integer('folio').notNull(),
+  emitterRut: text('emitter_rut').notNull(),
+  emitterName: text('emitter_name'),
+  receiverRut: text('receiver_rut').notNull(),
+  receiverName: text('receiver_name'),
+  issueDate: text('issue_date').notNull(),
+  netAmount: real('net_amount').notNull(),
+  vatAmount: real('vat_amount'),
+  totalAmount: real('total_amount').notNull(),
+  currency: text('currency').default('CLP').notNull(),
+  status: text('status'),
+  references: text('references'),
+  rawPayload: text('raw_payload'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasPurchaseOrders = table('empresas_purchase_orders', {
+  id: serialOrInt('id'),
+  companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
+  poNumber: text('po_number').notNull(),
+  customerRut: text('customer_rut').notNull(),
+  customerName: text('customer_name'),
+  currency: text('currency').default('CLP').notNull(),
+  totalAmount: real('total_amount').notNull(),
+  invoicedAmount: real('invoiced_amount'),
+  expectedInvoiceDate: text('expected_invoice_date'),
+  status: text('status'),
+  notes: text('notes'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasReconciliationMatches = table('empresas_reconciliation_matches', {
+  id: serialOrInt('id'),
+  companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
+  bankTransactionId: integer('bank_transaction_id').notNull().references(() => empresasBankTransactions.id),
+  dteDocumentId: integer('dte_document_id').references(() => empresasDteDocuments.id),
+  matchScore: real('match_score'),
+  matchType: text('match_type'),
+  matchStatus: text('match_status'),
+  matchedBy: integer('matched_by').references(() => empresasUsers.id),
+  matchedAt: text('matched_at'),
+  notes: text('notes'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasReconciliationRules = table('empresas_reconciliation_rules', {
+  id: serialOrInt('id'),
+  companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
+  name: text('name').notNull(),
+  priority: integer('priority'),
+  conditions: text('conditions').notNull(),
+  isActive: integer('is_active'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasChartOfAccounts = table('empresas_chart_of_accounts', {
+  id: serialOrInt('id'),
+  companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
+  code: text('code').notNull(),
+  name: text('name').notNull(),
+  accountType: text('account_type').notNull(),
+  parentId: integer('parent_id'),
+  isActive: integer('is_active'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasVendorCategoryMappings = table('empresas_vendor_category_mappings', {
+  id: serialOrInt('id'),
+  companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
+  vendorRut: text('vendor_rut'),
+  category: text('category'),
+  accountId: integer('account_id').notNull().references(() => empresasChartOfAccounts.id),
+  classification: text('classification'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasAccountingPeriods = table('empresas_accounting_periods', {
+  id: serialOrInt('id'),
+  companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
+  periodStart: text('period_start').notNull(),
+  periodEnd: text('period_end').notNull(),
+  status: text('status'),
+  closedAt: text('closed_at'),
+  closedBy: integer('closed_by').references(() => empresasUsers.id),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasJournalEntries = table('empresas_journal_entries', {
+  id: serialOrInt('id'),
+  companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
+  periodId: integer('period_id').references(() => empresasAccountingPeriods.id),
+  entryDate: text('entry_date').notNull(),
+  description: text('description'),
+  sourceType: text('source_type'),
+  sourceId: integer('source_id'),
+  isPosted: integer('is_posted'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasJournalLines = table('empresas_journal_lines', {
+  id: serialOrInt('id'),
+  journalEntryId: integer('journal_entry_id').notNull().references(() => empresasJournalEntries.id),
+  accountId: integer('account_id').notNull().references(() => empresasChartOfAccounts.id),
+  debit: real('debit'),
+  credit: real('credit'),
+  description: text('description'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasRiskScores = table('empresas_risk_scores', {
+  id: serialOrInt('id'),
+  companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
+  assessmentDate: text('assessment_date').notNull(),
+  overallScore: real('overall_score'),
+  rating: text('rating'),
+  factors: text('factors').notNull(),
+  redFlags: text('red_flags'),
+  recommendations: text('recommendations'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const empresasRiskFactors = table('empresas_risk_factors', {
+  id: serialOrInt('id'),
+  name: text('name').notNull(),
+  category: text('category').notNull(),
+  weight: real('weight'),
+  formula: text('formula'),
+  thresholds: text('thresholds'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

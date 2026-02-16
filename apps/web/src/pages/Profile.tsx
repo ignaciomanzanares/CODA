@@ -180,7 +180,7 @@ export default function Profile() {
         : "Your account has been permanently deleted. You will now be logged out.";
       
       toast({
-        title: "Account deleted",
+        title: "Cuenta eliminada",
         description,
         variant: "destructive",
       });
@@ -334,7 +334,7 @@ export default function Profile() {
                   Account Information
                 </CardTitle>
                 <CardDescription>
-                  View your account details and status
+                  Ver detalles y estado de tu cuenta
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -347,7 +347,7 @@ export default function Profile() {
                 <div className="space-y-2">
                   <Label>Login Provider</Label>
                   <div className="text-sm text-gray-600">
-                    📧 Email/Password
+                    📧 Correo y contraseña
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -372,15 +372,15 @@ export default function Profile() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Lock className="h-5 w-5 mr-2" />
-                  Password & Security
+                  Contraseña y seguridad
                 </CardTitle>
                 <CardDescription>
-                  Manage your password and security settings
+                  Gestiona tu contraseña y opciones de seguridad
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Password</Label>
+                  <Label>Contraseña</Label>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
                     <span className="text-sm text-gray-600">••••••••</span>
                     <Button variant="outline" size="sm" onClick={handlePasswordChange}>
@@ -390,25 +390,25 @@ export default function Profile() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Two-Factor Authentication</Label>
+                  <Label>Autenticación en dos pasos</Label>
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm text-gray-600">Not enabled</span>
-                      <p className="text-xs text-gray-500">Add extra security to your account</p>
+                      <span className="text-sm text-gray-600">No activada</span>
+                      <p className="text-xs text-gray-500">Añade seguridad extra a tu cuenta</p>
                     </div>
                     <Button variant="outline" size="sm" onClick={handleEnable2FA}>
                       <Shield className="h-4 w-4 mr-2" />
-                      Enable 2FA
+                      Activar 2FA
                     </Button>
                   </div>
                 </div>
                 <Separator />
                 <div className="space-y-2">
-                  <Label>Active Sessions</Label>
+                  <Label>Sesiones activas</Label>
                   <div className="text-sm text-gray-600">
                     <div className="flex items-center justify-between p-2 bg-green-50 rounded">
-                      <span>Current Session</span>
-                      <Badge variant="secondary">Active</Badge>
+                      <span>Sesión actual</span>
+                      <Badge variant="secondary">Activa</Badge>
                     </div>
                   </div>
                 </div>
@@ -419,36 +419,36 @@ export default function Profile() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Shield className="h-5 w-5 mr-2" />
-                  Security Settings
+                  Configuración de seguridad
                 </CardTitle>
                 <CardDescription>
-                  Configure additional security options
+                  Configura opciones de seguridad adicionales
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Login Notifications</Label>
+                  <Label>Notificaciones de inicio de sesión</Label>
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm text-gray-600">Notificaciones por correo al iniciar sesión</span>
-                      <p className="text-xs text-gray-500">Get notified of suspicious activity</p>
+                      <p className="text-xs text-gray-500">Recibe avisos ante actividad sospechosa</p>
                     </div>
                     <Button variant="outline" size="sm" onClick={handleComingSoon}>
                       <Bell className="h-4 w-4 mr-2" />
-                      Configure
+                      Configurar
                     </Button>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Account Recovery</Label>
+                  <Label>Recuperación de cuenta</Label>
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm text-gray-600">Recovery email: {user?.email}</span>
-                      <p className="text-xs text-gray-500">Managed by Auth0</p>
+                      <span className="text-sm text-gray-600">Correo de recuperación: {user?.email}</span>
+                      <p className="text-xs text-gray-500">Gestionado por Auth0</p>
                     </div>
                     <Button variant="outline" size="sm" onClick={handleComingSoon}>
                       <Key className="h-4 w-4 mr-2" />
-                      Update
+                      Actualizar
                     </Button>
                   </div>
                 </div>
@@ -464,10 +464,10 @@ export default function Profile() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Settings className="h-5 w-5 mr-2" />
-                  Application Preferences
+                  Preferencias de la aplicación
                 </CardTitle>
                 <CardDescription>
-                  Customize your app experience
+                  Personaliza tu experiencia en la app
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -479,9 +479,9 @@ export default function Profile() {
                     value={profileData.language}
                     onChange={(e) => setProfileData({...profileData, language: e.target.value})}
                   >
-                    <option value="English">English</option>
-                    <option value="Spanish">Spanish</option>
-                    <option value="French">French</option>
+                    <option value="English">Inglés</option>
+                    <option value="Spanish">Español</option>
+                    <option value="French">Francés</option>
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -493,27 +493,27 @@ export default function Profile() {
                     onChange={(e) => setProfileData({...profileData, timezone: e.target.value})}
                   >
                     <option value="UTC">UTC</option>
-                    <option value="America/New_York">Eastern Time</option>
-                    <option value="America/Chicago">Central Time</option>
-                    <option value="America/Denver">Mountain Time</option>
-                    <option value="America/Los_Angeles">Pacific Time</option>
+                    <option value="America/New_York">Hora del Este</option>
+                    <option value="America/Chicago">Hora Central</option>
+                    <option value="America/Denver">Hora de las Montañas</option>
+                    <option value="America/Los_Angeles">Hora del Pacífico</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Notifications</Label>
+                  <Label>Notificaciones</Label>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Notificaciones por correo</span>
                       <Button variant="outline" size="sm" onClick={handleComingSoon}>
                         <Bell className="h-4 w-4 mr-2" />
-                        Configure
+                        Configurar
                       </Button>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm">Push Notifications</span>
+                      <span className="text-sm">Notificaciones push</span>
                       <Button variant="outline" size="sm" onClick={handleComingSoon}>
                         <Bell className="h-4 w-4 mr-2" />
-                        Configure
+                        Configurar
                       </Button>
                     </div>
                   </div>
@@ -537,16 +537,16 @@ export default function Profile() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Share financial data for analysis</span>
                     <Button variant="outline" size="sm" onClick={handleComingSoon}>
-                      Configure
+                      Configurar
                     </Button>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Privacy Settings</Label>
+                  <Label>Privacidad</Label>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Manage data privacy</span>
                     <Button variant="outline" size="sm" onClick={handleComingSoon}>
-                      View Settings
+                      Ver configuración
                     </Button>
                   </div>
                 </div>

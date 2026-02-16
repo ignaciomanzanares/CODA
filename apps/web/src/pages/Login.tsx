@@ -103,7 +103,7 @@ export default function Login() {
         localStorage.setItem('user_data', JSON.stringify(data.user));
         
         toast({
-          title: "Login successful",
+          title: "Sesión iniciada",
           description: "Welcome back!",
         });
         
@@ -151,7 +151,7 @@ export default function Login() {
     try {
       await login(demoUser.email, demoUser.password);
       toast({
-        title: "Login successful",
+        title: "Sesión iniciada",
         description: `¡Bienvenido, ${demoUser.name}!`,
       });
       setLocation("/dashboard");

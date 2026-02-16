@@ -129,8 +129,8 @@ export default function FinancialAssistant({
       // Fallback response if API fails
       const fallbackMessage: Message = {
         role: 'assistant',
-        content: "I'm having trouble connecting right now. Please try again in a moment, or explore the dashboard for insights about your finances.",
-        suggestions: ['Try again', 'View Dashboard'],
+        content: "Ahora mismo no puedo conectar. Inténtalo de nuevo en un momento o explora el panel para ver información sobre tus finanzas.",
+        suggestions: ['Reintentar', 'Ver panel'],
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, fallbackMessage]);
@@ -158,19 +158,19 @@ export default function FinancialAssistant({
     if (isOpen && messages.length === 0) {
       setMessages([{
         role: 'assistant',
-        content: `Hi! I'm your CODA Financial Assistant. 👋
+        content: `¡Hola! Soy tu Asistente Financiero CODA. 👋
 
-I can help you:
-• **Analyze spending** and find savings opportunities
-• **Compare products** like credit cards and loans
-• **Track goals** and plan for the future
-• **Answer questions** about your finances
+Puedo ayudarte a:
+• **Analizar gastos** y encontrar oportunidades de ahorro
+• **Comparar productos** como tarjetas y créditos
+• **Seguir metas** y planificar el futuro
+• **Responder preguntas** sobre tus finanzas
 
-What would you like to know?`,
+¿En qué te ayudo?`,
         suggestions: [
-          'How can I save more money?',
-          'Show me credit card offers',
-          'How am I doing financially?',
+          '¿Cómo puedo ahorrar más?',
+          'Muéstrame ofertas de tarjetas',
+          '¿Cómo van mis finanzas?',
         ],
         timestamp: new Date(),
       }]);
@@ -200,8 +200,8 @@ What would you like to know?`,
             <Bot className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <h3 className="font-semibold">Financial Assistant</h3>
-            <p className="text-xs text-muted-foreground">Powered by AI</p>
+            <h3 className="font-semibold">Asistente Financiero</h3>
+            <p className="text-xs text-muted-foreground">Con tecnología de IA</p>
           </div>
         </div>
         {!embedded && (
@@ -336,14 +336,14 @@ What would you like to know?`,
           {/* Quick Insights */}
           {insightsData?.insights && messages.length === 1 && (
             <div className="px-4 pb-2">
-              <p className="text-xs text-muted-foreground mb-2">Quick Insights:</p>
+              <p className="text-xs text-muted-foreground mb-2">Resumen rápido:</p>
               <div className="flex flex-wrap gap-2">
                 {insightsData.insights.slice(0, 2).map((insight: string, i: number) => (
                   <Badge 
                     key={i} 
                     variant="secondary" 
                     className="text-xs cursor-pointer hover:bg-secondary/80"
-                    onClick={() => handleSuggestionClick(`Tell me more about: ${insight}`)}
+                    onClick={() => handleSuggestionClick(`Cuéntame más sobre: ${insight}`)}
                   >
                     {insight.substring(0, 50)}...
                   </Badge>
@@ -359,7 +359,7 @@ What would you like to know?`,
                 ref={inputRef}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Ask me anything about your finances..."
+                placeholder="Pregúntame lo que quieras sobre tus finanzas..."
                 disabled={isLoading}
                 className="flex-1"
               />
@@ -373,8 +373,8 @@ What would you like to know?`,
             </div>
             {!isAuthenticated && (
               <p className="text-xs text-muted-foreground mt-2 text-center">
-                <Link href="/login" className="text-primary hover:underline">Sign in</Link>
-                {' '}for personalized advice
+                <Link href="/login" className="text-primary hover:underline">Inicia sesión</Link>
+                {' '}para consejos personalizados
               </p>
             )}
           </form>
@@ -420,7 +420,7 @@ export function AssistantButton() {
         className="gap-2"
       >
         <Bot className="h-4 w-4" />
-        Ask Assistant
+        Consultar asistente
       </Button>
       {isOpen && (
         <FinancialAssistant 
