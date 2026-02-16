@@ -51,6 +51,7 @@ function App() {
 
         {/* Public routes */}
         <Route path="/login" component={Login} />
+        <Route path="/empresas/login" component={Login} />
         <Route path="/signup" component={SignUp} />
         <Route path="/about" component={About} />
         <Route path="/empresas" component={Empresas} />

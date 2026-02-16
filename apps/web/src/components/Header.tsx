@@ -154,7 +154,7 @@ export default function Header() {
               </div>
             </>
           ) : (
-            <Button onClick={() => setLocation("/login")}>Iniciar sesión</Button>
+            <Button onClick={() => setLocation(isEmpresas ? "/empresas/login" : "/login")}>Iniciar sesión</Button>
           )}
 
           {/* Mobile Menu Button */}
@@ -224,7 +224,7 @@ export default function Header() {
                       className="w-full" 
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setLocation("/login");
+                        setLocation(isEmpresas ? "/empresas/login" : "/login");
                       }}
                     >
                       Iniciar sesión
