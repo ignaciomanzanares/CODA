@@ -143,12 +143,14 @@ function BalanceSummaryCard({
 // Friend Balance Row
 function FriendBalanceRow({ 
   name, 
-  balance, 
+  balance,
+  currency,
   onSettleUp,
   onRemind
 }: { 
   name: string; 
-  balance: number; 
+  balance: number;
+  currency: 'CLP' | 'USD';
   onSettleUp: () => void;
   onRemind: () => void;
 }) {
@@ -1012,6 +1014,7 @@ export default function BillSplit() {
                       key={balance.userId}
                       name={balance.name}
                       balance={balance.balance}
+                      currency={currency}
                       onSettleUp={() => setIsSettleDialogOpen(true)}
                       onRemind={() => alert('¡Recordatorio enviado!')}
                     />
@@ -1153,12 +1156,12 @@ export default function BillSplit() {
                         {p.isPaid ? (
                           <Badge className="bg-green-100 text-green-700 border-0">
                             <Check className="h-3 w-3 mr-1" />
-                            Paid
+                            Pagado
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="text-muted-foreground">
                             <Clock className="h-3 w-3 mr-1" />
-                            Pending
+                            Pendiente
                           </Badge>
                         )}
                       </div>
