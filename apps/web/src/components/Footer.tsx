@@ -22,7 +22,7 @@ export default function Footer() {
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/info/credit-score" className="text-gray-300 hover:text-white">
-                  Score de crédito
+                  Motor de riesgo de crédito
                 </Link>
               </li>
               <li>

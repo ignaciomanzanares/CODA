@@ -103,7 +103,7 @@ export default function CreditScoreCard() {
         <CardHeader>
             <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-primary" />
-            Score de crédito
+            Motor de riesgo de crédito
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -114,7 +114,7 @@ export default function CreditScoreCard() {
             <p className="text-muted-foreground mb-4">
               {error instanceof Error
                 ? error.message
-                : "Conecta una cuenta bancaria para ver tu score de crédito"}
+                : "Conecta una cuenta bancaria para ver tu motor de riesgo de crédito"}
             </p>
             <Button
               variant="outline"
@@ -145,7 +145,7 @@ export default function CreditScoreCard() {
         <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-primary" />
-            Score de crédito
+            Motor de riesgo de crédito
           </CardTitle>
           <Badge 
             variant="outline" 

@@ -98,7 +98,7 @@ export default function Landing() {
             <FeatureCard
               icon={<Shield className="h-8 w-8" />}
               title="Análisis de riesgo"
-              description="Evaluación de score de crédito y riesgo de seguros con IA para decisiones informadas."
+              description="Evaluación de motor de riesgo de crédito y riesgo de seguros con IA para decisiones informadas."
               color="green"
             />
             <FeatureCard
