@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Plus, Users, DollarSign, Check, Clock, Send, 
@@ -347,10 +347,15 @@ export default function BillSplit() {
     }
   }, []);
 
-  const demoBillSplits = useMemo(
-    () => (isAuthenticated ? [] : generateDemoBillSplits()),
-    [isAuthenticated]
-  );
+  const [demoBillSplits, setDemoBillSplits] = useState<BillSplitWithParticipants[]>([]);
+
+  useEffect(() => {
+    if (isAuthenticated) return;
+    const id = requestAnimationFrame(() => {
+      setDemoBillSplits(generateDemoBillSplits());
+    });
+    return () => cancelAnimationFrame(id);
+  }, [isAuthenticated]);
 
   const { data: realBillSplits = [], isLoading, isError } = useQuery<BillSplitWithParticipants[]>({
     queryKey: ["/api/bill-splits"],
