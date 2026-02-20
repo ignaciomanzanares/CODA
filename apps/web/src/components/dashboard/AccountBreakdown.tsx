@@ -162,7 +162,7 @@ export default function AccountBreakdown({ data, totalAssets, totalLiabilities }
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Account Overview</CardTitle>
-        <CardDescription>Your accounts by category</CardDescription>
+        <CardDescription>Tus cuentas por categoría</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Assets Section */}

@@ -5,7 +5,7 @@ import { setExchangeRate } from "@/lib/utils";
 const STORAGE_KEY = "coda_currency";
 const RATE_REFRESH_MS = 60 * 60 * 1000; // 1 hora
 
-// Fuentes de tasa USD → CLP (primera que responda gana)
+// Fuentes de tasa USD → CLP (primera que responda gana). Se ejecuta en el navegador al cargar la app.
 const RATE_SOURCES: { url: string; getRate: (data: any) => number | null }[] = [
   {
     url: "https://api.frankfurter.dev/v1/latest?from=USD&to=CLP",
@@ -18,6 +18,10 @@ const RATE_SOURCES: { url: string; getRate: (data: any) => number | null }[] = [
   {
     url: "https://open.er-api.com/v6/latest/USD",
     getRate: (data) => (data?.conversion_rates?.CLP != null ? Number(data.conversion_rates.CLP) : null),
+  },
+  {
+    url: "https://cdn.moneyconvert.net/api/latest.json",
+    getRate: (data) => (data?.rates?.CLP != null ? Number(data.rates.CLP) : null),
   },
 ];
 

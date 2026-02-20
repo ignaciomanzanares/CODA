@@ -73,7 +73,8 @@ function StatCard({ title, value, subValue, change, changeType, icon: Icon, colo
 }
 
 export default function FinancialSummaryStats({ data }: FinancialSummaryStatsProps) {
-  const { currency } = useCurrency();
+  const { currency, rateUsdToClp } = useCurrency();
+  // rateUsdToClp hace que al cargar la tasa en tiempo real se re-renderice y se use en formatCurrency
   const formatCurrency = (value: number) => {
     if (currency === "CLP" && (value >= 1_000_000 || value <= -1_000_000)) {
       return formatCurrencyShort(value, "CLP");

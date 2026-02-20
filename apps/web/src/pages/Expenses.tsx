@@ -1047,7 +1047,7 @@ export default function Expenses() {
                   className="flex-1"
                   onClick={() => setIsEditDialogOpen(false)}
                 >
-                  Cancel
+                  Cancelar
                 </Button>
                 <Button 
                   type="submit" 

@@ -176,8 +176,8 @@ export default function Profile() {
 
       const localOnly = !!(result && result.localOnly);
       const description = localOnly
-        ? "Your local CODA data was removed. Authentication deletion requires admin setup. You'll be logged out."
-        : "Your account has been permanently deleted. You will now be logged out.";
+        ? "Se eliminaron tus datos locales de CODA. La eliminación de la autenticación requiere configuración del administrador. Se cerrará tu sesión."
+        : "Tu cuenta ha sido eliminada de forma permanente. Se cerrará tu sesión.";
       
       toast({
         title: "Cuenta eliminada",
@@ -193,7 +193,7 @@ export default function Profile() {
       console.error('Delete account error:', error);
       toast({
         title: "Error",
-        description: "Failed to delete account. Please try again or contact support.",
+        description: "No se pudo eliminar la cuenta. Intenta de nuevo o contacta a soporte.",
         variant: "destructive",
       });
     }
