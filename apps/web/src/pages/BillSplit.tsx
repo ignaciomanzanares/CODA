@@ -858,20 +858,16 @@ export default function BillSplit() {
                         <div className="space-y-1.5">
                           {/* Show all participants including the creator (you) */}
                           {(() => {
-                            const total = parseFloat(watchAmount || '0');
-                            const creatorName = (user as any)?.firstName || (user as any)?.username || (user as any)?.name || 'You';
-                            // Total participant count = creator + other participants
-                            const totalParticipantCount = watchParticipants.length + 1;
-                            
-                            // Calculate amounts for all participants (creator + others)
+                            const total = parseFloat(watchAmount || '0') || 0;
+                            const creatorName = (user as any)?.firstName || (user as any)?.username || (user as any)?.name || 'Tú';
+                            const totalParticipantCount = Math.max(1, watchParticipants.length + 1);
                             const allParticipants = [
                               { name: `${creatorName} (tú)`, shareValue: watchParticipants[0]?.shareValue, isCreator: true },
-                              ...watchParticipants.map((p, i) => ({ ...p, isCreator: false }))
+                              ...(watchParticipants || []).map((p) => ({ ...p, isCreator: false }))
                             ];
-                            
+                            const totalShares = allParticipants.reduce((sum, p) => sum + parseFloat(p.shareValue || '1'), 0) || 1;
                             return allParticipants.map((p, i) => {
                               let amount = 0;
-                              
                               if (watchSplitType === 'equal') {
                                 amount = total / totalParticipantCount;
                               } else if (watchSplitType === 'exact') {
@@ -879,14 +875,12 @@ export default function BillSplit() {
                               } else if (watchSplitType === 'percentage') {
                                 amount = total * (parseFloat(p.shareValue || '0') / 100);
                               } else if (watchSplitType === 'shares') {
-                                const totalShares = allParticipants.reduce((sum, p) => sum + parseFloat(p.shareValue || '1'), 0);
                                 amount = (parseFloat(p.shareValue || '1') / totalShares) * total;
                               }
-                              
                               return (
                                 <div key={i} className="flex justify-between text-sm">
                                   <span className={p.isCreator ? "text-primary font-medium" : "text-muted-foreground"}>
-                                    {p.name || `Person ${i + 1}`}
+                                    {p.name || `Persona ${i + 1}`}
                                   </span>
                                   <span className="font-medium">{formatCurrency(amount, currency)}</span>
                                 </div>

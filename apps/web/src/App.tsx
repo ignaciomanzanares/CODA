@@ -33,6 +33,7 @@ import Expenses from "@/pages/Expenses";
 import EmailInviteHandler from "@/pages/EmailInviteHandler";
 import ShareBillSplit from "@/pages/ShareBillSplit";
 import FinancialAssistant from "@/components/FinancialAssistant";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const BillSplit = lazy(() => import("@/pages/BillSplit"));
 
@@ -117,15 +118,17 @@ function App() {
                     </ProtectedRoute>
                   </Route>
                   <Route path="/bill-split">
-                    <Suspense fallback={
-                      <div className="container py-8 max-w-5xl mx-auto">
-                        <h1 className="text-3xl font-bold tracking-tight">Dividir cuenta</h1>
-                        <p className="text-muted-foreground mt-1">Cargando...</p>
-                        <div className="mt-6 h-32 bg-muted rounded animate-pulse" />
-                      </div>
-                    }>
-                      <BillSplit />
-                    </Suspense>
+                    <ErrorBoundary>
+                      <Suspense fallback={
+                        <div className="container py-8 max-w-5xl mx-auto">
+                          <h1 className="text-3xl font-bold tracking-tight">Dividir cuenta</h1>
+                          <p className="text-muted-foreground mt-1">Cargando...</p>
+                          <div className="mt-6 h-32 bg-muted rounded animate-pulse" />
+                        </div>
+                      }>
+                        <BillSplit />
+                      </Suspense>
+                    </ErrorBoundary>
                   </Route>
                   <Route path="/products">
                     <ProtectedRoute>
