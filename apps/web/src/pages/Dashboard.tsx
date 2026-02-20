@@ -146,7 +146,8 @@ export default function Dashboard() {
   }
 
   const { currency } = useCurrency();
-  const firstName = user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'usuario';
+  const rawFirst = user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'usuario';
+  const firstName = rawFirst === 'Investor' ? 'Inversor' : rawFirst;
   const greeting = new Date().getHours() < 12 ? 'Buenos días' : new Date().getHours() < 18 ? 'Buenas tardes' : 'Buenas noches';
   const annualSavings = financialData ? (financialData.summary.monthlyIncome - financialData.summary.monthlyExpenses) * 12 : 0;
 
