@@ -49,15 +49,17 @@ export default function Header() {
     setLocation("/login");
   };
 
-  // Get initials for avatar
+  // Nombre para mostrar (normalizar "Investor" → "Inversor")
+  const displayName = user?.name === 'Investor' ? 'Inversor' : (user?.name || user?.email || '');
+
   const getInitials = () => {
     if (!user) return "U";
-    if (user.name) {
-      const parts = user.name.split(' ');
+    if (displayName) {
+      const parts = displayName.split(' ');
       if (parts.length >= 2) {
         return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
       }
-      return user.name.charAt(0).toUpperCase();
+      return displayName.charAt(0).toUpperCase();
     }
     if (user.email) {
       return user.email.charAt(0).toUpperCase();
@@ -122,8 +124,12 @@ export default function Header() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                 {currency === "CLP" ? "CLP $" : "USD $"}
-                {currency === "CLP" && rateUsdToClp != null && !rateLoading && (
-                  <span className="ml-1 hidden md:inline text-xs opacity-80">1 USD = ${Number(rateUsdToClp).toLocaleString("es-CL")}</span>
+                {currency === "CLP" && !rateLoading && (
+                  rateUsdToClp != null ? (
+                    <span className="ml-1 hidden md:inline text-xs opacity-80">1 USD = ${Number(rateUsdToClp).toLocaleString("es-CL")}</span>
+                  ) : (
+                    <span className="ml-1 hidden md:inline text-xs opacity-60">(tasa aprox.)</span>
+                  )
                 )}
               </Button>
             </DropdownMenuTrigger>
@@ -146,7 +152,7 @@ export default function Header() {
               <NotificationCenter />
               <div className="hidden sm:flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-sm font-medium">{user.name || user.email}</div>
+                  <div className="text-sm font-medium">{displayName || user.email}</div>
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

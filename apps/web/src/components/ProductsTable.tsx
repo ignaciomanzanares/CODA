@@ -172,7 +172,7 @@ export default function ProductsTable({
                 ${product.monthlyPayment}
               </div>
               <div className="text-xs text-gray-500">
-                For {formatCurrencyFn(product.loanAmount)}
+                Por {formatCurrencyFn(product.loanAmount)}
               </div>
             </>
           );
@@ -191,7 +191,7 @@ export default function ProductsTable({
         const features = product.features || {};
         return (
           <div className="text-sm text-gray-900">
-            {features.rewardsRate ? `${features.rewardsRate}% Cash Back` : "None"}
+            {features.rewardsRate ? `${features.rewardsRate}% Cash Back` : "Ninguno"}
           </div>
         );
       }
@@ -199,7 +199,7 @@ export default function ProductsTable({
         const fee = (product.features?.annualFee as number) || 0;
         return (
           <div className="text-sm text-gray-900">
-            {fee > 0 ? formatCurrencyFn(fee) : "No Fee"}
+            {fee > 0 ? formatCurrencyFn(fee) : "Sin costo"}
           </div>
         );
       }
@@ -207,7 +207,7 @@ export default function ProductsTable({
         const minBalance = (product.features?.minimumBalance as number) || 0;
         return (
           <div className="text-sm text-gray-900">
-            {minBalance > 0 ? formatCurrencyFn(minBalance) : "No Minimum"}
+            {minBalance > 0 ? formatCurrencyFn(minBalance) : "Sin mínimo"}
           </div>
         );
       }
@@ -219,7 +219,7 @@ export default function ProductsTable({
         
         return (
           <div className="text-sm text-gray-900">
-            {featuresList.length > 0 ? featuresList.slice(0, 2).join(", ") : "Standard"}
+            {featuresList.length > 0 ? featuresList.slice(0, 2).join(", ") : "Estándar"}
             {featuresList.length > 2 && "..."}
           </div>
         );
@@ -227,7 +227,7 @@ export default function ProductsTable({
       case "coverage":
         return (
           <div className="text-sm text-gray-900">
-            {product.features?.replacementCost ? "Full Replacement" : "Standard"}
+            {product.features?.replacementCost ? "Reemplazo total" : "Estándar"}
           </div>
         );
       case "premium":

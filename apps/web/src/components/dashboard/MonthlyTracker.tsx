@@ -125,7 +125,7 @@ export default function MonthlyTracker({
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
-                Monthly Budget Tracker
+                Seguimiento de presupuesto mensual
               </CardTitle>
               <CardDescription>Track your spending against your budget</CardDescription>
             </div>
@@ -144,36 +144,36 @@ export default function MonthlyTracker({
           {/* Budget Overview */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-muted/50 rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">Monthly Budget</p>
+              <p className="text-sm text-muted-foreground">Presupuesto mensual</p>
               <p className="text-2xl font-bold">{formatCurrency(totalBudget)}</p>
             </div>
             <div className="bg-muted/50 rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">Spent So Far</p>
+              <p className="text-sm text-muted-foreground">Gastado hasta ahora</p>
               <p className={`text-2xl font-bold ${isOverBudget ? 'text-red-600' : ''}`}>
                 {formatCurrency(totalSpent)}
               </p>
             </div>
             <div className="bg-muted/50 rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">Remaining</p>
+              <p className="text-sm text-muted-foreground">Restante</p>
               <p className={`text-2xl font-bold ${remaining < 0 ? 'text-red-600' : 'text-green-600'}`}>
                 {formatCurrency(remaining)}
               </p>
             </div>
             <div className="bg-muted/50 rounded-lg p-4">
-              <p className="text-sm text-muted-foreground">Daily Budget Left</p>
+              <p className="text-sm text-muted-foreground">Presupuesto diario restante</p>
               <p className="text-2xl font-bold">
                 {dailyBudget > 0 ? formatCurrency(dailyBudget) : '$0'}
               </p>
-              <p className="text-xs text-muted-foreground">{daysRemaining} days remaining</p>
+              <p className="text-xs text-muted-foreground">{daysRemaining} días restantes</p>
             </div>
           </div>
 
           {/* Progress Bar */}
           <div className="space-y-2 mb-6">
             <div className="flex justify-between text-sm">
-              <span>{percentUsed.toFixed(0)}% of budget used</span>
+              <span>{percentUsed.toFixed(0)}% del presupuesto usado</span>
               <span className="text-muted-foreground">
-                {currentDay} of {daysInMonth} days ({((currentDay / daysInMonth) * 100).toFixed(0)}% of month)
+                {currentDay} de {daysInMonth} días ({((currentDay / daysInMonth) * 100).toFixed(0)}% del mes)
               </span>
             </div>
             <div className="relative">
@@ -200,10 +200,10 @@ export default function MonthlyTracker({
                 <AlertTriangle className="h-5 w-5 text-amber-600" />
                 <div>
                   <p className="font-medium text-amber-800 dark:text-amber-400">
-                    Projected to exceed budget by {formatCurrency(projectedOverUnder)}
+                    Se proyecta superar el presupuesto en {formatCurrency(projectedOverUnder)}
                   </p>
                   <p className="text-sm text-amber-600 dark:text-amber-500">
-                    At current rate, you'll spend {formatCurrency(projectedTotal)} this month
+                    Al ritmo actual, gastarás {formatCurrency(projectedTotal)} este mes
                   </p>
                 </div>
               </>
@@ -212,10 +212,10 @@ export default function MonthlyTracker({
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
                 <div>
                   <p className="font-medium text-green-800 dark:text-green-400">
-                    On track to save {formatCurrency(Math.abs(projectedOverUnder))}
+                    En camino de ahorrar {formatCurrency(Math.abs(projectedOverUnder))}
                   </p>
                   <p className="text-sm text-green-600 dark:text-green-500">
-                    Projected spending: {formatCurrency(projectedTotal)}
+                    Gasto proyectado: {formatCurrency(projectedTotal)}
                   </p>
                 </div>
               </>
@@ -229,8 +229,8 @@ export default function MonthlyTracker({
         {/* Category Breakdown */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Budget by Category</CardTitle>
-            <CardDescription>How you're tracking in each category</CardDescription>
+            <CardTitle className="text-lg">Presupuesto por categoría</CardTitle>
+            <CardDescription>Cómo vas en cada categoría</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {categoryData.map((cat) => {
@@ -253,7 +253,7 @@ export default function MonthlyTracker({
                       </span>
                       <span className="text-muted-foreground">/ {formatCurrency(cat.budget)}</span>
                       {isOver && (
-                        <Badge variant="destructive" className="text-xs">Over</Badge>
+                        <Badge variant="destructive" className="text-xs">Exceso</Badge>
                       )}
                     </div>
                   </div>

@@ -114,13 +114,13 @@ export default function AnnualProjection({
               <div className="p-2 bg-green-500 rounded-lg">
                 <Wallet className="h-4 w-4 text-white" />
               </div>
-              <span className="text-sm font-medium text-green-800 dark:text-green-300">Annual Income</span>
+              <span className="text-sm font-medium text-green-800 dark:text-green-300">Ingresos anuales</span>
             </div>
             <p className="text-2xl font-bold text-green-900 dark:text-green-100">
               {formatFullCurrency(annualIncome)}
             </p>
             <p className="text-xs text-green-700 dark:text-green-400 mt-1">
-              {formatFullCurrency(monthlyIncome)}/month
+              {formatFullCurrency(monthlyIncome)}/mes
             </p>
           </CardContent>
         </Card>
@@ -131,13 +131,13 @@ export default function AnnualProjection({
               <div className="p-2 bg-red-500 rounded-lg">
                 <TrendingDown className="h-4 w-4 text-white" />
               </div>
-              <span className="text-sm font-medium text-red-800 dark:text-red-300">Projected Expenses</span>
+              <span className="text-sm font-medium text-red-800 dark:text-red-300">Gastos proyectados</span>
             </div>
             <p className="text-2xl font-bold text-red-900 dark:text-red-100">
               {formatFullCurrency(projectedAnnualExpenses)}
             </p>
             <p className="text-xs text-red-700 dark:text-red-400 mt-1">
-              {formatFullCurrency(monthlyExpenses)}/month avg
+              {formatFullCurrency(monthlyExpenses)}/mes prom.
             </p>
           </CardContent>
         </Card>
@@ -148,13 +148,13 @@ export default function AnnualProjection({
               <div className="p-2 bg-blue-500 rounded-lg">
                 <PiggyBank className="h-4 w-4 text-white" />
               </div>
-              <span className="text-sm font-medium text-blue-800 dark:text-blue-300">Projected Savings</span>
+              <span className="text-sm font-medium text-blue-800 dark:text-blue-300">Ahorro proyectado</span>
             </div>
             <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
               {formatFullCurrency(projectedAnnualSavings)}
             </p>
             <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
-              {savingsRate.toFixed(0)}% savings rate
+              {savingsRate.toFixed(0)}% tasa de ahorro
             </p>
           </CardContent>
         </Card>
@@ -165,13 +165,13 @@ export default function AnnualProjection({
               <div className="p-2 bg-purple-500 rounded-lg">
                 <Target className="h-4 w-4 text-white" />
               </div>
-              <span className="text-sm font-medium text-purple-800 dark:text-purple-300">Goal Progress</span>
+              <span className="text-sm font-medium text-purple-800 dark:text-purple-300">Avance de la meta</span>
             </div>
             <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
-              {monthsToGoal < 100 ? `${monthsToGoal} mo` : '—'}
+              {monthsToGoal < 100 ? `${monthsToGoal} mes` : '—'}
             </p>
             <p className="text-xs text-purple-700 dark:text-purple-400 mt-1">
-              to reach {formatFullCurrency(savingsGoal)}
+              para alcanzar {formatFullCurrency(savingsGoal)}
             </p>
           </CardContent>
         </Card>
@@ -182,8 +182,8 @@ export default function AnnualProjection({
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Annual Cash Flow Projection</CardTitle>
-              <CardDescription>Projected income, expenses, and savings by month</CardDescription>
+              <CardTitle>Proyección de flujo de caja anual</CardTitle>
+              <CardDescription>Ingresos, gastos y ahorro proyectados por mes</CardDescription>
             </div>
             <Badge variant="secondary" className="text-xs">
               <Calendar className="h-3 w-3 mr-1" />
@@ -272,10 +272,10 @@ export default function AnnualProjection({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Target className="h-5 w-5" />
-            Savings Goal Trajectory
+            Trayectoria de la meta de ahorro
           </CardTitle>
           <CardDescription>
-            Tracking progress toward your {formatFullCurrency(savingsGoal)} savings goal
+            Avance hacia tu meta de ahorro de {formatFullCurrency(savingsGoal)}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -283,7 +283,7 @@ export default function AnnualProjection({
             <div className="flex-1">
               <div className="flex justify-between text-sm mb-2">
                 <span>Current: {formatFullCurrency(currentSavings)}</span>
-                <span>Goal: {formatFullCurrency(savingsGoal)}</span>
+                <span>Meta: {formatFullCurrency(savingsGoal)}</span>
               </div>
               <div className="h-4 bg-muted rounded-full overflow-hidden">
                 <div 
@@ -292,14 +292,14 @@ export default function AnnualProjection({
                 />
               </div>
               <p className="text-sm text-muted-foreground mt-2">
-                {((currentSavings / savingsGoal) * 100).toFixed(1)}% complete
+                {((currentSavings / savingsGoal) * 100).toFixed(1)}% completado
               </p>
             </div>
             <div className="text-right">
               <p className="text-3xl font-bold text-primary">
                 {monthsToGoal < 100 ? monthsToGoal : '∞'}
               </p>
-              <p className="text-sm text-muted-foreground">months to goal</p>
+              <p className="text-sm text-muted-foreground">meses para la meta</p>
             </div>
           </div>
 
@@ -328,7 +328,7 @@ export default function AnnualProjection({
                     {formatCurrency(milestoneAmount)}
                   </p>
                   <p className="text-xs mt-1">
-                    {isReached ? '✓ Reached' : `${monthsToMilestone} mo`}
+                    {isReached ? '✓ Alcanzado' : `${monthsToMilestone} mes`}
                   </p>
                 </div>
               );

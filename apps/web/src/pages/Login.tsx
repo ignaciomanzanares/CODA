@@ -106,7 +106,7 @@ export default function Login() {
         
         toast({
           title: "Sesión iniciada",
-          description: "Welcome back!",
+          description: "¡Bienvenido de nuevo!",
         });
         
         // Force a page reload to update auth state
@@ -140,7 +140,7 @@ export default function Login() {
         description: "Se ha enviado un nuevo código de verificación a tu correo.",
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to resend code");
+      setError(err instanceof Error ? err.message : "No se pudo reenviar el código");
     } finally {
       setIsLoading(false);
     }

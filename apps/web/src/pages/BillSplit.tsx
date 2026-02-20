@@ -193,11 +193,13 @@ function FriendBalanceRow({
 function ExpenseCard({ 
   expense, 
   currentUserId,
+  currency,
   onViewDetails,
   onDelete
 }: { 
   expense: BillSplitWithParticipants;
   currentUserId?: string;
+  currency: 'CLP' | 'USD';
   onViewDetails: () => void;
   onDelete: () => void;
 }) {
@@ -690,7 +692,7 @@ export default function BillSplit() {
                       <FormItem>
                         <FormLabel>Descripción</FormLabel>
                         <FormControl>
-                          <Input placeholder="Dinner at Mario's" {...field} />
+                          <Input placeholder="Ej. Cena en el restaurante" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -720,7 +722,7 @@ export default function BillSplit() {
                       name="date"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Date</FormLabel>
+                          <FormLabel>Fecha</FormLabel>
                           <FormControl>
                             <Input type="date" {...field} />
                           </FormControl>
@@ -775,7 +777,7 @@ export default function BillSplit() {
                         onClick={() => append({ name: "", email: "" })}
                       >
                         <UserPlus className="w-4 h-4 mr-1" />
-                        Add
+                        Añadir
                       </Button>
                     </div>
                     
@@ -903,7 +905,7 @@ export default function BillSplit() {
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Notes (optional)</FormLabel>
+                        <FormLabel>Notas (opcional)</FormLabel>
                         <FormControl>
                           <Textarea placeholder="Añade detalles (opcional)..." className="resize-none h-20" {...field} />
                         </FormControl>
@@ -976,6 +978,7 @@ export default function BillSplit() {
                   key={expense.id}
                   expense={expense}
                   currentUserId={user?.userId}
+                  currency={currency}
                   onViewDetails={() => setSelectedExpense(expense)}
                   onDelete={() => handleDeleteSplit(String(expense.id))}
                 />
@@ -1040,6 +1043,7 @@ export default function BillSplit() {
                   key={expense.id}
                   expense={expense}
                   currentUserId={user?.userId}
+                  currency={currency}
                   onViewDetails={() => setSelectedExpense(expense)}
                   onDelete={() => handleDeleteSplit(String(expense.id))}
                 />
@@ -1075,7 +1079,7 @@ export default function BillSplit() {
                             day: 'numeric',
                             year: 'numeric'
                           })
-                        : 'No date set'}
+                        : 'Sin fecha'}
                     </DialogDescription>
                   </div>
                 </div>
@@ -1165,7 +1169,7 @@ export default function BillSplit() {
 
               <DialogFooter className="mt-4">
                 <Button variant="outline" onClick={() => setSelectedExpense(null)}>
-                  Close
+                  Cerrar
                 </Button>
               </DialogFooter>
             </>
@@ -1179,7 +1183,7 @@ export default function BillSplit() {
           <DialogHeader>
             <DialogTitle>Settle Up</DialogTitle>
             <DialogDescription>
-              Choose a payment method to settle with a friend
+              Elige un método de pago para saldar con un amigo
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1204,7 +1208,7 @@ export default function BillSplit() {
             <Separator />
             <Button variant="secondary" className="w-full" onClick={() => setIsSettleDialogOpen(false)}>
               <CreditCard className="h-4 w-4 mr-2" />
-              Record cash payment
+              Registrar pago en efectivo
             </Button>
           </div>
         </DialogContent>
@@ -1218,7 +1222,7 @@ export default function BillSplit() {
           amount={parseFloat(String(paymentDialog.participant.amountOwed)).toFixed(2)}
           participantName={paymentDialog.participant.name}
           billName={paymentDialog.billSplit.name}
-          creatorName={paymentDialog.billSplit.createdByName || 'Bill Creator'}
+          creatorName={paymentDialog.billSplit.createdByName || 'Creador del gasto'}
           onPaymentComplete={() => {
             if (paymentDialog.billSplit && paymentDialog.participant) {
               handleMarkAsPaid(
