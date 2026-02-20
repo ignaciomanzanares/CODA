@@ -788,7 +788,7 @@ export default function Goals() {
                   <FormItem>
                     <FormLabel>Goal Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Emergency Fund" {...field} />
+                      <Input placeholder="ej. Fondo de emergencia" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

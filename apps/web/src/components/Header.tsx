@@ -41,7 +41,7 @@ const navItems = [
 export default function Header() {
   const [location, setLocation] = useLocation();
   const { isAuthenticated, user, logout } = useAuth();
-  const { currency, setCurrency, rateUsdToClp, rateLoading } = useCurrency();
+  const { currency, setCurrency } = useCurrency();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
@@ -71,66 +71,56 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto max-w-6xl flex h-16 items-center justify-between px-4">
-        <div className="flex items-center">
-          {/* Logo / Brand - en Empresas solo volver a Personal */}
+      <div className="container mx-auto max-w-7xl flex h-16 items-center justify-between gap-6 px-4 sm:px-6">
+        {/* Izquierda: solo CODA (logo) */}
+        <div className="flex shrink-0 items-center">
           {isEmpresas ? (
-            <Link href="/" className="flex items-center gap-2 font-medium text-muted-foreground hover:text-foreground mr-4">
+            <Link href="/" className="flex items-center gap-2 font-medium text-muted-foreground hover:text-foreground">
               <Wallet className="h-5 w-5" />
               <span className="text-sm hidden sm:inline">Volver a CODA Personal</span>
             </Link>
           ) : (
-            <>
-              <Link href="/" className="flex items-center gap-2 font-semibold mr-8">
-                <div className="rounded-lg bg-primary p-1.5">
-                  <Wallet className="h-5 w-5 text-primary-foreground" />
-                </div>
-                <span className="text-lg hidden sm:inline">CODA</span>
-              </Link>
-
-              {/* Desktop Navigation - only show when authenticated */}
-              {isAuthenticated && (
-            <nav className="hidden lg:flex items-center gap-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = location === item.href || location.startsWith(`${item.href}/`);
-                
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
-              )}
-            </>
+            <Link href="/" className="flex items-center gap-2 font-semibold">
+              <div className="rounded-lg bg-primary p-1.5">
+                <Wallet className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <span className="text-lg hidden sm:inline">CODA</span>
+            </Link>
           )}
         </div>
 
-        {/* User Menu */}
-        <div className="flex items-center gap-4">
-          {/* Moneda: CLP por defecto, opción USD; se muestra tasa real cuando hay CLP */}
+        {/* Centro: navegación (solo cuando autenticado) */}
+        {!isEmpresas && isAuthenticated && (
+          <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center max-w-2xl">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location === item.href || location.startsWith(`${item.href}/`);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                    isActive
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        )}
+
+        {/* Derecha: moneda, CODA Empresas, notificaciones, usuario */}
+        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+          {/* Selector de moneda (solo etiqueta CLP $ / USD $, sin conversión) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                 {currency === "CLP" ? "CLP $" : "USD $"}
-                {currency === "CLP" && !rateLoading && (
-                  rateUsdToClp != null ? (
-                    <span className="ml-1 hidden md:inline text-xs opacity-80">1 USD = ${Number(rateUsdToClp).toLocaleString("es-CL")}</span>
-                  ) : (
-                    <span className="ml-1 hidden md:inline text-xs opacity-60">(tasa aprox.)</span>
-                  )
-                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

@@ -1,5 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/lib/CurrencyContext";
 
 interface CategorySpending {
   name: string;
@@ -24,14 +26,8 @@ const COLORS = [
 ];
 
 export default function SpendingBreakdown({ data, totalSpending }: SpendingBreakdownProps) {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
+  const { currency } = useCurrency();
+  const fmt = (value: number) => formatCurrency(value, currency);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -40,7 +36,7 @@ export default function SpendingBreakdown({ data, totalSpending }: SpendingBreak
         <div className="bg-background border rounded-lg shadow-lg p-3">
           <p className="font-medium text-sm">{data.name}</p>
           <p className="text-sm text-muted-foreground">
-            {formatCurrency(data.amount)} ({data.percentage}%)
+            {fmt(data.amount)} ({data.percentage}%)
           </p>
         </div>
       );
@@ -75,12 +71,12 @@ export default function SpendingBreakdown({ data, totalSpending }: SpendingBreak
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-lg">Spending by Category</CardTitle>
-            <CardDescription>This month's breakdown</CardDescription>
+            <CardTitle className="text-lg">Gastos por categoría</CardTitle>
+            <CardDescription>Desglose del mes</CardDescription>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold">{formatCurrency(totalSpending)}</p>
-            <p className="text-xs text-muted-foreground">Total spent</p>
+            <p className="text-2xl font-bold">{fmt(totalSpending)}</p>
+            <p className="text-xs text-muted-foreground">Total gastado</p>
           </div>
         </div>
       </CardHeader>
@@ -129,7 +125,7 @@ export default function SpendingBreakdown({ data, totalSpending }: SpendingBreak
                   <span className="text-sm font-medium">{category.name}</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-sm font-medium">{formatCurrency(category.amount)}</span>
+                  <span className="text-sm font-medium">{fmt(category.amount)}</span>
                   <span className="text-xs text-muted-foreground ml-2">({category.percentage}%)</span>
                 </div>
               </div>

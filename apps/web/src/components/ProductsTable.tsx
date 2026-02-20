@@ -114,10 +114,10 @@ export default function ProductsTable({
         ];
       default:
         return [
-          { key: "provider", label: "Provider" },
-          { key: "productType", label: "Type" },
-          { key: "details", label: "Details" },
-          { key: "action", label: "Action" },
+          { key: "provider", label: "Proveedor" },
+          { key: "productType", label: "Tipo" },
+          { key: "details", label: "Detalles" },
+          { key: "action", label: "Acción" },
         ];
     }
   };
@@ -160,7 +160,7 @@ export default function ProductsTable({
               {product.interestRate}%
             </div>
             <div className="text-xs text-gray-500">
-              {category === "loans" ? "Fixed" : "Variable"}
+              {category === "loans" ? "Fija" : "Variable"}
             </div>
           </>
         );
@@ -191,7 +191,7 @@ export default function ProductsTable({
         const features = product.features || {};
         return (
           <div className="text-sm text-gray-900">
-            {features.rewardsRate ? `${features.rewardsRate}% Cash Back` : "Ninguno"}
+            {features.rewardsRate ? `${features.rewardsRate}% reembolso` : "Ninguno"}
           </div>
         );
       }

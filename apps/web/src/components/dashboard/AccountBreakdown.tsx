@@ -107,7 +107,7 @@ export default function AccountBreakdown({ data, totalAssets, totalLiabilities }
             </div>
             <div>
               <p className="font-medium text-sm">{config.label}</p>
-              <p className="text-xs text-muted-foreground">{category.count} account{category.count !== 1 ? 's' : ''}</p>
+              <p className="text-xs text-muted-foreground">{category.count} cuenta{category.count !== 1 ? 's' : ''}</p>
             </div>
           </div>
           <div className="text-right">
@@ -161,14 +161,14 @@ export default function AccountBreakdown({ data, totalAssets, totalLiabilities }
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Account Overview</CardTitle>
+        <CardTitle className="text-lg">Resumen de cuentas</CardTitle>
         <CardDescription>Tus cuentas por categoría</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Assets Section */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-medium text-muted-foreground">Assets</h4>
+            <h4 className="text-sm font-medium text-muted-foreground">Activos</h4>
             <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400">
               {fmt(totalAssets)}
             </Badge>
@@ -184,7 +184,7 @@ export default function AccountBreakdown({ data, totalAssets, totalLiabilities }
         {(data.creditCards.count > 0 || data.loans.count > 0) && (
           <div className="pt-4 border-t">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-medium text-muted-foreground">Liabilities</h4>
+              <h4 className="text-sm font-medium text-muted-foreground">Pasivos</h4>
               <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400">
                 {fmt(totalLiabilities)}
               </Badge>

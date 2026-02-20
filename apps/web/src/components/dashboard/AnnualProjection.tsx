@@ -232,12 +232,12 @@ export default function AnnualProjection({
                   x={months[new Date().getMonth()]} 
                   stroke="#888" 
                   strokeDasharray="3 3"
-                  label={{ value: 'Today', position: 'top', fontSize: 10 }}
+                  label={{ value: 'Hoy', position: 'top', fontSize: 10 }}
                 />
                 <Area
                   type="monotone"
                   dataKey="projectedIncome"
-                  name="Income"
+                  name="Ingresos"
                   stroke="#22c55e"
                   strokeWidth={2}
                   fillOpacity={1}
@@ -246,7 +246,7 @@ export default function AnnualProjection({
                 <Area
                   type="monotone"
                   dataKey="projectedExpenses"
-                  name="Expenses"
+                  name="Gastos"
                   stroke="#ef4444"
                   strokeWidth={2}
                   fillOpacity={1}
@@ -255,7 +255,7 @@ export default function AnnualProjection({
                 <Area
                   type="monotone"
                   dataKey="projectedSavings"
-                  name="Savings"
+                  name="Ahorro"
                   stroke="#3b82f6"
                   strokeWidth={2}
                   fillOpacity={1}
@@ -282,7 +282,7 @@ export default function AnnualProjection({
           <div className="flex items-center gap-4 mb-6">
             <div className="flex-1">
               <div className="flex justify-between text-sm mb-2">
-                <span>Current: {formatFullCurrency(currentSavings)}</span>
+                <span>Actual: {formatFullCurrency(currentSavings)}</span>
                 <span>Meta: {formatFullCurrency(savingsGoal)}</span>
               </div>
               <div className="h-4 bg-muted rounded-full overflow-hidden">

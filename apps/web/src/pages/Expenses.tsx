@@ -43,7 +43,8 @@ import { useAuth } from "@/lib/auth";
 import { generateDemoExpenses } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/lib/CurrencyContext";
 
 // Helper to parse tags that might be a JSON string or already an array
 function parseTags(tags: string | string[] | null | undefined): string[] {
@@ -189,6 +190,8 @@ export default function Expenses() {
   const [isClassifying, setIsClassifying] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { currency } = useCurrency();
+  const formatCurrencyFn = (value: number) => formatCurrency(value, currency);
 
   // Use demo data when not authenticated, real data when authenticated
   const demoExpenses = generateDemoExpenses();
@@ -705,14 +708,14 @@ export default function Expenses() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Total este mes"
-            value={`$${thisMonthTotal.toFixed(2)}`}
+            value={formatCurrencyFn(thisMonthTotal)}
             trend={{ value: '12% vs mes anterior', type: 'up' }}
             icon={DollarSign}
             color="bg-green-500"
           />
           <StatCard
             title="Promedio diario"
-            value={`$${avgPerDay.toFixed(2)}`}
+            value={formatCurrencyFn(avgPerDay)}
             subtext="Según este mes"
             icon={TrendingDown}
             color="bg-blue-500"
@@ -831,7 +834,7 @@ export default function Expenses() {
                         
                         {/* Amount and Actions */}
                         <div className="text-right flex items-center gap-4">
-                                          <p className="text-xl font-bold">${Number(expense.amount).toFixed(2)}</p>
+                                          <p className="text-xl font-bold">{formatCurrencyFn(Number(expense.amount))}</p>
                           <div className="flex gap-1">
                             <Button 
                               variant="ghost" 
