@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -29,10 +30,11 @@ import Goals from "@/pages/Goals";
 import Plan from "@/pages/Plan";
 import Profile from "@/pages/Profile";
 import Expenses from "@/pages/Expenses";
-import BillSplit from "@/pages/BillSplit";
 import EmailInviteHandler from "@/pages/EmailInviteHandler";
 import ShareBillSplit from "@/pages/ShareBillSplit";
 import FinancialAssistant from "@/components/FinancialAssistant";
+
+const BillSplit = lazy(() => import("@/pages/BillSplit"));
 
 
 function App() {
@@ -115,7 +117,15 @@ function App() {
                     </ProtectedRoute>
                   </Route>
                   <Route path="/bill-split">
-                    <BillSplit />
+                    <Suspense fallback={
+                      <div className="container py-8 max-w-5xl mx-auto">
+                        <h1 className="text-3xl font-bold tracking-tight">Dividir cuenta</h1>
+                        <p className="text-muted-foreground mt-1">Cargando...</p>
+                        <div className="mt-6 h-32 bg-muted rounded animate-pulse" />
+                      </div>
+                    }>
+                      <BillSplit />
+                    </Suspense>
                   </Route>
                   <Route path="/products">
                     <ProtectedRoute>
