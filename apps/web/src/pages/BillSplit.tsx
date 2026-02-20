@@ -481,9 +481,10 @@ export default function BillSplit() {
       // Add creator ("Me") to participants list for equal splits
       const creatorName = (user as any)?.firstName || (user as any)?.username || (user as any)?.name || (user as any)?.email || 'Me';
       const creatorEmail = (user as any)?.email || '';
+      const participantsList = Array.isArray(billSplit.participants) ? billSplit.participants : [];
       const allParticipants = [
-        { name: creatorName, email: creatorEmail, shareValue: billSplit.participants[0]?.shareValue, isCreator: true },
-        ...billSplit.participants.map(p => ({ ...p, isCreator: false }))
+        { name: creatorName, email: creatorEmail, shareValue: participantsList[0]?.shareValue, isCreator: true },
+        ...participantsList.map(p => ({ ...p, isCreator: false }))
       ];
       
       let participantAmounts: number[] = [];
@@ -864,10 +865,11 @@ export default function BillSplit() {
                           {(() => {
                             const total = parseFloat(watchAmount || '0') || 0;
                             const creatorName = (user as any)?.firstName || (user as any)?.username || (user as any)?.name || 'Tú';
-                            const totalParticipantCount = Math.max(1, watchParticipants.length + 1);
+                            const participantsList = Array.isArray(watchParticipants) ? watchParticipants : [];
+                            const totalParticipantCount = Math.max(1, participantsList.length + 1);
                             const allParticipants = [
-                              { name: `${creatorName} (tú)`, shareValue: watchParticipants[0]?.shareValue, isCreator: true },
-                              ...(watchParticipants || []).map((p) => ({ ...p, isCreator: false }))
+                              { name: `${creatorName} (tú)`, shareValue: participantsList[0]?.shareValue, isCreator: true },
+                              ...participantsList.map((p) => ({ ...p, isCreator: false }))
                             ];
                             const totalShares = allParticipants.reduce((sum, p) => sum + parseFloat(p.shareValue || '1'), 0) || 1;
                             return allParticipants.map((p, i) => {

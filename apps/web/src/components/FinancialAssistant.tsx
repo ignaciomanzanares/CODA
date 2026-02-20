@@ -95,7 +95,7 @@ export default function FinancialAssistant({
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => (Array.isArray(prev) ? [...prev, userMessage] : [userMessage]));
     setInputValue("");
     setIsLoading(true);
 
@@ -124,7 +124,7 @@ export default function FinancialAssistant({
         timestamp: new Date(),
       };
 
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages(prev => (Array.isArray(prev) ? [...prev, assistantMessage] : [assistantMessage]));
     } catch (error) {
       // Fallback response if API fails
       const fallbackMessage: Message = {
@@ -133,7 +133,7 @@ export default function FinancialAssistant({
         suggestions: ['Reintentar', 'Ver panel'],
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, fallbackMessage]);
+      setMessages(prev => (Array.isArray(prev) ? [...prev, fallbackMessage] : [fallbackMessage]));
     } finally {
       setIsLoading(false);
     }
