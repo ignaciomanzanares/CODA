@@ -321,6 +321,7 @@ function ExpenseCard({
 
 // Main Component
 export default function BillSplit() {
+  const [ready, setReady] = useState(false);
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const { currency } = useCurrency();
   const { getBillSplits, createBillSplit, markParticipantAsPaid, deleteBillSplit } = useApi();
@@ -336,7 +337,12 @@ export default function BillSplit() {
   }>({ isOpen: false });
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  
+
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), 0);
+    return () => clearTimeout(t);
+  }, []);
+
   // Handle email invitation highlights
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -350,12 +356,12 @@ export default function BillSplit() {
   const [demoBillSplits, setDemoBillSplits] = useState<BillSplitWithParticipants[]>([]);
 
   useEffect(() => {
-    if (isAuthenticated) return;
+    if (isAuthenticated || !ready) return;
     const id = requestAnimationFrame(() => {
       setDemoBillSplits(generateDemoBillSplits());
     });
     return () => cancelAnimationFrame(id);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, ready]);
 
   const { data: realBillSplits = [], isLoading, isError } = useQuery<BillSplitWithParticipants[]>({
     queryKey: ["/api/bill-splits"],
@@ -577,6 +583,16 @@ export default function BillSplit() {
   };
 
   const showLoading = authLoading || (isAuthenticated && isLoading);
+
+  if (!ready) {
+    return (
+      <div className="container py-8 space-y-6 max-w-5xl mx-auto">
+        <h1 className="text-3xl font-bold tracking-tight">Dividir cuenta</h1>
+        <p className="text-muted-foreground">Registra y salda gastos compartidos</p>
+        <div className="mt-6 h-24 bg-muted rounded animate-pulse" />
+      </div>
+    );
+  }
 
   return (
     <div className="container py-8 space-y-6 max-w-5xl mx-auto">
