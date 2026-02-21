@@ -358,6 +358,7 @@ export const empresasPurchaseOrders = table('empresas_purchase_orders', {
   expectedInvoiceDate: text('expected_invoice_date'),
   status: text('status'),
   notes: text('notes'),
+  dteDocumentId: integer('dte_document_id').references(() => empresasDteDocuments.id),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 

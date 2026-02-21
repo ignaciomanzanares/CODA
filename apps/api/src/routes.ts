@@ -1692,6 +1692,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  /**
+   * GET /api/expenses/monthly-summary
+   * Aggregates expenses by current month (total + by category) and last 6 months (total per month).
+   * Used by MonthlyTracker for real expense data.
+   */
+  app.get("/api/expenses/monthly-summary", authenticate, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const allExpenses = await storage.getExpenses(userId);
+      const now = new Date();
+      const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+
+      const byMonth = new Map<string, number>();
+      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const byCategoryThisMonth: Record<string, number> = {};
+      let currentMonthTotal = 0;
+
+      for (const e of allExpenses) {
+        const dateStr = typeof e.date === "string" ? e.date : (e as any).date;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime()) || d < sixMonthsAgo) continue;
+        const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const amount = typeof e.amount === "number" ? e.amount : parseFloat(String(e.amount));
+        if (isNaN(amount)) continue;
+        const absAmount = Math.abs(amount);
+        byMonth.set(monthKey, (byMonth.get(monthKey) || 0) + absAmount);
+        if (monthKey === currentMonthKey) {
+          currentMonthTotal += absAmount;
+          const cat = (e as any).category || "Otros";
+          byCategoryThisMonth[cat] = (byCategoryThisMonth[cat] || 0) + absAmount;
+        }
+      }
+
+      const last6Months: { month: string; year: number; monthLabel: string; spent: number }[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const spent = byMonth.get(monthKey) || 0;
+        last6Months.push({
+          month: monthKey,
+          year: d.getFullYear(),
+          monthLabel: d.toLocaleDateString("en-US", { month: "short" }),
+          spent: Math.round(spent * 100) / 100,
+        });
+      }
+
+      res.json({
+        currentMonth: {
+          totalSpent: Math.round(currentMonthTotal * 100) / 100,
+          byCategory: Object.entries(byCategoryThisMonth)
+            .map(([category, spent]) => ({ category, spent: Math.round(spent * 100) / 100 }))
+            .sort((a, b) => b.spent - a.spent),
+        },
+        last6Months,
+      });
+    } catch (err) {
+      logger.error({ err }, "Error fetching expenses monthly summary");
+      res.status(500).json({ message: "Failed to fetch monthly summary" });
+    }
+  });
+
   // =============================================
   // PUBLIC BILL SPLIT ROUTES (No authentication)
   // =============================================

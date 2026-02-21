@@ -54,15 +54,19 @@ export default function EmpresasTransactions() {
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="text-left p-3">Fecha</th>
+                    <th className="text-left p-3">Cuenta</th>
                     <th className="text-left p-3">Descripción</th>
                     <th className="text-left p-3">Contraparte</th>
                     <th className="text-right p-3">Monto</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(transactions ?? []).map((t: { id: number; transactionDate: string; description: string | null; counterpartyName: string | null; amount: number }) => (
+                  {(transactions ?? []).map((t: { id: number; transactionDate: string; description: string | null; counterpartyName: string | null; amount: number; accountType?: string | null }) => (
                     <tr key={t.id} className="border-b">
                       <td className="p-3">{t.transactionDate}</td>
+                      <td className="p-3 text-muted-foreground">
+                        {t.accountType === "credit" ? "Tarjeta/línea" : t.accountType === "savings" ? "Ahorro" : t.accountType === "checking" ? "Corriente" : "—"}
+                      </td>
                       <td className="p-3">{t.description ?? "—"}</td>
                       <td className="p-3">{t.counterpartyName ?? "—"}</td>
                       <td className={`p-3 text-right font-medium ${t.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
