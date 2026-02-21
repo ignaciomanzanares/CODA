@@ -22,7 +22,10 @@ import {
   LogOut,
   User,
   Wallet,
-  Building2
+  Building2,
+  Building,
+  GitMerge,
+  Shield
 } from "lucide-react";
 import NotificationCenter from "@/components/NotificationCenter";
 import { cn } from "@/lib/utils";
@@ -36,6 +39,15 @@ const navItems = [
   { href: "/products", label: "Productos", icon: Package },
   { href: "/goals", label: "Metas", icon: Target },
   { href: "/plan", label: "Plan", icon: FileText },
+];
+
+const empresasNavItems = [
+  { href: "/empresas/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/empresas/companies", label: "Empresas", icon: Building },
+  { href: "/empresas/transactions", label: "Transacciones", icon: Receipt },
+  { href: "/empresas/reconciliation", label: "Reconciliación", icon: GitMerge },
+  { href: "/empresas/statements", label: "Estados financieros", icon: FileText },
+  { href: "/empresas/risk", label: "Riesgo", icon: Shield },
 ];
 
 export default function Header() {
@@ -71,28 +83,24 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto max-w-7xl flex h-16 items-center justify-between gap-6 px-4 sm:px-6">
-        {/* Izquierda: solo CODA (logo) */}
+      <div className="w-full max-w-screen-2xl mx-auto flex h-16 items-center justify-between gap-6 px-4 sm:px-6">
+        {/* Izquierda: CODA (logo) siempre igual; en Empresas enlaza al dashboard empresas */}
         <div className="flex shrink-0 items-center">
-          {isEmpresas ? (
-            <Link href="/" className="flex items-center gap-2 font-medium text-muted-foreground hover:text-foreground">
-              <Wallet className="h-5 w-5" />
-              <span className="text-sm hidden sm:inline">Volver a CODA Personal</span>
-            </Link>
-          ) : (
-            <Link href="/" className="flex items-center gap-2 font-semibold">
-              <div className="rounded-lg bg-primary p-1.5">
-                <Wallet className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <span className="text-lg hidden sm:inline">CODA</span>
-            </Link>
-          )}
+          <Link
+            href={isEmpresas ? "/empresas/dashboard" : "/"}
+            className="flex items-center gap-2 font-semibold"
+          >
+            <div className="rounded-lg bg-primary p-1.5">
+              <Wallet className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <span className="text-lg hidden sm:inline">CODA</span>
+          </Link>
         </div>
 
-        {/* Centro: navegación (solo cuando autenticado) */}
-        {!isEmpresas && isAuthenticated && (
-          <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center max-w-2xl">
-            {navItems.map((item) => {
+        {/* Centro: navegación Personal o Empresas (cuando autenticado) */}
+        {isAuthenticated && (
+          <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center max-w-3xl">
+            {(isEmpresas ? empresasNavItems : navItems).map((item) => {
               const Icon = item.icon;
               const isActive = location === item.href || location.startsWith(`${item.href}/`);
               return (
@@ -128,8 +136,15 @@ export default function Header() {
               <DropdownMenuItem onClick={() => setCurrency("USD" as CurrencyCode)}>Dólares (USD)</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {/* CODA Empresas Link - solo fuera de la sección Empresas */}
-          {!isEmpresas && (
+          {/* En Empresas: enlace a CODA Personal; en Personal: enlace a CODA Empresas */}
+          {isEmpresas ? (
+            <Link href="/dashboard">
+              <Button variant="outline" size="sm" className="hidden md:flex items-center gap-2">
+                <Wallet className="h-4 w-4" />
+                <span>CODA Personal</span>
+              </Button>
+            </Link>
+          ) : (
             <Link href="/empresas">
               <Button variant="outline" size="sm" className="hidden md:flex items-center gap-2">
                 <Building2 className="h-4 w-4" />
@@ -183,10 +198,9 @@ export default function Header() {
                 {/* Only show nav items when authenticated */}
                 {isAuthenticated && (
                   <nav className="flex flex-col gap-1">
-                    {navItems.map((item) => {
+                    {(isEmpresas ? empresasNavItems : navItems).map((item) => {
                       const Icon = item.icon;
                       const isActive = location === item.href;
-                      
                       return (
                         <button
                           key={item.href}

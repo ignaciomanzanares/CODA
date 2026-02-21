@@ -130,7 +130,7 @@ export default function Products() {
   if (authLoading || (isAuthenticated && productsLoading)) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        <div className="container py-8 space-y-6">
+        <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
           <div className="h-10 bg-muted rounded animate-pulse w-64"></div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map(i => (
@@ -170,7 +170,7 @@ export default function Products() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div id="product-section" className="container py-8 space-y-6">
+      <div id="product-section" className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {!isAuthenticated && (
           <SignInBanner 
             title="Viendo productos financieros de demostración"

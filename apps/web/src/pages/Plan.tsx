@@ -215,7 +215,7 @@ export default function Plan() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        <div className="container py-8 space-y-6">
+        <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
           <Skeleton className="h-10 w-64" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {[1, 2, 3, 4].map((i) => (
@@ -229,7 +229,7 @@ export default function Plan() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div className="container py-8 space-y-6">
+      <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {!isAuthenticated && (
           <SignInBanner 
             title="Viendo plan financiero de demostración"

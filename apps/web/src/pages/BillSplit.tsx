@@ -591,7 +591,7 @@ export default function BillSplit() {
 
   if (!ready) {
     return (
-      <div className="container py-8 space-y-6 max-w-5xl mx-auto">
+      <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         <h1 className="text-3xl font-bold tracking-tight">Dividir cuenta</h1>
         <p className="text-muted-foreground">Registra y salda gastos compartidos</p>
         <div className="mt-6 h-24 bg-muted rounded animate-pulse" />
@@ -600,7 +600,7 @@ export default function BillSplit() {
   }
 
   return (
-    <div className="container py-8 space-y-6 max-w-5xl mx-auto">
+    <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       {showLoading ? (
         <>
           <div className="h-8 bg-muted rounded animate-pulse w-48" />

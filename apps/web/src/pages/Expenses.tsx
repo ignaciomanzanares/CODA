@@ -477,7 +477,7 @@ export default function Expenses() {
   if (authLoading || (isAuthenticated && isLoading)) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        <div className="container py-8 space-y-6">
+        <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
           <div className="h-8 bg-muted rounded animate-pulse"></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[1, 2, 3].map(i => (
@@ -506,7 +506,7 @@ export default function Expenses() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div className="container py-8 space-y-6">
+      <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {!isAuthenticated && (
           <SignInBanner 
             title="Viendo datos de gastos de demostración"
