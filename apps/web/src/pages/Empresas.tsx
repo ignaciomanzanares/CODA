@@ -37,7 +37,7 @@ export default function Empresas() {
               para PYMEs chilenas.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/empresas/dashboard">
+              <Link href="/empresas/login">
                 <Button size="lg" className="bg-white text-purple-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg">
                   Ir a CODA Empresas
                   <ArrowRight className="ml-2 h-5 w-5" />
@@ -203,7 +203,7 @@ export default function Empresas() {
           <p className="text-xl text-indigo-100 mb-8 max-w-2xl mx-auto">
             Únete a las PYMEs que ya están tomando mejores decisiones financieras.
           </p>
-          <Link href="/empresas/dashboard">
+          <Link href="/empresas/login">
             <Button size="lg" className="bg-white text-purple-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg">
               Comenzar con CODA Empresas
               <ArrowRight className="ml-2 h-5 w-5" />

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useCreditScore } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
@@ -5,13 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import ProgressRing from "./ProgressRing";
-import { 
-  getCreditScoreStatus, 
-  getCreditFactorColor,
-  getCircleColor
-} from "@/lib/creditScore";
+import { getCreditScoreStatus, getCircleColor } from "@/lib/creditScore";
 import { 
   CreditCard, 
   TrendingUp, 
@@ -22,7 +25,6 @@ import {
   Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useLocation } from "wouter";
 
 function FactorCard({ 
   icon: Icon, 
@@ -59,7 +61,7 @@ function FactorCard({
 
 export default function CreditScoreCard() {
   const { getCreditScore, refreshCreditScore } = useCreditScore();
-  const [, navigate] = useLocation();
+  const [showReportBreakdown, setShowReportBreakdown] = useState(false);
 
   const { data: creditScore, isLoading, error } = useQuery({
     queryKey: ["/api/credit-score"],
@@ -140,6 +142,7 @@ export default function CreditScoreCard() {
   };
 
   return (
+    <>
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
@@ -201,10 +204,10 @@ export default function CreditScoreCard() {
           />
         </div>
 
-        {/* Action Button */}
+        {/* Action Button: abre desglose del reporte */}
         <Button
           className="w-full mt-4 group"
-          onClick={() => navigate("/plan")}
+          onClick={() => setShowReportBreakdown(true)}
         >
           <Sparkles className="h-4 w-4 mr-2" />
           Ver informe completo
@@ -212,5 +215,55 @@ export default function CreditScoreCard() {
         </Button>
       </CardContent>
     </Card>
+
+    {/* Diálogo con el desglose del reporte */}
+    <Dialog open={showReportBreakdown} onOpenChange={setShowReportBreakdown}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-primary" />
+            Desglose del reporte – Score crediticio
+          </DialogTitle>
+          <DialogDescription>
+            Detalle de tu puntaje y factores que lo componen
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-6 py-2">
+          <div className="flex justify-center">
+            <ProgressRing progress={progress} color={circleColor}>
+              <div className="text-4xl font-bold">{creditScore.score}</div>
+              <div className="text-xs text-muted-foreground">de {creditScore.maxScore}</div>
+            </ProgressRing>
+          </div>
+          <div className="text-center">
+            <Badge variant="outline" className={cn("font-semibold", getStatusBadgeStyle())}>
+              {scoreStatus.label}
+            </Badge>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-muted-foreground">Factores</p>
+            <FactorCard
+              icon={CreditCard}
+              label="Historial de pagos"
+              value="Todos los pagos a tiempo"
+              status={creditScore.paymentHistory}
+            />
+            <FactorCard
+              icon={Percent}
+              label="Utilización de crédito"
+              value="23% del crédito disponible"
+              status={creditScore.utilization}
+            />
+            <FactorCard
+              icon={Clock}
+              label="Antigüedad del crédito"
+              value="Promedio 4,2 años"
+              status={creditScore.ageOfCredit}
+            />
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

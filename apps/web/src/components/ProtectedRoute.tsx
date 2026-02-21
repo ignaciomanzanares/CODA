@@ -1,13 +1,16 @@
 import { ReactNode } from "react";
 import { Redirect } from "wouter";
-import { useAuth } from "@/lib/auth";
+import { useAuth, type AuthContextType } from "@/lib/auth";
 
 interface ProtectedRouteProps {
   children: ReactNode;
+  /** Si es "empresas", exige sesión de CODA Empresas y redirige a /empresas/login. Por defecto "personal". */
+  context?: AuthContextType;
 }
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading } = useAuth();
+export default function ProtectedRoute({ children, context = "personal" }: ProtectedRouteProps) {
+  const { isAuthenticated, isLoading } = useAuth(context);
+  const loginPath = context === "empresas" ? "/empresas/login" : "/login";
 
   if (isLoading) {
     return (
@@ -21,7 +24,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!isAuthenticated) {
-    return <Redirect to="/login" />;
+    return <Redirect to={loginPath} />;
   }
 
   return <>{children}</>;

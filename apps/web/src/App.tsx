@@ -88,24 +88,36 @@ function App() {
             <main className="flex-1">
                 <Switch>
                   <Route path="/onboarding" component={Onboarding} />
-                  {/* CODA Empresas: integrado en la misma app y misma BD */}
+                  {/* CODA Empresas: sesión independiente de Personal */}
                   <Route path="/empresas/dashboard">
-                    <EmpresasLayout><EmpresasDashboard /></EmpresasLayout>
+                    <ProtectedRoute context="empresas">
+                      <EmpresasLayout><EmpresasDashboard /></EmpresasLayout>
+                    </ProtectedRoute>
                   </Route>
                   <Route path="/empresas/companies">
-                    <EmpresasLayout><EmpresasCompanies /></EmpresasLayout>
+                    <ProtectedRoute context="empresas">
+                      <EmpresasLayout><EmpresasCompanies /></EmpresasLayout>
+                    </ProtectedRoute>
                   </Route>
                   <Route path="/empresas/transactions">
-                    <EmpresasLayout><EmpresasTransactions /></EmpresasLayout>
+                    <ProtectedRoute context="empresas">
+                      <EmpresasLayout><EmpresasTransactions /></EmpresasLayout>
+                    </ProtectedRoute>
                   </Route>
                   <Route path="/empresas/reconciliation">
-                    <EmpresasLayout><EmpresasReconciliation /></EmpresasLayout>
+                    <ProtectedRoute context="empresas">
+                      <EmpresasLayout><EmpresasReconciliation /></EmpresasLayout>
+                    </ProtectedRoute>
                   </Route>
                   <Route path="/empresas/statements">
-                    <EmpresasLayout><EmpresasStatements /></EmpresasLayout>
+                    <ProtectedRoute context="empresas">
+                      <EmpresasLayout><EmpresasStatements /></EmpresasLayout>
+                    </ProtectedRoute>
                   </Route>
                   <Route path="/empresas/risk">
-                    <EmpresasLayout><EmpresasRisk /></EmpresasLayout>
+                    <ProtectedRoute context="empresas">
+                      <EmpresasLayout><EmpresasRisk /></EmpresasLayout>
+                    </ProtectedRoute>
                   </Route>
                   <Route path="/dashboard">
                     <ProtectedRoute>
