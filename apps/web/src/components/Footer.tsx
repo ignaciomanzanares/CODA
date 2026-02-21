@@ -4,7 +4,7 @@ import { Wallet, Facebook, Twitter, Linkedin } from "lucide-react";
 export default function Footer() {
   return (
     <footer className="bg-neutral-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center mb-4">
@@ -22,7 +22,7 @@ export default function Footer() {
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/info/credit-score" className="text-gray-300 hover:text-white">
-                  Motor de riesgo de crédito
+                  Score crediticio
                 </Link>
               </li>
               <li>

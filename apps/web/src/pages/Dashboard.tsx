@@ -137,7 +137,7 @@ export default function Dashboard() {
   // Show loading only while determining auth state
   if (authLoading) {
     return (
-      <div className="container py-8">
+      <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex items-center justify-center min-h-[400px]">
           <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -153,7 +153,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div className="container py-8 space-y-6">
+      <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>

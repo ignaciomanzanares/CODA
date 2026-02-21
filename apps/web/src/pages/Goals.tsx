@@ -393,7 +393,7 @@ export default function Goals() {
   if (authLoading || (isAuthenticated && isLoading)) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        <div className="container py-8 space-y-6">
+        <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
           <div className="flex justify-between items-center">
             <Skeleton className="h-10 w-48" />
             <Skeleton className="h-10 w-32" />
@@ -416,7 +416,7 @@ export default function Goals() {
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        <div className="container py-8 text-center">
+        <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 text-center">
           <div className="mx-auto w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
             <AlertTriangle className="h-8 w-8 text-red-600" />
           </div>
@@ -441,7 +441,7 @@ export default function Goals() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div className="container py-8 space-y-6">
+      <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {!isAuthenticated && (
           <SignInBanner 
             title="Viendo metas financieras de demostración"
