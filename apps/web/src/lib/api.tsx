@@ -1,3 +1,4 @@
+import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/apiBase";
 import type {
@@ -49,7 +50,9 @@ export type ApiClient = {
 };
 
 export function useApi(): ApiClient {
-  const { token, isAuthenticated } = useAuth();
+  const [location] = useLocation();
+  const context = location.startsWith("/empresas") ? "empresas" : "personal";
+  const { token, isAuthenticated } = useAuth(context);
 
   // Local response shapes used by the UI components
   type CreditScore = {

@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { Wallet, Facebook, Twitter, Linkedin } from "lucide-react";
+import { FaInstagram, FaTiktok } from "react-icons/fa";
 
 export default function Footer() {
   return (
@@ -15,6 +16,14 @@ export default function Footer() {
               Te ayudamos a tomar mejores decisiones financieras con información
               personalizada y recomendaciones.
             </p>
+            <div className="flex items-center gap-3 mt-4">
+              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors" aria-label="Instagram">
+                <FaInstagram size={20} />
+              </a>
+              <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors" aria-label="TikTok">
+                <FaTiktok size={20} />
+              </a>
+            </div>
           </div>
 
           <div>
@@ -102,13 +111,13 @@ export default function Footer() {
           </div>
 
           <div className="flex space-x-4">
-            <a href="#" className="text-gray-300 hover:text-white">
+            <a href="#" className="text-gray-300 hover:text-white" aria-label="Facebook">
               <Facebook size={20} />
             </a>
-            <a href="#" className="text-gray-300 hover:text-white">
+            <a href="#" className="text-gray-300 hover:text-white" aria-label="Twitter">
               <Twitter size={20} />
             </a>
-            <a href="#" className="text-gray-300 hover:text-white">
+            <a href="#" className="text-gray-300 hover:text-white" aria-label="LinkedIn">
               <Linkedin size={20} />
             </a>
           </div>

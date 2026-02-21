@@ -25,10 +25,11 @@ const DEMO_USERS = [
 
 export default function Login() {
   const [location, setLocation] = useLocation();
-  const { login, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const isEmpresas = location === "/empresas/login";
   const defaultRedirect = isEmpresas ? "/empresas/dashboard" : "/dashboard";
+  const authContext = isEmpresas ? 'empresas' : 'personal';
+  const { login: doLogin, isAuthenticated: isAuth } = useAuth(authContext);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -38,8 +39,8 @@ export default function Login() {
   const [requires2FA, setRequires2FA] = useState(false);
   const [otpCode, setOtpCode] = useState("");
 
-  // Redirect if already authenticated
-  if (isAuthenticated) {
+  // Redirect if already authenticated in this context (personal o empresas)
+  if (isAuth) {
     setLocation(defaultRedirect);
     return null;
   }
@@ -50,7 +51,7 @@ export default function Login() {
     setError("");
 
     try {
-      const result = await login(email, password);
+      const result = await doLogin(authContext, email, password);
       
       // Check if 2FA is required
       if (result?.requires2FA) {
@@ -100,16 +101,14 @@ export default function Login() {
       });
       
       if (data.token && data.user) {
-        // Store token and user data
-        localStorage.setItem('jwt_token', data.token);
-        localStorage.setItem('user_data', JSON.stringify(data.user));
-        
+        const tokenKey = isEmpresas ? 'jwt_token_empresas' : 'jwt_token';
+        const userKey = isEmpresas ? 'user_data_empresas' : 'user_data';
+        localStorage.setItem(tokenKey, data.token);
+        localStorage.setItem(userKey, JSON.stringify(data.user));
         toast({
           title: "Sesión iniciada",
           description: "¡Bienvenido de nuevo!",
         });
-        
-        // Force a page reload to update auth state
         window.location.href = defaultRedirect;
       }
     } catch (err) {

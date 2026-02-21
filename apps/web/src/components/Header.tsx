@@ -52,13 +52,15 @@ const empresasNavItems = [
 
 export default function Header() {
   const [location, setLocation] = useLocation();
-  const { isAuthenticated, user, logout } = useAuth();
+  const isEmpresas = location.startsWith("/empresas");
+  const authContext = isEmpresas ? 'empresas' : 'personal';
+  const { isAuthenticated, user, logout } = useAuth(authContext);
   const { currency, setCurrency } = useCurrency();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
-    logout();
-    setLocation("/login");
+    logout(authContext);
+    setLocation(isEmpresas ? "/empresas/login" : "/login");
   };
 
   // Nombre para mostrar (normalizar "Investor" → "Inversor")
@@ -79,8 +81,6 @@ export default function Header() {
     return "U";
   };
 
-  const isEmpresas = location.startsWith("/empresas");
-
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="w-full max-w-screen-2xl mx-auto flex h-16 items-center justify-between gap-6 px-4 sm:px-6">
@@ -93,7 +93,7 @@ export default function Header() {
             <div className="rounded-lg bg-primary p-1.5">
               <Wallet className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-lg hidden sm:inline">CODA</span>
+            <span className="text-lg hidden sm:inline">{isEmpresas ? "CODA Empresas" : "CODA"}</span>
           </Link>
         </div>
 
@@ -108,13 +108,13 @@ export default function Header() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                    "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors whitespace-nowrap",
                     isActive
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-4 w-4 shrink-0" />
                   <span>{item.label}</span>
                 </Link>
               );
