@@ -600,6 +600,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // All transactions across accounts (unified movements view)
+  app.get("/api/transactions", authenticate, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const userAccounts = await storage.getAccounts(userId);
+      if (!userAccounts?.length) {
+        return res.json([]);
+      }
+      const { from, to, limit } = req.query;
+      const toDate = to ? new Date(String(to)) : new Date();
+      const fromDate = from ? new Date(String(from)) : (() => { const d = new Date(); d.setDate(d.getDate() - 90); return d; })();
+      const cap = limit ? Math.min(parseInt(String(limit)), 500) : 200;
+      const allTxns: { accountId: number; accountName?: string; accountType?: string; id: number; postedAt: string; description?: string | null; amount: number; currency?: string | null; category?: string | null }[] = [];
+      for (const acc of userAccounts) {
+        const txs = await storage.getTransactions(acc.id, { from: fromDate, to: toDate, limit: cap });
+        for (const t of txs) {
+          allTxns.push({
+            accountId: acc.id,
+            accountName: acc.name || acc.officialName || undefined,
+            accountType: acc.type || undefined,
+            id: t.id,
+            postedAt: t.postedAt,
+            description: t.description,
+            amount: Number(t.amount),
+            currency: t.currency,
+            category: t.category,
+          });
+        }
+      }
+      allTxns.sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime());
+      res.json(allTxns.slice(0, cap));
+    } catch (_e) {
+      logger.error({ err: _e }, 'Error fetching all transactions');
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // Transactions routes
   app.get("/api/accounts/:id/transactions", authenticate, async (req, res) => {
     try {

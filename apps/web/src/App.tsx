@@ -23,6 +23,8 @@ import EmpresasTransactions from "@/pages/empresas/EmpresasTransactions";
 import EmpresasReconciliation from "@/pages/empresas/EmpresasReconciliation";
 import EmpresasStatements from "@/pages/empresas/EmpresasStatements";
 import EmpresasRisk from "@/pages/empresas/EmpresasRisk";
+import EmpresasDocuments from "@/pages/empresas/EmpresasDocuments";
+import EmpresasProducts from "@/pages/empresas/EmpresasProducts";
 import Dashboard from "@/pages/Dashboard";
 import Onboarding from "@/pages/Onboarding";
 import Products from "@/pages/Products";
@@ -30,6 +32,7 @@ import Goals from "@/pages/Goals";
 import Plan from "@/pages/Plan";
 import Profile from "@/pages/Profile";
 import Expenses from "@/pages/Expenses";
+import Movimientos from "@/pages/Movimientos";
 import EmailInviteHandler from "@/pages/EmailInviteHandler";
 import ShareBillSplit from "@/pages/ShareBillSplit";
 import FinancialAssistant from "@/components/FinancialAssistant";
@@ -119,9 +122,24 @@ function App() {
                       <EmpresasLayout><EmpresasRisk /></EmpresasLayout>
                     </ProtectedRoute>
                   </Route>
+                  <Route path="/empresas/documents">
+                    <ProtectedRoute context="empresas">
+                      <EmpresasLayout><EmpresasDocuments /></EmpresasLayout>
+                    </ProtectedRoute>
+                  </Route>
+                  <Route path="/empresas/products">
+                    <ProtectedRoute context="empresas">
+                      <EmpresasLayout><EmpresasProducts /></EmpresasLayout>
+                    </ProtectedRoute>
+                  </Route>
                   <Route path="/dashboard">
                     <ProtectedRoute>
                       <Dashboard />
+                    </ProtectedRoute>
+                  </Route>
+                  <Route path="/movimientos">
+                    <ProtectedRoute>
+                      <Movimientos />
                     </ProtectedRoute>
                   </Route>
                   <Route path="/expenses">
