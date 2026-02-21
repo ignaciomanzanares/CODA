@@ -9,7 +9,7 @@ import type { OpenBankingConnector } from './interface.js';
 import type { SyncResult, OpenBankingData, OpenBankingAccount, OpenBankingTransaction, OpenBankingBalance } from '../types.js';
 
 /**
- * Generate deterministic mock accounts
+ * Generate deterministic mock accounts (checking, savings, credit)
  */
 function generateMockAccounts(companyId: number): OpenBankingAccount[] {
   const base = companyId * 1000;
@@ -22,20 +22,37 @@ function generateMockAccounts(companyId: number): OpenBankingAccount[] {
       currency: 'CLP',
       isActive: true,
     },
+    {
+      externalId: `BDC-ACC-${base}-002`,
+      bankName: 'Banco de Chile',
+      accountNumber: `${base}0005678`,
+      accountType: 'savings',
+      currency: 'CLP',
+      isActive: true,
+    },
+    {
+      externalId: `BDC-ACC-${base}-003`,
+      bankName: 'Banco de Chile',
+      accountNumber: `CC-${base}-999`,
+      accountType: 'credit',
+      currency: 'CLP',
+      isActive: true,
+    },
   ];
 }
 
 /**
- * Generate deterministic mock transactions
+ * Generate deterministic mock transactions (checking + credit account)
  */
 function generateMockTransactions(companyId: number): OpenBankingTransaction[] {
   const base = companyId * 1000;
-  const accountExternalId = `BDC-ACC-${base}-001`;
+  const checkingId = `BDC-ACC-${base}-001`;
+  const creditId = `BDC-ACC-${base}-003`;
 
   return [
     {
       externalId: `BDC-TXN-${base}-0001`,
-      accountExternalId,
+      accountExternalId: checkingId,
       transactionDate: '2024-11-25',
       postedDate: '2024-11-25',
       amount: 5950000,
@@ -49,7 +66,7 @@ function generateMockTransactions(companyId: number): OpenBankingTransaction[] {
     },
     {
       externalId: `BDC-TXN-${base}-0002`,
-      accountExternalId,
+      accountExternalId: checkingId,
       transactionDate: '2024-11-28',
       postedDate: '2024-11-28',
       amount: -1190000,
@@ -63,7 +80,7 @@ function generateMockTransactions(companyId: number): OpenBankingTransaction[] {
     },
     {
       externalId: `BDC-TXN-${base}-0003`,
-      accountExternalId,
+      accountExternalId: checkingId,
       transactionDate: '2024-12-01',
       postedDate: '2024-12-01',
       amount: 3570000,
@@ -75,23 +92,46 @@ function generateMockTransactions(companyId: number): OpenBankingTransaction[] {
       status: 'posted',
       category: 'income',
     },
+    {
+      externalId: `BDC-TXN-${base}-0004`,
+      accountExternalId: creditId,
+      transactionDate: '2024-11-20',
+      postedDate: '2024-11-20',
+      amount: -850000,
+      currency: 'CLP',
+      description: 'Compras oficina',
+      counterpartyName: 'Office Depot',
+      counterpartyRut: null,
+      reference: null,
+      status: 'posted',
+      category: 'expense',
+    },
+    {
+      externalId: `BDC-TXN-${base}-0005`,
+      accountExternalId: creditId,
+      transactionDate: '2024-11-28',
+      postedDate: '2024-11-28',
+      amount: -320000,
+      currency: 'CLP',
+      description: 'Combustible',
+      counterpartyName: 'Copec',
+      counterpartyRut: null,
+      reference: null,
+      status: 'posted',
+      category: 'expense',
+    },
   ];
 }
 
 /**
- * Generate deterministic mock balances
+ * Generate deterministic mock balances (checking, savings, credit)
  */
 function generateMockBalances(companyId: number): OpenBankingBalance[] {
   const base = companyId * 1000;
-  const accountExternalId = `BDC-ACC-${base}-001`;
-
   return [
-    {
-      accountExternalId,
-      balanceDate: '2024-12-01',
-      availableBalance: 15000000,
-      currentBalance: 15000000,
-    },
+    { accountExternalId: `BDC-ACC-${base}-001`, balanceDate: '2024-12-01', availableBalance: 15000000, currentBalance: 15000000 },
+    { accountExternalId: `BDC-ACC-${base}-002`, balanceDate: '2024-12-01', availableBalance: 5000000, currentBalance: 5000000 },
+    { accountExternalId: `BDC-ACC-${base}-003`, balanceDate: '2024-12-01', availableBalance: -1170000, currentBalance: -1170000 },
   ];
 }
 

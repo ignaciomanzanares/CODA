@@ -76,6 +76,11 @@ export default function EmpresasCompanies() {
                   <FileText className="h-4 w-4 text-muted-foreground" />
                   <span>{company.summary?.transactionCount ?? 0} transacciones · {company.summary?.invoiceCount ?? 0} documentos</span>
                 </div>
+                {company.summary?.accountsByType && (
+                  <p className="text-xs text-muted-foreground">
+                    Cuentas: {[company.summary.accountsByType.checking ? `${company.summary.accountsByType.checking} corriente(s)` : null, company.summary.accountsByType.savings ? `${company.summary.accountsByType.savings} ahorro` : null, company.summary.accountsByType.credit ? `${company.summary.accountsByType.credit} tarjeta(s)/línea(s)` : null].filter(Boolean).join(" · ") || "—"}
+                  </p>
+                )}
               </CardContent>
               <CardContent className="pt-0">
                 <span className="inline-flex items-center gap-1 text-primary font-medium text-sm">

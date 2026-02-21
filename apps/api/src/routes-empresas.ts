@@ -57,8 +57,13 @@ router.get("/companies/summary", async (_req: Request, res: Response, next: Next
           .select()
           .from(empresasBankAccounts)
           .where(eq(empresasBankAccounts.companyId, company.id));
+        const accountsByType: { checking: number; savings: number; credit: number } = { checking: 0, savings: 0, credit: 0 };
         let cashBalance = 0;
         for (const account of accounts) {
+          const t = (account as { accountType?: string }).accountType;
+          if (t === "checking") accountsByType.checking++;
+          else if (t === "savings") accountsByType.savings++;
+          else if (t === "credit") accountsByType.credit++;
           const balances = await db
             .select()
             .from(empresasBankBalances)
@@ -96,6 +101,7 @@ router.get("/companies/summary", async (_req: Request, res: Response, next: Next
             riskRating: riskResult[0]?.rating ?? null,
             riskScore: riskResult[0]?.overallScore ?? null,
             lastSyncAt: lastTxn[0]?.date ?? null,
+            accountsByType,
           },
         };
       })
@@ -137,12 +143,30 @@ router.get("/transactions", async (req: Request, res: Response, next: NextFuncti
       res.status(400).json({ error: "Invalid company_id" });
       return;
     }
-    const result = await db
-      .select()
+    const rows = await db
+      .select({
+        id: empresasBankTransactions.id,
+        companyId: empresasBankTransactions.companyId,
+        bankAccountId: empresasBankTransactions.bankAccountId,
+        transactionDate: empresasBankTransactions.transactionDate,
+        postedDate: empresasBankTransactions.postedDate,
+        amount: empresasBankTransactions.amount,
+        currency: empresasBankTransactions.currency,
+        description: empresasBankTransactions.description,
+        counterpartyName: empresasBankTransactions.counterpartyName,
+        counterpartyRut: empresasBankTransactions.counterpartyRut,
+        reference: empresasBankTransactions.reference,
+        status: empresasBankTransactions.status,
+        category: empresasBankTransactions.category,
+        createdAt: empresasBankTransactions.createdAt,
+        accountType: empresasBankAccounts.accountType,
+        accountNumber: empresasBankAccounts.accountNumber,
+      })
       .from(empresasBankTransactions)
+      .leftJoin(empresasBankAccounts, eq(empresasBankTransactions.bankAccountId, empresasBankAccounts.id))
       .where(eq(empresasBankTransactions.companyId, companyId))
       .orderBy(empresasBankTransactions.transactionDate);
-    res.json({ data: result, count: result.length });
+    res.json({ data: rows, count: rows.length });
   } catch (error) {
     next(error);
   }
@@ -663,6 +687,172 @@ router.get("/documents", async (req: Request, res: Response, next: NextFunction)
   }
 });
 
+/**
+ * POST /api/empresas/documents — Emitir DTE desde la plataforma
+ * Body: { companyId, documentType?, receiverRut, receiverName?, netAmount, vatAmount?, issueDate? }
+ */
+router.post("/documents", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const body = req.body as { companyId: number; documentType?: string; receiverRut: string; receiverName?: string; netAmount: number; vatAmount?: number; issueDate?: string };
+    const companyId = Number(body.companyId);
+    if (!companyId || isNaN(companyId)) {
+      res.status(400).json({ error: "companyId is required" });
+      return;
+    }
+    const companyRows = await db.select().from(empresasCompanies).where(eq(empresasCompanies.id, companyId));
+    if (companyRows.length === 0) {
+      res.status(404).json({ error: "Company not found" });
+      return;
+    }
+    const company = companyRows[0] as { id: number; name: string; rut: string };
+    const receiverRut = String(body.receiverRut || "").trim();
+    if (!receiverRut) {
+      res.status(400).json({ error: "receiverRut is required" });
+      return;
+    }
+    const netAmount = Number(body.netAmount);
+    if (isNaN(netAmount) || netAmount < 0) {
+      res.status(400).json({ error: "netAmount must be a positive number" });
+      return;
+    }
+    const vatAmount = body.vatAmount != null ? Number(body.vatAmount) : Math.round(netAmount * 0.19);
+    const totalAmount = netAmount + (vatAmount || 0);
+    const issueDate = (body.issueDate && /^\d{4}-\d{2}-\d{2}$/.test(body.issueDate)) ? body.issueDate : new Date().toISOString().slice(0, 10);
+    const documentType = body.documentType && ["invoice", "credit_note", "debit_note"].includes(body.documentType) ? body.documentType : "invoice";
+
+    const maxFolio = await db
+      .select({ max: sql<number>`COALESCE(MAX(${empresasDteDocuments.folio}), 0)` })
+      .from(empresasDteDocuments)
+      .where(and(eq(empresasDteDocuments.companyId, companyId), eq(empresasDteDocuments.direction, "issued")));
+    const nextFolio = (Number(maxFolio[0]?.max) || 0) + 1;
+
+    const [inserted] = await db
+      .insert(empresasDteDocuments)
+      .values({
+        companyId,
+        documentType,
+        direction: "issued",
+        folio: nextFolio,
+        emitterRut: company.rut,
+        emitterName: company.name,
+        receiverRut,
+        receiverName: (body.receiverName && String(body.receiverName).trim()) || null,
+        issueDate,
+        netAmount,
+        vatAmount: vatAmount || null,
+        totalAmount,
+        currency: "CLP",
+        status: "valid",
+      })
+      .returning({ id: empresasDteDocuments.id, folio: empresasDteDocuments.folio });
+    res.status(201).json({ data: { id: inserted?.id, folio: inserted?.folio, message: "DTE emitido" } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ========== PURCHASE ORDERS (OC) ==========
+router.get("/purchase-orders", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const companyIdParam = req.query.company_id;
+    if (!companyIdParam || typeof companyIdParam !== "string") {
+      res.status(400).json({ error: "company_id query parameter is required" });
+      return;
+    }
+    const companyId = parseInt(companyIdParam, 10);
+    if (isNaN(companyId)) {
+      res.status(400).json({ error: "Invalid company_id" });
+      return;
+    }
+    const result = await db
+      .select()
+      .from(empresasPurchaseOrders)
+      .where(eq(empresasPurchaseOrders.companyId, companyId))
+      .orderBy(sql`${empresasPurchaseOrders.createdAt} DESC`);
+    res.json({ data: result, count: result.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/purchase-orders/by-vendor", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const companyIdParam = req.query.company_id;
+    if (!companyIdParam || typeof companyIdParam !== "string") {
+      res.status(400).json({ error: "company_id query parameter is required" });
+      return;
+    }
+    const companyId = parseInt(companyIdParam, 10);
+    if (isNaN(companyId)) {
+      res.status(400).json({ error: "Invalid company_id" });
+      return;
+    }
+    const list = await db
+      .select()
+      .from(empresasPurchaseOrders)
+      .where(eq(empresasPurchaseOrders.companyId, companyId))
+      .orderBy(empresasPurchaseOrders.customerRut, sql`${empresasPurchaseOrders.createdAt} DESC`);
+    const byVendor = new Map<string, typeof list>();
+    for (const po of list) {
+      const key = `${(po as { customerRut: string }).customerRut}|${(po as { customerName: string | null }).customerName ?? ""}`;
+      if (!byVendor.has(key)) byVendor.set(key, []);
+      byVendor.get(key)!.push(po);
+    }
+    const vendors = Array.from(byVendor.entries()).map(([key, orders]) => {
+      const first = orders[0] as { customerRut: string; customerName: string | null };
+      return {
+        vendorRut: first.customerRut,
+        vendorName: first.customerName ?? first.customerRut,
+        orders,
+        totalAmount: orders.reduce((s, o) => s + Number((o as { totalAmount: number }).totalAmount), 0),
+      };
+    });
+    res.json({ data: vendors, count: vendors.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/purchase-orders/:id/link-dte", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const poId = parseInt(req.params.id, 10);
+    const body = req.body as { dteDocumentId: number };
+    if (isNaN(poId) || !body?.dteDocumentId) {
+      res.status(400).json({ error: "id and dteDocumentId are required" });
+      return;
+    }
+    const dteId = Number(body.dteDocumentId);
+    const poRows = await db.select().from(empresasPurchaseOrders).where(eq(empresasPurchaseOrders.id, poId));
+    if (poRows.length === 0) {
+      res.status(404).json({ error: "Purchase order not found" });
+      return;
+    }
+    const po = poRows[0] as { companyId: number };
+    const dteRows = await db.select().from(empresasDteDocuments).where(eq(empresasDteDocuments.id, dteId));
+    if (dteRows.length === 0 || (dteRows[0] as { companyId: number }).companyId !== po.companyId) {
+      res.status(404).json({ error: "DTE not found or does not belong to this company" });
+      return;
+    }
+    const dte = dteRows[0] as { totalAmount: number; direction: string };
+    if (dte.direction !== "received") {
+      res.status(400).json({ error: "Only received DTEs can be linked to a purchase order" });
+      return;
+    }
+    const totalAmount = Number(dte.totalAmount);
+    await db
+      .update(empresasPurchaseOrders)
+      .set({
+        dteDocumentId: dteId,
+        invoicedAmount: totalAmount,
+        status: totalAmount >= Number((poRows[0] as { totalAmount: number }).totalAmount) ? "fully_invoiced" : "partially_invoiced",
+      } as any)
+      .where(eq(empresasPurchaseOrders.id, poId));
+    res.json({ data: { message: "OC vinculada al DTE", dteDocumentId: dteId } });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ========== CASH FORECAST (Asistente flujo de caja) ==========
 router.get("/cash-forecast/:company_id", async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -742,40 +932,43 @@ router.post("/seed-demo", async (_req: Request, res: Response, next: NextFunctio
       return res.status(500).json({ error: "No se pudo crear la empresa demo" });
     }
     const companyId = c1.id;
-    const [acc] = await db
-      .insert(empresasBankAccounts)
-      .values({
-        companyId,
-        bankName: "Banco Demo",
-        accountNumber: "10000001",
-        accountType: "checking",
-        currency: "CLP",
-        isActive: 1,
-      })
-      .returning({ id: empresasBankAccounts.id });
-    if (acc?.id) {
-      await db.insert(empresasBankBalances).values({
-        bankAccountId: acc.id,
-        balanceDate: today,
-        availableBalance: 7_000_000,
-        currentBalance: 7_000_000,
-      });
-      const txns = [
-        { amount: 1_500_000, description: "Venta cliente", category: "ingreso" },
-        { amount: -400_000, description: "Pago proveedor", category: "gasto" },
-      ];
-      for (const t of txns) {
-        await db.insert(empresasBankTransactions).values({
+    const demoAccounts: { accountNumber: string; accountType: "checking" | "savings" | "credit"; balance: number; txns?: { amount: number; description: string; category: string }[] }[] = [
+      { accountNumber: "10000001", accountType: "checking", balance: 7_000_000, txns: [{ amount: 1_500_000, description: "Venta cliente", category: "ingreso" }, { amount: -400_000, description: "Pago proveedor", category: "gasto" }] },
+      { accountNumber: "10000002", accountType: "savings", balance: 2_000_000 },
+      { accountNumber: "CC-DEMO", accountType: "credit", balance: -300_000, txns: [{ amount: -300_000, description: "Compras", category: "gasto" }] },
+    ];
+    for (const ac of demoAccounts) {
+      const [acc] = await db
+        .insert(empresasBankAccounts)
+        .values({
           companyId,
-          bankAccountId: acc.id,
-          transactionDate: today,
-          postedDate: today,
-          amount: t.amount,
+          bankName: "Banco Demo",
+          accountNumber: ac.accountNumber,
+          accountType: ac.accountType,
           currency: "CLP",
-          description: t.description,
-          category: t.category,
-          status: "posted",
+          isActive: 1,
+        })
+        .returning({ id: empresasBankAccounts.id });
+      if (acc?.id) {
+        await db.insert(empresasBankBalances).values({
+          bankAccountId: acc.id,
+          balanceDate: today,
+          availableBalance: ac.balance,
+          currentBalance: ac.balance,
         });
+        for (const t of ac.txns ?? []) {
+          await db.insert(empresasBankTransactions).values({
+            companyId,
+            bankAccountId: acc.id,
+            transactionDate: today,
+            postedDate: today,
+            amount: t.amount,
+            currency: "CLP",
+            description: t.description,
+            category: t.category,
+            status: "posted",
+          });
+        }
       }
     }
     await db.insert(empresasRiskScores).values({

@@ -26,6 +26,7 @@ export interface CompanySummary {
   riskRating: string | null;
   riskScore: number | null;
   lastSyncAt: string | null;
+  accountsByType?: { checking: number; savings: number; credit: number };
 }
 
 export interface CompanyWithSummary extends EmpresasCompany {
@@ -59,6 +60,8 @@ export interface BankTransaction {
   reference: string | null;
   status: string;
   createdAt: string;
+  accountType?: string | null;
+  accountNumber?: string | null;
 }
 
 export async function getEmpresasCompanies(): Promise<EmpresasCompany[]> {
@@ -146,6 +149,25 @@ export async function getEmpresasDocuments(companyId: number): Promise<DTEDocume
   return r.data;
 }
 
+export interface CreateDTEBody {
+  companyId: number;
+  documentType?: "invoice" | "credit_note" | "debit_note";
+  receiverRut: string;
+  receiverName?: string;
+  netAmount: number;
+  vatAmount?: number;
+  issueDate?: string;
+}
+
+export async function createEmpresasDocument(body: CreateDTEBody): Promise<{ id: number; folio: number; message: string }> {
+  const res = await apiFetch(`${EMPRESAS_PREFIX}/documents`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return (res as { data: { id: number; folio: number; message: string } }).data;
+}
+
 export interface CashForecastDay {
   date: string;
   projectedBalance: number;
@@ -170,4 +192,46 @@ export async function getEmpresasCashForecast(companyId: number, days?: number):
 export async function seedEmpresasDemo(): Promise<{ message: string; companyId?: number }> {
   const res = await apiFetch(`${EMPRESAS_PREFIX}/seed-demo`, { method: "POST" });
   return (res as { data: { message: string; companyId?: number } }).data;
+}
+
+export interface PurchaseOrder {
+  id: number;
+  companyId: number;
+  poNumber: string;
+  customerRut: string;
+  customerName: string | null;
+  currency: string;
+  totalAmount: number;
+  invoicedAmount: number | null;
+  expectedInvoiceDate: string | null;
+  status: string | null;
+  notes: string | null;
+  dteDocumentId: number | null;
+  createdAt: string;
+}
+
+export async function getEmpresasPurchaseOrders(companyId: number): Promise<PurchaseOrder[]> {
+  const r = await fetchEmpresas<PurchaseOrder[]>(`/purchase-orders?company_id=${companyId}`);
+  return r.data;
+}
+
+export interface PurchaseOrdersByVendor {
+  vendorRut: string;
+  vendorName: string;
+  orders: PurchaseOrder[];
+  totalAmount: number;
+}
+
+export async function getEmpresasPurchaseOrdersByVendor(companyId: number): Promise<PurchaseOrdersByVendor[]> {
+  const r = await fetchEmpresas<PurchaseOrdersByVendor[]>(`/purchase-orders/by-vendor?company_id=${companyId}`);
+  return r.data;
+}
+
+export async function linkPurchaseOrderToDte(poId: number, dteDocumentId: number): Promise<{ message: string }> {
+  const res = await apiFetch(`${EMPRESAS_PREFIX}/purchase-orders/${poId}/link-dte`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dteDocumentId }),
+  });
+  return (res as { data: { message: string } }).data;
 }

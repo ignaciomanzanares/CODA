@@ -50,46 +50,72 @@ async function main() {
 
   for (let i = 0; i < companyIds.length; i++) {
     const companyId = companyIds[i];
-    const [acc] = await db
-      .insert(empresasBankAccounts)
-      .values({
-        companyId,
+    const base = companyId * 100;
+    const accountsToCreate: { bankName: string; accountNumber: string; accountType: "checking" | "savings" | "credit"; balance: number; txns?: { amount: number; description: string; category: string }[] }[] = [
+      {
         bankName: i === 0 ? "Banco Estado" : "Banco de Chile",
-        accountNumber: i === 0 ? "12345678" : "87654321",
+        accountNumber: String(base + 12345678),
         accountType: "checking",
-        currency: "CLP",
-        isActive: 1,
-      })
-      .returning({ id: empresasBankAccounts.id });
-
-    if (!acc?.id) continue;
-
-    const balance = 5_000_000 + (i + 1) * 2_000_000;
-    await db.insert(empresasBankBalances).values({
-      bankAccountId: acc.id,
-      balanceDate: today,
-      availableBalance: balance,
-      currentBalance: balance,
-    });
-
-    const txns = [
-      { amount: 1_200_000, description: "Venta cliente", category: "ingreso" },
-      { amount: -350_000, description: "Pago proveedor", category: "gasto" },
-      { amount: -180_000, description: "Servicios", category: "gasto" },
+        balance: 5_000_000 + (i + 1) * 2_000_000,
+        txns: [
+          { amount: 1_200_000, description: "Venta cliente", category: "ingreso" },
+          { amount: -350_000, description: "Pago proveedor", category: "gasto" },
+          { amount: -180_000, description: "Servicios", category: "gasto" },
+        ],
+      },
+      {
+        bankName: i === 0 ? "Banco Estado" : "Banco de Chile",
+        accountNumber: String(base + 22222222),
+        accountType: "savings",
+        balance: 3_000_000,
+      },
+      {
+        bankName: i === 0 ? "Banco Estado" : "Banco de Chile",
+        accountNumber: `CC-${base}`,
+        accountType: "credit",
+        balance: -450_000,
+        txns: [
+          { amount: -200_000, description: "Compras oficina", category: "gasto" },
+          { amount: -250_000, description: "Combustible", category: "gasto" },
+        ],
+      },
     ];
-    for (let j = 0; j < txns.length; j++) {
-      const t = txns[j];
-      await db.insert(empresasBankTransactions).values({
-        companyId,
+
+    for (const ac of accountsToCreate) {
+      const [acc] = await db
+        .insert(empresasBankAccounts)
+        .values({
+          companyId,
+          bankName: ac.bankName,
+          accountNumber: ac.accountNumber,
+          accountType: ac.accountType,
+          currency: "CLP",
+          isActive: 1,
+        })
+        .returning({ id: empresasBankAccounts.id });
+
+      if (!acc?.id) continue;
+
+      await db.insert(empresasBankBalances).values({
         bankAccountId: acc.id,
-        transactionDate: today,
-        postedDate: today,
-        amount: t.amount,
-        currency: "CLP",
-        description: t.description,
-        category: t.category,
-        status: "posted",
+        balanceDate: today,
+        availableBalance: ac.balance,
+        currentBalance: ac.balance,
       });
+
+      for (const t of ac.txns ?? []) {
+        await db.insert(empresasBankTransactions).values({
+          companyId,
+          bankAccountId: acc.id,
+          transactionDate: today,
+          postedDate: today,
+          amount: t.amount,
+          currency: "CLP",
+          description: t.description,
+          category: t.category,
+          status: "posted",
+        });
+      }
     }
 
     await db.insert(empresasRiskScores).values({

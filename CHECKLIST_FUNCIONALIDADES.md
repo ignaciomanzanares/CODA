@@ -23,7 +23,7 @@ Estado de cada ítem según revisión del código (paso a paso). Leyenda: **OK**
 | Subítem | Estado | Detalle |
 |--------|--------|---------|
 | Clasificación de gastos | **OK** | Expenses CRUD, categorías, subcategoría, `isAutoClassified`, API `expenses/classify` |
-| Seguimiento mensual | **Parcial** | MonthlyTracker en Dashboard usa datos por defecto; no está alimentado por gastos reales del usuario |
+| Seguimiento mensual | **OK** | MonthlyTracker alimentado con **GET /api/expenses/monthly-summary** y datos reales en Plan (por categoría e histórico 6 meses). |
 | Históricos | **OK** | Gastos con `date`, listado filtrable en Expenses; financial-summary tiene trends |
 | Proyección anual de gastos y flujo | **OK** | AnnualProjection (ingresos/gastos/ahorro), CashFlowChart en Dashboard |
 
@@ -55,7 +55,7 @@ Estado de cada ítem según revisión del código (paso a paso). Leyenda: **OK**
 | Subítem | Estado | Detalle |
 |--------|--------|---------|
 | Cuentas corrientes | **OK** | empresasBankAccounts, sync Open Banking mock (accountType checking) |
-| Tarjetas / Líneas de crédito | **Parcial** | Connector types: checking, savings, credit. Mock solo genera checking; **falta** modelar y mostrar tarjetas y líneas de crédito en UI/seed |
+| Tarjetas / Líneas de crédito | **OK** | Mock Open Banking genera checking, savings y credit; seed y seed-demo crean los tres tipos; resumen por empresa incluye **accountsByType**; Transacciones muestra columna Cuenta (Corriente/Ahorro/Tarjeta). |
 | Movimientos interbancarios e intrabancarios | **OK** | empresasBankTransactions por company, sync desde connector, vista Transacciones |
 
 ### 4.2 Consolidación completa de movimientos bancarios
@@ -71,7 +71,7 @@ Estado de cada ítem según revisión del código (paso a paso). Leyenda: **OK**
 ### 4.4 Sistema de facturación electrónica
 | Subítem | Estado | Detalle |
 |--------|--------|---------|
-| Emisión de DTE | **Parcial** | Tabla empresasDteDocuments con direction issued/received; sync SII mock trae documentos. **Falta:** flujo de emisión desde la plataforma (crear DTE) |
+| Emisión de DTE | **OK** | **POST /api/empresas/documents** para emitir DTE; en **/empresas/documents** botón "Emitir DTE" con formulario (receptor, monto neto, IVA opcional). Folio automático por empresa. |
 | Recepción de DTE | **OK** | direction "received", almacenamiento y listado |
 | Plataforma de orden y almacenamiento de DTE | **OK** | Vista dedicada **/empresas/documents** (DTE): listado por empresa, orden por fecha, emisor/receptor y total. |
 
@@ -89,8 +89,8 @@ Estado de cada ítem según revisión del código (paso a paso). Leyenda: **OK**
 | Subítem | Estado | Detalle |
 |--------|--------|---------|
 | Registro de órdenes de compra | **OK** | empresasPurchaseOrders, sync purchase_orders, listado en dashboard (poCount) |
-| Asociación de órdenes a proveedores | **Parcial** | PO tiene customerRut, customerName (cliente). **Falta:** asociación explícita a proveedores y vista "OC por proveedor" |
-| Flujo desde orden de compra a facturación | **Parcial** | PO tiene invoicedAmount, expectedInvoiceDate. **Falta:** flujo en UI (vincular OC → DTE) y seguimiento estado "facturado" |
+| Asociación de órdenes a proveedores | **OK** | Vista **OC por proveedor** en **/empresas/purchase-orders** (tab "Por proveedor"); proveedor = customerRut/customerName. |
+| Flujo desde orden de compra a facturación | **OK** | **PATCH /api/empresas/purchase-orders/:id/link-dte**; en la página OC, botón "Vincular DTE" para asociar un DTE recibido; estado "Facturado" y dteDocumentId. |
 
 ### 4.8 Motor de credit scoring para empresas
 | Estado | Detalle |
@@ -107,14 +107,48 @@ Estado de cada ítem según revisión del código (paso a paso). Leyenda: **OK**
 |--------|--------|---------|
 | Proyecciones | **OK** | **GET /api/empresas/cash-forecast/:company_id**; card "Proyección de caja (30 días)" en Estados financieros. |
 | Seguimiento | **OK** | Estado de flujo de caja en Statements (cashFlow), dashboard con cashBalance |
-| Alertas | **Parcial** | EmpresasRisk tiene "Alertas"; alertas específicas de caja (umbrales) pendientes. |
+| Alertas | **OK** | En Estados financieros: umbral mínimo de caja (CLP) configurable; alerta cuando la proyección de caja cae bajo el umbral (días y montos listados). |
 | Lógica similar al bot financiero de personas | **Parcial** | FinancialAssistant está disponible también en rutas Empresas (flotante); bot dedicado solo empresas pendiente. |
 
 ---
 
 ## Resumen de lo agregado en esta revisión
 
-- **Personal:** **GET /api/transactions** y página **Movimientos** (`/movimientos`) — vista unificada de movimientos de todas las cuentas.
-- **Empresas:** **GET /api/empresas/documents** y página **DTE** (`/empresas/documents`). **GET /api/empresas/cash-forecast/:company_id** y card **Proyección de caja** en Estados financieros. Página **Comparador de productos** (`/empresas/products`). Nav actualizado con DTE y Productos.
+- **Personal:** **GET /api/transactions** y página **Movimientos** (`/movimientos`) — vista unificada de movimientos de todas las cuentas. **GET /api/expenses/monthly-summary** y **MonthlyTracker** alimentado con gastos reales en Plan.
+- **Empresas:** **GET /api/empresas/documents** y página **DTE** con **POST** y "Emitir DTE". **GET /api/empresas/cash-forecast/:company_id** y alertas de caja por umbral. Tarjetas y líneas de crédito (mock/seed, accountsByType, columna Cuenta). **OC:** página **/empresas/purchase-orders** (nav "OC"), **GET /api/empresas/purchase-orders** y **/by-vendor**, **PATCH .../link-dte** para vincular OC → DTE recibido y estado facturado (schema: `empresas_purchase_orders.dte_document_id`; ejecutar `npm run db:push` si la tabla ya existía). Página **Comparador de productos**. Nav actualizado.
 
-Pendientes (opcionales): alimentar MonthlyTracker con gastos reales; alertas de flujo de caja; asistente contable (bot/wizard); flujo OC → facturación en UI; Open Banking Anexo O3.
+---
+
+## Pendientes (tareas concretas)
+
+Prioridad: **P1** = alta, **P2** = media, **P3** = baja / futuro.
+
+### Personal
+
+| Prioridad | Tarea | Referencia | Notas |
+|-----------|--------|------------|--------|
+| ~~P2~~ | ~~Alimentar **MonthlyTracker** con gastos reales~~ | 3.3 | **Hecho.** GET /api/expenses/monthly-summary; Plan usa datos reales para totalSpent, categoryData e historicalData. |
+| P3 | Integración explícita con **registros CMF** (scoring) | 3.4 | Opcional; puede quedar como dato externo o integración posterior. |
+
+### Empresas
+
+| Prioridad | Tarea | Referencia | Notas |
+|-----------|--------|------------|--------|
+| ~~P2~~ | ~~Modelar y mostrar **tarjetas y líneas de crédito** en Empresas~~ | 4.1 | **Hecho.** Mock: checking + savings + credit; seed/seed-demo: tres tipos; summary.accountsByType; columna Cuenta en Transacciones. |
+| P2 | Módulo **asistente contable** (bot o wizard) | 4.3 | Añadir flujo que guíe contabilidad o responda dudas (reutilizar o extender patrón del FinancialAssistant). |
+| ~~P2~~ | ~~Flujo de **emisión de DTE** desde la plataforma~~ | 4.4 | **Hecho.** POST /api/empresas/documents; en DTE, botón "Emitir DTE" y formulario (RUT receptor, nombre, monto neto, IVA opcional). |
+| ~~P2~~ | ~~**OC por proveedor** y flujo OC → facturación en UI~~ | 4.7 | **Hecho.** Página **/empresas/purchase-orders** (nav "OC"): tabs "Todas las OC" y "Por proveedor"; **PATCH .../link-dte** y botón "Vincular DTE" para marcar facturado. |
+| ~~P2~~ | ~~**Alertas de flujo de caja** (umbrales)~~ | 4.10 | **Hecho.** En Estados financieros: input "Umbral mínimo (CLP)" y alerta cuando la proyección cae bajo ese umbral. |
+| P3 | **Bot dedicado solo a empresas** | 4.10 | Variante del FinancialAssistant con contexto empresas (opcional si el flotante actual basta). |
+
+### Regulatorio / infraestructura
+
+| Prioridad | Tarea | Referencia | Notas |
+|-----------|--------|------------|--------|
+| P1* | **Open Banking Anexo O3** (integración real) | 3.7 | Requisitos regulatorios; reemplazar mock por proveedor certificado cuando corresponda. *Prioridad de negocio/legal. |
+
+### Orden sugerido de implementación
+
+1. **Corto plazo (valor rápido):** MonthlyTracker con gastos reales (3.3), alertas de caja (4.10).
+2. **Mediano plazo:** Tarjetas/líneas Empresas (4.1), emisión DTE (4.4), flujo OC → facturación (4.7).
+3. **Más adelante:** Asistente contable (4.3), bot empresas (4.10), CMF (3.4), Open Banking Anexo O3 (3.7).

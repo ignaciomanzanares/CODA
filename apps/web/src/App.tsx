@@ -25,6 +25,7 @@ import EmpresasStatements from "@/pages/empresas/EmpresasStatements";
 import EmpresasRisk from "@/pages/empresas/EmpresasRisk";
 import EmpresasDocuments from "@/pages/empresas/EmpresasDocuments";
 import EmpresasProducts from "@/pages/empresas/EmpresasProducts";
+import EmpresasPurchaseOrders from "@/pages/empresas/EmpresasPurchaseOrders";
 import Dashboard from "@/pages/Dashboard";
 import Onboarding from "@/pages/Onboarding";
 import Products from "@/pages/Products";
@@ -130,6 +131,11 @@ function App() {
                   <Route path="/empresas/products">
                     <ProtectedRoute context="empresas">
                       <EmpresasLayout><EmpresasProducts /></EmpresasLayout>
+                    </ProtectedRoute>
+                  </Route>
+                  <Route path="/empresas/purchase-orders">
+                    <ProtectedRoute context="empresas">
+                      <EmpresasLayout><EmpresasPurchaseOrders /></EmpresasLayout>
                     </ProtectedRoute>
                   </Route>
                   <Route path="/dashboard">

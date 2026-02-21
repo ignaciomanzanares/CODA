@@ -49,6 +49,7 @@ const empresasNavItems = [
   { href: "/empresas/reconciliation", label: "Reconciliación", icon: GitMerge },
   { href: "/empresas/statements", label: "Estados financieros", icon: FileText },
   { href: "/empresas/documents", label: "DTE", icon: FileText },
+  { href: "/empresas/purchase-orders", label: "OC", icon: FileText },
   { href: "/empresas/risk", label: "Riesgo", icon: Shield },
   { href: "/empresas/products", label: "Productos", icon: Package },
 ];

@@ -97,7 +97,61 @@ export default function Plan() {
       return await apiFetch('/api/financial-summary/demo');
     },
   });
-  
+
+  // Monthly summary from real expenses (for MonthlyTracker)
+  const CATEGORY_COLORS = ["#8b5cf6", "#f59e0b", "#3b82f6", "#06b6d4", "#ec4899", "#eab308", "#ef4444", "#6b7280"];
+  const { data: monthlySummary } = useQuery<{
+    currentMonth: { totalSpent: number; byCategory: { category: string; spent: number }[] };
+    last6Months: { monthLabel: string; spent: number }[];
+  }>({
+    queryKey: ["/api/expenses/monthly-summary"],
+    queryFn: async () => {
+      const token = localStorage.getItem("jwt_token");
+      if (!token) throw new Error("Not authenticated");
+      return apiFetch("/api/expenses/monthly-summary", { headers: { Authorization: `Bearer ${token}` } });
+    },
+    enabled: isAuthenticated && !authLoading,
+  });
+
+  const monthlyTrackerProps = (() => {
+    const totalBudget = financialData?.summary?.monthlyIncome ? financialData.summary.monthlyIncome * 0.7 : 5000;
+    if (!monthlySummary && !isAuthenticated) {
+      return {
+        totalBudget,
+        totalSpent: financialData?.summary?.monthlyExpenses ?? 3845,
+        categoryData: undefined,
+        historicalData: undefined,
+      };
+    }
+    if (!monthlySummary) {
+      return {
+        totalBudget,
+        totalSpent: financialData?.summary?.monthlyExpenses ?? 0,
+        categoryData: undefined,
+        historicalData: undefined,
+      };
+    }
+    const { currentMonth, last6Months } = monthlySummary;
+    const totalSpent = currentMonth.totalSpent;
+    const categoryData = currentMonth.byCategory.map((c, i) => ({
+      category: c.category,
+      spent: c.spent,
+      budget: Math.max(c.spent * 1.2, c.spent + 100),
+      color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+    }));
+    const historicalData = last6Months.map((m) => ({
+      month: m.monthLabel,
+      spent: m.spent,
+      budget: totalBudget,
+    }));
+    return {
+      totalBudget,
+      totalSpent,
+      categoryData: categoryData.length ? categoryData : undefined,
+      historicalData: historicalData.length ? historicalData : undefined,
+    };
+  })();
+
   const creditScore = isAuthenticated ? realCreditScore : demoCreditScore;
   const insuranceRisk = isAuthenticated ? realInsuranceRisk : demoInsuranceRisk;
   const goals = isAuthenticated ? realGoals : demoGoals;
@@ -342,9 +396,11 @@ export default function Plan() {
 
           {/* Monthly Budget Tab */}
           <TabsContent value="monthly" className="space-y-6">
-            <MonthlyTracker 
-              totalBudget={financialData?.summary?.monthlyIncome ? financialData.summary.monthlyIncome * 0.7 : 5000}
-              totalSpent={financialData?.summary?.monthlyExpenses || 3845}
+            <MonthlyTracker
+              totalBudget={monthlyTrackerProps.totalBudget}
+              totalSpent={monthlyTrackerProps.totalSpent}
+              categoryData={monthlyTrackerProps.categoryData}
+              historicalData={monthlyTrackerProps.historicalData}
             />
           </TabsContent>
 
