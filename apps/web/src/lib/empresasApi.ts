@@ -165,3 +165,9 @@ export async function getEmpresasCashForecast(companyId: number, days?: number):
   const r = await fetchEmpresas<Awaited<ReturnType<typeof getEmpresasCashForecast>>>(`/cash-forecast/${companyId}${q}`);
   return r.data;
 }
+
+/** Crea una empresa demo si no existe ninguna (para login en CODA Empresas). */
+export async function seedEmpresasDemo(): Promise<{ message: string; companyId?: number }> {
+  const res = await apiFetch(`${EMPRESAS_PREFIX}/seed-demo`, { method: "POST" });
+  return (res as { data: { message: string; companyId?: number } }).data;
+}

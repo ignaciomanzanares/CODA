@@ -1,16 +1,24 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getEmpresasCompaniesWithSummary, getEmpresasDashboard, type CompanyWithSummary, type DashboardMetrics } from "@/lib/empresasApi";
-import { Building2, TrendingUp, TrendingDown, DollarSign, Wallet, RefreshCw, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { getEmpresasCompaniesWithSummary, getEmpresasDashboard, seedEmpresasDemo, type CompanyWithSummary, type DashboardMetrics } from "@/lib/empresasApi";
+import { Building2, TrendingUp, TrendingDown, DollarSign, Wallet, RefreshCw, ArrowRight, PlusCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
 
 export default function EmpresasDashboard() {
   const { currency } = useCurrency();
+  const queryClient = useQueryClient();
   const { data: companies, isLoading, error } = useQuery({
     queryKey: ["empresas", "companies-summary"],
     queryFn: getEmpresasCompaniesWithSummary,
+  });
+  const seedDemo = useMutation({
+    mutationFn: seedEmpresasDemo,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["empresas", "companies-summary"] });
+    },
   });
 
   if (isLoading) {
@@ -31,7 +39,17 @@ export default function EmpresasDashboard() {
         <CardContent className="py-12 text-center">
           <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-lg font-semibold mb-2">Sin empresas</h2>
-          <p className="text-muted-foreground text-sm">No hay empresas con datos. Ejecuta el seed de la BD o conecta una fuente.</p>
+          <p className="text-muted-foreground text-sm mb-4">Crea una empresa demo para explorar el dashboard.</p>
+          <Button
+            onClick={() => seedDemo.mutate()}
+            disabled={seedDemo.isPending}
+          >
+            <PlusCircle className="h-4 w-4 mr-2" />
+            {seedDemo.isPending ? "Creando..." : "Crear empresa demo"}
+          </Button>
+          {seedDemo.isError && (
+            <p className="text-destructive text-sm mt-2">Error al crear. Intenta de nuevo.</p>
+          )}
         </CardContent>
       </Card>
     );
