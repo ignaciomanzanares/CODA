@@ -804,7 +804,7 @@ router.get("/purchase-orders/by-vendor", async (req: Request, res: Response, nex
         vendorRut: first.customerRut,
         vendorName: first.customerName ?? first.customerRut,
         orders,
-        totalAmount: orders.reduce((s, o) => s + Number((o as { totalAmount: number }).totalAmount), 0),
+        totalAmount: orders.reduce((s: number, o: (typeof list)[number]) => s + Number((o as { totalAmount: number }).totalAmount), 0),
       };
     });
     res.json({ data: vendors, count: vendors.length });
@@ -876,7 +876,7 @@ router.get("/cash-forecast/:company_id", async (req: Request, res: Response, nex
         return { accountId: acc.id, balance: bal[0]?.currentBalance ?? bal[0]?.availableBalance ?? 0 };
       })
     );
-    const currentBalance = latestBalances.reduce((s, b) => s + b.balance, 0);
+    const currentBalance = latestBalances.reduce((s: number, b: { accountId: number; balance: number }) => s + b.balance, 0);
 
     const txns = await db
       .select({
