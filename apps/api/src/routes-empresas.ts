@@ -676,7 +676,7 @@ router.get("/cash-forecast/:company_id", async (req: Request, res: Response, nex
 
     const accountsResult = await db.select().from(empresasBankAccounts).where(eq(empresasBankAccounts.companyId, companyId));
     const latestBalances = await Promise.all(
-      accountsResult.map(async (acc) => {
+      accountsResult.map(async (acc: (typeof accountsResult)[number]) => {
         const bal = await db
           .select()
           .from(empresasBankBalances)
@@ -696,7 +696,7 @@ router.get("/cash-forecast/:company_id", async (req: Request, res: Response, nex
       })
       .from(empresasBankTransactions)
       .where(eq(empresasBankTransactions.companyId, companyId));
-    const historicalTransactions = txns.map((t) => ({
+    const historicalTransactions = txns.map((t: (typeof txns)[number]) => ({
       id: t.id,
       transactionDate: t.transactionDate,
       amount: t.amount,
