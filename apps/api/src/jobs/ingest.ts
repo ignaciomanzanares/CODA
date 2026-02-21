@@ -2,6 +2,13 @@ import { storage } from "../storage.js";
 import { MockProvider, type OBProvider } from "../connectors/openbanking/mockProvider.js";
 import type { InsertAccount, InsertBalance, InsertTransaction } from "../schema.js";
 
+/** Normalize date to ISO string for Postgres text columns (driver expects string, not Date). */
+function toDateString(v: Date | string | null | undefined): string | null {
+  if (v == null) return null;
+  if (typeof v === "string") return v;
+  return v.toISOString();
+}
+
 /**
  * Ingest accounts, latest balance, and last 90-day transactions into storage for a given user.
  * Provider-agnostic: any OBProvider will do.
@@ -23,17 +30,17 @@ export async function ingestOpenBankingForUser(userId: string, provider: OBProvi
       currency: pa.currency || null,
       mask: pa.mask || null,
       status: "active",
-      openedAt: pa.openedAt || null,
+      openedAt: toDateString(pa.openedAt ?? undefined),
     } as unknown as InsertAccount;
 
     // Try to find by providerAccountId; since we don't have a lookup, create blindly (demo)
     const created = await storage.createAccount(account);
 
-    // 3) Upsert balance
+    // 3) Upsert balance (Postgres text columns require string, not Date)
     const bal = await provider.getBalance(pa.providerAccountId);
     const balance: InsertBalance = {
       accountId: created.id as number,
-      asOf: bal.asOf || new Date(),
+      asOf: toDateString(bal.asOf ?? new Date()),
       current: String(bal.current),
       available: bal.available != null ? String(bal.available) : null,
       creditLimit: bal.creditLimit != null ? String(bal.creditLimit) : null,
@@ -41,16 +48,16 @@ export async function ingestOpenBankingForUser(userId: string, provider: OBProvi
     } as unknown as InsertBalance;
     await storage.upsertBalance(balance);
 
-    // 4) Transactions (last 90 days)
+    // 4) Transactions (last 90 days) — postedAt must be string for DB
     const to = new Date();
     const from = new Date();
     from.setDate(to.getDate() - 90);
     const pTxs = await provider.listTransactions(pa.providerAccountId, from, to);
 
-    const items: InsertTransaction[] = pTxs.map((t: any) => ({
+    const items: InsertTransaction[] = pTxs.map((t: { postedAt: Date | string; [k: string]: unknown }) => ({
       accountId: created.id as number,
       externalId: t.externalId,
-      postedAt: t.postedAt,
+      postedAt: toDateString(t.postedAt instanceof Date ? t.postedAt : (t.postedAt as string)) ?? new Date().toISOString(),
       description: t.description || null,
       merchantName: t.merchantName || null,
       amount: String(t.amount),

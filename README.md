@@ -42,7 +42,8 @@ Variables mínimas: `DATABASE_URL` (Postgres en prod), `JWT_SECRET`, `CORS_ORIGI
 - **Producción:** Postgres (Render). Local: SQLite opcional.
 
 **Backend (Render)**  
-Web Service, root `apps/api`, build `npm install --include=dev && npm run build`, start `npm start`. Variables: `NODE_ENV=production`, `PORT=5000`, `DATABASE_URL` (Internal URL de Render Postgres), `JWT_SECRET`, `CORS_ORIGINS`, `CLIENT_URL`, `DEBUG_ENDPOINTS=false`.
+Web Service, root `apps/api`, build `npm install --include=dev && npm run build`, start `npm start`. Variables: `NODE_ENV=production`, `PORT=5000`, `DATABASE_URL` (Internal URL de Render Postgres), `JWT_SECRET`, `CORS_ORIGINS`, `CLIENT_URL`, `DEBUG_ENDPOINTS=false`.  
+**Login con usuarios demo (Personal y Empresas):** en producción hay que activar `DEMO_MODE=true` en Environment de Render; si no, el login con usuario demo falla. Para tener una empresa demo al entrar a CODA Empresas, en el dashboard de Empresas aparece el botón "Crear empresa demo" cuando no hay empresas, o se puede llamar una vez `POST /api/empresas/seed-demo`.
 
 **Tablas Empresas en Postgres:** Si la API devuelve `relation "empresas_companies" does not exist`, crear solo esas tablas con:
 ```bash

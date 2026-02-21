@@ -720,6 +720,79 @@ router.get("/cash-forecast/:company_id", async (req: Request, res: Response, nex
   }
 });
 
+// ========== SEED DEMO (empresa demo para login) ==========
+router.post("/seed-demo", async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const existing = await db.select().from(empresasCompanies);
+    if (existing.length > 0) {
+      return res.json({
+        data: { message: "Ya existen empresas.", count: existing.length },
+      });
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    const [c1] = await db
+      .insert(empresasCompanies)
+      .values({
+        name: "Empresa Demo CODA SpA",
+        rut: "76.111.222-3",
+        industry: "Servicios",
+      })
+      .returning({ id: empresasCompanies.id });
+    if (!c1?.id) {
+      return res.status(500).json({ error: "No se pudo crear la empresa demo" });
+    }
+    const companyId = c1.id;
+    const [acc] = await db
+      .insert(empresasBankAccounts)
+      .values({
+        companyId,
+        bankName: "Banco Demo",
+        accountNumber: "10000001",
+        accountType: "checking",
+        currency: "CLP",
+        isActive: 1,
+      })
+      .returning({ id: empresasBankAccounts.id });
+    if (acc?.id) {
+      await db.insert(empresasBankBalances).values({
+        bankAccountId: acc.id,
+        balanceDate: today,
+        availableBalance: 7_000_000,
+        currentBalance: 7_000_000,
+      });
+      const txns = [
+        { amount: 1_500_000, description: "Venta cliente", category: "ingreso" },
+        { amount: -400_000, description: "Pago proveedor", category: "gasto" },
+      ];
+      for (const t of txns) {
+        await db.insert(empresasBankTransactions).values({
+          companyId,
+          bankAccountId: acc.id,
+          transactionDate: today,
+          postedDate: today,
+          amount: t.amount,
+          currency: "CLP",
+          description: t.description,
+          category: t.category,
+          status: "posted",
+        });
+      }
+    }
+    await db.insert(empresasRiskScores).values({
+      companyId,
+      assessmentDate: today,
+      overallScore: 75,
+      rating: "B",
+      factors: JSON.stringify({ liquidity: 0.8, solvency: 0.7 }),
+    });
+    res.json({
+      data: { message: "Empresa demo creada.", companyId },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ========== CONNECTIONS ==========
 const openBankingConnector = createMockOpenBankingConnector();
 const siiConnector = createMockSIIConnector();
