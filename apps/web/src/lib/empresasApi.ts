@@ -123,3 +123,45 @@ export async function syncEmpresasConnection(companyId: number, type: string) {
   const res = await apiFetch(`${EMPRESAS_PREFIX}/connections/${companyId}/${type}/sync`, { method: "POST" });
   return (res as { data: unknown }).data;
 }
+
+export interface DTEDocument {
+  id: number;
+  companyId: number;
+  documentType: string;
+  direction: string;
+  folio: number;
+  emitterRut: string;
+  emitterName: string | null;
+  receiverRut: string;
+  receiverName: string | null;
+  issueDate: string;
+  netAmount: number;
+  totalAmount: number;
+  currency: string;
+  status: string;
+}
+
+export async function getEmpresasDocuments(companyId: number): Promise<DTEDocument[]> {
+  const r = await fetchEmpresas<DTEDocument[]>(`/documents?company_id=${companyId}`);
+  return r.data;
+}
+
+export interface CashForecastDay {
+  date: string;
+  projectedBalance: number;
+  expectedInflows: number;
+  expectedOutflows: number;
+  confidence: number;
+}
+
+export async function getEmpresasCashForecast(companyId: number, days?: number): Promise<{
+  companyId: number;
+  currentBalance: number;
+  currency: string;
+  daysAhead: number;
+  forecast: CashForecastDay[];
+}> {
+  const q = days != null ? `?days=${days}` : "";
+  const r = await fetchEmpresas<Awaited<ReturnType<typeof getEmpresasCashForecast>>>(`/cash-forecast/${companyId}${q}`);
+  return r.data;
+}

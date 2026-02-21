@@ -639,6 +639,87 @@ router.get("/statements/:company_id", async (req: Request, res: Response, next: 
   }
 });
 
+// ========== DOCUMENTS (DTE) ==========
+router.get("/documents", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const companyIdParam = req.query.company_id;
+    if (!companyIdParam || typeof companyIdParam !== "string") {
+      res.status(400).json({ error: "company_id query parameter is required" });
+      return;
+    }
+    const companyId = parseInt(companyIdParam, 10);
+    if (isNaN(companyId)) {
+      res.status(400).json({ error: "Invalid company_id" });
+      return;
+    }
+    const result = await db
+      .select()
+      .from(empresasDteDocuments)
+      .where(eq(empresasDteDocuments.companyId, companyId))
+      .orderBy(sql`${empresasDteDocuments.issueDate} DESC`);
+    res.json({ data: result, count: result.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ========== CASH FORECAST (Asistente flujo de caja) ==========
+router.get("/cash-forecast/:company_id", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const companyId = parseInt(req.params.company_id, 10);
+    if (isNaN(companyId)) {
+      res.status(400).json({ error: "Invalid company_id" });
+      return;
+    }
+    const daysParam = req.query.days;
+    const daysAhead = daysParam ? Math.min(parseInt(String(daysParam), 10) || 30, 90) : 30;
+
+    const accountsResult = await db.select().from(empresasBankAccounts).where(eq(empresasBankAccounts.companyId, companyId));
+    const latestBalances = await Promise.all(
+      accountsResult.map(async (acc) => {
+        const bal = await db
+          .select()
+          .from(empresasBankBalances)
+          .where(eq(empresasBankBalances.bankAccountId, acc.id))
+          .orderBy(sql`${empresasBankBalances.balanceDate} DESC`)
+          .limit(1);
+        return { accountId: acc.id, balance: bal[0]?.currentBalance ?? bal[0]?.availableBalance ?? 0 };
+      })
+    );
+    const currentBalance = latestBalances.reduce((s, b) => s + b.balance, 0);
+
+    const txns = await db
+      .select({
+        id: empresasBankTransactions.id,
+        transactionDate: empresasBankTransactions.transactionDate,
+        amount: empresasBankTransactions.amount,
+      })
+      .from(empresasBankTransactions)
+      .where(eq(empresasBankTransactions.companyId, companyId));
+    const historicalTransactions = txns.map((t) => ({
+      id: t.id,
+      transactionDate: t.transactionDate,
+      amount: t.amount,
+      transactionType: t.amount >= 0 ? "inflow" : "outflow",
+    }));
+
+    const { generateCashForecast } = await import("./empresas/core-finance/cash/cashService.js");
+    const forecasts = generateCashForecast(currentBalance, historicalTransactions, daysAhead);
+
+    res.json({
+      data: {
+        companyId,
+        currentBalance,
+        currency: "CLP",
+        daysAhead,
+        forecast: forecasts,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ========== CONNECTIONS ==========
 const openBankingConnector = createMockOpenBankingConnector();
 const siiConnector = createMockSIIConnector();

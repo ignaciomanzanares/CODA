@@ -34,6 +34,7 @@ import type { CurrencyCode } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
+  { href: "/movimientos", label: "Movimientos", icon: Receipt },
   { href: "/expenses", label: "Gastos", icon: Receipt },
   { href: "/bill-split", label: "Dividir cuenta", icon: Users },
   { href: "/products", label: "Productos", icon: Package },
@@ -47,7 +48,9 @@ const empresasNavItems = [
   { href: "/empresas/transactions", label: "Transacciones", icon: Receipt },
   { href: "/empresas/reconciliation", label: "Reconciliación", icon: GitMerge },
   { href: "/empresas/statements", label: "Estados financieros", icon: FileText },
+  { href: "/empresas/documents", label: "DTE", icon: FileText },
   { href: "/empresas/risk", label: "Riesgo", icon: Shield },
+  { href: "/empresas/products", label: "Productos", icon: Package },
 ];
 
 export default function Header() {

@@ -16,14 +16,6 @@ export default function Footer() {
               Te ayudamos a tomar mejores decisiones financieras con información
               personalizada y recomendaciones.
             </p>
-            <div className="flex items-center gap-3 mt-4">
-              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors" aria-label="Instagram">
-                <FaInstagram size={20} />
-              </a>
-              <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors" aria-label="TikTok">
-                <FaTiktok size={20} />
-              </a>
-            </div>
           </div>
 
           <div>
@@ -110,7 +102,7 @@ export default function Footer() {
             &copy; {new Date().getFullYear()} CODA. Todos los derechos reservados.
           </div>
 
-          <div className="flex space-x-4">
+          <div className="flex items-center gap-4">
             <a href="#" className="text-gray-300 hover:text-white" aria-label="Facebook">
               <Facebook size={20} />
             </a>
@@ -119,6 +111,12 @@ export default function Footer() {
             </a>
             <a href="#" className="text-gray-300 hover:text-white" aria-label="LinkedIn">
               <Linkedin size={20} />
+            </a>
+            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white" aria-label="Instagram">
+              <FaInstagram size={20} />
+            </a>
+            <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white" aria-label="TikTok">
+              <FaTiktok size={20} />
             </a>
           </div>
         </div>
