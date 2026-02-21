@@ -86,23 +86,23 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="w-full max-w-screen-2xl mx-auto flex h-16 items-center justify-between gap-6 px-4 sm:px-6">
-        {/* Izquierda: CODA (logo) siempre igual; en Empresas enlaza al dashboard empresas */}
-        <div className="flex shrink-0 items-center">
+      <div className="w-full max-w-screen-2xl mx-auto flex h-14 min-h-14 flex-nowrap items-center justify-between gap-2 sm:gap-4 px-3 sm:px-6">
+        {/* Izquierda: CODA (logo) - nunca se comprime */}
+        <div className="flex shrink-0 items-center min-w-0">
           <Link
             href={isEmpresas ? "/empresas/dashboard" : "/"}
-            className="flex items-center gap-2 font-semibold"
+            className="flex items-center gap-1.5 sm:gap-2 font-semibold"
           >
-            <div className="rounded-lg bg-primary p-1.5">
-              <Wallet className="h-5 w-5 text-primary-foreground" />
+            <div className="rounded-lg bg-primary p-1.5 shrink-0">
+              <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
             </div>
-            <span className="text-lg hidden sm:inline">{isEmpresas ? "CODA Empresas" : "CODA"}</span>
+            <span className="text-base sm:text-lg truncate hidden sm:inline">{isEmpresas ? "CODA Empresas" : "CODA"}</span>
           </Link>
         </div>
 
-        {/* Centro: navegación Personal o Empresas (cuando autenticado) */}
+        {/* Centro: navegación con scroll horizontal si no cabe */}
         {isAuthenticated && (
-          <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center max-w-3xl">
+          <nav className="hidden lg:flex items-center gap-0.5 flex-1 min-w-0 justify-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {(isEmpresas ? empresasNavItems : navItems).map((item) => {
               const Icon = item.icon;
               const isActive = location === item.href || location.startsWith(`${item.href}/`);
@@ -111,13 +111,13 @@ export default function Header() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors whitespace-nowrap",
+                    "flex items-center gap-1.5 px-2 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap shrink-0",
                     isActive
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
+                  <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                   <span>{item.label}</span>
                 </Link>
               );
@@ -125,8 +125,8 @@ export default function Header() {
           </nav>
         )}
 
-        {/* Derecha: moneda, CODA Empresas, notificaciones, usuario */}
-        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+        {/* Derecha: moneda, CODA Personal/Empresas, notificaciones, usuario - sin envolver */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
           {/* Selector de moneda (solo etiqueta CLP $ / USD $, sin conversión) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -142,16 +142,18 @@ export default function Header() {
           {/* En Empresas: enlace a CODA Personal; en Personal: enlace a CODA Empresas */}
           {isEmpresas ? (
             <Link href="/dashboard">
-              <Button variant="outline" size="sm" className="hidden md:flex items-center gap-2">
-                <Wallet className="h-4 w-4" />
-                <span>CODA Personal</span>
+              <Button variant="outline" size="sm" className="hidden md:flex items-center gap-1.5 shrink-0">
+                <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="xl:hidden">Personal</span>
+                <span className="hidden xl:inline">CODA Personal</span>
               </Button>
             </Link>
           ) : (
             <Link href="/empresas">
-              <Button variant="outline" size="sm" className="hidden md:flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                <span>CODA Empresas</span>
+              <Button variant="outline" size="sm" className="hidden md:flex items-center gap-1.5 shrink-0">
+                <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="xl:hidden">Empresas</span>
+                <span className="hidden xl:inline">CODA Empresas</span>
               </Button>
             </Link>
           )}

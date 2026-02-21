@@ -148,16 +148,20 @@ export default function Login() {
   const handleDemoLogin = async (demoUser: typeof DEMO_USERS[0]) => {
     setIsLoading(true);
     setError("");
-    
     try {
-      await login(demoUser.email, demoUser.password);
-      toast({
-        title: "Sesión iniciada",
-        description: `¡Bienvenido, ${demoUser.name}!`,
-      });
-      setLocation(defaultRedirect);
+      const result = await doLogin(authContext, demoUser.email, demoUser.password);
+      if (result?.requires2FA) {
+        setEmail(demoUser.email);
+        setPassword(demoUser.password);
+        setRequires2FA(true);
+        toast({ title: "Verificación requerida", description: "Revisa tu correo para el código." });
+      } else {
+        toast({ title: "Sesión iniciada", description: `¡Bienvenido, ${demoUser.name}!` });
+        setLocation(defaultRedirect);
+      }
     } catch (err) {
       setError("Error al iniciar sesión con usuario demo");
+      toast({ title: "Error", description: "Error al iniciar sesión con usuario demo", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -352,32 +356,44 @@ export default function Login() {
           </CardContent>
         </Card>
 
-        {/* Demo Users - only show when not in 2FA mode */}
+        {/* Demo: un solo clic para Empresas o lista de usuarios demo para Personal */}
         {!requires2FA && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Usuarios demo</CardTitle>
+              <CardTitle className="text-base">
+                {isEmpresas ? "Empresas demo" : "Usuarios demo"}
+              </CardTitle>
               <CardDescription>
-                Haz clic para iniciar sesión automáticamente
+                {isEmpresas
+                  ? "Un clic para entrar sin escribir usuario ni contraseña"
+                  : "Haz clic para iniciar sesión automáticamente"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              {DEMO_USERS.map((user) => (
+              {isEmpresas ? (
                 <button
-                  key={user.email}
                   type="button"
-                  onClick={() => handleDemoLogin(user)}
+                  onClick={() => handleDemoLogin(DEMO_USERS[0])}
                   disabled={isLoading}
-                  className="w-full text-left px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all disabled:opacity-50"
+                  className="w-full text-left px-4 py-3 border-2 border-primary/30 bg-primary/5 rounded-lg hover:bg-primary/10 hover:border-primary/50 transition-all disabled:opacity-50"
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-gray-900">{user.name}</div>
-                      <div className="text-sm text-gray-500">{user.description}</div>
-                    </div>
-                  </div>
+                  <div className="font-medium text-gray-900">Entrar como Empresas demo</div>
+                  <div className="text-sm text-gray-500 mt-0.5">user@example.com · Acceso completo</div>
                 </button>
-              ))}
+              ) : (
+                DEMO_USERS.map((user) => (
+                  <button
+                    key={user.email}
+                    type="button"
+                    onClick={() => handleDemoLogin(user)}
+                    disabled={isLoading}
+                    className="w-full text-left px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all disabled:opacity-50"
+                  >
+                    <div className="font-medium text-gray-900">{user.name}</div>
+                    <div className="text-sm text-gray-500">{user.description}</div>
+                  </button>
+                ))
+              )}
             </CardContent>
           </Card>
         )}
