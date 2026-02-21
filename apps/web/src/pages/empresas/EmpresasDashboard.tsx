@@ -1,3 +1,4 @@
+import { useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { useCurrency } from "@/lib/CurrencyContext";
 export default function EmpresasDashboard() {
   const { currency } = useCurrency();
   const queryClient = useQueryClient();
+  const hasAutoSeeded = useRef(false);
   const { data: companies, isLoading, error } = useQuery({
     queryKey: ["empresas", "companies-summary"],
     queryFn: getEmpresasCompaniesWithSummary,
@@ -20,6 +22,13 @@ export default function EmpresasDashboard() {
       queryClient.invalidateQueries({ queryKey: ["empresas", "companies-summary"] });
     },
   });
+
+  // Crear empresa demo automáticamente al entrar sin empresas (p. ej. tras "Entrar como Empresas demo")
+  useEffect(() => {
+    if (isLoading || error || !companies || companies.length > 0 || hasAutoSeeded.current || seedDemo.isPending) return;
+    hasAutoSeeded.current = true;
+    seedDemo.mutate();
+  }, [isLoading, error, companies, seedDemo.isPending]);
 
   if (isLoading) {
     return (
