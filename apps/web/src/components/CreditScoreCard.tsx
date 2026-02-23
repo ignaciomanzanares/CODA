@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useCreditScore } from "@/lib/api";
+import { useReportData } from "@/contexts/ReportDataContext";
 import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -61,6 +62,7 @@ function FactorCard({
 
 export default function CreditScoreCard() {
   const { getCreditScore, refreshCreditScore } = useCreditScore();
+  const { setCreditScore } = useReportData();
   const [showReportBreakdown, setShowReportBreakdown] = useState(false);
 
   const { data: creditScore, isLoading, error } = useQuery({
@@ -74,6 +76,10 @@ export default function CreditScoreCard() {
       queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] });
     },
   });
+
+  useEffect(() => {
+    if (creditScore?.score != null) setCreditScore(creditScore.score);
+  }, [creditScore?.score, setCreditScore]);
 
   if (isLoading) {
     return (

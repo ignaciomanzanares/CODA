@@ -15,6 +15,8 @@ import DemoOpenBanking from "@/components/DemoOpenBanking";
 import DocumentUploadCard from "@/components/DocumentUploadCard";
 import PDOverview from "@/components/PDOverview";
 import TransactionalScoreCard from "@/components/TransactionalScoreCard";
+import DownloadReporteCodaButton from "@/components/DownloadReporteCodaButton";
+import { ReportDataProvider } from "@/contexts/ReportDataContext";
 
 // New dashboard components
 import {
@@ -154,6 +156,7 @@ export default function Dashboard() {
   const annualSavings = financialData ? (financialData.summary.monthlyIncome - financialData.summary.monthlyExpenses) * 12 : 0;
 
   return (
+    <ReportDataProvider>
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Header Section */}
@@ -210,7 +213,7 @@ export default function Dashboard() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
-            {/* AI Insights Banner */}
+            {/* AI Insights Banner + Reporte CODA */}
             <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border-primary/20">
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
@@ -235,13 +238,16 @@ export default function Dashboard() {
                         </>
                       )}
                     </p>
-                    <Button 
-                      variant="link" 
-                      className="p-0 h-auto mt-2"
-                      onClick={() => navigate("/plan")}
-                    >
-                      Ver análisis detallado →
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-3 mt-3">
+                      <Button 
+                        variant="link" 
+                        className="p-0 h-auto"
+                        onClick={() => navigate("/plan")}
+                      >
+                        Ver análisis detallado →
+                      </Button>
+                      <DownloadReporteCodaButton />
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -381,5 +387,6 @@ export default function Dashboard() {
         </Card>
       </div>
     </div>
+    </ReportDataProvider>
   );
 }
