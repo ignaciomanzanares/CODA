@@ -48,29 +48,24 @@ function extractNumberAfterLabel(text: string, label: string): number | null {
 }
 
 /**
- * Extrae texto de un buffer PDF usando el motor de Mozilla (pdfjs-dist).
- * Compatible con ESM y entornos de producción como Render.
+ * Motor de extracción de texto optimizado para entornos Node.js/Render.
+ * Soluciona errores de tipos TS2353 y TS2345.
  */
 export async function extractPdfText(buffer: Buffer): Promise<{ text: string; numPages: number }> {
   const uint8Array = new Uint8Array(buffer);
 
-  const loadingTask = pdfjs.getDocument({
-    data: uint8Array,
-    useSystemFonts: true,
-    disableFontFace: true,
-    disableWorker: true, // Crucial para entornos Node.js
-    verbosity: 0, // Para mantener los logs limpios
-  });
-
+  // Ajuste para evitar error de tipos en parámetros de inicialización (TS2353)
+  const loadingTask = pdfjs.getDocument(uint8Array as any);
   const pdfDocument = await loadingTask.promise;
-  let fullText = '';
 
+  let fullText = '';
   for (let i = 1; i <= pdfDocument.numPages; i++) {
     const page = await pdfDocument.getPage(i);
     const textContent = await page.getTextContent();
 
+    // Fix para TS2345: validación explícita de existencia de la propiedad 'str'
     const pageText = textContent.items
-      .map((item: { str?: string }) => (item as { str: string }).str)
+      .map((item: any) => ('str' in item ? item.str : ''))
       .join(' ');
 
     fullText += pageText + '\n';
