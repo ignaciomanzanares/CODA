@@ -62,7 +62,7 @@ function mockTarjeta(saldoDeuda: number): SfaProductoVigenteTarjeta {
   };
 }
 
-/** Genera transacciones y productos mock SFA (últimos 12 meses, perfil estable). */
+/** Genera transacciones y productos mock SFA (últimos 12 meses). Perfil estable → score ~750, insights de estabilidad/sobregiro, productos C001 y E001. */
 function generateMockSfaData(): { transactions: SfaTransaccion[]; products: SfaProductoVigente[] } {
   const transactions: SfaTransaccionCuenta[] = [];
   for (let m = 0; m < 12; m++) {
@@ -72,11 +72,11 @@ function generateMockSfaData(): { transactions: SfaTransaccion[]; products: SfaP
     const mes = String(d.getMonth() + 1).padStart(2, '0');
     const base = `${y}-${mes}-15`;
     transactions.push(mockTx(base, 'abono', 750000));
-    transactions.push(mockTx(base, 'cargo', -380000));
+    transactions.push(mockTx(base, 'cargo', -280000)); // net +470k/mes → avg balance ~3M → score ~750
   }
   const products: SfaProductoVigente[] = [
-    mockCuenta(450000, 500000, 80000),
-    mockTarjeta(120000),
+    mockCuenta(450000, 500000, 80000), // sobregiro 16% (razonable); cuenta con saldo
+    mockTarjeta(120000),               // deuda tarjeta → C001 + oportunidad optimización
   ];
   return { transactions, products };
 }

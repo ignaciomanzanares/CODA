@@ -5,7 +5,7 @@ import * as sqliteCore from "drizzle-orm/sqlite-core";
 // Producción (deploy/Render) = Postgres. Local = SQLite (poco uso).
 const isProd = process.env.NODE_ENV === "production" || (!!process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith("postgres"));
 
-// Casts para que TS compile con ambos dialectos (pgTable/sqliteTable tienen firmas distintas en unión).
+// Sin mezclar tipos: cada dialecto usa sus tipos nativos. Cast solo para unión pg/sqlite en TS.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const table = (isProd ? pgCore.pgTable : sqliteCore.sqliteTable) as any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -14,53 +14,58 @@ const text = (isProd ? pgCore.text : sqliteCore.text) as any;
 const integer = (isProd ? pgCore.integer : sqliteCore.integer) as any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const real = (isProd ? pgCore.real : sqliteCore.real) as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const serialOrInt = isProd ? (pgCore.serial as any) : ((name: string) => sqliteCore.integer(name, { mode: "number" }).primaryKey({ autoIncrement: true }));
+
+// PK numérica: Postgres = serial("id").primaryKey(), SQLite = integer("id").primaryKey({ autoIncrement: true }).
+// Misma definición para todas las tablas con id serial (bank_connections, consent_grants, accounts, etc.).
+const serialPk = isProd
+  ? (name: string) => pgCore.serial(name).primaryKey()
+  : (name: string) => sqliteCore.integer(name, { mode: "number" }).primaryKey({ autoIncrement: true });
 
 // --- Table Definitions ---
-export const users = table('users', {
-  id: text('id').primaryKey(),
-  username: text('username').notNull().unique(),
-  email: text('email').notNull().unique(),
-  passwordHash: text('password_hash').notNull(),
-  firstName: text('first_name'),
-  lastName: text('last_name'),
-  displayName: text('display_name'),
-  timezone: text('timezone').default('UTC'),
-  language: text('language').default('English'),
-  profilePicture: text('profile_picture'),
-  userMetadata: text('user_metadata'),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+// users: PK text (id). bank_connections y consent_grants: PK serial/integer (id) — definición idéntica entre ellas.
+export const users = table("users", {
+  id: text("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  displayName: text("display_name"),
+  timezone: text("timezone").default("UTC"),
+  language: text("language").default("English"),
+  profilePicture: text("profile_picture"),
+  userMetadata: text("user_metadata"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const bankConnections = table('bank_connections', {
-  id: serialOrInt('id'),
-  userId: text('user_id').notNull().references(() => users.id),
-  bankName: text('bank_name').notNull(),
-  accountType: text('account_type').notNull(),
-  status: text('status').notNull().default('connected'),
-  connectionData: text('connection_data'),
-  lastUpdated: text('last_updated').default(sql`CURRENT_TIMESTAMP`).notNull(),
+export const bankConnections = table("bank_connections", {
+  id: serialPk("id"),
+  userId: text("user_id").notNull().references(() => users.id),
+  bankName: text("bank_name").notNull(),
+  accountType: text("account_type").notNull(),
+  status: text("status").notNull().default("connected"),
+  connectionData: text("connection_data"),
+  lastUpdated: text("last_updated").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 /** Consentimientos SFA (RAR + Grant Management). Vinculados a userId; scope en authorization_details. */
-export const consentGrants = table('consent_grants', {
-  id: serialOrInt('id'),
-  userId: text('user_id').notNull().references(() => users.id),
-  status: text('status').notNull().default('pending'),
-  authorizationDetails: text('authorization_details').notNull(),
-  purpose: text('purpose').notNull(),
-  policyVersion: text('policy_version').notNull(),
-  externalGrantId: text('external_grant_id'),
-  ipiId: text('ipi_id'),
-  expiresAt: text('expires_at'),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+export const consentGrants = table("consent_grants", {
+  id: serialPk("id"),
+  userId: text("user_id").notNull().references(() => users.id),
+  status: text("status").notNull().default("pending"),
+  authorizationDetails: text("authorization_details").notNull(),
+  purpose: text("purpose").notNull(),
+  policyVersion: text("policy_version").notNull(),
+  externalGrantId: text("external_grant_id"),
+  ipiId: text("ipi_id"),
+  expiresAt: text("expires_at"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 export const accounts = table('accounts', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   userId: text('user_id').notNull().references(() => users.id),
   bankConnectionId: integer('bank_connection_id').references(() => bankConnections.id),
   providerAccountId: text('provider_account_id'),
@@ -77,7 +82,7 @@ export const accounts = table('accounts', {
 });
 
 export const balances = table('balances', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   accountId: integer('account_id').notNull().references(() => accounts.id),
   asOf: text('as_of').default(sql`CURRENT_TIMESTAMP`).notNull(),
   current: real('current').notNull(),
@@ -87,7 +92,7 @@ export const balances = table('balances', {
 });
 
 export const transactions = table('transactions', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   accountId: integer('account_id').notNull().references(() => accounts.id),
   externalId: text('external_id'),
   postedAt: text('posted_at').notNull(),
@@ -103,7 +108,7 @@ export const transactions = table('transactions', {
 });
 
 export const creditScores = table('credit_scores', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   userId: text('user_id').notNull().references(() => users.id),
   score: integer('score').notNull(),
   maxScore: integer('max_score').notNull().default(850),
@@ -114,7 +119,7 @@ export const creditScores = table('credit_scores', {
 });
 
 export const creditScoreHistory = table('credit_score_history', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   userId: text('user_id').notNull().references(() => users.id),
   score: integer('score').notNull(),
   maxScore: integer('max_score').notNull().default(850),
@@ -123,7 +128,7 @@ export const creditScoreHistory = table('credit_score_history', {
 });
 
 export const insuranceRisks = table('insurance_risks', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   userId: text('user_id').notNull().references(() => users.id),
   riskLevel: text('risk_level').notNull(),
   healthRisk: text('health_risk').notNull(),
@@ -133,7 +138,7 @@ export const insuranceRisks = table('insurance_risks', {
 });
 
 export const riskFactors = table('risk_factors', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   userId: text('user_id').references(() => users.id),
   type: text('type').notNull(),
   value: text('value').notNull(),
@@ -142,7 +147,7 @@ export const riskFactors = table('risk_factors', {
 });
 
 export const financialGoals = table('financial_goals', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   userId: text('user_id').notNull().references(() => users.id),
   name: text('name').notNull(),
   targetAmount: integer('target_amount').notNull(),
@@ -153,7 +158,7 @@ export const financialGoals = table('financial_goals', {
 });
 
 export const goalProgress = table('goal_progress', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   goalId: integer('goal_id').notNull().references(() => financialGoals.id),
   userId: text('user_id').notNull().references(() => users.id),
   amount: integer('amount').notNull(),
@@ -161,7 +166,7 @@ export const goalProgress = table('goal_progress', {
 });
 
 export const expenses = table('expenses', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   userId: text('user_id').references(() => users.id).notNull(),
   amount: real('amount').notNull(),
   description: text('description').notNull(),
@@ -179,14 +184,14 @@ export const expenses = table('expenses', {
 });
 
 export const expenseCategories = table('expense_categories', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   name: text('name').notNull().unique(),
   parentId: integer('parent_id'),
   description: text('description'),
 });
 
 export const billSplits = table('bill_splits', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   name: text('name').notNull(),
   totalAmount: real('total_amount').notNull(),
   description: text('description'),
@@ -198,7 +203,7 @@ export const billSplits = table('bill_splits', {
 });
 
 export const billSplitParticipants = table('bill_split_participants', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   billSplitId: integer('bill_split_id').references(() => billSplits.id).notNull(),
   userId: text('user_id').references(() => users.id),
   name: text('name').notNull(),
@@ -210,7 +215,7 @@ export const billSplitParticipants = table('bill_split_participants', {
 });
 
 export const financialProducts = table('financial_products', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   productName: text('product_name').notNull(),
   provider: text('provider').notNull(),
   productType: text('product_type').notNull(),
@@ -226,7 +231,7 @@ export const financialProducts = table('financial_products', {
 });
 
 export const productRecommendations = table('product_recommendations', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   userId: text('user_id').notNull().references(() => users.id),
   productId: integer('product_id').notNull().references(() => financialProducts.id),
   recommendedAt: text('recommended_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
@@ -235,7 +240,7 @@ export const productRecommendations = table('product_recommendations', {
 });
 
 export const notifications = table('notifications', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   userId: text('user_id').references(() => users.id).notNull(),
   title: text('title').notNull(),
   message: text('message').notNull(),
@@ -249,7 +254,7 @@ export const notifications = table('notifications', {
 });
 
 export const auditLogs = table('audit_logs', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   userId: text('user_id').references(() => users.id),
   action: text('action').notNull(),
   entity: text('entity'),
@@ -264,7 +269,7 @@ export const auditLogs = table('audit_logs', {
 // =============================================================================
 
 export const empresasCompanies = table('empresas_companies', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   name: text('name').notNull(),
   rut: text('rut').notNull(),
   industry: text('industry'),
@@ -273,7 +278,7 @@ export const empresasCompanies = table('empresas_companies', {
 });
 
 export const empresasUsers = table('empresas_users', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   email: text('email').notNull(),
   passwordHash: text('password_hash').notNull(),
   name: text('name').notNull(),
@@ -281,7 +286,7 @@ export const empresasUsers = table('empresas_users', {
 });
 
 export const empresasMemberships = table('empresas_memberships', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   userId: integer('user_id').notNull().references(() => empresasUsers.id),
   companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
   role: text('role').notNull(),
@@ -289,7 +294,7 @@ export const empresasMemberships = table('empresas_memberships', {
 });
 
 export const empresasAuditLogs = table('empresas_audit_logs', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
   userId: integer('user_id').references(() => empresasUsers.id),
   action: text('action').notNull(),
@@ -300,7 +305,7 @@ export const empresasAuditLogs = table('empresas_audit_logs', {
 });
 
 export const empresasBankAccounts = table('empresas_bank_accounts', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
   bankName: text('bank_name').notNull(),
   accountNumber: text('account_number').notNull(),
@@ -313,7 +318,7 @@ export const empresasBankAccounts = table('empresas_bank_accounts', {
 });
 
 export const empresasBankTransactions = table('empresas_bank_transactions', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
   bankAccountId: integer('bank_account_id').notNull().references(() => empresasBankAccounts.id),
   externalId: text('external_id'),
@@ -332,7 +337,7 @@ export const empresasBankTransactions = table('empresas_bank_transactions', {
 });
 
 export const empresasBankBalances = table('empresas_bank_balances', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   bankAccountId: integer('bank_account_id').notNull().references(() => empresasBankAccounts.id),
   balanceDate: text('balance_date').notNull(),
   availableBalance: real('available_balance'),
@@ -341,7 +346,7 @@ export const empresasBankBalances = table('empresas_bank_balances', {
 });
 
 export const empresasDteDocuments = table('empresas_dte_documents', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
   documentType: text('document_type').notNull(),
   direction: text('direction').notNull(),
@@ -362,7 +367,7 @@ export const empresasDteDocuments = table('empresas_dte_documents', {
 });
 
 export const empresasPurchaseOrders = table('empresas_purchase_orders', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
   poNumber: text('po_number').notNull(),
   customerRut: text('customer_rut').notNull(),
@@ -378,7 +383,7 @@ export const empresasPurchaseOrders = table('empresas_purchase_orders', {
 });
 
 export const empresasReconciliationMatches = table('empresas_reconciliation_matches', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
   bankTransactionId: integer('bank_transaction_id').notNull().references(() => empresasBankTransactions.id),
   dteDocumentId: integer('dte_document_id').references(() => empresasDteDocuments.id),
@@ -392,7 +397,7 @@ export const empresasReconciliationMatches = table('empresas_reconciliation_matc
 });
 
 export const empresasReconciliationRules = table('empresas_reconciliation_rules', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
   name: text('name').notNull(),
   priority: integer('priority'),
@@ -402,7 +407,7 @@ export const empresasReconciliationRules = table('empresas_reconciliation_rules'
 });
 
 export const empresasChartOfAccounts = table('empresas_chart_of_accounts', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
   code: text('code').notNull(),
   name: text('name').notNull(),
@@ -413,7 +418,7 @@ export const empresasChartOfAccounts = table('empresas_chart_of_accounts', {
 });
 
 export const empresasVendorCategoryMappings = table('empresas_vendor_category_mappings', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
   vendorRut: text('vendor_rut'),
   category: text('category'),
@@ -423,7 +428,7 @@ export const empresasVendorCategoryMappings = table('empresas_vendor_category_ma
 });
 
 export const empresasAccountingPeriods = table('empresas_accounting_periods', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
   periodStart: text('period_start').notNull(),
   periodEnd: text('period_end').notNull(),
@@ -434,7 +439,7 @@ export const empresasAccountingPeriods = table('empresas_accounting_periods', {
 });
 
 export const empresasJournalEntries = table('empresas_journal_entries', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
   periodId: integer('period_id').references(() => empresasAccountingPeriods.id),
   entryDate: text('entry_date').notNull(),
@@ -446,7 +451,7 @@ export const empresasJournalEntries = table('empresas_journal_entries', {
 });
 
 export const empresasJournalLines = table('empresas_journal_lines', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   journalEntryId: integer('journal_entry_id').notNull().references(() => empresasJournalEntries.id),
   accountId: integer('account_id').notNull().references(() => empresasChartOfAccounts.id),
   debit: real('debit'),
@@ -456,7 +461,7 @@ export const empresasJournalLines = table('empresas_journal_lines', {
 });
 
 export const empresasRiskScores = table('empresas_risk_scores', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   companyId: integer('company_id').notNull().references(() => empresasCompanies.id),
   assessmentDate: text('assessment_date').notNull(),
   overallScore: real('overall_score'),
@@ -468,7 +473,7 @@ export const empresasRiskScores = table('empresas_risk_scores', {
 });
 
 export const empresasRiskFactors = table('empresas_risk_factors', {
-  id: serialOrInt('id'),
+  id: serialPk("id"),
   name: text('name').notNull(),
   category: text('category').notNull(),
   weight: real('weight'),
