@@ -64,7 +64,7 @@ export async function ingestOpenBankingForUser(userId: string, provider: OBProvi
       currency: t.currency || null,
       category: t.category || null,
       subcategory: t.subcategory || null,
-      pending: t.pending ?? false,
+      pending: (t.pending === true || t.pending === 1) ? 1 : 0,
       raw: t.raw as any,
     })) as unknown as InsertTransaction[];
 
