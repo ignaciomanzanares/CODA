@@ -87,8 +87,8 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="w-full max-w-screen-2xl mr-auto flex h-14 min-h-14 flex-nowrap items-center justify-between gap-2 sm:gap-4 pl-3 pr-3 sm:pl-4 sm:pr-6">
-        {/* Esquina superior izquierda: CODA Empresas / CODA */}
+      <div className="w-full flex h-14 min-h-14 flex-nowrap items-center gap-2 pl-2 pr-2 sm:pl-3 sm:pr-3">
+        {/* Izquierda: CODA Empresas / CODA — lo más a la izquierda */}
         <div className="flex shrink-0 items-center min-w-0">
           <Link
             href={isEmpresas ? "/empresas/dashboard" : "/"}
@@ -101,37 +101,35 @@ export default function Header() {
           </Link>
         </div>
 
-        {/* Centro: navegación con scroll horizontal si no cabe */}
-        {isAuthenticated && (
-          <nav className="hidden lg:flex items-center gap-0.5 flex-1 min-w-0 justify-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {(isEmpresas ? empresasNavItems : navItems).map((item) => {
-              const Icon = item.icon;
-              const isActive = location === item.href || location.startsWith(`${item.href}/`);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-1.5 px-2 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap shrink-0",
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        )}
-
-        {/* Derecha: moneda, CODA Personal/Empresas, notificaciones, usuario - sin envolver */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
-          {/* Selector de moneda (solo etiqueta CLP $ / USD $, sin conversión) */}
+        {/* Centro: navegación + moneda — centrado */}
+        <div className="flex-1 min-w-0 flex items-center justify-center gap-1 sm:gap-2">
+          {isAuthenticated && (
+            <nav className="hidden lg:flex items-center gap-0.5 min-w-0 justify-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {(isEmpresas ? empresasNavItems : navItems).map((item) => {
+                const Icon = item.icon;
+                const isActive = location === item.href || location.startsWith(`${item.href}/`);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-1.5 px-2 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap shrink-0",
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
+          {/* Moneda en el centro junto a la nav */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground shrink-0">
                 {currency === "CLP" ? "CLP $" : "USD $"}
               </Button>
             </DropdownMenuTrigger>
@@ -140,7 +138,10 @@ export default function Header() {
               <DropdownMenuItem onClick={() => setCurrency("USD" as CurrencyCode)}>Dólares (USD)</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {/* En Empresas: enlace a CODA Personal; en Personal: enlace a CODA Empresas */}
+        </div>
+
+        {/* Derecha: CODA Personal/Empresas, notificaciones, usuario — lo más a la derecha */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
           {isEmpresas ? (
             <Link href="/dashboard">
               <Button variant="outline" size="sm" className="hidden md:flex items-center gap-1.5 shrink-0">
