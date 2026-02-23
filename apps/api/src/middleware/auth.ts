@@ -348,6 +348,46 @@ export async function handleRegister(req: Request, res: Response) {
 }
 
 /**
+ * Get or create a demo user in the DB so the JWT carries a real users.id (evita FK en consent_grants).
+ */
+export async function getOrCreateDemoUser(email: string): Promise<{ id: string; email: string; displayName?: string; username: string }> {
+  const existing = await storage.getUserByEmail(email);
+  if (existing) return existing;
+
+  const demoPassword = process.env.DEMO_PASSWORD || 'demo123';
+  const passwordHash = hashPassword(demoPassword);
+  const username = email.split('@')[0];
+  const displayName = username.charAt(0).toUpperCase() + username.slice(1);
+  const newUser = await storage.createUser({
+    id: crypto.randomUUID(),
+    email,
+    username,
+    passwordHash,
+    displayName,
+  });
+  return newUser;
+}
+
+/**
+ * Resolve the effective DB user id for the given JWT payload.
+ * Use this in routes that write to tables with FK to users (e.g. consent_grants).
+ * Returns null if the user does not exist and cannot be created (e.g. demo disabled).
+ */
+export async function ensureUserForToken(payload: TokenPayload): Promise<string | null> {
+  if (!payload?.userId && !payload?.email) return null;
+  const byId = await storage.getUser(payload.userId);
+  if (byId) return byId.id;
+  const byEmail = await storage.getUserByEmail(payload.email);
+  if (byEmail) return byEmail.id;
+  const demoModeEnabled = process.env.DEMO_MODE === 'true';
+  if (demoModeEnabled && payload.email) {
+    const user = await getOrCreateDemoUser(payload.email);
+    return user.id;
+  }
+  return null;
+}
+
+/**
  * Login handler with proper database authentication
  * Supports both registered users and demo users
  */
@@ -368,11 +408,12 @@ export async function handleLoginWithDB(req: Request, res: Response) {
   
   // Allow demo login in development OR when DEMO_MODE is enabled in production
   if ((!isProduction || demoModeEnabled) && password === demoPassword) {
-    // Create demo user token
+    // Ensure demo user exists in DB and use real user.id in token (evita FK en consent_grants)
+    const user = await getOrCreateDemoUser(email);
     const tokenPayload: TokenPayload = {
-      userId: email.split('@')[0],
-      email: email,
-      name: email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1),
+      userId: user.id,
+      email: user.email,
+      name: user.displayName || user.username,
     };
 
     const token = generateToken(tokenPayload);

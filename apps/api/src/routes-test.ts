@@ -9,7 +9,7 @@ import { getConsentService } from './services/consent/index.js';
 import { handleConsentWebhook } from './services/consent/webhooks.js';
 import { getSfaScoringEngine } from './services/scoring/index.js';
 import type { AuthenticatedRequest } from './middleware/auth.js';
-import { authenticate } from './middleware/auth.js';
+import { authenticate, ensureUserForToken } from './middleware/auth.js';
 import type {
   SfaTransaccionCuenta,
   SfaProductoVigenteCuenta,
@@ -90,9 +90,14 @@ export function registerTestRoutes(app: Express): void {
    */
   router.post('/simulate-bank-flow', authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
-    const userId = authReq.user?.userId ?? '';
-    if (!userId) {
+    if (!authReq.user) {
       return res.status(401).json({ message: 'Unauthorized' });
+    }
+    const userId = await ensureUserForToken(authReq.user);
+    if (!userId) {
+      return res.status(404).json({
+        message: 'Usuario no encontrado en el sistema. Inicia sesión de nuevo o regístrate para usar la simulación SFA.',
+      });
     }
 
     const consentService = getConsentService();

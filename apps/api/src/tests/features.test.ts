@@ -36,7 +36,7 @@ describe("Feature Engineering", () => {
         amount: 5000.00,
         currency: "USD",
         category: "income",
-        pending: false,
+        pending: 0,
       },
       {
         accountId: account.id as number,
@@ -45,7 +45,7 @@ describe("Feature Engineering", () => {
         amount: 5000.00,
         currency: "USD",
         category: "income",
-        pending: false,
+        pending: 0,
       },
       // Debits (expenses)
       {
@@ -56,7 +56,7 @@ describe("Feature Engineering", () => {
         amount: -1500.00,
         currency: "USD",
         category: "housing",
-        pending: false,
+        pending: 0,
       },
       {
         accountId: account.id as number,
@@ -66,7 +66,7 @@ describe("Feature Engineering", () => {
         amount: -150.00,
         currency: "USD",
         category: "groceries",
-        pending: false,
+        pending: 0,
       },
       {
         accountId: account.id as number,
@@ -76,7 +76,7 @@ describe("Feature Engineering", () => {
         amount: -145.00,
         currency: "USD",
         category: "groceries",
-        pending: false,
+        pending: 0,
       },
     ];
 
