@@ -24,10 +24,10 @@ export function generateCodaReportPdf(data: ReportData): void {
   const maxWidth = A4_WIDTH_MM - 2 * MARGIN;
   let y = MARGIN;
 
-  // Título
-  doc.setFontSize(18);
+  // Título formal
+  doc.setFontSize(20);
   doc.setFont("helvetica", "bold");
-  doc.text("Reporte CODA", MARGIN, y);
+  doc.text("Reporte de Salud Financiera", MARGIN, y);
   y += LINE_HEIGHT + 4;
 
   doc.setFontSize(10);
@@ -39,31 +39,105 @@ export function generateCodaReportPdf(data: ReportData): void {
   );
   y += SECTION_GAP + LINE_HEIGHT;
 
-  // Scores
+  // 1. Resumen de Identidad
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("1. Resumen de Identidad", MARGIN, y);
+  y += LINE_HEIGHT + 2;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  const nombre = data.userName ?? "—";
+  const rut = data.documentRut ?? "No extraído de documento";
+  doc.text(`Nombre: ${nombre}`, MARGIN, y);
+  y += LINE_HEIGHT;
+  doc.text(`RUT: ${rut}`, MARGIN, y);
+  y += SECTION_GAP + LINE_HEIGHT;
+
+  // 2. Certificación de Ingresos (cartolas)
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("2. Certificación de Ingresos", MARGIN, y);
+  y += LINE_HEIGHT + 2;
+  doc.setFont("helvetica", "normal");
+  const metrics = data.metrics;
+  if (metrics?.monthsWithAbonos != null || metrics?.averageMonthlyBalanceClp != null) {
+    if (metrics.monthsWithAbonos != null) {
+      y =
+        addWrappedText(
+          doc,
+          `Basado en el promedio de abonos detectados en las cartolas: ${metrics.monthsWithAbonos} de los últimos 12 meses con al menos un abono.`,
+          MARGIN,
+          y,
+          maxWidth
+        ) + 2;
+    }
+    if (metrics.averageMonthlyBalanceClp != null) {
+      doc.text(
+        `Saldo promedio mensual (CLP): $${metrics.averageMonthlyBalanceClp.toLocaleString("es-CL")}`,
+        MARGIN,
+        y
+      );
+      y += LINE_HEIGHT;
+    }
+  } else {
+    y =
+      addWrappedText(
+        doc,
+        "Sin datos de cartolas cargadas. Sube cartolas para certificar ingresos.",
+        MARGIN,
+        y,
+        maxWidth
+      ) + 2;
+  }
+  y += SECTION_GAP;
+
+  // 3. Estado de Solvencia (CMF)
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("3. Estado de Solvencia", MARGIN, y);
+  y += LINE_HEIGHT + 2;
+  doc.setFont("helvetica", "normal");
+  const deuda = data.cmfDeudaTotalVigente;
+  if (deuda != null) {
+    const textSolvencia =
+      deuda === 0
+        ? "Deuda total vigente reportada por la CMF: $0 CLP. Estado vigente sin deudas morosas."
+        : `Deuda total vigente reportada por la CMF: $${deuda.toLocaleString("es-CL")} CLP.`;
+    y = addWrappedText(doc, textSolvencia, MARGIN, y, maxWidth) + 2;
+  } else {
+    y =
+      addWrappedText(
+        doc,
+        "Sin Informe CMF cargado. Sube un Informe de Deudas CMF para reflejar el estado de solvencia.",
+        MARGIN,
+        y,
+        maxWidth
+      ) + 2;
+  }
+  y += SECTION_GAP;
+
+  // Puntuaciones
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.text("Puntuaciones", MARGIN, y);
   y += LINE_HEIGHT + 2;
-
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  const transactionalScore =
-    data.transactionalScore ?? 802;
+  const transactionalScore = data.transactionalScore ?? null;
   const creditScore = data.creditScore ?? null;
   doc.text(
-    `Score Transaccional: ${transactionalScore} / 1000`,
+    `Score Transaccional: ${transactionalScore != null ? `${transactionalScore} / 1000` : "—"}`,
     MARGIN,
     y
   );
   y += LINE_HEIGHT;
   doc.text(
-    `Score Crediticio (CMF): ${creditScore != null ? creditScore : "—"}${creditScore != null ? " (Excellent)" : ""}`,
+    `Score Crediticio (CMF): ${creditScore != null ? `${creditScore} (Excellent)` : "—"}`,
     MARGIN,
     y
   );
   y += SECTION_GAP + LINE_HEIGHT;
 
-  // Insights críticos
+  // Insights
   const insights = data.mainInsights ?? [];
   if (insights.length > 0) {
     doc.setFont("helvetica", "bold");
@@ -71,7 +145,6 @@ export function generateCodaReportPdf(data: ReportData): void {
     doc.text("Insights", MARGIN, y);
     y += LINE_HEIGHT + 2;
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
     for (const insight of insights) {
       y = addWrappedText(doc, `• ${insight}`, MARGIN, y, maxWidth) + 2;
       if (y > 270) {
@@ -82,71 +155,20 @@ export function generateCodaReportPdf(data: ReportData): void {
     y += SECTION_GAP;
   }
 
-  // Tabla Liquidez y Estabilidad de Ingresos (desde metrics)
-  const metrics = data.metrics;
-  if (metrics) {
-    if (y > 240) {
-      doc.addPage();
-      y = MARGIN;
-    }
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text("Liquidez y Estabilidad de Ingresos", MARGIN, y);
-    y += LINE_HEIGHT + 2;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-
-    const rows: [string, string][] = [];
-    if (metrics.averageMonthlyBalanceClp != null) {
-      rows.push([
-        "Saldo promedio mensual (CLP)",
-        metrics.averageMonthlyBalanceClp.toLocaleString("es-CL"),
-      ]);
-    }
-    if (metrics.monthsWithAbonos != null) {
-      rows.push([
-        "Meses con abonos (últimos 12)",
-        String(metrics.monthsWithAbonos),
-      ]);
-    }
-    if (metrics.monthsWithGap != null) {
-      rows.push([
-        "Meses sin movimientos (gap)",
-        String(metrics.monthsWithGap),
-      ]);
-    }
-    if (metrics.overdraftUsageRatio != null) {
-      rows.push([
-        "Uso de línea de sobregiro",
-        `${(metrics.overdraftUsageRatio * 100).toFixed(1)}%`,
-      ]);
-    }
-    if (metrics.hasOptimizationOpportunity != null) {
-      rows.push([
-        "Oportunidad de optimización (Saldo vs Deuda Tarjeta)",
-        metrics.hasOptimizationOpportunity ? "Sí" : "No",
-      ]);
-    }
-
-    if (rows.length > 0) {
-      const col1W = 90;
-      doc.setFont("helvetica", "bold");
-      doc.text("Indicador", MARGIN, y);
-      doc.text("Valor", MARGIN + col1W, y);
-      y += LINE_HEIGHT + 2;
-      doc.setFont("helvetica", "normal");
-      for (const [label, value] of rows) {
-        const yRow = y;
-        y = addWrappedText(doc, label, MARGIN, y, col1W - 5) + 2;
-        doc.text(value, MARGIN + col1W, yRow);
-        y = Math.max(y, yRow + LINE_HEIGHT) + 2;
-        if (y > 270) {
-          doc.addPage();
-          y = MARGIN;
-        }
-      }
-    }
+  // 4. Sello de Validación
+  if (y > 250) {
+    doc.addPage();
+    y = MARGIN;
   }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("4. Sello de Validación", MARGIN, y);
+  y += LINE_HEIGHT + 2;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  const sello =
+    "Datos validados mediante documentos oficiales bajo estándares CMF/SFA.";
+  y = addWrappedText(doc, sello, MARGIN, y, maxWidth) + SECTION_GAP;
 
-  doc.save("reporte-coda.pdf");
+  doc.save("reporte-salud-financiera.pdf");
 }

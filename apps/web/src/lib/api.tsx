@@ -51,6 +51,12 @@ export type ApiClient = {
   revokeConsent: (grantId: number) => Promise<import("@/types").ConsentGrant>;
   simulateBankFlow: () => Promise<import("@/types").SimulateBankFlowResponse>;
   uploadDocument: (file: File) => Promise<import("@/types").DocumentUploadResult>;
+  getTransactionalScore: () => Promise<{
+    transactionalScore: number | null;
+    mainInsights: string[];
+    metrics?: { averageMonthlyBalanceClp?: number; monthsWithAbonos?: number; monthsWithGap?: number; overdraftUsageRatio?: number; hasOptimizationOpportunity?: boolean };
+    recommendedProducts?: string[];
+  }>;
 };
 
 export function useApi(): ApiClient {
@@ -342,6 +348,15 @@ export function useApi(): ApiClient {
     return json as import("@/types").DocumentUploadResult;
   };
 
+  const getTransactionalScore = async () => {
+    return await apiRequest<{
+      transactionalScore: number | null;
+      mainInsights: string[];
+      metrics?: { averageMonthlyBalanceClp?: number; monthsWithAbonos?: number; monthsWithGap?: number; overdraftUsageRatio?: number; hasOptimizationOpportunity?: boolean };
+      recommendedProducts?: string[];
+    }>("GET", "/api/transactional-score");
+  };
+
   return {
     apiRequest,
     getBankConnections,
@@ -385,6 +400,7 @@ export function useApi(): ApiClient {
     revokeConsent,
     simulateBankFlow,
     uploadDocument,
+    getTransactionalScore,
   };
 }
 

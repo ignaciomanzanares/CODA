@@ -1153,6 +1153,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  app.get("/api/transactional-score", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) {
+        return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
+      }
+      const data = await storage.getTransactionalScore(userId);
+      if (!data) {
+        return res.json({ transactionalScore: null, mainInsights: [], metrics: undefined, recommendedProducts: [] });
+      }
+      res.json({
+        transactionalScore: data.transactionalScore,
+        mainInsights: data.mainInsights ?? [],
+        metrics: data.metrics,
+        recommendedProducts: data.recommendedProducts ?? [],
+        lastUpdated: data.lastUpdated,
+      });
+    } catch (e) {
+      logger.error({ err: e }, "Get transactional score failed");
+      res.status(500).json({ message: "Error al obtener el score transaccional." });
+    }
+  });
+
   // Demo ingestion: usa el userId del JWT para que cada usuario vea solo sus datos
   app.post("/api/demo/ingest", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
@@ -1204,44 +1228,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(txs);
   });
 
-  // Credit score routes (demo) — now derived from feature vector + PD
-  app.get("/api/credit-score", async (_req, res) => {
+  // Credit score: datos reales del Informe CMF cuando el usuario está autenticado
+  app.get("/api/credit-score", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     try {
-      // For demo purposes, use a fixed user ID
-      const userId = "demo-user";
-
-      // Ensure demo user exists
-      let user = await storage.getUser(userId);
-      if (!user) {
-        user = await storage.createUser({
-          id: userId,
-          username: "demo",
-          email: "demo@example.com",
-          passwordHash: "demo-hash",
-          firstName: "Demo",
-          lastName: "User"
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) {
+        return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
+      }
+      const existing = await storage.getCreditScore(userId);
+      if (!existing) {
+        return res.json({
+          score: null,
+          maxScore: 850,
+          paymentHistory: "",
+          utilization: "",
+          ageOfCredit: "",
         });
       }
-
-      const { buildUserFeatureVector } = await import("./ml/features.js");
-      const { scorePD } = await import("./services/pdScoring.js");
-      const { computeCreditScoreFromFeatures } = await import("./utils/creditScore.js");
-
-      const fv = await buildUserFeatureVector(userId, 90);
-      const { pd } = scorePD(fv);
-      const nextScore = computeCreditScoreFromFeatures(fv, pd);
-
-      const existing = await storage.getCreditScore(userId);
-      let saved;
-      if (existing) {
-        saved = await storage.updateCreditScore(userId, nextScore);
-      } else {
-        saved = await storage.createCreditScore({ userId, ...nextScore });
-      }
-      res.json(saved ?? nextScore);
-    } catch (_e) {
-      logger.error({ err: _e }, 'Error computing credit score');
-      res.status(500).json({ message: 'Internal server error' });
+      res.json({
+        score: existing.score,
+        maxScore: existing.maxScore ?? 850,
+        paymentHistory: existing.paymentHistory ?? "Unknown",
+        utilization: existing.utilization ?? "Unknown",
+        ageOfCredit: existing.ageOfCredit ?? "Unknown",
+      });
+    } catch (e) {
+      logger.error({ err: e }, "Get credit score failed");
+      res.status(500).json({ message: "Error al obtener el score crediticio." });
     }
   });
 

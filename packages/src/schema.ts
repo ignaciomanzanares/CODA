@@ -137,6 +137,17 @@ export const insuranceRisks = table('insurance_risks', {
   lastUpdated: text('last_updated').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+/** Score transaccional SFA por usuario (cartolas). Una fila por usuario; se actualiza en cada carga. */
+export const transactionalScores = table('transactional_scores', {
+  id: serialPk("id"),
+  userId: text('user_id').notNull().references(() => users.id).unique(),
+  transactionalScore: integer('transactional_score').notNull(),
+  metrics: text('metrics'), // JSON: averageMonthlyBalanceClp, monthsWithAbonos, etc.
+  mainInsights: text('main_insights'), // JSON array
+  recommendedProducts: text('recommended_products'), // JSON array
+  lastUpdated: text('last_updated').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 export const riskFactors = table('risk_factors', {
   id: serialPk("id"),
   userId: text('user_id').references(() => users.id),

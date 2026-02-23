@@ -1,4 +1,4 @@
-import { db, users, bankConnections, accounts, balances, transactions, creditScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc } from "./db/index.js";
+import { db, users, bankConnections, accounts, balances, transactions, creditScores, transactionalScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc } from "./db/index.js";
 import { logger } from "./logger.js";
 import type {
   User,
@@ -49,6 +49,9 @@ export interface IStorage {
   getCreditScore(userId: string): Promise<any>;
   createCreditScore(creditScore: any): Promise<any>;
   updateCreditScore(userId: string, creditScore: any): Promise<any>;
+  // Transactional score (cartolas)
+  getTransactionalScore(userId: string): Promise<any>;
+  upsertTransactionalScore(userId: string, data: { transactionalScore: number; metrics?: object; mainInsights?: string[]; recommendedProducts?: string[] }): Promise<any>;
   // Insurance risk operations
   getInsuranceRisk(userId: string): Promise<any>;
   createInsuranceRisk(insuranceRisk: any): Promise<any>;
@@ -328,7 +331,49 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedScore || undefined;
   }
-  
+
+  async getTransactionalScore(userId: string): Promise<any> {
+    if (!db) return undefined;
+    const [row] = await db
+      .select()
+      .from(transactionalScores)
+      .where(eq(transactionalScores.userId, userId));
+    if (!row) return undefined;
+    return {
+      transactionalScore: row.transactionalScore,
+      metrics: row.metrics ? JSON.parse(row.metrics) : undefined,
+      mainInsights: row.mainInsights ? JSON.parse(row.mainInsights) : undefined,
+      recommendedProducts: row.recommendedProducts ? JSON.parse(row.recommendedProducts) : undefined,
+      lastUpdated: row.lastUpdated,
+    };
+  }
+
+  async upsertTransactionalScore(
+    userId: string,
+    data: { transactionalScore: number; metrics?: object; mainInsights?: string[]; recommendedProducts?: string[] }
+  ): Promise<any> {
+    if (!db) return undefined;
+    const existing = await db.select().from(transactionalScores).where(eq(transactionalScores.userId, userId));
+    const payload = {
+      userId,
+      transactionalScore: data.transactionalScore,
+      metrics: data.metrics != null ? JSON.stringify(data.metrics) : null,
+      mainInsights: data.mainInsights != null ? JSON.stringify(data.mainInsights) : null,
+      recommendedProducts: data.recommendedProducts != null ? JSON.stringify(data.recommendedProducts) : null,
+      lastUpdated: new Date().toISOString(),
+    };
+    if (existing.length > 0) {
+      const [updated] = await db
+        .update(transactionalScores)
+        .set(payload)
+        .where(eq(transactionalScores.userId, userId))
+        .returning();
+      return updated;
+    }
+    const [inserted] = await db.insert(transactionalScores).values(payload).returning();
+    return inserted;
+  }
+
   // Insurance risk operations
   async getInsuranceRisk(userId: string): Promise<InsuranceRisk | undefined> {
     if (!db) return undefined;

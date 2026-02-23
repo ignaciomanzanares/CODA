@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { useApi } from "@/lib/api";
 import { useReportData } from "@/contexts/ReportDataContext";
+import { queryClient } from "@/lib/queryClient";
 import type { DocumentUploadResult } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -69,7 +70,15 @@ export default function DocumentUploadCard() {
           ...(lastResult.creditScore != null && { creditScore: lastResult.creditScore }),
           ...(lastResult.transactionalScore != null && { transactionalScore: lastResult.transactionalScore }),
           ...(lastResult.mainInsights != null && { mainInsights: lastResult.mainInsights }),
+          ...(lastResult.cmf?.rutDocumento && { documentRut: lastResult.cmf.rutDocumento }),
+          ...(lastResult.cmf?.deudaTotalVigente != null && { cmfDeudaTotalVigente: lastResult.cmf.deudaTotalVigente }),
         });
+        if (lastResult.documentType === "cartola") {
+          queryClient.invalidateQueries({ queryKey: ["/api/transactional-score"] });
+        }
+        if (lastResult.documentType === "cmf_informe_deudas") {
+          queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] });
+        }
       }
       setLoading(false);
     },

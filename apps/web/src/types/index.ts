@@ -125,6 +125,7 @@ export interface DocumentUploadResult {
     deudaTotalVigente: number;
     deudaIndirecta: number;
     numeroInstituciones: number;
+    rutDocumento?: string;
   };
   transactionalScore?: number;
   creditScore?: number;
