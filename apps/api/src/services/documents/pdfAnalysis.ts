@@ -2,10 +2,11 @@
  * Análisis de PDFs: Informe CMF (Deudas) y Cartolas Bancarias.
  * Referencia: Informe de Deudas CMF (Deuda Total Vigente, Deuda Indirecta, Número de Instituciones).
  * Cartolas: mapeo a SFA según schema_csv (Información transaccional, Productos vigentes).
- * Motor de extracción: pdfjs-dist (Mozilla), compatible con ESM y Render.
+ * Motor de extracción: pdfjs-dist/legacy (Node.js/Render, evita DOMMatrix).
  */
 
-import * as pdfjs from 'pdfjs-dist';
+// Importamos la versión legacy optimizada para Node.js
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { SfaTransaccionCuenta, SfaProductoVigenteCuenta } from '../../sfa/types.js';
 
 export interface CmfInformeDeudas {
@@ -52,6 +53,7 @@ function extractNumberAfterLabel(text: string, label: string): number | null {
  * Soluciona errores de tipos TS2353 y TS2345.
  */
 export async function extractPdfText(buffer: Buffer): Promise<{ text: string; numPages: number }> {
+  console.log('Iniciando extracción con motor Legacy...');
   const uint8Array = new Uint8Array(buffer);
 
   // Ajuste para evitar error de tipos en parámetros de inicialización (TS2353)
