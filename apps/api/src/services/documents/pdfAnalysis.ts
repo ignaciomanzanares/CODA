@@ -47,13 +47,23 @@ function extractNumberAfterLabel(text: string, label: string): number | null {
 
 /**
  * Extrae texto de un buffer PDF (usa pdf-parse).
- * Aserción a any para que tsc no bloquee el build (createRequire en node:module).
+ * Fallback agresivo para obtener la función en cualquier entorno (Render/CommonJS).
  */
 export async function extractPdfText(buffer: Buffer): Promise<{ text: string; numPages: number }> {
   const nodeModule = (await import('node:module')) as any;
   const createRequire = nodeModule.createRequire;
   const require = createRequire(import.meta.url);
-  const pdfParse = require('pdf-parse');
+  const pdfModule = require('pdf-parse');
+  // Intentar obtener la función de cualquier lugar posible del módulo
+  const pdfParse =
+    typeof pdfModule === 'function'
+      ? pdfModule
+      : pdfModule?.default && typeof pdfModule.default === 'function'
+        ? pdfModule.default
+        : pdfModule;
+  if (typeof pdfParse !== 'function') {
+    throw new Error('pdf-parse: no se pudo obtener la función de parseo del módulo');
+  }
   const data = await pdfParse(buffer);
   return {
     text: data?.text ?? '',
