@@ -45,14 +45,21 @@ function extractNumberAfterLabel(text: string, label: string): number | null {
   return num ? parseFloat(num) : null;
 }
 
+/** Tipo del módulo pdf-parse (CommonJS default export) para ESM/TS. */
+type PdfParseFn = (buffer: Buffer) => Promise<{ text?: string; numpages?: number }>;
+
 /**
  * Extrae texto de un buffer PDF (usa pdf-parse).
+ * Importación compatible con TypeScript y ESM en local y Render.
  */
 export async function extractPdfText(buffer: Buffer): Promise<{ text: string; numPages: number }> {
   const pdfParseModule = await import('pdf-parse');
-  const pdfParse = typeof pdfParseModule.default === 'function' ? pdfParseModule.default : (pdfParseModule as unknown as (buf: Buffer) => Promise<{ text?: string; numpages?: number }>);
+  const pdfParse = (pdfParseModule.default ?? pdfParseModule) as PdfParseFn;
   const data = await pdfParse(buffer);
-  return { text: (data as { text?: string }).text ?? '', numPages: (data as { numpages?: number }).numpages ?? 0 };
+  return {
+    text: data?.text ?? '',
+    numPages: data?.numpages ?? 0,
+  };
 }
 
 /**
