@@ -58,6 +58,8 @@ export async function extractPdfText(buffer: Buffer): Promise<{ text: string; nu
     data: uint8Array,
     useSystemFonts: true,
     disableFontFace: true,
+    disableWorker: true, // Crucial para entornos Node.js
+    verbosity: 0, // Para mantener los logs limpios
   });
 
   const pdfDocument = await loadingTask.promise;
