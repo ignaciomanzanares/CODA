@@ -9,6 +9,7 @@ import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { 
   authenticate, 
+  ensureUserForToken,
   handleLogin, 
   handleLoginWithDB,
   handleLogout, 
@@ -24,6 +25,7 @@ import { emailService } from "./services/emailService.js";
 import crypto from "crypto";
 import { notificationService } from "./services/notificationService.js";
 import { apiLimiter, expensiveLimiter, authLimiter } from "./middleware/rateLimiter.js";
+import multer from "multer";
 import { logger } from "./logger.js";
 import {
   validateBody,
@@ -1094,11 +1096,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Local demo ingestion to quickly populate accounts/transactions for demo-user
-  app.post("/api/demo/ingest", async (_req, res) => {
+  // Document upload (PDF): Informe CMF y Cartolas → scoring real
+  const documentUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      if (file.mimetype !== "application/pdf") {
+        return cb(new Error("Solo se aceptan archivos PDF (Informe CMF o Cartola bancaria)."));
+      }
+      cb(null, true);
+    },
+  });
+  app.post(
+    "/api/documents/upload",
+    authenticate,
+    (req: Request, res: Response, next: NextFunction) => {
+      documentUpload.single("document")(req, res, (err: unknown) => {
+        if (err) {
+          if (err instanceof Error && err.message.includes("PDF")) {
+            return res.status(400).json({ message: err.message });
+          }
+          return res.status(400).json({ message: "Error al subir el archivo. Solo PDF permitido." });
+        }
+        next();
+      });
+    },
+    async (req: Request, res: Response) => {
+      const authReq = req as AuthenticatedRequest;
+      try {
+        const userId = await ensureUserForToken(authReq.user!);
+        if (!userId) {
+          return res.status(404).json({
+            message: "Usuario no encontrado. Inicia sesión de nuevo o regístrate.",
+          });
+        }
+        const file = (req as { file?: { buffer: Buffer } }).file;
+        if (!file?.buffer) {
+          return res.status(400).json({ message: "No se recibió ningún archivo. Usa el campo 'document'." });
+        }
+        const { processDocumentUpload } = await import("./services/documents/index.js");
+        const result = await processDocumentUpload(userId, file.buffer);
+        if (result.error) {
+          return res.status(400).json({ message: result.error, step: result.step });
+        }
+        res.json(result);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Error procesando documento";
+        if (msg.includes("password") || msg.includes("encrypted") || msg.includes("protected")) {
+          return res.status(400).json({
+            message: "El PDF está protegido o encriptado. Usa un documento sin contraseña.",
+          });
+        }
+        logger.error({ err: e }, "Document upload failed");
+        res.status(500).json({ message: "Error al procesar el documento. Intenta de nuevo." });
+      }
+    }
+  );
+
+  // Demo ingestion: usa el userId del JWT para que cada usuario vea solo sus datos
+  app.post("/api/demo/ingest", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) {
+        return res.status(404).json({
+          message: "Usuario no encontrado. Inicia sesión de nuevo o regístrate para usar la carga demo.",
+        });
+      }
       const { ingestOpenBankingForUser } = await import("./jobs/ingest.js");
-      await ingestOpenBankingForUser("demo-user");
+      await ingestOpenBankingForUser(userId);
       res.json({ message: "Demo ingestion completed" });
     } catch (_e) {
       logger.error({ err: _e }, 'Error running demo ingestion');
@@ -1106,15 +1172,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/demo/accounts", async (_req, res) => {
-    const accts = await storage.getAccounts("demo-user");
+  app.get("/api/demo/accounts", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    const userId = await ensureUserForToken(authReq.user!);
+    if (!userId) {
+      return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
+    }
+    const accts = await storage.getAccounts(userId);
     res.json(accts);
   });
 
-  app.get("/api/demo/accounts/:id/transactions", async (req, res) => {
+  app.get("/api/demo/accounts/:id/transactions", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    const userId = await ensureUserForToken(authReq.user!);
+    if (!userId) {
+      return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
+    }
     const accountId = Number(req.params.id);
     const account = await storage.getAccount(accountId);
-    if (!account || String(account.userId) !== "demo-user") {
+    if (!account || String(account.userId) !== userId) {
       return res.status(404).json({ message: "Account not found" });
     }
     const { from, to, limit, offset } = req.query;

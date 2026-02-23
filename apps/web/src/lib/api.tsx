@@ -50,6 +50,7 @@ export type ApiClient = {
   getConsents: () => Promise<import("@/types").ConsentGrant[]>;
   revokeConsent: (grantId: number) => Promise<import("@/types").ConsentGrant>;
   simulateBankFlow: () => Promise<import("@/types").SimulateBankFlowResponse>;
+  uploadDocument: (file: File) => Promise<import("@/types").DocumentUploadResult>;
 };
 
 export function useApi(): ApiClient {
@@ -326,6 +327,21 @@ export function useApi(): ApiClient {
     return await apiRequest<import("@/types").SimulateBankFlowResponse>("POST", "/api/test/simulate-bank-flow");
   };
 
+  const uploadDocument = async (file: File): Promise<import("@/types").DocumentUploadResult> => {
+    if (!token) throw new Error("User not authenticated");
+    const formData = new FormData();
+    formData.append("document", file);
+    const fullUrl = `${API_BASE_URL}/documents/upload`;
+    const res = await fetch(fullUrl, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error((json as { message?: string }).message || "Error al subir el documento");
+    return json as import("@/types").DocumentUploadResult;
+  };
+
   return {
     apiRequest,
     getBankConnections,
@@ -368,6 +384,7 @@ export function useApi(): ApiClient {
     getConsents,
     revokeConsent,
     simulateBankFlow,
+    uploadDocument,
   };
 }
 

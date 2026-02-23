@@ -117,6 +117,22 @@ export interface SimulateBankFlowResponse {
   score: TransactionalScoreResult;
 }
 
+/** Respuesta de POST /api/documents/upload (Informe CMF o Cartola). */
+export interface DocumentUploadResult {
+  step: 'reading' | 'extracting' | 'scoring' | 'done';
+  documentType?: 'cmf_informe_deudas' | 'cartola';
+  cmf?: {
+    deudaTotalVigente: number;
+    deudaIndirecta: number;
+    numeroInstituciones: number;
+  };
+  transactionalScore?: number;
+  creditScore?: number;
+  mainInsights?: string[];
+  recommendedProducts?: string[];
+  error?: string;
+}
+
 export interface BillSplit {
   id: number | string;
   name: string;
