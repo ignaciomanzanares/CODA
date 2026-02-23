@@ -2,10 +2,10 @@
  * Análisis de PDFs: Informe CMF (Deudas) y Cartolas Bancarias.
  * Referencia: Informe de Deudas CMF (Deuda Total Vigente, Deuda Indirecta, Número de Instituciones).
  * Cartolas: mapeo a SFA según schema_csv (Información transaccional, Productos vigentes).
+ * Motor de extracción: pdfjs-dist (Mozilla), compatible con ESM y Render.
  */
 
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import * as pdfjs from 'pdfjs-dist';
 import type { SfaTransaccionCuenta, SfaProductoVigenteCuenta } from '../../sfa/types.js';
 
 export interface CmfInformeDeudas {
@@ -48,25 +48,35 @@ function extractNumberAfterLabel(text: string, label: string): number | null {
 }
 
 /**
- * Extrae texto de un buffer PDF (usa pdf-parse).
- * Importación dinámica al archivo .js del paquete para evitar inconsistencias del entry point.
+ * Extrae texto de un buffer PDF usando el motor de Mozilla (pdfjs-dist).
+ * Compatible con ESM y entornos de producción como Render.
  */
 export async function extractPdfText(buffer: Buffer): Promise<{ text: string; numPages: number }> {
-  const nodeModule = (await import('node:module')) as any;
-  const createRequire = nodeModule.createRequire;
-  const require = createRequire(import.meta.url);
-  const packageJsonPath = require.resolve('pdf-parse/package.json');
-  const packageRoot = path.dirname(packageJsonPath);
-  const pdfParsePath = path.join(packageRoot, 'dist/pdf-parse/esm/index.js');
-  const pdfModule = await import(pathToFileURL(pdfParsePath).href);
-  const pdfParse = (pdfModule as { default?: (buf: Buffer) => Promise<{ text?: string; numpages?: number }> }).default;
-  if (typeof pdfParse !== 'function') {
-    throw new Error('pdf-parse: no se pudo obtener la función de parseo del módulo');
+  const uint8Array = new Uint8Array(buffer);
+
+  const loadingTask = pdfjs.getDocument({
+    data: uint8Array,
+    useSystemFonts: true,
+    disableFontFace: true,
+  });
+
+  const pdfDocument = await loadingTask.promise;
+  let fullText = '';
+
+  for (let i = 1; i <= pdfDocument.numPages; i++) {
+    const page = await pdfDocument.getPage(i);
+    const textContent = await page.getTextContent();
+
+    const pageText = textContent.items
+      .map((item: { str?: string }) => (item as { str: string }).str)
+      .join(' ');
+
+    fullText += pageText + '\n';
   }
-  const data = await pdfParse(buffer);
+
   return {
-    text: data?.text ?? '',
-    numPages: data?.numpages ?? 0,
+    text: fullText,
+    numPages: pdfDocument.numPages,
   };
 }
 
