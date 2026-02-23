@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useApi } from "@/lib/api";
 import type { DocumentUploadResult } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ const STEPS: Record<string, string> = {
 
 export default function DocumentUploadCard() {
   const { uploadDocument } = useApi();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [drag, setDrag] = useState(false);
   const [loading, setLoading] = useState(false);
   const [progressStep, setProgressStep] = useState<string | null>(null);
@@ -23,10 +24,6 @@ export default function DocumentUploadCard() {
 
   const handleFile = useCallback(
     async (file: File) => {
-      if (file.type !== "application/pdf") {
-        setError("Solo se aceptan archivos PDF (Informe CMF o Cartola bancaria).");
-        return;
-      }
       setError(null);
       setResult(null);
       setLoading(true);
@@ -50,6 +47,7 @@ export default function DocumentUploadCard() {
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       setDrag(false);
       const file = e.dataTransfer.files[0];
       if (file) handleFile(file);
@@ -58,12 +56,15 @@ export default function DocumentUploadCard() {
   );
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setDrag(true);
   }, []);
   const onDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setDrag(false);
   }, []);
+
   const onInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -72,6 +73,10 @@ export default function DocumentUploadCard() {
     },
     [handleFile]
   );
+
+  const onSelectClick = useCallback(() => {
+    if (!loading) inputRef.current?.click();
+  }, [loading]);
 
   return (
     <Card>
@@ -85,6 +90,15 @@ export default function DocumentUploadCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="application/pdf"
+          className="sr-only"
+          aria-hidden="true"
+          onChange={onInputChange}
+          disabled={loading}
+        />
         <div
           onDrop={onDrop}
           onDragOver={onDragOver}
@@ -95,14 +109,6 @@ export default function DocumentUploadCard() {
             loading && "pointer-events-none opacity-80"
           )}
         >
-          <input
-            type="file"
-            accept="application/pdf"
-            className="hidden"
-            id="document-upload"
-            onChange={onInputChange}
-            disabled={loading}
-          />
           {loading ? (
             <div className="space-y-2">
               <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
@@ -121,11 +127,14 @@ export default function DocumentUploadCard() {
               <p className="text-sm text-muted-foreground mb-2">
                 Arrastra un PDF aquí o haz clic para seleccionar
               </p>
-              <label htmlFor="document-upload">
-                <Button type="button" variant="secondary" className="cursor-pointer">
-                  Seleccionar PDF
-                </Button>
-              </label>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onSelectClick}
+                disabled={loading}
+              >
+                Seleccionar PDF
+              </Button>
             </>
           )}
         </div>
