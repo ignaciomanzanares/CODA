@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { FileDown } from "lucide-react";
 
 export default function DownloadReporteCodaButton() {
-  const { reportData, setCreditScore } = useReportData();
-  const { getCreditScore } = useApi();
+  const { reportData, setCreditScore, setReportIdentity } = useReportData();
+  const { getCreditScore, getUserProfile } = useApi();
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const handleDownload = useCallback(async () => {
@@ -24,8 +24,21 @@ export default function DownloadReporteCodaButton() {
         // keep data without credit score
       }
     }
+    if (data.userName == null) {
+      try {
+        const profile = await getUserProfile();
+        const name = profile?.displayName ?? profile?.firstName ?? profile?.name;
+        if (name) {
+          const fullName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || name;
+          setReportIdentity({ userName: fullName });
+          data = { ...data, userName: fullName };
+        }
+      } catch {
+        // keep without name
+      }
+    }
     generateCodaReportPdf(data);
-  }, [reportData, getCreditScore, setCreditScore]);
+  }, [reportData, getCreditScore, getUserProfile, setCreditScore, setReportIdentity]);
 
   return (
     <Button
@@ -37,7 +50,7 @@ export default function DownloadReporteCodaButton() {
       onClick={handleDownload}
     >
       <FileDown className="h-4 w-4" />
-      Descargar Reporte CODA
+      Descargar Reporte de Salud Financiera
     </Button>
   );
 }

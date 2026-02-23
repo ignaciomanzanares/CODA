@@ -1,12 +1,13 @@
-import { useMutation } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useApi } from "@/lib/api";
-import { useToast } from "@/hooks/use-toast";
 import { useReportData } from "@/contexts/ReportDataContext";
-import type { SimulateBankFlowResponse, TransactionalScoreResult } from "@/types";
+import { queryClient } from "@/lib/queryClient";
+import type { TransactionalScoreResult } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, AlertTriangle, BarChart3, Loader2, RefreshCw, Package } from "lucide-react";
+import { CheckCircle2, AlertTriangle, BarChart3, Loader2, RefreshCw, Package, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** Códigos SFA → nombre para Ofertas Recomendadas */
@@ -47,7 +48,6 @@ function ScoreGauge({ score }: { score: number }) {
   return (
     <div className="relative w-44 h-28 flex justify-center">
       <svg viewBox="0 0 120 80" className="w-full h-full" fill="none">
-        {/* Fondo del arco */}
         <path
           d="M 10 65 A 50 50 0 0 1 110 65"
           stroke="currentColor"
@@ -55,7 +55,6 @@ function ScoreGauge({ score }: { score: number }) {
           className="text-muted/60"
           strokeLinecap="round"
         />
-        {/* Arco de valor */}
         <path
           d="M 10 65 A 50 50 0 0 1 110 65"
           stroke="currentColor"
@@ -74,30 +73,36 @@ function ScoreGauge({ score }: { score: number }) {
 }
 
 export default function TransactionalScoreCard() {
-  const { simulateBankFlow } = useApi();
-  const { toast } = useToast();
+  const { getTransactionalScore } = useApi();
   const { setTransactionalResult } = useReportData();
-  const mutation = useMutation({
-    mutationFn: simulateBankFlow,
-    onSuccess: (data: SimulateBankFlowResponse) => {
-      toast({
-        title: "Simulación SFA completada",
-        description: "Datos SFA procesados con éxito bajo estándares CMF.",
-      });
-      if (data?.score) {
-        setTransactionalResult({
-          transactionalScore: data.score.transactionalScore,
-          mainInsights: data.score.mainInsights ?? [],
-          metrics: data.score.metrics,
-        });
-      }
-    },
+
+  const { data, isLoading, isRefetching, refetch } = useQuery({
+    queryKey: ["/api/transactional-score"],
+    queryFn: getTransactionalScore,
   });
 
-  const data = mutation.data as SimulateBankFlowResponse | undefined;
-  const scoreResult = data?.score;
-  const isLoading = mutation.isPending;
-  const hasResult = !!scoreResult && !mutation.isError;
+  const scoreResult: TransactionalScoreResult | null =
+    data?.transactionalScore != null
+      ? {
+          transactionalScore: data.transactionalScore,
+          mainInsights: data.mainInsights ?? [],
+          recommendedProducts: data.recommendedProducts ?? [],
+          metrics: data.metrics,
+        }
+      : null;
+
+  useEffect(() => {
+    if (data?.transactionalScore != null) {
+      setTransactionalResult({
+        transactionalScore: data.transactionalScore,
+        mainInsights: data.mainInsights ?? [],
+        metrics: data.metrics,
+      });
+    }
+  }, [data?.transactionalScore, data?.mainInsights, data?.metrics, setTransactionalResult]);
+
+  const hasResult = scoreResult != null;
+  const pending = !hasResult && !isLoading;
 
   return (
     <Card className="h-full flex flex-col">
@@ -107,22 +112,19 @@ export default function TransactionalScoreCard() {
           Score Transaccional
         </CardTitle>
         <CardDescription>
-          Basado en tu comportamiento financiero (cuentas y productos SFA)
+          Basado en cartolas bancarias (métricas SFA). Sube una cartola en Documentos Oficiales.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col gap-4">
-        {!hasResult && !isLoading && (
+        {pending && (
           <div className="flex flex-col items-center justify-center py-6 gap-4">
-            <p className="text-sm text-muted-foreground text-center">
-              Obtén tu puntuación transaccional y ofertas recomendadas en base a tus datos.
+            <FileText className="h-12 w-12 text-muted-foreground" />
+            <p className="text-sm font-medium text-muted-foreground text-center">
+              Pendiente de Análisis
             </p>
-            <Button
-              onClick={() => mutation.mutate()}
-              disabled={mutation.isPending}
-              className="gap-2"
-            >
-              Gatillar Simulación SFA
-            </Button>
+            <p className="text-xs text-muted-foreground text-center max-w-xs">
+              Sube una o más cartolas bancarias en la tarjeta &quot;Documentos oficiales&quot; para calcular tu score y ver Saldo / Abonos.
+            </p>
           </div>
         )}
 
@@ -130,37 +132,18 @@ export default function TransactionalScoreCard() {
           <div className="space-y-4 py-2">
             <div className="flex flex-col items-center gap-3 py-4">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <p className="text-sm font-medium text-center">
-                Analizando tu comportamiento financiero...
-              </p>
-              <p className="text-xs text-muted-foreground text-center">
-                Simulando consentimiento y datos para tu perfil
-              </p>
+              <p className="text-sm font-medium text-center">Cargando score transaccional...</p>
             </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-full rounded" />
-              <Skeleton className="h-4 w-3/4 rounded" />
-              <Skeleton className="h-4 w-5/6 rounded" />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Skeleton className="h-20 rounded-lg" />
-              <Skeleton className="h-20 rounded-lg" />
-            </div>
+            <Skeleton className="h-20 w-full rounded" />
           </div>
         )}
 
         {hasResult && scoreResult && (
-          <TransactionalScoreContent score={scoreResult} onRefresh={() => mutation.mutate()} />
-        )}
-
-        {mutation.isError && (
-          <div className="py-4 text-center">
-            <p className="text-sm text-destructive mb-2">No se pudo calcular el score.</p>
-            <Button variant="outline" size="sm" onClick={() => mutation.mutate()}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Reintentar
-            </Button>
-          </div>
+          <TransactionalScoreContent
+            score={scoreResult}
+            onRefresh={() => queryClient.invalidateQueries({ queryKey: ["/api/transactional-score"] })}
+            isRefetching={isRefetching}
+          />
         )}
       </CardContent>
     </Card>
@@ -170,18 +153,39 @@ export default function TransactionalScoreCard() {
 function TransactionalScoreContent({
   score,
   onRefresh,
+  isRefetching,
 }: {
   score: TransactionalScoreResult;
   onRefresh: () => void;
+  isRefetching?: boolean;
 }) {
+  const metrics = score.metrics;
+
   return (
     <div className="space-y-4">
       <p className="text-xs text-center text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-md py-2 px-3">
-        Datos SFA procesados con éxito bajo estándares CMF.
+        Datos extraídos de cartolas bajo estándares CMF/SFA.
       </p>
       <div className="flex flex-col items-center">
         <ScoreGauge score={score.transactionalScore} />
       </div>
+
+      {metrics && (metrics.averageMonthlyBalanceClp != null || metrics.monthsWithAbonos != null) && (
+        <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/30 p-3 text-sm">
+          {metrics.averageMonthlyBalanceClp != null && (
+            <div>
+              <p className="text-xs text-muted-foreground">Saldo promedio (CLP)</p>
+              <p className="font-medium">${metrics.averageMonthlyBalanceClp.toLocaleString("es-CL")}</p>
+            </div>
+          )}
+          {metrics.monthsWithAbonos != null && (
+            <div>
+              <p className="text-xs text-muted-foreground">Meses con abonos (12m)</p>
+              <p className="font-medium">{metrics.monthsWithAbonos}</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {score.mainInsights && score.mainInsights.length > 0 && (
         <div className="space-y-2">
@@ -225,9 +229,15 @@ function TransactionalScoreContent({
         </div>
       )}
 
-      <Button variant="ghost" size="sm" className="w-full gap-2 text-muted-foreground" onClick={onRefresh}>
-        <RefreshCw className="h-4 w-4" />
-        Volver a analizar
+      <Button
+        variant="ghost"
+        size="sm"
+        className="w-full gap-2 text-muted-foreground"
+        onClick={onRefresh}
+        disabled={isRefetching}
+      >
+        <RefreshCw className={cn("h-4 w-4", isRefetching && "animate-spin")} />
+        Actualizar
       </Button>
     </div>
   );

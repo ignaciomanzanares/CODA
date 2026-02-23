@@ -13,6 +13,7 @@ export const {
   bankConnections,
   transactions,
   creditScores,
+  transactionalScores,
   insuranceRisks,
   financialGoals,
   financialProducts,

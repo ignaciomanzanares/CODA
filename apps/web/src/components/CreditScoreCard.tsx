@@ -105,30 +105,37 @@ export default function CreditScoreCard() {
     );
   }
 
-  if (error || !creditScore) {
+  const noScore = creditScore?.score == null;
+  if (error || !creditScore || noScore) {
     return (
       <Card className="h-full">
         <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-primary" />
             Score crediticio
           </CardTitle>
+          <CardDescription>Datos del Informe CMF (Deuda Total Vigente)</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
-            <div className="mx-auto w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-              <Info className="h-6 w-6 text-red-600" />
+            <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+              <Info className="h-6 w-6 text-muted-foreground" />
             </div>
-            <p className="text-muted-foreground mb-4">
-              {error instanceof Error
-                ? error.message
-                : "Conecta una cuenta bancaria para ver tu score crediticio"}
+            <p className="font-medium text-muted-foreground mb-1">
+              {noScore && !error ? "Pendiente de Análisis" : null}
+              {error ? (error instanceof Error ? error.message : "Error") : null}
+              {!creditScore && !error ? "Cargando..." : null}
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">
+              {noScore && !error
+                ? "Sube un Informe de Deudas CMF en la tarjeta Documentos oficiales para obtener tu score (Deuda $0 = perfil saludable)."
+                : "Revisa tu conexión o vuelve a intentar."}
             </p>
             <Button
               variant="outline"
               onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] })}
             >
-              Reintentar
+              {noScore && !error ? "Actualizar" : "Reintentar"}
             </Button>
           </div>
         </CardContent>

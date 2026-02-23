@@ -81,16 +81,21 @@ export async function processDocumentUpload(
         lastUpdated: new Date().toISOString(),
       });
     }
+    const cmfInsight =
+      doc.deudaTotalVigente === 0 && doc.deudaIndirecta === 0
+        ? 'Perfil Crediticio Saludable: Sin deudas morosas. Estado vigente según Informe CMF.'
+        : doc.numeroInstituciones > 0
+          ? `Deuda total vigente: $${doc.deudaTotalVigente.toLocaleString('es-CL')} CLP en ${doc.numeroInstituciones} institución(es).`
+          : 'Sin deudas vigentes reportadas en el informe CMF.';
     return {
       step: 'done',
       documentType: 'cmf_informe_deudas',
-      cmf: doc,
+      cmf: {
+        ...doc,
+        rutDocumento: doc.rutDocumento ?? undefined,
+      },
       creditScore,
-      mainInsights: [
-        doc.numeroInstituciones > 0
-          ? `Deuda total vigente: $${doc.deudaTotalVigente.toLocaleString('es-CL')} CLP en ${doc.numeroInstituciones} institución(es).`
-          : 'Sin deudas vigentes reportadas en el informe CMF.',
-      ],
+      mainInsights: [cmfInsight],
     };
   }
 
@@ -109,12 +114,19 @@ export async function processDocumentUpload(
         'Detectamos intereses de línea de crédito o tarjeta en tu cartola. Te recomendamos consolidar deudas y evaluar ofertas de ahorro según el Business Plan.'
       );
     }
+    await storage.upsertTransactionalScore(userId, {
+      transactionalScore: result.transactionalScore,
+      metrics: result.metrics,
+      mainInsights,
+      recommendedProducts: result.recommendedProducts,
+    });
     return {
       step: 'done',
       documentType: 'cartola',
       transactionalScore: result.transactionalScore,
       mainInsights,
       recommendedProducts: result.recommendedProducts,
+      metrics: result.metrics,
     };
   }
 

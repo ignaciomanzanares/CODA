@@ -268,20 +268,20 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Bank Connections Demo */}
-            <DemoOpenBanking />
+            {/* Carga Open Banking: en stand by hasta implementación */}
+            {false && <DemoOpenBanking />}
 
-            {/* Carga de documentos oficiales (CMF / Cartolas) → scoring real */}
+            {/* Documentos oficiales (CMF / Cartolas) → scoring real */}
             <DocumentUploadCard />
 
-            {/* Score Transaccional (simulación SFA) */}
+            {/* Scores desde documentos reales (cartolas + CMF) */}
             <TransactionalScoreCard />
 
-            {/* Risk & Goals Cards */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            {/* Score crediticio + Metas. Riesgo de Seguros en stand by. */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <CreditScoreCard />
-              <InsuranceRiskCard />
               <FinancialGoalsCard />
+              {false && <InsuranceRiskCard />}
             </div>
           </TabsContent>
 
@@ -332,8 +332,6 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Bank Connections */}
-            <DemoOpenBanking />
             {/* Carga de documentos (CMF / Cartolas) */}
             <DocumentUploadCard />
           </TabsContent>

@@ -13,6 +13,12 @@ export interface ReportData {
   transactionalScore?: number;
   mainInsights?: string[];
   metrics?: ReportMetrics;
+  /** RUT extraído del documento (CMF o cartola). */
+  documentRut?: string;
+  /** Nombre del titular (perfil o documento). */
+  userName?: string;
+  /** Deuda total vigente CMF (para estado de solvencia). */
+  cmfDeudaTotalVigente?: number;
 }
 
 interface ReportDataContextValue {
@@ -27,7 +33,10 @@ interface ReportDataContextValue {
     creditScore?: number;
     transactionalScore?: number;
     mainInsights?: string[];
+    documentRut?: string;
+    cmfDeudaTotalVigente?: number;
   }) => void;
+  setReportIdentity: (data: { userName?: string; documentRut?: string; cmfDeudaTotalVigente?: number }) => void;
 }
 
 const defaultContext: ReportDataContextValue = {
@@ -35,6 +44,7 @@ const defaultContext: ReportDataContextValue = {
   setCreditScore: () => {},
   setTransactionalResult: () => {},
   setUploadResult: () => {},
+  setReportIdentity: () => {},
 };
 
 const ReportDataContext = createContext<ReportDataContextValue>(defaultContext);
@@ -67,6 +77,8 @@ export function ReportDataProvider({ children }: { children: React.ReactNode }) 
       creditScore?: number;
       transactionalScore?: number;
       mainInsights?: string[];
+      documentRut?: string;
+      cmfDeudaTotalVigente?: number;
     }) => {
       setReportData((prev) => ({
         ...prev,
@@ -75,6 +87,20 @@ export function ReportDataProvider({ children }: { children: React.ReactNode }) 
           transactionalScore: data.transactionalScore,
         }),
         ...(data.mainInsights != null && { mainInsights: data.mainInsights }),
+        ...(data.documentRut != null && { documentRut: data.documentRut }),
+        ...(data.cmfDeudaTotalVigente != null && { cmfDeudaTotalVigente: data.cmfDeudaTotalVigente }),
+      }));
+    },
+    []
+  );
+
+  const setReportIdentity = useCallback(
+    (data: { userName?: string; documentRut?: string; cmfDeudaTotalVigente?: number }) => {
+      setReportData((prev) => ({
+        ...prev,
+        ...(data.userName != null && { userName: data.userName }),
+        ...(data.documentRut != null && { documentRut: data.documentRut }),
+        ...(data.cmfDeudaTotalVigente != null && { cmfDeudaTotalVigente: data.cmfDeudaTotalVigente }),
       }));
     },
     []
@@ -87,6 +113,7 @@ export function ReportDataProvider({ children }: { children: React.ReactNode }) 
         setCreditScore,
         setTransactionalResult,
         setUploadResult,
+        setReportIdentity,
       }}
     >
       {children}
