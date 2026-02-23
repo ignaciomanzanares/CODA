@@ -44,6 +44,21 @@ export const bankConnections = table('bank_connections', {
   lastUpdated: text('last_updated').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+/** Consentimientos SFA (RAR + Grant Management). Vinculados a userId; scope en authorization_details. */
+export const consentGrants = table('consent_grants', {
+  id: serialOrInt('id'),
+  userId: text('user_id').notNull().references(() => users.id),
+  status: text('status').notNull().default('pending'),
+  authorizationDetails: text('authorization_details').notNull(),
+  purpose: text('purpose').notNull(),
+  policyVersion: text('policy_version').notNull(),
+  externalGrantId: text('external_grant_id'),
+  ipiId: text('ipi_id'),
+  expiresAt: text('expires_at'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 export const accounts = table('accounts', {
   id: serialOrInt('id'),
   userId: text('user_id').notNull().references(() => users.id),

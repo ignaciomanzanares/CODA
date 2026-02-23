@@ -1,6 +1,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { registerEmpresasRoutes } from "./routes-empresas.js";
+import { registerConsentRoutes } from "./routes-consent.js";
+import { registerTestRoutes } from "./routes-test.js";
 import { storage } from "./storage.js";
 import { db, dialect, users, bankConnections, accounts, balances, transactions, creditScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc, insertAccountSchema, insertBankConnectionSchema, insertFinancialGoalSchema } from "./db/index.js";
 import { ZodError } from "zod";
@@ -130,6 +132,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // CODA Empresas API (misma BD, prefijo /api/empresas)
   registerEmpresasRoutes(app);
+
+  // Panel de Control de Consentimientos (RAR + Grant Management)
+  registerConsentRoutes(app);
+
+  // Simulación de flujo bancario (consent + webhook + mock SFA + score)
+  registerTestRoutes(app);
 
   // --- Protected routes (require JWT authentication) ---
 

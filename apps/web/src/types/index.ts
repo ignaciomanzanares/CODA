@@ -75,6 +75,48 @@ export interface CreateBankConnectionData {
   isConnected?: boolean;
 }
 
+/** Consentimiento SFA (Panel de Control). scope = authorization_details parseado. */
+export type ConsentGrantStatus = 'pending' | 'authorized' | 'rejected' | 'revoked' | 'expired';
+
+export interface ConsentGrantScopeItem {
+  type: string;
+  actions?: string[];
+  locations?: string[];
+}
+
+export interface ConsentGrant {
+  id: number;
+  userId: string;
+  status: ConsentGrantStatus;
+  scope: ConsentGrantScopeItem[];
+  purpose: string;
+  policyVersion: string;
+  externalGrantId: string | null;
+  ipiId: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Respuesta de POST /api/test/simulate-bank-flow (Score Transaccional). */
+export interface TransactionalScoreResult {
+  transactionalScore: number;
+  mainInsights: string[];
+  recommendedProducts: string[];
+  metrics?: {
+    averageMonthlyBalanceClp?: number;
+    monthsWithAbonos?: number;
+    monthsWithGap?: number;
+    overdraftUsageRatio?: number;
+    hasOptimizationOpportunity?: boolean;
+  };
+}
+
+export interface SimulateBankFlowResponse {
+  consent: ConsentGrant;
+  score: TransactionalScoreResult;
+}
+
 export interface BillSplit {
   id: number | string;
   name: string;
