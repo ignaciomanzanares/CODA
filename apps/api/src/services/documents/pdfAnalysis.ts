@@ -4,6 +4,8 @@
  * Cartolas: mapeo a SFA según schema_csv (Información transaccional, Productos vigentes).
  */
 
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { SfaTransaccionCuenta, SfaProductoVigenteCuenta } from '../../sfa/types.js';
 
 export interface CmfInformeDeudas {
@@ -47,20 +49,17 @@ function extractNumberAfterLabel(text: string, label: string): number | null {
 
 /**
  * Extrae texto de un buffer PDF (usa pdf-parse).
- * Fallback agresivo para obtener la función en cualquier entorno (Render/CommonJS).
+ * Importación dinámica al archivo .js del paquete para evitar inconsistencias del entry point.
  */
 export async function extractPdfText(buffer: Buffer): Promise<{ text: string; numPages: number }> {
   const nodeModule = (await import('node:module')) as any;
   const createRequire = nodeModule.createRequire;
   const require = createRequire(import.meta.url);
-  const pdfModule = require('pdf-parse');
-  // Intentar obtener la función de cualquier lugar posible del módulo
-  const pdfParse =
-    typeof pdfModule === 'function'
-      ? pdfModule
-      : pdfModule?.default && typeof pdfModule.default === 'function'
-        ? pdfModule.default
-        : pdfModule;
+  const packageJsonPath = require.resolve('pdf-parse/package.json');
+  const packageRoot = path.dirname(packageJsonPath);
+  const pdfParsePath = path.join(packageRoot, 'dist/pdf-parse/esm/index.js');
+  const pdfModule = await import(pathToFileURL(pdfParsePath).href);
+  const pdfParse = (pdfModule as { default?: (buf: Buffer) => Promise<{ text?: string; numpages?: number }> }).default;
   if (typeof pdfParse !== 'function') {
     throw new Error('pdf-parse: no se pudo obtener la función de parseo del módulo');
   }
