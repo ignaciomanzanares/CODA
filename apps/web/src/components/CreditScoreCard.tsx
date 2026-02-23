@@ -65,17 +65,24 @@ export default function CreditScoreCard() {
   const { setCreditScore } = useReportData();
   const [showReportBreakdown, setShowReportBreakdown] = useState(false);
 
-  const { data: creditScore, isLoading, error } = useQuery({
+  const { data: creditScore, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["/api/credit-score"],
-    queryFn: getCreditScore
+    queryFn: getCreditScore,
   });
 
   const mutation = useMutation({
     mutationFn: refreshCreditScore,
     onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ["/api/credit-score"] });
       queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] });
     },
   });
+
+  const handleActualizar = () => {
+    queryClient.removeQueries({ queryKey: ["/api/credit-score"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] });
+    refetch();
+  };
 
   useEffect(() => {
     if (creditScore?.score != null) setCreditScore(creditScore.score);
@@ -106,6 +113,7 @@ export default function CreditScoreCard() {
   }
 
   const noScore = creditScore?.score == null;
+  const isServerError = !!error;
   if (error || !creditScore || noScore) {
     return (
       <Card className="h-full">
@@ -122,20 +130,25 @@ export default function CreditScoreCard() {
               <Info className="h-6 w-6 text-muted-foreground" />
             </div>
             <p className="font-medium text-muted-foreground mb-1">
-              {noScore && !error ? "Pendiente de Análisis" : null}
-              {error ? (error instanceof Error ? error.message : "Error") : null}
-              {!creditScore && !error ? "Cargando..." : null}
+              {noScore && !error && "Pendiente de Análisis"}
+              {error && (error instanceof Error ? error.message : String(error))}
+              {!creditScore && !error && "Cargando..."}
             </p>
             <p className="text-sm text-muted-foreground mb-4">
-              {noScore && !error
-                ? "Sube un Informe de Deudas CMF en la tarjeta Documentos oficiales para obtener tu score (Deuda $0 = perfil saludable)."
-                : "Revisa tu conexión o vuelve a intentar."}
+              {isServerError
+                ? "Hubo un fallo en el servidor al obtener el score. Comprueba que estés autenticado y vuelve a intentar."
+                : noScore && !error
+                  ? "Sube un Informe de Deudas CMF en la tarjeta Documentos oficiales para obtener tu score (Deuda $0 = perfil saludable)."
+                  : !creditScore && !error
+                    ? ""
+                    : "Revisa tu conexión o vuelve a intentar."}
             </p>
             <Button
               variant="outline"
-              onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] })}
+              onClick={handleActualizar}
+              disabled={isFetching}
             >
-              {noScore && !error ? "Actualizar" : "Reintentar"}
+              {isFetching ? "Actualizando…" : noScore && !error ? "Actualizar" : "Reintentar"}
             </Button>
           </div>
         </CardContent>
