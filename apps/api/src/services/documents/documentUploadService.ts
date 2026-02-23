@@ -72,24 +72,24 @@ export async function processDocumentUpload(
 
   if (doc.tipo === 'cmf_informe_deudas') {
     const creditScore = computeCreditScoreFromCmf(doc);
-    const updated = await storage.updateCreditScore(userId, {
+    const creditPayload = {
       score: creditScore,
       maxScore: CREDIT_SCORE_MAX,
       paymentHistory: 'Excellent',
       utilization: 'Good',
       ageOfCredit: 'Good',
       lastUpdated: new Date().toISOString(),
-    });
+    };
+    console.log('[documentUploadService] CMF: antes de updateCreditScore', { userId, creditPayload });
+    const updated = await storage.updateCreditScore(userId, creditPayload);
+    console.log('[documentUploadService] CMF: después de updateCreditScore', { userId, updated: !!updated, updatedValue: updated ?? null });
     if (!updated) {
-      await storage.createCreditScore({
+      const createPayload = {
         userId,
-        score: creditScore,
-        maxScore: CREDIT_SCORE_MAX,
-        paymentHistory: 'Excellent',
-        utilization: 'Good',
-        ageOfCredit: 'Good',
-        lastUpdated: new Date().toISOString(),
-      });
+        ...creditPayload,
+      };
+      console.log('[documentUploadService] CMF: creando credit score (no existía)', { createPayload });
+      await storage.createCreditScore(createPayload);
     }
     const cmfInsight =
       doc.deudaTotalVigente === 0 && doc.deudaIndirecta === 0

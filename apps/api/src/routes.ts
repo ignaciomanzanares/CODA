@@ -1234,10 +1234,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) {
+        logger.warn({ path: "/api/credit-score" }, "Credit score: usuario no encontrado para token");
         return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
       }
       const existing = await storage.getCreditScore(userId);
       if (!existing) {
+        logger.info({ userId, path: "/api/credit-score" }, "Credit score: sin registro para userId, devolviendo score null");
         return res.json({
           score: null,
           maxScore: 850,
@@ -1246,6 +1248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ageOfCredit: "",
         });
       }
+      logger.info({ userId, score: existing.score, path: "/api/credit-score" }, "Credit score: registro encontrado");
       res.json({
         score: existing.score,
         maxScore: existing.maxScore ?? 850,
