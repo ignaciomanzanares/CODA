@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useReportData } from "@/contexts/ReportDataContext";
 import type { SimulateBankFlowResponse, TransactionalScoreResult } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -75,13 +76,21 @@ function ScoreGauge({ score }: { score: number }) {
 export default function TransactionalScoreCard() {
   const { simulateBankFlow } = useApi();
   const { toast } = useToast();
+  const { setTransactionalResult } = useReportData();
   const mutation = useMutation({
     mutationFn: simulateBankFlow,
-    onSuccess: () => {
+    onSuccess: (data: SimulateBankFlowResponse) => {
       toast({
         title: "Simulación SFA completada",
         description: "Datos SFA procesados con éxito bajo estándares CMF.",
       });
+      if (data?.score) {
+        setTransactionalResult({
+          transactionalScore: data.score.transactionalScore,
+          mainInsights: data.score.mainInsights ?? [],
+          metrics: data.score.metrics,
+        });
+      }
     },
   });
 

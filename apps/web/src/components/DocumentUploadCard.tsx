@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { useApi } from "@/lib/api";
+import { useReportData } from "@/contexts/ReportDataContext";
 import type { DocumentUploadResult } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,35 +14,66 @@ const STEPS: Record<string, string> = {
   done: "Listo",
 };
 
+function toFileList(files: FileList | null): File[] {
+  if (!files?.length) return [];
+  return Array.from(files).filter((f) => f.type === "application/pdf");
+}
+
 export default function DocumentUploadCard() {
   const { uploadDocument } = useApi();
+  const { setUploadResult } = useReportData();
   const inputRef = useRef<HTMLInputElement>(null);
   const [drag, setDrag] = useState(false);
   const [loading, setLoading] = useState(false);
   const [progressStep, setProgressStep] = useState<string | null>(null);
+  const [progressCurrent, setProgressCurrent] = useState(0);
+  const [progressTotal, setProgressTotal] = useState(0);
   const [result, setResult] = useState<DocumentUploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFile = useCallback(
-    async (file: File) => {
+  const processFiles = useCallback(
+    async (fileList: File[]) => {
+      const pdfs = fileList.filter((f) => f.type === "application/pdf");
+      if (pdfs.length === 0) {
+        setError("No hay archivos PDF. Solo se aceptan PDF (Informe CMF o Cartola).");
+        return;
+      }
       setError(null);
       setResult(null);
       setLoading(true);
-      setProgressStep("reading");
-      try {
-        setProgressStep("extracting");
-        const res = await uploadDocument(file);
-        setProgressStep("scoring");
-        setResult(res);
-        setProgressStep("done");
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Error al procesar el documento.");
-        setProgressStep(null);
-      } finally {
-        setLoading(false);
+      setProgressTotal(pdfs.length);
+      let lastResult: DocumentUploadResult | null = null;
+      for (let i = 0; i < pdfs.length; i++) {
+        setProgressCurrent(i + 1);
+        setProgressStep("reading");
+        try {
+          setProgressStep("extracting");
+          const res = await uploadDocument(pdfs[i]);
+          setProgressStep("scoring");
+          lastResult = res;
+          if (res.error) {
+            setError(res.error);
+            setProgressStep(null);
+            break;
+          }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Error al procesar el documento.");
+          setProgressStep(null);
+          break;
+        }
       }
+      if (lastResult && !lastResult.error) {
+        setResult(lastResult);
+        setProgressStep("done");
+        setUploadResult({
+          ...(lastResult.creditScore != null && { creditScore: lastResult.creditScore }),
+          ...(lastResult.transactionalScore != null && { transactionalScore: lastResult.transactionalScore }),
+          ...(lastResult.mainInsights != null && { mainInsights: lastResult.mainInsights }),
+        });
+      }
+      setLoading(false);
     },
-    [uploadDocument]
+    [uploadDocument, setUploadResult]
   );
 
   const onDrop = useCallback(
@@ -49,10 +81,10 @@ export default function DocumentUploadCard() {
       e.preventDefault();
       e.stopPropagation();
       setDrag(false);
-      const file = e.dataTransfer.files[0];
-      if (file) handleFile(file);
+      const files = toFileList(e.dataTransfer.files);
+      if (files.length) processFiles(files);
     },
-    [handleFile]
+    [processFiles]
   );
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -67,11 +99,11 @@ export default function DocumentUploadCard() {
 
   const onInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) handleFile(file);
+      const files = toFileList(e.target.files);
+      if (files.length) processFiles(files);
       e.target.value = "";
     },
-    [handleFile]
+    [processFiles]
   );
 
   const onSelectClick = useCallback(() => {
@@ -94,6 +126,7 @@ export default function DocumentUploadCard() {
           ref={inputRef}
           type="file"
           accept="application/pdf"
+          multiple
           className="sr-only"
           aria-hidden="true"
           onChange={onInputChange}
@@ -115,17 +148,24 @@ export default function DocumentUploadCard() {
               <p className="text-sm font-medium">
                 {progressStep ? STEPS[progressStep] ?? progressStep : "Procesando..."}
               </p>
-              <p className="text-xs text-muted-foreground">
-                {progressStep === "reading" && "Leyendo documento..."}
-                {progressStep === "extracting" && "Extrayendo datos CMF..."}
-                {progressStep === "scoring" && "Calculando impacto en tu Score..."}
-              </p>
+              {progressTotal > 1 && (
+                <p className="text-xs text-muted-foreground">
+                  Procesando {progressCurrent} de {progressTotal}...
+                </p>
+              )}
+              {progressTotal <= 1 && (
+                <p className="text-xs text-muted-foreground">
+                  {progressStep === "reading" && "Leyendo documento..."}
+                  {progressStep === "extracting" && "Extrayendo datos CMF..."}
+                  {progressStep === "scoring" && "Calculando impacto en tu Score..."}
+                </p>
+              )}
             </div>
           ) : (
             <>
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm text-muted-foreground mb-2">
-                Arrastra un PDF aquí o haz clic para seleccionar
+                Arrastra uno o más PDF aquí o haz clic para seleccionar
               </p>
               <Button
                 type="button"
