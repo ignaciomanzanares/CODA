@@ -87,7 +87,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="w-full max-w-screen-2xl mx-auto flex h-14 min-h-14 flex-nowrap items-center justify-between gap-2 sm:gap-4 pl-1 pr-3 sm:pl-2 sm:pr-6">
+      <div className="w-full max-w-screen-2xl mr-auto flex h-14 min-h-14 flex-nowrap items-center justify-between gap-2 sm:gap-4 pl-3 pr-3 sm:pl-4 sm:pr-6">
         {/* Esquina superior izquierda: CODA Empresas / CODA */}
         <div className="flex shrink-0 items-center min-w-0">
           <Link
