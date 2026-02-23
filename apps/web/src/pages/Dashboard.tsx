@@ -12,6 +12,7 @@ import CreditScoreCard from "@/components/CreditScoreCard";
 import InsuranceRiskCard from "@/components/InsuranceRiskCard";
 import FinancialGoalsCard from "@/components/FinancialGoalsCard";
 import DemoOpenBanking from "@/components/DemoOpenBanking";
+import DocumentUploadCard from "@/components/DocumentUploadCard";
 import PDOverview from "@/components/PDOverview";
 import TransactionalScoreCard from "@/components/TransactionalScoreCard";
 
@@ -264,6 +265,9 @@ export default function Dashboard() {
             {/* Bank Connections Demo */}
             <DemoOpenBanking />
 
+            {/* Carga de documentos oficiales (CMF / Cartolas) → scoring real */}
+            <DocumentUploadCard />
+
             {/* Score Transaccional (simulación SFA) */}
             <TransactionalScoreCard />
 
@@ -324,6 +328,8 @@ export default function Dashboard() {
 
             {/* Bank Connections */}
             <DemoOpenBanking />
+            {/* Carga de documentos (CMF / Cartolas) */}
+            <DocumentUploadCard />
           </TabsContent>
         </Tabs>
 
