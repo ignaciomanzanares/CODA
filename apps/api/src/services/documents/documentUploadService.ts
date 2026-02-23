@@ -17,6 +17,15 @@ import {
 export const CREDIT_SCORE_EXCELLENT = 680;
 export const CREDIT_SCORE_MAX = 850;
 
+/** Métricas SFA opcionales (cartolas): liquidez y estabilidad de ingresos. */
+export interface UploadResultMetrics {
+  averageMonthlyBalanceClp?: number;
+  monthsWithAbonos?: number;
+  monthsWithGap?: number;
+  overdraftUsageRatio?: number;
+  hasOptimizationOpportunity?: boolean;
+}
+
 export interface UploadResult {
   step: 'reading' | 'extracting' | 'scoring' | 'done';
   documentType?: 'cmf_informe_deudas' | 'cartola';
@@ -25,6 +34,7 @@ export interface UploadResult {
   creditScore?: number;
   mainInsights?: string[];
   recommendedProducts?: string[];
+  metrics?: UploadResultMetrics;
   error?: string;
 }
 
