@@ -25,7 +25,8 @@ import {
   Building2,
   Building,
   GitMerge,
-  Shield
+  Shield,
+  Link2
 } from "lucide-react";
 import NotificationCenter from "@/components/NotificationCenter";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ const navItems = [
   { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
   { href: "/movimientos", label: "Movimientos", icon: Receipt },
   { href: "/expenses", label: "Gastos", icon: Receipt },
+  { href: "/conexiones", label: "Conexiones", icon: Link2 },
   { href: "/bill-split", label: "Dividir cuenta", icon: Users },
   { href: "/products", label: "Productos", icon: Package },
   { href: "/goals", label: "Metas", icon: Target },

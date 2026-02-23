@@ -13,6 +13,7 @@ import InsuranceRiskCard from "@/components/InsuranceRiskCard";
 import FinancialGoalsCard from "@/components/FinancialGoalsCard";
 import DemoOpenBanking from "@/components/DemoOpenBanking";
 import PDOverview from "@/components/PDOverview";
+import TransactionalScoreCard from "@/components/TransactionalScoreCard";
 
 // New dashboard components
 import {
@@ -262,6 +263,9 @@ export default function Dashboard() {
 
             {/* Bank Connections Demo */}
             <DemoOpenBanking />
+
+            {/* Score Transaccional (simulación SFA) */}
+            <TransactionalScoreCard />
 
             {/* Risk & Goals Cards */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

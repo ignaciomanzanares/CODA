@@ -34,6 +34,7 @@ import Plan from "@/pages/Plan";
 import Profile from "@/pages/Profile";
 import Expenses from "@/pages/Expenses";
 import Movimientos from "@/pages/Movimientos";
+import ConsentConnections from "@/pages/ConsentConnections";
 import EmailInviteHandler from "@/pages/EmailInviteHandler";
 import ShareBillSplit from "@/pages/ShareBillSplit";
 import FinancialAssistant from "@/components/FinancialAssistant";
@@ -146,6 +147,11 @@ function App() {
                   <Route path="/movimientos">
                     <ProtectedRoute>
                       <Movimientos />
+                    </ProtectedRoute>
+                  </Route>
+                  <Route path="/conexiones">
+                    <ProtectedRoute>
+                      <ConsentConnections />
                     </ProtectedRoute>
                   </Route>
                   <Route path="/expenses">

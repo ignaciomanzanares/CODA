@@ -47,6 +47,9 @@ export type ApiClient = {
   markAllNotificationsAsRead: () => Promise<import("@/types").ApiResponse>;
   deleteNotification: (notificationId: number) => Promise<import("@/types").ApiResponse>;
   getUnreadNotificationCount: () => Promise<number>;
+  getConsents: () => Promise<import("@/types").ConsentGrant[]>;
+  revokeConsent: (grantId: number) => Promise<import("@/types").ConsentGrant>;
+  simulateBankFlow: () => Promise<import("@/types").SimulateBankFlowResponse>;
 };
 
 export function useApi(): ApiClient {
@@ -311,6 +314,18 @@ export function useApi(): ApiClient {
     return await apiRequest<number>("GET", "/api/notifications/unread-count");
   };
 
+  const getConsents = async (): Promise<import("@/types").ConsentGrant[]> => {
+    return await apiRequest<import("@/types").ConsentGrant[]>("GET", "/api/consent");
+  };
+
+  const revokeConsent = async (grantId: number): Promise<import("@/types").ConsentGrant> => {
+    return await apiRequest<import("@/types").ConsentGrant>("POST", `/api/consent/${grantId}/revoke`);
+  };
+
+  const simulateBankFlow = async (): Promise<import("@/types").SimulateBankFlowResponse> => {
+    return await apiRequest<import("@/types").SimulateBankFlowResponse>("POST", "/api/test/simulate-bank-flow");
+  };
+
   return {
     apiRequest,
     getBankConnections,
@@ -350,6 +365,9 @@ export function useApi(): ApiClient {
     markAllNotificationsAsRead,
     deleteNotification,
     getUnreadNotificationCount,
+    getConsents,
+    revokeConsent,
+    simulateBankFlow,
   };
 }
 
