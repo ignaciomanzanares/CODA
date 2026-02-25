@@ -49,7 +49,10 @@ export interface IStorage {
   getCreditScore(userId: string): Promise<any>;
   createCreditScore(creditScore: any): Promise<any>;
   updateCreditScore(userId: string, creditScore: any): Promise<any>;
+  /** Mismo contrato que upsertTransactionalScore: evita TS2551 y mismo "riel" de guardado. */
   upsertCreditScoreRaw(userId: string, payload: any): Promise<any>;
+  /** Misma infraestructura que cartola: select + update o insert (Drizzle). */
+  upsertCreditScore(userId: string, data: { score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string; lastUpdated: string }): Promise<any>;
   // Transactional score (cartolas)
   getTransactionalScore(userId: string): Promise<any>;
   upsertTransactionalScore(userId: string, data: { transactionalScore: number; metrics?: object; mainInsights?: string[]; recommendedProducts?: string[] }): Promise<any>;
@@ -404,6 +407,37 @@ export class DatabaseStorage implements IStorage {
       );
       throw err;
     }
+  }
+
+  /**
+   * Misma infraestructura que upsertTransactionalScore: select por user_id, luego update o insert.
+   * Mismo "riel" que las cartolas (Drizzle).
+   */
+  async upsertCreditScore(
+    userId: string,
+    data: { score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string; lastUpdated: string }
+  ): Promise<any> {
+    if (!db) return undefined;
+    const existing = await db.select().from(creditScores).where(eq(creditScores.userId, userId));
+    const payload = {
+      userId,
+      score: data.score,
+      maxScore: data.maxScore,
+      paymentHistory: data.paymentHistory,
+      utilization: data.utilization,
+      ageOfCredit: data.ageOfCredit,
+      lastUpdated: data.lastUpdated,
+    };
+    if (existing.length > 0) {
+      const [updated] = await db
+        .update(creditScores)
+        .set(payload)
+        .where(eq(creditScores.userId, userId))
+        .returning();
+      return updated;
+    }
+    const [inserted] = await db.insert(creditScores).values(payload).returning();
+    return inserted;
   }
 
   async getTransactionalScore(userId: string): Promise<any> {

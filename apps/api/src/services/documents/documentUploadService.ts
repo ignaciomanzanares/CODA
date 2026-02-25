@@ -96,10 +96,11 @@ export async function processDocumentUpload(
     console.log('[documentUploadService] creditPayload exacto:', JSON.stringify(creditPayload));
     logger.info(
       { userId, creditPayload },
-      '[documentUploadService] CMF: upsert credit score (mismo flujo que cartola: upsert + verificación)'
+      '[documentUploadService] CMF: mismo riel que cartola → storage.upsertCreditScore(userId, payload)'
     );
-    await storage.upsertCreditScoreRaw(userId, creditPayload);
-    // Confirmación de escritura: no responder 200 hasta que el score esté físicamente en la DB.
+    // Misma forma de llamar al storage que cartolas: un solo upsert con userId.
+    await storage.upsertCreditScore(userId, creditPayload);
+    // Confirmación de DB: solo 200 OK si foundAfterSave es positivo.
     const afterSave = await storage.getCreditScore(userId);
     if (!afterSave) {
       logger.error({ userId }, '[documentUploadService] CMF: upsert ejecutado pero getCreditScore no devolvió fila');
@@ -110,7 +111,7 @@ export async function processDocumentUpload(
       logger.error({ userId, esperado: scoreNum, enDb: scoreEnDb }, '[documentUploadService] CMF: score en DB no coincide');
       throw new Error(`Credit score persistido no coincide (esperado ${scoreNum}, en DB ${scoreEnDb}). Reintenta más tarde.`);
     }
-    logger.info({ userId, score: scoreEnDb }, '[documentUploadService] CMF: score confirmado en DB, respondiendo 200');
+    logger.info({ userId, score: scoreEnDb, foundAfterSave: true }, '[documentUploadService] CMF: confirmación DB OK, respondiendo 200');
     const cmfInsight =
       doc.deudaTotalVigente === 0 && doc.deudaIndirecta === 0
         ? 'Perfil Crediticio Saludable: Sin deudas morosas. Estado vigente según Informe CMF.'
