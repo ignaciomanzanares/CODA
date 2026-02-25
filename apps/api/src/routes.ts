@@ -1238,8 +1238,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.warn({ path: "/api/credit-score" }, "Credit score: usuario no encontrado para token");
         return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
       }
-      logger.info({ userId, path: "/api/credit-score" }, "Credit score: consultando storage para userId");
-      const existing = await storage.getCreditScore(userId);
+      const userIdStr = String(userId);
+      logger.info({ userId: userIdStr, userIdType: typeof userId, path: "/api/credit-score" }, "Credit score: consultando storage (SELECT WHERE user_id = ...)");
+      const existing = await storage.getCreditScore(userIdStr);
       if (!existing) {
         logger.info({ userId, path: "/api/credit-score" }, "Credit score: sin registro para userId, devolviendo score null");
         return res.json({

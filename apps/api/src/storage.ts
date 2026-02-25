@@ -303,33 +303,63 @@ export class DatabaseStorage implements IStorage {
   // Credit score operations
   async getCreditScore(userId: string): Promise<CreditScore | undefined> {
     if (!db) return undefined;
+    const userIdStr = String(userId);
     const [creditScore] = await db
       .select()
       .from(creditScores)
-      .where(eq(creditScores.userId, userId));
+      .where(eq(creditScores.userId, userIdStr));
     return creditScore || undefined;
   }
   
   async createCreditScore(insertCreditScore: InsertCreditScore): Promise<CreditScore> {
     if (!db) throw new Error("Database not available");
-    const [creditScore] = await db
-      .insert(creditScores)
-      .values(insertCreditScore)
-      .returning();
-    return creditScore;
+    const payload = { ...insertCreditScore, userId: String(insertCreditScore.userId) };
+    logger.info(
+      { payload, userId: payload.userId, score: payload.score, table: 'credit_scores', op: 'INSERT' },
+      '[storage] credit_scores INSERT (valores exactos enviados a DB)'
+    );
+    try {
+      const [creditScore] = await db
+        .insert(creditScores)
+        .values(payload)
+        .returning();
+      return creditScore;
+    } catch (err: unknown) {
+      const e = err as { message?: string; code?: string; detail?: string };
+      logger.error(
+        { err, message: e?.message, code: e?.code, detail: e?.detail, payload },
+        '[storage] credit_scores INSERT falló (revisar tipos/permisos/constraints)'
+      );
+      throw err;
+    }
   }
-  
+
   async updateCreditScore(userId: string, creditScore: Partial<InsertCreditScore>): Promise<CreditScore | undefined> {
     if (!db) return undefined;
-    const [updatedScore] = await db
-      .update(creditScores)
-      .set({
-        ...creditScore,
-        lastUpdated: new Date().toISOString()
-      })
-      .where(eq(creditScores.userId, userId))
-      .returning();
-    return updatedScore || undefined;
+    const userIdStr = String(userId);
+    const setPayload = {
+      ...creditScore,
+      lastUpdated: new Date().toISOString()
+    };
+    logger.info(
+      { userId: userIdStr, setPayload, table: 'credit_scores', op: 'UPDATE' },
+      '[storage] credit_scores UPDATE (valores exactos enviados a DB)'
+    );
+    try {
+      const [updatedScore] = await db
+        .update(creditScores)
+        .set(setPayload)
+        .where(eq(creditScores.userId, userIdStr))
+        .returning();
+      return updatedScore || undefined;
+    } catch (err: unknown) {
+      const e = err as { message?: string; code?: string; detail?: string };
+      logger.error(
+        { err, message: e?.message, code: e?.code, detail: e?.detail, userId: userIdStr, setPayload },
+        '[storage] credit_scores UPDATE falló (revisar tipos/permisos/constraints)'
+      );
+      throw err;
+    }
   }
 
   async getTransactionalScore(userId: string): Promise<any> {
