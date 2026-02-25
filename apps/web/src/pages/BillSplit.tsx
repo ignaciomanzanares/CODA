@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Plus, Users, DollarSign, Check, Clock, Send, 
@@ -29,7 +29,7 @@ import { generateDemoBillSplits } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
 import PaymentDialog from "@/components/PaymentDialog";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, inputAmountToStoredClp } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
 
 // Montos guardados en CLP; mostrar en la moneda elegida (CLP por defecto)
@@ -77,12 +77,12 @@ const participantSchema = z.object({
 });
 
 const billSplitFormSchema = z.object({
-  name: z.string().min(1, "La descripción es obligatoria"),
+  name: z.string().optional(),
   totalAmount: z.string().min(1, "El monto es obligatorio"),
   description: z.string().optional(),
   category: z.string().default("general"),
-  date: z.string().min(1, "La fecha es obligatoria"),
-  splitType: z.enum(["equal", "exact", "percentage", "shares"]).default("equal"),
+  date: z.string().optional(),
+  splitType: z.enum(["equal"]).default("equal"),
   participants: z.array(participantSchema).min(1, "Se requiere al menos un participante"),
 });
 
@@ -382,17 +382,32 @@ export default function BillSplit() {
     retry: false,
   });
 
+  const { data: balancesData = [] } = useQuery<BillSplitWithParticipants[]>({
+    queryKey: ["balances"],
+    queryFn: getBillSplits,
+    enabled: isAuthenticated && !authLoading,
+    retry: false,
+  });
+
   const billSplits = isAuthenticated ? realBillSplits : demoBillSplits;
+  const billSplitsForBalances = isAuthenticated ? balancesData : demoBillSplits;
   // Show both 'active' and 'pending' statuses as active expenses
   const activeExpenses = billSplits.filter(s => s.status === 'active' || s.status === 'pending' || !s.status);
   const settledExpenses = billSplits.filter(s => s.status === 'settled' || s.status === 'fully_paid');
 
+  const updateBalances = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["balances"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
+    queryClient.refetchQueries({ queryKey: ["balances"] });
+    queryClient.refetchQueries({ queryKey: ["/api/bill-splits"] });
+  }, [queryClient]);
+
   // Calculate balances - count all unpaid amounts from bill splits you created
-  const calculateBalances = () => {
+  const calculateBalances = (splits: BillSplitWithParticipants[]) => {
     const balances: Record<string, { name: string; balance: number }> = {};
     const currentUserId = user?.userId ?? null;
 
-    (billSplits || []).forEach((split) => {
+    (splits || []).forEach((split) => {
       if (split.status === 'settled' || split.status === 'fully_paid') return;
 
       // Creator: match by id or by role (API sets userRole)
@@ -436,12 +451,12 @@ export default function BillSplit() {
   };
 
   // Calculate totals directly from bill splits for accuracy
-  const calculateTotals = () => {
+  const calculateTotals = (splits: BillSplitWithParticipants[]) => {
     let youAreOwed = 0;
     let youOwe = 0;
     const currentUserId = user?.userId ?? null;
 
-    (billSplits || []).forEach((split) => {
+    (splits || []).forEach((split) => {
       if (split.status === 'settled' || split.status === 'fully_paid') return;
 
       const isCreator =
@@ -475,58 +490,38 @@ export default function BillSplit() {
     return { youAreOwed, youOwe };
   };
 
-  const { youAreOwed, youOwe } = calculateTotals();
+  const { youAreOwed, youOwe } = calculateTotals(billSplitsForBalances);
 
-  const userBalances = calculateBalances();
+  const userBalances = calculateBalances(billSplitsForBalances);
   const totalYouOwe = userBalances.filter(b => b.balance < 0).reduce((sum, b) => sum + Math.abs(b.balance), 0);
   const totalOwedToYou = userBalances.filter(b => b.balance > 0).reduce((sum, b) => sum + b.balance, 0);
 
   // Mutations
   const createBillSplitMutation = useMutation({
     mutationFn: (billSplit: BillSplitFormValues) => {
-      const amountFromInput = parseFloat(billSplit.totalAmount);
-      const totalAmountClp = inputAmountToStoredClp(amountFromInput, currency);
-      
+      const totalAmountClp = Math.round(parseFloat(billSplit.totalAmount) || 0);
       const creatorName = (user as any)?.firstName || (user as any)?.username || (user as any)?.name || (user as any)?.email || 'Me';
       const creatorEmail = (user as any)?.email || '';
       const participantsList = Array.isArray(billSplit.participants) ? billSplit.participants : [];
       const allParticipants = [
-        { name: creatorName, email: creatorEmail, shareValue: participantsList[0]?.shareValue, isCreator: true },
+        { name: creatorName, email: creatorEmail, shareValue: undefined, isCreator: true },
         ...participantsList.map(p => ({ ...p, isCreator: false }))
       ];
-      
-      let participantAmounts: number[] = [];
-      
-      if (billSplit.splitType === 'equal') {
-        const perPerson = totalAmountClp / allParticipants.length;
-        participantAmounts = allParticipants.map(() => perPerson);
-      } else if (billSplit.splitType === 'exact') {
-        participantAmounts = allParticipants.map(p => inputAmountToStoredClp(parseFloat(p.shareValue || '0'), currency));
-      } else if (billSplit.splitType === 'percentage') {
-        participantAmounts = allParticipants.map(p => {
-          const pct = parseFloat(p.shareValue || '0') / 100;
-          return totalAmountClp * pct;
-        });
-      } else if (billSplit.splitType === 'shares') {
-        const totalShares = allParticipants.reduce((sum, p) => sum + parseFloat(p.shareValue || '1'), 0);
-        participantAmounts = allParticipants.map(p => {
-          const shares = parseFloat(p.shareValue || '1');
-          return (shares / totalShares) * totalAmountClp;
-        });
-      }
-      
+      const perPerson = allParticipants.length > 0 ? totalAmountClp / allParticipants.length : 0;
+      const participantAmounts = allParticipants.map(() => perPerson);
+
       return createBillSplit({
-        name: billSplit.name,
+        name: billSplit.name?.trim() || 'Gasto compartido',
         totalAmount: totalAmountClp,
-        description: billSplit.description,
+        description: undefined,
         category: billSplit.category,
-        date: new Date(billSplit.date),
+        date: new Date(),
         participants: allParticipants.map((p, i) => ({
           userId: p.isCreator ? (user?.userId ?? null) : null,
           name: p.name,
           email: p.email,
           amountOwed: participantAmounts[i].toFixed(2),
-          isPaid: p.isCreator, // Creator's share is auto-marked as paid (they paid the bill)
+          isPaid: p.isCreator,
         }))
       });
     },
@@ -538,7 +533,8 @@ export default function BillSplit() {
         }
         return list;
       });
-      await queryClient.refetchQueries({ queryKey: ["/api/bill-splits"] });
+      updateBalances();
+      await queryClient.invalidateQueries({ queryKey: ['balances'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       setIsCreateDialogOpen(false);
       form.reset();
@@ -550,7 +546,7 @@ export default function BillSplit() {
       return markParticipantAsPaid(billSplitId, participantId, amountPaid);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
+      updateBalances();
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
@@ -558,7 +554,7 @@ export default function BillSplit() {
   const deleteSplitMutation = useMutation({
     mutationFn: (billSplitId: string) => deleteBillSplit(billSplitId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
+      updateBalances();
       setSelectedExpense(null);
     },
   });
@@ -625,7 +621,6 @@ export default function BillSplit() {
     name: "participants",
   });
 
-  const watchSplitType = form.watch("splitType");
   const watchParticipants = form.watch("participants");
   const watchAmount = form.watch("totalAmount");
 
@@ -733,104 +728,40 @@ export default function BillSplit() {
                     )}
                   />
 
-                  {/* Description */}
+                  {/* Amount - CLP */}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png"
+                    className="hidden"
+                    ref={billScanInputRef}
+                    onChange={handleBillScan}
+                  />
                   <FormField
                     control={form.control}
-                    name="name"
+                    name="totalAmount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Descripción</FormLabel>
+                        <div className="flex items-center justify-between gap-2">
+                          <FormLabel>Monto (CLP)</FormLabel>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5"
+                            disabled={!isAuthenticated || isScanningBill}
+                            onClick={() => billScanInputRef.current?.click()}
+                          >
+                            <Camera className="h-4 w-4" />
+                            {isScanningBill ? "Escaneando..." : "Escanear boleta"}
+                          </Button>
+                        </div>
                         <FormControl>
-                          <Input placeholder="Ej. Cena en el restaurante" {...field} />
+                          <div className="relative">
+                            <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="0" className="pl-9" {...field} />
+                          </div>
                         </FormControl>
                         <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Amount and Date */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png"
-                      className="hidden"
-                      ref={billScanInputRef}
-                      onChange={handleBillScan}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="totalAmount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <div className="flex items-center justify-between gap-2">
-                            <FormLabel>Monto</FormLabel>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="gap-1.5"
-                              disabled={!isAuthenticated || isScanningBill}
-                              onClick={() => billScanInputRef.current?.click()}
-                            >
-                              <Camera className="h-4 w-4" />
-                              {isScanningBill ? "Escaneando..." : "Escanear boleta"}
-                            </Button>
-                          </div>
-                          <FormControl>
-                            <div className="relative">
-                              <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                              <Input placeholder="0" className="pl-9" {...field} />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="date"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Fecha</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  {/* Split Type */}
-                  <FormField
-                    control={form.control}
-                    name="splitType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Forma de dividir</FormLabel>
-                        <div className="grid grid-cols-4 gap-2">
-                          {[
-                            { value: "equal", label: "Igual", icon: Equal },
-                            { value: "exact", label: "Exacto", icon: DollarSign },
-                            { value: "percentage", label: "%", icon: Percent },
-                            { value: "shares", label: "Partes", icon: Hash },
-                          ].map(option => {
-                            const Icon = option.icon;
-                            return (
-                              <Button
-                                key={option.value}
-                                type="button"
-                                variant={field.value === option.value ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => field.onChange(option.value)}
-                                className="flex flex-col h-auto py-2 gap-1"
-                              >
-                                <Icon className="h-4 w-4" />
-                                <span className="text-xs">{option.label}</span>
-                              </Button>
-                            );
-                          })}
-                        </div>
                       </FormItem>
                     )}
                   />
@@ -869,41 +800,18 @@ export default function BillSplit() {
                                 </FormItem>
                               )}
                             />
-                            {watchSplitType === 'equal' ? (
-                              <FormField
-                                control={form.control}
-                                name={`participants.${index}.email`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormControl>
-                                      <Input placeholder="Correo" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            ) : (
-                              <FormField
-                                control={form.control}
-                                name={`participants.${index}.shareValue`}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormControl>
-                                      <div className="relative">
-                                        <Input 
-                                          placeholder={watchSplitType === 'percentage' ? '50' : watchSplitType === 'shares' ? '1' : '0.00'}
-                                          {...field} 
-                                        />
-                                        <span className="absolute right-3 top-2.5 text-xs text-muted-foreground">
-                                          {watchSplitType === 'percentage' ? '%' : watchSplitType === 'shares' ? 'sh' : '$'}
-                                        </span>
-                                      </div>
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            )}
+                            <FormField
+                              control={form.control}
+                              name={`participants.${index}.email`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input placeholder="Correo (opcional)" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
                           </div>
                           {fields.length > 1 && (
                             <Button
@@ -921,43 +829,25 @@ export default function BillSplit() {
                     </div>
                   </div>
 
-                  {/* Preview - includes you (the creator) in the split */}
+                  {/* Preview - equal split only */}
                   {watchAmount && watchParticipants.length > 0 && (
                     <Card className="bg-muted/50 border-dashed">
                       <CardContent className="p-4">
-                        <p className="text-sm font-medium mb-2">Vista previa del reparto</p>
+                        <p className="text-sm font-medium mb-2">Vista previa del reparto (igual)</p>
                         <div className="space-y-1.5">
-                          {/* Show all participants including the creator (you) */}
                           {(() => {
                             const total = parseFloat(watchAmount || '0') || 0;
                             const creatorName = (user as any)?.firstName || (user as any)?.username || (user as any)?.name || 'Tú';
                             const participantsList = Array.isArray(watchParticipants) ? watchParticipants : [];
                             const totalParticipantCount = Math.max(1, participantsList.length + 1);
-                            const allParticipants = [
-                              { name: `${creatorName} (tú)`, shareValue: participantsList[0]?.shareValue, isCreator: true },
-                              ...participantsList.map((p) => ({ ...p, isCreator: false }))
-                            ];
-                            const totalShares = allParticipants.reduce((sum, p) => sum + parseFloat(p.shareValue || '1'), 0) || 1;
-                            return allParticipants.map((p, i) => {
-                              let amount = 0;
-                              if (watchSplitType === 'equal') {
-                                amount = total / totalParticipantCount;
-                              } else if (watchSplitType === 'exact') {
-                                amount = parseFloat(p.shareValue || '0');
-                              } else if (watchSplitType === 'percentage') {
-                                amount = total * (parseFloat(p.shareValue || '0') / 100);
-                              } else if (watchSplitType === 'shares') {
-                                amount = (parseFloat(p.shareValue || '1') / totalShares) * total;
-                              }
-                              return (
-                                <div key={i} className="flex justify-between text-sm">
-                                  <span className={p.isCreator ? "text-primary font-medium" : "text-muted-foreground"}>
-                                    {p.name || `Persona ${i + 1}`}
-                                  </span>
-                                  <span className="font-medium">{formatAmount(amount, currency)}</span>
-                                </div>
-                              );
-                            });
+                            const perPerson = total / totalParticipantCount;
+                            const allNames = [`${creatorName} (tú)`, ...participantsList.map((p) => p.name || 'Persona')];
+                            return allNames.map((name, i) => (
+                              <div key={i} className="flex justify-between text-sm">
+                                <span className={i === 0 ? "text-primary font-medium" : "text-muted-foreground"}>{name || `Persona ${i + 1}`}</span>
+                                <span className="font-medium">{formatAmount(perPerson, currency)}</span>
+                              </div>
+                            ));
                           })()}
                           <Separator className="my-2" />
                           <div className="flex justify-between text-sm font-medium">
@@ -968,20 +858,6 @@ export default function BillSplit() {
                       </CardContent>
                     </Card>
                   )}
-
-                  {/* Notes */}
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Notas (opcional)</FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="Añade detalles (opcional)..." className="resize-none h-20" {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
 
                   <Button 
                     type="submit" 
