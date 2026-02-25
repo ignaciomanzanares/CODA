@@ -2285,8 +2285,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           billSplit.status = 'settled';
         }
       }
-      
-      res.status(201).json(billSplit);
+
+      // Return full shape (with participants and createdByName) so frontend can update Saldo immediately
+      const participants = await storage.getBillSplitParticipants(billSplit.id as number);
+      const creatorName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : (req as AuthenticatedRequest).user?.name || 'Usuario';
+      const isCreator = true;
+      const payload = {
+        ...billSplit,
+        createdByName: creatorName,
+        participants: participants.map(p => ({ ...p, isCurrentUser: String(p.userId) === userId })),
+        userRole: 'creator',
+      };
+      res.status(201).json(payload);
     } catch (error) {
       logger.error({ err: error }, 'Error creating bill split');
       res.status(500).json({ message: 'Internal server error' });
