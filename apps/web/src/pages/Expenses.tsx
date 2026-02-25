@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Plus, 
@@ -24,7 +24,8 @@ import {
   Plane,
   MoreHorizontal,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Camera
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,8 @@ import SignInBanner from "@/components/SignInBanner";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
+import { AddExpenseFormLite } from "@/components/AddExpenseFormLite";
+import type { AddExpenseFormLiteValues } from "@/components/AddExpenseFormLite";
 
 // Helper to parse tags that might be a JSON string or already an array
 function parseTags(tags: string | string[] | null | undefined): string[] {
@@ -181,13 +184,17 @@ function StatCard({
 
 export default function Expenses() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { getExpenses, createExpense, updateExpense, deleteExpense, classifyExpense } = useApi();
+  const { getExpenses, createExpense, updateExpense, deleteExpense, classifyExpense, scanExpense } = useApi();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [isClassifying, setIsClassifying] = useState(false);
+  const [scanPreFill, setScanPreFill] = useState<{ amount: number; category: string; merchant: string } | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const scanSuccessMessageRef = useRef<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { currency } = useCurrency();
@@ -214,23 +221,21 @@ export default function Expenses() {
         tags: expense.tags ? expense.tags.split(",").map(t => t.trim()) : [],
       }),
     onSuccess: (data) => {
-      // Immediately update the cache with the real data from server
       const previousExpenses = queryClient.getQueryData<Expense[]>(["/api/expenses"]);
       if (previousExpenses && data) {
         queryClient.setQueryData<Expense[]>(["/api/expenses"], [...previousExpenses, data]);
       }
-      
-      // Also invalidate to ensure we have the latest data
       queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
-      // Invalidate notifications to show new expense notifications
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      
       setIsAddDialogOpen(false);
+      setScanPreFill(null);
       form.reset();
-      toast({
-        title: "Gasto añadido",
-        description: "El gasto se ha registrado correctamente.",
-      });
+      if (scanSuccessMessageRef.current) {
+        toast({ title: "Gasto añadido", description: scanSuccessMessageRef.current });
+        scanSuccessMessageRef.current = null;
+      } else {
+        toast({ title: "Gasto añadido", description: "El gasto se ha registrado correctamente." });
+      }
     },
     onError: (error) => {
       toast({
@@ -474,6 +479,75 @@ export default function Expenses() {
     setIsEditDialogOpen(true);
   };
 
+  const todayIso = () => new Date().toISOString().split("T")[0];
+
+  const onLiteSubmit = (values: AddExpenseFormLiteValues) => {
+    createExpenseMutation.mutate({
+      amount: values.amount,
+      description: scanPreFill?.merchant || "Gasto rápido",
+      category: values.category,
+      date: todayIso(),
+      subcategory: "",
+      merchantName: scanPreFill?.merchant || "",
+      paymentMethod: "",
+      isRecurring: false,
+      tags: "",
+      notes: "",
+      isAutoClassified: false,
+    });
+  };
+
+  const handleScanImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !isAuthenticated) return;
+    e.target.value = "";
+    const allowed = ["image/jpeg", "image/jpg", "image/png"];
+    if (!allowed.includes(file.type)) {
+      toast({ title: "Formato no válido", description: "Usa una imagen JPG o PNG.", variant: "destructive" });
+      return;
+    }
+    setIsScanning(true);
+    try {
+      const result = await scanExpense(file);
+      if (result.confidence > 0.9) {
+        scanSuccessMessageRef.current = `Gasto de $${result.amount} en ${result.merchant} añadido correctamente.`;
+        createExpenseMutation.mutate({
+          amount: result.amount.toString(),
+          description: result.merchant,
+          category: result.category,
+          date: todayIso(),
+          subcategory: "",
+          merchantName: result.merchant,
+          paymentMethod: "",
+          isRecurring: false,
+          tags: "",
+          notes: "",
+          isAutoClassified: false,
+        });
+      } else {
+        setScanPreFill({ amount: result.amount, category: result.category, merchant: result.merchant });
+        setIsAddDialogOpen(true);
+        toast({
+          title: "Revisa los datos",
+          description: `Confianza ${Math.round(result.confidence * 100)}%. Ajusta si hace falta y guarda.`,
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Error al escanear",
+        description: err instanceof Error ? err.message : "No se pudo leer la imagen.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const openAddDialog = () => {
+    setScanPreFill(null);
+    setIsAddDialogOpen(true);
+  };
+
   if (authLoading || (isAuthenticated && isLoading)) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -528,180 +602,46 @@ export default function Expenses() {
               </div>
             </div>
           </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button disabled={!isAuthenticated} size="lg" className="gap-2">
-                <Plus className="w-4 h-4" />
-                Añadir gasto
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Añadir nuevo gasto</DialogTitle>
-              </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Monto</FormLabel>
-                        <FormControl>
-                          <Input placeholder="0.00" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Descripción</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="¿Qué compraste?" 
-                            {...field} 
-                            onChange={(e) => {
-                              field.onChange(e);
-                              if (form.watch('isAutoClassified')) {
-                              debouncedClassify(
-                                e.target.value,
-                                form.watch('merchantName'),
-                                form.watch('amount'),
-                                'add'
-                              );
-                              }
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Categoría</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Elegir categoría" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {categories.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {categoryLabels[category]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="merchantName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Comercio (opcional)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="Nombre del local o negocio" 
-                          {...field} 
-                          onChange={(e) => {
-                            field.onChange(e);
-                            if (form.watch('isAutoClassified')) {
-                            debouncedClassify(
-                              form.watch('description'),
-                              e.target.value,
-                              form.watch('amount'),
-                              'add'
-                            );
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Fecha</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="tags"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tags (Optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="vacaciones, trabajo, regalo (separados por coma)" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="isAutoClassified"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base flex items-center gap-2">
-                          Auto-clasificar
-                          {isClassifying && <Sparkles className="h-4 w-4 animate-pulse text-primary" />}
-                        </FormLabel>
-                        <div className="text-sm text-gray-500">
-                          {isClassifying ? "La IA está analizando..." : "Deja que la IA categorice este gasto"}
-                        </div>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={(checked) => {
-                            field.onChange(checked);
-                            if (checked && form.watch('description')) {
-                            debouncedClassify(
-                              form.watch('description'),
-                              form.watch('merchantName'),
-                              form.watch('amount'),
-                              'add'
-                            );
-                            }
-                          }}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <Button 
-                  type="submit" 
-                  className="w-full"
-                  disabled={createExpenseMutation.isPending}
-                >
-                  {createExpenseMutation.isPending ? "Añadiendo..." : "Añadir gasto"}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/jpg,image/png"
+            className="hidden"
+            onChange={handleScanImage}
+          />
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="gap-2"
+              disabled={!isAuthenticated || isScanning}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Camera className="w-4 h-4" />
+              {isScanning ? "Escaneando..." : "Escanear"}
+            </Button>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button disabled={!isAuthenticated} size="lg" className="gap-2" onClick={openAddDialog}>
+                  <Plus className="w-4 h-4" />
+                  Añadir gasto
                 </Button>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{scanPreFill ? "Revisar gasto escaneado" : "Añadir gasto (rápido)"}</DialogTitle>
+                </DialogHeader>
+                <AddExpenseFormLite
+                  key={scanPreFill ? `scan-${scanPreFill.amount}-${scanPreFill.category}` : "manual"}
+                  defaultAmount={scanPreFill ? String(scanPreFill.amount) : ""}
+                  defaultCategory={scanPreFill?.category ?? ""}
+                  isPending={createExpenseMutation.isPending}
+                  onSubmit={onLiteSubmit}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Summary Cards */}
