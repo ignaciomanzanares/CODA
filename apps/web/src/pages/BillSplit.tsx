@@ -382,23 +382,13 @@ export default function BillSplit() {
     retry: false,
   });
 
-  const { data: balancesData = [] } = useQuery<BillSplitWithParticipants[]>({
-    queryKey: ["balances"],
-    queryFn: getBillSplits,
-    enabled: isAuthenticated && !authLoading,
-    retry: false,
-  });
-
   const billSplits = isAuthenticated ? realBillSplits : demoBillSplits;
-  const billSplitsForBalances = isAuthenticated ? balancesData : demoBillSplits;
   // Show both 'active' and 'pending' statuses as active expenses
   const activeExpenses = billSplits.filter(s => s.status === 'active' || s.status === 'pending' || !s.status);
   const settledExpenses = billSplits.filter(s => s.status === 'settled' || s.status === 'fully_paid');
 
   const updateBalances = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["balances"] });
     queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
-    queryClient.refetchQueries({ queryKey: ["balances"] });
     queryClient.refetchQueries({ queryKey: ["/api/bill-splits"] });
   }, [queryClient]);
 
@@ -416,19 +406,20 @@ export default function BillSplit() {
         split.userRole === 'creator';
 
       if (isCreator) {
-        (split.participants || []).forEach((p: BillSplitParticipantWithUser) => {
+        (split.participants || []).forEach((p: BillSplitParticipantWithUser, idx: number) => {
           const isCurrentUserParticipant =
-            (currentUserId != null && String(p.userId) === String(currentUserId)) || Boolean(p.isCurrentUser);
+            (currentUserId != null && String(p.userId) === String(currentUserId)) ||
+            Boolean(p.isCurrentUser) ||
+            (idx === 0 && isCreator);
           if (isCurrentUserParticipant) return;
 
-          // Treat any non-true as unpaid (handles 0, false, undefined from API)
           const isPaid = Boolean(p.isPaid ?? (p as { is_paid?: number }).is_paid);
           if (!isPaid) {
             const rawOwed = p.amountOwed ?? (p as { amount_owed?: number }).amount_owed;
             const amount = Number(rawOwed) || parseFloat(String(rawOwed ?? 0)) || 0;
             if (amount <= 0) return;
             const key = p.userId || p.email || `p-${p.id}`;
-            if (!balances[key]) balances[key] = { name: p.name, balance: 0 };
+            if (!balances[key]) balances[key] = { name: p.name || 'Sin nombre', balance: 0 };
             balances[key].balance += amount;
           }
         });
@@ -464,9 +455,11 @@ export default function BillSplit() {
         split.userRole === 'creator';
 
       if (isCreator) {
-        (split.participants || []).forEach((p: BillSplitParticipantWithUser) => {
+        (split.participants || []).forEach((p: BillSplitParticipantWithUser, idx: number) => {
           const isCurrentUserParticipant =
-            (currentUserId != null && String(p.userId) === String(currentUserId)) || Boolean(p.isCurrentUser);
+            (currentUserId != null && String(p.userId) === String(currentUserId)) ||
+            Boolean(p.isCurrentUser) ||
+            (idx === 0 && isCreator);
           if (isCurrentUserParticipant) return;
           if (!Boolean(p.isPaid ?? (p as { is_paid?: number }).is_paid)) {
             const rawOwed = p.amountOwed ?? (p as { amount_owed?: number }).amount_owed;
@@ -490,9 +483,9 @@ export default function BillSplit() {
     return { youAreOwed, youOwe };
   };
 
-  const { youAreOwed, youOwe } = calculateTotals(billSplitsForBalances);
+  const { youAreOwed, youOwe } = calculateTotals(billSplits);
 
-  const userBalances = calculateBalances(billSplitsForBalances);
+  const userBalances = calculateBalances(billSplits);
   const totalYouOwe = userBalances.filter(b => b.balance < 0).reduce((sum, b) => sum + Math.abs(b.balance), 0);
   const totalOwedToYou = userBalances.filter(b => b.balance > 0).reduce((sum, b) => sum + b.balance, 0);
 
@@ -525,7 +518,7 @@ export default function BillSplit() {
         }))
       });
     },
-    onSuccess: async (data: BillSplitWithParticipants) => {
+    onSuccess: (data: BillSplitWithParticipants) => {
       queryClient.setQueryData<BillSplitWithParticipants[]>(["/api/bill-splits"], (prev) => {
         const list = prev ?? [];
         if (data?.id != null && !list.some((b) => String(b.id) === String(data.id))) {
@@ -533,9 +526,8 @@ export default function BillSplit() {
         }
         return list;
       });
-      updateBalances();
-      await queryClient.invalidateQueries({ queryKey: ['balances'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       setIsCreateDialogOpen(false);
       form.reset();
     },
