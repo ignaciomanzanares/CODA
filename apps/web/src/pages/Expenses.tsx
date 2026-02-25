@@ -44,7 +44,7 @@ import { useAuth } from "@/lib/auth";
 import { generateDemoExpenses } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
 import { useToast } from "@/hooks/use-toast";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, inputAmountToStoredClp, storedClpToDisplayAmount } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
 import { AddExpenseFormLite } from "@/components/AddExpenseFormLite";
 import type { AddExpenseFormLiteValues } from "@/components/AddExpenseFormLite";
@@ -198,7 +198,8 @@ export default function Expenses() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { currency } = useCurrency();
-  const formatCurrencyFn = (value: number) => formatCurrency(value, currency);
+  // Montos guardados en CLP; mostrar en la moneda elegida (CLP por defecto)
+  const formatCurrencyFn = (value: number) => formatCurrency(value, currency, { sourceCurrency: "CLP" });
 
   // Use demo data when not authenticated, real data when authenticated
   const demoExpenses = generateDemoExpenses();
@@ -213,13 +214,15 @@ export default function Expenses() {
   const expenses = isAuthenticated ? realExpenses : demoExpenses;
 
   const createExpenseMutation = useMutation({
-    mutationFn: (expense: ExpenseFormValues) => 
-      createExpense({
+    mutationFn: (expense: ExpenseFormValues) => {
+      const amountClp = inputAmountToStoredClp(parseFloat(expense.amount), currency);
+      return createExpense({
         ...expense,
-        amount: parseFloat(expense.amount),
+        amount: amountClp,
         date: new Date(expense.date),
         tags: expense.tags ? expense.tags.split(",").map(t => t.trim()) : [],
-      }),
+      });
+    },
     onSuccess: (data) => {
       const previousExpenses = queryClient.getQueryData<Expense[]>(["/api/expenses"]);
       if (previousExpenses && data) {
@@ -247,13 +250,15 @@ export default function Expenses() {
   });
 
   const updateExpenseMutation = useMutation({
-    mutationFn: (data: { id: number; expense: ExpenseFormValues }) => 
-      updateExpense(data.id.toString(), {
+    mutationFn: (data: { id: number; expense: ExpenseFormValues }) => {
+      const amountClp = inputAmountToStoredClp(parseFloat(data.expense.amount), currency);
+      return updateExpense(data.id.toString(), {
         ...data.expense,
-        amount: parseFloat(data.expense.amount),
+        amount: amountClp,
         date: new Date(data.expense.date),
         tags: data.expense.tags ? data.expense.tags.split(",").map(t => t.trim()) : [],
-      }),
+      });
+    },
     onMutate: async ({ id, expense }) => {
       await queryClient.cancelQueries({ queryKey: ["/api/expenses"] });
       
@@ -464,7 +469,7 @@ export default function Expenses() {
     const formattedDate = expenseDate.toISOString().split('T')[0];
     
     editForm.reset({
-      amount: expense.amount.toString(),
+      amount: storedClpToDisplayAmount(Number(expense.amount), currency).toString(),
       description: expense.description,
       category: expense.category,
       subcategory: expense.subcategory || "",

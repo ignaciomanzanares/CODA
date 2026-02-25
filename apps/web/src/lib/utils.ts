@@ -30,6 +30,23 @@ export function clpToUsd(amountClp: number): number {
   return amountClp / currentRateUsdToClp;
 }
 
+/**
+ * Los montos se guardan siempre en CLP en el backend.
+ * Convierte lo que el usuario escribe (en la moneda elegida) a CLP para enviar.
+ */
+export function inputAmountToStoredClp(amount: number, displayCurrency: CurrencyCode): number {
+  if (displayCurrency === "USD") return Math.round(usdToClp(amount));
+  return Math.round(amount);
+}
+
+/**
+ * Convierte un monto almacenado en CLP al valor a mostrar en inputs (moneda elegida).
+ */
+export function storedClpToDisplayAmount(storedClp: number, displayCurrency: CurrencyCode): number {
+  if (displayCurrency === "USD") return Math.round(clpToUsd(storedClp) * 100) / 100;
+  return storedClp;
+}
+
 export type SourceCurrency = "USD" | "CLP";
 
 /**
