@@ -5,6 +5,7 @@
 
 import { getSfaScoringEngine } from '../scoring/index.js';
 import { storage } from '../../storage.js';
+import { logger } from '../../logger.js';
 import {
   analyzePdfBuffer,
   cartolaToSfaTransactions,
@@ -71,25 +72,32 @@ export async function processDocumentUpload(
   }
 
   if (doc.tipo === 'cmf_informe_deudas') {
-    const creditScore = computeCreditScoreFromCmf(doc);
+    const creditScoreValue = computeCreditScoreFromCmf(doc);
     const creditPayload = {
-      score: creditScore,
+      score: creditScoreValue,
       maxScore: CREDIT_SCORE_MAX,
       paymentHistory: 'Excellent',
       utilization: 'Good',
       ageOfCredit: 'Good',
       lastUpdated: new Date().toISOString(),
     };
-    console.log('[documentUploadService] CMF: antes de updateCreditScore', { userId, creditPayload });
-    const updated = await storage.updateCreditScore(userId, creditPayload);
-    console.log('[documentUploadService] CMF: después de updateCreditScore', { userId, updated: !!updated, updatedValue: updated ?? null });
-    if (!updated) {
-      const createPayload = {
-        userId,
-        ...creditPayload,
-      };
-      console.log('[documentUploadService] CMF: creando credit score (no existía)', { createPayload });
-      await storage.createCreditScore(createPayload);
+    logger.info({ userId, creditPayload }, '[documentUploadService] CMF: guardando credit score (upsert)');
+    try {
+      const existing = await storage.getCreditScore(userId);
+      if (existing) {
+        const updated = await storage.updateCreditScore(userId, creditPayload);
+        logger.info({ userId, updated: !!updated }, '[documentUploadService] CMF: updateCreditScore resultado');
+        if (!updated) {
+          logger.warn({ userId }, '[documentUploadService] CMF: update no devolvió fila, intentando create');
+          await storage.createCreditScore({ userId, ...creditPayload });
+        }
+      } else {
+        logger.info({ userId }, '[documentUploadService] CMF: no existía registro, creando');
+        await storage.createCreditScore({ userId, ...creditPayload });
+      }
+    } catch (err) {
+      logger.error({ err, userId, creditPayload }, '[documentUploadService] CMF: error al guardar credit score (SQL o DB)');
+      throw err;
     }
     const cmfInsight =
       doc.deudaTotalVigente === 0 && doc.deudaIndirecta === 0
@@ -104,7 +112,7 @@ export async function processDocumentUpload(
         ...doc,
         rutDocumento: doc.rutDocumento ?? undefined,
       },
-      creditScore,
+      creditScore: creditScoreValue,
       mainInsights: [cmfInsight],
     };
   }

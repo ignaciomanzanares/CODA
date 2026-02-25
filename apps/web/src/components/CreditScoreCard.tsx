@@ -65,30 +65,36 @@ export default function CreditScoreCard() {
   const { setCreditScore } = useReportData();
   const [showReportBreakdown, setShowReportBreakdown] = useState(false);
 
-  const { data: creditScore, isLoading, error, refetch, isFetching } = useQuery({
+  const { data: rawData, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["/api/credit-score"],
-    queryFn: getCreditScore,
+    queryFn: async () => {
+      const res = await getCreditScore();
+      console.log("[CreditScoreCard] GET /api/credit-score response:", JSON.stringify(res));
+      return res;
+    },
   });
 
   const mutation = useMutation({
     mutationFn: refreshCreditScore,
     onSuccess: () => {
-      queryClient.removeQueries({ queryKey: ["/api/credit-score"] });
       queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] });
     },
   });
 
   const handleActualizar = () => {
-    queryClient.removeQueries({ queryKey: ["/api/credit-score"] });
     queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] });
     refetch();
   };
+
+  const creditScore = (rawData != null && typeof rawData === "object" && "score" in rawData)
+    ? rawData
+    : null;
 
   useEffect(() => {
     if (creditScore?.score != null) setCreditScore(creditScore.score);
   }, [creditScore?.score, setCreditScore]);
 
-  if (isLoading) {
+  if (isLoading || isFetching) {
     return (
       <Card className="h-full">
         <CardHeader className="pb-2">
@@ -112,8 +118,10 @@ export default function CreditScoreCard() {
     );
   }
 
-  const noScore = creditScore?.score == null;
+  const noScore = creditScore == null || creditScore.score == null || typeof creditScore.score !== "number";
   const isServerError = !!error;
+  const invalidData = rawData != null && (creditScore == null || noScore);
+
   if (error || !creditScore || noScore) {
     return (
       <Card className="h-full">
@@ -130,25 +138,28 @@ export default function CreditScoreCard() {
               <Info className="h-6 w-6 text-muted-foreground" />
             </div>
             <p className="font-medium text-muted-foreground mb-1">
-              {noScore && !error && "Pendiente de Análisis"}
+              {invalidData && "Sin datos disponibles"}
+              {noScore && !error && !invalidData && "Pendiente de Análisis"}
               {error && (error instanceof Error ? error.message : String(error))}
-              {!creditScore && !error && "Cargando..."}
+              {!rawData && !error && "Cargando..."}
             </p>
             <p className="text-sm text-muted-foreground mb-4">
               {isServerError
                 ? "Hubo un fallo en el servidor al obtener el score. Comprueba que estés autenticado y vuelve a intentar."
-                : noScore && !error
-                  ? "Sube un Informe de Deudas CMF en la tarjeta Documentos oficiales para obtener tu score (Deuda $0 = perfil saludable)."
-                  : !creditScore && !error
-                    ? ""
-                    : "Revisa tu conexión o vuelve a intentar."}
+                : invalidData
+                  ? "El servidor respondió pero sin score válido. Sube un Informe CMF o pulsa Actualizar."
+                  : noScore && !error
+                    ? "Sube un Informe de Deudas CMF en la tarjeta Documentos oficiales para obtener tu score (Deuda $0 = perfil saludable)."
+                    : !rawData && !error
+                      ? ""
+                      : "Revisa tu conexión o vuelve a intentar."}
             </p>
             <Button
               variant="outline"
               onClick={handleActualizar}
               disabled={isFetching}
             >
-              {isFetching ? "Actualizando…" : noScore && !error ? "Actualizar" : "Reintentar"}
+              {isFetching ? "Actualizando…" : noScore || invalidData ? "Actualizar" : "Reintentar"}
             </Button>
           </div>
         </CardContent>
