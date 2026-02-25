@@ -72,8 +72,10 @@ export async function processDocumentUpload(
   }
 
   if (doc.tipo === 'cmf_informe_deudas') {
+    // RUT como ancla: el informe debe contener un RUT válido (ej. 21.486.204-2). Si no hay, 400.
     const RUT_RE = /\b\d{1,2}\.\d{3}\.\d{3}-[\dKk]\b/;
-    const rutValido = doc.rutDocumento?.trim() && RUT_RE.test(doc.rutDocumento.trim());
+    const rutExtraido = doc.rutDocumento?.trim();
+    const rutValido = rutExtraido && RUT_RE.test(rutExtraido);
     if (!rutValido) {
       return {
         step: 'done',
@@ -81,9 +83,10 @@ export async function processDocumentUpload(
       };
     }
     const creditScoreValue = computeCreditScoreFromCmf(doc);
-    const userIdStr = String(userId);
+    const scoreNum = Number(creditScoreValue);
+    // Mismo patrón que cartola: un solo upsert con userId (ensureUserForToken ya dio el userId de la ruta).
     const creditPayload = {
-      score: Number(creditScoreValue),
+      score: scoreNum,
       maxScore: CREDIT_SCORE_MAX,
       paymentHistory: 'Excellent',
       utilization: 'Good',
@@ -92,26 +95,22 @@ export async function processDocumentUpload(
     };
     console.log('[documentUploadService] creditPayload exacto:', JSON.stringify(creditPayload));
     logger.info(
-      { userId: userIdStr, userIdType: typeof userId, creditPayload },
-      '[documentUploadService] CMF: guardando credit score (raw upsert), userId forzado a string'
+      { userId, creditPayload },
+      '[documentUploadService] CMF: upsert credit score (mismo flujo que cartola: upsert + verificación)'
     );
-    try {
-      await storage.upsertCreditScoreRaw(userIdStr, creditPayload);
-      const afterSave = await storage.getCreditScore(userIdStr);
-      logger.info(
-        { userId: userIdStr, foundAfterSave: !!afterSave, scoreAfterSave: afterSave?.score },
-        '[documentUploadService] CMF: verificación post-guardado (solo respondemos 200 si esto existe)'
-      );
-      if (!afterSave) {
-        logger.error({ userId: userIdStr }, '[documentUploadService] CMF: CRÍTICO: guardado no visible tras write');
-      }
-    } catch (err) {
-      logger.error(
-        { err, userId: userIdStr, creditPayload, message: (err as Error)?.message, code: (err as { code?: string })?.code, detail: (err as { detail?: string })?.detail },
-        '[documentUploadService] CMF: error al guardar credit score (SQL o DB)'
-      );
-      throw err;
+    await storage.upsertCreditScoreRaw(userId, creditPayload);
+    // Confirmación de escritura: no responder 200 hasta que el score esté físicamente en la DB.
+    const afterSave = await storage.getCreditScore(userId);
+    if (!afterSave) {
+      logger.error({ userId }, '[documentUploadService] CMF: upsert ejecutado pero getCreditScore no devolvió fila');
+      throw new Error('Credit score no persistido en base de datos. Reintenta más tarde.');
     }
+    const scoreEnDb = Number(afterSave.score);
+    if (scoreEnDb !== scoreNum) {
+      logger.error({ userId, esperado: scoreNum, enDb: scoreEnDb }, '[documentUploadService] CMF: score en DB no coincide');
+      throw new Error(`Credit score persistido no coincide (esperado ${scoreNum}, en DB ${scoreEnDb}). Reintenta más tarde.`);
+    }
+    logger.info({ userId, score: scoreEnDb }, '[documentUploadService] CMF: score confirmado en DB, respondiendo 200');
     const cmfInsight =
       doc.deudaTotalVigente === 0 && doc.deudaIndirecta === 0
         ? 'Perfil Crediticio Saludable: Sin deudas morosas. Estado vigente según Informe CMF.'
@@ -125,7 +124,7 @@ export async function processDocumentUpload(
         ...doc,
         rutDocumento: doc.rutDocumento ?? undefined,
       },
-      creditScore: creditScoreValue,
+      creditScore: scoreNum,
       mainInsights: [cmfInsight],
     };
   }
