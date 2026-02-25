@@ -44,6 +44,7 @@ import {
   scoringApplicationSchema,
   createAccountSchema
 } from "./middleware/validation.js";
+import type { BillSplitParticipant } from "./schema.js";
 
 // Helper to get user ID from JWT
 function getUserIdFromAuth(req: Request): string {
@@ -1923,8 +1924,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'Unknown';
       
       // Calculate progress
-      const paidCount = participants.filter(p => p.isPaid).length;
-      const totalPaid = participants.reduce((sum, p) => sum + (p.isPaid ? parseFloat(String(p.amountOwed)) : 0), 0);
+      const paidCount = participants.filter((p: BillSplitParticipant) => p.isPaid).length;
+      const totalPaid = participants.reduce((sum: number, p: BillSplitParticipant) => sum + (p.isPaid ? parseFloat(String(p.amountOwed)) : 0), 0);
       
       res.json({
         id: billSplit.id,
@@ -1935,7 +1936,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: billSplit.status,
         createdByName: creatorName,
         shareCode: billSplit.shareCode,
-        participants: participants.map(p => ({
+        participants: participants.map((p: BillSplitParticipant) => ({
           id: p.id,
           name: p.name,
           amountOwed: p.amountOwed,
@@ -1969,7 +1970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const participants = await storage.getBillSplitParticipants(billSplit.id as number);
       
       // Find participant by ID, name, or email
-      let participant = participants.find(p => 
+      let participant = participants.find((p: BillSplitParticipant) => 
         (participantId && p.id === participantId) ||
         (name && p.name.toLowerCase() === name.toLowerCase()) ||
         (email && p.email && p.email.toLowerCase() === email.toLowerCase())
@@ -1978,7 +1979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!participant) {
         return res.status(404).json({ 
           message: "Participant not found. Please check your name matches exactly.",
-          availableNames: participants.filter(p => !p.isPaid).map(p => p.name)
+          availableNames: participants.filter((p: BillSplitParticipant) => !p.isPaid).map((p: BillSplitParticipant) => p.name)
         });
       }
       
@@ -2007,7 +2008,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if all participants have paid
       const updatedParticipants = await storage.getBillSplitParticipants(billSplit.id as number);
-      const allPaid = updatedParticipants.every(p => p.isPaid);
+      const allPaid = updatedParticipants.every((p: BillSplitParticipant) => !!p.isPaid);
       
       if (allPaid) {
         await storage.updateBillSplit(billSplit.id as number, { status: 'settled' });
@@ -2045,7 +2046,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const participants = await storage.getBillSplitParticipants(billSplit.id as number);
       
       // Find the participant
-      const participant = participants.find(p => p.id === participantId);
+      const participant = participants.find((p: BillSplitParticipant) => p.id === participantId);
       if (!participant) {
         return res.status(404).json({ message: "Participant not found" });
       }
@@ -2056,7 +2057,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if current user is already a participant in this split
-      const existingParticipation = participants.find(p => p.userId === userId);
+      const existingParticipation = participants.find((p: BillSplitParticipant) => p.userId === userId);
       if (existingParticipation) {
         return res.status(400).json({ message: "You are already a participant in this split" });
       }
@@ -2152,10 +2153,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allBillSplits.map(async (billSplit) => {
           const participants = await storage.getBillSplitParticipants(billSplit.id as number);
           const isCreator = String(billSplit.createdBy) === userId;
-          const isParticipant = participants.some(p => String(p.userId) === userId);
+          const isParticipant = participants.some((p: BillSplitParticipant) => String(p.userId) === userId);
           
           // Mark which participant is the current user
-          const participantsWithCurrentUser = participants.map(p => ({
+          const participantsWithCurrentUser = participants.map((p: BillSplitParticipant) => ({
             ...p,
             isCurrentUser: String(p.userId) === userId
           }));
@@ -2199,7 +2200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Extract participants from request body (don't include in bill split data)
-      const { participants, ...billSplitFields } = req.body;
+      const { participants: participantsFromBody, ...billSplitFields } = req.body;
       
       // Generate a unique share code for the bill split
       const shareCode = `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
@@ -2230,28 +2231,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Create participants if provided and send email invitations
-      if (participants && Array.isArray(participants)) {
+      if (participantsFromBody && Array.isArray(participantsFromBody)) {
         const creatorName = user ? 
           `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username :
           (req as AuthenticatedRequest).user?.name || (req as AuthenticatedRequest).user?.name || 'Someone';
         
-        for (const participant of participants) {
+        for (const participant of participantsFromBody) {
           let participantUserId = null;
-          
-          // Check if user exists by email
-          if (participant.email) {
+          if (participant.isCreator) {
+            participantUserId = userId;
+          } else if (participant.email) {
             const existingUser = await storage.getUserByEmail(participant.email);
-            if (existingUser) {
-              participantUserId = existingUser.id;
-            }
+            if (existingUser) participantUserId = existingUser.id;
           }
+          if (!participantUserId && participant.userId) participantUserId = participant.userId;
           
           const newParticipant = await storage.createBillSplitParticipant({
             billSplitId: billSplit.id as number,
             name: participant.name || 'Unknown',
             email: participant.email || null,
-            userId: participantUserId || participant.userId || null,
-            amountOwed: participant.amountOwed || (billSplit.totalAmount / participants.length).toFixed(2),
+            userId: participantUserId,
+            amountOwed: participant.amountOwed || (billSplit.totalAmount / participantsFromBody.length).toFixed(2),
             isPaid: participant.isPaid || false,
             amountPaid: participant.isPaid ? (participant.amountOwed || 0) : 0
           });
@@ -2279,21 +2279,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Check if all participants are already paid (auto-settle)
         const allParticipants = await storage.getBillSplitParticipants(billSplit.id as number);
-        const allPaid = allParticipants.length > 0 && allParticipants.every(p => p.isPaid);
+        const allPaid = allParticipants.length > 0 && allParticipants.every((p: BillSplitParticipant) => !!p.isPaid);
         if (allPaid) {
           await storage.updateBillSplit(billSplit.id as number, { status: 'settled' });
           billSplit.status = 'settled';
         }
       }
 
-      // Return full shape (with participants and createdByName) so frontend can update Saldo immediately
-      const participants = await storage.getBillSplitParticipants(billSplit.id as number);
+      // Return full shape (with participants and createdByName) so frontend Saldo superior actualiza al instante
+      const participantsList = await storage.getBillSplitParticipants(billSplit.id as number);
       const creatorName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : (req as AuthenticatedRequest).user?.name || 'Usuario';
-      const isCreator = true;
       const payload = {
         ...billSplit,
         createdByName: creatorName,
-        participants: participants.map(p => ({ ...p, isCurrentUser: String(p.userId) === userId })),
+        participants: participantsList.map((p: BillSplitParticipant, i: number) => ({
+          ...p,
+          isCurrentUser: String(p.userId) === userId || (i === 0 && String(billSplit.createdBy) === userId),
+        })),
         userRole: 'creator',
       };
       res.status(201).json(payload);
@@ -2356,7 +2358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if user is either the bill creator OR the participant being marked as paid
       const participants = await storage.getBillSplitParticipants(billSplitId);
-      const targetParticipant = participants.find(p => p.id === participantId);
+      const targetParticipant = participants.find((p: BillSplitParticipant) => p.id === participantId);
       
       if (!targetParticipant) {
         return res.status(404).json({ message: "Participant not found" });
@@ -2405,7 +2407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // frontend can refresh balances immediately.
       try {
         const participantsAfter = await storage.getBillSplitParticipants(billSplitId);
-        const allPaidAfter = participantsAfter.length > 0 && participantsAfter.every((p) => !!p.isPaid);
+        const allPaidAfter = participantsAfter.length > 0 && participantsAfter.every((p: BillSplitParticipant) => !!p.isPaid);
         let updatedBillSplit = billSplit;
         if (allPaidAfter) {
           await storage.updateBillSplit(billSplitId, { status: 'settled' });
@@ -2501,7 +2503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if the email is actually invited to this bill split
       const participants = await storage.getBillSplitParticipants(billSplitId);
-      const isInvited = participants.some(p => p.email && p.email.toLowerCase() === email.toLowerCase());
+      const isInvited = participants.some((p: BillSplitParticipant) => p.email && p.email.toLowerCase() === email.toLowerCase());
       
       if (!isInvited) {
         return res.status(403).json({ 

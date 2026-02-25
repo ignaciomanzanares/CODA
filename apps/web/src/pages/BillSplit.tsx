@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Plus, Users, DollarSign, Check, Clock, Send, 
@@ -6,7 +6,7 @@ import {
   UserPlus, Home, Utensils, Car, Plane, Zap, 
   MoreHorizontal, RefreshCw, X,
   Percent, Hash, Equal, ArrowUpRight, ArrowDownLeft,
-  Copy, Share2
+  Copy, Share2, Camera
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,11 @@ import PaymentDialog from "@/components/PaymentDialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
+
+// Dividir Cuenta: montos en CLP (o USD) puro, sin conversión
+function formatAmount(amount: number, currency: "CLP" | "USD") {
+  return formatCurrency(amount, currency, { sourceCurrency: currency });
+}
 
 // Extended types
 type BillSplitParticipantWithUser = BillSplitParticipant & {
@@ -112,7 +117,7 @@ function BalanceSummaryCard({
         
         <div className="text-center mb-6">
           <p className={`text-4xl font-bold ${netBalance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {netBalance < 0 && '-'}{formatCurrency(Math.abs(netBalance), currency)}
+            {netBalance < 0 && '-'}{formatAmount(Math.abs(netBalance), currency)}
           </p>
           <p className="text-sm opacity-70 mt-1">
             {netBalance >= 0 ? 'Estás en positivo' : 'En total, debes dinero'}
@@ -125,14 +130,14 @@ function BalanceSummaryCard({
               <ArrowUpRight className="h-4 w-4 text-red-400" />
               <span className="text-sm opacity-70">Debes</span>
             </div>
-            <p className="text-xl font-semibold text-red-400">{formatCurrency(totalOwed, currency)}</p>
+            <p className="text-xl font-semibold text-red-400">{formatAmount(totalOwed, currency)}</p>
           </div>
           <div className="bg-white/10 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-1">
               <ArrowDownLeft className="h-4 w-4 text-green-400" />
               <span className="text-sm opacity-70">Te deben</span>
             </div>
-            <p className="text-xl font-semibold text-green-400">{formatCurrency(totalOwedToYou, currency)}</p>
+            <p className="text-xl font-semibold text-green-400">{formatAmount(totalOwedToYou, currency)}</p>
           </div>
         </div>
       </CardContent>
@@ -168,8 +173,8 @@ function FriendBalanceRow({
         <div>
           <p className="font-medium">{name}</p>
           <p className={`text-sm ${isOwed ? 'text-green-600' : isOwing ? 'text-red-600' : 'text-muted-foreground'}`}>
-            {isOwed ? `te debe ${formatCurrency(balance, currency)}` : 
-             isOwing ? `le debes ${formatCurrency(balance, currency)}` : 
+            {isOwed ? `te debe ${formatAmount(balance, currency)}` : 
+             isOwing ? `le debes ${formatAmount(balance, currency)}` : 
              'al día'}
           </p>
         </div>
@@ -278,11 +283,11 @@ function ExpenseCard({
           </div>
           
           <div className="text-right flex-shrink-0">
-            <p className="text-xl font-bold">{formatCurrency(parseFloat(String(expense.totalAmount)) || 0, currency)}</p>
+            <p className="text-xl font-bold">{formatAmount(parseFloat(String(expense.totalAmount)) || 0, currency)}</p>
             {/* Show "You owe" badge only if user is a participant in someone ELSE's split and hasn't paid */}
             {userParticipant && !userParticipant.isPaid && !isCreator && expense.status !== 'settled' && (
               <Badge variant="destructive" className="mt-1">
-                Debes {formatCurrency(parseFloat(String(userParticipant.amountOwed)) || 0, currency)}
+                Debes {formatAmount(parseFloat(String(userParticipant.amountOwed)) || 0, currency)}
               </Badge>
             )}
             {isCreator && expense.status !== 'settled' && paidCount < totalCount && (
@@ -330,7 +335,7 @@ export default function BillSplit() {
   const { currency: contextCurrency } = useCurrency();
   // Dividir cuentas: todo en CLP por defecto (prioridad producto)
   const currency: "CLP" | "USD" = contextCurrency === "USD" ? "USD" : "CLP";
-  const { getBillSplits, createBillSplit, markParticipantAsPaid, deleteBillSplit } = useApi();
+  const { getBillSplits, createBillSplit, markParticipantAsPaid, deleteBillSplit, scanExpense } = useApi();
   const [activeTab, setActiveTab] = useState("expenses");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isSettleDialogOpen, setIsSettleDialogOpen] = useState(false);
@@ -341,6 +346,8 @@ export default function BillSplit() {
     billSplit?: BillSplitWithParticipants;
     participant?: BillSplitParticipantWithUser;
   }>({ isOpen: false });
+  const [isScanningBill, setIsScanningBill] = useState(false);
+  const billScanInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -570,6 +577,37 @@ export default function BillSplit() {
     }
   };
 
+  const handleBillScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !isAuthenticated) return;
+    e.target.value = "";
+    const allowed = ["image/jpeg", "image/jpg", "image/png"];
+    if (!allowed.includes(file.type)) {
+      toast({ title: "Formato no válido", description: "Usa una imagen JPG o PNG.", variant: "destructive" });
+      return;
+    }
+    setIsScanningBill(true);
+    try {
+      const result = await scanExpense(file);
+      form.setValue("totalAmount", String(result.amount));
+      if (result.merchant && result.merchant !== "Desconocido") {
+        form.setValue("name", result.merchant);
+      }
+      toast({
+        title: "Boleta escaneada",
+        description: `Monto: ${formatAmount(result.amount, currency)}${result.merchant !== "Desconocido" ? ` · ${result.merchant}` : ""}`,
+      });
+    } catch (err) {
+      toast({
+        title: "Error al escanear",
+        description: err instanceof Error ? err.message : "No se pudo leer la imagen.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsScanningBill(false);
+    }
+  };
+
   // Form
   const form = useForm<BillSplitFormValues>({
     resolver: zodResolver(billSplitFormSchema),
@@ -714,16 +752,36 @@ export default function BillSplit() {
 
                   {/* Amount and Date */}
                   <div className="grid grid-cols-2 gap-4">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png"
+                      className="hidden"
+                      ref={billScanInputRef}
+                      onChange={handleBillScan}
+                    />
                     <FormField
                       control={form.control}
                       name="totalAmount"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Monto</FormLabel>
+                          <div className="flex items-center justify-between gap-2">
+                            <FormLabel>Monto</FormLabel>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="gap-1.5"
+                              disabled={!isAuthenticated || isScanningBill}
+                              onClick={() => billScanInputRef.current?.click()}
+                            >
+                              <Camera className="h-4 w-4" />
+                              {isScanningBill ? "Escaneando..." : "Escanear boleta"}
+                            </Button>
+                          </div>
                           <FormControl>
                             <div className="relative">
                               <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                              <Input placeholder="0.00" className="pl-9" {...field} />
+                              <Input placeholder="0" className="pl-9" {...field} />
                             </div>
                           </FormControl>
                           <FormMessage />
@@ -898,7 +956,7 @@ export default function BillSplit() {
                                   <span className={p.isCreator ? "text-primary font-medium" : "text-muted-foreground"}>
                                     {p.name || `Persona ${i + 1}`}
                                   </span>
-                                  <span className="font-medium">{formatCurrency(amount, currency)}</span>
+                                  <span className="font-medium">{formatAmount(amount, currency)}</span>
                                 </div>
                               );
                             });
@@ -906,7 +964,7 @@ export default function BillSplit() {
                           <Separator className="my-2" />
                           <div className="flex justify-between text-sm font-medium">
                             <span>Total</span>
-                            <span>{formatCurrency(parseFloat(watchAmount || '0'), currency)}</span>
+                            <span>{formatAmount(parseFloat(watchAmount || '0'), currency)}</span>
                           </div>
                         </div>
                       </CardContent>
@@ -1103,7 +1161,7 @@ export default function BillSplit() {
               <div className="space-y-6">
                 <div className="text-center py-4 bg-muted/50 rounded-lg">
                   <p className="text-sm text-muted-foreground mb-1">Monto total</p>
-                  <p className="text-4xl font-bold">{formatCurrency(parseFloat(String(selectedExpense.totalAmount)) || 0, currency)}</p>
+                  <p className="text-4xl font-bold">{formatAmount(parseFloat(String(selectedExpense.totalAmount)) || 0, currency)}</p>
                   {selectedExpense.description && (
                     <p className="text-sm text-muted-foreground mt-2">{selectedExpense.description}</p>
                   )}
@@ -1161,7 +1219,7 @@ export default function BillSplit() {
                           <div>
                             <p className="font-medium">{p.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              {p.isPaid ? `Pagado ${formatCurrency(parseFloat(String(p.amountPaid || p.amountOwed)) || 0, currency)}` : `Debe ${formatCurrency(parseFloat(String(p.amountOwed)) || 0, currency)}`}
+                              {p.isPaid ? `Pagado ${formatAmount(parseFloat(String(p.amountPaid || p.amountOwed)) || 0, currency)}` : `Debe ${formatAmount(parseFloat(String(p.amountOwed)) || 0, currency)}`}
                             </p>
                           </div>
                         </div>
