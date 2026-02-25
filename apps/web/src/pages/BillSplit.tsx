@@ -327,7 +327,9 @@ function ExpenseCard({
 export default function BillSplit() {
   const [ready, setReady] = useState(false);
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
-  const { currency } = useCurrency();
+  const { currency: contextCurrency } = useCurrency();
+  // Dividir cuentas: todo en CLP por defecto (prioridad producto)
+  const currency: "CLP" | "USD" = contextCurrency === "USD" ? "USD" : "CLP";
   const { getBillSplits, createBillSplit, markParticipantAsPaid, deleteBillSplit } = useApi();
   const [activeTab, setActiveTab] = useState("expenses");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -522,7 +524,15 @@ export default function BillSplit() {
         }))
       });
     },
-    onSuccess: () => {
+    onSuccess: (data: BillSplitWithParticipants) => {
+      // Actualizar caché de inmediato con el nuevo gasto para que el Saldo superior se actualice
+      queryClient.setQueryData<BillSplitWithParticipants[]>(["/api/bill-splits"], (prev) => {
+        const list = prev ?? [];
+        if (data?.id != null && !list.some((b) => String(b.id) === String(data.id))) {
+          return [...list, data];
+        }
+        return list;
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       setIsCreateDialogOpen(false);
