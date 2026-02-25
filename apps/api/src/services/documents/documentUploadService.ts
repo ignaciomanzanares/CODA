@@ -73,6 +73,7 @@ export async function processDocumentUpload(
 
   if (doc.tipo === 'cmf_informe_deudas') {
     const creditScoreValue = computeCreditScoreFromCmf(doc);
+    const userIdStr = String(userId);
     const creditPayload = {
       score: creditScoreValue,
       maxScore: CREDIT_SCORE_MAX,
@@ -81,22 +82,36 @@ export async function processDocumentUpload(
       ageOfCredit: 'Good',
       lastUpdated: new Date().toISOString(),
     };
-    logger.info({ userId, creditPayload }, '[documentUploadService] CMF: guardando credit score (upsert)');
+    logger.info(
+      { userId: userIdStr, userIdType: typeof userId, creditPayload },
+      '[documentUploadService] CMF: guardando credit score (upsert), userId forzado a string'
+    );
     try {
-      const existing = await storage.getCreditScore(userId);
+      const existing = await storage.getCreditScore(userIdStr);
       if (existing) {
-        const updated = await storage.updateCreditScore(userId, creditPayload);
-        logger.info({ userId, updated: !!updated }, '[documentUploadService] CMF: updateCreditScore resultado');
+        const updated = await storage.updateCreditScore(userIdStr, creditPayload);
+        logger.info({ userId: userIdStr, updated: !!updated }, '[documentUploadService] CMF: updateCreditScore resultado');
         if (!updated) {
-          logger.warn({ userId }, '[documentUploadService] CMF: update no devolvió fila, intentando create');
-          await storage.createCreditScore({ userId, ...creditPayload });
+          logger.warn({ userId: userIdStr }, '[documentUploadService] CMF: update no devolvió fila, intentando create');
+          await storage.createCreditScore({ userId: userIdStr, ...creditPayload });
         }
       } else {
-        logger.info({ userId }, '[documentUploadService] CMF: no existía registro, creando');
-        await storage.createCreditScore({ userId, ...creditPayload });
+        logger.info({ userId: userIdStr }, '[documentUploadService] CMF: no existía registro, creando INSERT');
+        await storage.createCreditScore({ userId: userIdStr, ...creditPayload });
+      }
+      const afterSave = await storage.getCreditScore(userIdStr);
+      logger.info(
+        { userId: userIdStr, foundAfterSave: !!afterSave, scoreAfterSave: afterSave?.score },
+        '[documentUploadService] CMF: verificación post-guardado (solo respondemos 200 si esto existe)'
+      );
+      if (!afterSave) {
+        logger.error({ userId: userIdStr }, '[documentUploadService] CMF: CRÍTICO: guardado no visible tras write');
       }
     } catch (err) {
-      logger.error({ err, userId, creditPayload }, '[documentUploadService] CMF: error al guardar credit score (SQL o DB)');
+      logger.error(
+        { err, userId: userIdStr, creditPayload, message: (err as Error)?.message, code: (err as { code?: string })?.code, detail: (err as { detail?: string })?.detail },
+        '[documentUploadService] CMF: error al guardar credit score (SQL o DB)'
+      );
       throw err;
     }
     const cmfInsight =
