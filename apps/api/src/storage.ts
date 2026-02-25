@@ -49,6 +49,7 @@ export interface IStorage {
   getCreditScore(userId: string): Promise<any>;
   createCreditScore(creditScore: any): Promise<any>;
   updateCreditScore(userId: string, creditScore: any): Promise<any>;
+  upsertCreditScoreRaw(userId: string, payload: any): Promise<any>;
   // Transactional score (cartolas)
   getTransactionalScore(userId: string): Promise<any>;
   upsertTransactionalScore(userId: string, data: { transactionalScore: number; metrics?: object; mainInsights?: string[]; recommendedProducts?: string[] }): Promise<any>;
