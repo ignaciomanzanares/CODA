@@ -19,7 +19,8 @@ const CATEGORIES = [
   "Other",
 ];
 
-const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+// Llama 3.2 90B Vision (Groq) - sin costo adicional con GROQ_API_KEY
+const GROQ_VISION_MODEL = "llama-3.2-90b-vision-preview";
 
 export interface ScanExpenseResult {
   amount: number;
