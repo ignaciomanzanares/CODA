@@ -29,12 +29,12 @@ import { generateDemoBillSplits } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
 import PaymentDialog from "@/components/PaymentDialog";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, inputAmountToStoredClp } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
 
-// Dividir Cuenta: montos en CLP (o USD) puro, sin conversión
+// Montos guardados en CLP; mostrar en la moneda elegida (CLP por defecto)
 function formatAmount(amount: number, currency: "CLP" | "USD") {
-  return formatCurrency(amount, currency, { sourceCurrency: currency });
+  return formatCurrency(amount, currency, { sourceCurrency: "CLP" });
 }
 
 // Extended types
@@ -333,7 +333,6 @@ export default function BillSplit() {
   const [ready, setReady] = useState(false);
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const { currency: contextCurrency } = useCurrency();
-  // Dividir cuentas: todo en CLP por defecto (prioridad producto)
   const currency: "CLP" | "USD" = contextCurrency === "USD" ? "USD" : "CLP";
   const { getBillSplits, createBillSplit, markParticipantAsPaid, deleteBillSplit, scanExpense } = useApi();
   const [activeTab, setActiveTab] = useState("expenses");
@@ -485,9 +484,9 @@ export default function BillSplit() {
   // Mutations
   const createBillSplitMutation = useMutation({
     mutationFn: (billSplit: BillSplitFormValues) => {
-      const totalAmount = parseFloat(billSplit.totalAmount);
+      const amountFromInput = parseFloat(billSplit.totalAmount);
+      const totalAmountClp = inputAmountToStoredClp(amountFromInput, currency);
       
-      // Add creator ("Me") to participants list for equal splits
       const creatorName = (user as any)?.firstName || (user as any)?.username || (user as any)?.name || (user as any)?.email || 'Me';
       const creatorEmail = (user as any)?.email || '';
       const participantsList = Array.isArray(billSplit.participants) ? billSplit.participants : [];
@@ -499,26 +498,26 @@ export default function BillSplit() {
       let participantAmounts: number[] = [];
       
       if (billSplit.splitType === 'equal') {
-        const perPerson = totalAmount / allParticipants.length;
+        const perPerson = totalAmountClp / allParticipants.length;
         participantAmounts = allParticipants.map(() => perPerson);
       } else if (billSplit.splitType === 'exact') {
-        participantAmounts = allParticipants.map(p => parseFloat(p.shareValue || '0'));
+        participantAmounts = allParticipants.map(p => inputAmountToStoredClp(parseFloat(p.shareValue || '0'), currency));
       } else if (billSplit.splitType === 'percentage') {
         participantAmounts = allParticipants.map(p => {
           const pct = parseFloat(p.shareValue || '0') / 100;
-          return totalAmount * pct;
+          return totalAmountClp * pct;
         });
       } else if (billSplit.splitType === 'shares') {
         const totalShares = allParticipants.reduce((sum, p) => sum + parseFloat(p.shareValue || '1'), 0);
         participantAmounts = allParticipants.map(p => {
           const shares = parseFloat(p.shareValue || '1');
-          return (shares / totalShares) * totalAmount;
+          return (shares / totalShares) * totalAmountClp;
         });
       }
       
       return createBillSplit({
         name: billSplit.name,
-        totalAmount: totalAmount,
+        totalAmount: totalAmountClp,
         description: billSplit.description,
         category: billSplit.category,
         date: new Date(billSplit.date),
@@ -531,8 +530,7 @@ export default function BillSplit() {
         }))
       });
     },
-    onSuccess: (data: BillSplitWithParticipants) => {
-      // Actualizar caché de inmediato con el nuevo gasto para que el Saldo superior se actualice
+    onSuccess: async (data: BillSplitWithParticipants) => {
       queryClient.setQueryData<BillSplitWithParticipants[]>(["/api/bill-splits"], (prev) => {
         const list = prev ?? [];
         if (data?.id != null && !list.some((b) => String(b.id) === String(data.id))) {
@@ -540,7 +538,7 @@ export default function BillSplit() {
         }
         return list;
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/bill-splits"] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       setIsCreateDialogOpen(false);
       form.reset();
