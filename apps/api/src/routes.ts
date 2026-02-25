@@ -1796,6 +1796,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Expense receipt/ticket scan (Vision): extract amount, merchant, category
+  const expenseImageUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const allowed = ["image/jpeg", "image/jpg", "image/png"];
+      if (!allowed.includes(file.mimetype)) {
+        return cb(new Error("Solo se aceptan imágenes JPG o PNG."));
+      }
+      cb(null, true);
+    },
+  });
+  app.post(
+    "/api/expenses/scan",
+    authenticate,
+    (req: Request, res: Response, next: NextFunction) => {
+      expenseImageUpload.single("image")(req, res, (err: unknown) => {
+        if (err) {
+          const msg = err instanceof Error ? err.message : "Error al subir la imagen.";
+          return res.status(400).json({ message: msg });
+        }
+        next();
+      });
+    },
+    async (req: Request, res: Response) => {
+      try {
+        const file = (req as { file?: { buffer: Buffer; mimetype: string } }).file;
+        if (!file?.buffer) {
+          return res.status(400).json({ message: "No se recibió ninguna imagen. Usa el campo 'image'." });
+        }
+        const { scanExpenseFromImage } = await import("./services/expenseScanService.js");
+        const result = await scanExpenseFromImage(file.buffer, file.mimetype);
+        res.json(result);
+      } catch (e) {
+        logger.error({ err: e }, "Expense scan failed");
+        res.status(500).json({
+          message: e instanceof Error ? e.message : "Error al escanear la imagen.",
+        });
+      }
+    }
+  );
+
   /**
    * GET /api/expenses/monthly-summary
    * Aggregates expenses by current month (total + by category) and last 6 months (total per month).

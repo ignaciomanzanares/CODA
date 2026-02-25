@@ -29,6 +29,7 @@ export type ApiClient = {
   updateExpense: (expenseId: string, expenseData: import("@/types").UpdateExpenseData) => Promise<import("@/types").Expense>;
   deleteExpense: (expenseId: string) => Promise<import("@/types").ApiResponse>;
   classifyExpense: (description: string, merchantName?: string, amount?: number) => Promise<{category: string; subcategory?: string; confidence: number}>;
+  scanExpense: (imageFile: File) => Promise<{ amount: number; merchant: string; category: string; confidence: number }>;
   getBillSplits: () => Promise<any[]>;
   createBillSplit: (billSplitData: import("@/types").CreateBillSplitData) => Promise<import("@/types").BillSplit>;
   updateBillSplit: (billSplitId: string, billSplitData: import("@/types").UpdateBillSplitData) => Promise<import("@/types").BillSplit>;
@@ -233,6 +234,21 @@ export function useApi(): ApiClient {
     });
   };
 
+  const scanExpense = async (imageFile: File): Promise<{ amount: number; merchant: string; category: string; confidence: number }> => {
+    if (!token) throw new Error("User not authenticated");
+    const formData = new FormData();
+    formData.append("image", imageFile);
+    const fullUrl = `${API_BASE_URL}/expenses/scan`;
+    const res = await fetch(fullUrl, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error((json as { message?: string }).message || "Error al escanear la imagen");
+    return json as { amount: number; merchant: string; category: string; confidence: number };
+  };
+
   // Bill Split API functions
   const getBillSplits = async (): Promise<(import("@/types").BillSplit & { participants?: import("@/types").BillSplitParticipant[] })[]> => {
     return await apiRequest<(import("@/types").BillSplit & { participants?: import("@/types").BillSplitParticipant[] })[]>("GET", "/api/bill-splits");
@@ -374,6 +390,7 @@ export function useApi(): ApiClient {
     updateExpense,
     deleteExpense,
     classifyExpense,
+    scanExpense,
     // Bill Splits
     getBillSplits,
     createBillSplit,
