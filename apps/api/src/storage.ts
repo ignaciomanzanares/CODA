@@ -1,4 +1,4 @@
-import { db, users, bankConnections, accounts, balances, transactions, creditScores, transactionalScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc } from "./db/index.js";
+import { db, sql, users, bankConnections, accounts, balances, transactions, creditScores, transactionalScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc } from "./db/index.js";
 import { logger } from "./logger.js";
 import type {
   User,
@@ -357,6 +357,49 @@ export class DatabaseStorage implements IStorage {
       logger.error(
         { err, message: e?.message, code: e?.code, detail: e?.detail, userId: userIdStr, setPayload },
         '[storage] credit_scores UPDATE falló (revisar tipos/permisos/constraints)'
+      );
+      throw err;
+    }
+  }
+
+  /**
+   * Upsert credit_scores con SQL crudo (INSERT ... ON CONFLICT DO UPDATE).
+   * Evita problemas de mapeo de Drizzle con la tabla creada manualmente.
+   * Requiere UNIQUE(user_id) en credit_scores (migración 0002).
+   */
+  async upsertCreditScoreRaw(
+    userId: string,
+    payload: { score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string; lastUpdated: string }
+  ): Promise<void> {
+    if (!db) throw new Error("Database not available");
+    const userIdStr = String(userId);
+    const score = Number(payload.score);
+    const maxScore = Number(payload.maxScore);
+    const paymentHistory = String(payload.paymentHistory);
+    const utilization = String(payload.utilization);
+    const ageOfCredit = String(payload.ageOfCredit);
+    const lastUpdated = String(payload.lastUpdated);
+    logger.info(
+      { userId: userIdStr, score, maxScore, paymentHistory, utilization, ageOfCredit, lastUpdated, op: 'RAW_UPSERT' },
+      '[storage] credit_scores RAW INSERT ON CONFLICT (user_id) DO UPDATE'
+    );
+    try {
+      await db.execute(sql`
+        INSERT INTO credit_scores (user_id, score, max_score, payment_history, utilization, age_of_credit, last_updated)
+        VALUES (${userIdStr}, ${score}, ${maxScore}, ${paymentHistory}, ${utilization}, ${ageOfCredit}, ${lastUpdated})
+        ON CONFLICT (user_id) DO UPDATE SET
+          score = EXCLUDED.score,
+          max_score = EXCLUDED.max_score,
+          payment_history = EXCLUDED.payment_history,
+          utilization = EXCLUDED.utilization,
+          age_of_credit = EXCLUDED.age_of_credit,
+          last_updated = EXCLUDED.last_updated
+      `);
+    } catch (err: unknown) {
+      const e = err as { message?: string; code?: string; detail?: string };
+      logger.error(
+        { err, message: e?.message, code: e?.code, detail: e?.detail, userId: userIdStr, score, maxScore },
+        '[storage] credit_scores RAW UPSERT falló (¿tiene la tabla UNIQUE(user_id)?)'
       );
       throw err;
     }

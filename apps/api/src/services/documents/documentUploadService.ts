@@ -72,33 +72,31 @@ export async function processDocumentUpload(
   }
 
   if (doc.tipo === 'cmf_informe_deudas') {
+    const RUT_RE = /\b\d{1,2}\.\d{3}\.\d{3}-[\dKk]\b/;
+    const rutValido = doc.rutDocumento?.trim() && RUT_RE.test(doc.rutDocumento.trim());
+    if (!rutValido) {
+      return {
+        step: 'done',
+        error: 'No se encontró un RUT válido en el Informe CMF. Verifica que el PDF sea un informe de deudas oficial.',
+      };
+    }
     const creditScoreValue = computeCreditScoreFromCmf(doc);
     const userIdStr = String(userId);
     const creditPayload = {
-      score: creditScoreValue,
+      score: Number(creditScoreValue),
       maxScore: CREDIT_SCORE_MAX,
       paymentHistory: 'Excellent',
       utilization: 'Good',
       ageOfCredit: 'Good',
       lastUpdated: new Date().toISOString(),
     };
+    console.log('[documentUploadService] creditPayload exacto:', JSON.stringify(creditPayload));
     logger.info(
       { userId: userIdStr, userIdType: typeof userId, creditPayload },
-      '[documentUploadService] CMF: guardando credit score (upsert), userId forzado a string'
+      '[documentUploadService] CMF: guardando credit score (raw upsert), userId forzado a string'
     );
     try {
-      const existing = await storage.getCreditScore(userIdStr);
-      if (existing) {
-        const updated = await storage.updateCreditScore(userIdStr, creditPayload);
-        logger.info({ userId: userIdStr, updated: !!updated }, '[documentUploadService] CMF: updateCreditScore resultado');
-        if (!updated) {
-          logger.warn({ userId: userIdStr }, '[documentUploadService] CMF: update no devolvió fila, intentando create');
-          await storage.createCreditScore({ userId: userIdStr, ...creditPayload });
-        }
-      } else {
-        logger.info({ userId: userIdStr }, '[documentUploadService] CMF: no existía registro, creando INSERT');
-        await storage.createCreditScore({ userId: userIdStr, ...creditPayload });
-      }
+      await storage.upsertCreditScoreRaw(userIdStr, creditPayload);
       const afterSave = await storage.getCreditScore(userIdStr);
       logger.info(
         { userId: userIdStr, foundAfterSave: !!afterSave, scoreAfterSave: afterSave?.score },
