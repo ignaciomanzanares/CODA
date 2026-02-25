@@ -1231,12 +1231,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Credit score: datos reales del Informe CMF cuando el usuario está autenticado
   app.get("/api/credit-score", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
+    let userId: string | null = null;
     try {
-      const userId = await ensureUserForToken(authReq.user!);
+      userId = await ensureUserForToken(authReq.user!);
       if (!userId) {
         logger.warn({ path: "/api/credit-score" }, "Credit score: usuario no encontrado para token");
         return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
       }
+      logger.info({ userId, path: "/api/credit-score" }, "Credit score: consultando storage para userId");
       const existing = await storage.getCreditScore(userId);
       if (!existing) {
         logger.info({ userId, path: "/api/credit-score" }, "Credit score: sin registro para userId, devolviendo score null");
@@ -1257,7 +1259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ageOfCredit: existing.ageOfCredit ?? "Unknown",
       });
     } catch (e) {
-      logger.error({ err: e }, "Get credit score failed");
+      logger.error({ err: e, userId, path: "/api/credit-score" }, "Get credit score failed (posible error SQL o columna)");
       res.status(500).json({ message: "Error al obtener el score crediticio." });
     }
   });
