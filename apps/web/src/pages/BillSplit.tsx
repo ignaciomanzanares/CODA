@@ -382,7 +382,8 @@ export default function BillSplit() {
     retry: false,
   });
 
-  const billSplits = isAuthenticated ? realBillSplits : demoBillSplits;
+  const billSplitsRaw = isAuthenticated ? realBillSplits : demoBillSplits;
+  const billSplits = Array.isArray(billSplitsRaw) ? billSplitsRaw : (billSplitsRaw ? [billSplitsRaw] : []);
 
   // Normalize API response so balance calc always has amountOwed (number), isPaid (bool), createdBy, userRole
   const normalizedSplits: BillSplitWithParticipants[] = (billSplits || []).map((split) => {
@@ -420,10 +421,10 @@ export default function BillSplit() {
         (currentUserId != null && String(split.createdBy) === String(currentUserId)) ||
         split.userRole === 'creator';
 
-      // Creador: sumar lo que te deben todos los participantes que no eres tú (Juan, Diego, etc.)
+      // Creador: sumar lo que te deben todos los que no eres tú. Priorizar isCurrentUser del API (si es false, no es "tú" aunque tenga tu userId por enlace por email).
       if (isCreator) {
         (split.participants || []).forEach((p: BillSplitParticipantWithUser) => {
-          const isMe = (currentUserId != null && String(p.userId) === String(currentUserId)) || Boolean(p.isCurrentUser);
+          const isMe = p.isCurrentUser === true || (p.isCurrentUser !== false && currentUserId != null && String(p.userId) === String(currentUserId));
           if (isMe) return;
 
           const isPaid = Boolean(p.isPaid ?? (p as { is_paid?: number }).is_paid);
@@ -440,7 +441,7 @@ export default function BillSplit() {
 
       const ourParticipation = (split.participants || []).find(
         (p: BillSplitParticipantWithUser) =>
-          (currentUserId != null && String(p.userId) === String(currentUserId)) || Boolean(p.isCurrentUser)
+          p.isCurrentUser === true || (p.isCurrentUser !== false && currentUserId != null && String(p.userId) === String(currentUserId))
       );
       if (ourParticipation && !Boolean(ourParticipation.isPaid ?? (ourParticipation as { is_paid?: number }).is_paid) && !isCreator) {
         const creatorKey = String(split.createdBy ?? 'creator');
@@ -467,10 +468,10 @@ export default function BillSplit() {
         (currentUserId != null && String(split.createdBy) === String(currentUserId)) ||
         split.userRole === 'creator';
 
-      // Creador: "Te deben" = suma de amountOwed de todos los que no eres tú (cada amigo con deuda)
+      // Creador: "Te deben" = suma de amountOwed de todos los que no eres tú. Priorizar isCurrentUser del API.
       if (isCreator) {
         (split.participants || []).forEach((p: BillSplitParticipantWithUser) => {
-          const isMe = (currentUserId != null && String(p.userId) === String(currentUserId)) || Boolean(p.isCurrentUser);
+          const isMe = p.isCurrentUser === true || (p.isCurrentUser !== false && currentUserId != null && String(p.userId) === String(currentUserId));
           if (isMe) return;
           if (!Boolean(p.isPaid ?? (p as { is_paid?: number }).is_paid)) {
             const rawOwed = p.amountOwed ?? (p as { amount_owed?: number }).amount_owed;
@@ -482,7 +483,7 @@ export default function BillSplit() {
       if (!isCreator) {
         const myParticipation = (split.participants || []).find(
           (p: BillSplitParticipantWithUser) =>
-            (currentUserId != null && String(p.userId) === String(currentUserId)) || Boolean(p.isCurrentUser)
+            p.isCurrentUser === true || (p.isCurrentUser !== false && currentUserId != null && String(p.userId) === String(currentUserId))
         );
         if (myParticipation && !Boolean(myParticipation.isPaid ?? (myParticipation as { is_paid?: number }).is_paid)) {
           const rawOwed = myParticipation.amountOwed ?? (myParticipation as { amount_owed?: number }).amount_owed;
