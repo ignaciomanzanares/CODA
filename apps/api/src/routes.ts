@@ -2156,9 +2156,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const isCreator = String(createdBy) === userId;
           const isParticipant = participants.some((p: BillSplitParticipant) => String(p.userId ?? (p as any).user_id) === userId);
 
-          const participantsWithCurrentUser = participants.map((p: BillSplitParticipant) => {
+          // Solo un participante puede ser "tú": si eres creador, solo el primero (índice 0); si no, el que tenga tu userId
+          const participantsWithCurrentUser = participants.map((p: BillSplitParticipant, i: number) => {
             const pUserId = p.userId ?? (p as any).user_id;
-            const isCurrentUser = String(pUserId) === userId;
+            const matchesUserId = String(pUserId) === userId;
+            const isCurrentUser = isCreator ? matchesUserId && i === 0 : matchesUserId;
             return {
               id: p.id,
               name: p.name,
@@ -2301,9 +2303,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const participantsList = await storage.getBillSplitParticipants(billSplit.id as number);
       const creatorName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : (req as AuthenticatedRequest).user?.name || 'Usuario';
       const createdBy = billSplit.createdBy ?? (billSplit as any).created_by;
-      const participantsPayload = participantsList.map((p: BillSplitParticipant) => {
+      // Solo el creador (índice 0) puede ser "tú" en la respuesta del POST
+      const participantsPayload = participantsList.map((p: BillSplitParticipant, i: number) => {
         const pUserId = p.userId ?? (p as any).user_id;
-        const isCurrentUser = String(pUserId) === userId;
+        const matchesUserId = String(pUserId) === userId;
+        const isCurrentUser = matchesUserId && i === 0;
         return {
           id: p.id,
           name: p.name,

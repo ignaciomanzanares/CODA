@@ -420,12 +420,11 @@ export default function BillSplit() {
         (currentUserId != null && String(split.createdBy) === String(currentUserId)) ||
         split.userRole === 'creator';
 
+      // Creador: sumar lo que te deben todos los participantes que no eres tú (Juan, Diego, etc.)
       if (isCreator) {
         (split.participants || []).forEach((p: BillSplitParticipantWithUser) => {
-          const isCurrentUserParticipant =
-            (currentUserId != null && String(p.userId) === String(currentUserId)) ||
-            Boolean(p.isCurrentUser);
-          if (isCurrentUserParticipant) return;
+          const isMe = (currentUserId != null && String(p.userId) === String(currentUserId)) || Boolean(p.isCurrentUser);
+          if (isMe) return;
 
           const isPaid = Boolean(p.isPaid ?? (p as { is_paid?: number }).is_paid);
           if (!isPaid) {
@@ -468,12 +467,11 @@ export default function BillSplit() {
         (currentUserId != null && String(split.createdBy) === String(currentUserId)) ||
         split.userRole === 'creator';
 
+      // Creador: "Te deben" = suma de amountOwed de todos los que no eres tú (cada amigo con deuda)
       if (isCreator) {
         (split.participants || []).forEach((p: BillSplitParticipantWithUser) => {
-          const isCurrentUserParticipant =
-            (currentUserId != null && String(p.userId) === String(currentUserId)) ||
-            Boolean(p.isCurrentUser);
-          if (isCurrentUserParticipant) return;
+          const isMe = (currentUserId != null && String(p.userId) === String(currentUserId)) || Boolean(p.isCurrentUser);
+          if (isMe) return;
           if (!Boolean(p.isPaid ?? (p as { is_paid?: number }).is_paid)) {
             const rawOwed = p.amountOwed ?? (p as { amount_owed?: number }).amount_owed;
             youAreOwed += Number(rawOwed) || parseFloat(String(rawOwed ?? 0)) || 0;
