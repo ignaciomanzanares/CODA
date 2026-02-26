@@ -1,0 +1,21 @@
+{
+  "name": "CODA",
+  "short_name": "CODA",
+  "description": "Registra y salda gastos compartidos. Tu panel financiero personal.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["finance", "productivity"]
+}
