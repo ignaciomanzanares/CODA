@@ -158,7 +158,7 @@ export default function Dashboard() {
   return (
     <ReportDataProvider>
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -171,7 +171,7 @@ export default function Dashboard() {
                 </Badge>
               )}
             </div>
-            <p className="text-muted-foreground">
+            <p className="text-slate-600">
               Aquí está tu resumen financiero
             </p>
           </div>
@@ -180,6 +180,7 @@ export default function Dashboard() {
             <Button 
               variant="outline" 
               size="sm"
+              className="min-h-[44px] sm:min-h-0 border-slate-200/90"
               onClick={refreshAllData}
               disabled={isRefreshing}
             >
@@ -194,35 +195,35 @@ export default function Dashboard() {
           <FinancialSummaryStats data={financialData.summary} />
         )}
 
-        {/* Dashboard Tabs */}
+        {/* Dashboard Tabs - touch-friendly for PWA */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <LayoutDashboard className="h-4 w-4" />
+          <TabsList className="grid w-full max-w-md grid-cols-3 gap-1 p-1 border border-slate-200/90 shadow-none min-h-[44px]">
+            <TabsTrigger value="overview" className="flex items-center justify-center gap-2 min-h-[44px] py-2.5">
+              <LayoutDashboard className="h-4 w-4 shrink-0" />
               <span className="hidden sm:inline">Resumen</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
+            <TabsTrigger value="analytics" className="flex items-center justify-center gap-2 min-h-[44px] py-2.5">
+              <BarChart3 className="h-4 w-4 shrink-0" />
               <span className="hidden sm:inline">Análisis</span>
             </TabsTrigger>
-            <TabsTrigger value="accounts" className="flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
+            <TabsTrigger value="accounts" className="flex items-center justify-center gap-2 min-h-[44px] py-2.5">
+              <Wallet className="h-4 w-4 shrink-0" />
               <span className="hidden sm:inline">Cuentas</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overview" className="space-y-6 pt-2">
             {/* AI Insights Banner + Reporte CODA */}
-            <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border-primary/20">
-              <CardContent className="p-6">
+            <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border border-slate-200/90 shadow-none">
+              <CardContent className="p-4 sm:p-6">
                 <div className="flex items-start gap-4">
                   <div className="p-3 bg-primary/10 rounded-xl">
                     <Sparkles className="h-6 w-6 text-primary" />
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg mb-1">Información financiera con IA</h3>
-                    <p className="text-muted-foreground">
+                    <p className="text-slate-600">
                       {financialData && financialData.summary.savingsRate >= 20 ? (
                         <>
                           Muy bien. Tu tasa de ahorro del <strong className="text-foreground">{financialData.summary.savingsRate}%</strong> está 
@@ -253,9 +254,9 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* Charts Row */}
+            {/* Charts Row - spacing for PWA/mobile */}
             {financialData && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                 <NetWorthChart 
                   data={financialData.trends.netWorth}
                   currentNetWorth={financialData.summary.netWorth}
@@ -337,20 +338,20 @@ export default function Dashboard() {
           </TabsContent>
         </Tabs>
 
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        {/* Quick Actions - touch-friendly for PWA */}
+        <Card className="border border-slate-200/90 shadow-none">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
               <Target className="h-5 w-5 text-primary" />
               Acciones rápidas
             </CardTitle>
-            <CardDescription>Tareas frecuentes y accesos directos</CardDescription>
+            <CardDescription className="text-slate-600">Tareas frecuentes y accesos directos</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               <Button 
                 variant="outline" 
-                className="h-auto py-4 flex-col gap-2"
+                className="h-auto min-h-[44px] py-4 flex-col gap-2 border-slate-200/90"
                 onClick={() => navigate("/bill-split")}
               >
                 <CreditCard className="h-5 w-5" />
@@ -358,7 +359,7 @@ export default function Dashboard() {
               </Button>
               <Button 
                 variant="outline" 
-                className="h-auto py-4 flex-col gap-2"
+                className="h-auto min-h-[44px] py-4 flex-col gap-2 border-slate-200/90"
                 onClick={() => navigate("/goals")}
               >
                 <PiggyBank className="h-5 w-5" />
@@ -366,7 +367,7 @@ export default function Dashboard() {
               </Button>
               <Button 
                 variant="outline" 
-                className="h-auto py-4 flex-col gap-2"
+                className="h-auto min-h-[44px] py-4 flex-col gap-2 border-slate-200/90"
                 onClick={() => navigate("/products?category=insurance")}
               >
                 <Shield className="h-5 w-5" />
@@ -374,7 +375,7 @@ export default function Dashboard() {
               </Button>
               <Button 
                 variant="outline" 
-                className="h-auto py-4 flex-col gap-2"
+                className="h-auto min-h-[44px] py-4 flex-col gap-2 border-slate-200/90"
                 onClick={() => navigate("/goals")}
               >
                 <Target className="h-5 w-5" />
