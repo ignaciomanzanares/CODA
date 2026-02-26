@@ -66,6 +66,7 @@ function parseTags(tags: string | string[] | null | undefined): string[] {
 }
 
 const expenseFormSchema = z.object({
+  name: z.string().max(200).optional().or(z.literal("")),
   amount: z.string().min(1, "El monto es obligatorio"),
   description: z.string().min(1, "La descripción es obligatoria"),
   category: z.string().min(1, "La categoría es obligatoria"),
@@ -360,6 +361,7 @@ export default function Expenses() {
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: {
+      name: "",
       amount: "",
       description: "",
       category: "",
@@ -377,6 +379,7 @@ export default function Expenses() {
   const editForm = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: {
+      name: "",
       amount: "",
       description: "",
       category: "",
@@ -392,8 +395,11 @@ export default function Expenses() {
   });
 
   const filteredExpenses = expenses.filter(expense => {
-    const matchesSearch = expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         expense.merchantName?.toLowerCase().includes(searchTerm.toLowerCase());
+    const name = (expense as Expense & { name?: string }).name?.toLowerCase() || "";
+    const matchesSearch = !searchTerm ||
+      expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      expense.merchantName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      name.includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === "all" || expense.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -469,6 +475,7 @@ export default function Expenses() {
     const formattedDate = expenseDate.toISOString().split('T')[0];
     
     editForm.reset({
+      name: (expense as Expense & { name?: string }).name || "",
       amount: storedClpToDisplayAmount(Number(expense.amount), currency).toString(),
       description: expense.description,
       category: expense.category,
@@ -488,6 +495,7 @@ export default function Expenses() {
 
   const onLiteSubmit = (values: AddExpenseFormLiteValues) => {
     createExpenseMutation.mutate({
+      name: values.name?.trim() || undefined,
       amount: values.amount,
       description: scanPreFill?.merchant || "Gasto rápido",
       category: values.category,
@@ -734,8 +742,14 @@ export default function Expenses() {
                         
                         {/* Details */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold truncate">{expense.description}</h3>
+                          <div className="flex flex-col gap-0.5">
+                            {(expense as Expense & { name?: string }).name && (
+                              <span className="text-xs text-muted-foreground truncate">
+                                {(expense as Expense & { name?: string }).name}
+                              </span>
+                            )}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-semibold truncate">{expense.description}</h3>
                             {expense.isAutoClassified && (
                               <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
                                 <Sparkles className="h-3 w-3 mr-1" />
@@ -838,6 +852,19 @@ export default function Expenses() {
           </DialogHeader>
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+              <FormField
+                control={editForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre (opcional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ej: Cena, Supermercado..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={editForm.control}
                 name="amount"

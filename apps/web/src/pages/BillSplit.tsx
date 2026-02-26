@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -83,6 +84,7 @@ const billSplitFormSchema = z.object({
   date: z.string().optional(),
   splitType: z.enum(["equal"]).default("equal"),
   participants: z.array(participantSchema).min(1, "Se requiere al menos un participante"),
+  alsoAddToExpenses: z.boolean().optional().default(false),
 });
 
 type BillSplitFormValues = z.infer<typeof billSplitFormSchema>;
@@ -561,6 +563,7 @@ export default function BillSplit() {
         description: undefined,
         category: billSplit.category,
         date: new Date(),
+        alsoAddToExpenses: !!billSplit.alsoAddToExpenses,
         participants: allParticipants.map((p, i) => ({
           userId: p.isCreator ? (user?.userId ?? null) : null,
           name: p.name,
@@ -670,6 +673,7 @@ export default function BillSplit() {
       date: new Date().toISOString().split('T')[0],
       splitType: "equal",
       participants: [{ name: "", email: "" }],
+      alsoAddToExpenses: false,
     },
   });
 
@@ -929,6 +933,29 @@ export default function BillSplit() {
                       </CardContent>
                     </Card>
                   )}
+
+                  <FormField
+                    control={form.control}
+                    name="alsoAddToExpenses"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                        <FormControl>
+                          <Checkbox
+                            checked={!!field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="cursor-pointer font-normal">
+                            Añadir también a la página de Gastos
+                          </FormLabel>
+                          <p className="text-sm text-muted-foreground">
+                            Registra este gasto en Gastos para llevarlo en tu historial personal
+                          </p>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
 
                   <Button 
                     type="submit" 

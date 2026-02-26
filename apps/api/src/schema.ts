@@ -195,6 +195,7 @@ export const financialProducts = pgTable("financial_products", {
 export const expenses = pgTable("expenses", {
   id: serial("id").primaryKey(),
   userId: text("user_id").references(() => users.id).notNull(),
+  name: text("name"), // optional label for the expense
   amount: real("amount").notNull(),
   description: text("description").notNull(),
   category: text("category").notNull(),

@@ -24,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const liteFormSchema = z.object({
+  name: z.string().max(200).optional().or(z.literal("")),
   amount: z.string().min(1, "El monto es obligatorio"),
   category: z.string().min(1, "Elige una categoría"),
 });
@@ -128,6 +129,7 @@ export function AddExpenseFormLite({
   const form = useForm<AddExpenseFormLiteValues>({
     resolver: zodResolver(liteFormSchema),
     defaultValues: {
+      name: "",
       amount: defaultAmount,
       category: defaultCategory,
     },
@@ -138,6 +140,16 @@ export function AddExpenseFormLite({
       onSubmit={form.handleSubmit(onSubmit)}
       className="space-y-5"
     >
+      <div>
+        <label className="text-sm font-medium text-muted-foreground mb-2 block">
+          Nombre (opcional)
+        </label>
+        <Input
+          placeholder="Ej: Cena, Supermercado..."
+          {...form.register("name")}
+          className="text-base"
+        />
+      </div>
       <div>
         <label className="text-sm font-medium text-muted-foreground mb-2 block">
           Monto
