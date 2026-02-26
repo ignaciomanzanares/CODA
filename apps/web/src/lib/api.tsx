@@ -249,9 +249,9 @@ export function useApi(): ApiClient {
     return json as { amount: number; merchant: string; category: string; confidence: number };
   };
 
-  // Bill Split API functions
+  // Bill Split API functions (cache: no-store para que el saldo se actualice siempre, sin 304)
   const getBillSplits = async (): Promise<(import("@/types").BillSplit & { participants?: import("@/types").BillSplitParticipant[] })[]> => {
-    return await apiRequest<(import("@/types").BillSplit & { participants?: import("@/types").BillSplitParticipant[] })[]>("GET", "/api/bill-splits");
+    return await apiRequest<(import("@/types").BillSplit & { participants?: import("@/types").BillSplitParticipant[] })[]>("GET", "/api/bill-splits", undefined, { cache: "no-store" });
   };
 
   const createBillSplit = async (billSplitData: CreateBillSplitData): Promise<import("@/types").BillSplit> => {
