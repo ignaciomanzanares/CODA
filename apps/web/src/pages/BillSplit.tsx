@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -327,24 +327,26 @@ function ExpenseCard({
             </div>
           </div>
           
-          <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
-            <p className="text-xl font-bold">{formatAmount(parseFloat(String(expense.totalAmount)) || 0, currency)}</p>
-            {userParticipant && !userParticipant.isPaid && !isCreator && expense.status !== 'settled' && (
-              <Badge variant="destructive" className="mt-1">
-                Debes {formatAmount(parseFloat(String(userParticipant.amountOwed)) || 0, currency)}
-              </Badge>
-            )}
-            {isCreator && expense.status !== 'settled' && paidCount < totalCount && (
-              <Badge variant="outline" className="mt-1">
-                <Clock className="h-3 w-3 mr-1" />
-                Pendiente
-              </Badge>
-            )}
+          <div className="flex-shrink-0 flex flex-col items-end gap-3 min-w-[7rem]">
+            <div className="text-right space-y-1">
+              <p className="text-xl font-bold leading-tight">{formatAmount(parseFloat(String(expense.totalAmount)) || 0, currency)}</p>
+              {userParticipant && !userParticipant.isPaid && !isCreator && expense.status !== 'settled' && (
+                <Badge variant="destructive" className="text-xs">
+                  Debes {formatAmount(parseFloat(String(userParticipant.amountOwed)) || 0, currency)}
+                </Badge>
+              )}
+              {isCreator && expense.status !== 'settled' && paidCount < totalCount && (
+                <Badge variant="outline" className="text-xs">
+                  <Clock className="h-3 w-3 mr-1" />
+                  Pendiente
+                </Badge>
+              )}
+            </div>
             {isCreator && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10 mt-1"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
                 onClick={(e) => { e.stopPropagation(); onDelete(); }}
                 title="Eliminar gasto"
               >
@@ -764,9 +766,6 @@ export default function BillSplit() {
                         <FormControl>
                           <Input placeholder="Ej: Cena, Supermercado, Uber..." {...field} />
                         </FormControl>
-                        <FormDescription>
-                          Así sabrán de qué se trata quienes deben pagar
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
