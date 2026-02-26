@@ -4,7 +4,7 @@ import {
   Plus, Users, DollarSign, Check, Clock, Send, 
   CheckCircle, CreditCard, Trash2, Receipt, 
   UserPlus, Home, Utensils, Car, Plane, Zap, 
-  MoreHorizontal, RefreshCw, X,
+  RefreshCw, X,
   Percent, Hash, Equal, ArrowUpRight, ArrowDownLeft,
   Copy, Share2, Camera
 } from "lucide-react";
@@ -18,7 +18,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -197,6 +196,54 @@ function FriendBalanceRow({
 }
 
 // Expense Card
+const SWIPE_THRESHOLD = 80;
+
+function SwipeToDeleteRow({ children, onDelete, canDelete }: { children: React.ReactNode; onDelete: () => void; canDelete: boolean }) {
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [offset, setOffset] = useState(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!canDelete) return;
+    setTouchStart(e.touches[0].clientX);
+  };
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStart === null || !canDelete) return;
+    const diff = touchStart - e.touches[0].clientX;
+    if (diff > 0) setOffset(Math.min(diff, 120));
+  };
+  const handleTouchEnd = () => {
+    if (offset >= SWIPE_THRESHOLD) {
+      onDelete();
+    }
+    setTouchStart(null);
+    setOffset(0);
+  };
+
+  if (!canDelete) return <>{children}</>;
+
+  return (
+    <div className="relative overflow-hidden rounded-lg">
+      {offset > 0 && (
+        <div
+          className="absolute inset-y-0 right-0 w-24 flex items-center justify-center bg-destructive text-destructive-foreground text-sm font-medium z-0"
+          style={{ width: offset }}
+        >
+          Eliminar
+        </div>
+      )}
+      <div
+        className="relative z-10 transition-transform duration-150"
+        style={{ transform: offset > 0 ? `translateX(-${offset}px)` : undefined }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function ExpenseCard({ 
   expense, 
   currentUserId,
@@ -218,7 +265,7 @@ function ExpenseCard({
   const userParticipant = expense.participants?.find(p => p.userId === currentUserId);
   const progress = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
   
-  return (
+  const card = (
     <Card 
       className={`hover:shadow-lg transition-all cursor-pointer border-l-4 ${
         expense.status === 'settled' ? 'border-l-green-500 bg-green-50/30' : 'border-l-transparent'
@@ -248,7 +295,6 @@ function ExpenseCard({
                 {expense.createdByName && ` • Añadido por ${expense.createdByName}`}
               </p>
               
-              {/* Progress bar */}
               <div className="mt-3">
                 <div className="flex items-center justify-between text-xs mb-1">
                   <span className="text-muted-foreground">{paidCount} de {totalCount} pagaron</span>
@@ -262,7 +308,6 @@ function ExpenseCard({
                 </div>
               </div>
               
-              {/* Participants */}
               <div className="flex items-center gap-2 mt-3">
                 <div className="flex -space-x-2">
                   {expense.participants?.slice(0, 4).map((p) => (
@@ -282,9 +327,8 @@ function ExpenseCard({
             </div>
           </div>
           
-          <div className="text-right flex-shrink-0">
+          <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
             <p className="text-xl font-bold">{formatAmount(parseFloat(String(expense.totalAmount)) || 0, currency)}</p>
-            {/* Show "You owe" badge only if user is a participant in someone ELSE's split and hasn't paid */}
             {userParticipant && !userParticipant.isPaid && !isCreator && expense.status !== 'settled' && (
               <Badge variant="destructive" className="mt-1">
                 Debes {formatAmount(parseFloat(String(userParticipant.amountOwed)) || 0, currency)}
@@ -296,35 +340,28 @@ function ExpenseCard({
                 Pendiente
               </Badge>
             )}
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-8 w-8 mt-2">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onViewDetails(); }}>
-                  Ver detalle
-                </DropdownMenuItem>
-                {isCreator && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      className="text-red-600"
-                      onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Eliminar
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {isCreator && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 mt-1"
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                title="Eliminar gasto"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Eliminar gasto
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>
     </Card>
+  );
+
+  return (
+    <SwipeToDeleteRow canDelete={!!isCreator} onDelete={onDelete}>
+      {card}
+    </SwipeToDeleteRow>
   );
 }
 
