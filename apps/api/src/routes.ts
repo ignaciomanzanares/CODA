@@ -2156,9 +2156,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const isCreator = String(createdBy) === userId;
           const isParticipant = participants.some((p: BillSplitParticipant) => String(p.userId ?? (p as any).user_id) === userId);
 
-          const participantsWithCurrentUser = participants.map((p: BillSplitParticipant, i: number) => {
+          const participantsWithCurrentUser = participants.map((p: BillSplitParticipant) => {
             const pUserId = p.userId ?? (p as any).user_id;
-            const isCurrentUser = String(pUserId) === userId || (i === 0 && isCreator);
+            const isCurrentUser = String(pUserId) === userId;
             return {
               id: p.id,
               name: p.name,
@@ -2301,9 +2301,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const participantsList = await storage.getBillSplitParticipants(billSplit.id as number);
       const creatorName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : (req as AuthenticatedRequest).user?.name || 'Usuario';
       const createdBy = billSplit.createdBy ?? (billSplit as any).created_by;
-      const participantsPayload = participantsList.map((p: BillSplitParticipant, i: number) => {
+      const participantsPayload = participantsList.map((p: BillSplitParticipant) => {
         const pUserId = p.userId ?? (p as any).user_id;
-        const isCurrentUser = String(pUserId) === userId || (i === 0 && String(createdBy) === userId);
+        const isCurrentUser = String(pUserId) === userId;
         return {
           id: p.id,
           name: p.name,

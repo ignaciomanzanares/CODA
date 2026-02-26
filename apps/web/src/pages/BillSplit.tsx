@@ -421,11 +421,10 @@ export default function BillSplit() {
         split.userRole === 'creator';
 
       if (isCreator) {
-        (split.participants || []).forEach((p: BillSplitParticipantWithUser, idx: number) => {
+        (split.participants || []).forEach((p: BillSplitParticipantWithUser) => {
           const isCurrentUserParticipant =
             (currentUserId != null && String(p.userId) === String(currentUserId)) ||
-            Boolean(p.isCurrentUser) ||
-            (idx === 0 && isCreator);
+            Boolean(p.isCurrentUser);
           if (isCurrentUserParticipant) return;
 
           const isPaid = Boolean(p.isPaid ?? (p as { is_paid?: number }).is_paid);
@@ -470,11 +469,10 @@ export default function BillSplit() {
         split.userRole === 'creator';
 
       if (isCreator) {
-        (split.participants || []).forEach((p: BillSplitParticipantWithUser, idx: number) => {
+        (split.participants || []).forEach((p: BillSplitParticipantWithUser) => {
           const isCurrentUserParticipant =
             (currentUserId != null && String(p.userId) === String(currentUserId)) ||
-            Boolean(p.isCurrentUser) ||
-            (idx === 0 && isCreator);
+            Boolean(p.isCurrentUser);
           if (isCurrentUserParticipant) return;
           if (!Boolean(p.isPaid ?? (p as { is_paid?: number }).is_paid)) {
             const rawOwed = p.amountOwed ?? (p as { amount_owed?: number }).amount_owed;
