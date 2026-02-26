@@ -7,6 +7,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Minus,
+  Building2,
+  Percent,
 } from "lucide-react";
 import { cn, formatCurrency as formatCurrencyUtil, formatCurrencyShort } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
@@ -26,10 +28,6 @@ interface FinancialSummaryStatsProps {
   data: FinancialSummary;
 }
 
-const ICON_BG = "bg-slate-100";
-const ICON_COLOR = "text-slate-600";
-const CARD_CLASS = "border border-slate-200/90 shadow-none";
-
 interface StatCardProps {
   title: string;
   value: string;
@@ -37,35 +35,36 @@ interface StatCardProps {
   change?: string;
   changeType?: 'positive' | 'negative' | 'neutral';
   icon: React.ElementType;
+  color: string;
 }
 
-function StatCard({ title, value, subValue, change, changeType, icon: Icon }: StatCardProps) {
+function StatCard({ title, value, subValue, change, changeType, icon: Icon, color }: StatCardProps) {
   return (
-    <Card className={cn("overflow-hidden hover:shadow-md transition-shadow", CARD_CLASS)}>
-      <CardContent className="p-4 sm:p-5 min-h-[88px] sm:min-h-0 flex flex-col justify-center">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1.5 min-w-0 flex-1">
-            <p className="text-sm font-medium text-slate-600">{title}</p>
-            <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>
+    <Card className="overflow-hidden hover:shadow-md transition-shadow">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <p className="text-2xl font-bold tracking-tight">{value}</p>
             {subValue && (
-              <p className="text-xs text-slate-600">{subValue}</p>
+              <p className="text-xs text-muted-foreground">{subValue}</p>
             )}
             {change && (
               <div className={cn(
                 "flex items-center gap-1 text-sm font-medium",
                 changeType === 'positive' && "text-green-600",
                 changeType === 'negative' && "text-red-600",
-                changeType === 'neutral' && "text-slate-600"
+                changeType === 'neutral' && "text-muted-foreground"
               )}>
-                {changeType === 'positive' && <ArrowUpRight className="h-3.5 w-3.5 flex-shrink-0" />}
-                {changeType === 'negative' && <ArrowDownRight className="h-3.5 w-3.5 flex-shrink-0" />}
-                {changeType === 'neutral' && <Minus className="h-3.5 w-3.5 flex-shrink-0" />}
-                <span className="truncate">{change}</span>
+                {changeType === 'positive' && <ArrowUpRight className="h-4 w-4" />}
+                {changeType === 'negative' && <ArrowDownRight className="h-4 w-4" />}
+                {changeType === 'neutral' && <Minus className="h-4 w-4" />}
+                <span>{change}</span>
               </div>
             )}
           </div>
-          <div className={cn("p-2.5 rounded-xl flex-shrink-0", ICON_BG)}>
-            <Icon className={cn("h-5 w-5 sm:h-6 sm:w-6", ICON_COLOR)} />
+          <div className={cn("p-3 rounded-xl", color)}>
+            <Icon className="h-6 w-6 text-white" />
           </div>
         </div>
       </CardContent>
@@ -75,6 +74,7 @@ function StatCard({ title, value, subValue, change, changeType, icon: Icon }: St
 
 export default function FinancialSummaryStats({ data }: FinancialSummaryStatsProps) {
   const { currency, rateUsdToClp } = useCurrency();
+  // rateUsdToClp hace que al cargar la tasa en tiempo real se re-renderice y se use en formatCurrency
   const formatCurrency = (value: number) => {
     if (currency === "CLP" && (value >= 1_000_000 || value <= -1_000_000)) {
       return formatCurrencyShort(value, "CLP");
@@ -85,56 +85,16 @@ export default function FinancialSummaryStats({ data }: FinancialSummaryStatsPro
     return formatCurrencyUtil(value, currency);
   };
 
-  const netWorthChange = data.netWorth * 0.02;
+  // Calculate month-over-month changes (simulated for demo)
+  const netWorthChange = data.netWorth * 0.02; // ~2% monthly growth
   const savingsThisMonth = data.monthlyIncome - data.monthlyExpenses;
-  const expensesBudgetDiff = data.monthlyIncome * 0.5 - data.monthlyExpenses;
+  const expensesBudgetDiff = data.monthlyIncome * 0.5 - data.monthlyExpenses; // Assuming 50% budget
   const budgetStatus = expensesBudgetDiff >= 0 
     ? `${Math.round((expensesBudgetDiff / (data.monthlyIncome * 0.5)) * 100)}% bajo presupuesto`
     : `${Math.round(Math.abs(expensesBudgetDiff / (data.monthlyIncome * 0.5)) * 100)}% sobre presupuesto`;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* Lateral: Gastos mensuales + Tasa de ahorro en una sola tarjeta más pequeña */}
-      <Card className={cn("overflow-hidden hover:shadow-md transition-shadow", CARD_CLASS)}>
-        <CardContent className="p-4 sm:p-5 min-h-[88px] flex flex-col justify-center gap-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1 min-w-0 flex-1">
-              <p className="text-xs font-medium text-slate-600">Gastos mensuales</p>
-              <p className="text-lg font-bold tracking-tight text-foreground">{formatCurrency(data.monthlyExpenses)}</p>
-              <p className="text-xs text-slate-600">Últimos 30 días</p>
-              <div className={cn(
-                "flex items-center gap-1 text-xs font-medium",
-                expensesBudgetDiff >= 0 ? "text-green-600" : "text-red-600"
-              )}>
-                {expensesBudgetDiff >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-                <span className="truncate">{budgetStatus}</span>
-              </div>
-            </div>
-            <div className={cn("p-2.5 rounded-xl flex-shrink-0", ICON_BG)}>
-              <CreditCard className={cn("h-5 w-5 sm:h-6 sm:w-6", ICON_COLOR)} />
-            </div>
-          </div>
-          <div className="border-t border-slate-200/80 pt-3 flex items-start justify-between gap-3">
-            <div className="space-y-1 min-w-0 flex-1">
-              <p className="text-xs font-medium text-slate-600">Tasa de ahorro</p>
-              <p className="text-lg font-bold tracking-tight text-foreground">{data.savingsRate}%</p>
-              <p className="text-xs text-slate-600">{formatCurrency(savingsThisMonth)}/mes</p>
-              <div className={cn(
-                "flex items-center gap-1 text-xs font-medium",
-                data.savingsRate >= 20 ? "text-green-600" : "text-red-600"
-              )}>
-                {data.savingsRate >= 20 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-                <span>{data.savingsRate >= 20 ? "En buen camino" : "Por debajo del objetivo"}</span>
-              </div>
-            </div>
-            <div className={cn("p-2.5 rounded-xl flex-shrink-0", ICON_BG)}>
-              <PiggyBank className={cn("h-5 w-5 sm:h-6 sm:w-6", ICON_COLOR)} />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Centro: Saldo total */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <StatCard
         title="Saldo total"
         value={formatCurrency(data.totalBalance)}
@@ -142,16 +102,34 @@ export default function FinancialSummaryStats({ data }: FinancialSummaryStatsPro
         change={savingsThisMonth >= 0 ? `+${formatCurrency(savingsThisMonth)} este mes` : `${formatCurrency(savingsThisMonth)} este mes`}
         changeType={savingsThisMonth >= 0 ? 'positive' : 'negative'}
         icon={Wallet}
+        color="bg-blue-500"
       />
-
-      {/* Centro: Patrimonio neto */}
+      <StatCard
+        title="Gastos mensuales"
+        value={formatCurrency(data.monthlyExpenses)}
+        subValue="Últimos 30 días"
+        change={budgetStatus}
+        changeType={expensesBudgetDiff >= 0 ? 'positive' : 'negative'}
+        icon={CreditCard}
+        color="bg-purple-500"
+      />
+      <StatCard
+        title="Tasa de ahorro"
+        value={`${data.savingsRate}%`}
+        subValue={`${formatCurrency(savingsThisMonth)}/mes`}
+        change={data.savingsRate >= 20 ? "En buen camino" : "Por debajo del objetivo"}
+        changeType={data.savingsRate >= 20 ? 'positive' : 'negative'}
+        icon={PiggyBank}
+        color="bg-green-500"
+      />
       <StatCard
         title="Patrimonio neto"
         value={formatCurrency(data.netWorth)}
-        subValue={`${formatCurrency(data.totalAssets)} − ${formatCurrency(data.totalLiabilities)}`}
+        subValue={`${formatCurrency(data.totalAssets)} - ${formatCurrency(data.totalLiabilities)}`}
         change={`+${formatCurrency(netWorthChange)} este mes`}
         changeType="positive"
         icon={TrendingUp}
+        color="bg-orange-500"
       />
     </div>
   );

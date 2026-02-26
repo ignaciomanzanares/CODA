@@ -3,8 +3,8 @@ import { TrendingUp, TrendingDown } from "lucide-react";
 import { formatCurrencyShort } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -50,15 +50,15 @@ export default function NetWorthChart({ data, currentNetWorth }: NetWorthChartPr
   };
 
   return (
-    <Card className="col-span-full lg:col-span-2 border border-slate-200/90 shadow-none">
+    <Card className="col-span-full lg:col-span-2">
       <CardHeader className="pb-2">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-lg text-foreground">Evolución del patrimonio</CardTitle>
-            <CardDescription className="text-slate-600">Tu patrimonio en los últimos 6 meses</CardDescription>
+            <CardTitle className="text-lg">Evolución del patrimonio</CardTitle>
+            <CardDescription>Tu patrimonio en los últimos 6 meses</CardDescription>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold text-foreground">{formatCurrency(currentNetWorth)}</p>
+            <p className="text-2xl font-bold">{formatCurrency(currentNetWorth)}</p>
             <div className={`flex items-center justify-end gap-1 text-sm ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
               {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
               <span>{isPositive ? '+' : ''}{formatCurrency(change)} ({changePercent}%)</span>
@@ -66,48 +66,58 @@ export default function NetWorthChart({ data, currentNetWorth }: NetWorthChartPr
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-2">
-        <div className="h-[260px] sm:h-[280px] mt-2">
+      <CardContent>
+        <div className="h-[280px] mt-4">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200" />
+            <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorNetWorth" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorAssets" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
                 dataKey="month" 
-                tick={{ fontSize: 12, fill: '#64748b' }}
+                tick={{ fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis 
                 tickFormatter={formatCurrency}
-                tick={{ fontSize: 12, fill: '#64748b' }}
+                tick={{ fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
                 width={60}
               />
               <Tooltip content={<CustomTooltip />} />
               <Legend 
-                wrapperStyle={{ paddingTop: '16px' }}
-                formatter={(value) => <span className="text-sm text-slate-600">{value}</span>}
+                wrapperStyle={{ paddingTop: '20px' }}
+                formatter={(value) => <span className="text-sm text-muted-foreground">{value}</span>}
               />
-              <Line
+              <Area
                 type="monotone"
                 dataKey="assets"
                 name="Activos"
                 stroke="#22c55e"
-                strokeWidth={1.5}
-                dot={false}
-                activeDot={{ r: 4 }}
+                strokeWidth={2}
+                fillOpacity={1}
+                fill="url(#colorAssets)"
               />
-              <Line
+              <Area
                 type="monotone"
                 dataKey="netWorth"
                 name="Patrimonio neto"
                 stroke="#3b82f6"
-                strokeWidth={1.5}
-                dot={false}
-                activeDot={{ r: 4 }}
+                strokeWidth={2}
+                fillOpacity={1}
+                fill="url(#colorNetWorth)"
               />
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       </CardContent>
