@@ -24,6 +24,7 @@ export interface UpdateGoalData extends Partial<CreateGoalData> {}
 
 export interface Expense {
   id: number | string;
+  name?: string | null;
   amount: string | number;
   description: string;
   category: string;
@@ -43,6 +44,7 @@ export interface Expense {
 
 export interface CreateExpenseData {
   amount: string | number;
+  name?: string;
   description: string;
   category: string;
   subcategory?: string;
@@ -206,6 +208,8 @@ export interface CreateBillSplitData {
   date: Date;
   splitType?: 'equal' | 'exact' | 'percentage' | 'shares';
   participants?: Omit<BillSplitParticipant, 'id' | 'billSplitId'>[];
+  /** Si es true, se crea también un gasto en la página de Gastos con el mismo monto y nombre. */
+  alsoAddToExpenses?: boolean;
 }
 
 // Helper interface for creating participants with optional email

@@ -2212,8 +2212,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.info({ userId, email: userEmail }, 'Created new user');
       }
       
-      // Extract participants from request body (don't include in bill split data)
-      const { participants: participantsFromBody, ...billSplitFields } = req.body;
+      // Extract participants and optional flags from request body (don't include in bill split data)
+      const { participants: participantsFromBody, alsoAddToExpenses, ...billSplitFields } = req.body;
       
       // Generate a unique share code for the bill split
       const shareCode = `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
@@ -2296,6 +2296,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (allPaid) {
           await storage.updateBillSplit(billSplit.id as number, { status: 'settled' });
           billSplit.status = 'settled';
+        }
+      }
+
+      // Optionally add this bill split as an expense in the user's expenses list
+      if (alsoAddToExpenses && billSplit.id) {
+        try {
+          const totalAmount = typeof billSplit.totalAmount === 'number' ? billSplit.totalAmount : parseFloat(String(billSplit.totalAmount));
+          const expenseDate = billSplit.date ? new Date(billSplit.date).toISOString() : new Date().toISOString();
+          const category = (billSplit as { category?: string }).category || 'general';
+          await storage.createExpense({
+            userId: billSplit.createdBy ?? userId,
+            amount: totalAmount,
+            description: billSplit.name || 'Gasto compartido',
+            name: billSplit.name || undefined,
+            category: category,
+            date: expenseDate,
+            isRecurring: 0,
+            isAutoClassified: 0,
+          });
+          logger.info({ userId, billSplitId: billSplit.id, name: billSplit.name }, 'Added bill split to expenses');
+        } catch (expenseErr) {
+          logger.error({ err: expenseErr, billSplitId: billSplit.id }, 'Failed to add bill split to expenses');
+          // Do not fail the bill split creation; expense is optional
         }
       }
 

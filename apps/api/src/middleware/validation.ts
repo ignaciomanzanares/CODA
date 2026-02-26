@@ -71,6 +71,7 @@ export const createExpenseSchema = z.object({
     z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
     z.number().positive("Amount must be positive")
   ]),
+  name: z.string().max(200).optional().or(z.literal("")),
   category: z.string().min(1, "Category is required").max(100),
   description: z.string().min(1, "Description is required").max(500),
   date: dateSchema,
@@ -91,6 +92,7 @@ export const updateExpenseSchema = z.object({
     z.string().regex(/^\d+(\.\d{1,2})?$/),
     z.number().positive()
   ]).optional(),
+  name: z.string().max(200).optional().or(z.literal("")),
   category: z.string().min(1).max(100).optional(),
   description: z.string().min(1).max(500).optional(),
   date: dateSchema.optional(),
@@ -133,7 +135,8 @@ export const createBillSplitSchema = z.object({
   category: z.string().max(100).optional().or(z.literal("")),
   splitType: z.enum(["equal", "exact", "percentage", "shares"]).optional().default("equal"),
   status: z.enum(["pending", "partially_paid", "fully_paid", "cancelled"]).optional().default("pending"),
-  participants: z.array(billSplitParticipantSchema).min(1, "At least one participant required")
+  participants: z.array(billSplitParticipantSchema).min(1, "At least one participant required"),
+  alsoAddToExpenses: z.boolean().optional().default(false),
 }).passthrough();
 
 export const updateBillSplitSchema = z.object({
