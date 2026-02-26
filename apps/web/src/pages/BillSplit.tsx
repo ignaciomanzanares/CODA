@@ -432,7 +432,8 @@ export default function BillSplit() {
             const rawOwed = p.amountOwed ?? (p as { amount_owed?: number }).amount_owed;
             const amount = Number(rawOwed) || parseFloat(String(rawOwed ?? 0)) || 0;
             if (amount <= 0) return;
-            const key = p.userId || p.email || `p-${p.id}`;
+            // Clave única por (gasto, participante) para no juntar a Pedro y Mario si comparten userId/email
+            const key = `${split.id}-${p.id}`;
             if (!balances[key]) balances[key] = { name: p.name || 'Sin nombre', balance: 0 };
             balances[key].balance += amount;
           }
