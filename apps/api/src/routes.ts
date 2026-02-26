@@ -2148,21 +2148,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Fetch participants for each bill split and add user role info
+      // Fetch participants for each bill split and add user role info (explicit shape for frontend balance calc)
       const billSplitsWithParticipants = await Promise.all(
         allBillSplits.map(async (billSplit) => {
           const participants = await storage.getBillSplitParticipants(billSplit.id as number);
-          const isCreator = String(billSplit.createdBy) === userId;
-          const isParticipant = participants.some((p: BillSplitParticipant) => String(p.userId) === userId);
-          
-          // Mark which participant is the current user
-          const participantsWithCurrentUser = participants.map((p: BillSplitParticipant) => ({
-            ...p,
-            isCurrentUser: String(p.userId) === userId
-          }));
-          
+          const createdBy = billSplit.createdBy ?? (billSplit as any).created_by;
+          const isCreator = String(createdBy) === userId;
+          const isParticipant = participants.some((p: BillSplitParticipant) => String(p.userId ?? (p as any).user_id) === userId);
+
+          const participantsWithCurrentUser = participants.map((p: BillSplitParticipant, i: number) => {
+            const pUserId = p.userId ?? (p as any).user_id;
+            const isCurrentUser = String(pUserId) === userId || (i === 0 && isCreator);
+            return {
+              id: p.id,
+              name: p.name,
+              email: p.email,
+              userId: pUserId,
+              amountOwed: typeof p.amountOwed === 'number' ? p.amountOwed : Number(p.amountOwed ?? (p as any).amount_owed ?? 0),
+              isPaid: !!p.isPaid,
+              amountPaid: typeof p.amountPaid === 'number' ? p.amountPaid : Number(p.amountPaid ?? (p as any).amount_paid ?? 0),
+              isCurrentUser,
+            };
+          });
           return {
             ...billSplit,
+            createdBy: createdBy ?? billSplit.createdBy,
             participants: participantsWithCurrentUser,
             userRole: isCreator ? 'creator' : (isParticipant ? 'participant' : 'none')
           };
