@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -76,7 +76,7 @@ const participantSchema = z.object({
 });
 
 const billSplitFormSchema = z.object({
-  name: z.string().optional(),
+  name: z.string().min(1, "El nombre del gasto es obligatorio").max(200, "Máximo 200 caracteres"),
   totalAmount: z.string().min(1, "El monto es obligatorio"),
   description: z.string().optional(),
   category: z.string().default("general"),
@@ -754,6 +754,23 @@ export default function BillSplit() {
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  {/* Nombre del gasto */}
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nombre del gasto</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ej: Cena, Supermercado, Uber..." {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Así sabrán de qué se trata quienes deben pagar
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   {/* Category */}
                   <FormField
                     control={form.control}
