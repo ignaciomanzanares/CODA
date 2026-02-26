@@ -2178,7 +2178,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         })
       );
-      
+      // Evitar caché/304 para que el cliente siempre reciba datos frescos y actualice saldos
+      res.set({ 'Cache-Control': 'no-store, no-cache, must-revalidate', 'Pragma': 'no-cache' });
       res.json(billSplitsWithParticipants);
     } catch (error) {
       logger.error({ err: error }, 'Error fetching bill splits');
