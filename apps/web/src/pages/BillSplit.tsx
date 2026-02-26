@@ -533,15 +533,28 @@ export default function BillSplit() {
         }))
       });
     },
-    onSuccess: (data: BillSplitWithParticipants) => {
+    onSuccess: async (data: BillSplitWithParticipants) => {
+      // Actualizar caché con la respuesta del POST (misma forma que GET) para que el saldo se actualice al instante
+      const shape = {
+        ...data,
+        createdBy: data.createdBy ?? (data as any).created_by,
+        userRole: (data as any).userRole ?? 'creator',
+        participants: (data.participants ?? []).map((p: any) => ({
+          ...p,
+          amountOwed: typeof p.amountOwed === 'number' ? p.amountOwed : parseFloat(String(p.amountOwed ?? p.amount_owed ?? 0)) || 0,
+          isPaid: Boolean(p.isPaid ?? p.is_paid),
+          isCurrentUser: Boolean(p.isCurrentUser ?? p.is_current_user),
+        })),
+      };
       queryClient.setQueryData<BillSplitWithParticipants[]>(["/api/bill-splits"], (prev) => {
         const list = prev ?? [];
         if (data?.id != null && !list.some((b) => String(b.id) === String(data.id))) {
-          return [...list, data];
+          return [...list, shape];
         }
         return list;
       });
       queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
+      queryClient.refetchQueries({ queryKey: ["/api/bill-splits"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       setIsCreateDialogOpen(false);
       form.reset();

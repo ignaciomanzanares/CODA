@@ -2297,17 +2297,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Return full shape (with participants and createdByName) so frontend Saldo superior actualiza al instante
+      // Return full shape (same as GET) so frontend balance updates immediately
       const participantsList = await storage.getBillSplitParticipants(billSplit.id as number);
       const creatorName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : (req as AuthenticatedRequest).user?.name || 'Usuario';
+      const createdBy = billSplit.createdBy ?? (billSplit as any).created_by;
+      const participantsPayload = participantsList.map((p: BillSplitParticipant, i: number) => {
+        const pUserId = p.userId ?? (p as any).user_id;
+        const isCurrentUser = String(pUserId) === userId || (i === 0 && String(createdBy) === userId);
+        return {
+          id: p.id,
+          name: p.name,
+          email: p.email,
+          userId: pUserId,
+          amountOwed: typeof p.amountOwed === 'number' ? p.amountOwed : Number(p.amountOwed ?? (p as any).amount_owed ?? 0),
+          isPaid: !!p.isPaid,
+          amountPaid: typeof p.amountPaid === 'number' ? p.amountPaid : Number(p.amountPaid ?? (p as any).amount_paid ?? 0),
+          isCurrentUser,
+        };
+      });
       const payload = {
         ...billSplit,
+        createdBy: createdBy ?? billSplit.createdBy,
         createdByName: creatorName,
-        participants: participantsList.map((p: BillSplitParticipant, i: number) => ({
-          ...p,
-          isCurrentUser: String(p.userId) === userId || (i === 0 && String(billSplit.createdBy) === userId),
-        })),
-        userRole: 'creator',
+        participants: participantsPayload,
+        userRole: 'creator' as const,
       };
       res.status(201).json(payload);
     } catch (error) {
