@@ -914,6 +914,9 @@ export default function BillSplit() {
           <TabsTrigger value="history" className="gap-2">
             <Check className="h-4 w-4" />
             <span className="hidden sm:inline">Saldados</span>
+            {settledExpenses.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5">{settledExpenses.length}</Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 

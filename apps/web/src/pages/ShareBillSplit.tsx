@@ -14,7 +14,6 @@ import { useAuth } from '@/lib/auth';
 import { useApi } from '@/lib/api.tsx';
 import { apiFetch } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
-import { useCurrency } from '@/lib/CurrencyContext';
 import { 
   Receipt, 
   Users, 
@@ -85,7 +84,8 @@ export default function ShareBillSplit() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isAuthenticated, user, token } = useAuth();
-  const { currency } = useCurrency();
+  // Montos del backend están en CLP; en el link de pago siempre mostramos CLP (sin conversión a USD)
+  const formatAmount = (amount: number) => formatCurrency(amount, 'CLP', { sourceCurrency: 'CLP' });
   
   const [payingParticipant, setPayingParticipant] = useState<Participant | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
@@ -258,7 +258,7 @@ export default function ShareBillSplit() {
               <div>
                 <CardDescription>Total</CardDescription>
                 <CardTitle className="text-4xl font-bold">
-                  {formatCurrency(billSplit.totalAmount, currency)}
+                  {formatAmount(billSplit.totalAmount)}
                 </CardTitle>
               </div>
               {allPaid ? (
@@ -287,7 +287,7 @@ export default function ShareBillSplit() {
               </div>
               <Progress value={billSplit.progress.percentPaid} className="h-3" />
               <p className="text-sm text-muted-foreground mt-2">
-                {formatCurrency(billSplit.progress.totalPaid, currency)} de {formatCurrency(billSplit.totalAmount, currency)} cobrado
+                {formatAmount(billSplit.progress.totalPaid)} de {formatAmount(billSplit.totalAmount)} cobrado
               </p>
             </div>
 
@@ -316,7 +316,7 @@ export default function ShareBillSplit() {
                       <div>
                         <p className="font-semibold text-lg">{participant.name}</p>
                         <p className={`text-sm ${participant.isPaid ? 'text-green-600' : 'text-muted-foreground'}`}>
-                          {participant.isPaid ? '✓ Pagado' : 'Debe'} {formatCurrency(participant.amountOwed, currency)}
+                          {participant.isPaid ? '✓ Pagado' : 'Debe'} {formatAmount(participant.amountOwed)}
                         </p>
                       </div>
                     </div>
@@ -431,7 +431,7 @@ export default function ShareBillSplit() {
             <DialogDescription>
               {payingParticipant && (
                 <>
-                  Vas a pagar <strong>{formatCurrency(payingParticipant.amountOwed, currency)}</strong> por "{billSplit.name}"
+                  Vas a pagar <strong>{formatAmount(payingParticipant.amountOwed)}</strong> por "{billSplit.name}"
                 </>
               )}
             </DialogDescription>
@@ -548,7 +548,7 @@ export default function ShareBillSplit() {
                 <div className="text-left">
                   <p className="font-semibold">{participant.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    Debe {formatCurrency(participant.amountOwed, currency)}
+                    Debe {formatAmount(participant.amountOwed)}
                   </p>
                 </div>
                 {selectedParticipantToJoin?.id === participant.id && (
