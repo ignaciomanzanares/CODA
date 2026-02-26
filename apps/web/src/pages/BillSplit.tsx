@@ -383,6 +383,21 @@ export default function BillSplit() {
   });
 
   const billSplits = isAuthenticated ? realBillSplits : demoBillSplits;
+
+  // Normalize API response so balance calc always has amountOwed (number), isPaid (bool), createdBy, userRole
+  const normalizedSplits: BillSplitWithParticipants[] = (billSplits || []).map((split) => {
+    const createdBy = split.createdBy ?? (split as any).created_by;
+    const userRole = split.userRole ?? (split as any).user_role;
+    const participants = (split.participants ?? []).map((p: any, i: number) => ({
+      ...p,
+      userId: p.userId ?? p.user_id,
+      amountOwed: typeof p.amountOwed === 'number' ? p.amountOwed : parseFloat(String(p.amountOwed ?? p.amount_owed ?? 0)) || 0,
+      isPaid: Boolean(p.isPaid ?? p.is_paid),
+      isCurrentUser: Boolean(p.isCurrentUser ?? p.is_current_user),
+    }));
+    return { ...split, createdBy, userRole, participants };
+  });
+
   // Show both 'active' and 'pending' statuses as active expenses
   const activeExpenses = billSplits.filter(s => s.status === 'active' || s.status === 'pending' || !s.status);
   const settledExpenses = billSplits.filter(s => s.status === 'settled' || s.status === 'fully_paid');
@@ -483,9 +498,9 @@ export default function BillSplit() {
     return { youAreOwed, youOwe };
   };
 
-  const { youAreOwed, youOwe } = calculateTotals(billSplits);
+  const { youAreOwed, youOwe } = calculateTotals(normalizedSplits);
 
-  const userBalances = calculateBalances(billSplits);
+  const userBalances = calculateBalances(normalizedSplits);
   const totalYouOwe = userBalances.filter(b => b.balance < 0).reduce((sum, b) => sum + Math.abs(b.balance), 0);
   const totalOwedToYou = userBalances.filter(b => b.balance > 0).reduce((sum, b) => sum + b.balance, 0);
 

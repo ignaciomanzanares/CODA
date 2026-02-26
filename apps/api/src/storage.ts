@@ -895,12 +895,17 @@ export class DatabaseStorage implements IStorage {
   async getBillSplitParticipants(billSplitId: number): Promise<any[]> {
     if (db) {
       const rows = await db.select().from(billSplitParticipants).where(eq(billSplitParticipants.billSplitId, billSplitId));
-      return rows.map((r: any) => ({
-        ...r,
-        isPaid: !!r.isPaid,
-        amountPaid: r.amountPaid ? Number(r.amountPaid) : 0,
-        amountOwed: r.amountOwed ? Number(r.amountOwed) : 0,
-      }));
+      return rows.map((r: any) => {
+        const amountOwed = r.amountOwed ?? r.amount_owed;
+        const isPaid = r.isPaid ?? r.is_paid;
+        const amountPaid = r.amountPaid ?? r.amount_paid;
+        return {
+          ...r,
+          amountOwed: amountOwed != null ? Number(amountOwed) : 0,
+          isPaid: !!isPaid,
+          amountPaid: amountPaid != null ? Number(amountPaid) : 0,
+        };
+      });
     }
     return Array.from(this.billSplitParticipants.values()).filter(p => p.billSplitId === billSplitId);
   }
