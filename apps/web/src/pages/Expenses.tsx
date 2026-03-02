@@ -742,14 +742,13 @@ export default function Expenses() {
                         
                         {/* Details */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex flex-col gap-0.5">
-                            {(expense as Expense & { name?: string }).name && (
-                              <span className="text-xs text-muted-foreground truncate">
-                                {(expense as Expense & { name?: string }).name}
-                              </span>
-                            )}
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-semibold truncate">{expense.description}</h3>
+                          {(expense as Expense & { name?: string }).name && (
+                            <span className="text-xs text-muted-foreground truncate block mb-1">
+                              {(expense as Expense & { name?: string }).name}
+                            </span>
+                          )}
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold truncate">{expense.description}</h3>
                             {expense.isAutoClassified && (
                               <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
                                 <Sparkles className="h-3 w-3 mr-1" />
