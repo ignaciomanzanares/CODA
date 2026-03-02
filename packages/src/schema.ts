@@ -179,6 +179,7 @@ export const goalProgress = table('goal_progress', {
 export const expenses = table('expenses', {
   id: serialPk("id"),
   userId: text('user_id').references(() => users.id).notNull(),
+  name: text('name'),
   amount: real('amount').notNull(),
   description: text('description').notNull(),
   category: text('category').notNull(),

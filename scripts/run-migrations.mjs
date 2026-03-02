@@ -7,14 +7,13 @@ import { readFileSync, readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import postgres from 'postgres';
-import dotenv from 'dotenv';
+import { config as loadEnv } from 'dotenv';
 
-// Load environment variables
-dotenv.config();
-
+// Load environment variables from apps/api/.env
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '..');
+loadEnv({ path: join(projectRoot, 'apps', 'api', '.env') });
 
 async function runMigrations() {
   const dbUrl = process.env.DATABASE_URL;
