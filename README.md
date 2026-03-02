@@ -11,12 +11,21 @@
 - **API:** Node.js + Express (puerto 5000)
 - **Web:** React 18 + Vite (puerto 5173)
 - **BD:** Drizzle ORM — PostgreSQL en producción (Render), SQLite opcional en local
+- **ML:** Python 3.10+ (XGBoost, scikit-learn, SHAP) para credit scoring
+- **Compliance:** Sistema de trazabilidad algorítmica (NCG 502)
 
 ```
 CODA/
-├── apps/api/     # Backend
-├── apps/web/     # Frontend
-└── packages/     # Schema y lógica compartida (db)
+├── apps/api/           # Backend (Node.js + Express)
+│   ├── ml/             # Python ML models (credit scoring)
+│   └── src/
+│       └── services/
+│           ├── audit/  # Trazabilidad algorítmica (CMF compliance)
+│           ├── creditScoring/  # Enhanced ML scoring
+│           └── ...
+├── apps/web/           # Frontend (React + Vite)
+├── packages/           # Schema y lógica compartida (db)
+└── migrations/         # SQL migrations para PostgreSQL
 ```
 
 ---

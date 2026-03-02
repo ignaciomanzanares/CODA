@@ -3,6 +3,7 @@
  * Sincronizado con userId real (Render DB). Valida RUT/nombre cuando esté disponible en perfil.
  */
 
+import { randomUUID } from 'crypto';
 import { getSfaScoringEngine } from '../scoring/index.js';
 import { storage } from '../../storage.js';
 import { logger } from '../../logger.js';
@@ -14,6 +15,7 @@ import {
   type CartolaExtraida,
   type DocumentoExtraido,
 } from './pdfAnalysis.js';
+import { logCreditScorePrediction } from '../audit/algorithmicTraceability.js';
 
 export const CREDIT_SCORE_EXCELLENT = 680;
 export const CREDIT_SCORE_MAX = 850;
@@ -82,8 +84,77 @@ export async function processDocumentUpload(
         error: 'No se encontró un RUT válido en el Informe CMF. Verifica que el PDF sea un informe de deudas oficial.',
       };
     }
+    
+    const startTime = Date.now();
+    const requestId = randomUUID();
+    
     const creditScoreValue = computeCreditScoreFromCmf(doc);
     const scoreNum = Number(creditScoreValue);
+    
+    // Determine risk category
+    const riskCategory = scoreNum >= 750 ? 'EXCELLENT'
+      : scoreNum >= 680 ? 'GOOD'
+      : scoreNum >= 620 ? 'AVERAGE'
+      : scoreNum >= 550 ? 'POOR'
+      : 'VERY_POOR';
+    
+    // Approximate PD (Probability of Default) from score
+    const pd = Math.max(0, Math.min(1, (850 - scoreNum) / 550));
+    
+    // Log prediction for audit trail (CMF compliance)
+    const predictionLogId = logCreditScorePrediction(
+      userId,
+      requestId,
+      {
+        creditScore: scoreNum,
+        probabilityDefault: pd,
+        riskCategory,
+        confidence: 0.85,
+        topFactors: [
+          {
+            name: 'Deuda Total Vigente',
+            value: doc.deudaTotalVigente,
+            impact: doc.deudaTotalVigente === 0 ? 100 : -50,
+            explanation: doc.deudaTotalVigente === 0 
+              ? 'Sin deudas vigentes (excelente)'
+              : `Deuda de $${doc.deudaTotalVigente.toLocaleString('es-CL')} CLP`
+          },
+          {
+            name: 'Deuda Indirecta',
+            value: doc.deudaIndirecta,
+            impact: doc.deudaIndirecta === 0 ? 50 : -30,
+            explanation: doc.deudaIndirecta === 0
+              ? 'Sin deudas indirectas (excelente)'
+              : `Deuda indirecta de $${doc.deudaIndirecta.toLocaleString('es-CL')} CLP`
+          },
+          {
+            name: 'Número de Instituciones',
+            value: doc.numeroInstituciones,
+            impact: doc.numeroInstituciones === 0 ? 30 : -20,
+            explanation: `${doc.numeroInstituciones} institución(es) reportada(s)`
+          }
+        ]
+      },
+      {
+        cmfData: doc,
+        features: {
+          deudaTotalVigente: doc.deudaTotalVigente,
+          deudaIndirecta: doc.deudaIndirecta,
+          numeroInstituciones: doc.numeroInstituciones,
+          hasDebt: doc.deudaTotalVigente > 0,
+          debtRatio: doc.deudaTotalVigente > 0 ? doc.deudaIndirecta / doc.deudaTotalVigente : 0
+        }
+      },
+      {
+        processingTimeMs: Date.now() - startTime
+      }
+    );
+    
+    logger.info(
+      { userId, requestId, predictionLogId, score: scoreNum },
+      '[documentUploadService] CMF: prediction logged for audit trail'
+    );
+    
     // Mismo patrón que cartola: un solo upsert con userId (ensureUserForToken ya dio el userId de la ruta).
     const creditPayload = {
       score: scoreNum,

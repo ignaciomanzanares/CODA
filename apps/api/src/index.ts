@@ -4,8 +4,10 @@ import "./env.js";
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { registerRoutes } from "./routes.js";
+import { registerAuditRoutes } from "./routes-audit.js";
 import { checkDatabaseConnection } from "./db/index.js";
 import { logger, httpLogger } from "./logger.js";
+import { initializeTraceabilitySystem } from "./services/audit/algorithmicTraceability.js";
 
 
 
@@ -103,6 +105,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 (async () => {
   try {
     logger.info("🚀 Starting CODA application...");
+    
+    // Initialize algorithmic traceability system (CMF compliance)
+    initializeTraceabilitySystem();
+    
     logger.info("✅ Application initialization completed successfully");
   } catch (error) {
     logger.error({ error }, "❌ Error during application initialization");
@@ -110,6 +116,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   }
 
   const server = await registerRoutes(app);
+  
+  // Register audit & compliance routes
+  registerAuditRoutes(app);
 
   app.use((err: Error & { status?: number; statusCode?: number }, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
