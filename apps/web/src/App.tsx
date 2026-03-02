@@ -37,6 +37,7 @@ import Movimientos from "@/pages/Movimientos";
 import ConsentConnections from "@/pages/ConsentConnections";
 import EmailInviteHandler from "@/pages/EmailInviteHandler";
 import ShareBillSplit from "@/pages/ShareBillSplit";
+import AuditDashboard from "@/pages/AuditDashboard";
 import FinancialAssistant from "@/components/FinancialAssistant";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
@@ -171,6 +172,11 @@ function App() {
                         <BillSplit />
                       </Suspense>
                     </ErrorBoundary>
+                  </Route>
+                  <Route path="/audit">
+                    <ProtectedRoute>
+                      <AuditDashboard />
+                    </ProtectedRoute>
                   </Route>
                   <Route path="/products">
                     <ProtectedRoute>

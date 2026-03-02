@@ -26,7 +26,8 @@ import {
   Building,
   GitMerge,
   Shield,
-  Link2
+  Link2,
+  Activity
 } from "lucide-react";
 import NotificationCenter from "@/components/NotificationCenter";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,7 @@ const navItems = [
   { href: "/products", label: "Productos", icon: Package },
   { href: "/goals", label: "Metas", icon: Target },
   { href: "/plan", label: "Plan", icon: FileText },
+  { href: "/audit", label: "Auditoría", icon: Activity },
 ];
 
 const empresasNavItems = [
