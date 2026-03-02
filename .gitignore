@@ -28,12 +28,27 @@ apps/**/.env.production
 # Editor settings
 .vscode/
 .idea/
+.cursor/
 
 # Generated files
 /packages/src/*.d.ts
 /packages/src/*.js
 /apps/web/src/lib/*.d.ts
 /apps/web/src/types/*.d.ts
+
+# Drizzle output
+/drizzle/
+/packages/drizzle/
+
+# Python virtual environment (ML models)
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Cache directories
+.cache/
+.turbo/
 
 # Logs
 *.log
