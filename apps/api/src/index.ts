@@ -115,10 +115,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     process.exit(1);
   }
 
-  const server = await registerRoutes(app);
-  
-  // Register audit & compliance routes
+  // IMPORTANT: Register ALL routes BEFORE starting server
+  // Register audit & compliance routes FIRST
   registerAuditRoutes(app);
+  
+  // Then register main routes
+  const server = await registerRoutes(app);
 
   app.use((err: Error & { status?: number; statusCode?: number }, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
