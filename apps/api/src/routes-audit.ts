@@ -25,9 +25,10 @@ import {
 } from './services/audit/algorithmicTraceability.js';
 
 export function registerAuditRoutes(app: Express): void {
-  console.log('📊 Registering audit & compliance routes...');
-  
-  // ========== USER PREDICTION HISTORY ==========
+  try {
+    console.log('📊 Registering audit & compliance routes...');
+    
+    // ========== USER PREDICTION HISTORY ==========
   
   /**
    * GET /api/audit/my-predictions
@@ -206,4 +207,8 @@ export function registerAuditRoutes(app: Express): void {
   );
   
   console.log('✅ Audit routes registered');
+  } catch (error) {
+    console.error('❌ Error registering audit routes:', error);
+    throw error;
+  }
 }
