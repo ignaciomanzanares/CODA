@@ -122,11 +122,15 @@ export function parseCmfInformeDeudas(text: string): CmfInformeDeudas | null {
   const rut = normalized.match(RUT_RE)?.[0];
   
   // Si detectamos que es un informe CMF (tiene las palabras clave) pero no encontramos valores, asumir $0
+  // IMPORTANTE: Solo si también tiene RUT válido (evitar falsos positivos con cartolas)
   const isCmfDocument = /Informe\s+de\s+Deudas|CMF|Deuda\s+Directa|Deuda\s+Indirecta/i.test(normalized);
-  if (isCmfDocument && deudaTotal === null && deudaIndirecta === null) {
-    // Documento CMF detectado pero sin valores: asumir $0 (perfil sin deudas)
+  if (isCmfDocument && rut && deudaTotal === null && deudaIndirecta === null) {
+    // Documento CMF detectado con RUT válido pero sin valores: asumir $0 (perfil sin deudas)
     deudaTotal = 0;
   }
+  
+  // Si no hay RUT válido, no es un informe CMF válido (puede ser cartola u otro documento)
+  if (!rut) return null;
   
   if (deudaTotal === null && deudaIndirecta === null && numInst === null) return null;
   
