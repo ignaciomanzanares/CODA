@@ -15,9 +15,40 @@ const STEPS: Record<string, string> = {
   done: "Listo",
 };
 
+const ALLOWED_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
 function toFileList(files: FileList | null): File[] {
   if (!files?.length) return [];
-  return Array.from(files).filter((f) => f.type === "application/pdf");
+  return Array.from(files).filter((f) => 
+    ALLOWED_TYPES.includes(f.type) && f.size <= MAX_FILE_SIZE
+  );
+}
+
+function validateFile(file: File): { valid: boolean; error?: string } {
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return {
+      valid: false,
+      error: `Formato no permitido: ${file.type}. Formatos válidos: PDF, PNG, JPG, WEBP.`
+    };
+  }
+  
+  if (file.size > MAX_FILE_SIZE) {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    return {
+      valid: false,
+      error: `Archivo demasiado grande (${sizeMB} MB). Máximo: 10 MB.`
+    };
+  }
+  
+  if (file.size < 1024) {
+    return {
+      valid: false,
+      error: 'Archivo demasiado pequeño. Puede estar vacío o corrupto.'
+    };
+  }
+  
+  return { valid: true };
 }
 
 export default function DocumentUploadCard() {
@@ -31,34 +62,73 @@ export default function DocumentUploadCard() {
   const [progressTotal, setProgressTotal] = useState(0);
   const [result, setResult] = useState<DocumentUploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
 
   const processFiles = useCallback(
     async (fileList: File[]) => {
-      const pdfs = fileList.filter((f) => f.type === "application/pdf");
-      if (pdfs.length === 0) {
-        setError("No hay archivos PDF. Solo se aceptan PDF (Informe CMF o Cartola).");
+      const validFiles = toFileList(fileList);
+      
+      // Client-side validation
+      if (validFiles.length === 0) {
+        // Check if files were rejected due to type or size
+        const rejectedFiles = Array.from(fileList).filter(f => !validFiles.includes(f));
+        if (rejectedFiles.length > 0) {
+          const firstRejected = rejectedFiles[0];
+          const validation = validateFile(firstRejected);
+          setError(validation.error || "Archivo no válido.");
+        } else {
+          setError("No se seleccionó ningún archivo válido. Formatos: PDF, PNG, JPG, WEBP (máx 10 MB).");
+        }
         return;
       }
+      
       setError(null);
+      setWarnings([]);
       setResult(null);
       setLoading(true);
-      setProgressTotal(pdfs.length);
+      setProgressTotal(validFiles.length);
       let lastResult: DocumentUploadResult | null = null;
-      for (let i = 0; i < pdfs.length; i++) {
+      
+      for (let i = 0; i < validFiles.length; i++) {
         setProgressCurrent(i + 1);
         setProgressStep("reading");
+        
+        // Validate each file
+        const validation = validateFile(validFiles[i]);
+        if (!validation.valid) {
+          setError(validation.error!);
+          setProgressStep(null);
+          setLoading(false);
+          return;
+        }
+        
         try {
           setProgressStep("extracting");
-          const res = await uploadDocument(pdfs[i]);
+          const res = await uploadDocument(validFiles[i]);
           setProgressStep("scoring");
           lastResult = res;
+          
+          // Handle warnings from server
+          if (res.warnings && res.warnings.length > 0) {
+            setWarnings(res.warnings);
+          }
+          
           if (res.error) {
             setError(res.error);
             setProgressStep(null);
             break;
           }
-        } catch (e) {
-          setError(e instanceof Error ? e.message : "Error al procesar el documento.");
+        } catch (e: any) {
+          // Better error messages
+          let errorMsg = "Error al procesar el documento.";
+          
+          if (e?.response?.data?.message) {
+            errorMsg = e.response.data.message;
+          } else if (e instanceof Error) {
+            errorMsg = e.message;
+          }
+          
+          setError(errorMsg);
           setProgressStep(null);
           break;
         }
@@ -127,14 +197,14 @@ export default function DocumentUploadCard() {
           Documentos oficiales
         </CardTitle>
         <CardDescription>
-          Sube un Informe de Deudas CMF o una Cartola bancaria (PDF) para actualizar tu Score crediticio y transaccional.
+          Sube un Informe de Deudas CMF o una Cartola bancaria (PDF, PNG, JPG) para actualizar tu Score crediticio y transaccional.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <input
           ref={inputRef}
           type="file"
-          accept="application/pdf"
+          accept="application/pdf,image/png,image/jpeg,image/jpg,image/webp"
           multiple
           className="sr-only"
           aria-hidden="true"
@@ -174,7 +244,7 @@ export default function DocumentUploadCard() {
             <>
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm text-muted-foreground mb-2">
-                Arrastra uno o más PDF aquí o haz clic para seleccionar
+                Arrastra uno o más archivos aquí o haz clic para seleccionar
               </p>
               <Button
                 type="button"
@@ -182,16 +252,36 @@ export default function DocumentUploadCard() {
                 onClick={onSelectClick}
                 disabled={loading}
               >
-                Seleccionar PDF
+                Seleccionar archivo
               </Button>
+              <p className="text-xs text-muted-foreground mt-2">
+                PDF, PNG, JPG, WEBP · Máximo 10 MB
+              </p>
             </>
           )}
         </div>
 
+        {warnings && warnings.length > 0 && (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium mb-1">Advertencias:</p>
+              <ul className="list-disc list-inside space-y-0.5">
+                {warnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-            <span>{error}</span>
+            <div className="flex-1">
+              <p className="font-medium mb-1">Error:</p>
+              <p>{error}</p>
+            </div>
           </div>
         )}
 

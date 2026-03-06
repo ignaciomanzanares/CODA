@@ -43,7 +43,7 @@ const navItems = [
   { href: "/products", label: "Productos", icon: Package },
   { href: "/goals", label: "Metas", icon: Target },
   { href: "/plan", label: "Plan", icon: FileText },
-  { href: "/audit", label: "Auditoría", icon: Activity },
+  // { href: "/audit", label: "Auditoría", icon: Activity }, // Hidden for now - will implement in future
 ];
 
 const empresasNavItems = [
