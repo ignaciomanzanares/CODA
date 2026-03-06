@@ -84,4 +84,47 @@ Root `apps/web`, variables `VITE_API_URL` (URL del API en Render) y `VITE_ENV=pr
 
 ---
 
+## Upload de Documentos 📄
+
+Sistema robusto de procesamiento de documentos oficiales:
+
+### Formatos Soportados
+- ✅ **PDF** (nativos o escaneados)
+- ✅ **PNG / JPG / WEBP** (convertidos automáticamente)
+
+### Características
+- **Validación multi-capa:** tamaño (1KB-10MB), formato, integridad, seguridad
+- **OCR automático:** Tesseract.js para documentos escaneados (español)
+- **Retry logic:** hasta 3 intentos con exponential backoff
+- **Mensajes claros:** errores específicos por paso (validation → extraction → parsing → scoring)
+- **Warnings informativos:** separados de errores, no bloquean procesamiento
+
+### Documentos Aceptados
+1. **Informe de Deudas CMF** → Credit Score (300-850)
+2. **Cartola Bancaria** → Transactional Score (0-1000)
+
+### API
+```bash
+POST /api/documents/upload
+Content-Type: multipart/form-data
+Authorization: Bearer <token>
+
+Body: document=@archivo.pdf
+```
+
+**Response:**
+```json
+{
+  "step": "done",
+  "documentType": "cmf_informe_deudas",
+  "creditScore": 680,
+  "warnings": ["El documento puede estar escaneado (OCR aplicado)."],
+  "metadata": { ... }
+}
+```
+
+Ver documentación completa: [`DOCUMENT_UPLOAD_IMPROVEMENTS.md`](./DOCUMENT_UPLOAD_IMPROVEMENTS.md)
+
+---
+
 *WeGroup 🇨🇱*
