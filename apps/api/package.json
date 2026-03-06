@@ -21,6 +21,7 @@
   "dependencies": {
     "@coda/db": "*",
     "@types/cors": "^2.8.19",
+    "canvas": "^3.2.1",
     "cors": "^2.8.6",
     "dotenv": "^17.2.1",
     "drizzle-orm": "^0.39.1",
@@ -36,6 +37,7 @@
     "pino": "^10.1.0",
     "pino-http": "^11.0.0",
     "pino-pretty": "^13.1.2",
+    "tesseract.js": "^7.0.0",
     "ws": "^8.18.0",
     "zod": "^3.23.8",
     "zod-validation-error": "^3.4.0"
