@@ -329,31 +329,34 @@ function ExpenseCard({
             </div>
           </div>
           
-          <div className="flex-shrink-0 flex flex-col items-end gap-3 min-w-[7rem]">
-            <div className="text-right space-y-1">
-              <p className="text-xl font-bold leading-tight">{formatAmount(parseFloat(String(expense.totalAmount)) || 0, currency)}</p>
+          <div className="flex-shrink-0 flex flex-col items-end gap-2 min-w-fit">
+            <div className="text-right">
+              <p className="text-2xl font-bold">{formatAmount(parseFloat(String(expense.totalAmount)) || 0, currency)}</p>
+            </div>
+            
+            <div className="flex flex-col items-end gap-1.5">
               {userParticipant && !userParticipant.isPaid && !isCreator && expense.status !== 'settled' && (
-                <Badge variant="destructive" className="text-xs">
+                <Badge variant="destructive" className="text-xs whitespace-nowrap">
                   Debes {formatAmount(parseFloat(String(userParticipant.amountOwed)) || 0, currency)}
                 </Badge>
               )}
               {isCreator && expense.status !== 'settled' && paidCount < totalCount && (
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-xs border-amber-300 bg-amber-50 text-amber-700 whitespace-nowrap">
                   <Clock className="h-3 w-3 mr-1" />
                   Pendiente
                 </Badge>
               )}
             </div>
+            
             {isCreator && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 px-2 whitespace-nowrap"
                 onClick={(e) => { e.stopPropagation(); onDelete(); }}
                 title="Eliminar gasto"
               >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Eliminar gasto
+                <Trash2 className="h-4 w-4" />
               </Button>
             )}
           </div>

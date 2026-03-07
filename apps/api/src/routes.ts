@@ -2369,14 +2369,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Optionally add this bill split as an expense in the user's expenses list
+      // Only add the creator's share (totalAmount / number of participants)
       if (alsoAddToExpenses && billSplit.id) {
         try {
           const totalAmount = typeof billSplit.totalAmount === 'number' ? billSplit.totalAmount : parseFloat(String(billSplit.totalAmount));
           const expenseDate = billSplit.date ? new Date(billSplit.date).toISOString() : new Date().toISOString();
           const category = (billSplit as { category?: string }).category || 'general';
+          
+          // Calculate creator's share: total amount divided by number of participants
+          const allParticipants = await storage.getBillSplitParticipants(billSplit.id as number);
+          const participantCount = allParticipants.length || 1;
+          const creatorShare = totalAmount / participantCount;
+          
           await storage.createExpense({
             userId: billSplit.createdBy ?? userId,
-            amount: totalAmount,
+            amount: creatorShare,
             description: billSplit.name || 'Gasto compartido',
             name: billSplit.name || undefined,
             category: category,
@@ -2384,7 +2391,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isRecurring: 0,
             isAutoClassified: 0,
           });
-          logger.info({ userId, billSplitId: billSplit.id, name: billSplit.name }, 'Added bill split to expenses');
+          logger.info({ 
+            userId, 
+            billSplitId: billSplit.id, 
+            name: billSplit.name,
+            totalAmount,
+            creatorShare,
+            participantCount
+          }, 'Added bill split to expenses (creator share only)');
         } catch (expenseErr) {
           logger.error({ err: expenseErr, billSplitId: billSplit.id }, 'Failed to add bill split to expenses');
           // Do not fail the bill split creation; expense is optional

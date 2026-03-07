@@ -843,7 +843,7 @@ export default function Expenses() {
           )}
         </div>
 
-        {/* Edit Expense Dialog */}
+        {/* Edit Expense Dialog - Simplified (basic fields only) */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -871,7 +871,7 @@ export default function Expenses() {
                   <FormItem>
                     <FormLabel>Monto</FormLabel>
                     <FormControl>
-                      <Input placeholder="0.00" {...field} />
+                      <Input placeholder="0" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -884,21 +884,7 @@ export default function Expenses() {
                   <FormItem>
                     <FormLabel>Descripción</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="¿Qué compraste?" 
-                        {...field} 
-                        onChange={(e) => {
-                          field.onChange(e);
-                          if (editForm.watch('isAutoClassified')) {
-                            debouncedClassify(
-                              e.target.value,
-                              editForm.watch('merchantName'),
-                              editForm.watch('amount'),
-                              'edit'
-                            );
-                          }
-                        }}
-                      />
+                      <Input placeholder="¿Qué compraste?" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -919,38 +905,11 @@ export default function Expenses() {
                       <SelectContent>
                         {categories.map((category) => (
                           <SelectItem key={category} value={category}>
-                            {category}
+                            {categoryLabels[category] || category}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="merchantName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Comercio (opcional)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="Nombre del local o negocio" 
-                        {...field} 
-                        onChange={(e) => {
-                          field.onChange(e);
-                          if (editForm.watch('isAutoClassified')) {
-                            debouncedClassify(
-                              editForm.watch('description'),
-                              e.target.value,
-                              editForm.watch('amount'),
-                              'edit'
-                            );
-                          }
-                        }}
-                      />
-                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -965,52 +924,6 @@ export default function Expenses() {
                       <Input type="date" {...field} />
                     </FormControl>
                     <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="tags"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tags (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="vacaciones, trabajo, regalo (separados por coma)" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="isAutoClassified"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base flex items-center gap-2">
-                        Auto-classify
-                        {isClassifying && <Sparkles className="h-4 w-4 animate-pulse text-primary" />}
-                      </FormLabel>
-                      <div className="text-sm text-gray-500">
-                        {isClassifying ? "AI is analyzing..." : "Let AI categorize this expense"}
-                      </div>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={(checked) => {
-                          field.onChange(checked);
-                          if (checked && editForm.watch('description')) {
-                            debouncedClassify(
-                              editForm.watch('description'),
-                              editForm.watch('merchantName'),
-                              editForm.watch('amount'),
-                              'edit'
-                            );
-                          }
-                        }}
-                      />
-                    </FormControl>
                   </FormItem>
                 )}
               />
