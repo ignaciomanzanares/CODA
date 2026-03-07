@@ -37,8 +37,8 @@ import type { CurrencyCode } from "@/lib/utils";
 const navItems = [
   { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
   { href: "/movimientos", label: "Movimientos", icon: Receipt },
-  { href: "/expenses", label: "Gastos", icon: Receipt },
   { href: "/conexiones", label: "Conexiones", icon: Link2 },
+  { href: "/expenses", label: "Gastos", icon: Receipt },
   { href: "/bill-split", label: "Dividir cuenta", icon: Users },
   { href: "/products", label: "Productos", icon: Package },
   { href: "/goals", label: "Metas", icon: Target },
