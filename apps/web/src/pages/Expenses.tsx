@@ -465,7 +465,13 @@ export default function Expenses() {
 
   const onEditSubmit = (values: ExpenseFormValues) => {
     if (selectedExpense) {
-      updateExpenseMutation.mutate({ id: Number(selectedExpense.id), expense: values });
+      // Keep description and date from original expense since they're not in the simplified form
+      const updatedExpense = {
+        ...values,
+        description: selectedExpense.description, // Keep original description
+        date: new Date(selectedExpense.date).toISOString().split('T')[0], // Keep original date
+      };
+      updateExpenseMutation.mutate({ id: Number(selectedExpense.id), expense: updatedExpense });
     }
   };
 
@@ -843,7 +849,7 @@ export default function Expenses() {
           )}
         </div>
 
-        {/* Edit Expense Dialog - Simplified (basic fields only) */}
+        {/* Edit Expense Dialog - Simplified (name, amount, category with icons) */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -879,50 +885,34 @@ export default function Expenses() {
               />
               <FormField
                 control={editForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Descripción</FormLabel>
-                    <FormControl>
-                      <Input placeholder="¿Qué compraste?" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
                 name="category"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Categoría</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Elegir categoría" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {categoryLabels[category] || category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Fecha</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
+                    <div className="grid grid-cols-4 gap-2">
+                      {categories.map((cat) => {
+                        const Icon = getCategoryIcon(cat);
+                        const isSelected = field.value === cat;
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => field.onChange(cat)}
+                            className={cn(
+                              "flex flex-col items-center justify-center gap-1 p-3 rounded-xl border-2 transition-all",
+                              isSelected
+                                ? `${getCategoryColor(cat)} border-primary text-white`
+                                : "border-muted hover:border-muted-foreground/50 bg-muted/30"
+                            )}
+                          >
+                            <Icon className="h-5 w-5" />
+                            <span className="text-[10px] font-medium truncate w-full text-center">
+                              {categoryLabels[cat] || cat}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
