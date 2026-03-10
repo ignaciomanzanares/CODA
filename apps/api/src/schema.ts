@@ -58,6 +58,36 @@ export const productRecommendations = pgTable("product_recommendations", {
   reason: text("reason"),
   status: text("status").default("pending"), // pending, applied, rejected
 });
+
+// Lead tracking: records all user interactions with products (views, clicks, applications)
+export const leadTracking = pgTable("lead_tracking", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  productId: integer("product_id").notNull().references(() => financialProducts.id),
+  eventType: text("event_type").notNull(), // 'view' | 'click' | 'application' | 'approval' | 'rejection'
+  matchScore: real("match_score"), // 0-100: how well the product matches user profile
+  userCreditScore: integer("user_credit_score"), // Credit score at time of event
+  userTransactionalScore: integer("user_transactional_score"), // Transactional score at time of event
+  metadata: text("metadata"), // JSON: additional context (source page, filters applied, etc.)
+  timestamp: text("timestamp").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+// Product applications: formal applications submitted by users
+export const productApplications = pgTable("product_applications", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id),
+  productId: integer("product_id").notNull().references(() => financialProducts.id),
+  status: text("status").notNull().default("pending"), // 'pending' | 'approved' | 'rejected' | 'expired' | 'withdrawn'
+  applicationData: text("application_data"), // JSON: form data submitted
+  externalApplicationId: text("external_application_id"), // ID from financial institution
+  appliedAt: text("applied_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  respondedAt: text("responded_at"),
+  revenueEarned: integer("revenue_earned"), // CLP earned from this application (lead fee + success fee)
+  revenueType: text("revenue_type"), // 'lead_fee' | 'success_fee' | 'activation_bonus'
+  notes: text("notes"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
 import { pgTable, text, integer, real, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -189,6 +219,28 @@ export const financialProducts = pgTable("financial_products", {
   description: text("description"),
   requirements: text("requirements"), // JSON string
   features: text("features"), // JSON string
+  // Eligibility criteria for matching algorithm
+  minCreditScore: integer("min_credit_score"),
+  maxCreditScore: integer("max_credit_score"),
+  minIncome: integer("min_income"),
+  maxDebtToIncome: real("max_debt_to_income"), // Max DTI ratio (e.g., 0.4 = 40%)
+  // Monetization (pricing model from TAM/Pricing sheet)
+  leadFee: integer("lead_fee"), // CLP per qualified lead
+  successFeeBps: integer("success_fee_bps"), // Basis points on disbursed amount
+  successFeeFlat: integer("success_fee_flat"), // Flat CPA (for cards, accounts)
+  activationBonus: integer("activation_bonus"), // Bonus for activation (cards)
+  // Performance metrics
+  approvalRate: real("approval_rate"), // Historical approval rate (0.0-1.0)
+  avgProcessingDays: integer("avg_processing_days"),
+  // Matching algorithm weights (JSON: {creditScore: 0.4, income: 0.3, ...})
+  matchingWeights: text("matching_weights"),
+  // Product management
+  isActive: integer("is_active").default(1),
+  priority: integer("priority").default(50), // Higher = shown first (0-100)
+  externalUrl: text("external_url"), // Link to institution's application page
+  logoUrl: text("logo_url"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 // Expenses table
@@ -272,6 +324,8 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs);
 export const insertExpenseCategorySchema = createInsertSchema(expenseCategories);
 export const insertRiskFactorSchema = createInsertSchema(riskFactors);
 export const insertProductRecommendationSchema = createInsertSchema(productRecommendations);
+export const insertLeadTrackingSchema = createInsertSchema(leadTracking);
+export const insertProductApplicationSchema = createInsertSchema(productApplications);
 
 // Define relations
 export const usersRelations = relations(users, ({ many }) => ({
@@ -405,6 +459,12 @@ export type RiskFactor = typeof riskFactors.$inferSelect;
 
 export type InsertProductRecommendation = z.infer<typeof insertProductRecommendationSchema>;
 export type ProductRecommendation = typeof productRecommendations.$inferSelect;
+
+export type InsertLeadTracking = z.infer<typeof insertLeadTrackingSchema>;
+export type LeadTracking = typeof leadTracking.$inferSelect;
+
+export type InsertProductApplication = z.infer<typeof insertProductApplicationSchema>;
+export type ProductApplication = typeof productApplications.$inferSelect;
 
 // Temporary minimal domain types to satisfy references in this module.
 // Replace with concrete shapes once the domain models are implemented.

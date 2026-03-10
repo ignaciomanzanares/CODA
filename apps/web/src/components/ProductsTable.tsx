@@ -18,15 +18,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { 
   CreditCard, 
   PiggyBank, 
   ShieldCheck, 
-  Landmark
+  Landmark,
+  Sparkles,
+  ExternalLink
 } from "lucide-react";
 import type { FinancialProduct, LoanProduct } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
+import { useApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 
 interface ProductsTableProps {
   products: FinancialProduct[];
@@ -43,6 +48,8 @@ export default function ProductsTable({
 }: ProductsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 4;
+  const { trackProductEvent } = useApi();
+  const { isAuthenticated } = useAuth();
   
   // Calculate pagination
   const indexOfLastProduct = currentPage * productsPerPage;
@@ -56,6 +63,20 @@ export default function ProductsTable({
 
   const { currency } = useCurrency();
   const formatCurrencyFn = (amount: number) => formatCurrency(amount, currency);
+
+  // Handle click on "Solicitar" button
+  const handleApplyClick = (product: any) => {
+    // Track click event
+    if (isAuthenticated && product.id && product.matchScore) {
+      trackProductEvent(product.id, 'click', product.matchScore, { category })
+        .catch(err => console.warn('Failed to track click:', err));
+    }
+
+    // Open external URL
+    if (product.externalUrl) {
+      window.open(product.externalUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   // Function to get icon based on provider
   const getProviderIcon = (category: string) => {
@@ -132,12 +153,18 @@ export default function ProductsTable({
     switch (columnKey) {
       case "provider":
         return (
-          <div className="flex items-center">
+          <div className="flex items-center gap-3">
             <div className="flex-shrink-0 h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center">
               {getProviderIcon(category)}
             </div>
-            <div className="ml-4">
+            <div>
               <div className="text-sm font-medium text-gray-900">{product.provider}</div>
+              {isAuthenticated && (product as any).matchScore && (
+                <Badge variant="secondary" className="mt-1 text-xs gap-1">
+                  <Sparkles className="h-3 w-3" />
+                  {Math.round((product as any).matchScore)}% match
+                </Badge>
+              )}
             </div>
           </div>
         );
