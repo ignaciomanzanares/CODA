@@ -285,7 +285,7 @@ export async function getProductFunnelMetrics(productId: number): Promise<{
       rejection: 0
     };
 
-    eventCounts.forEach(row => {
+    eventCounts.forEach((row: { eventType: string; count: number }) => {
       counts[row.eventType] = row.count;
     });
 
@@ -384,7 +384,7 @@ export async function getTotalRevenueMetrics(): Promise<{
       .groupBy(productApplications.revenueType);
 
     const revenueByType: Record<string, number> = {};
-    revenueByTypeResult.forEach(row => {
+    revenueByTypeResult.forEach((row: { revenueType: string | null; total: number }) => {
       if (row.revenueType) {
         revenueByType[row.revenueType] = row.total;
       }
@@ -400,7 +400,7 @@ export async function getTotalRevenueMetrics(): Promise<{
       .groupBy(productApplications.productId);
 
     const revenueByProduct: Record<number, number> = {};
-    revenueByProductResult.forEach(row => {
+    revenueByProductResult.forEach((row: { productId: number; total: number }) => {
       revenueByProduct[row.productId] = row.total;
     });
 
@@ -471,7 +471,7 @@ export async function getOverallFunnelMetrics(): Promise<{
     let totalMatchScoreSum = 0;
     let matchScoreCount = 0;
 
-    eventCounts.forEach(row => {
+    eventCounts.forEach((row: { eventType: string; count: number; avgMatchScore: number | null }) => {
       counts[row.eventType] = row.count;
       if (row.avgMatchScore) {
         totalMatchScoreSum += row.avgMatchScore * row.count;
@@ -495,7 +495,7 @@ export async function getOverallFunnelMetrics(): Promise<{
       .limit(10);
 
     const topPerformingProducts = await Promise.all(
-      topProducts.map(async (p) => {
+      topProducts.map(async (p: { productId: number; views: number; approvals: number }) => {
         const conversionRate = p.views > 0 ? (p.approvals / p.views) * 100 : 0;
         
         // Get revenue for this product
