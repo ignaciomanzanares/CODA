@@ -24,6 +24,11 @@ export type ApiClient = {
   getCreditScore: () => Promise<{ score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string }>;
   getInsuranceRisk: () => Promise<{ riskLevel: string; healthRisk: string; propertyRisk: string; autoRisk: string }>;
   getFinancialProducts: (category?: string) => Promise<import("@/types").FinancialProduct[]>;
+  getProductRecommendations: (category?: string, limit?: number) => Promise<any[]>;
+  trackProductEvent: (productId: number, eventType: 'view' | 'click' | 'application', matchScore?: number, metadata?: Record<string, unknown>) => Promise<{ success: boolean }>;
+  applyToProduct: (productId: number, applicationData: { requestedAmount?: number; term?: number; purpose?: string; additionalInfo?: Record<string, unknown> }) => Promise<{ success: boolean; applicationId: number; message: string; estimatedProcessingDays: number }>;
+  getUserApplications: () => Promise<any[]>;
+  getProductMetrics: () => Promise<any>;
   getExpenses: () => Promise<import("@/types").Expense[]>;
   createExpense: (expenseData: import("@/types").CreateExpenseData) => Promise<import("@/types").Expense>;
   updateExpense: (expenseId: string, expenseData: import("@/types").UpdateExpenseData) => Promise<import("@/types").Expense>;
@@ -209,6 +214,56 @@ export function useApi(): ApiClient {
     return (await res.json()) as import("@/types").FinancialProduct[];
   };
 
+  // Get personalized product recommendations
+  const getProductRecommendations = async (category?: string, limit?: number): Promise<any[]> => {
+    const params = new URLSearchParams();
+    if (category) params.append('category', category);
+    if (limit) params.append('limit', limit.toString());
+    const url = `/api/products/recommendations${params.toString() ? `?${params.toString()}` : ''}`;
+    return await apiRequest<any[]>("GET", url);
+  };
+
+  // Track product interaction (view, click, application)
+  const trackProductEvent = async (
+    productId: number,
+    eventType: 'view' | 'click' | 'application',
+    matchScore?: number,
+    metadata?: Record<string, unknown>
+  ): Promise<{ success: boolean }> => {
+    return await apiRequest<{ success: boolean }>("POST", "/api/products/track", {
+      productId,
+      eventType,
+      matchScore,
+      metadata
+    });
+  };
+
+  // Apply to a financial product
+  const applyToProduct = async (
+    productId: number,
+    applicationData: {
+      requestedAmount?: number;
+      term?: number;
+      purpose?: string;
+      additionalInfo?: Record<string, unknown>;
+    }
+  ): Promise<{ success: boolean; applicationId: number; message: string; estimatedProcessingDays: number }> => {
+    return await apiRequest("POST", "/api/products/apply", {
+      productId,
+      ...applicationData
+    });
+  };
+
+  // Get user's product applications
+  const getUserApplications = async (): Promise<any[]> => {
+    return await apiRequest<any[]>("GET", "/api/products/applications");
+  };
+
+  // Get product performance metrics (admin)
+  const getProductMetrics = async (): Promise<any> => {
+    return await apiRequest<any>("GET", "/api/products/metrics");
+  };
+
   // Expenses API functions
   const getExpenses = async (): Promise<import("@/types").Expense[]> => {
     return await apiRequest<import("@/types").Expense[]>("GET", "/api/expenses");
@@ -384,6 +439,12 @@ export function useApi(): ApiClient {
     getCreditScore,
     getInsuranceRisk,
     getFinancialProducts,
+    // Product recommendations & tracking
+    getProductRecommendations,
+    trackProductEvent,
+    applyToProduct,
+    getUserApplications,
+    getProductMetrics,
     // Expenses
     getExpenses,
     createExpense,

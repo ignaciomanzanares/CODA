@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "seed:empresas": "tsx src/seed-empresas.ts",
+    "seed:products": "tsx src/scripts/seedProducts.ts",
     "prebuild": "npm --prefix ../../packages run build",
     "build": "tsc",
     "check": "tsc --noEmit",

@@ -32,7 +32,7 @@ type ProductFilters = {
 
 export default function Products() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { getFinancialProducts } = useApi(); // <-- Add this line
+  const { getFinancialProducts, getProductRecommendations, trackProductEvent } = useApi();
   const searchString = useSearch();
   const urlParams = new URLSearchParams(searchString);
   const categoryFromUrl = urlParams.get("category");
@@ -55,21 +55,34 @@ export default function Products() {
     }
   }, [categoryFromUrl]);
 
-  // Use demo data when not authenticated, real data when authenticated
+  // Use demo data when not authenticated, real recommendations when authenticated
   const demoProducts = getDemoFinancialProductsByCategory(activeCategory);
   
-  // Only fetch products if authenticated and not loading
+  // Fetch personalized recommendations when authenticated
   const {
-    data: realProducts,
+    data: recommendedProducts,
     isLoading: productsLoading,
     error,
   } = useQuery({
-    queryKey: ["/api/financial-products", activeCategory],
-    queryFn: () => getFinancialProducts(activeCategory), // <-- Now this works
+    queryKey: ["/api/products/recommendations", activeCategory],
+    queryFn: () => getProductRecommendations(activeCategory, 20),
     enabled: isAuthenticated && !authLoading,
   });
+
+  // Track product views when recommendations load
+  useEffect(() => {
+    if (isAuthenticated && recommendedProducts && recommendedProducts.length > 0) {
+      // Track views in background (don't await)
+      recommendedProducts.forEach((product: any) => {
+        if (product.id && product.matchScore) {
+          trackProductEvent(product.id, 'view', product.matchScore, { category: activeCategory })
+            .catch(err => console.warn('Failed to track view:', err));
+        }
+      });
+    }
+  }, [isAuthenticated, recommendedProducts, activeCategory]);
   
-  const products = isAuthenticated ? realProducts : demoProducts;
+  const products = isAuthenticated ? recommendedProducts : demoProducts;
 
   const handleTabChange = (tabId: string) => {
     setActiveCategory(tabId);

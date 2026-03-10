@@ -17,6 +17,8 @@ export const {
   insuranceRisks,
   financialGoals,
   financialProducts,
+  leadTracking,
+  productApplications,
   expenses,
   billSplits,
   billSplitParticipants,

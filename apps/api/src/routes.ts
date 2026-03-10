@@ -2944,6 +2944,181 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(product);
   });
 
+  // Product recommendation endpoints (authenticated)
+  app.get("/api/products/recommendations", authenticate, async (req: Request, res: Response) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const category = req.query.category as string | undefined;
+      const limit = parseInt(req.query.limit as string) || 5;
+
+      const { matchProductsToUser, getTopRecommendations, explainRecommendation } = await import('./services/products/matchingEngine.js');
+      const { productCatalog, getProductsByCategory } = await import('./services/products/productCatalog.js');
+
+      // Build user profile from available data
+      const creditScore = await storage.getCreditScore(userId);
+      const transactionalScoreData = await storage.getTransactionalScore(userId);
+      const userProfile = {
+        userId,
+        creditScore: creditScore?.score,
+        transactionalScore: transactionalScoreData?.transactionalScore ?? undefined,
+        // TODO: Get income/debt from user profile table (future enhancement)
+        monthlyIncome: undefined,
+        monthlyDebt: undefined
+      };
+
+      // Get recommendations
+      const productsToMatch = category ? getProductsByCategory(category) : productCatalog;
+      const recommendations = getTopRecommendations(productsToMatch, userProfile, limit, category);
+
+      // Format response with explanations
+      const response = recommendations.map(match => {
+        const explanation = explainRecommendation(match);
+        return {
+          ...match.product,
+          matchScore: Math.round(match.matchScore),
+          rankingScore: Math.round(match.rankingScore),
+          explanation: explanation.title,
+          reasons: explanation.reasons,
+          warnings: explanation.warnings
+        };
+      });
+
+      logger.info({ userId, category, count: response.length }, 'Product recommendations generated');
+      res.json(response);
+    } catch (error) {
+      logger.error({ error }, 'Failed to generate product recommendations');
+      res.status(500).json({ message: 'Failed to generate recommendations' });
+    }
+  });
+
+  // Track product interaction
+  app.post("/api/products/track", authenticate, async (req: Request, res: Response) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { productId, eventType, matchScore, metadata } = req.body;
+
+      if (!productId || !eventType) {
+        return res.status(400).json({ message: 'productId and eventType are required' });
+      }
+
+      const validEvents = ['view', 'click', 'application', 'approval', 'rejection'];
+      if (!validEvents.includes(eventType)) {
+        return res.status(400).json({ message: `Invalid eventType. Must be one of: ${validEvents.join(', ')}` });
+      }
+
+      const { trackLeadEvent } = await import('./services/products/leadTrackingService.js');
+
+      // Get user scores for tracking
+      const creditScore = await storage.getCreditScore(userId);
+      const transactionalScoreData = await storage.getTransactionalScore(userId);
+
+      await trackLeadEvent({
+        userId,
+        productId: Number(productId),
+        eventType,
+        matchScore: matchScore ? Number(matchScore) : undefined,
+        userCreditScore: creditScore?.score,
+        userTransactionalScore: transactionalScoreData?.transactionalScore ?? undefined,
+        metadata
+      });
+
+      res.json({ success: true, message: 'Event tracked' });
+    } catch (error) {
+      logger.error({ error }, 'Failed to track product event');
+      res.status(500).json({ message: 'Failed to track event' });
+    }
+  });
+
+  // Apply to a product
+  app.post("/api/products/apply", authenticate, async (req: Request, res: Response) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { productId, requestedAmount, term, purpose, additionalInfo } = req.body;
+
+      if (!productId) {
+        return res.status(400).json({ message: 'productId is required' });
+      }
+
+      const { createProductApplication } = await import('./services/products/leadTrackingService.js');
+      const { productCatalog } = await import('./services/products/productCatalog.js');
+
+      // Find product in catalog
+      const product = productCatalog.find(p => p.provider + p.productName === productId || productCatalog.indexOf(p) === Number(productId));
+      if (!product) {
+        return res.status(404).json({ message: 'Product not found' });
+      }
+
+      // Create application
+      const applicationId = await createProductApplication(
+        userId,
+        Number(productId),
+        { requestedAmount, term, purpose, additionalInfo },
+        product
+      );
+
+      logger.info({ userId, productId, applicationId }, 'Product application submitted');
+      res.json({
+        success: true,
+        applicationId,
+        message: 'Aplicación enviada exitosamente',
+        estimatedProcessingDays: product.avgProcessingDays ?? 5
+      });
+    } catch (error) {
+      logger.error({ error }, 'Failed to submit product application');
+      res.status(500).json({ message: 'Failed to submit application' });
+    }
+  });
+
+  // Get user's applications
+  app.get("/api/products/applications", authenticate, async (req: Request, res: Response) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { getUserApplications } = await import('./services/products/leadTrackingService.js');
+
+      const applications = await getUserApplications(userId);
+
+      res.json(applications);
+    } catch (error) {
+      logger.error({ error }, 'Failed to get user applications');
+      res.status(500).json({ message: 'Failed to retrieve applications' });
+    }
+  });
+
+  // Get product metrics (admin only - for now, authenticated users)
+  app.get("/api/products/metrics", authenticate, async (req: Request, res: Response) => {
+    try {
+      const { getTotalRevenueMetrics, getOverallFunnelMetrics } = await import('./services/products/leadTrackingService.js');
+
+      const [revenueMetrics, funnelMetrics] = await Promise.all([
+        getTotalRevenueMetrics(),
+        getOverallFunnelMetrics()
+      ]);
+
+      res.json({
+        revenue: revenueMetrics,
+        funnel: funnelMetrics
+      });
+    } catch (error) {
+      logger.error({ error }, 'Failed to get product metrics');
+      res.status(500).json({ message: 'Failed to retrieve metrics' });
+    }
+  });
+
+  // Get funnel metrics for a specific product
+  app.get("/api/products/:id/metrics", authenticate, async (req: Request, res: Response) => {
+    try {
+      const productId = Number(req.params.id);
+      const { getProductFunnelMetrics } = await import('./services/products/leadTrackingService.js');
+
+      const metrics = await getProductFunnelMetrics(productId);
+
+      res.json(metrics);
+    } catch (error) {
+      logger.error({ error }, 'Failed to get product funnel metrics');
+      res.status(500).json({ message: 'Failed to retrieve product metrics' });
+    }
+  });
+
   // Utility endpoints (public)
   app.post("/api/utils/credit-score", async (req: Request, res: Response) => {
     const { bankData } = req.body;
