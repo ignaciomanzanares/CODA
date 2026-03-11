@@ -15,6 +15,8 @@ import Landing from "@/pages/Landing";
 import About from "@/pages/About";
 import CreditScoreInfo from "@/pages/CreditScoreInfo";
 import InsuranceRiskInfo from "@/pages/InsuranceRiskInfo";
+import FinancialGoalsInfo from "@/pages/FinancialGoalsInfo";
+import ProductComparisonInfo from "@/pages/ProductComparisonInfo";
 import Empresas from "@/pages/Empresas";
 import EmpresasLayout from "@/pages/empresas/EmpresasLayout";
 import EmpresasDashboard from "@/pages/empresas/EmpresasDashboard";
@@ -69,6 +71,8 @@ function App() {
         <Route path="/empresas" component={Empresas} />
         <Route path="/info/credit-score" component={CreditScoreInfo} />
         <Route path="/info/insurance-risk" component={InsuranceRiskInfo} />
+        <Route path="/info/financial-goals" component={FinancialGoalsInfo} />
+        <Route path="/info/product-comparison" component={ProductComparisonInfo} />
         
         {/* Special route for email invitations - no header/footer */}
         <Route path="/invite">
