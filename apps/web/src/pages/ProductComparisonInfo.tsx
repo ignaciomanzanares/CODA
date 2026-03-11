@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, ShoppingCart, Sparkles, TrendingUp, Shield, DollarSign, ArrowRight } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Sparkles, TrendingUp, Shield, DollarSign, ArrowRight, PiggyBank } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 export default function ProductComparisonInfo() {
