@@ -207,16 +207,25 @@ export function parseCartolaPdf(text: string): CartolaExtraida | null {
     saldoFinal = parseFloat(saldoHeaderMatch[4].replace(/\./g, '').replace(',', '.'));
   }
   
-  // Inferir año del período. Nunca usar años futuros (evitar 2029 por mal parsing).
+  // Extraer año del período DESDE/HASTA. Priorizar HASTA (fin del período).
   const nowYear = new Date().getFullYear();
   let year = nowYear;
-  const desdeMatch = text.match(/DESDE\s+(\d{2})\/(\d{2})\/(\d{4})/i) || text.match(/DESDE\s+(\d{2})\/(\d{2})\/(\d{2})/i);
-  const hastaMatch = text.match(/HASTA\s+(\d{2})\/(\d{2})\/(\d{4})/i) || text.match(/HASTA\s+(\d{2})\/(\d{2})\/(\d{2})/i);
-  const match = desdeMatch || hastaMatch;
-  if (match) {
+
+  const hastaFull = text.match(/HASTA\s*(\d{2})\/(\d{2})\/(\d{4})/i);
+  const desdeFull = text.match(/DESDE\s*(\d{2})\/(\d{2})\/(\d{4})/i);
+  const hastaShort = text.match(/HASTA\s*(\d{2})\/(\d{2})\/(\d{2})\b/i);
+  const desdeShort = text.match(/DESDE\s*(\d{2})\/(\d{2})\/(\d{2})\b/i);
+
+  for (const match of [hastaFull, desdeFull, hastaShort, desdeShort]) {
+    if (!match) continue;
     let y = match[3].length === 4 ? parseInt(match[3], 10) : 2000 + parseInt(match[3], 10);
-    if (y > nowYear || y < 2015) y = nowYear;
-    year = y;
+    if (y >= 2015 && y <= nowYear) { year = y; break; }
+  }
+
+  // Fallback: buscar año 2015-2029 en el header si no hubo match válido
+  if (year === nowYear) {
+    const headerYear = text.slice(0, 800).match(/\b(201[5-9]|202[0-9])\b/);
+    if (headerYear) year = parseInt(headerYear[1], 10);
   }
   
   // Parse line by line. Each visual line from the PDF is now separated by \n
