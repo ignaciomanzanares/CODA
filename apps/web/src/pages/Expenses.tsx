@@ -715,16 +715,27 @@ export default function Expenses() {
     );
   }
 
-  // Stats: siempre mes actual o mes anterior (nunca un mes viejo como enero si estamos en marzo)
+  // Stats: mes actual o mes anterior. Comparación por string para evitar bugs de timezone.
   const now = new Date();
   const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
+  const getYearMonth = (dateStr: string | Date): { y: number; m: number } | null => {
+    const s = String(dateStr);
+    const m1 = s.match(/^(\d{4})-(\d{2})/);
+    if (m1) return { y: parseInt(m1[1], 10), m: parseInt(m1[2], 10) - 1 };
+    const m2 = s.match(/\/(\d{2})\/(\d{4})$/);
+    if (m2) return { y: parseInt(m2[2], 10), m: parseInt(m2[1], 10) - 1 };
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) return { y: d.getFullYear(), m: d.getMonth() };
+    return null;
+  };
+
   const expensesByMonth = (y: number, m: number) =>
-    expenses.filter(e => { const d = new Date(e.date); return d.getMonth() === m && d.getFullYear() === y; });
+    expenses.filter(e => { const ym = getYearMonth(e.date); return ym ? ym.y === y && ym.m === m : false; });
 
   let activeMonthExpenses = expensesByMonth(now.getFullYear(), now.getMonth());
   let activeMonthLabel = 'Este mes';
-  let activeDaysInMonth = now.getDate();
+  let activeDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
   if (activeMonthExpenses.length === 0 && expenses.length > 0) {
     const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
