@@ -23,6 +23,7 @@ export const {
   billSplits,
   billSplitParticipants,
   notifications,
+  pushSubscriptions,
   consentGrants,
   insertAccountSchema,
   insertBankConnectionSchema,

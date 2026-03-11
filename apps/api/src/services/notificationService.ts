@@ -1,5 +1,6 @@
 import { storage } from "../storage.js";
 import type { InsertNotification, Notification } from "../schema.js";
+import { sendPushToUser, type PushPayload } from "./pushService.js";
 
 export interface NotificationService {
   createNotification(notification: InsertNotification): Promise<Notification>;
@@ -102,7 +103,18 @@ export const NotificationTemplates = {
 
 class NotificationServiceImpl implements NotificationService {
   async createNotification(notification: InsertNotification): Promise<Notification> {
-    return await storage.createNotification(notification);
+    const created = await storage.createNotification(notification);
+
+    // Fire-and-forget push notification to all user devices
+    const pushPayload: PushPayload = {
+      title: notification.title,
+      body: notification.message,
+      tag: notification.category,
+      url: notification.actionUrl || "/",
+    };
+    sendPushToUser(notification.userId, pushPayload).catch(() => {});
+
+    return created;
   }
 
   async getNotifications(userId: string, options: GetNotificationsOptions = {}): Promise<Notification[]> {

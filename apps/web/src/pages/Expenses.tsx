@@ -716,14 +716,23 @@ export default function Expenses() {
   }
 
   // Calculate some stats
-  const thisMonth = new Date();
+  const now = new Date();
   const thisMonthExpenses = expenses.filter(e => {
     const expDate = new Date(e.date);
-    return expDate.getMonth() === thisMonth.getMonth() && 
-           expDate.getFullYear() === thisMonth.getFullYear();
+    return expDate.getMonth() === now.getMonth() && 
+           expDate.getFullYear() === now.getFullYear();
   });
   const thisMonthTotal = thisMonthExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-  const avgPerDay = thisMonthTotal / new Date().getDate();
+  const avgPerDay = thisMonthTotal / Math.max(now.getDate(), 1);
+
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonthExpenses = expenses.filter(e => {
+    const d = new Date(e.date);
+    return d.getMonth() === lastMonth.getMonth() && d.getFullYear() === lastMonth.getFullYear();
+  });
+  const lastMonthTotal = lastMonthExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const trendPct = lastMonthTotal > 0 ? Math.round(((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100) : 0;
+  const trendType: 'up' | 'down' | 'neutral' = trendPct > 0 ? 'up' : trendPct < 0 ? 'down' : 'neutral';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -818,7 +827,7 @@ export default function Expenses() {
           <StatCard
             title="Total este mes"
             value={formatCurrencyFn(thisMonthTotal)}
-            trend={{ value: '12% vs mes anterior', type: 'up' }}
+            trend={{ value: `${Math.abs(trendPct)}% vs mes anterior`, type: trendType }}
             icon={DollarSign}
             color="bg-green-500"
           />

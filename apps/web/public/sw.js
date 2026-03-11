@@ -1,5 +1,5 @@
-/* CODA - Service Worker básico para carga rápida (cache-first en estáticos) */
-const CACHE_NAME = 'coda-v1';
+/* CODA - Service Worker with Push Notifications + Cache */
+const CACHE_NAME = 'coda-v2';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -42,4 +42,64 @@ self.addEventListener('fetch', (event) => {
       });
     })
   );
+});
+
+/* ─── Push Notifications ─── */
+
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch {
+    payload = {
+      title: 'CODA',
+      body: event.data.text(),
+    };
+  }
+
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || '/favicon.svg',
+    badge: payload.badge || '/favicon.svg',
+    tag: payload.tag || 'coda-notification',
+    renotify: true,
+    data: payload.data || {},
+    actions: [
+      { action: 'open', title: 'Ver' },
+      { action: 'dismiss', title: 'Cerrar' },
+    ],
+    vibrate: [100, 50, 100],
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title || 'CODA', options)
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  if (event.action === 'dismiss') return;
+
+  const urlToOpen = event.notification.data?.url || '/';
+  const fullUrl = new URL(urlToOpen, self.location.origin).href;
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url === fullUrl && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(fullUrl);
+      }
+    })
+  );
+});
+
+self.addEventListener('notificationclose', (_event) => {
+  // Analytics hook if needed
 });
