@@ -207,7 +207,7 @@ export function parseCartolaPdf(text: string): CartolaExtraida | null {
     saldoFinal = parseFloat(saldoHeaderMatch[4].replace(/\./g, '').replace(',', '.'));
   }
   
-  // Inferir año del período en la cartola. Solo usar fechas del rango DESDE/HASTA.
+  // Inferir año del período. Nunca usar años futuros (evitar 2029 por mal parsing).
   const nowYear = new Date().getFullYear();
   let year = nowYear;
   const desdeMatch = text.match(/DESDE\s+(\d{2})\/(\d{2})\/(\d{4})/i) || text.match(/DESDE\s+(\d{2})\/(\d{2})\/(\d{2})/i);
@@ -216,6 +216,7 @@ export function parseCartolaPdf(text: string): CartolaExtraida | null {
   if (match) {
     const y = match[3].length === 4 ? parseInt(match[3], 10) : 2000 + parseInt(match[3], 10);
     if (y >= 2015 && y <= nowYear + 1) year = y;
+    else if (y > nowYear + 1) year = nowYear;
   }
   
   // Parse line by line. Each visual line from the PDF is now separated by \n
@@ -237,10 +238,12 @@ export function parseCartolaPdf(text: string): CartolaExtraida | null {
     if (HEADER_RE.test(line) || SALDO_DIA_RE.test(line)) continue;
 
     // Check if line starts with DD/MM — new date context
-    const datePrefix = line.match(/^(\d{2})\/(\d{2})\s+(.*)/);
+    const datePrefix = line.match(/^(\d{1,2})\/(\d{1,2})\s+(.*)/);
     if (datePrefix) {
-      const [, d, m, rest] = datePrefix;
-      currentDate = `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      let [, d, m, rest] = datePrefix;
+      const day = Math.min(31, Math.max(1, parseInt(d, 10) || 1));
+      const month = Math.min(12, Math.max(1, parseInt(m, 10) || 1));
+      currentDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       parseTransactionsFromSegment(rest, currentDate, transacciones);
       continue;
     }
