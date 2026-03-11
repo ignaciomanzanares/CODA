@@ -63,6 +63,9 @@ export type ApiClient = {
     metrics?: { averageMonthlyBalanceClp?: number; monthsWithAbonos?: number; monthsWithGap?: number; overdraftUsageRatio?: number; hasOptimizationOpportunity?: boolean };
     recommendedProducts?: string[];
   }>;
+  parseNotifications: (notifications: string[]) => Promise<any>;
+  parseCartolaPdf: (file: File) => Promise<any>;
+  importCartolaMovements: (movements: any[]) => Promise<{ imported: number; skipped: number }>;
 };
 
 export function useApi(): ApiClient {
@@ -428,6 +431,62 @@ export function useApi(): ApiClient {
     }>("GET", "/api/transactional-score");
   };
 
+  const parseNotifications = async (notifications: string[]): Promise<{
+    results: Array<{
+      original: string;
+      parsed: {
+        amount: number;
+        merchant: string;
+        date: string;
+        cardType: string;
+        bank: string;
+        category: string;
+        sfaCode: string;
+        confidence: number;
+      } | null;
+      error?: string;
+    }>;
+  }> => {
+    return await apiRequest("POST", "/api/expenses/parse-notification", { notifications });
+  };
+
+  const parseCartolaPdf = async (file: File): Promise<{
+    movements: Array<{
+      date: string;
+      description: string;
+      amount: number;
+      type: string;
+      category: string;
+      merchant: string;
+      sfaCode: string;
+    }>;
+    summary: { totalIncome: number; totalExpenses: number; balance: number; transactionCount: number };
+    reconciled?: Array<{ participantId: string; billSplitId: string; amount: number }>;
+  }> => {
+    if (!token) throw new Error("User not authenticated");
+    const formData = new FormData();
+    formData.append("file", file);
+    const fullUrl = `${API_BASE_URL}/expenses/parse-cartola`;
+    const res = await fetch(fullUrl, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error((json as { message?: string }).message || "Error al parsear la cartola");
+    return json as any;
+  };
+
+  const importCartolaMovements = async (movements: Array<{
+    date: string;
+    description: string;
+    amount: number;
+    category: string;
+    merchant?: string;
+  }>): Promise<{ imported: number; skipped: number }> => {
+    return await apiRequest("POST", "/api/expenses/import-cartola", { movements });
+  };
+
   return {
     apiRequest,
     getBankConnections,
@@ -479,6 +538,9 @@ export function useApi(): ApiClient {
     simulateBankFlow,
     uploadDocument,
     getTransactionalScore,
+    parseNotifications,
+    parseCartolaPdf,
+    importCartolaMovements,
   };
 }
 

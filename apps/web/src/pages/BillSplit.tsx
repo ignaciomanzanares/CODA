@@ -1184,7 +1184,7 @@ export default function BillSplit() {
                         size="sm"
                         className="flex-1 text-green-700 border-green-200 hover:bg-green-50"
                         onClick={() => {
-                          const amount = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(selectedExpense.totalAmount);
+                          const amount = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(Number(selectedExpense.totalAmount));
                           const url = `${window.location.origin}/split/${selectedExpense.shareCode}`;
                           const msg = `💸 Te envío un cobro por *${selectedExpense.name}*\n💰 Monto total: ${amount}\n\n✅ Ve tu parte y marca tu pago aquí:\n${url}\n\n_Enviado desde CODA_`;
                           window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
@@ -1201,7 +1201,7 @@ export default function BillSplit() {
                           className="flex-1"
                           onClick={async () => {
                             try {
-                              const amount = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(selectedExpense.totalAmount);
+                              const amount = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(Number(selectedExpense.totalAmount));
                               await navigator.share({
                                 title: `Cobro - ${selectedExpense.name}`,
                                 text: `Te pido ${amount} por "${selectedExpense.name}"`,

@@ -25,7 +25,13 @@ import {
   MoreHorizontal,
   ArrowUpRight,
   ArrowDownRight,
-  Camera
+  Camera,
+  MessageSquare,
+  FileText,
+  Upload,
+  CheckCircle,
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +41,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -185,7 +193,7 @@ function StatCard({
 
 export default function Expenses() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { getExpenses, createExpense, updateExpense, deleteExpense, classifyExpense, scanExpense } = useApi();
+  const { getExpenses, createExpense, updateExpense, deleteExpense, classifyExpense, scanExpense, parseNotifications, parseCartolaPdf, importCartolaMovements } = useApi();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -196,6 +204,27 @@ export default function Expenses() {
   const [isScanning, setIsScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scanSuccessMessageRef = useRef<string | null>(null);
+
+  // Notification parser state
+  const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
+  const [notificationText, setNotificationText] = useState("");
+  const [isParsing, setIsParsing] = useState(false);
+  const [parsedNotifications, setParsedNotifications] = useState<Array<{
+    original: string;
+    parsed: { amount: number; merchant: string; date: string; cardType: string; bank: string; category: string; sfaCode: string; confidence: number } | null;
+    error?: string;
+  }> | null>(null);
+
+  // Cartola upload state
+  const [isCartolaDialogOpen, setIsCartolaDialogOpen] = useState(false);
+  const [isUploadingCartola, setIsUploadingCartola] = useState(false);
+  const [cartolaResult, setCartolaResult] = useState<{
+    movements: Array<{ date: string; description: string; amount: number; type: string; category: string; merchant: string; sfaCode: string }>;
+    summary: { totalIncome: number; totalExpenses: number; balance: number; transactionCount: number };
+    reconciled?: Array<{ participantId: string; billSplitId: string; amount: number }>;
+  } | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const cartolaInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { currency } = useCurrency();
@@ -445,7 +474,7 @@ export default function Expenses() {
   };
 
   // Debounced classification
-  const [classificationTimeout, setClassificationTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [classificationTimeout, setClassificationTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   
   const debouncedClassify = (description: string, merchantName?: string, amount?: string, targetForm?: 'add' | 'edit') => {
     if (classificationTimeout) {
@@ -567,6 +596,114 @@ export default function Expenses() {
     setIsAddDialogOpen(true);
   };
 
+  const handleParseNotifications = async () => {
+    if (!notificationText.trim() || !isAuthenticated) return;
+    setIsParsing(true);
+    setParsedNotifications(null);
+    try {
+      const lines = notificationText.split('\n').map(l => l.trim()).filter(Boolean);
+      const result = await parseNotifications(lines);
+      setParsedNotifications(result.results || []);
+    } catch (err) {
+      toast({
+        title: "Error al parsear",
+        description: err instanceof Error ? err.message : "No se pudieron procesar las notificaciones",
+        variant: "destructive",
+      });
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  const handleAddParsedAsExpense = (parsed: { amount: number; merchant: string; date: string; category: string }) => {
+    const categoryMap: Record<string, string> = {
+      food_delivery: "Dining", dining: "Dining", restaurant: "Dining",
+      groceries: "Groceries", supermarket: "Groceries",
+      transportation: "Transportation", transport: "Transportation", ride: "Transportation",
+      entertainment: "Entertainment", streaming: "Entertainment",
+      shopping: "Shopping", retail: "Shopping",
+      utilities: "Utilities", services: "Utilities",
+      healthcare: "Healthcare", pharmacy: "Healthcare",
+      education: "Education",
+      travel: "Travel",
+    };
+    const mappedCategory = categoryMap[parsed.category?.toLowerCase()] || "Other";
+    createExpenseMutation.mutate({
+      name: parsed.merchant,
+      amount: parsed.amount.toString(),
+      description: parsed.merchant,
+      category: mappedCategory,
+      date: parsed.date || new Date().toISOString().split('T')[0],
+      subcategory: "",
+      merchantName: parsed.merchant,
+      paymentMethod: "",
+      isRecurring: false,
+      tags: "",
+      notes: "",
+      isAutoClassified: true,
+    });
+  };
+
+  const handleCartolaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !isAuthenticated) return;
+    e.target.value = "";
+    if (file.type !== "application/pdf") {
+      toast({ title: "Formato no válido", description: "Solo se aceptan archivos PDF.", variant: "destructive" });
+      return;
+    }
+    setIsUploadingCartola(true);
+    setCartolaResult(null);
+    try {
+      const result = await parseCartolaPdf(file);
+      setCartolaResult(result);
+      toast({
+        title: "Cartola procesada",
+        description: `Se encontraron ${result.movements?.length || 0} movimientos.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Error al procesar cartola",
+        description: err instanceof Error ? err.message : "No se pudo leer el PDF.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingCartola(false);
+    }
+  };
+
+  const handleImportCartola = async () => {
+    if (!cartolaResult?.movements?.length) return;
+    setIsImporting(true);
+    try {
+      const expenseMovements = cartolaResult.movements
+        .filter(m => m.amount < 0)
+        .map(m => ({
+          date: m.date,
+          description: m.description,
+          amount: Math.abs(m.amount),
+          category: m.category || "Other",
+          merchant: m.merchant || m.description,
+        }));
+      const result = await importCartolaMovements(expenseMovements);
+      toast({
+        title: "Movimientos importados",
+        description: `${result.imported} gastos importados, ${result.skipped} omitidos.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+      setIsCartolaDialogOpen(false);
+      setCartolaResult(null);
+    } catch (err) {
+      toast({
+        title: "Error al importar",
+        description: err instanceof Error ? err.message : "No se pudieron importar los movimientos.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   if (authLoading || (isAuthenticated && isLoading)) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -628,7 +765,29 @@ export default function Expenses() {
             className="hidden"
             onChange={handleScanImage}
           />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="gap-2"
+              disabled={!isAuthenticated}
+              onClick={() => setIsNotificationDialogOpen(true)}
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span className="hidden sm:inline">Notificación</span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="gap-2"
+              disabled={!isAuthenticated || isUploadingCartola}
+              onClick={() => setIsCartolaDialogOpen(true)}
+            >
+              <FileText className="w-4 h-4" />
+              <span className="hidden sm:inline">Cartola</span>
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -848,6 +1007,249 @@ export default function Expenses() {
             </Card>
           )}
         </div>
+
+        {/* Notification Parser Dialog */}
+        <Dialog open={isNotificationDialogOpen} onOpenChange={(open) => {
+          setIsNotificationDialogOpen(open);
+          if (!open) { setParsedNotifications(null); setNotificationText(""); }
+        }}>
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-primary" />
+                Agregar desde notificación bancaria
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Pega una o más notificaciones de tu banco (una por línea). Soporta Santander, Banco de Chile, BCI, BancoEstado y Scotiabank.
+              </p>
+              <Textarea
+                placeholder={"Ej: Compra por $15.990 en UBER EATS con Tarjeta de Crédito terminada en *1234\nCompra aprobada por $8.500 en STARBUCKS con T.Débito ****5678"}
+                rows={5}
+                value={notificationText}
+                onChange={(e) => setNotificationText(e.target.value)}
+              />
+              <Button
+                onClick={handleParseNotifications}
+                disabled={!notificationText.trim() || isParsing}
+                className="w-full"
+              >
+                {isParsing ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Procesando...</>
+                ) : (
+                  <><Sparkles className="h-4 w-4 mr-2" /> Procesar notificaciones</>
+                )}
+              </Button>
+
+              {parsedNotifications && parsedNotifications.length > 0 && (
+                <div className="space-y-3">
+                  <Separator />
+                  <h4 className="font-semibold text-sm">Resultados ({parsedNotifications.length})</h4>
+                  {parsedNotifications.map((item, idx) => (
+                    <Card key={idx} className="overflow-hidden">
+                      <CardContent className="p-3">
+                        {item.parsed ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                                <span className="font-medium">{item.parsed.merchant}</span>
+                              </div>
+                              <span className="font-bold text-lg">
+                                {formatCurrencyFn(item.parsed.amount)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              <span>{item.parsed.bank}</span>
+                              <span>{item.parsed.cardType}</span>
+                              <span>{item.parsed.date}</span>
+                              <Badge variant="secondary" className="text-xs">
+                                {categoryLabels[
+                                  Object.entries({
+                                    food_delivery: "Dining", dining: "Dining",
+                                    groceries: "Groceries", transportation: "Transportation",
+                                    entertainment: "Entertainment", shopping: "Shopping",
+                                    utilities: "Utilities", healthcare: "Healthcare",
+                                  }).find(([k]) => k === item.parsed!.category?.toLowerCase())?.[1] || "Other"
+                                ] || item.parsed.category}
+                              </Badge>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full mt-1"
+                              onClick={() => {
+                                handleAddParsedAsExpense(item.parsed!);
+                                toast({ title: "Agregado", description: `${item.parsed!.merchant} - ${formatCurrencyFn(item.parsed!.amount)}` });
+                              }}
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Agregar como gasto
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <AlertCircle className="h-4 w-4 text-amber-500" />
+                            <span className="truncate">{item.original}</span>
+                            <span className="text-xs text-red-500 ml-auto">No reconocido</span>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Cartola Upload Dialog */}
+        <input
+          ref={cartolaInputRef}
+          type="file"
+          accept="application/pdf"
+          className="hidden"
+          onChange={handleCartolaUpload}
+        />
+        <Dialog open={isCartolaDialogOpen} onOpenChange={(open) => {
+          setIsCartolaDialogOpen(open);
+          if (!open) setCartolaResult(null);
+        }}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                Importar movimientos desde Cartola
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {!cartolaResult ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Sube tu cartola bancaria en PDF. Se extraerán todos los movimientos automáticamente,
+                    categorizados con IA. Si hay cobros pendientes en "Dividir cuenta", se intentará conciliar pagos.
+                  </p>
+                  <div
+                    className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => cartolaInputRef.current?.click()}
+                  >
+                    {isUploadingCartola ? (
+                      <div className="flex flex-col items-center gap-3">
+                        <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                        <p className="text-sm text-muted-foreground">Procesando cartola...</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-3">
+                        <Upload className="h-10 w-10 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">Haz click para subir tu cartola PDF</p>
+                          <p className="text-sm text-muted-foreground mt-1">Soporta cartolas de bancos chilenos</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Summary */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <Card>
+                      <CardContent className="p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Movimientos</p>
+                        <p className="text-xl font-bold">{cartolaResult.summary.transactionCount}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Ingresos</p>
+                        <p className="text-xl font-bold text-green-600">
+                          {formatCurrencyFn(cartolaResult.summary.totalIncome)}
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Gastos</p>
+                        <p className="text-xl font-bold text-red-600">
+                          {formatCurrencyFn(Math.abs(cartolaResult.summary.totalExpenses))}
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Balance</p>
+                        <p className={`text-xl font-bold ${cartolaResult.summary.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatCurrencyFn(cartolaResult.summary.balance)}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Reconciliation results */}
+                  {cartolaResult.reconciled && cartolaResult.reconciled.length > 0 && (
+                    <Card className="border-green-200 bg-green-50">
+                      <CardContent className="p-3">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <CheckCircle className="h-4 w-4" />
+                          <span className="font-medium text-sm">
+                            {cartolaResult.reconciled.length} pago(s) conciliados automáticamente en Dividir cuenta
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Movements list */}
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    <h4 className="font-semibold text-sm sticky top-0 bg-background py-1">
+                      Movimientos ({cartolaResult.movements.length})
+                    </h4>
+                    {cartolaResult.movements.map((mov, idx) => {
+                      const isExpense = mov.amount < 0;
+                      return (
+                        <div key={idx} className="flex items-center justify-between py-2 px-3 rounded-lg border text-sm">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{mov.merchant || mov.description}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>{mov.date}</span>
+                              <Badge variant="secondary" className="text-xs">{mov.category}</Badge>
+                            </div>
+                          </div>
+                          <span className={`font-bold ${isExpense ? 'text-red-600' : 'text-green-600'}`}>
+                            {isExpense ? '-' : '+'}{formatCurrencyFn(Math.abs(mov.amount))}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Import actions */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => { setCartolaResult(null); }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      disabled={isImporting || !cartolaResult.movements.some(m => m.amount < 0)}
+                      onClick={handleImportCartola}
+                    >
+                      {isImporting ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importando...</>
+                      ) : (
+                        <><Plus className="h-4 w-4 mr-2" /> Importar {cartolaResult.movements.filter(m => m.amount < 0).length} gastos</>
+                      )}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Edit Expense Dialog - Simplified (name, amount, category with icons) */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
