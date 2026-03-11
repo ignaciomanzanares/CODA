@@ -214,9 +214,9 @@ export function parseCartolaPdf(text: string): CartolaExtraida | null {
   const hastaMatch = text.match(/HASTA\s+(\d{2})\/(\d{2})\/(\d{4})/i) || text.match(/HASTA\s+(\d{2})\/(\d{2})\/(\d{2})/i);
   const match = desdeMatch || hastaMatch;
   if (match) {
-    const y = match[3].length === 4 ? parseInt(match[3], 10) : 2000 + parseInt(match[3], 10);
-    if (y >= 2015 && y <= nowYear + 1) year = y;
-    else if (y > nowYear + 1) year = nowYear;
+    let y = match[3].length === 4 ? parseInt(match[3], 10) : 2000 + parseInt(match[3], 10);
+    if (y > nowYear || y < 2015) y = nowYear;
+    year = y;
   }
   
   // Parse line by line. Each visual line from the PDF is now separated by \n
@@ -254,17 +254,25 @@ export function parseCartolaPdf(text: string): CartolaExtraida | null {
     }
   }
 
+  function parseAmountChile(str: string): number {
+    return parseFloat(str.replace(/\./g, '').replace(',', '.'));
+  }
+
+  function extractBestAmount(fullSegment: string, lastNumber: string): string {
+    const amountLike = fullSegment.match(/\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?/g) || [];
+    const parsed = amountLike.map(s => parseAmountChile(s)).filter(v => !isNaN(v) && v >= 100 && v < 999999999);
+    if (parsed.length <= 1) return lastNumber;
+    const lastVal = parseAmountChile(lastNumber);
+    const maxVal = Math.max(...parsed);
+    if (maxVal > lastVal && maxVal >= 1000) return String(maxVal).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return lastNumber;
+  }
+
   function parseTransactionsFromSegment(
     segment: string,
     fecha: string,
     out: CartolaExtraida['transacciones']
   ) {
-    // A segment may contain one or more transactions chained together.
-    // Each transaction starts with a 6-8 digit doc number followed by a 2-4 digit branch.
-    // Pattern: DOCNUM BRANCH description AMOUNT [DOCNUM BRANCH description AMOUNT ...]
-    //
-    // Split on transaction boundaries: look for a 6-8 digit number followed by 2-4 digits (branch)
-    // that appears after an amount (digits with dots).
     const txBoundary = /(?<=[\d.]+)\s+(?=\d{6,8}\s+\d{2,4}\s)/g;
     const parts = segment.split(txBoundary);
 
@@ -272,21 +280,21 @@ export function parseCartolaPdf(text: string): CartolaExtraida | null {
       const trimmed = part.trim();
       if (!trimmed) continue;
 
-      // Try to match: [DOCNUM BRANCH] description AMOUNT
       const txMatch = trimmed.match(/^(\d{6,8})\s+(\d{2,4})\s+(.*?)\s+([\d.]+(?:,\d{1,2})?)\s*$/);
       if (txMatch) {
         const [, , , desc, montoStr] = txMatch;
-        addTransaction(desc, montoStr, fecha, out);
+        const bestMonto = extractBestAmount(trimmed, montoStr);
+        addTransaction(desc, bestMonto, fecha, out);
         continue;
       }
 
-      // Fallback: just find description + trailing amount
       const simpleMatch = trimmed.match(/^(.+?)\s+([\d.]+(?:,\d{1,2})?)\s*$/);
       if (simpleMatch) {
         const [, desc, montoStr] = simpleMatch;
         const cleanDesc = desc.replace(/^\d{6,8}\s+\d{2,4}\s+/, '');
         if (cleanDesc.length >= 3) {
-          addTransaction(cleanDesc, montoStr, fecha, out);
+          const bestMonto = extractBestAmount(trimmed, montoStr);
+          addTransaction(cleanDesc, bestMonto, fecha, out);
         }
       }
     }
