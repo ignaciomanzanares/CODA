@@ -715,23 +715,34 @@ export default function Expenses() {
     );
   }
 
-  // Calculate some stats
+  // Calculate stats – use current month if it has data, otherwise the latest month with expenses
   const now = new Date();
-  const thisMonthExpenses = expenses.filter(e => {
-    const expDate = new Date(e.date);
-    return expDate.getMonth() === now.getMonth() && 
-           expDate.getFullYear() === now.getFullYear();
-  });
-  const thisMonthTotal = thisMonthExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-  const avgPerDay = thisMonthTotal / Math.max(now.getDate(), 1);
+  const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonthExpenses = expenses.filter(e => {
-    const d = new Date(e.date);
-    return d.getMonth() === lastMonth.getMonth() && d.getFullYear() === lastMonth.getFullYear();
-  });
-  const lastMonthTotal = lastMonthExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-  const trendPct = lastMonthTotal > 0 ? Math.round(((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100) : 0;
+  const expensesByMonth = (y: number, m: number) =>
+    expenses.filter(e => { const d = new Date(e.date); return d.getMonth() === m && d.getFullYear() === y; });
+
+  let activeMonthExpenses = expensesByMonth(now.getFullYear(), now.getMonth());
+  let activeMonthLabel = 'Este mes';
+  let activeDaysInMonth = now.getDate();
+
+  if (activeMonthExpenses.length === 0 && expenses.length > 0) {
+    const sorted = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const latest = new Date(sorted[0].date);
+    activeMonthExpenses = expensesByMonth(latest.getFullYear(), latest.getMonth());
+    activeMonthLabel = `${monthNames[latest.getMonth()]} ${latest.getFullYear()}`;
+    activeDaysInMonth = new Date(latest.getFullYear(), latest.getMonth() + 1, 0).getDate();
+  }
+
+  const activeTotal = activeMonthExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const avgPerDay = activeTotal / Math.max(activeDaysInMonth, 1);
+
+  // Trend: compare active month vs previous month
+  const activeDate = activeMonthExpenses.length > 0 ? new Date(activeMonthExpenses[0].date) : now;
+  const prevMonth = new Date(activeDate.getFullYear(), activeDate.getMonth() - 1, 1);
+  const prevMonthTotal = expensesByMonth(prevMonth.getFullYear(), prevMonth.getMonth())
+    .reduce((sum, e) => sum + Number(e.amount), 0);
+  const trendPct = prevMonthTotal > 0 ? Math.round(((activeTotal - prevMonthTotal) / prevMonthTotal) * 100) : 0;
   const trendType: 'up' | 'down' | 'neutral' = trendPct > 0 ? 'up' : trendPct < 0 ? 'down' : 'neutral';
 
   return (
@@ -825,8 +836,8 @@ export default function Expenses() {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
-            title="Total este mes"
-            value={formatCurrencyFn(thisMonthTotal)}
+            title={activeMonthLabel === 'Este mes' ? 'Total este mes' : `Total ${activeMonthLabel}`}
+            value={formatCurrencyFn(activeTotal)}
             trend={{ value: `${Math.abs(trendPct)}% vs mes anterior`, type: trendType }}
             icon={DollarSign}
             color="bg-green-500"
@@ -834,7 +845,7 @@ export default function Expenses() {
           <StatCard
             title="Promedio diario"
             value={formatCurrencyFn(avgPerDay)}
-            subtext="Según este mes"
+            subtext={activeMonthLabel === 'Este mes' ? 'Según este mes' : `Según ${activeMonthLabel}`}
             icon={TrendingDown}
             color="bg-blue-500"
           />
@@ -848,7 +859,7 @@ export default function Expenses() {
           <StatCard
             title="Transacciones"
             value={filteredExpenses.length.toString()}
-            subtext={`${thisMonthExpenses.length} este mes`}
+            subtext={`${activeMonthExpenses.length} ${activeMonthLabel === 'Este mes' ? 'este mes' : 'en ' + activeMonthLabel}`}
             icon={Receipt}
             color="bg-orange-500"
           />

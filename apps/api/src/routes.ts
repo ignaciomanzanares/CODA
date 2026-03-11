@@ -3265,10 +3265,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const { reconcileCartolaMovements } = await import('./services/expenses/reconciliationService.js');
         const reconciliation = await reconcileCartolaMovements(userId, result.movimientos);
 
+        // Map movements: cargos get negative amount, abonos positive
+        const movements = result.movimientos.map((m: any) => ({
+          ...m,
+          amount: m.cargo > 0 ? -m.cargo : m.abono,
+          merchant: m.merchantName,
+        }));
+
         res.json({
           success: true,
-          movements: result.movimientos,
-          summary: result.resumen,
+          movements,
+          summary: {
+            transactionCount: result.resumen.cantidadMovimientos,
+            totalIncome: result.resumen.totalAbonos,
+            totalExpenses: result.resumen.totalCargos,
+            balance: result.resumen.totalAbonos - result.resumen.totalCargos,
+            saldoInicial: result.resumen.saldoInicial,
+            saldoFinal: result.resumen.saldoFinal,
+            categorias: result.resumen.categorias,
+          },
           reconciled: reconciliation.matches.map((m: any) => ({
             participantId: m.participantId,
             billSplitId: m.billSplitId,
@@ -3308,19 +3323,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only import cargos (debits) as expenses
-      const cargos = movs.filter((m: any) => m.sfaOperationType === 'cargo' || m.cargo > 0 || m.amount < 0);
+      const cargos = movs.filter((m: any) => m.sfaOperationType === 'cargo' || m.cargo > 0 || (m.amount != null && m.amount < 0));
 
       let imported = 0;
       for (const mov of cargos) {
         try {
           await storage.createExpense({
             userId,
-            name: mov.merchantName || mov.description,
-            amount: mov.amount,
+            name: mov.merchant || mov.merchantName || mov.description,
+            amount: Math.abs(mov.amount ?? mov.cargo ?? 0),
             description: mov.description,
             category: mov.category || 'other',
             subcategory: mov.subcategory,
-            merchantName: mov.merchantName,
+            merchantName: mov.merchant || mov.merchantName,
             date: mov.date || new Date().toISOString(),
             paymentMethod: mov.paymentMethod || 'debito',
             isAutoClassified: 1,
