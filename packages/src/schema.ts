@@ -317,6 +317,16 @@ export const notifications = table('notifications', {
   readAt: text('read_at'),
 });
 
+export const pushSubscriptions = table('push_subscriptions', {
+  id: serialPk("id"),
+  userId: text('user_id').references(() => users.id).notNull(),
+  endpoint: text('endpoint').notNull(),
+  p256dh: text('p256dh').notNull(),
+  auth: text('auth').notNull(),
+  userAgent: text('user_agent'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 export const auditLogs = table('audit_logs', {
   id: serialPk("id"),
   userId: text('user_id').references(() => users.id),

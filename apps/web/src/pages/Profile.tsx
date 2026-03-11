@@ -2,6 +2,14 @@ import { useAuth } from "@/lib/auth";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/lib/api";
+import {
+  isPushSupported,
+  getPushPermission,
+  subscribeToPush,
+  unsubscribeFromPush,
+  isCurrentlySubscribed,
+  sendTestPush,
+} from "@/lib/pushNotifications";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -51,6 +59,56 @@ export default function Profile() {
     timezone: "UTC",
     language: "English"
   });
+
+  // Push notification state
+  const [pushSupported] = useState(() => isPushSupported());
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+
+  useEffect(() => {
+    if (pushSupported) {
+      isCurrentlySubscribed().then(setPushSubscribed);
+    }
+  }, [pushSupported]);
+
+  const handleTogglePush = async () => {
+    setPushLoading(true);
+    try {
+      const token = localStorage.getItem("token") || "";
+      if (pushSubscribed) {
+        const ok = await unsubscribeFromPush(token);
+        if (ok) {
+          setPushSubscribed(false);
+          toast({ title: "Notificaciones push desactivadas" });
+        }
+      } else {
+        const ok = await subscribeToPush(token);
+        if (ok) {
+          setPushSubscribed(true);
+          toast({ title: "Notificaciones push activadas", description: "Recibirás alertas incluso con la app cerrada." });
+        } else {
+          const perm = getPushPermission();
+          if (perm === "denied") {
+            toast({ title: "Permiso denegado", description: "Habilita las notificaciones desde la configuración de tu navegador.", variant: "destructive" });
+          } else {
+            toast({ title: "No se pudo activar", description: "Intenta nuevamente.", variant: "destructive" });
+          }
+        }
+      }
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
+  const handleTestPush = async () => {
+    const token = localStorage.getItem("token") || "";
+    const ok = await sendTestPush(token);
+    if (ok) {
+      toast({ title: "Push de prueba enviado", description: "Deberías recibir una notificación en breve." });
+    } else {
+      toast({ title: "Error al enviar", variant: "destructive" });
+    }
+  };
 
   // Load user profile data from database API when component mounts
   useEffect(() => {
@@ -510,11 +568,31 @@ export default function Profile() {
                       </Button>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm">Notificaciones push</span>
-                      <Button variant="outline" size="sm" onClick={handleComingSoon}>
-                        <Bell className="h-4 w-4 mr-2" />
-                        Configurar
-                      </Button>
+                      <div>
+                        <span className="text-sm">Notificaciones push</span>
+                        {!pushSupported && (
+                          <p className="text-xs text-gray-400">No soportado en este navegador</p>
+                        )}
+                        {pushSupported && getPushPermission() === "denied" && (
+                          <p className="text-xs text-red-400">Permiso denegado en el navegador</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant={pushSubscribed ? "default" : "outline"}
+                          size="sm"
+                          onClick={handleTogglePush}
+                          disabled={!pushSupported || pushLoading}
+                        >
+                          <Bell className="h-4 w-4 mr-2" />
+                          {pushLoading ? "..." : pushSubscribed ? "Activadas" : "Activar"}
+                        </Button>
+                        {pushSubscribed && (
+                          <Button variant="ghost" size="sm" onClick={handleTestPush}>
+                            Probar
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

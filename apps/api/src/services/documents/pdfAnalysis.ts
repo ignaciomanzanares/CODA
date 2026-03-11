@@ -53,10 +53,8 @@ function extractNumberAfterLabel(text: string, label: string): number | null {
  * Soluciona errores de tipos TS2353 y TS2345.
  */
 export async function extractPdfText(buffer: Buffer): Promise<{ text: string; numPages: number }> {
-  console.log('Iniciando extracción con motor Legacy...');
   const uint8Array = new Uint8Array(buffer);
 
-  // Ajuste para evitar error de tipos en parámetros de inicialización (TS2353)
   const loadingTask = pdfjs.getDocument(uint8Array as any);
   const pdfDocument = await loadingTask.promise;
 
@@ -65,12 +63,39 @@ export async function extractPdfText(buffer: Buffer): Promise<{ text: string; nu
     const page = await pdfDocument.getPage(i);
     const textContent = await page.getTextContent();
 
-    // Fix para TS2345: validación explícita de existencia de la propiedad 'str'
-    const pageText = textContent.items
-      .map((item: any) => ('str' in item ? item.str : ''))
-      .join(' ');
+    // Group text items by Y position to preserve visual line breaks.
+    // Items on the same visual row share approximately the same Y coordinate.
+    const items = textContent.items
+      .filter((item: any) => 'str' in item && item.str.trim() !== '')
+      .map((item: any) => ({
+        str: item.str,
+        x: item.transform?.[4] ?? 0,
+        y: item.transform?.[5] ?? 0,
+      }));
 
-    fullText += pageText + '\n';
+    if (items.length === 0) continue;
+
+    // Sort by Y descending (top of page first), then X ascending (left to right)
+    items.sort((a: any, b: any) => {
+      const yDiff = b.y - a.y;
+      if (Math.abs(yDiff) > 2) return yDiff;
+      return a.x - b.x;
+    });
+
+    // Merge items on the same visual line (Y within 3pt tolerance)
+    let currentY = items[0].y;
+    let currentLine = items[0].str;
+
+    for (let j = 1; j < items.length; j++) {
+      if (Math.abs(items[j].y - currentY) <= 3) {
+        currentLine += ' ' + items[j].str;
+      } else {
+        fullText += currentLine + '\n';
+        currentY = items[j].y;
+        currentLine = items[j].str;
+      }
+    }
+    fullText += currentLine + '\n';
   }
 
   return {
@@ -189,76 +214,100 @@ export function parseCartolaPdf(text: string): CartolaExtraida | null {
     year = parseInt(periodoMatch[3] || periodoMatch[6], 10);
   }
   
-  // Buscar todas las ocurrencias de fechas seguidas de transacciones
-  // Formato observado: DD/MM   NUMERO   SUC   DESCRIPCION   MONTO
-  // Ejemplo: "03/11   5306727   93   Compra Nacional SOC COMERCIAL   3.300"
-  
-  // Estrategia: buscar "DD/MM" seguido de cualquier cosa hasta encontrar un número (monto)
-  // que esté cerca de una marca de fin (--- Saldo Dia ---, otra fecha DD/MM, o siguiente línea)
-  
-  const transactionRe = /(\d{2})\/(\d{2})\s+(\d{7})\s+(\d{2,4})\s+(.*?)(?=\s+---|\s+\d{2}\/\d{2}|\n|$)/g;
-  
-  let match;
-  while ((match = transactionRe.exec(text)) !== null) {
-    const [fullMatch, d, m, numero, sucursal, resto] = match;
-    
-    // Skipear si contiene palabras clave de header
-    if (/CARTOLA|DESDE|HASTA|PAGINA|MENSAJES|INFORMESE|CUENTA\s+VISTA|ESTADO/i.test(resto)) continue;
-    
-    const fecha = `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-    
-    // Extraer descripción y monto del "resto"
-    // El monto está al final, formato: X.XXX o X.XXX,XX
-    const montoMatch = resto.match(/([\d.]+(?:,\d{1,2})?)\s*$/);
-    if (!montoMatch) continue;
-    
-    const monto = montoMatch[1];
-    const descripcion = resto.slice(0, resto.lastIndexOf(monto)).replace(/\s+/g, ' ').trim();
-    
-    if (descripcion.length < 3) continue;
-    
-    // Parsear monto (formato chileno: puntos como separador de miles, coma para decimales)
-    const montoNum = parseFloat(monto.replace(/\./g, '').replace(',', '.'));
-    if (isNaN(montoNum) || montoNum === 0) continue;
-    
-    // Determinar si es cargo o abono basado en la descripción
-    // "Compra", "Pago", "Transf a" son cargos; "Transf de" es abono
-    const esCargo = /Compra|Pago|Transf\s+a|PAGO|Transf\.|Carga/i.test(descripcion);
-    const esAbono = /Transf\s+de|Deposito|Abono/i.test(descripcion);
-    
-    transacciones.push({
+  // Parse line by line. Each visual line from the PDF is now separated by \n
+  // thanks to the Y-coordinate aware text extraction.
+  //
+  // Strategy:
+  //  1. If a line starts with DD/MM, it's a new date block.
+  //  2. Within a date block, each sub-line that starts with a 7-digit tx number
+  //     is a separate transaction.
+  //  3. Lines containing "--- Saldo Dia ---" or similar separators are skipped.
+
+  const HEADER_RE = /CARTOLA|DESDE|HASTA|PAGINA|MENSAJES|INFORMESE|CUENTA\s+VISTA|ESTADO|RESUMEN|N\s*°\s*DOC|SUCURSAL|DESCRIPCION|CARGOS|ABONOS/i;
+  const SALDO_DIA_RE = /---\s*Saldo\s+Dia/i;
+
+  const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+  let currentDate = '';
+
+  for (const line of lines) {
+    if (HEADER_RE.test(line) || SALDO_DIA_RE.test(line)) continue;
+
+    // Check if line starts with DD/MM — new date context
+    const datePrefix = line.match(/^(\d{2})\/(\d{2})\s+(.*)/);
+    if (datePrefix) {
+      const [, d, m, rest] = datePrefix;
+      currentDate = `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      parseTransactionsFromSegment(rest, currentDate, transacciones);
+      continue;
+    }
+
+    // Line doesn't start with date — could still be a transaction within the current date
+    if (currentDate && /^\d{5,}/.test(line)) {
+      parseTransactionsFromSegment(line, currentDate, transacciones);
+    }
+  }
+
+  function parseTransactionsFromSegment(
+    segment: string,
+    fecha: string,
+    out: CartolaExtraida['transacciones']
+  ) {
+    // A segment may contain one or more transactions chained together.
+    // Each transaction starts with a 6-8 digit doc number followed by a 2-4 digit branch.
+    // Pattern: DOCNUM BRANCH description AMOUNT [DOCNUM BRANCH description AMOUNT ...]
+    //
+    // Split on transaction boundaries: look for a 6-8 digit number followed by 2-4 digits (branch)
+    // that appears after an amount (digits with dots).
+    const txBoundary = /(?<=[\d.]+)\s+(?=\d{6,8}\s+\d{2,4}\s)/g;
+    const parts = segment.split(txBoundary);
+
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+
+      // Try to match: [DOCNUM BRANCH] description AMOUNT
+      const txMatch = trimmed.match(/^(\d{6,8})\s+(\d{2,4})\s+(.*?)\s+([\d.]+(?:,\d{1,2})?)\s*$/);
+      if (txMatch) {
+        const [, , , desc, montoStr] = txMatch;
+        addTransaction(desc, montoStr, fecha, out);
+        continue;
+      }
+
+      // Fallback: just find description + trailing amount
+      const simpleMatch = trimmed.match(/^(.+?)\s+([\d.]+(?:,\d{1,2})?)\s*$/);
+      if (simpleMatch) {
+        const [, desc, montoStr] = simpleMatch;
+        const cleanDesc = desc.replace(/^\d{6,8}\s+\d{2,4}\s+/, '');
+        if (cleanDesc.length >= 3) {
+          addTransaction(cleanDesc, montoStr, fecha, out);
+        }
+      }
+    }
+  }
+
+  function addTransaction(
+    desc: string,
+    montoStr: string,
+    fecha: string,
+    out: CartolaExtraida['transacciones']
+  ) {
+    // Strip leading doc number + branch if still present (e.g. "0211661437 93 Transf...")
+    let descripcion = desc.replace(/^\d{6,10}\s+\d{2,4}\s+/, '').replace(/\s+/g, ' ').trim();
+    if (descripcion.length < 3) return;
+    if (HEADER_RE.test(descripcion)) return;
+
+    const montoNum = parseFloat(montoStr.replace(/\./g, '').replace(',', '.'));
+    if (isNaN(montoNum) || montoNum === 0) return;
+
+    const esCargo = /Compra|Pago|Transf\.|Transf\s+a|PAGO|Carga|PAC|PAT|Giro/i.test(descripcion);
+    const esAbono = /Transf\s+de|Dep[oó]sito|Abono|TEF\s+Cr/i.test(descripcion);
+
+    out.push({
       fecha,
       descripcion: descripcion.slice(0, 200),
-      cargo: esCargo ? montoNum : 0,
+      cargo: esCargo ? montoNum : (!esAbono ? montoNum : 0),
       abono: esAbono ? montoNum : 0,
     });
-  }
-  
-  // Si no se encontraron transacciones con el regex, intentar parseo más simple línea por línea
-  if (transacciones.length === 0) {
-    const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
-    for (const line of lines) {
-      const simpleMatch = line.match(/(\d{2})\/(\d{2})\s+.*?\s+([\d.,]+)$/);
-      if (!simpleMatch) continue;
-      if (/CARTOLA|DESDE|HASTA|PAGINA|MENSAJES|INFORMESE|CUENTA\s+VISTA/i.test(line)) continue;
-      
-      const [, d, m, monto] = simpleMatch;
-      const fecha = `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-      const descripcion = line.replace(/\d{2}\/\d{2}/, '').replace(/[\d.,]+$/, '').replace(/\s+/g, ' ').trim();
-      
-      if (descripcion.length < 3) continue;
-      
-      const montoNum = parseFloat(monto.replace(/\./g, '').replace(',', '.'));
-      if (isNaN(montoNum) || montoNum === 0) continue;
-      
-      const esCargo = /Compra|Pago|Transf\s+a/i.test(descripcion);
-      transacciones.push({
-        fecha,
-        descripcion: descripcion.slice(0, 200),
-        cargo: esCargo ? montoNum : 0,
-        abono: !esCargo ? montoNum : 0,
-      });
-    }
   }
   
   // Si aún no hay transacciones, retornar null
