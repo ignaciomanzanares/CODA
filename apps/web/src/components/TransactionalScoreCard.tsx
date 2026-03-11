@@ -76,13 +76,14 @@ export default function TransactionalScoreCard() {
   const { getTransactionalScore } = useApi();
   const { setTransactionalResult } = useReportData();
 
-  const { data, isLoading, isRefetching, refetch } = useQuery({
+  const { data, isLoading, isRefetching, refetch, error } = useQuery({
     queryKey: ["/api/transactional-score"],
     queryFn: getTransactionalScore,
+    retry: false,
   });
 
   const scoreResult: TransactionalScoreResult | null =
-    data?.transactionalScore != null
+    data && typeof data === 'object' && 'transactionalScore' in data && data.transactionalScore != null
       ? {
           transactionalScore: data.transactionalScore,
           mainInsights: data.mainInsights ?? [],
@@ -92,14 +93,14 @@ export default function TransactionalScoreCard() {
       : null;
 
   useEffect(() => {
-    if (data?.transactionalScore != null) {
+    if (data && typeof data === 'object' && 'transactionalScore' in data && data.transactionalScore != null) {
       setTransactionalResult({
         transactionalScore: data.transactionalScore,
         mainInsights: data.mainInsights ?? [],
         metrics: data.metrics,
       });
     }
-  }, [data?.transactionalScore, data?.mainInsights, data?.metrics, setTransactionalResult]);
+  }, [data, setTransactionalResult]);
 
   const hasResult = scoreResult != null;
   const pending = !hasResult && !isLoading;

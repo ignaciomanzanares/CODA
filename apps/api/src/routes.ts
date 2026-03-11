@@ -3150,21 +3150,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Parse bank push notification → structured expense
   app.post("/api/expenses/parse-notification", authenticate, async (req: Request, res: Response) => {
     try {
-      const { text, texts } = req.body;
-      const { parseNotification, parseNotifications } = await import('./services/expenses/notificationParser.js');
+      const { notifications } = req.body;
+      const { parseNotifications } = await import('./services/expenses/notificationParser.js');
 
-      if (texts && Array.isArray(texts)) {
-        const results = parseNotifications(texts);
-        res.json({ success: true, results });
-      } else if (text) {
-        const result = parseNotification(text);
-        if (!result) {
-          return res.status(400).json({ success: false, message: 'No se pudo interpretar la notificación' });
-        }
-        res.json({ success: true, result });
-      } else {
-        res.status(400).json({ success: false, message: 'Se requiere "text" o "texts"' });
+      if (!notifications || !Array.isArray(notifications)) {
+        return res.status(400).json({ success: false, message: 'Se requiere un array "notifications"' });
       }
+
+      const results = parseNotifications(notifications);
+      res.json({ results });
     } catch (error) {
       logger.error({ error }, 'Failed to parse notification');
       res.status(500).json({ success: false, message: 'Error al procesar la notificación' });
@@ -3205,13 +3199,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.json({
           success: true,
-          movimientos: result.movimientos,
-          resumen: result.resumen,
-          reconciliation: {
-            matches: reconciliation.matches,
-            totalReconciled: reconciliation.totalReconciled,
-            totalPending: reconciliation.totalPending,
-          },
+          movements: result.movimientos,
+          summary: result.resumen,
+          reconciled: reconciliation.matches.map((m: any) => ({
+            participantId: m.participantId,
+            billSplitId: m.billSplitId,
+            amount: m.amount,
+          })),
         });
       });
     } catch (error) {
@@ -3238,14 +3232,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/expenses/import-cartola", authenticate, async (req: Request, res: Response) => {
     try {
       const userId = getUserIdFromAuth(req);
-      const { movimientos } = req.body;
+      const { movements, movimientos } = req.body;
+      const movs = movements || movimientos;
 
-      if (!movimientos || !Array.isArray(movimientos) || movimientos.length === 0) {
+      if (!movs || !Array.isArray(movs) || movs.length === 0) {
         return res.status(400).json({ success: false, message: 'Se requiere un array de movimientos' });
       }
 
       // Only import cargos (debits) as expenses
-      const cargos = movimientos.filter((m: any) => m.sfaOperationType === 'cargo' || m.cargo > 0);
+      const cargos = movs.filter((m: any) => m.sfaOperationType === 'cargo' || m.cargo > 0 || m.amount < 0);
 
       let imported = 0;
       for (const mov of cargos) {
@@ -3272,7 +3267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         success: true,
         imported,
-        skipped: movimientos.length - cargos.length,
+        skipped: movs.length - cargos.length,
         message: `${imported} gastos importados exitosamente`,
       });
     } catch (error) {

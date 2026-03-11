@@ -676,16 +676,7 @@ export default function Expenses() {
     if (!cartolaResult?.movements?.length) return;
     setIsImporting(true);
     try {
-      const expenseMovements = cartolaResult.movements
-        .filter(m => m.amount < 0)
-        .map(m => ({
-          date: m.date,
-          description: m.description,
-          amount: Math.abs(m.amount),
-          category: m.category || "Other",
-          merchant: m.merchant || m.description,
-        }));
-      const result = await importCartolaMovements(expenseMovements);
+      const result = await importCartolaMovements(cartolaResult.movements);
       toast({
         title: "Movimientos importados",
         description: `${result.imported} gastos importados, ${result.skipped} omitidos.`,
@@ -1241,13 +1232,13 @@ export default function Expenses() {
                     </Button>
                     <Button
                       className="flex-1"
-                      disabled={isImporting || !cartolaResult.movements.some(m => m.amount < 0)}
+                      disabled={isImporting || !cartolaResult.movements || cartolaResult.movements.length === 0}
                       onClick={handleImportCartola}
                     >
                       {isImporting ? (
                         <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importando...</>
                       ) : (
-                        <><Plus className="h-4 w-4 mr-2" /> Importar {cartolaResult.movements.filter(m => m.amount < 0).length} gastos</>
+                        <><Plus className="h-4 w-4 mr-2" /> Importar gastos</>
                       )}
                     </Button>
                   </div>
