@@ -715,8 +715,7 @@ export default function Expenses() {
     );
   }
 
-  // Stats: mes actual o mes anterior. Comparación por string para evitar bugs de timezone.
-  const now = new Date();
+  // Stats: usar el MES MÁS RECIENTE con datos (no mes actual/anterior fijo)
   const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
   const getYearMonth = (dateStr: string | Date): { y: number; m: number } | null => {
@@ -733,23 +732,31 @@ export default function Expenses() {
   const expensesByMonth = (y: number, m: number) =>
     expenses.filter(e => { const ym = getYearMonth(e.date); return ym ? ym.y === y && ym.m === m : false; });
 
-  let activeMonthExpenses = expensesByMonth(now.getFullYear(), now.getMonth());
+  // Encontrar el mes más reciente que tenga gastos
+  let activeYear = new Date().getFullYear();
+  let activeMonth = new Date().getMonth();
   let activeMonthLabel = 'Este mes';
-  let activeDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  let activeMonthExpenses: typeof expenses = [];
 
-  if (activeMonthExpenses.length === 0 && expenses.length > 0) {
-    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    activeMonthExpenses = expensesByMonth(prev.getFullYear(), prev.getMonth());
-    activeMonthLabel = `${monthNames[prev.getMonth()]} ${prev.getFullYear()}`;
-    activeDaysInMonth = new Date(prev.getFullYear(), prev.getMonth() + 1, 0).getDate();
+  if (expenses.length > 0) {
+    const sorted = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const latestYm = getYearMonth(sorted[0].date);
+    if (latestYm) {
+      activeYear = latestYm.y;
+      activeMonth = latestYm.m;
+    }
+    activeMonthExpenses = expensesByMonth(activeYear, activeMonth);
+    activeMonthLabel = `${monthNames[activeMonth]} ${activeYear}`;
+  } else {
+    activeMonthExpenses = expensesByMonth(activeYear, activeMonth);
   }
 
+  const activeDaysInMonth = new Date(activeYear, activeMonth + 1, 0).getDate();
   const activeTotal = activeMonthExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
   const avgPerDay = activeTotal / Math.max(activeDaysInMonth, 1);
 
-  const activeDate = activeMonthExpenses.length > 0 ? new Date(activeMonthExpenses[0].date) : now;
-  const prevMonth = new Date(activeDate.getFullYear(), activeDate.getMonth() - 1, 1);
-  const prevMonthTotal = expensesByMonth(prevMonth.getFullYear(), prevMonth.getMonth())
+  const prevMonthDate = new Date(activeYear, activeMonth - 1, 1);
+  const prevMonthTotal = expensesByMonth(prevMonthDate.getFullYear(), prevMonthDate.getMonth())
     .reduce((sum, e) => sum + Number(e.amount), 0);
   const trendPct = prevMonthTotal > 0 ? Math.round(((activeTotal - prevMonthTotal) / prevMonthTotal) * 100) : 0;
   const trendType: 'up' | 'down' | 'neutral' = trendPct > 0 ? 'up' : trendPct < 0 ? 'down' : 'neutral';
