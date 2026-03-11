@@ -715,7 +715,7 @@ export default function Expenses() {
     );
   }
 
-  // Calculate stats – use current month if it has data, otherwise the latest month with expenses
+  // Stats: siempre mes actual o mes anterior (nunca un mes viejo como enero si estamos en marzo)
   const now = new Date();
   const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -727,17 +727,15 @@ export default function Expenses() {
   let activeDaysInMonth = now.getDate();
 
   if (activeMonthExpenses.length === 0 && expenses.length > 0) {
-    const sorted = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    const latest = new Date(sorted[0].date);
-    activeMonthExpenses = expensesByMonth(latest.getFullYear(), latest.getMonth());
-    activeMonthLabel = `${monthNames[latest.getMonth()]} ${latest.getFullYear()}`;
-    activeDaysInMonth = new Date(latest.getFullYear(), latest.getMonth() + 1, 0).getDate();
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    activeMonthExpenses = expensesByMonth(prev.getFullYear(), prev.getMonth());
+    activeMonthLabel = `${monthNames[prev.getMonth()]} ${prev.getFullYear()}`;
+    activeDaysInMonth = new Date(prev.getFullYear(), prev.getMonth() + 1, 0).getDate();
   }
 
   const activeTotal = activeMonthExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
   const avgPerDay = activeTotal / Math.max(activeDaysInMonth, 1);
 
-  // Trend: compare active month vs previous month
   const activeDate = activeMonthExpenses.length > 0 ? new Date(activeMonthExpenses[0].date) : now;
   const prevMonth = new Date(activeDate.getFullYear(), activeDate.getMonth() - 1, 1);
   const prevMonthTotal = expensesByMonth(prevMonth.getFullYear(), prevMonth.getMonth())

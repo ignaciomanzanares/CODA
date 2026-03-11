@@ -207,11 +207,15 @@ export function parseCartolaPdf(text: string): CartolaExtraida | null {
     saldoFinal = parseFloat(saldoHeaderMatch[4].replace(/\./g, '').replace(',', '.'));
   }
   
-  // Inferir año de las fechas en la cartola (buscar "DESDE dd/mm/yyyy HASTA dd/mm/yyyy")
-  let year = new Date().getFullYear();
-  const periodoMatch = text.match(/DESDE\s+(\d{2})\/(\d{2})\/(\d{4})|(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2})\/(\d{2})\/(\d{4})/i);
-  if (periodoMatch) {
-    year = parseInt(periodoMatch[3] || periodoMatch[6], 10);
+  // Inferir año del período en la cartola. Solo usar fechas del rango DESDE/HASTA.
+  const nowYear = new Date().getFullYear();
+  let year = nowYear;
+  const desdeMatch = text.match(/DESDE\s+(\d{2})\/(\d{2})\/(\d{4})/i) || text.match(/DESDE\s+(\d{2})\/(\d{2})\/(\d{2})/i);
+  const hastaMatch = text.match(/HASTA\s+(\d{2})\/(\d{2})\/(\d{4})/i) || text.match(/HASTA\s+(\d{2})\/(\d{2})\/(\d{2})/i);
+  const match = desdeMatch || hastaMatch;
+  if (match) {
+    const y = match[3].length === 4 ? parseInt(match[3], 10) : 2000 + parseInt(match[3], 10);
+    if (y >= 2015 && y <= nowYear + 1) year = y;
   }
   
   // Parse line by line. Each visual line from the PDF is now separated by \n
@@ -291,21 +295,25 @@ export function parseCartolaPdf(text: string): CartolaExtraida | null {
     fecha: string,
     out: CartolaExtraida['transacciones']
   ) {
-    // Strip leading doc number + branch if still present (e.g. "0211661437 93 Transf...")
-    let descripcion = desc.replace(/^\d{6,10}\s+\d{2,4}\s+/, '').replace(/\s+/g, ' ').trim();
+    // Strip leading doc number + branch if still present (e.g. "4539248 1 Traspaso...", "0211661437 93 Transf...")
+    let descripcion = desc.replace(/^\d{6,10}\s+\d{1,4}\s+/, '').replace(/\s+/g, ' ').trim();
     if (descripcion.length < 3) return;
     if (HEADER_RE.test(descripcion)) return;
 
     const montoNum = parseFloat(montoStr.replace(/\./g, '').replace(',', '.'));
     if (isNaN(montoNum) || montoNum === 0) return;
 
-    const esCargo = /Compra|Pago|Transf\.|Transf\s+a|PAGO|Carga|PAC|PAT|Giro/i.test(descripcion);
-    const esAbono = /Transf\s+de|Dep[oó]sito|Abono|TEF\s+Cr/i.test(descripcion);
+    // Cargo = egreso (Compra, Pago, Transferencia/Traspaso A alguien)
+    const esCargo = /Compra|Pago\s+|Transf\.?\s+a\s|Transf\s+a\s|Traspaso\s+a\s|PAGO\s|Carga\s|PAC\s|PAT\s|Giro\s/i.test(descripcion);
+    // Abono = ingreso (Depósito, Traspaso Automático, Transferencia/Traspaso DE alguien)
+    const esAbono = /Transf\s+de\s|Traspaso\s+de\s|Dep[oó]sito|Abono|TEF\s+Cr|Traspaso\s+Autom[aá]tico|Traspaso\s+.*Programado|Cr[eé]dito/i.test(descripcion);
+
+    if (!esCargo && !esAbono) return; // No clasificar = no importar (evita ingresos como gastos)
 
     out.push({
       fecha,
       descripcion: descripcion.slice(0, 200),
-      cargo: esCargo ? montoNum : (!esAbono ? montoNum : 0),
+      cargo: esCargo ? montoNum : 0,
       abono: esAbono ? montoNum : 0,
     });
   }
