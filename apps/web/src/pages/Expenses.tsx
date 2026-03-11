@@ -163,9 +163,9 @@ function StatCard({
     <Card>
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold mt-1">{value}</p>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-muted-foreground truncate">{title}</p>
+            <p className="text-card-value font-bold mt-1 truncate">{value}</p>
             {trend && (
               <div className={cn(
                 "flex items-center gap-1 text-sm mt-1",
@@ -753,7 +753,7 @@ export default function Expenses() {
                 <Receipt className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold">Gastos</h1>
+                <h1 className="text-hero-title font-bold">Gastos</h1>
                 <p className="text-muted-foreground">Registra y categoriza tus gastos</p>
               </div>
             </div>
@@ -895,74 +895,64 @@ export default function Expenses() {
               return (
                 <Card key={expense.id} className="overflow-hidden hover:shadow-md transition-shadow">
                   <CardContent className="p-0">
-                    <div className="flex items-center">
+                    <div className="flex">
                       {/* Category Color Bar */}
-                      <div className={cn("w-1 self-stretch", colorClass)} />
+                      <div className={cn("w-1 self-stretch shrink-0", colorClass)} />
                       
-                      <div className="flex items-center gap-4 p-4 flex-1">
-                        {/* Icon */}
-                        <div className={cn("p-3 rounded-xl text-white", colorClass)}>
-                          <Icon className="h-5 w-5" />
-                        </div>
-                        
-                        {/* Details */}
-                        <div className="flex-1 min-w-0">
-                          {(expense as Expense & { name?: string }).name && (
-                            <span className="text-xs text-muted-foreground truncate block mb-1">
-                              {(expense as Expense & { name?: string }).name}
-                            </span>
-                          )}
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold truncate">{expense.description}</h3>
-                            {expense.isAutoClassified && (
-                              <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
-                                <Sparkles className="h-3 w-3 mr-1" />
-                                AI
-                              </Badge>
+                      <div className="flex-1 min-w-0 p-3 sm:p-4">
+                        {/* Top row: icon + name + amount */}
+                        <div className="flex items-start gap-3">
+                          <div className={cn("p-2.5 sm:p-3 rounded-xl text-white shrink-0", colorClass)}>
+                            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            {(expense as Expense & { name?: string }).name && (
+                              <span className="text-xs text-muted-foreground truncate block">
+                                {(expense as Expense & { name?: string }).name}
+                              </span>
                             )}
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold truncate text-sm sm:text-base">{expense.description}</h3>
+                              {expense.isAutoClassified && (
+                                <Badge variant="secondary" className="text-xs bg-primary/10 text-primary shrink-0 hidden sm:flex">
+                                  <Sparkles className="h-3 w-3 mr-1" />
+                                  AI
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Amount - always visible top right */}
+                          <p className="text-base sm:text-xl font-bold shrink-0 ml-2">
+                            {formatCurrencyFn(Number(expense.amount))}
+                          </p>
+                        </div>
+
+                        {/* Bottom row: metadata + actions */}
+                        <div className="flex items-center justify-between mt-2 ml-[2.75rem] sm:ml-[3.25rem]">
+                          <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground min-w-0 overflow-hidden">
+                            <span className="flex items-center gap-1 shrink-0">
+                              <Tag className="h-3 w-3" />
+                              <span className="truncate max-w-[80px] sm:max-w-none">{categoryLabels[expense.category] || expense.category}</span>
+                            </span>
+                            <span className="flex items-center gap-1 shrink-0">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(expense.date).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}
+                            </span>
                             {expense.isRecurring && (
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-xs hidden sm:flex">
                                 Recurrente
                               </Badge>
                             )}
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Tag className="h-3 w-3" />
-                              {categoryLabels[expense.category] || expense.category}
-                            </span>
-                            {expense.merchantName && (
-                              <span className="truncate">{expense.merchantName}</span>
-                            )}
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {new Date(expense.date).toLocaleDateString()}
-                            </span>
-                          </div>
-                          {parseTags(expense.tags).length > 0 && (
-                            <div className="flex items-center gap-1 mt-2">
-                              {parseTags(expense.tags).slice(0, 3).map((tag, index) => (
-                                <Badge key={index} variant="outline" className="text-xs">
-                                  {tag}
-                                </Badge>
-                              ))}
-                              {parseTags(expense.tags).length > 3 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{parseTags(expense.tags).length - 3}
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Amount and Actions */}
-                        <div className="text-right flex items-center gap-4">
-                                          <p className="text-xl font-bold">{formatCurrencyFn(Number(expense.amount))}</p>
-                          <div className="flex gap-1">
+                          
+                          {/* Actions */}
+                          <div className="flex gap-1 shrink-0 ml-2">
                             <Button 
                               variant="ghost" 
                               size="icon"
-                              className="h-8 w-8"
+                              className="h-9 w-9 sm:h-10 sm:w-10"
                               onClick={() => handleEditExpense(expense)}
                               disabled={!isAuthenticated}
                             >
@@ -971,7 +961,7 @@ export default function Expenses() {
                             <Button 
                               variant="ghost" 
                               size="icon"
-                              className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                              className="h-9 w-9 sm:h-10 sm:w-10 text-red-500 hover:text-red-600 hover:bg-red-50"
                               onClick={() => deleteExpenseMutation.mutate(Number(expense.id) as any)}
                               disabled={deleteExpenseMutation.isPending || !isAuthenticated}
                             >
@@ -979,6 +969,22 @@ export default function Expenses() {
                             </Button>
                           </div>
                         </div>
+
+                        {/* Tags - only on larger screens */}
+                        {parseTags(expense.tags).length > 0 && (
+                          <div className="hidden sm:flex items-center gap-1 mt-2 ml-[3.25rem]">
+                            {parseTags(expense.tags).slice(0, 3).map((tag, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                            {parseTags(expense.tags).length > 3 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{parseTags(expense.tags).length - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>

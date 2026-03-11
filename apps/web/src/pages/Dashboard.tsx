@@ -109,7 +109,7 @@ export default function Dashboard() {
         {/* Header - Minimalista */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">
+            <h1 className="text-hero-title font-semibold text-foreground">
               {greeting}, {firstName}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -133,7 +133,7 @@ export default function Dashboard() {
           <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">Patrimonio neto</p>
             <div className="flex items-baseline gap-3">
-              <h2 className="text-4xl sm:text-5xl font-bold tracking-tight">
+              <h2 className="text-hero-value font-bold tracking-tight">
                 {formatCurrency(summary.netWorth, currency)}
               </h2>
               <div className={cn(
@@ -154,22 +154,22 @@ export default function Dashboard() {
 
         {/* Key Metrics - Clean Grid */}
         {summary && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Saldo total</p>
-              <p className="text-2xl font-semibold">{formatCurrency(summary.totalBalance, currency)}</p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="space-y-1 min-w-0">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">Saldo total</p>
+              <p className="text-card-value font-semibold truncate">{formatCurrency(summary.totalBalance, currency)}</p>
               <p className="text-xs text-muted-foreground">{summary.accountCount} cuentas</p>
             </div>
             
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ingresos mensuales</p>
-              <p className="text-2xl font-semibold">{formatCurrency(summary.monthlyIncome, currency)}</p>
+            <div className="space-y-1 min-w-0">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">Ingresos mensuales</p>
+              <p className="text-card-value font-semibold truncate">{formatCurrency(summary.monthlyIncome, currency)}</p>
               <p className="text-xs text-muted-foreground">Últimos 30 días</p>
             </div>
             
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Gastos mensuales</p>
-              <p className="text-2xl font-semibold">{formatCurrency(summary.monthlyExpenses, currency)}</p>
+            <div className="space-y-1 min-w-0">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">Gastos mensuales</p>
+              <p className="text-card-value font-semibold truncate">{formatCurrency(summary.monthlyExpenses, currency)}</p>
               <div className={cn(
                 "text-xs font-medium",
                 savingsThisMonth >= 0 ? "text-green-600" : "text-red-600"
@@ -178,9 +178,9 @@ export default function Dashboard() {
               </div>
             </div>
             
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tasa de ahorro</p>
-              <p className="text-2xl font-semibold">{summary.savingsRate}%</p>
+            <div className="space-y-1 min-w-0">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">Tasa de ahorro</p>
+              <p className="text-card-value font-semibold">{summary.savingsRate}%</p>
               <p className={cn(
                 "text-xs font-medium",
                 summary.savingsRate >= 20 ? "text-green-600" : "text-amber-600"
