@@ -24,6 +24,12 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.75rem;
+
+    /* Safe area insets — fallback to 0 on non-notch devices */
+    --sat: env(safe-area-inset-top, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
   }
  
   .dark {
@@ -52,8 +58,26 @@
     @apply border-border;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    /* Safe area padding for body — prevents content behind notch / home indicator */
+    padding-top: var(--sat);
+    padding-right: var(--sar);
+    padding-bottom: var(--sab);
+    padding-left: var(--sal);
+  }
+
+  /* ─── Task 1: Dynamic viewport height ─── */
+  .min-h-screen {
+    min-height: 100dvh;
+  }
+  .h-screen {
+    height: 100dvh;
   }
 }
 
@@ -61,4 +85,95 @@
   .container {
     @apply mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl;
   }
+}
+
+/* ─── Task 2: Adaptive clamp() typography ─────────────────────────── */
+/* Fluid type scale: minimum @ 320px → maximum @ 1024px               */
+.text-score-title {
+  font-size: clamp(1.5rem, 4vw + 0.5rem, 2.5rem);
+  line-height: 1.1;
+}
+.text-score-value {
+  font-size: clamp(2rem, 6vw + 0.5rem, 3.5rem);
+  line-height: 1;
+}
+.text-hero-title {
+  font-size: clamp(1.75rem, 5vw + 0.5rem, 3rem);
+  line-height: 1.15;
+}
+.text-hero-value {
+  font-size: clamp(1.5rem, 4vw + 0.5rem, 2.25rem);
+  line-height: 1.2;
+}
+.text-card-title {
+  font-size: clamp(0.875rem, 2vw + 0.25rem, 1.125rem);
+  line-height: 1.3;
+}
+.text-card-value {
+  font-size: clamp(1.25rem, 3vw + 0.25rem, 1.75rem);
+  line-height: 1.2;
+}
+
+/* ─── Task 5: Touch-friendly defaults ─────────────────────────────── */
+
+/* All interactive elements get at least 44×44 tap target on touch */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  a,
+  input[type="checkbox"],
+  input[type="radio"],
+  select,
+  summary {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Icon-only buttons: ensure the outer hit area even if visually small */
+  button[data-size="icon"],
+  [data-radix-collection-item] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Disable hover effects on touch — prevents "sticky hover" */
+  .hover\:bg-accent:active { background-color: hsl(var(--accent)); }
+  .hover\:bg-muted:active { background-color: hsl(var(--muted)); }
+
+  /* Expanded tap zone for small interactive elements via pseudo-element */
+  .tap-target-expand {
+    position: relative;
+  }
+  .tap-target-expand::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    z-index: 1;
+  }
+}
+
+/* Only apply hover styles when the device supports fine pointer (mouse) */
+@media (hover: hover) and (pointer: fine) {
+  .touch-hover\:bg-accent:hover {
+    background-color: hsl(var(--accent));
+  }
+}
+
+/* ─── Task 3: Safe-area utility classes ───────────────────────────── */
+.safe-top    { padding-top: var(--sat); }
+.safe-bottom { padding-bottom: var(--sab); }
+.safe-left   { padding-left: var(--sal); }
+.safe-right  { padding-right: var(--sar); }
+.safe-x      { padding-left: var(--sal); padding-right: var(--sar); }
+.safe-y      { padding-top: var(--sat); padding-bottom: var(--sab); }
+.safe-all    { padding: var(--sat) var(--sar) var(--sab) var(--sal); }
+
+/* Sticky header: account for safe area on top */
+.sticky-safe-top {
+  top: var(--sat);
+}
+
+/* Fixed bottom nav / FAB: account for home indicator */
+.fixed-safe-bottom {
+  bottom: var(--sab);
 }

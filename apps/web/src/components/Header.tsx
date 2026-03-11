@@ -90,8 +90,8 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="w-full flex h-14 min-h-14 flex-nowrap items-center gap-2 pl-2 pr-2 sm:pl-3 sm:pr-3">
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 safe-x">
+      <div className="w-full flex h-14 min-h-[3.5rem] flex-nowrap items-center gap-2 pl-2 pr-2 sm:pl-3 sm:pr-3">
         {/* Izquierda: CODA Empresas / CODA — lo más a la izquierda */}
         <div className="flex shrink-0 items-center min-w-0">
           <Link
@@ -216,7 +216,7 @@ export default function Header() {
                         <button
                           key={item.href}
                           className={cn(
-                            "flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-md transition-colors text-left",
+                            "flex items-center gap-3 px-3 py-3 text-sm font-medium rounded-md transition-colors text-left min-h-[44px]",
                             isActive
                               ? "bg-primary/10 text-primary"
                               : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -226,7 +226,7 @@ export default function Header() {
                             setLocation(item.href);
                           }}
                         >
-                          <Icon className="h-4 w-4" />
+                          <Icon className="h-5 w-5" />
                           {item.label}
                         </button>
                       );
@@ -238,23 +238,23 @@ export default function Header() {
                   {isAuthenticated ? (
                     <div className="flex flex-col gap-2">
                       <button
-                        className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted hover:text-foreground text-left"
+                        className="flex items-center gap-3 px-3 py-3 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted hover:text-foreground text-left min-h-[44px]"
                         onClick={() => {
                           setMobileMenuOpen(false);
                           setLocation('/profile');
                         }}
                       >
-                        <User className="h-4 w-4" />
+                        <User className="h-5 w-5" />
                         Perfil
                       </button>
                       <button
-                        className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted hover:text-foreground text-left"
+                        className="flex items-center gap-3 px-3 py-3 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted hover:text-foreground text-left min-h-[44px]"
                         onClick={() => {
                           setMobileMenuOpen(false);
                           handleLogout();
                         }}
                       >
-                        <LogOut className="h-4 w-4" />
+                        <LogOut className="h-5 w-5" />
                         Cerrar sesión
                       </button>
                     </div>

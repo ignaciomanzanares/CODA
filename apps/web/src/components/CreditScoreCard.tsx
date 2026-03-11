@@ -201,7 +201,7 @@ export default function CreditScoreCard() {
         {/* Score Ring */}
         <div className="flex justify-center py-2">
           <ProgressRing progress={progress} color={circleColor}>
-            <div className="text-4xl font-bold">
+            <div className="text-score-value font-bold">
               {creditScore.score}
             </div>
             <div className="text-xs text-muted-foreground">
@@ -268,7 +268,7 @@ export default function CreditScoreCard() {
         <div className="space-y-6 py-2">
           <div className="flex justify-center">
             <ProgressRing progress={progress} color={circleColor}>
-              <div className="text-4xl font-bold">{creditScore.score}</div>
+              <div className="text-score-value font-bold">{creditScore.score}</div>
               <div className="text-xs text-muted-foreground">de {creditScore.maxScore}</div>
             </ProgressRing>
           </div>

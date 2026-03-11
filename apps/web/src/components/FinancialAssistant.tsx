@@ -182,7 +182,8 @@ Puedo ayudarte a:
     return (
       <Button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all z-50"
+        className="fixed right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all z-50 fixed-safe-bottom"
+        style={{ bottom: "max(1.5rem, var(--sab, 0px))" }}
         size="icon"
       >
         <MessageCircle className="h-6 w-6" />
@@ -394,10 +395,13 @@ Puedo ayudarte a:
 
   // Floating mode
   return (
-    <div className={cn(
-      "fixed bottom-6 right-6 z-50 transition-all duration-300",
-      isMinimized ? "w-72" : "w-96"
-    )}>
+    <div
+      className={cn(
+        "fixed right-4 sm:right-6 z-50 transition-all duration-300",
+        isMinimized ? "w-72" : "w-[calc(100vw-2rem)] sm:w-96"
+      )}
+      style={{ bottom: "max(1.5rem, var(--sab, 0px))" }}
+    >
       <Card className={cn(
         "flex flex-col shadow-2xl",
         isMinimized ? "h-auto" : "h-[500px]"
