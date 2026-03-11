@@ -1157,7 +1157,7 @@ export default function BillSplit() {
                     <p className="text-sm text-muted-foreground mb-3">
                       Envía este enlace a tus amigos para que vean la cuenta y paguen su parte
                     </p>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 mb-3">
                       <Input 
                         value={`${window.location.origin}/split/${selectedExpense.shareCode}`}
                         readOnly
@@ -1176,6 +1176,46 @@ export default function BillSplit() {
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
+                    </div>
+                    <div className="flex gap-2">
+                      {/* WhatsApp Share */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 text-green-700 border-green-200 hover:bg-green-50"
+                        onClick={() => {
+                          const amount = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(selectedExpense.totalAmount);
+                          const url = `${window.location.origin}/split/${selectedExpense.shareCode}`;
+                          const msg = `💸 Te envío un cobro por *${selectedExpense.name}*\n💰 Monto total: ${amount}\n\n✅ Ve tu parte y marca tu pago aquí:\n${url}\n\n_Enviado desde CODA_`;
+                          window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+                        }}
+                      >
+                        <Send className="h-4 w-4 mr-1" />
+                        WhatsApp
+                      </Button>
+                      {/* Web Share API (PWA) */}
+                      {'share' in navigator && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={async () => {
+                            try {
+                              const amount = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(selectedExpense.totalAmount);
+                              await navigator.share({
+                                title: `Cobro - ${selectedExpense.name}`,
+                                text: `Te pido ${amount} por "${selectedExpense.name}"`,
+                                url: `${window.location.origin}/split/${selectedExpense.shareCode}`,
+                              });
+                            } catch (err) {
+                              // User cancelled or not supported
+                            }
+                          }}
+                        >
+                          <Share2 className="h-4 w-4 mr-1" />
+                          Compartir
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )}

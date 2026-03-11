@@ -3143,6 +3143,264 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(risk);
   });
 
+  // =====================================================
+  // EXPENSE AUTOMATION ENDPOINTS
+  // =====================================================
+
+  // Parse bank push notification → structured expense
+  app.post("/api/expenses/parse-notification", authenticate, async (req: Request, res: Response) => {
+    try {
+      const { text, texts } = req.body;
+      const { parseNotification, parseNotifications } = await import('./services/expenses/notificationParser.js');
+
+      if (texts && Array.isArray(texts)) {
+        const results = parseNotifications(texts);
+        res.json({ success: true, results });
+      } else if (text) {
+        const result = parseNotification(text);
+        if (!result) {
+          return res.status(400).json({ success: false, message: 'No se pudo interpretar la notificación' });
+        }
+        res.json({ success: true, result });
+      } else {
+        res.status(400).json({ success: false, message: 'Se requiere "text" o "texts"' });
+      }
+    } catch (error) {
+      logger.error({ error }, 'Failed to parse notification');
+      res.status(500).json({ success: false, message: 'Error al procesar la notificación' });
+    }
+  });
+
+  // Upload cartola PDF → structured JSON with movements
+  app.post("/api/expenses/parse-cartola", authenticate, async (req: Request, res: Response) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { documentUpload } = await import('./middleware/uploadMiddleware.js');
+
+      documentUpload.single('file')(req, res, async (err: any) => {
+        if (err) {
+          return res.status(400).json({ success: false, message: err.message });
+        }
+
+        const file = (req as any).file;
+        if (!file) {
+          return res.status(400).json({ success: false, message: 'Se requiere un archivo PDF' });
+        }
+
+        const paymentMethod = req.body?.paymentMethod || 'debito';
+
+        const { parseCartolaPdfToJson } = await import('./services/expenses/cartolaParser.js');
+        const result = await parseCartolaPdfToJson(file.buffer, paymentMethod);
+
+        if (!result.success) {
+          return res.status(422).json({
+            success: false,
+            message: 'No se pudieron extraer movimientos de la cartola',
+          });
+        }
+
+        // Auto-reconcile abonos against pending splits
+        const { reconcileCartolaMovements } = await import('./services/expenses/reconciliationService.js');
+        const reconciliation = await reconcileCartolaMovements(userId, result.movimientos);
+
+        res.json({
+          success: true,
+          movimientos: result.movimientos,
+          resumen: result.resumen,
+          reconciliation: {
+            matches: reconciliation.matches,
+            totalReconciled: reconciliation.totalReconciled,
+            totalPending: reconciliation.totalPending,
+          },
+        });
+      });
+    } catch (error) {
+      logger.error({ error }, 'Failed to parse cartola');
+      res.status(500).json({ success: false, message: 'Error al procesar la cartola' });
+    }
+  });
+
+  // Categorize expense automatically
+  app.post("/api/expenses/categorize", authenticate, async (req: Request, res: Response) => {
+    try {
+      const { merchantName, amount, description } = req.body;
+      const { categorizeExpense } = await import('./services/expenses/expenseCategorizer.js');
+
+      const result = categorizeExpense(merchantName || '', amount, description);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      logger.error({ error }, 'Failed to categorize expense');
+      res.status(500).json({ success: false, message: 'Error al categorizar' });
+    }
+  });
+
+  // Bulk import movements from cartola as expenses
+  app.post("/api/expenses/import-cartola", authenticate, async (req: Request, res: Response) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { movimientos } = req.body;
+
+      if (!movimientos || !Array.isArray(movimientos) || movimientos.length === 0) {
+        return res.status(400).json({ success: false, message: 'Se requiere un array de movimientos' });
+      }
+
+      // Only import cargos (debits) as expenses
+      const cargos = movimientos.filter((m: any) => m.sfaOperationType === 'cargo' || m.cargo > 0);
+
+      let imported = 0;
+      for (const mov of cargos) {
+        try {
+          await storage.createExpense({
+            userId,
+            name: mov.merchantName || mov.description,
+            amount: mov.amount,
+            description: mov.description,
+            category: mov.category || 'other',
+            subcategory: mov.subcategory,
+            merchantName: mov.merchantName,
+            date: mov.date || new Date().toISOString(),
+            paymentMethod: mov.paymentMethod || 'debito',
+            isAutoClassified: 1,
+            confidence: mov.confidence || 0.7,
+          });
+          imported++;
+        } catch (err) {
+          logger.warn({ err, mov }, 'Failed to import single movement');
+        }
+      }
+
+      res.json({
+        success: true,
+        imported,
+        skipped: movimientos.length - cargos.length,
+        message: `${imported} gastos importados exitosamente`,
+      });
+    } catch (error) {
+      logger.error({ error }, 'Failed to import cartola movements');
+      res.status(500).json({ success: false, message: 'Error al importar movimientos' });
+    }
+  });
+
+  // =====================================================
+  // BILL SPLIT PAYMENT LINKS & SHARING
+  // =====================================================
+
+  // Generate payment link + WhatsApp message for a bill split
+  app.post("/api/bill-splits/:id/payment-link", authenticate, async (req: Request, res: Response) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const billSplitId = Number(req.params.id);
+      const { participantId, transferDetails } = req.body;
+
+      if (!participantId || !transferDetails) {
+        return res.status(400).json({ success: false, message: 'Se requiere participantId y transferDetails' });
+      }
+
+      // Get bill split
+      const billSplit = await storage.getBillSplit(billSplitId);
+      if (!billSplit || billSplit.createdBy !== userId) {
+        return res.status(404).json({ success: false, message: 'Gasto compartido no encontrado' });
+      }
+
+      // Get participant
+      const participants = await storage.getBillSplitParticipants(billSplitId);
+      const participant = participants.find((p: any) => p.id === participantId);
+      if (!participant) {
+        return res.status(404).json({ success: false, message: 'Participante no encontrado' });
+      }
+
+      const { createPaymentLink, generateWhatsAppMessage, generateShareData } = await import('./services/expenses/paymentLinkService.js');
+
+      const baseUrl = process.env.WEB_URL || 'https://coda-web-steel.vercel.app';
+
+      const paymentLink = createPaymentLink({
+        billSplitId,
+        participantId,
+        shareCode: billSplit.shareCode || `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`,
+        amount: participant.amountOwed,
+        concept: billSplit.name,
+        transferDetails,
+      });
+
+      const user = await storage.getUser(userId);
+
+      const whatsappMessage = generateWhatsAppMessage({
+        amount: participant.amountOwed,
+        concept: billSplit.name,
+        creatorName: user?.firstName || user?.username || 'Usuario CODA',
+        shareCode: billSplit.shareCode || paymentLink.shareCode,
+        baseUrl,
+        transferDetails: paymentLink.transferDetails,
+      });
+
+      const shareData = generateShareData({
+        amount: participant.amountOwed,
+        concept: billSplit.name,
+        creatorName: user?.firstName || user?.username || 'Usuario CODA',
+        shareCode: billSplit.shareCode || paymentLink.shareCode,
+        baseUrl,
+      });
+
+      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappMessage)}`;
+
+      res.json({
+        success: true,
+        paymentLink,
+        whatsappUrl,
+        whatsappMessage,
+        shareData,
+        paymentUrl: `${baseUrl}/split/${billSplit.shareCode || paymentLink.shareCode}`,
+      });
+    } catch (error) {
+      logger.error({ error }, 'Failed to generate payment link');
+      res.status(500).json({ success: false, message: 'Error al generar link de pago' });
+    }
+  });
+
+  // Reconcile a notification with pending splits
+  app.post("/api/expenses/reconcile-notification", authenticate, async (req: Request, res: Response) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { text } = req.body;
+
+      if (!text) {
+        return res.status(400).json({ success: false, message: 'Se requiere "text"' });
+      }
+
+      const { parseNotification } = await import('./services/expenses/notificationParser.js');
+      const notification = parseNotification(text);
+
+      if (!notification) {
+        return res.json({ success: true, matches: [], message: 'No se pudo interpretar la notificación' });
+      }
+
+      if (notification.operationType !== 'abono') {
+        return res.json({ success: true, matches: [], notification, message: 'Solo abonos se reconcilian' });
+      }
+
+      const { reconcileNotification } = await import('./services/expenses/reconciliationService.js');
+      const matches = await reconcileNotification(userId, notification);
+
+      // Auto-reconcile high-confidence matches
+      const { autoReconcileAndNotify } = await import('./services/expenses/reconciliationService.js');
+      for (const match of matches) {
+        if (match.autoReconciled) {
+          await autoReconcileAndNotify(userId, match);
+        }
+      }
+
+      res.json({
+        success: true,
+        notification,
+        matches,
+        reconciled: matches.filter(m => m.autoReconciled).length,
+      });
+    } catch (error) {
+      logger.error({ error }, 'Failed to reconcile notification');
+      res.status(500).json({ success: false, message: 'Error al reconciliar' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
