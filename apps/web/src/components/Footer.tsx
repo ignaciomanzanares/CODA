@@ -32,12 +32,12 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/goals" className="text-gray-300 hover:text-white">
+                <Link href="/info/financial-goals" className="text-gray-300 hover:text-white">
                   Metas financieras
                 </Link>
               </li>
               <li>
-                <Link href="/products" className="text-gray-300 hover:text-white">
+                <Link href="/info/product-comparison" className="text-gray-300 hover:text-white">
                   Comparación de productos
                 </Link>
               </li>
