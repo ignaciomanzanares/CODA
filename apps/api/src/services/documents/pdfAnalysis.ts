@@ -218,16 +218,21 @@ export function parseCartolaPdf(text: string): CartolaExtraida | null {
 
   for (const match of [hastaFull, desdeFull, hastaShort, desdeShort]) {
     if (!match) continue;
-    let y = match[3].length === 4 ? parseInt(match[3], 10) : 2000 + parseInt(match[3], 10);
+    const y = match[3].length === 4 ? parseInt(match[3], 10) : 2000 + parseInt(match[3], 10);
     if (y >= 2015 && y <= nowYear) { year = y; break; }
   }
 
-  // Fallback: buscar año 2015-2029 en el header si no hubo match válido
+  // Fallback: buscar año plausible solo si es <= año actual (nunca usar 2029, 2030, etc.)
   if (year === nowYear) {
-    const headerYear = text.slice(0, 800).match(/\b(201[5-9]|202[0-9])\b/);
-    if (headerYear) year = parseInt(headerYear[1], 10);
+    const headerYear = text.slice(0, 800).match(/\b(201[5-9]|202[0-9])\b/g);
+    if (headerYear) {
+      const candidates = headerYear.map(s => parseInt(s, 10)).filter(y => y >= 2015 && y <= nowYear);
+      if (candidates.length > 0) year = Math.max(...candidates);
+    }
   }
-  
+
+  year = Math.min(nowYear, Math.max(2015, year));
+
   // Parse line by line. Each visual line from the PDF is now separated by \n
   // thanks to the Y-coordinate aware text extraction.
   //
