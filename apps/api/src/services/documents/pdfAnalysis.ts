@@ -211,22 +211,45 @@ export function parseCartolaPdf(text: string): CartolaExtraida | null {
   const nowYear = new Date().getFullYear();
   let year = nowYear;
 
+  // Patrones explícitos: HASTA/DESDE con fecha completa o corta
   const hastaFull = text.match(/HASTA\s*(\d{2})\/(\d{2})\/(\d{4})/i);
   const desdeFull = text.match(/DESDE\s*(\d{2})\/(\d{2})\/(\d{4})/i);
   const hastaShort = text.match(/HASTA\s*(\d{2})\/(\d{2})\/(\d{2})\b/i);
   const desdeShort = text.match(/DESDE\s*(\d{2})\/(\d{2})\/(\d{2})\b/i);
+  // Algunos bancos chilenos usan "AL" en vez de "HASTA"
+  const alFull  = text.match(/\bAL\s+(\d{2})\/(\d{2})\/(\d{4})/i);
+  const alShort = text.match(/\bAL\s+(\d{2})\/(\d{2})\/(\d{2})\b/i);
+  // Patrón "Período: XX/XX/XXXX" o "Período DD/MM/YYYY - DD/MM/YYYY"
+  const periodoFull  = text.match(/[Pp]er[ií]odo[:\s]+(?:\d{2}\/\d{2}\/\d{4}\s*[-–a]\s*)?(\d{2})\/(\d{2})\/(\d{4})/);
+  const periodoShort = text.match(/[Pp]er[ií]odo[:\s]+(?:\d{2}\/\d{2}\/\d{2}\s*[-–a]\s*)?(\d{2})\/(\d{2})\/(\d{2})\b/);
+  // Patrón de año suelto junto a nombre del mes en español: "Diciembre 2025", "diciembre 2025"
+  const monthYear = text.match(/(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(202[0-9]|201[5-9])/i);
 
-  for (const match of [hastaFull, desdeFull, hastaShort, desdeShort]) {
+  for (const match of [hastaFull, desdeFull, alFull, periodoFull]) {
     if (!match) continue;
-    const y = match[3].length === 4 ? parseInt(match[3], 10) : 2000 + parseInt(match[3], 10);
-    if (y >= 2015 && y <= nowYear) { year = y; break; }
+    const y = parseInt(match[3] ?? match[1], 10);
+    if (y >= 2015 && y <= nowYear + 1) { year = y; break; }
   }
 
-  // Fallback: buscar año plausible solo si es <= año actual (nunca usar 2029, 2030, etc.)
   if (year === nowYear) {
-    const headerYear = text.slice(0, 800).match(/\b(201[5-9]|202[0-9])\b/g);
-    if (headerYear) {
-      const candidates = headerYear.map(s => parseInt(s, 10)).filter(y => y >= 2015 && y <= nowYear);
+    for (const match of [hastaShort, desdeShort, alShort, periodoShort]) {
+      if (!match) continue;
+      const y = 2000 + parseInt(match[3] ?? match[1], 10);
+      if (y >= 2015 && y <= nowYear + 1) { year = y; break; }
+    }
+  }
+
+  // Fallback: año junto a nombre de mes en español
+  if (year === nowYear && monthYear) {
+    const y = parseInt(monthYear[1], 10);
+    if (y >= 2015 && y <= nowYear + 1) year = y;
+  }
+
+  // Último fallback: buscar cualquier año plausible en el texto completo (no solo primeros 800 chars)
+  if (year === nowYear) {
+    const allYears = text.match(/\b(201[5-9]|202[0-9])\b/g);
+    if (allYears) {
+      const candidates = allYears.map(s => parseInt(s, 10)).filter(y => y >= 2015 && y <= nowYear);
       if (candidates.length > 0) year = Math.max(...candidates);
     }
   }

@@ -59,23 +59,27 @@ export interface CartolaStructured {
 }
 
 function parseDateFromCartola(dateStr: string): string {
-  // Try various date formats: DD/MM/YYYY, DD-MM-YYYY, DD/MM/YY, YYYY-MM-DD
-  const formats = [
-    /(\d{2})[/-](\d{2})[/-](\d{4})/,   // DD/MM/YYYY
-    /(\d{2})[/-](\d{2})[/-](\d{2})/,    // DD/MM/YY
-    /(\d{4})-(\d{2})-(\d{2})/,          // YYYY-MM-DD (ISO)
-  ];
-
-  for (const fmt of formats) {
-    const match = dateStr.match(fmt);
-    if (match) {
-      if (match[1].length === 4) {
-        return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3])).toISOString();
-      }
-      const year = match[3].length === 2 ? 2000 + parseInt(match[3]) : parseInt(match[3]);
-      return new Date(year, parseInt(match[2]) - 1, parseInt(match[1])).toISOString();
-    }
+  // IMPORTANT: check ISO (YYYY-MM-DD) FIRST.
+  // If DD/MM/YY were tried first, a string like "2025-12-29" would be partially matched
+  // as "25-12-29" (DD=25, MM=12, YY=29) and incorrectly produce year 2029.
+  const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    return new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3])).toISOString();
   }
+
+  // DD/MM/YYYY (anchored to avoid sub-pattern matches)
+  const ddmmyyyyMatch = dateStr.match(/^(\d{2})[/-](\d{2})[/-](\d{4})/);
+  if (ddmmyyyyMatch) {
+    return new Date(parseInt(ddmmyyyyMatch[3]), parseInt(ddmmyyyyMatch[2]) - 1, parseInt(ddmmyyyyMatch[1])).toISOString();
+  }
+
+  // DD/MM/YY (anchored)
+  const ddmmyyMatch = dateStr.match(/^(\d{2})[/-](\d{2})[/-](\d{2})/);
+  if (ddmmyyMatch) {
+    const year = 2000 + parseInt(ddmmyyMatch[3]);
+    return new Date(year, parseInt(ddmmyyMatch[2]) - 1, parseInt(ddmmyyMatch[1])).toISOString();
+  }
+
   return new Date().toISOString();
 }
 
