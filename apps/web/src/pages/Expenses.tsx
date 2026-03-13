@@ -97,16 +97,27 @@ const categories = [
 
 const categoryLabels: Record<string, string> = {
   Groceries: "Supermercado",
+  groceries: "Supermercado",
   Dining: "Restaurantes",
+  dining: "Restaurantes",
   Transportation: "Transporte",
+  transportation: "Transporte",
   Housing: "Vivienda",
+  housing: "Vivienda",
   Healthcare: "Salud",
+  healthcare: "Salud",
   Entertainment: "Entretenimiento",
+  entertainment: "Entretenimiento",
   Shopping: "Compras",
+  shopping: "Compras",
   Utilities: "Servicios",
+  utilities: "Servicios",
   Education: "Educación",
+  education: "Educación",
   Travel: "Viajes",
+  travel: "Viajes",
   Other: "Otros",
+  other: "Otros",
 };
 
 // Get icon for category
@@ -196,6 +207,7 @@ export default function Expenses() {
   const { getExpenses, createExpense, updateExpense, deleteExpense, classifyExpense, scanExpense, parseNotifications, parseCartolaPdf, importCartolaMovements } = useApi();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedMonth, setSelectedMonth] = useState<string>("auto");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
@@ -423,14 +435,40 @@ export default function Expenses() {
     },
   });
 
+  const getYearMonth = (dateStr: string | Date): { y: number; m: number } | null => {
+    const s = String(dateStr);
+    const m1 = s.match(/^(\d{4})-(\d{2})/);
+    if (m1) return { y: parseInt(m1[1], 10), m: parseInt(m1[2], 10) - 1 };
+    const m2 = s.match(/\/(\d{2})\/(\d{4})$/);
+    if (m2) return { y: parseInt(m2[2], 10), m: parseInt(m2[1], 10) - 1 };
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) return { y: d.getFullYear(), m: d.getMonth() };
+    return null;
+  };
+
+  const availableMonths = (() => {
+    const keys = new Set<string>();
+    for (const e of expenses) {
+      const ym = getYearMonth(e.date);
+      if (ym) keys.add(`${ym.y}-${String(ym.m + 1).padStart(2, '0')}`);
+    }
+    return [...keys].sort().reverse();
+  })();
+
   const filteredExpenses = expenses.filter(expense => {
     const name = (expense as Expense & { name?: string }).name?.toLowerCase() || "";
     const matchesSearch = !searchTerm ||
       expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       expense.merchantName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       name.includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === "all" || expense.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const matchesCategory = selectedCategory === "all" || expense.category?.toLowerCase() === selectedCategory?.toLowerCase();
+    const matchesMonth = selectedMonth === "auto" || (() => {
+      const ym = getYearMonth(expense.date);
+      if (!ym) return true;
+      const key = `${ym.y}-${String(ym.m + 1).padStart(2, '0')}`;
+      return key === selectedMonth;
+    })();
+    return matchesSearch && matchesCategory && matchesMonth;
   });
 
   const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
@@ -715,30 +753,24 @@ export default function Expenses() {
     );
   }
 
-  // Stats: usar el MES MÁS RECIENTE con datos (no mes actual/anterior fijo)
+  // Stats: respetar filtro de mes si está seleccionado, sino usar el más reciente con datos
   const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-
-  const getYearMonth = (dateStr: string | Date): { y: number; m: number } | null => {
-    const s = String(dateStr);
-    const m1 = s.match(/^(\d{4})-(\d{2})/);
-    if (m1) return { y: parseInt(m1[1], 10), m: parseInt(m1[2], 10) - 1 };
-    const m2 = s.match(/\/(\d{2})\/(\d{4})$/);
-    if (m2) return { y: parseInt(m2[2], 10), m: parseInt(m2[1], 10) - 1 };
-    const d = new Date(dateStr);
-    if (!isNaN(d.getTime())) return { y: d.getFullYear(), m: d.getMonth() };
-    return null;
-  };
 
   const expensesByMonth = (y: number, m: number) =>
     expenses.filter(e => { const ym = getYearMonth(e.date); return ym ? ym.y === y && ym.m === m : false; });
 
-  // Encontrar el mes más reciente que tenga gastos
   let activeYear = new Date().getFullYear();
   let activeMonth = new Date().getMonth();
   let activeMonthLabel = 'Este mes';
   let activeMonthExpenses: typeof expenses = [];
 
-  if (expenses.length > 0) {
+  if (selectedMonth !== "auto" && selectedMonth.includes("-")) {
+    const [y, m] = selectedMonth.split("-").map(Number);
+    activeYear = y;
+    activeMonth = m - 1;
+    activeMonthExpenses = expensesByMonth(activeYear, activeMonth);
+    activeMonthLabel = `${monthNames[activeMonth]} ${activeYear}`;
+  } else if (expenses.length > 0) {
     const sorted = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const latestYm = getYearMonth(sorted[0].date);
     if (latestYm) {
@@ -902,10 +934,28 @@ export default function Expenses() {
                 <SelectContent>
                   <SelectItem value="all">Todas las categorías</SelectItem>
                   {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {categoryLabels[category]}
+                    <SelectItem key={category} value={category.toLowerCase()}>
+                      {categoryLabels[category] || categoryLabels[category.toLowerCase()]}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-full sm:w-44">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Mes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Último mes</SelectItem>
+                  {availableMonths.map((key) => {
+                    const [y, m] = key.split("-").map(Number);
+                    const label = `${monthNames[m - 1]} ${y}`;
+                    return (
+                      <SelectItem key={key} value={key}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
