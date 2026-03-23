@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import { env, isDevelopment } from '../env.js';
 import { storage } from '../storage.js';
 import { emailService } from '../services/emailService.js';
+import { logger } from '../logger.js';
 import {
   logAuthSecurityEvent,
   redactEmail,
@@ -51,13 +52,41 @@ export function hashPassword(password: string): string {
 }
 
 /**
- * Verify a password against a hash
+ * Verify a password against a hash (PBKDF2 salt:hash). Nunca lanza: hashes corruptos o datos antiguos → false.
  */
 export function verifyPassword(password: string, storedHash: string): boolean {
-  const [salt, hash] = storedHash.split(':');
-  if (!salt || !hash) return false;
-  const verifyHash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
-  return hash === verifyHash;
+  if (!storedHash || typeof storedHash !== 'string') return false;
+  try {
+    const [salt, hash] = storedHash.split(':');
+    if (!salt || !hash) return false;
+    const verifyHash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+    return hash === verifyHash;
+  } catch (err) {
+    logger.warn({ err }, 'verifyPassword: error comparando hash (formato inválido o datos corruptos)');
+    return false;
+  }
+}
+
+/** Email estable para login/registro (evita fallos por espacios o mayúsculas vs BD). */
+export function normalizeEmail(email: string): string {
+  return String(email).trim().toLowerCase();
+}
+
+function isTwoFactorEnabledFlag(value: unknown): boolean {
+  if (value === true) return true;
+  if (value === 1) return true;
+  if (typeof value === 'string' && value.trim() === '1') return true;
+  return false;
+}
+
+function isLikelyDatabaseOrInfraError(err: unknown): boolean {
+  const e = err as { code?: string; message?: string; name?: string };
+  const code = e?.code;
+  if (typeof code === 'string' && /^[0-9A-Z]{5}$/.test(code)) return true;
+  const msg = String(e?.message ?? err ?? '');
+  return /connection|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|timeout|socket|database|postgres|query failed|Failed query/i.test(
+    msg
+  );
 }
 
 // =============================================================================
@@ -302,9 +331,9 @@ function registerClientMeta(req: Request): { ipAddress: string | null; userAgent
 }
 
 export async function handleRegister(req: Request, res: Response) {
-  const { name, email, password, consents, policyVersion } = req.body;
+  const { name, email: rawEmail, password, consents, policyVersion } = req.body;
 
-  if (!email || !password) {
+  if (!rawEmail || !password) {
     return res.status(400).json({ 
       error: 'Bad Request', 
       message: 'Email and password are required' 
@@ -317,6 +346,8 @@ export async function handleRegister(req: Request, res: Response) {
       message: 'Name is required' 
     });
   }
+
+  const email = normalizeEmail(rawEmail);
 
   if (!consents || typeof consents !== 'object') {
     return res.status(400).json({
@@ -461,14 +492,16 @@ export async function ensureUserForToken(payload: TokenPayload): Promise<string 
  * Supports both registered users and demo users
  */
 export async function handleLoginWithDB(req: Request, res: Response) {
-  const { email, password } = req.body;
+  const { email: rawEmail, password } = req.body;
 
-  if (!email || !password) {
+  if (!rawEmail || !password) {
     return res.status(400).json({ 
       error: 'Bad Request', 
       message: 'Email and password are required' 
     });
   }
+
+  const email = normalizeEmail(rawEmail);
 
   // Check demo authentication FIRST (for quick demo access)
   const isProduction = process.env.NODE_ENV === 'production';
@@ -500,9 +533,12 @@ export async function handleLoginWithDB(req: Request, res: Response) {
   }
 
   try {
-    // Check if user exists in database
-    const user = await storage.getUserByEmail(email);
-    
+    // Usuario: primero email normalizado; si no hay fila, intentar tal cual vino (cuentas antiguas en BD)
+    let user = await storage.getUserByEmail(email);
+    if (!user && String(rawEmail).trim() !== email) {
+      user = await storage.getUserByEmail(String(rawEmail).trim());
+    }
+
     if (user && user.passwordHash) {
       // User exists with password - verify
       if (!verifyPassword(password, user.passwordHash)) {
@@ -517,7 +553,7 @@ export async function handleLoginWithDB(req: Request, res: Response) {
       }
 
       // Check if 2FA is enabled
-      if (user.twoFactorEnabled) {
+      if (isTwoFactorEnabledFlag(user.twoFactorEnabled)) {
         // Generate and send OTP
         const otpCode = generateOTP();
         storeOTP(email, otpCode);
@@ -556,7 +592,16 @@ export async function handleLoginWithDB(req: Request, res: Response) {
         name: user.displayName || user.username,
       };
 
-      const token = generateToken(tokenPayload);
+      let token: string;
+      try {
+        token = generateToken(tokenPayload);
+      } catch (tokenErr) {
+        logger.error({ err: tokenErr }, 'login: generateToken failed');
+        return res.status(500).json({
+          error: 'Internal Server Error',
+          message: 'No se pudo crear la sesión. Revisa la configuración del servidor (JWT).',
+        });
+      }
 
       logAuthSecurityEvent('login_success', req, {
         userId: user.id,
@@ -580,10 +625,20 @@ export async function handleLoginWithDB(req: Request, res: Response) {
       message: 'Invalid email or password' 
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ 
-      error: 'Internal Server Error', 
-      message: 'Login failed' 
+    logger.error(
+      { err: error, message: error instanceof Error ? error.message : String(error) },
+      'Login error: handler exception'
+    );
+    if (isLikelyDatabaseOrInfraError(error)) {
+      return res.status(503).json({
+        error: 'Service Unavailable',
+        message:
+          'No pudimos conectar con la base de datos. Intenta en unos segundos. Si persiste, contacta soporte.',
+      });
+    }
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Login failed',
     });
   }
 }
@@ -592,14 +647,16 @@ export async function handleLoginWithDB(req: Request, res: Response) {
  * Verify 2FA OTP and complete login
  */
 export async function handleVerify2FA(req: Request, res: Response) {
-  const { email, code } = req.body;
+  const { email: rawEmail, code } = req.body;
 
-  if (!email || !code) {
+  if (!rawEmail || !code) {
     return res.status(400).json({ 
       error: 'Bad Request', 
       message: 'Email and verification code are required' 
     });
   }
+
+  const email = normalizeEmail(rawEmail);
 
   const result = verifyOTP(email, code);
   
@@ -744,19 +801,21 @@ export async function handleDisable2FA(req: AuthenticatedRequest, res: Response)
  * Resend 2FA OTP
  */
 export async function handleResend2FA(req: Request, res: Response) {
-  const { email } = req.body;
+  const { email: rawEmail } = req.body;
 
-  if (!email) {
+  if (!rawEmail) {
     return res.status(400).json({ 
       error: 'Bad Request', 
       message: 'Email is required' 
     });
   }
 
+  const email = normalizeEmail(rawEmail);
+
   try {
     const user = await storage.getUserByEmail(email);
     
-    if (!user || !user.twoFactorEnabled) {
+    if (!user || !isTwoFactorEnabledFlag(user.twoFactorEnabled)) {
       return res.status(400).json({ 
         error: 'Bad Request', 
         message: '2FA is not enabled for this account' 

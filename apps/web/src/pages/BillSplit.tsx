@@ -31,6 +31,7 @@ import PaymentDialog from "@/components/PaymentDialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
+import { rutaDividirPublico } from "@/lib/routes";
 
 // Montos guardados en CLP; mostrar en la moneda elegida (CLP por defecto)
 function formatAmount(amount: number, currency: "CLP" | "USD") {
@@ -1164,7 +1165,7 @@ export default function BillSplit() {
                     </p>
                     <div className="flex gap-2 mb-3">
                       <Input 
-                        value={`${window.location.origin}/split/${selectedExpense.shareCode}`}
+                        value={`${window.location.origin}${rutaDividirPublico(selectedExpense.shareCode ?? "")}`}
                         readOnly
                         className="text-sm font-mono bg-background"
                       />
@@ -1172,7 +1173,7 @@ export default function BillSplit() {
                         size="icon"
                         variant="outline"
                         onClick={() => {
-                          navigator.clipboard.writeText(`${window.location.origin}/split/${selectedExpense.shareCode}`);
+                          navigator.clipboard.writeText(`${window.location.origin}${rutaDividirPublico(selectedExpense.shareCode ?? "")}`);
                           toast({
                             title: "¡Enlace copiado!",
                             description: "Enlace copiado al portapapeles",
@@ -1190,7 +1191,7 @@ export default function BillSplit() {
                         className="flex-1 text-green-700 border-green-200 hover:bg-green-50"
                         onClick={() => {
                           const amount = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(Number(selectedExpense.totalAmount));
-                          const url = `${window.location.origin}/split/${selectedExpense.shareCode}`;
+                          const url = `${window.location.origin}${rutaDividirPublico(selectedExpense.shareCode ?? "")}`;
                           const msg = `💸 Te envío un cobro por *${selectedExpense.name}*\n💰 Monto total: ${amount}\n\n✅ Ve tu parte y marca tu pago aquí:\n${url}\n\n_Enviado desde CODA_`;
                           window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
                         }}
@@ -1210,7 +1211,7 @@ export default function BillSplit() {
                               await navigator.share({
                                 title: `Cobro - ${selectedExpense.name}`,
                                 text: `Te pido ${amount} por "${selectedExpense.name}"`,
-                                url: `${window.location.origin}/split/${selectedExpense.shareCode}`,
+                                url: `${window.location.origin}${rutaDividirPublico(selectedExpense.shareCode ?? "")}`,
                               });
                             } catch (err) {
                               // User cancelled or not supported

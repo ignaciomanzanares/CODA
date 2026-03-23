@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { Link } from "wouter";
+import { ROUTES } from "@/lib/routes";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -374,7 +375,7 @@ Puedo ayudarte a:
             </div>
             {!isAuthenticated && (
               <p className="text-xs text-muted-foreground mt-2 text-center">
-                <Link href="/login" className="text-primary hover:underline">Inicia sesión</Link>
+                <Link href={ROUTES.iniciarSesion} className="text-primary hover:underline">Inicia sesión</Link>
                 {' '}para consejos personalizados
               </p>
             )}

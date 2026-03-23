@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Wallet, Facebook, Twitter, Linkedin } from "lucide-react";
 import { FaInstagram, FaTiktok } from "react-icons/fa";
+import { ROUTES } from "@/lib/routes";
 
 export default function Footer() {
   return (
@@ -22,22 +23,22 @@ export default function Footer() {
             <h4 className="text-white font-medium mb-4">Funcionalidades</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/info/credit-score" className="text-gray-300 hover:text-white">
+                <Link href={ROUTES.infoScoreCredito} className="text-gray-300 hover:text-white">
                   Score crediticio
                 </Link>
               </li>
               <li>
-                <Link href="/info/insurance-risk" className="text-gray-300 hover:text-white">
+                <Link href={ROUTES.infoRiesgoSeguros} className="text-gray-300 hover:text-white">
                   Riesgo de seguros
                 </Link>
               </li>
               <li>
-                <Link href="/info/financial-goals" className="text-gray-300 hover:text-white">
+                <Link href={ROUTES.infoMetasFinancieras} className="text-gray-300 hover:text-white">
                   Metas financieras
                 </Link>
               </li>
               <li>
-                <Link href="/info/product-comparison" className="text-gray-300 hover:text-white">
+                <Link href={ROUTES.infoComparacionProductos} className="text-gray-300 hover:text-white">
                   Comparación de productos
                 </Link>
               </li>
@@ -48,7 +49,7 @@ export default function Footer() {
             <h4 className="text-white font-medium mb-4">Recursos</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/about" className="text-gray-300 hover:text-white">
+                <Link href={ROUTES.acerca} className="text-gray-300 hover:text-white">
                   Sobre Nosotros
                 </Link>
               </li>

@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { Redirect } from "wouter";
+import { ROUTES } from "@/lib/routes";
 import { useAuth, type AuthContextType } from "@/lib/auth";
 
 interface ProtectedRouteProps {
@@ -10,7 +11,7 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children, context = "personal" }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth(context);
-  const loginPath = context === "empresas" ? "/empresas/login" : "/login";
+  const loginPath = context === "empresas" ? "/empresas/login" : ROUTES.iniciarSesion;
 
   if (isLoading) {
     return (

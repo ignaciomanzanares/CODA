@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Target, Users, Heart, TrendingUp } from "lucide-react";
 
@@ -126,7 +127,7 @@ export default function About() {
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
             Únete a miles de chilenos que ya están mejorando su salud financiera.
           </p>
-          <Link href="/login">
+          <Link href={ROUTES.iniciarSesion}>
             <Button size="lg" className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg">
               Comienza Gratis
             </Button>

@@ -48,6 +48,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Link } from "wouter";
+import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 // Define the interface for a financial goal
@@ -420,7 +421,7 @@ export default function FinancialGoalsCard() {
         </div>
 
         {/* View All Button */}
-        <Link href="/goals">
+        <Link href={ROUTES.metas}>
           <Button className="w-full mt-4 group">
             <Target className="h-4 w-4 mr-2" />
             {goals && goals.length > 3 ? `Ver las ${goals.length} metas` : 'Gestionar metas'}

@@ -6,6 +6,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { ROUTES } from "@/lib/routes";
 
 // Existing components
 import CreditScoreCard from "@/components/CreditScoreCard";
@@ -242,7 +243,7 @@ export default function Dashboard() {
                       <Button 
                         variant="link" 
                         className="p-0 h-auto"
-                        onClick={() => navigate("/plan")}
+                        onClick={() => navigate(ROUTES.plan)}
                       >
                         Ver análisis detallado →
                       </Button>
@@ -351,7 +352,7 @@ export default function Dashboard() {
               <Button 
                 variant="outline" 
                 className="h-auto py-4 flex-col gap-2"
-                onClick={() => navigate("/bill-split")}
+                onClick={() => navigate(ROUTES.dividirCuenta)}
               >
                 <CreditCard className="h-5 w-5" />
                 <span className="text-sm">Dividir cuenta</span>
@@ -359,7 +360,7 @@ export default function Dashboard() {
               <Button 
                 variant="outline" 
                 className="h-auto py-4 flex-col gap-2"
-                onClick={() => navigate("/goals")}
+                onClick={() => navigate(ROUTES.metas)}
               >
                 <PiggyBank className="h-5 w-5" />
                 <span className="text-sm">Añadir ahorro</span>
@@ -367,7 +368,7 @@ export default function Dashboard() {
               <Button 
                 variant="outline" 
                 className="h-auto py-4 flex-col gap-2"
-                onClick={() => navigate("/products?category=insurance")}
+                onClick={() => navigate(`${ROUTES.productos}?category=insurance`)}
               >
                 <Shield className="h-5 w-5" />
                 <span className="text-sm">Ver seguros</span>
@@ -375,7 +376,7 @@ export default function Dashboard() {
               <Button 
                 variant="outline" 
                 className="h-auto py-4 flex-col gap-2"
-                onClick={() => navigate("/goals")}
+                onClick={() => navigate(ROUTES.metas)}
               >
                 <Target className="h-5 w-5" />
                 <span className="text-sm">Definir meta</span>
