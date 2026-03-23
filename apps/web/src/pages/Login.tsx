@@ -5,23 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Wallet, User, Lock, Loader2, ArrowLeft, Shield, RefreshCw } from "lucide-react";
-
-// Usuarios demo para acceso rápido
-const DEMO_USERS = [
-  { 
-    email: 'user@example.com', 
-    password: 'demo123', 
-    name: 'Usuario demo', 
-    description: 'Acceso completo a todas las funciones'
-  },
-  { 
-    email: 'investor@example.com', 
-    password: 'demo123', 
-    name: 'Inversor demo', 
-    description: 'Vista de portafolio de inversiones'
-  },
-];
+import { Wallet, User, Lock, Loader2, ArrowLeft, Shield, RefreshCw, Eye, EyeOff } from "lucide-react";
 
 export default function Login() {
   const [location, setLocation] = useLocation();
@@ -32,6 +16,7 @@ export default function Login() {
   const { login: doLogin, isAuthenticated: isAuth } = useAuth(authContext);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   
@@ -140,28 +125,6 @@ export default function Login() {
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo reenviar el código");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDemoLogin = async (demoUser: typeof DEMO_USERS[0]) => {
-    setIsLoading(true);
-    setError("");
-    try {
-      const result = await doLogin(authContext, demoUser.email, demoUser.password);
-      if (result?.requires2FA) {
-        setEmail(demoUser.email);
-        setPassword(demoUser.password);
-        setRequires2FA(true);
-        toast({ title: "Verificación requerida", description: "Revisa tu correo para el código." });
-      } else {
-        toast({ title: "Sesión iniciada", description: `¡Bienvenido, ${demoUser.name}!` });
-        setLocation(defaultRedirect);
-      }
-    } catch (err) {
-      setError("Error al iniciar sesión con usuario demo");
-      toast({ title: "Error", description: "Error al iniciar sesión con usuario demo", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -309,19 +272,33 @@ export default function Login() {
                     Contraseña
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                     <input
                       id="password"
                       name="password"
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
                       disabled={isLoading}
-                      className="flex h-10 w-full rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
+                      className="flex h-10 w-full rounded-md border border-input bg-background pl-10 pr-11 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
                     />
+                    <button
+                      type="button"
+                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-2 text-gray-500 hover:text-gray-800 hover:bg-muted/80"
+                      onClick={() => setShowPassword((v) => !v)}
+                      disabled={isLoading}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" aria-hidden />
+                      ) : (
+                        <Eye className="h-4 w-4" aria-hidden />
+                      )}
+                    </button>
                   </div>
                 </div>
 
@@ -355,48 +332,6 @@ export default function Login() {
             )}
           </CardContent>
         </Card>
-
-        {/* Demo: un solo clic para Empresas o lista de usuarios demo para Personal */}
-        {!requires2FA && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">
-                {isEmpresas ? "Empresas demo" : "Usuarios demo"}
-              </CardTitle>
-              <CardDescription>
-                {isEmpresas
-                  ? "Un clic para entrar sin escribir usuario ni contraseña"
-                  : "Haz clic para iniciar sesión automáticamente"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {isEmpresas ? (
-                <button
-                  type="button"
-                  onClick={() => handleDemoLogin(DEMO_USERS[0])}
-                  disabled={isLoading}
-                  className="w-full text-left px-4 py-3 border-2 border-primary/30 bg-primary/5 rounded-lg hover:bg-primary/10 hover:border-primary/50 transition-all disabled:opacity-50"
-                >
-                  <div className="font-medium text-gray-900">Entrar como Empresas demo</div>
-                  <div className="text-sm text-gray-500 mt-0.5">user@example.com · Acceso completo</div>
-                </button>
-              ) : (
-                DEMO_USERS.map((user) => (
-                  <button
-                    key={user.email}
-                    type="button"
-                    onClick={() => handleDemoLogin(user)}
-                    disabled={isLoading}
-                    className="w-full text-left px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all disabled:opacity-50"
-                  >
-                    <div className="font-medium text-gray-900">{user.name}</div>
-                    <div className="text-sm text-gray-500">{user.description}</div>
-                  </button>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        )}
 
         {/* Back to Home / Switch context */}
         <div className="text-center space-y-2">

@@ -1,34 +1,17 @@
-import { useRef, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { getEmpresasCompaniesWithSummary, getEmpresasDashboard, seedEmpresasDemo, type CompanyWithSummary, type DashboardMetrics } from "@/lib/empresasApi";
-import { Building2, TrendingUp, TrendingDown, DollarSign, Wallet, RefreshCw, ArrowRight, PlusCircle } from "lucide-react";
+import { getEmpresasCompaniesWithSummary, getEmpresasDashboard, type CompanyWithSummary, type DashboardMetrics } from "@/lib/empresasApi";
+import { Building2, TrendingUp, TrendingDown, DollarSign, Wallet, ArrowRight } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
 
 export default function EmpresasDashboard() {
   const { currency } = useCurrency();
-  const queryClient = useQueryClient();
-  const hasAutoSeeded = useRef(false);
   const { data: companies, isLoading, error } = useQuery({
     queryKey: ["empresas", "companies-summary"],
     queryFn: getEmpresasCompaniesWithSummary,
   });
-  const seedDemo = useMutation({
-    mutationFn: seedEmpresasDemo,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["empresas", "companies-summary"] });
-    },
-  });
-
-  // Crear empresa demo automáticamente al entrar sin empresas (p. ej. tras "Entrar como Empresas demo")
-  useEffect(() => {
-    if (isLoading || error || !companies || companies.length > 0 || hasAutoSeeded.current || seedDemo.isPending) return;
-    hasAutoSeeded.current = true;
-    seedDemo.mutate();
-  }, [isLoading, error, companies, seedDemo.isPending]);
 
   if (isLoading) {
     return (
@@ -48,17 +31,9 @@ export default function EmpresasDashboard() {
         <CardContent className="py-12 text-center">
           <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-lg font-semibold mb-2">Sin empresas</h2>
-          <p className="text-muted-foreground text-sm mb-4">Crea una empresa demo para explorar el dashboard.</p>
-          <Button
-            onClick={() => seedDemo.mutate()}
-            disabled={seedDemo.isPending}
-          >
-            <PlusCircle className="h-4 w-4 mr-2" />
-            {seedDemo.isPending ? "Creando..." : "Crear empresa demo"}
-          </Button>
-          {seedDemo.isError && (
-            <p className="text-destructive text-sm mt-2">Error al crear. Intenta de nuevo.</p>
-          )}
+          <p className="text-muted-foreground text-sm max-w-md mx-auto">
+            No hay empresas asociadas a tu cuenta. El alta de empresas estará disponible cuando activemos el módulo en producción.
+          </p>
         </CardContent>
       </Card>
     );

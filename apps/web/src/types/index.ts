@@ -272,6 +272,8 @@ export interface ProfileData {
   email?: string;
   timezone?: string;
   language?: string;
+  /** URL o data URL (imagen de perfil). */
+  profilePicture?: string | null;
 }
 
 // Filter types for components

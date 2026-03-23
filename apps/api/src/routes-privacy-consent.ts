@@ -11,6 +11,7 @@ import { validateBody } from './middleware/validation.js';
 import { logger } from './logger.js';
 import {
   PRIVACY_POLICY_VERSION,
+  PRIVACY_PURPOSE_KEYS,
   REGISTRATION_REQUIRED_PURPOSES,
 } from './services/privacyConsent/privacyConsentTypes.js';
 import {
@@ -19,6 +20,14 @@ import {
   acceptPurpose,
   revokePurpose,
 } from './services/privacyConsent/privacyConsentService.js';
+
+/** Si la tabla aún no existe en BD (migración pendiente en prod), devolver estado vacío en lugar de 500. */
+function isMissingPrivacyTableError(e: unknown): boolean {
+  const err = e as { code?: string; message?: string };
+  if (err?.code === '42P01') return true;
+  const m = typeof err?.message === 'string' ? err.message : '';
+  return m.includes('does not exist') && m.includes('privacy_consent');
+}
 
 function clientMeta(req: Request): { ipAddress: string | null; userAgent: string | null; channel: string } {
   const xf = req.headers['x-forwarded-for'];
@@ -58,6 +67,19 @@ export function registerPrivacyConsentRoutes(app: Express): void {
       });
     } catch (e) {
       logger.error({ err: e }, 'privacy-consents GET failed');
+      if (isMissingPrivacyTableError(e)) {
+        logger.warn('privacy_consent_events missing — returning empty purposes until migration runs');
+        return res.json({
+          policyVersion: PRIVACY_POLICY_VERSION,
+          purposes: PRIVACY_PURPOSE_KEYS.map((purpose) => ({
+            purpose,
+            accepted: false,
+            policyVersion: null,
+            lastAction: null,
+            updatedAt: null,
+          })),
+        });
+      }
       return res.status(500).json({ message: 'Error listing privacy consents' });
     }
   });

@@ -84,7 +84,7 @@ const PRIVACY_LABELS: Record<
 };
 
 export default function Profile() {
-  const { user, logout, isAuthenticated, isLoading } = useAuth();
+  const { user, logout, isAuthenticated, isLoading, token } = useAuth();
   const { toast } = useToast();
   const {
     updateProfile,
@@ -94,10 +94,16 @@ export default function Profile() {
     getPrivacyConsents,
     acceptPrivacyPurpose,
     revokePrivacyPurpose,
+    getMFAStatus,
+    enableTwoFactor,
+    disableTwoFactor,
   } = useApi();
   const [privacyPanel, setPrivacyPanel] = useState<PrivacyConsentPanelResponse | null>(null);
   const [privacyLoading, setPrivacyLoading] = useState(false);
+  const [privacyConsentError, setPrivacyConsentError] = useState<string | null>(null);
   const [privacyBusy, setPrivacyBusy] = useState<PrivacyPurposeKey | null>(null);
+  const [mfaEnrolled, setMfaEnrolled] = useState(false);
+  const [mfaBusy, setMfaBusy] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
     displayName: "",
@@ -120,15 +126,15 @@ export default function Profile() {
   const handleTogglePush = async () => {
     setPushLoading(true);
     try {
-      const token = localStorage.getItem("token") || "";
+      const authToken = token || localStorage.getItem("jwt_token") || "";
       if (pushSubscribed) {
-        const ok = await unsubscribeFromPush(token);
+        const ok = await unsubscribeFromPush(authToken);
         if (ok) {
           setPushSubscribed(false);
           toast({ title: "Notificaciones push desactivadas" });
         }
       } else {
-        const ok = await subscribeToPush(token);
+        const ok = await subscribeToPush(authToken);
         if (ok) {
           setPushSubscribed(true);
           toast({ title: "Notificaciones push activadas", description: "Recibirás alertas incluso con la app cerrada." });
@@ -147,8 +153,8 @@ export default function Profile() {
   };
 
   const handleTestPush = async () => {
-    const token = localStorage.getItem("token") || "";
-    const ok = await sendTestPush(token);
+    const authToken = token || localStorage.getItem("jwt_token") || "";
+    const ok = await sendTestPush(authToken);
     if (ok) {
       toast({ title: "Push de prueba enviado", description: "Deberías recibir una notificación en breve." });
     } else {
@@ -169,8 +175,8 @@ export default function Profile() {
             language: profile.language || "English"
           });
         } catch (error) {
-          console.error('Failed to load profile, falling back to Auth0 data:', error);
-          // Fallback to Auth0 data if API fails
+          console.error('Failed to load profile, falling back to datos de sesión:', error);
+          // Fallback a datos de sesión si la API falla
           setProfileData({
             displayName: user?.name || "",
             email: user?.email || "",
@@ -185,21 +191,35 @@ export default function Profile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user]);
 
+  const loadPrivacyConsents = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setPrivacyConsentError(null);
+    setPrivacyLoading(true);
+    try {
+      const p = await getPrivacyConsents();
+      setPrivacyPanel(p);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "No se pudieron cargar los consentimientos";
+      setPrivacyConsentError(msg);
+    } finally {
+      setPrivacyLoading(false);
+    }
+  }, [isAuthenticated, getPrivacyConsents]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void loadPrivacyConsents();
+  }, [isAuthenticated, loadPrivacyConsents]);
+
   useEffect(() => {
     if (!isAuthenticated) return;
     let cancelled = false;
-    setPrivacyLoading(true);
-    getPrivacyConsents()
-      .then((p) => {
-        if (!cancelled) setPrivacyPanel(p);
+    getMFAStatus()
+      .then((s) => {
+        if (!cancelled) setMfaEnrolled(!!s.enrolled);
       })
       .catch(() => {
-        if (!cancelled) {
-          toast({ title: "No se pudieron cargar los consentimientos", variant: "destructive" });
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setPrivacyLoading(false);
+        if (!cancelled) setMfaEnrolled(false);
       });
     return () => {
       cancelled = true;
@@ -303,18 +323,94 @@ export default function Profile() {
 
   const handlePasswordChange = async () => {
     try {
-      await changePassword();
+      const result = await changePassword();
+      const msg =
+        result && typeof result === "object" && "message" in result && typeof (result as { message?: string }).message === "string"
+          ? (result as { message: string }).message
+          : undefined;
       toast({
-        title: "Correo enviado",
-        description: "Revisa tu correo para las instrucciones para cambiar tu contraseña.",
+        title: "Cambiar contraseña",
+        description: msg ?? "Cierra sesión y en el inicio usa «Olvidé mi contraseña».",
       });
     } catch (error) {
       console.error('Password change error:', error);
       toast({
         title: "Error",
-        description: "No se pudo enviar el correo. Intenta de nuevo.",
+        description: error instanceof Error ? error.message : "No se pudo completar la solicitud.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleSavePreferences = async () => {
+    try {
+      const updated = await updateProfile({
+        displayName: profileData.displayName,
+        timezone: profileData.timezone,
+        language: profileData.language,
+      });
+      if (updated && typeof updated === "object") {
+        const u = updated as Record<string, unknown>;
+        setProfileData((prev) => ({
+          ...prev,
+          displayName: typeof u.displayName === "string" ? u.displayName : prev.displayName,
+          timezone: typeof u.timezone === "string" ? u.timezone : prev.timezone,
+          language: typeof u.language === "string" ? u.language : prev.language,
+          email: typeof u.email === "string" ? u.email : prev.email,
+        }));
+      }
+      toast({
+        title: "Preferencias guardadas",
+        description: "Idioma y zona horaria actualizados.",
+      });
+    } catch (error) {
+      console.error("Save preferences error:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudieron guardar las preferencias.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEnable2FA = async () => {
+    setMfaBusy(true);
+    try {
+      const r = await enableTwoFactor();
+      toast({
+        title: "2FA activado",
+        description: r?.message ?? "La autenticación en dos pasos quedó habilitada en tu cuenta CODA.",
+      });
+      const s = await getMFAStatus();
+      setMfaEnrolled(!!s.enrolled);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo activar 2FA.",
+        variant: "destructive",
+      });
+    } finally {
+      setMfaBusy(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    setMfaBusy(true);
+    try {
+      const r = await disableTwoFactor();
+      toast({
+        title: "2FA desactivado",
+        description: r?.message ?? "Ya no se pedirá segundo factor al iniciar sesión.",
+      });
+      setMfaEnrolled(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo desactivar 2FA.",
+        variant: "destructive",
+      });
+    } finally {
+      setMfaBusy(false);
     }
   };
   
@@ -348,12 +444,6 @@ export default function Profile() {
     }
   };
   
-  const handleEnable2FA = () => {
-    // Redirect to Auth0 MFA enrollment
-    const domain = import.meta.env.VITE_AUTH0_DOMAIN || "dev-klhap06xvhqbtvbi.us.auth0.com";
-    window.open(`https://${domain}/mfa`, '_blank');
-  };
-
   const handleComingSoon = () => {
     toast({
       title: "Próximamente",
@@ -466,7 +556,7 @@ export default function Profile() {
                     disabled
                     className="bg-gray-50"
                   />
-                  <p className="text-sm text-gray-500">El correo se gestiona con Auth0</p>
+                  <p className="text-sm text-gray-500">El correo no se puede cambiar aquí por seguridad. Contacta soporte si necesitas actualizarlo.</p>
                 </div>
                 {isEditing && (
                   <Button onClick={handleProfileUpdate} className="w-full">
@@ -540,15 +630,52 @@ export default function Profile() {
                 </div>
                 <div className="space-y-2">
                   <Label>Autenticación en dos pasos</Label>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <span className="text-sm text-gray-600">No activada</span>
-                      <p className="text-xs text-gray-500">Añade seguridad extra a tu cuenta</p>
+                      <span className="text-sm text-gray-600">
+                        {mfaEnrolled ? "Activada" : "No activada"}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {mfaEnrolled
+                          ? "Tu cuenta pide un segundo factor al iniciar sesión."
+                          : "Añade seguridad extra a tu cuenta (CODA)."}
+                      </p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={handleEnable2FA}>
-                      <Shield className="h-4 w-4 mr-2" />
-                      Activar 2FA
-                    </Button>
+                    <div className="flex gap-2 shrink-0">
+                      {!mfaEnrolled ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void handleEnable2FA()}
+                          disabled={mfaBusy}
+                        >
+                          <Shield className="h-4 w-4 mr-2" />
+                          {mfaBusy ? "…" : "Activar 2FA"}
+                        </Button>
+                      ) : (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" disabled={mfaBusy}>
+                              Desactivar 2FA
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Desactivar 2FA?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tu cuenta será menos protegida. Solo hazlo si reconoces este dispositivo.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => void handleDisable2FA()}>
+                                Desactivar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <Separator />
@@ -593,7 +720,7 @@ export default function Profile() {
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm text-gray-600">Correo de recuperación: {user?.email}</span>
-                      <p className="text-xs text-gray-500">Gestionado por Auth0</p>
+                      <p className="text-xs text-gray-500">Recuperación vía «Olvidé mi contraseña» en el inicio de sesión</p>
                     </div>
                     <Button variant="outline" size="sm" onClick={handleComingSoon}>
                       <Key className="h-4 w-4 mr-2" />
@@ -646,8 +773,12 @@ export default function Profile() {
                     <option value="America/Chicago">Hora Central</option>
                     <option value="America/Denver">Hora de las Montañas</option>
                     <option value="America/Los_Angeles">Hora del Pacífico</option>
+                    <option value="America/Santiago">Chile (Santiago)</option>
                   </select>
                 </div>
+                <Button type="button" className="w-full sm:w-auto" onClick={() => void handleSavePreferences()}>
+                  Guardar preferencias
+                </Button>
                 <div className="space-y-2">
                   <Label>Notificaciones</Label>
                   <div className="space-y-2">
@@ -711,6 +842,15 @@ export default function Profile() {
                     <Link href="/conexiones">Abrir panel</Link>
                   </Button>
                 </div>
+                {privacyConsentError && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm space-y-2">
+                    <p className="text-destructive font-medium">No se pudieron cargar los consentimientos</p>
+                    <p className="text-muted-foreground text-xs">{privacyConsentError}</p>
+                    <Button variant="outline" size="sm" type="button" onClick={() => void loadPrivacyConsents()}>
+                      Reintentar
+                    </Button>
+                  </div>
+                )}
                 {privacyLoading ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
                     <Loader2 className="h-4 w-4 animate-spin" />

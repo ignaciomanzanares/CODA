@@ -130,18 +130,20 @@ export default function Header() {
               })}
             </nav>
           )}
-          {/* Moneda en el centro junto a la nav */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground shrink-0">
-                {currency === "CLP" ? "CLP $" : "USD $"}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setCurrency("CLP" as CurrencyCode)}>Pesos (CLP)</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setCurrency("USD" as CurrencyCode)}>Dólares (USD)</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Moneda: oculta en la landing (/) para una cabecera más limpia */}
+          {location !== "/" && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground shrink-0">
+                  {currency === "CLP" ? "CLP $" : "USD $"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setCurrency("CLP" as CurrencyCode)}>Pesos (CLP)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCurrency("USD" as CurrencyCode)}>Dólares (USD)</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         {/* Derecha: CODA Personal/Empresas, notificaciones, usuario — lo más a la derecha */}
