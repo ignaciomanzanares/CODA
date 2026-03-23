@@ -1,7 +1,10 @@
 import { useAuth } from "@/lib/auth";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/lib/api";
+import type { PrivacyConsentPanelResponse, PrivacyPurposeKey } from "@/types";
+import { REGISTRATION_REQUIRED_PRIVACY_PURPOSES } from "@/types";
 import {
   isPushSupported,
   getPushPermission,
@@ -45,13 +48,56 @@ import {
   CreditCard,
   Trash2,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+
+const PRIVACY_LABELS: Record<
+  PrivacyPurposeKey,
+  { title: string; description: string }
+> = {
+  data_processing: {
+    title: "Tratamiento de datos personales",
+    description: "Uso de tus datos de cuenta y perfil para operar el servicio.",
+  },
+  open_banking: {
+    title: "Acceso a datos bancarios (Open Finance)",
+    description: "Lectura de cuentas y movimientos al conectar tu banco (SFA).",
+  },
+  scoring: {
+    title: "Score crediticio y transaccional",
+    description: "Cálculo de indicadores de riesgo y comportamiento financiero.",
+  },
+  recommendations: {
+    title: "Recomendaciones de productos",
+    description: "Ofertas de productos financieros acordes a tu perfil.",
+  },
+  marketing: {
+    title: "Comunicaciones comerciales",
+    description: "Novedades y promociones por canales electrónicos.",
+  },
+  origination_transfer: {
+    title: "Evaluación con institución financiera",
+    description: "Compartir datos con el proveedor al solicitar un producto.",
+  },
+};
 
 export default function Profile() {
   const { user, logout, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
-  const { updateProfile, deleteAccount, changePassword, getUserProfile } = useApi();
+  const {
+    updateProfile,
+    deleteAccount,
+    changePassword,
+    getUserProfile,
+    getPrivacyConsents,
+    acceptPrivacyPurpose,
+    revokePrivacyPurpose,
+  } = useApi();
+  const [privacyPanel, setPrivacyPanel] = useState<PrivacyConsentPanelResponse | null>(null);
+  const [privacyLoading, setPrivacyLoading] = useState(false);
+  const [privacyBusy, setPrivacyBusy] = useState<PrivacyPurposeKey | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
     displayName: "",
@@ -139,6 +185,51 @@ export default function Profile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user]);
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    setPrivacyLoading(true);
+    getPrivacyConsents()
+      .then((p) => {
+        if (!cancelled) setPrivacyPanel(p);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          toast({ title: "No se pudieron cargar los consentimientos", variant: "destructive" });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPrivacyLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
+  const handlePrivacyToggle = useCallback(
+    async (purpose: PrivacyPurposeKey, checked: boolean) => {
+      setPrivacyBusy(purpose);
+      try {
+        const r = checked ? await acceptPrivacyPurpose(purpose) : await revokePrivacyPurpose(purpose);
+        setPrivacyPanel(r);
+        toast({
+          title: checked ? "Consentimiento registrado" : "Revocación registrada",
+          description: "Queda registrado en el historial con versión de política e IP.",
+        });
+      } catch (e) {
+        toast({
+          title: "Error",
+          description: e instanceof Error ? e.message : "No se pudo actualizar el consentimiento",
+          variant: "destructive",
+        });
+      } finally {
+        setPrivacyBusy(null);
+      }
+    },
+    [acceptPrivacyPurpose, revokePrivacyPurpose, toast]
+  );
+
   if (!isAuthenticated) {
     return (
       <div className="container py-8 text-center">
@@ -207,7 +298,7 @@ export default function Profile() {
   };
 
   const handleLogout = () => {
-    logout();
+    logout("personal");
   };
 
   const handlePasswordChange = async () => {
@@ -602,32 +693,80 @@ export default function Profile() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <CreditCard className="h-5 w-5 mr-2" />
-                  Financial Preferences
+                  <Shield className="h-5 w-5 mr-2" />
+                  Consentimientos y privacidad
                 </CardTitle>
                 <CardDescription>
-                  Manage your financial data preferences
+                  Finalidades (Ley 19.628 / CMF). Versión de política:{" "}
+                  {privacyPanel?.policyVersion ?? "—"}. Los cambios quedan auditados en servidor.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Data Sharing</Label>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Share financial data for analysis</span>
-                    <Button variant="outline" size="sm" onClick={handleComingSoon}>
-                      Configurar
-                    </Button>
+                <div className="flex items-center justify-between rounded-md border p-3">
+                  <div>
+                    <p className="text-sm font-medium">Conexiones bancarias (SFA)</p>
+                    <p className="text-xs text-muted-foreground">Consentimientos OAuth con el banco</p>
                   </div>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/conexiones">Abrir panel</Link>
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <Label>Privacidad</Label>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Manage data privacy</span>
-                    <Button variant="outline" size="sm" onClick={handleComingSoon}>
-                      Ver configuración
-                    </Button>
+                {privacyLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Cargando consentimientos…
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-4">
+                    {(privacyPanel?.purposes ?? []).map((row) => {
+                      const meta = PRIVACY_LABELS[row.purpose];
+                      const busy = privacyBusy === row.purpose;
+                      return (
+                        <div
+                          key={row.purpose}
+                          className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-3 last:border-0 last:pb-0"
+                        >
+                          <div className="flex-1 pr-2">
+                            <p className="text-sm font-medium">{meta?.title ?? row.purpose}</p>
+                            <p className="text-xs text-muted-foreground">{meta?.description}</p>
+                            {row.updatedAt && (
+                              <p className="text-[10px] text-muted-foreground mt-1">
+                                Último evento:{" "}
+                                {new Date(row.updatedAt).toLocaleString("es-CL", {
+                                  dateStyle: "short",
+                                  timeStyle: "short",
+                                })}{" "}
+                                · v{row.policyVersion ?? "—"}
+                              </p>
+                            )}
+                            {REGISTRATION_REQUIRED_PRIVACY_PURPOSES.includes(row.purpose) &&
+                              row.accepted && (
+                                <p className="text-[10px] text-amber-700 dark:text-amber-500 mt-1">
+                                  Obligatorio para el servicio. Para revocar, cierra la cuenta o contacta soporte.
+                                </p>
+                              )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {busy && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                            <Switch
+                              checked={row.accepted}
+                              disabled={
+                                busy ||
+                                (REGISTRATION_REQUIRED_PRIVACY_PURPOSES.includes(row.purpose) &&
+                                  row.accepted)
+                              }
+                              onCheckedChange={(c) => handlePrivacyToggle(row.purpose, c === true)}
+                              aria-label={meta?.title ?? row.purpose}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Los cambios de consentimiento quedan registrados en servidor con versión de política, canal e IP.
+                </p>
               </CardContent>
             </Card>
           </div>

@@ -2,6 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { registerEmpresasRoutes } from "./routes-empresas.js";
 import { registerConsentRoutes } from "./routes-consent.js";
+import { registerPrivacyConsentRoutes } from "./routes-privacy-consent.js";
 import { registerTestRoutes } from "./routes-test.js";
 import { storage } from "./storage.js";
 import { db, dialect, users, bankConnections, accounts, balances, transactions, creditScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc, insertAccountSchema, insertBankConnectionSchema, insertFinancialGoalSchema } from "./db/index.js";
@@ -27,6 +28,11 @@ import { notificationService } from "./services/notificationService.js";
 import { apiLimiter, expensiveLimiter, authLimiter } from "./middleware/rateLimiter.js";
 import multer from "multer";
 import { logger } from "./logger.js";
+import {
+  logProductRecommendationRunFireAndForget,
+  logProductInteractionTraceFireAndForget,
+  logProductApplicationTraceFireAndForget,
+} from "./services/audit/traceabilityPersistence.js";
 import {
   validateBody,
   validateParams,
@@ -138,6 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Panel de Control de Consentimientos (RAR + Grant Management)
   registerConsentRoutes(app);
+  registerPrivacyConsentRoutes(app);
 
   // Simulación de flujo bancario (consent + webhook + mock SFA + score)
   registerTestRoutes(app);
@@ -3019,7 +3026,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const category = req.query.category as string | undefined;
       const limit = parseInt(req.query.limit as string) || 5;
 
-      const { matchProductsToUser, getTopRecommendations, explainRecommendation } = await import('./services/products/matchingEngine.js');
+      const {
+        matchProductsToUser,
+        getTopRecommendations,
+        explainRecommendation,
+        PRODUCT_MATCHING_ENGINE_VERSION,
+      } = await import('./services/products/matchingEngine.js');
       const { productCatalog, getProductsByCategory } = await import('./services/products/productCatalog.js');
 
       // Build user profile from available data
@@ -3049,6 +3061,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
           reasons: explanation.reasons,
           warnings: explanation.warnings
         };
+      });
+
+      const xf = req.headers["x-forwarded-for"];
+      const firstIp = typeof xf === "string" ? xf.split(",")[0]?.trim() : "";
+      const clientIp =
+        firstIp ||
+        (typeof req.socket?.remoteAddress === "string" ? req.socket.remoteAddress : null);
+      const clientUa =
+        typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : null;
+      const reqIdHeader = req.headers["x-request-id"];
+      const requestId =
+        typeof reqIdHeader === "string" && reqIdHeader.length > 0 ? reqIdHeader : crypto.randomUUID();
+
+      logProductRecommendationRunFireAndForget({
+        userId,
+        requestId,
+        userProfile: {
+          creditScore: userProfile.creditScore,
+          transactionalScore: userProfile.transactionalScore,
+          matchingEngineVersion: PRODUCT_MATCHING_ENGINE_VERSION,
+        },
+        category,
+        limit,
+        results: recommendations.map((match) => {
+          const productId = productCatalog.findIndex((p) => p === match.product);
+          return {
+            productId: productId >= 0 ? productId : 0,
+            name: `${match.product.provider} · ${match.product.productName}`,
+            matchScore: Math.round(match.matchScore),
+            rankingScore: Math.round(match.rankingScore),
+          };
+        }),
+        ipAddress: clientIp,
+        userAgent: clientUa,
       });
 
       logger.info({ userId, category, count: response.length }, 'Product recommendations generated');
@@ -3090,6 +3136,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata
       });
 
+      const xfTrack = req.headers["x-forwarded-for"];
+      const firstIpTrack = typeof xfTrack === "string" ? xfTrack.split(",")[0]?.trim() : "";
+      const clientIpTrack =
+        firstIpTrack ||
+        (typeof req.socket?.remoteAddress === "string" ? req.socket.remoteAddress : null);
+      const clientUaTrack =
+        typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : null;
+      const reqIdTrackHeader = req.headers["x-request-id"];
+      const requestIdTrack =
+        typeof reqIdTrackHeader === "string" && reqIdTrackHeader.length > 0
+          ? reqIdTrackHeader
+          : crypto.randomUUID();
+
+      logProductInteractionTraceFireAndForget({
+        userId,
+        requestId: requestIdTrack,
+        productId: Number(productId),
+        eventType,
+        matchScore: matchScore ? Number(matchScore) : undefined,
+        userCreditScore: creditScore?.score,
+        userTransactionalScore: transactionalScoreData?.transactionalScore ?? undefined,
+        metadata,
+        ipAddress: clientIpTrack,
+        userAgent: clientUaTrack,
+      });
+
       res.json({ success: true, message: 'Event tracked' });
     } catch (error) {
       logger.error({ error }, 'Failed to track product event');
@@ -3123,6 +3195,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { requestedAmount, term, purpose, additionalInfo },
         product
       );
+
+      const xfApply = req.headers["x-forwarded-for"];
+      const firstIpApply = typeof xfApply === "string" ? xfApply.split(",")[0]?.trim() : "";
+      const clientIpApply =
+        firstIpApply ||
+        (typeof req.socket?.remoteAddress === "string" ? req.socket.remoteAddress : null);
+      const clientUaApply =
+        typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : null;
+      const reqIdApplyHeader = req.headers["x-request-id"];
+      const requestIdApply =
+        typeof reqIdApplyHeader === "string" && reqIdApplyHeader.length > 0
+          ? reqIdApplyHeader
+          : crypto.randomUUID();
+
+      logProductApplicationTraceFireAndForget({
+        userId,
+        requestId: requestIdApply,
+        productId: Number(productId),
+        applicationId,
+        payload: {
+          requestedAmount: requestedAmount ?? null,
+          term: term ?? null,
+          purpose: purpose ?? null,
+          additionalInfo: additionalInfo ?? null,
+        },
+        ipAddress: clientIpApply,
+        userAgent: clientUaApply,
+      });
 
       logger.info({ userId, productId, applicationId }, 'Product application submitted');
       res.json({

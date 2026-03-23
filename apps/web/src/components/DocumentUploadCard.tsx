@@ -20,8 +20,13 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 function toFileList(files: FileList | null): File[] {
   if (!files?.length) return [];
-  return Array.from(files).filter((f) => 
-    ALLOWED_TYPES.includes(f.type) && f.size <= MAX_FILE_SIZE
+  return filterValidFiles(Array.from(files));
+}
+
+/** Misma lógica que toFileList pero para un arreglo ya materializado (p. ej. drag-and-drop). */
+function filterValidFiles(files: readonly File[]): File[] {
+  return files.filter(
+    (f) => ALLOWED_TYPES.includes(f.type) && f.size <= MAX_FILE_SIZE
   );
 }
 
@@ -66,7 +71,7 @@ export default function DocumentUploadCard() {
 
   const processFiles = useCallback(
     async (fileList: File[]) => {
-      const validFiles = toFileList(fileList);
+      const validFiles = filterValidFiles(fileList);
       
       // Client-side validation
       if (validFiles.length === 0) {

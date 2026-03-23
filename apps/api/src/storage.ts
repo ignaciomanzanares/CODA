@@ -1,5 +1,7 @@
+import { randomUUID } from "crypto";
 import { db, sql, users, bankConnections, accounts, balances, transactions, creditScores, transactionalScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc } from "./db/index.js";
 import { logger } from "./logger.js";
+import { logTransactionalScoreComputationFireAndForget } from "./services/audit/traceabilityPersistence.js";
 import type {
   User,
   InsertUser,
@@ -55,7 +57,17 @@ export interface IStorage {
   upsertCreditScore(userId: string, data: { score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string; lastUpdated: string }): Promise<any>;
   // Transactional score (cartolas)
   getTransactionalScore(userId: string): Promise<any>;
-  upsertTransactionalScore(userId: string, data: { transactionalScore: number; metrics?: object; mainInsights?: string[]; recommendedProducts?: string[] }): Promise<any>;
+  upsertTransactionalScore(
+    userId: string,
+    data: {
+      transactionalScore: number;
+      metrics?: object;
+      mainInsights?: string[];
+      recommendedProducts?: string[];
+      /** Resumen de entradas para `algorithm_prediction_logs` (trazabilidad CMF). */
+      algorithmInputs?: Record<string, unknown>;
+    }
+  ): Promise<any>;
   // Insurance risk operations
   getInsuranceRisk(userId: string): Promise<any>;
   createInsuranceRisk(insuranceRisk: any): Promise<any>;
@@ -458,7 +470,13 @@ export class DatabaseStorage implements IStorage {
 
   async upsertTransactionalScore(
     userId: string,
-    data: { transactionalScore: number; metrics?: object; mainInsights?: string[]; recommendedProducts?: string[] }
+    data: {
+      transactionalScore: number;
+      metrics?: object;
+      mainInsights?: string[];
+      recommendedProducts?: string[];
+      algorithmInputs?: Record<string, unknown>;
+    }
   ): Promise<any> {
     if (!db) return undefined;
     const existing = await db.select().from(transactionalScores).where(eq(transactionalScores.userId, userId));
@@ -470,16 +488,40 @@ export class DatabaseStorage implements IStorage {
       recommendedProducts: data.recommendedProducts != null ? JSON.stringify(data.recommendedProducts) : null,
       lastUpdated: new Date().toISOString(),
     };
+    const t0 = Date.now();
+    let row: unknown;
     if (existing.length > 0) {
       const [updated] = await db
         .update(transactionalScores)
         .set(payload)
         .where(eq(transactionalScores.userId, userId))
         .returning();
-      return updated;
+      row = updated;
+    } else {
+      const [inserted] = await db.insert(transactionalScores).values(payload).returning();
+      row = inserted;
     }
-    const [inserted] = await db.insert(transactionalScores).values(payload).returning();
-    return inserted;
+
+    logTransactionalScoreComputationFireAndForget({
+      userId,
+      requestId: randomUUID(),
+      input: {
+        source: "storage.upsertTransactionalScore",
+        hasMetrics: data.metrics != null,
+        mainInsightsCount: data.mainInsights?.length ?? 0,
+        recommendedProductsCount: data.recommendedProducts?.length ?? 0,
+        ...(data.algorithmInputs ?? {}),
+      },
+      output: {
+        transactionalScore: data.transactionalScore,
+        mainInsights: data.mainInsights ?? [],
+        recommendedProducts: data.recommendedProducts,
+        metrics: data.metrics,
+      },
+      processingTimeMs: Date.now() - t0,
+    });
+
+    return row;
   }
 
   // Insurance risk operations

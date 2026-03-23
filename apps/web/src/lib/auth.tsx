@@ -9,6 +9,8 @@ interface User {
   name?: string;
 }
 
+import type { RegisterConsentPayload } from '@/types';
+
 interface AuthContextValue {
   userPersonal: User | null;
   tokenPersonal: string | null;
@@ -16,7 +18,12 @@ interface AuthContextValue {
   tokenEmpresas: string | null;
   isLoading: boolean;
   login: (context: AuthContextType, email: string, password: string) => Promise<{ requires2FA?: boolean } | void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    consentOptions: { consents: RegisterConsentPayload; policyVersion?: string }
+  ) => Promise<void>;
   logout: (context: AuthContextType) => void;
 }
 
@@ -98,11 +105,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    consentOptions: { consents: RegisterConsentPayload; policyVersion?: string }
+  ) => {
     const data = await apiFetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+        consents: consentOptions.consents,
+        policyVersion: consentOptions.policyVersion ?? '1.0',
+      }),
     });
 
     if (!data.token || !data.user) {

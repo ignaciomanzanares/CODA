@@ -221,6 +221,11 @@ export async function processDocumentUpload(
       metrics: result.metrics,
       mainInsights,
       recommendedProducts: result.recommendedProducts,
+      algorithmInputs: {
+        pipeline: 'cartola_pdf',
+        transactionCount: transactions.length,
+        productCount: products.length,
+      },
     });
     return {
       step: 'done',

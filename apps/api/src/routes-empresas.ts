@@ -4,6 +4,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import express, { Router, type Request, type Response, type NextFunction } from "express";
+import { authenticate, type AuthenticatedRequest } from "./middleware/auth.js";
 import {
   db,
   eq,
@@ -37,6 +38,11 @@ import {
 } from "./empresas/connectors/index.js";
 
 const router = Router();
+
+/** Todas las rutas CODA Empresas requieren JWT (misma identidad que CODA Personas; sesión independiente en el cliente). */
+router.use((req: Request, res: Response, next: NextFunction) => {
+  authenticate(req as AuthenticatedRequest, res, next);
+});
 
 // ========== COMPANIES ==========
 router.get("/companies", async (_req: Request, res: Response, next: NextFunction) => {

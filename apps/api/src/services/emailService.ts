@@ -110,6 +110,36 @@ class EmailService {
     }
   }
 
+  /**
+   * Código OTP para 2FA (login). Requiere transporter configurado (Gmail/SMTP o Ethereal en dev).
+   */
+  async send2FACode(to: string, code: string): Promise<boolean> {
+    if (!this.transporter) {
+      logger.error('Email transporter not initialized (2FA)');
+      return false;
+    }
+    const from = process.env.SMTP_FROM || process.env.EMAIL_FROM || '"CODA" <noreply@coda.app>';
+    try {
+      await this.transporter.sendMail({
+        from,
+        to,
+        subject: 'Tu código de verificación CODA',
+        text: `Tu código de verificación es: ${code}\n\nVálido por 10 minutos. Si no solicitaste este código, ignora este mensaje.`,
+        html: `
+          <p>Tu código de verificación CODA es:</p>
+          <p style="font-size:24px;font-weight:bold;letter-spacing:4px;">${code}</p>
+          <p>Válido por 10 minutos.</p>
+          <p style="color:#64748b;font-size:14px;">Si no solicitaste este código, puedes ignorar este correo.</p>
+        `,
+      });
+      logger.info({ to: `${to[0] ?? '?'}***@${to.split('@')[1] ?? '?'}` }, '2FA email sent');
+      return true;
+    } catch (error) {
+      logger.error({ err: error }, 'Failed to send 2FA email');
+      return false;
+    }
+  }
+
   private generateInvitationHTML(invitation: BillSplitInvitation): string {
     const { billSplit, participantName, participantEmail, amountOwed, creatorName } = invitation;
     // Link to the invitation handler page which will check user existence and handle auth

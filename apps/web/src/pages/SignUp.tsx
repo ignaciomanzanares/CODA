@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Wallet, User, Lock, Mail, Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function SignUp() {
   const [, setLocation] = useLocation();
@@ -16,6 +17,11 @@ export default function SignUp() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [cData, setCData] = useState(false);
+  const [cScore, setCScore] = useState(false);
+  const [cRec, setCRec] = useState(false);
+  const [cMkt, setCMkt] = useState(false);
+  const consentsOk = cData && cScore && cRec;
 
   // Redirect if already authenticated
   if (isAuthenticated) {
@@ -50,10 +56,23 @@ export default function SignUp() {
       return;
     }
 
+    if (!consentsOk) {
+      setError("Debes aceptar las tres finalidades obligatorias (tratamiento de datos, scoring y recomendaciones).");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await register(name, email, password);
+      await register(name, email, password, {
+        consents: {
+          data_processing: true,
+          scoring: true,
+          recommendations: true,
+          marketing: cMkt,
+        },
+        policyVersion: "1.0",
+      });
       toast({
         title: "¡Cuenta creada!",
         description: "Bienvenido a CODA. ¡Comencemos!",
@@ -207,10 +226,41 @@ export default function SignUp() {
                 )}
               </div>
 
+              <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+                <p className="text-sm font-medium text-foreground">Consentimientos (Política v1.0)</p>
+                <p className="text-xs text-muted-foreground">
+                  Finalidades obligatorias para usar CODA. Puedes revocarlas después desde tu perfil, con los efectos que indique la política.
+                </p>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <Checkbox checked={cData} onCheckedChange={(v) => setCData(v === true)} className="mt-0.5" />
+                  <span className="text-sm text-gray-700">
+                    <strong>Tratamiento de datos personales</strong> — uso de tus datos de cuenta y perfil para operar el servicio.
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <Checkbox checked={cScore} onCheckedChange={(v) => setCScore(v === true)} className="mt-0.5" />
+                  <span className="text-sm text-gray-700">
+                    <strong>Score crediticio y transaccional</strong> — cálculo de indicadores a partir de la información autorizada.
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <Checkbox checked={cRec} onCheckedChange={(v) => setCRec(v === true)} className="mt-0.5" />
+                  <span className="text-sm text-gray-700">
+                    <strong>Recomendaciones de productos</strong> — ofertas acordes a tu perfil dentro de la plataforma.
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <Checkbox checked={cMkt} onCheckedChange={(v) => setCMkt(v === true)} className="mt-0.5" />
+                  <span className="text-sm text-gray-700">
+                    <strong>Comunicaciones comerciales</strong> (opcional) — novedades y promociones por correo o notificaciones.
+                  </span>
+                </label>
+              </div>
+
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isLoading || !isPasswordValid || !passwordsMatch}
+                disabled={isLoading || !isPasswordValid || !passwordsMatch || !consentsOk}
               >
                 {isLoading ? (
                   <>

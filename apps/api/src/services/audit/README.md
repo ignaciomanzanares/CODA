@@ -76,8 +76,19 @@ const modelId = await deployNewModelVersion({
 
 ## Storage
 
-**Current:** In-memory storage (development)  
-**Production:** Will be migrated to PostgreSQL using tables defined in `packages/src/schema-audit.ts`
+**In-memory:** Predicciones credit CMF vía `logCreditScorePrediction` (también persistidas en `algorithm_prediction_logs`).
+
+**Persistido en BD:** `algorithm_model_versions` + `algorithm_prediction_logs` con `kind`:
+
+| kind | Origen |
+|------|--------|
+| `credit_cmf` | `logCreditScorePrediction` tras Informe CMF (`documentUploadService`) |
+| `transactional_sfa` | `storage.upsertTransactionalScore` (cartola, simulación SFA, etc.) |
+| `product_recommendation` | `GET /api/products/recommendations` |
+| `product_interaction` | `POST /api/products/track` (view, click, …) |
+| `product_application` | `POST /api/products/apply` |
+
+Cada `upsertTransactionalScore` puede incluir `algorithmInputs` (p. ej. `pipeline`, conteos). Recomendaciones registran `matchingEngineVersion` en el snapshot de entrada. Ver `docs/TRACEABILITY_RUNTIME.md`. Endpoint: `GET /api/audit/my-algorithm-logs?limit=40` (auditoría UI aparte).
 
 ## Database Schema
 

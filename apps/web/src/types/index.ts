@@ -100,6 +100,43 @@ export interface ConsentGrant {
   updatedAt: string;
 }
 
+/** Finalidades de consentimiento de la app (CMF), distintas del consentimiento SFA bancario. */
+export type PrivacyPurposeKey =
+  | 'data_processing'
+  | 'open_banking'
+  | 'scoring'
+  | 'recommendations'
+  | 'marketing'
+  | 'origination_transfer';
+
+export interface PrivacyPurposeState {
+  purpose: PrivacyPurposeKey;
+  accepted: boolean;
+  policyVersion: string | null;
+  lastAction: 'accepted' | 'revoked' | null;
+  updatedAt: string | null;
+}
+
+export interface PrivacyConsentPanelResponse {
+  policyVersion: string;
+  purposes: PrivacyPurposeState[];
+}
+
+/** Finalidades que son obligatorias para usar el servicio; la revocación requiere cierre de cuenta o soporte. */
+export const REGISTRATION_REQUIRED_PRIVACY_PURPOSES: readonly PrivacyPurposeKey[] = [
+  'data_processing',
+  'scoring',
+  'recommendations',
+] as const;
+
+/** Payload enviado en POST /api/auth/register junto con name, email, password. */
+export interface RegisterConsentPayload {
+  data_processing: boolean;
+  scoring: boolean;
+  recommendations: boolean;
+  marketing?: boolean;
+}
+
 /** Respuesta de POST /api/test/simulate-bank-flow (Score Transaccional). */
 export interface TransactionalScoreResult {
   transactionalScore: number;
@@ -123,6 +160,8 @@ export interface SimulateBankFlowResponse {
 export interface DocumentUploadResult {
   step: 'reading' | 'extracting' | 'scoring' | 'done';
   documentType?: 'cmf_informe_deudas' | 'cartola';
+  /** Advertencias no bloqueantes devueltas por el servidor */
+  warnings?: string[];
   cmf?: {
     deudaTotalVigente: number;
     deudaIndirecta: number;

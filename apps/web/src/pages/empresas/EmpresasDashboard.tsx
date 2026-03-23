@@ -102,6 +102,7 @@ export default function EmpresasDashboard() {
 }
 
 export function EmpresasDashboardCompany({ companyId }: { companyId: number }) {
+  const { currency } = useCurrency();
   const { data: metrics, isLoading, error } = useQuery({
     queryKey: ["empresas", "dashboard", companyId],
     queryFn: () => getEmpresasDashboard(companyId),

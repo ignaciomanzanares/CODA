@@ -23,6 +23,7 @@ import {
   exportAuditTrail,
   getPrediction,
 } from './services/audit/algorithmicTraceability.js';
+import { listAlgorithmPredictionLogsForUser } from './services/audit/traceabilityPersistence.js';
 
 export function registerAuditRoutes(app: Express): void {
   try {
@@ -119,7 +120,34 @@ export function registerAuditRoutes(app: Express): void {
       }
     }
   );
-  
+
+  /**
+   * GET /api/audit/my-algorithm-logs
+   * Registro persistido en BD: scores transaccionales, CMF (si aplica), recomendaciones de productos.
+   */
+  app.get(
+    '/api/audit/my-algorithm-logs',
+    authenticate,
+    async (req: Request, res: Response) => {
+      const authReq = req as AuthenticatedRequest;
+
+      if (!authReq.user) {
+        return res.status(401).json({ error: 'No autenticado' });
+      }
+
+      const userId = authReq.user.userId;
+      const limit = Math.min(parseInt(String(req.query.limit), 10) || 40, 100);
+
+      try {
+        const logs = await listAlgorithmPredictionLogsForUser(userId, limit);
+        res.json({ logs, total: logs.length });
+      } catch (error) {
+        console.error('[AuditRoutes] Error fetching algorithm logs:', error);
+        res.status(500).json({ error: 'Error al obtener registro algorítmico' });
+      }
+    }
+  );
+
   // ========== ADMIN ENDPOINTS ==========
   
   /**
