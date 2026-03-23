@@ -6,8 +6,15 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { env } from '../env.js';
+import { env, isDevelopment } from '../env.js';
 import { storage } from '../storage.js';
+import { emailService } from '../services/emailService.js';
+import {
+  logAuthSecurityEvent,
+  redactEmail,
+} from './authSecurityLog.js';
+import { recordBatchAccept } from '../services/privacyConsent/privacyConsentService.js';
+import { REGISTRATION_REQUIRED_PURPOSES, PRIVACY_POLICY_VERSION } from '../services/privacyConsent/privacyConsentTypes.js';
 
 // =============================================================================
 // TYPES
@@ -253,6 +260,13 @@ export async function handleLogout(req: AuthenticatedRequest, res: Response) {
     invalidateToken(token);
   }
 
+  if (req.user?.userId) {
+    logAuthSecurityEvent('logout', req, {
+      userId: req.user.userId,
+      email: req.user.email ? redactEmail(req.user.email) : undefined,
+    });
+  }
+
   res.json({ success: true, message: 'Logged out successfully' });
 }
 
@@ -276,8 +290,19 @@ export async function handleMe(req: AuthenticatedRequest, res: Response) {
 /**
  * Registration handler - creates new user with hashed password
  */
+function registerClientMeta(req: Request): { ipAddress: string | null; userAgent: string | null; channel: string } {
+  const xf = req.headers['x-forwarded-for'];
+  const first = typeof xf === 'string' ? xf.split(',')[0]?.trim() : '';
+  const ip =
+    first ||
+    (typeof req.socket?.remoteAddress === 'string' ? req.socket.remoteAddress : null) ||
+    null;
+  const ua = typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null;
+  return { ipAddress: ip, userAgent: ua, channel: 'web' };
+}
+
 export async function handleRegister(req: Request, res: Response) {
-  const { name, email, password } = req.body;
+  const { name, email, password, consents, policyVersion } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ 
@@ -291,6 +316,30 @@ export async function handleRegister(req: Request, res: Response) {
       error: 'Bad Request', 
       message: 'Name is required' 
     });
+  }
+
+  if (!consents || typeof consents !== 'object') {
+    return res.status(400).json({
+      error: 'Bad Request',
+      message:
+        'Se requiere el objeto consents con data_processing, scoring y recommendations en true (Política de privacidad v' +
+        PRIVACY_POLICY_VERSION +
+        ').',
+    });
+  }
+
+  const pv =
+    typeof policyVersion === 'string' && policyVersion.trim().length > 0
+      ? policyVersion.trim().slice(0, 32)
+      : PRIVACY_POLICY_VERSION;
+
+  for (const key of REGISTRATION_REQUIRED_PURPOSES) {
+    if (consents[key] !== true) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: `Debe aceptar la finalidad obligatoria: ${key}`,
+      });
+    }
   }
 
   // Validate password strength
@@ -324,6 +373,21 @@ export async function handleRegister(req: Request, res: Response) {
       twoFactorEnabled: false,
     });
 
+    const purposeVersions: { purpose: (typeof REGISTRATION_REQUIRED_PURPOSES)[number]; policyVersion: string }[] =
+      REGISTRATION_REQUIRED_PURPOSES.map((purpose) => ({ purpose, policyVersion: pv }));
+    if (consents.marketing === true) {
+      purposeVersions.push({ purpose: 'marketing', policyVersion: pv });
+    }
+    try {
+      await recordBatchAccept(newUser.id, purposeVersions, registerClientMeta(req));
+    } catch (consentErr) {
+      console.error('Privacy consent recording failed:', consentErr);
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'No se pudo registrar el consentimiento. Intente nuevamente.',
+      });
+    }
+
     // Generate token
     const tokenPayload: TokenPayload = {
       userId: newUser.id,
@@ -332,6 +396,11 @@ export async function handleRegister(req: Request, res: Response) {
     };
 
     const token = generateToken(tokenPayload);
+
+    logAuthSecurityEvent('register_success', req, {
+      userId: newUser.id,
+      email: redactEmail(newUser.email),
+    });
 
     res.status(201).json({
       success: true,
@@ -418,6 +487,11 @@ export async function handleLoginWithDB(req: Request, res: Response) {
 
     const token = generateToken(tokenPayload);
 
+    logAuthSecurityEvent('login_demo', req, {
+      userId: user.id,
+      email: redactEmail(user.email),
+    });
+
     return res.json({
       success: true,
       token,
@@ -432,6 +506,10 @@ export async function handleLoginWithDB(req: Request, res: Response) {
     if (user && user.passwordHash) {
       // User exists with password - verify
       if (!verifyPassword(password, user.passwordHash)) {
+        logAuthSecurityEvent('login_failed', req, {
+          reason: 'bad_password',
+          email: redactEmail(email),
+        });
         return res.status(401).json({ 
           error: 'Unauthorized', 
           message: 'Invalid email or password' 
@@ -443,11 +521,27 @@ export async function handleLoginWithDB(req: Request, res: Response) {
         // Generate and send OTP
         const otpCode = generateOTP();
         storeOTP(email, otpCode);
-        
-        // In production, send email here
-        // TODO: Integrate with email service
-        console.log(`2FA code for ${email}: ${otpCode}`); // Remove in production
-        
+
+        const sent = await emailService.send2FACode(email, otpCode);
+        logAuthSecurityEvent('twofa_challenge', req, {
+          email: redactEmail(email),
+          emailSent: sent,
+        });
+
+        if (!sent) {
+          if (process.env.NODE_ENV === 'production') {
+            otpStorage.delete(email);
+            logAuthSecurityEvent('twofa_email_failed', req, { email: redactEmail(email) });
+            return res.status(503).json({
+              error: 'Service Unavailable',
+              message: 'No se pudo enviar el código. Intenta más tarde o contacta soporte.',
+            });
+          }
+          if (isDevelopment()) {
+            console.log(`[DEV] 2FA code for ${email}: ${otpCode}`);
+          }
+        }
+
         return res.json({
           success: true,
           requires2FA: true,
@@ -464,6 +558,11 @@ export async function handleLoginWithDB(req: Request, res: Response) {
 
       const token = generateToken(tokenPayload);
 
+      logAuthSecurityEvent('login_success', req, {
+        userId: user.id,
+        email: redactEmail(user.email),
+      });
+
       return res.json({
         success: true,
         token,
@@ -472,6 +571,10 @@ export async function handleLoginWithDB(req: Request, res: Response) {
     }
 
     // No user found and not a demo login
+    logAuthSecurityEvent('login_failed', req, {
+      reason: 'bad_credentials',
+      email: redactEmail(email),
+    });
     return res.status(401).json({ 
       error: 'Unauthorized', 
       message: 'Invalid email or password' 
@@ -501,6 +604,10 @@ export async function handleVerify2FA(req: Request, res: Response) {
   const result = verifyOTP(email, code);
   
   if (!result.valid) {
+    logAuthSecurityEvent('twofa_failed', req, {
+      email: redactEmail(email),
+      detail: result.error ?? 'invalid',
+    });
     return res.status(401).json({ 
       error: 'Unauthorized', 
       message: result.error 
@@ -512,6 +619,10 @@ export async function handleVerify2FA(req: Request, res: Response) {
     const user = await storage.getUserByEmail(email);
     
     if (!user) {
+      logAuthSecurityEvent('twofa_failed', req, {
+        email: redactEmail(email),
+        detail: 'user_not_found',
+      });
       return res.status(401).json({ 
         error: 'Unauthorized', 
         message: 'User not found' 
@@ -525,6 +636,11 @@ export async function handleVerify2FA(req: Request, res: Response) {
     };
 
     const token = generateToken(tokenPayload);
+
+    logAuthSecurityEvent('twofa_verified', req, {
+      userId: user.id,
+      email: redactEmail(user.email),
+    });
 
     res.json({
       success: true,
@@ -564,6 +680,11 @@ export async function handleEnable2FA(req: AuthenticatedRequest, res: Response) 
     // Update user to enable 2FA
     await storage.updateUser(user.id, { twoFactorEnabled: true });
 
+    logAuthSecurityEvent('enable_2fa', req as Request, {
+      userId: user.id,
+      email: redactEmail(user.email),
+    });
+
     res.json({
       success: true,
       message: '2FA has been enabled for your account',
@@ -600,6 +721,11 @@ export async function handleDisable2FA(req: AuthenticatedRequest, res: Response)
 
     // Update user to disable 2FA
     await storage.updateUser(user.id, { twoFactorEnabled: false });
+
+    logAuthSecurityEvent('disable_2fa', req as Request, {
+      userId: user.id,
+      email: redactEmail(user.email),
+    });
 
     res.json({
       success: true,
@@ -640,9 +766,25 @@ export async function handleResend2FA(req: Request, res: Response) {
     // Generate and store new OTP
     const otpCode = generateOTP();
     storeOTP(email, otpCode);
-    
-    // TODO: Send email with OTP
-    console.log(`2FA code for ${email}: ${otpCode}`); // Remove in production
+
+    const sent = await emailService.send2FACode(email, otpCode);
+    logAuthSecurityEvent('resend_2fa', req, {
+      email: redactEmail(email),
+      emailSent: sent,
+    });
+    if (!sent) {
+      if (process.env.NODE_ENV === 'production') {
+        otpStorage.delete(email);
+        logAuthSecurityEvent('twofa_email_failed', req, { email: redactEmail(email) });
+        return res.status(503).json({
+          error: 'Service Unavailable',
+          message: 'No se pudo enviar el código. Intenta más tarde.',
+        });
+      }
+      if (isDevelopment()) {
+        console.log(`[DEV] 2FA code for ${email}: ${otpCode}`);
+      }
+    }
 
     res.json({
       success: true,

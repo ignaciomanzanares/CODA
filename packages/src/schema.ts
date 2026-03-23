@@ -64,6 +64,22 @@ export const consentGrants = table("consent_grants", {
   updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+/**
+ * Registro auditable de consentimientos por finalidad (CMF / Ley 19.628), distinto del consentimiento SFA bancario.
+ * Append-only: cada aceptación o revocación es un evento con versión de política, IP y user-agent.
+ */
+export const privacyConsentEvents = table("privacy_consent_events", {
+  id: serialPk("id"),
+  userId: text("user_id").notNull().references(() => users.id),
+  purpose: text("purpose").notNull(),
+  policyVersion: text("policy_version").notNull(),
+  action: text("action").notNull(),
+  channel: text("channel").notNull().default("web"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 export const accounts = table('accounts', {
   id: serialPk("id"),
   userId: text('user_id').notNull().references(() => users.id),
@@ -553,5 +569,41 @@ export const empresasRiskFactors = table('empresas_risk_factors', {
   weight: real('weight'),
   formula: text('formula'),
   thresholds: text('thresholds'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+// --- Trazabilidad algorítmica (CMF / NCG 502): versiones de modelo + registro de predicciones ---
+export const algorithmModelVersions = table('algorithm_model_versions', {
+  id: text('id').primaryKey(),
+  modelType: text('model_type').notNull(),
+  version: text('version').notNull(),
+  deployedAt: text('deployed_at').notNull(),
+  deployedBy: text('deployed_by').notNull(),
+  isActive: integer('is_active').notNull().default(0),
+  changelog: text('changelog'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const algorithmPredictionLogs = table('algorithm_prediction_logs', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id),
+  requestId: text('request_id').notNull(),
+  /** credit_cmf | transactional_sfa | product_recommendation | product_interaction | product_application */
+  kind: text('kind').notNull(),
+  modelVersionId: text('model_version_id')
+    .notNull()
+    .references(() => algorithmModelVersions.id),
+  modelVersion: text('model_version').notNull(),
+  modelType: text('model_type').notNull(),
+  inputFeatures: text('input_features').notNull(),
+  outputSnapshot: text('output_snapshot').notNull(),
+  cmfData: text('cmf_data'),
+  sfaData: text('sfa_data'),
+  topFactors: text('top_factors'),
+  processingTimeMs: integer('processing_time_ms'),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

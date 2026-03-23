@@ -8,6 +8,7 @@ import { registerAuditRoutes } from "./routes-audit.js";
 import { checkDatabaseConnection } from "./db/index.js";
 import { logger, httpLogger } from "./logger.js";
 import { initializeTraceabilitySystem } from "./services/audit/algorithmicTraceability.js";
+import { ensureSeedTraceabilityModels } from "./services/audit/traceabilityPersistence.js";
 
 
 
@@ -17,49 +18,47 @@ app.set("trust proxy", 1);
 
 
 
-// Robust CORS: allow configurable origins via environment variable
-// CORS_ORIGINS should be a comma-separated list of allowed origins
-// Example: CORS_ORIGINS=https://coda-web-steel.vercel.app,http://localhost:5173
-
+// CORS: defaults siempre incluyen dominio propio; CORS_ORIGINS en Render *añade* más (no reemplaza).
+// Evita Access-Control-Allow-Origin vacío ("") que rompe el login desde el navegador.
 const defaultOrigins = [
-  // Production: Vercel frontend
   "https://coda-web-steel.vercel.app",
-  // Development: local Vite dev server
+  "https://www.codafinance.cl",
+  "https://codafinance.cl",
   "http://localhost:5173",
-  // Preview deployments (Vercel generates unique URLs)
-  // Add specific preview URLs to CORS_ORIGINS env var as needed
 ];
 
-const allowedOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(",").map(o => o.trim()).filter(Boolean)
-  : defaultOrigins;
-const corsOptions = {
-  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    if (!origin) return callback(null, true);
+const extraOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
+  : [];
+
+const allowedOrigins = [...new Set([...defaultOrigins, ...extraOrigins])];
+
+logger.info({ allowedOrigins }, "CORS: allowed origins");
+
+const corsOptions: cors.CorsOptions = {
+  origin(origin, callback) {
+    if (!origin) {
+      return callback(null, true);
+    }
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
-    } else {
-      return callback(new Error("Not allowed by CORS"));
     }
+    logger.warn({ origin }, "CORS: origin not allowed");
+    return callback(null, false);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
-  optionsSuccessStatus: 200
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "X-Request-Id",
+  ],
+  optionsSuccessStatus: 200,
 };
 
-
-// Universal CORS preflight handler for all routes (always respond with CORS headers)
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", allowedOrigins.includes(req.headers.origin || "") ? req.headers.origin : "");
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS,PATCH");
-  res.header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Requested-With,Accept");
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-  next();
-});
+app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -108,6 +107,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     
     // Initialize algorithmic traceability system (CMF compliance)
     initializeTraceabilitySystem();
+    await ensureSeedTraceabilityModels();
     
     logger.info("✅ Application initialization completed successfully");
   } catch (error) {

@@ -14,6 +14,9 @@
 import type { ProductCatalogItem } from './productCatalog.js';
 import { logger } from '../../logger.js';
 
+/** Versión del motor de matching (trazabilidad CMF / NCG 502). */
+export const PRODUCT_MATCHING_ENGINE_VERSION = 'v1.0.0';
+
 export interface UserProfile {
   userId: string;
   creditScore?: number; // 300-850

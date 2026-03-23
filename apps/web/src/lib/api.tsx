@@ -55,6 +55,9 @@ export type ApiClient = {
   getUnreadNotificationCount: () => Promise<number>;
   getConsents: () => Promise<import("@/types").ConsentGrant[]>;
   revokeConsent: (grantId: number) => Promise<import("@/types").ConsentGrant>;
+  getPrivacyConsents: () => Promise<import("@/types").PrivacyConsentPanelResponse>;
+  acceptPrivacyPurpose: (purpose: import("@/types").PrivacyPurposeKey) => Promise<import("@/types").PrivacyConsentPanelResponse>;
+  revokePrivacyPurpose: (purpose: import("@/types").PrivacyPurposeKey) => Promise<import("@/types").PrivacyConsentPanelResponse>;
   simulateBankFlow: () => Promise<import("@/types").SimulateBankFlowResponse>;
   uploadDocument: (file: File) => Promise<import("@/types").DocumentUploadResult>;
   getTransactionalScore: () => Promise<{
@@ -403,6 +406,26 @@ export function useApi(): ApiClient {
     return await apiRequest<import("@/types").ConsentGrant>("POST", `/api/consent/${grantId}/revoke`);
   };
 
+  const getPrivacyConsents = async (): Promise<import("@/types").PrivacyConsentPanelResponse> => {
+    return await apiRequest<import("@/types").PrivacyConsentPanelResponse>("GET", "/api/privacy-consents");
+  };
+
+  const acceptPrivacyPurpose = async (
+    purpose: import("@/types").PrivacyPurposeKey
+  ): Promise<import("@/types").PrivacyConsentPanelResponse> => {
+    return await apiRequest<import("@/types").PrivacyConsentPanelResponse>("POST", "/api/privacy-consents/accept", {
+      purpose,
+    });
+  };
+
+  const revokePrivacyPurpose = async (
+    purpose: import("@/types").PrivacyPurposeKey
+  ): Promise<import("@/types").PrivacyConsentPanelResponse> => {
+    return await apiRequest<import("@/types").PrivacyConsentPanelResponse>("POST", "/api/privacy-consents/revoke", {
+      purpose,
+    });
+  };
+
   const simulateBankFlow = async (): Promise<import("@/types").SimulateBankFlowResponse> => {
     return await apiRequest<import("@/types").SimulateBankFlowResponse>("POST", "/api/test/simulate-bank-flow");
   };
@@ -535,6 +558,9 @@ export function useApi(): ApiClient {
     getUnreadNotificationCount,
     getConsents,
     revokeConsent,
+    getPrivacyConsents,
+    acceptPrivacyPurpose,
+    revokePrivacyPurpose,
     simulateBankFlow,
     uploadDocument,
     getTransactionalScore,

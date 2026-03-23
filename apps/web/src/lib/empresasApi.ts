@@ -1,12 +1,25 @@
 /**
  * Cliente API para CODA Empresas (rutas /api/empresas)
+ * Requiere JWT de sesión Empresas (`jwt_token_empresas` en localStorage).
  */
 import { apiFetch } from "./apiFetch";
 
 const EMPRESAS_PREFIX = "/api/empresas";
+const TOKEN_KEY_EMPRESAS = "jwt_token_empresas";
+
+/** Añade Authorization: Bearer al iniciar sesión en contexto Empresas. */
+export function withEmpresasAuth(init?: RequestInit): RequestInit {
+  const token =
+    typeof localStorage !== "undefined" ? localStorage.getItem(TOKEN_KEY_EMPRESAS) : null;
+  const headers = new Headers(init?.headers);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  return { ...init, headers };
+}
 
 async function fetchEmpresas<T>(path: string, init?: RequestInit): Promise<{ data: T }> {
-  const res = await apiFetch(`${EMPRESAS_PREFIX}${path}`, init);
+  const res = await apiFetch(`${EMPRESAS_PREFIX}${path}`, withEmpresasAuth(init));
   return res as { data: T };
 }
 
@@ -107,7 +120,10 @@ export async function getEmpresasReconciliation(companyId: number) {
 }
 
 export async function runEmpresasReconciliation(companyId: number) {
-  const res = await apiFetch(`${EMPRESAS_PREFIX}/reconciliation/${companyId}/run`, { method: "POST" });
+  const res = await apiFetch(
+    `${EMPRESAS_PREFIX}/reconciliation/${companyId}/run`,
+    withEmpresasAuth({ method: "POST" })
+  );
   return (res as { data: unknown }).data;
 }
 
@@ -123,7 +139,10 @@ export async function getEmpresasConnections(companyId: number) {
 }
 
 export async function syncEmpresasConnection(companyId: number, type: string) {
-  const res = await apiFetch(`${EMPRESAS_PREFIX}/connections/${companyId}/${type}/sync`, { method: "POST" });
+  const res = await apiFetch(
+    `${EMPRESAS_PREFIX}/connections/${companyId}/${type}/sync`,
+    withEmpresasAuth({ method: "POST" })
+  );
   return (res as { data: unknown }).data;
 }
 
@@ -160,11 +179,14 @@ export interface CreateDTEBody {
 }
 
 export async function createEmpresasDocument(body: CreateDTEBody): Promise<{ id: number; folio: number; message: string }> {
-  const res = await apiFetch(`${EMPRESAS_PREFIX}/documents`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const res = await apiFetch(
+    `${EMPRESAS_PREFIX}/documents`,
+    withEmpresasAuth({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+  );
   return (res as { data: { id: number; folio: number; message: string } }).data;
 }
 
@@ -190,7 +212,7 @@ export async function getEmpresasCashForecast(companyId: number, days?: number):
 
 /** Crea una empresa demo si no existe ninguna (para login en CODA Empresas). */
 export async function seedEmpresasDemo(): Promise<{ message: string; companyId?: number }> {
-  const res = await apiFetch(`${EMPRESAS_PREFIX}/seed-demo`, { method: "POST" });
+  const res = await apiFetch(`${EMPRESAS_PREFIX}/seed-demo`, withEmpresasAuth({ method: "POST" }));
   return (res as { data: { message: string; companyId?: number } }).data;
 }
 
@@ -228,10 +250,13 @@ export async function getEmpresasPurchaseOrdersByVendor(companyId: number): Prom
 }
 
 export async function linkPurchaseOrderToDte(poId: number, dteDocumentId: number): Promise<{ message: string }> {
-  const res = await apiFetch(`${EMPRESAS_PREFIX}/purchase-orders/${poId}/link-dte`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ dteDocumentId }),
-  });
+  const res = await apiFetch(
+    `${EMPRESAS_PREFIX}/purchase-orders/${poId}/link-dte`,
+    withEmpresasAuth({
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dteDocumentId }),
+    })
+  );
   return (res as { data: { message: string } }).data;
 }

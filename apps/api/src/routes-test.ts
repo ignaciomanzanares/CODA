@@ -18,6 +18,7 @@ import type {
   SfaProductoVigente,
 } from './sfa/types.js';
 import { logger } from './logger.js';
+import { storage } from './storage.js';
 
 const RUT_MOCK = '11.111.111-1';
 const REF_DATE = new Date();
@@ -135,6 +136,19 @@ export function registerTestRoutes(app: Express): void {
       // 4) Generar datos mock SFA y calcular score
       const { transactions, products } = generateMockSfaData();
       const scoreResult = scoringEngine.run({ transactions, products }, REF_DATE);
+
+      // Mismo riel que cartola/demo: persiste score y dispara trazabilidad en `algorithm_prediction_logs`
+      await storage.upsertTransactionalScore(userId, {
+        transactionalScore: scoreResult.transactionalScore,
+        metrics: scoreResult.metrics,
+        mainInsights: scoreResult.mainInsights,
+        recommendedProducts: scoreResult.recommendedProducts.map((c) => String(c)),
+        algorithmInputs: {
+          pipeline: 'simulate_bank_flow_sfa',
+          mockTransactionCount: transactions.length,
+          mockProductCount: products.length,
+        },
+      });
 
       return res.json({
         consent: authorizedConsent,

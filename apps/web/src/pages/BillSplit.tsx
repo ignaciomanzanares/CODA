@@ -547,8 +547,12 @@ export default function BillSplit() {
   const totalOwedToYou = userBalances.filter(b => b.balance > 0).reduce((sum, b) => sum + b.balance, 0);
 
   // Mutations
-  const createBillSplitMutation = useMutation({
-    mutationFn: (billSplit: BillSplitFormValues) => {
+  const createBillSplitMutation = useMutation<
+    BillSplitWithParticipants,
+    Error,
+    BillSplitFormValues
+  >({
+    mutationFn: async (billSplit: BillSplitFormValues) => {
       const totalAmountClp = Math.round(parseFloat(billSplit.totalAmount) || 0);
       const creatorName = (user as any)?.firstName || (user as any)?.username || (user as any)?.name || (user as any)?.email || 'Me';
       const creatorEmail = (user as any)?.email || '';
@@ -560,7 +564,7 @@ export default function BillSplit() {
       const perPerson = allParticipants.length > 0 ? totalAmountClp / allParticipants.length : 0;
       const participantAmounts = allParticipants.map(() => perPerson);
 
-      return createBillSplit({
+      const created = await createBillSplit({
         name: billSplit.name?.trim() || 'Gasto compartido',
         totalAmount: totalAmountClp,
         description: undefined,
@@ -575,6 +579,7 @@ export default function BillSplit() {
           isPaid: p.isCreator,
         }))
       });
+      return created as BillSplitWithParticipants;
     },
     onSuccess: async (data: BillSplitWithParticipants) => {
       // Actualizar caché con la respuesta del POST (misma forma que GET) para que el saldo se actualice al instante

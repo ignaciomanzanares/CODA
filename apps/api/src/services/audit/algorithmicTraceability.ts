@@ -17,6 +17,11 @@
 
 import { randomUUID } from 'crypto';
 import type { CmfInformeDeudas } from '../documents/pdfAnalysis.js';
+import {
+  persistCreditPredictionAsync,
+  ensureSeedTraceabilityModels,
+  DEFAULT_CREDIT_MODEL_VERSION_ID,
+} from './traceabilityPersistence.js';
 
 // ============================================================================
 // TYPES
@@ -119,9 +124,9 @@ class TraceabilityStore {
   private activeModelVersionId: string | null = null;
   
   constructor() {
-    // Initialize with default simple model version
+    // Initialize with default simple model version (ID fijo = fila en algorithm_model_versions)
     const defaultVersion: ModelVersion = {
-      id: randomUUID(),
+      id: DEFAULT_CREDIT_MODEL_VERSION_ID,
       modelType: 'simple_rules',
       version: 'v1.0.0',
       deployedAt: new Date('2026-01-01'),
@@ -310,7 +315,7 @@ export function logCreditScorePrediction(
   const log: Omit<CreditScorePredictionLog, 'id'> = {
     userId,
     requestId,
-    modelVersionId: activeModel?.id || 'unknown',
+    modelVersionId: activeModel?.id || DEFAULT_CREDIT_MODEL_VERSION_ID,
     modelVersion: activeModel?.version || 'v1.0.0',
     
     inputFeatures: input.features,
@@ -330,8 +335,28 @@ export function logCreditScorePrediction(
     ipAddress: metadata?.ipAddress,
     userAgent: metadata?.userAgent,
   };
-  
-  return traceabilityStore.logPrediction(log);
+
+  const predictionId = traceabilityStore.logPrediction(log);
+  persistCreditPredictionAsync({
+    id: predictionId,
+    userId: log.userId,
+    requestId: log.requestId,
+    modelVersionId: log.modelVersionId,
+    modelVersion: log.modelVersion,
+    modelType: activeModel?.modelType ?? 'simple_rules',
+    inputFeatures: log.inputFeatures,
+    creditScore: log.creditScore,
+    probabilityDefault: log.probabilityDefault,
+    riskCategory: log.riskCategory,
+    confidence: log.confidence,
+    cmfData: log.cmfData,
+    sfaData: log.sfaData,
+    topFactors: log.topFactors,
+    processingTimeMs: log.processingTimeMs,
+    ipAddress: log.ipAddress,
+    userAgent: log.userAgent,
+  });
+  return predictionId;
 }
 
 /**
