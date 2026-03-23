@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Shield, Car, Home, Heart, User, CheckCircle } from "lucide-react";
@@ -232,7 +233,7 @@ export default function InsuranceRiskInfo() {
           <p className="text-xl text-green-100 mb-8 max-w-2xl mx-auto">
             Descubre tu perfil de riesgo y accede a mejores cotizaciones.
           </p>
-          <Link href="/login">
+          <Link href={ROUTES.iniciarSesion}>
             <Button size="lg" className="bg-white text-green-700 hover:bg-green-50 font-semibold px-8 py-6 text-lg">
               Comienza Gratis
             </Button>

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Mail, Users, DollarSign, CheckCircle, UserPlus, LogIn } from "lucide-react";
 import { useLocation } from "wouter";
+import { ROUTES } from "@/lib/routes";
 
 interface InvitationCheckResult {
   userExists: boolean;
@@ -52,15 +53,15 @@ export default function EmailInviteHandler() {
           // User has an account
           if (isAuthenticated) {
             // User has account and is logged in -> go to bill split
-            setLocation(`/bill-split?highlight=${billSplitId}`);
+            setLocation(`${ROUTES.dividirCuenta}?highlight=${billSplitId}`);
             return;
           } else {
             // User has account but is not logged in -> redirect to login
             setIsRedirecting(true);
             // Store the intended destination for after login
-            localStorage.setItem('redirectAfterLogin', `/bill-split?highlight=${billSplitId}`);
+            localStorage.setItem('redirectAfterLogin', `${ROUTES.dividirCuenta}?highlight=${billSplitId}`);
             setTimeout(() => {
-              setLocation('/login');
+              setLocation(ROUTES.iniciarSesion);
             }, 1500); // Show message for 1.5 seconds before redirecting
             return;
           }
@@ -85,21 +86,21 @@ export default function EmailInviteHandler() {
 
   const handleSignUp = () => {
     if (checkResult) {
-      localStorage.setItem('redirectAfterLogin', `/bill-split?highlight=${checkResult.billSplitId}`);
-      setLocation('/login');
+      localStorage.setItem('redirectAfterLogin', `${ROUTES.dividirCuenta}?highlight=${checkResult.billSplitId}`);
+      setLocation(ROUTES.registro);
     }
   };
 
   const handleSignIn = () => {
     if (checkResult) {
-      localStorage.setItem('redirectAfterLogin', `/bill-split?highlight=${checkResult.billSplitId}`);
-      setLocation('/login');
+      localStorage.setItem('redirectAfterLogin', `${ROUTES.dividirCuenta}?highlight=${checkResult.billSplitId}`);
+      setLocation(ROUTES.iniciarSesion);
     }
   };
 
   const handleViewAnyway = () => {
     if (checkResult) {
-      setLocation(`/bill-split?highlight=${checkResult.billSplitId}`);
+      setLocation(`${ROUTES.dividirCuenta}?highlight=${checkResult.billSplitId}`);
     }
   };
 

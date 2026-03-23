@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
+import { ROUTES } from "@/lib/routes";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { CurrencyProvider } from "./lib/CurrencyContext";
@@ -43,6 +44,7 @@ import AuditDashboard from "@/pages/AuditDashboard";
 import ProductMetrics from "@/pages/ProductMetrics";
 import FinancialAssistant from "@/components/FinancialAssistant";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import LegacySplitRedirect from "@/components/LegacySplitRedirect";
 
 const BillSplit = lazy(() => import("@/pages/BillSplit"));
 
@@ -63,27 +65,48 @@ function App() {
           </div>
         </Route>
 
-        {/* Public routes */}
+        {/* Public routes (español + alias en inglés) */}
+        <Route path={ROUTES.iniciarSesion} component={Login} />
         <Route path="/login" component={Login} />
         <Route path="/empresas/login" component={Login} />
+        <Route path={ROUTES.registro} component={SignUp} />
         <Route path="/signup" component={SignUp} />
-        <Route path="/about" component={About} />
+        <Route path={ROUTES.acerca} component={About} />
+        <Route path="/about">
+          <Redirect to={ROUTES.acerca} />
+        </Route>
         <Route path="/empresas" component={Empresas} />
-        <Route path="/info/credit-score" component={CreditScoreInfo} />
-        <Route path="/info/insurance-risk" component={InsuranceRiskInfo} />
-        <Route path="/info/financial-goals" component={FinancialGoalsInfo} />
-        <Route path="/info/product-comparison" component={ProductComparisonInfo} />
+        <Route path={ROUTES.infoScoreCredito} component={CreditScoreInfo} />
+        <Route path="/info/credit-score">
+          <Redirect to={ROUTES.infoScoreCredito} />
+        </Route>
+        <Route path={ROUTES.infoRiesgoSeguros} component={InsuranceRiskInfo} />
+        <Route path="/info/insurance-risk">
+          <Redirect to={ROUTES.infoRiesgoSeguros} />
+        </Route>
+        <Route path={ROUTES.infoMetasFinancieras} component={FinancialGoalsInfo} />
+        <Route path="/info/financial-goals">
+          <Redirect to={ROUTES.infoMetasFinancieras} />
+        </Route>
+        <Route path={ROUTES.infoComparacionProductos} component={ProductComparisonInfo} />
+        <Route path="/info/product-comparison">
+          <Redirect to={ROUTES.infoComparacionProductos} />
+        </Route>
         
         {/* Special route for email invitations - no header/footer */}
-        <Route path="/invite">
+        <Route path={ROUTES.invitacion}>
           <div className="min-h-screen">
             <EmailInviteHandler />
             <Toaster />
           </div>
         </Route>
+        <Route path="/invite">
+          <Redirect to={ROUTES.invitacion} />
+        </Route>
         
-        {/* Public route for shared bill splits - no auth required */}
-        <Route path="/split/:code">
+        {/* Compartir dividir cuenta: alias antiguo /split/:code → /dividir/:codigo */}
+        <Route path="/split/:code" component={LegacySplitRedirect} />
+        <Route path="/dividir/:codigo">
           {() => (
             <div className="min-h-screen">
               <ShareBillSplit />
@@ -98,7 +121,10 @@ function App() {
             <Header />
             <main className="flex-1">
                 <Switch>
-                  <Route path="/onboarding" component={Onboarding} />
+                  <Route path={ROUTES.bienvenida} component={Onboarding} />
+                  <Route path="/onboarding">
+                    <Redirect to={ROUTES.bienvenida} />
+                  </Route>
                   {/* CODA Empresas: sesión independiente de Personal */}
                   <Route path="/empresas/dashboard">
                     <ProtectedRoute context="empresas">
@@ -145,10 +171,13 @@ function App() {
                       <EmpresasLayout><EmpresasPurchaseOrders /></EmpresasLayout>
                     </ProtectedRoute>
                   </Route>
-                  <Route path="/dashboard">
+                  <Route path={ROUTES.panel}>
                     <ProtectedRoute>
                       <Dashboard />
                     </ProtectedRoute>
+                  </Route>
+                  <Route path="/dashboard">
+                    <Redirect to={ROUTES.panel} />
                   </Route>
                   <Route path="/movimientos">
                     <ProtectedRoute>
@@ -160,12 +189,15 @@ function App() {
                       <ConsentConnections />
                     </ProtectedRoute>
                   </Route>
-                  <Route path="/expenses">
+                  <Route path={ROUTES.gastos}>
                     <ProtectedRoute>
                       <Expenses />
                     </ProtectedRoute>
                   </Route>
-                  <Route path="/bill-split">
+                  <Route path="/expenses">
+                    <Redirect to={ROUTES.gastos} />
+                  </Route>
+                  <Route path={ROUTES.dividirCuenta}>
                     <ErrorBoundary>
                       <Suspense fallback={
                         <div className="container py-8 max-w-5xl mx-auto">
@@ -178,35 +210,53 @@ function App() {
                       </Suspense>
                     </ErrorBoundary>
                   </Route>
-                  <Route path="/audit">
+                  <Route path="/bill-split">
+                    <Redirect to={ROUTES.dividirCuenta} />
+                  </Route>
+                  <Route path={ROUTES.auditoria}>
                     <ProtectedRoute>
                       <AuditDashboard />
                     </ProtectedRoute>
                   </Route>
-                  <Route path="/products">
+                  <Route path="/audit">
+                    <Redirect to={ROUTES.auditoria} />
+                  </Route>
+                  <Route path={ROUTES.productos}>
                     <ProtectedRoute>
                       <Products />
                     </ProtectedRoute>
                   </Route>
-                  <Route path="/products/metrics">
+                  <Route path="/products">
+                    <Redirect to={ROUTES.productos} />
+                  </Route>
+                  <Route path={ROUTES.productosMetricas}>
                     <ProtectedRoute>
                       <ProductMetrics />
                     </ProtectedRoute>
                   </Route>
-                  <Route path="/goals">
+                  <Route path="/products/metrics">
+                    <Redirect to={ROUTES.productosMetricas} />
+                  </Route>
+                  <Route path={ROUTES.metas}>
                     <ProtectedRoute>
                       <Goals />
                     </ProtectedRoute>
+                  </Route>
+                  <Route path="/goals">
+                    <Redirect to={ROUTES.metas} />
                   </Route>
                   <Route path="/plan">
                     <ProtectedRoute>
                       <Plan />
                     </ProtectedRoute>
                   </Route>
-                  <Route path="/profile">
+                  <Route path={ROUTES.perfil}>
                     <ProtectedRoute>
                       <Profile />
                     </ProtectedRoute>
+                  </Route>
+                  <Route path="/profile">
+                    <Redirect to={ROUTES.perfil} />
                   </Route>
                   <Route component={NotFound} />
                 </Switch>

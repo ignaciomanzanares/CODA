@@ -1,4 +1,5 @@
 import { useLocation } from "wouter";
+import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Info, User } from "lucide-react";
@@ -27,7 +28,7 @@ export default function SignInBanner({
               {description}
             </p>
             <Button 
-              onClick={() => setLocation("/login")}
+              onClick={() => setLocation(ROUTES.iniciarSesion)}
               size="sm"
               className="bg-blue-600 hover:bg-blue-700"
             >

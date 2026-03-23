@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, TrendingUp, Shield, AlertCircle, CheckCircle } from "lucide-react";
@@ -198,7 +199,7 @@ export default function CreditScoreInfo() {
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
             Comienza a mejorar tu salud financiera hoy mismo con análisis impulsado por IA.
           </p>
-          <Link href="/login">
+          <Link href={ROUTES.iniciarSesion}>
             <Button size="lg" className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg">
               Comienza Gratis
             </Button>

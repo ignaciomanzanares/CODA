@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Target, TrendingUp, PiggyBank, Home, GraduationCap, Heart, ArrowRight } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { ROUTES } from "@/lib/routes";
 
 export default function FinancialGoalsInfo() {
   const [, navigate] = useLocation();
@@ -33,7 +34,7 @@ export default function FinancialGoalsInfo() {
               <Button 
                 size="lg" 
                 className="bg-white text-purple-700 hover:bg-purple-50"
-                onClick={() => navigate("/goals")}
+                onClick={() => navigate(ROUTES.metas)}
               >
                 Ir a Mis Metas
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -44,7 +45,7 @@ export default function FinancialGoalsInfo() {
               <Button 
                 size="lg" 
                 className="bg-white text-purple-700 hover:bg-purple-50"
-                onClick={() => navigate("/signup")}
+                onClick={() => navigate(ROUTES.registro)}
               >
                 Crear Cuenta Gratis
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -229,7 +230,7 @@ export default function FinancialGoalsInfo() {
             <Button 
               size="lg" 
               className="bg-white text-purple-700 hover:bg-purple-50"
-              onClick={() => navigate("/goals")}
+              onClick={() => navigate(ROUTES.metas)}
             >
               Crear Mi Primera Meta
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -241,7 +242,7 @@ export default function FinancialGoalsInfo() {
               <Button 
                 size="lg" 
                 className="bg-white text-purple-700 hover:bg-purple-50"
-                onClick={() => navigate("/signup")}
+                onClick={() => navigate(ROUTES.registro)}
               >
                 Crear Cuenta Gratis
               </Button>
@@ -249,7 +250,7 @@ export default function FinancialGoalsInfo() {
                 size="lg" 
                 variant="outline"
                 className="border-white text-white hover:bg-white/10"
-                onClick={() => navigate("/login")}
+                onClick={() => navigate(ROUTES.iniciarSesion)}
               >
                 Iniciar Sesión
               </Button>

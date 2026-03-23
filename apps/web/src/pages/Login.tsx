@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Wallet, User, Lock, Loader2, ArrowLeft, Shield, RefreshCw, Eye, EyeOff } from "lucide-react";
+import { ROUTES } from "@/lib/routes";
 
 export default function Login() {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const isEmpresas = location === "/empresas/login";
-  const defaultRedirect = isEmpresas ? "/empresas/dashboard" : "/dashboard";
+  const defaultRedirect = isEmpresas ? "/empresas/dashboard" : ROUTES.panel;
   const authContext = isEmpresas ? 'empresas' : 'personal';
   const { login: doLogin, isAuthenticated: isAuth } = useAuth(authContext);
   const [email, setEmail] = useState("");
@@ -324,7 +325,7 @@ export default function Login() {
               <div className="mt-6 text-center">
                 <p className="text-sm text-gray-600">
                   ¿No tienes cuenta?{" "}
-                  <Link href="/signup" className="font-medium text-primary hover:underline">
+                  <Link href={ROUTES.registro} className="font-medium text-primary hover:underline">
                     Crear cuenta
                   </Link>
                 </p>
@@ -341,7 +342,7 @@ export default function Login() {
           </Link>
           {isEmpresas ? (
             <p className="text-sm text-gray-500">
-              <Link href="/login" className="text-primary hover:underline">Iniciar sesión en CODA Personal</Link>
+              <Link href={ROUTES.iniciarSesion} className="text-primary hover:underline">Iniciar sesión en CODA Personal</Link>
             </p>
           ) : (
             <p className="text-sm text-gray-500">

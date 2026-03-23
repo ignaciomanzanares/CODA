@@ -6,6 +6,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { ROUTES } from "@/lib/routes";
 
 // Components
 import DocumentUploadCard from "@/components/DocumentUploadCard";
@@ -217,7 +218,7 @@ export default function Dashboard() {
                   <Button 
                     variant="link" 
                     className="p-0 h-auto mt-2 text-sm"
-                    onClick={() => navigate("/plan")}
+                    onClick={() => navigate(ROUTES.plan)}
                   >
                     Ver análisis completo <ChevronRight className="h-3 w-3 ml-1" />
                   </Button>
@@ -248,7 +249,7 @@ export default function Dashboard() {
               <Button 
                 variant="outline" 
                 className="h-auto py-4 justify-start"
-                onClick={() => navigate("/expenses")}
+                onClick={() => navigate(ROUTES.gastos)}
               >
                 <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
                 <span className="text-sm">Gastos</span>
@@ -256,7 +257,7 @@ export default function Dashboard() {
               <Button 
                 variant="outline" 
                 className="h-auto py-4 justify-start"
-                onClick={() => navigate("/bill-split")}
+                onClick={() => navigate(ROUTES.dividirCuenta)}
               >
                 <ArrowUpRight className="h-4 w-4 mr-2 text-muted-foreground" />
                 <span className="text-sm">Dividir cuenta</span>
@@ -264,7 +265,7 @@ export default function Dashboard() {
               <Button 
                 variant="outline" 
                 className="h-auto py-4 justify-start"
-                onClick={() => navigate("/goals")}
+                onClick={() => navigate(ROUTES.metas)}
               >
                 <Target className="h-4 w-4 mr-2 text-muted-foreground" />
                 <span className="text-sm">Metas</span>
@@ -272,7 +273,7 @@ export default function Dashboard() {
               <Button 
                 variant="outline" 
                 className="h-auto py-4 justify-start"
-                onClick={() => navigate("/products")}
+                onClick={() => navigate(ROUTES.productos)}
               >
                 <Shield className="h-4 w-4 mr-2 text-muted-foreground" />
                 <span className="text-sm">Productos</span>

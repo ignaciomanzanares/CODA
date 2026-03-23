@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Wallet, User, Lock, Mail, Loader2, CheckCircle2, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ROUTES } from "@/lib/routes";
 
 export default function SignUp() {
   const [, setLocation] = useLocation();
@@ -27,7 +28,7 @@ export default function SignUp() {
 
   // Redirect if already authenticated
   if (isAuthenticated) {
-    setLocation("/dashboard");
+    setLocation(ROUTES.panel);
     return null;
   }
 
@@ -79,7 +80,7 @@ export default function SignUp() {
         title: "¡Cuenta creada!",
         description: "Bienvenido a CODA. ¡Comencemos!",
       });
-      setLocation("/dashboard");
+      setLocation(ROUTES.panel);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error al registrarse";
       setError(message);
@@ -299,7 +300,7 @@ export default function SignUp() {
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600">
                 ¿Ya tienes cuenta?{" "}
-                <Link href="/login" className="font-medium text-primary hover:underline">
+                <Link href={ROUTES.iniciarSesion} className="font-medium text-primary hover:underline">
                   Iniciar sesión
                 </Link>
               </p>

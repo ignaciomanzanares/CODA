@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { useApi } from '@/lib/api.tsx';
 import { apiFetch } from '@/lib/api';
+import { ROUTES, rutaDividirPublico } from '@/lib/routes';
 import { formatCurrency } from '@/lib/utils';
 import { 
   Receipt, 
@@ -79,7 +80,8 @@ const PaymentMethods = [
 ];
 
 export default function ShareBillSplit() {
-  const { code } = useParams<{ code: string }>();
+  const params = useParams<{ codigo?: string; code?: string }>();
+  const code = params.codigo ?? params.code ?? '';
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -397,7 +399,10 @@ export default function ShareBillSplit() {
                   <Button 
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate(`/login?redirect=/split/${code}`)}
+                    onClick={() => {
+                      localStorage.setItem('redirectAfterLogin', `${rutaDividirPublico(code)}`);
+                      navigate(ROUTES.iniciarSesion);
+                    }}
                   >
                     <LogIn className="h-4 w-4 mr-2" />
                     Iniciar sesión

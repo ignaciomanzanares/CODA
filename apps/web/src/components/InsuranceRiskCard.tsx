@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
+import { ROUTES } from "@/lib/routes";
 
 function RiskFactorCard({ 
   icon: Icon, 
@@ -227,7 +228,7 @@ export default function InsuranceRiskCard() {
         {/* Action Button */}
         <Button
           className="w-full mt-4 group"
-          onClick={() => navigate("/products?category=insurance")}
+          onClick={() => navigate(`${ROUTES.productos}?category=insurance`)}
         >
           <Shield className="h-4 w-4 mr-2" />
           Ver opciones de seguros

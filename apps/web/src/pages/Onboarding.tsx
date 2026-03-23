@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
+import { ROUTES } from "@/lib/routes";
 import { useAuth } from "@/lib/auth";
 import ProgressIndicator from "@/components/ProgressIndicator";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ export default function Onboarding() {
   // Redirect authenticated users to dashboard
   useEffect(() => {
     if (isAuthenticated) {
-      setLocation("/dashboard");
+      setLocation(ROUTES.panel);
     }
   }, [isAuthenticated, setLocation]);
 

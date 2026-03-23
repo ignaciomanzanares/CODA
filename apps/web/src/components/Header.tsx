@@ -33,16 +33,17 @@ import NotificationCenter from "@/components/NotificationCenter";
 import { cn } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
 import type { CurrencyCode } from "@/lib/utils";
+import { ROUTES } from "@/lib/routes";
 
 const navItems = [
-  { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
-  { href: "/movimientos", label: "Movimientos", icon: Receipt },
-  { href: "/conexiones", label: "Conexiones", icon: Link2 },
-  { href: "/expenses", label: "Gastos", icon: Receipt },
-  { href: "/bill-split", label: "Dividir cuenta", icon: Users },
-  { href: "/products", label: "Productos", icon: Package },
-  { href: "/goals", label: "Metas", icon: Target },
-  { href: "/plan", label: "Plan", icon: FileText },
+  { href: ROUTES.panel, label: "Panel", icon: LayoutDashboard },
+  { href: ROUTES.movimientos, label: "Movimientos", icon: Receipt },
+  { href: ROUTES.conexiones, label: "Conexiones", icon: Link2 },
+  { href: ROUTES.gastos, label: "Gastos", icon: Receipt },
+  { href: ROUTES.dividirCuenta, label: "Dividir cuenta", icon: Users },
+  { href: ROUTES.productos, label: "Productos", icon: Package },
+  { href: ROUTES.metas, label: "Metas", icon: Target },
+  { href: ROUTES.plan, label: "Plan", icon: FileText },
   // { href: "/audit", label: "Auditoría", icon: Activity }, // Hidden for now - will implement in future
 ];
 
@@ -68,7 +69,7 @@ export default function Header() {
 
   const handleLogout = () => {
     logout(authContext);
-    setLocation(isEmpresas ? "/empresas/login" : "/login");
+    setLocation(isEmpresas ? "/empresas/login" : ROUTES.iniciarSesion);
   };
 
   // Nombre para mostrar (normalizar "Investor" → "Inversor")
@@ -149,7 +150,7 @@ export default function Header() {
         {/* Derecha: CODA Personal/Empresas, notificaciones, usuario — lo más a la derecha */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
           {isEmpresas ? (
-            <Link href="/dashboard">
+            <Link href={ROUTES.panel}>
               <Button variant="outline" size="sm" className="hidden md:flex items-center gap-1.5 shrink-0">
                 <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 <span className="xl:hidden">Personal</span>
@@ -183,7 +184,7 @@ export default function Header() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setLocation('/profile')}>
+                    <DropdownMenuItem onClick={() => setLocation(ROUTES.perfil)}>
                       <User className="h-4 w-4 mr-2" />
                       Perfil
                     </DropdownMenuItem>
@@ -196,7 +197,7 @@ export default function Header() {
               </div>
             </>
           ) : (
-            <Button onClick={() => setLocation(isEmpresas ? "/empresas/login" : "/login")}>Iniciar sesión</Button>
+            <Button onClick={() => setLocation(isEmpresas ? "/empresas/login" : ROUTES.iniciarSesion)}>Iniciar sesión</Button>
           )}
 
           {/* Mobile Menu Button */}
@@ -243,7 +244,7 @@ export default function Header() {
                         className="flex items-center gap-3 px-3 py-3 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted hover:text-foreground text-left min-h-[44px]"
                         onClick={() => {
                           setMobileMenuOpen(false);
-                          setLocation('/profile');
+                          setLocation(ROUTES.perfil);
                         }}
                       >
                         <User className="h-5 w-5" />
@@ -265,7 +266,7 @@ export default function Header() {
                       className="w-full" 
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setLocation(isEmpresas ? "/empresas/login" : "/login");
+                        setLocation(isEmpresas ? "/empresas/login" : ROUTES.iniciarSesion);
                       }}
                     >
                       Iniciar sesión

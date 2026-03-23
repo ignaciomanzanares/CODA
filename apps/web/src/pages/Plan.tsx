@@ -25,6 +25,7 @@ import { useAuth } from "@/lib/auth";
 import { generateDemoCreditScore, generateDemoInsuranceRisk, generateDemoFinancialGoals } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
 import type { Goal } from "@/types";
+import { ROUTES } from "@/lib/routes";
 
 type CreditScore = {
   utilization?: string;
@@ -175,7 +176,7 @@ export default function Plan() {
           title: "Mejorar la utilización de crédito",
           description: "Tu utilización de crédito está en 35%. Reducirla por debajo del 30% podría subir tu score entre 15 y 25 puntos.",
           actionText: "Saber más",
-          actionLink: "/products",
+          actionLink: ROUTES.productos,
         });
       }
     }
@@ -189,7 +190,7 @@ export default function Plan() {
           title: "Consolidar deuda con alto interés",
           description: "Podrías ahorrar $1.200 en intereses consolidando tu deuda de tarjetas con un crédito de consumo al 7,49%.",
           actionText: "Ver opciones",
-          actionLink: "/products?category=loans",
+          actionLink: `${ROUTES.productos}?category=loans`,
         });
       }
     }
@@ -203,7 +204,7 @@ export default function Plan() {
           title: "Completa tu cobertura de seguros",
           description: "Según tu perfil de riesgo, un seguro de responsabilidad civil podría proteger tu patrimonio.",
           actionText: "Pedir cotizaciones",
-          actionLink: "/products?category=insurance",
+          actionLink: `${ROUTES.productos}?category=insurance`,
         });
       }
     }
@@ -215,7 +216,7 @@ export default function Plan() {
       title: "Explora programas para compradores primerizos",
       description: "Según tus ingresos y crédito, podrías calificar para programas con 3% de pie y tasas más bajas.",
       actionText: "Ver elegibilidad",
-      actionLink: "/products?category=mortgage",
+      actionLink: `${ROUTES.productos}?category=mortgage`,
     });
 
     recommendations.push({
@@ -224,7 +225,7 @@ export default function Plan() {
       title: "Optimiza el pago de créditos estudiantiles",
       description: "Refinanciar a tasas actuales podría ahorrarte $2.400 durante la vida del crédito.",
       actionText: "Comparar tasas",
-      actionLink: "/products?category=loans",
+      actionLink: `${ROUTES.productos}?category=loans`,
     });
 
     return recommendations;
@@ -382,7 +383,7 @@ export default function Plan() {
                       </div>
                     )}
                     <div className="mt-6 pt-4 border-t">
-                      <Link href="/goals">
+                      <Link href={ROUTES.metas}>
                         <Button variant="outline" className="w-full">
                           Gestionar metas
                         </Button>

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, ShoppingCart, Sparkles, TrendingUp, Shield, DollarSign, ArrowRight, PiggyBank } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { ROUTES } from "@/lib/routes";
 
 export default function ProductComparisonInfo() {
   const [, navigate] = useLocation();
@@ -33,7 +34,7 @@ export default function ProductComparisonInfo() {
               <Button 
                 size="lg" 
                 className="bg-white text-blue-700 hover:bg-blue-50"
-                onClick={() => navigate("/products")}
+                onClick={() => navigate(ROUTES.productos)}
               >
                 Ver Productos Recomendados
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -44,7 +45,7 @@ export default function ProductComparisonInfo() {
               <Button 
                 size="lg" 
                 className="bg-white text-blue-700 hover:bg-blue-50"
-                onClick={() => navigate("/signup")}
+                onClick={() => navigate(ROUTES.registro)}
               >
                 Crear Cuenta Gratis
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -240,7 +241,7 @@ export default function ProductComparisonInfo() {
             <Button 
               size="lg" 
               className="bg-white text-blue-700 hover:bg-blue-50"
-              onClick={() => navigate("/products")}
+              onClick={() => navigate(ROUTES.productos)}
             >
               Ver Productos Recomendados
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -251,7 +252,7 @@ export default function ProductComparisonInfo() {
             <Button 
               size="lg" 
               className="bg-white text-blue-700 hover:bg-blue-50"
-              onClick={() => navigate("/signup")}
+              onClick={() => navigate(ROUTES.registro)}
             >
               Crear Cuenta Gratis
               <ArrowRight className="ml-2 h-4 w-4" />
