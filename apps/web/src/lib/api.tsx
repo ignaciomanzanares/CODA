@@ -46,8 +46,9 @@ export type ApiClient = {
   getUserProfile: () => Promise<any>;
   deleteAccount: () => Promise<any>;
   changePassword: () => Promise<import("@/types").ApiResponse>;
-  getMFAStatus: () => Promise<import("@/types").ApiResponse>;
-  enableMFA: () => Promise<import("@/types").ApiResponse>;
+  getMFAStatus: () => Promise<{ enrolled: boolean; methods: string[] }>;
+  enableTwoFactor: () => Promise<{ success?: boolean; message?: string }>;
+  disableTwoFactor: () => Promise<{ success?: boolean; message?: string }>;
   getNotifications: (options?: { category?: string; unreadOnly?: boolean; limit?: number; offset?: number }) => Promise<any[]>;
   markNotificationAsRead: (notificationId: number) => Promise<import("@/types").ApiResponse>;
   markAllNotificationsAsRead: () => Promise<import("@/types").ApiResponse>;
@@ -113,18 +114,21 @@ export function useApi(): ApiClient {
       throw new Error("User not authenticated");
     }
 
+    // No propagar `headers`/`body`/`method` en el spread final: podrían pisar Authorization.
+    const { headers: optsHeaders, body: optsBody, method: _ignoredMethod, ...restOptions } = options ?? {};
+
     let extraHeaders: Record<string, string> = {};
     if (
-      options?.headers &&
-      typeof options.headers === "object" &&
-      !(options.headers instanceof Headers) &&
-      !Array.isArray(options.headers)
+      optsHeaders &&
+      typeof optsHeaders === "object" &&
+      !(optsHeaders instanceof Headers) &&
+      !Array.isArray(optsHeaders)
     ) {
-      extraHeaders = options.headers as Record<string, string>;
+      extraHeaders = optsHeaders as Record<string, string>;
     }
 
     const headers: Record<string, string> = {
-      ...(data ? { "Content-Type": "application/json" } : {}),
+      ...(data !== undefined ? { "Content-Type": "application/json" } : {}),
       ...extraHeaders,
       Authorization: `Bearer ${token}`,
     };
@@ -132,10 +136,10 @@ export function useApi(): ApiClient {
     // Prepend API_BASE_URL if url starts with '/api'
     const fullUrl = url.startsWith("/api") ? `${API_BASE_URL}${url.replace(/^\/api/, "")}` : url;
     const res = await fetch(fullUrl, {
+      ...restOptions,
       method,
       headers,
-      body: data ? JSON.stringify(data) : undefined,
-      ...options,
+      body: data !== undefined ? JSON.stringify(data) : optsBody,
     });
 
     const contentType = res.headers.get("content-type") || "";
@@ -357,12 +361,16 @@ export function useApi(): ApiClient {
     return await apiRequest<import("@/types").ApiResponse>("POST", "/api/profile/change-password");
   };
 
-  const getMFAStatus = async (): Promise<import("@/types").ApiResponse> => {
-    return await apiRequest<import("@/types").ApiResponse>("GET", "/api/profile/mfa-status");
+  const getMFAStatus = async (): Promise<{ enrolled: boolean; methods: string[] }> => {
+    return await apiRequest<{ enrolled: boolean; methods: string[] }>("GET", "/api/profile/mfa-status");
   };
 
-  const enableMFA = async (): Promise<import("@/types").ApiResponse> => {
-    return await apiRequest<import("@/types").ApiResponse>("POST", "/api/profile/enable-mfa");
+  const enableTwoFactor = async (): Promise<{ success?: boolean; message?: string }> => {
+    return await apiRequest<{ success?: boolean; message?: string }>("POST", "/api/auth/2fa/enable");
+  };
+
+  const disableTwoFactor = async (): Promise<{ success?: boolean; message?: string }> => {
+    return await apiRequest<{ success?: boolean; message?: string }>("POST", "/api/auth/2fa/disable");
   };
 
   // Notification API functions
@@ -549,7 +557,8 @@ export function useApi(): ApiClient {
     deleteAccount,
     changePassword,
     getMFAStatus,
-    enableMFA,
+    enableTwoFactor,
+    disableTwoFactor,
     // Notifications
     getNotifications,
     markNotificationAsRead,

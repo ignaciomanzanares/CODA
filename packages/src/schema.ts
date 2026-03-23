@@ -35,6 +35,8 @@ export const users = table("users", {
   language: text("language").default("English"),
   profilePicture: text("profile_picture"),
   userMetadata: text("user_metadata"),
+  /** 0 = desactivado, 1 = activado (login con segundo factor). */
+  twoFactorEnabled: integer("two_factor_enabled").default(0),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

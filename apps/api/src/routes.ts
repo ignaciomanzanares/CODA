@@ -2880,7 +2880,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/profile", authenticate, async (req: Request, res: Response) => {
     try {
       const userId = getUserIdFromAuth(req);
-      const { displayName, firstName, lastName, timezone, language, userMetadata } = req.body;
+      const { displayName, firstName, lastName, timezone, language, userMetadata, profilePicture } = req.body;
       
       // First check if user exists, if not create them
       let user = await storage.getUser(userId);
@@ -2910,7 +2910,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName,
         timezone,
         language,
-        userMetadata
+        userMetadata,
+        ...(typeof profilePicture === "string" ? { profilePicture } : {}),
       });
       
       if (!updatedUser) {
@@ -2938,9 +2939,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User management routes - Sensitive operations
   app.post("/api/profile/change-password", authenticate, authLimiter, async (req: Request, res: Response) => {
     try {
-      const userId = getUserIdFromAuth(req);
-      // TODO: Implement password change for JWT auth
-      res.json({ message: "Password change email sent successfully" });
+      getUserIdFromAuth(req);
+      // Flujo real: reset por correo vía /api/auth/forgot-password (cuando exista). Mientras tanto, guía al usuario.
+      res.json({
+        message:
+          "Para cambiar tu contraseña, cierra sesión y en el inicio de sesión usa «Olvidé mi contraseña». Si no recibes el correo, revisa spam o contacta a soporte.",
+      });
     } catch (error) {
       logger.error({ err: error }, 'Password change error');
       res.status(500).json({ message: "Failed to send password change email" });
@@ -2967,8 +2971,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/profile/mfa-status", authenticate, async (req: Request, res: Response) => {
     try {
       const userId = getUserIdFromAuth(req);
-      // MFA not implemented for JWT auth
-      res.json({ enrolled: false, methods: [] });
+      const user = await storage.getUser(userId);
+      const enrolled = !!(user && Number((user as { twoFactorEnabled?: number }).twoFactorEnabled ?? 0) === 1);
+      res.json({ enrolled, methods: enrolled ? ["totp"] : [] });
     } catch (error) {
       logger.error({ err: error }, 'MFA status error');
       res.status(500).json({ message: "Failed to get MFA status" });
