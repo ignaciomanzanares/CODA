@@ -54,6 +54,14 @@ Variables mínimas: `DATABASE_URL` (Postgres en prod), `JWT_SECRET`, `CORS_ORIGI
 Web Service, root `apps/api`, build `npm install --include=dev && npm run build`, start `npm start`. Variables: `NODE_ENV=production`, `PORT=5000`, `DATABASE_URL` (Internal URL de Render Postgres), `JWT_SECRET`, `CORS_ORIGINS`, `CLIENT_URL`, `DEBUG_ENDPOINTS=false`.  
 **Login con usuarios demo (Personal y Empresas):** en producción hay que activar `DEMO_MODE=true` en Environment de Render; si no, el login con usuario demo falla. Para tener una empresa demo al entrar a CODA Empresas, en el dashboard de Empresas aparece el botón "Crear empresa demo" cuando no hay empresas, o se puede llamar una vez `POST /api/empresas/seed-demo`.
 
+**Login devuelve 500 en producción (`Login failed`):** Suele ser un desajuste de columnas en `users` (p. ej. `two_factor_enabled`, `role`) respecto al schema actual. Revisa los logs de Render: busca `[AUTH LOGIN ERROR]` y el `code` de PostgreSQL (p. ej. `42703` = columna inexistente). Alinear la BD con:
+
+```bash
+psql "$DATABASE_URL" -f apps/api/scripts/add-auth-columns.sql
+```
+
+(Usar la **External** URL del Postgres en Render, con `sslmode=require` si aplica.)
+
 **Tablas Empresas en Postgres:** Si la API devuelve `relation "empresas_companies" does not exist`, crear solo esas tablas con:
 ```bash
 psql "$DATABASE_URL" -f scripts/empresas-tables-postgres.sql

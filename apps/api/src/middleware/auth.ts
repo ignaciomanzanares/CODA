@@ -26,6 +26,8 @@ export interface TokenPayload {
   email: string;
   name?: string;
   requires2FA?: boolean;
+  /** persona | empresa — default persona si la columna no existe en filas antiguas */
+  role?: string;
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -70,6 +72,28 @@ export function verifyPassword(password: string, storedHash: string): boolean {
 /** Email estable para login/registro (evita fallos por espacios o mayúsculas vs BD). */
 export function normalizeEmail(email: string): string {
   return String(email).trim().toLowerCase();
+}
+
+/** Rol estable para JWT (columna opcional en filas antiguas). */
+export function userRoleFromRow(user: { role?: string | null } | undefined): string {
+  const r = user?.role;
+  return typeof r === 'string' && r.trim().length > 0 ? r.trim() : 'persona';
+}
+
+/** Payload de sesión para JWT (incluye role). */
+export function buildAuthTokenPayload(user: {
+  id: string;
+  email: string;
+  displayName?: string | null;
+  username: string;
+  role?: string | null;
+}): TokenPayload {
+  return {
+    userId: user.id,
+    email: user.email,
+    name: user.displayName || user.username,
+    role: userRoleFromRow(user),
+  };
 }
 
 function isTwoFactorEnabledFlag(value: unknown): boolean {
@@ -316,6 +340,7 @@ export async function handleLogin(req: Request, res: Response) {
     userId: email.split('@')[0],
     email: email,
     name: email.split('@')[0],
+    role: 'persona',
   };
 
   const token = generateToken(tokenPayload);
@@ -450,7 +475,8 @@ export async function handleRegister(req: Request, res: Response) {
       username: email.split('@')[0],
       passwordHash,
       displayName: name,
-      twoFactorEnabled: false,
+      twoFactorEnabled: 0,
+      role: 'persona',
     });
 
     const purposeVersions: { purpose: (typeof REGISTRATION_REQUIRED_PURPOSES)[number]; policyVersion: string }[] =
@@ -468,12 +494,10 @@ export async function handleRegister(req: Request, res: Response) {
       });
     }
 
-    // Generate token
-    const tokenPayload: TokenPayload = {
-      userId: newUser.id,
-      email: newUser.email,
-      name: newUser.displayName || name,
-    };
+    const tokenPayload: TokenPayload = buildAuthTokenPayload({
+      ...newUser,
+      displayName: newUser.displayName ?? name,
+    });
 
     const token = generateToken(tokenPayload);
 
@@ -552,6 +576,8 @@ export async function handleLoginWithDB(req: Request, res: Response) {
 
   const email = normalizeEmail(rawEmail);
 
+  console.log('[AUTH LOGIN] Attempt for:', email, 'at', new Date().toISOString());
+
   // Check demo authentication FIRST (for quick demo access)
   const isProduction = process.env.NODE_ENV === 'production';
   const demoModeEnabled = process.env.DEMO_MODE === 'true';
@@ -561,11 +587,7 @@ export async function handleLoginWithDB(req: Request, res: Response) {
   if ((!isProduction || demoModeEnabled) && password === demoPassword) {
     // Ensure demo user exists in DB and use real user.id in token (evita FK en consent_grants)
     const user = await getOrCreateDemoUser(email);
-    const tokenPayload: TokenPayload = {
-      userId: user.id,
-      email: user.email,
-      name: user.displayName || user.username,
-    };
+    const tokenPayload: TokenPayload = buildAuthTokenPayload(user);
 
     const token = generateToken(tokenPayload);
 
@@ -634,12 +656,7 @@ export async function handleLoginWithDB(req: Request, res: Response) {
         });
       }
 
-      // Generate token
-      const tokenPayload: TokenPayload = {
-        userId: user.id,
-        email: user.email,
-        name: user.displayName || user.username,
-      };
+      const tokenPayload: TokenPayload = buildAuthTokenPayload(user);
 
       let token: string;
       try {
@@ -674,6 +691,13 @@ export async function handleLoginWithDB(req: Request, res: Response) {
       message: 'Invalid email or password' 
     });
   } catch (error) {
+    console.error('[AUTH LOGIN ERROR]', error);
+    const errRec = error as { message?: string; stack?: string; code?: string };
+    console.error('[AUTH LOGIN ERROR] Full error:', {
+      message: errRec?.message ?? (error instanceof Error ? error.message : String(error)),
+      stack: error instanceof Error ? error.stack : undefined,
+      code: errRec?.code,
+    });
     logger.error(
       { err: error, message: error instanceof Error ? error.message : String(error) },
       'Login error: handler exception'
@@ -735,11 +759,7 @@ export async function handleVerify2FA(req: Request, res: Response) {
       });
     }
 
-    const tokenPayload: TokenPayload = {
-      userId: user.id,
-      email: user.email,
-      name: user.displayName || user.username,
-    };
+    const tokenPayload: TokenPayload = buildAuthTokenPayload(user);
 
     const token = generateToken(tokenPayload);
 
@@ -784,7 +804,7 @@ export async function handleEnable2FA(req: AuthenticatedRequest, res: Response) 
     }
 
     // Update user to enable 2FA
-    await storage.updateUser(user.id, { twoFactorEnabled: true });
+    await storage.updateUser(user.id, { twoFactorEnabled: 1 });
 
     logAuthSecurityEvent('enable_2fa', req as Request, {
       userId: user.id,
@@ -826,7 +846,7 @@ export async function handleDisable2FA(req: AuthenticatedRequest, res: Response)
     }
 
     // Update user to disable 2FA
-    await storage.updateUser(user.id, { twoFactorEnabled: false });
+    await storage.updateUser(user.id, { twoFactorEnabled: 0 });
 
     logAuthSecurityEvent('disable_2fa', req as Request, {
       userId: user.id,
