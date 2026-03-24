@@ -79,14 +79,63 @@ function isTwoFactorEnabledFlag(value: unknown): boolean {
   return false;
 }
 
+/**
+ * Solo errores de red / capa de conexión a Postgres (503).
+ * Antes cualquier SQLSTATE de 5 caracteres (p.ej. 42P01 tabla inexistente) se clasificaba mal como "sin conexión".
+ */
+function* walkErrorChain(err: unknown): Generator<unknown> {
+  let cur: unknown = err;
+  for (let i = 0; i < 5 && cur != null; i++) {
+    yield cur;
+    cur = typeof cur === 'object' && cur !== null && 'cause' in cur ? (cur as { cause?: unknown }).cause : undefined;
+  }
+}
+
 function isLikelyDatabaseOrInfraError(err: unknown): boolean {
-  const e = err as { code?: string; message?: string; name?: string };
-  const code = e?.code;
-  if (typeof code === 'string' && /^[0-9A-Z]{5}$/.test(code)) return true;
-  const msg = String(e?.message ?? err ?? '');
-  return /connection|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|timeout|socket|database|postgres|query failed|Failed query/i.test(
-    msg
-  );
+  for (const layer of walkErrorChain(err)) {
+    if (singleLayerIsConnectionOrInfra(layer)) return true;
+  }
+  return false;
+}
+
+function singleLayerIsConnectionOrInfra(e: unknown): boolean {
+  if (!e || typeof e !== 'object') return false;
+  const o = e as { code?: string; message?: string; name?: string };
+  const code = o.code;
+  const msg = String(o.message ?? '');
+
+  // Node / libuv
+  if (
+    code === 'ECONNREFUSED' ||
+    code === 'ETIMEDOUT' ||
+    code === 'ENOTFOUND' ||
+    code === 'ECONNRESET' ||
+    code === 'EPIPE' ||
+    code === 'EAI_AGAIN' ||
+    code === 'UND_ERR_CONNECT_TIMEOUT'
+  ) {
+    return true;
+  }
+
+  // PostgreSQL SQLSTATE clase 08 — Connection Exception (08000, 08003, 08006, …)
+  if (typeof code === 'string' && code.length === 5 && code.startsWith('08')) {
+    return true;
+  }
+  // Servidor en mantenimiento / no acepta conexiones
+  if (code === '57P01' || code === '57P02' || code === '57P03') {
+    return true;
+  }
+
+  // Textos habituales del driver postgres.js / red (sin palabras genéricas como "database" que aparecen en errores SQL)
+  if (
+    /ECONNREFUSED|ETIMEDOUT|ENOTFOUND|ECONNRESET|connect ECONNREFUSED|getaddrinfo\s+ENOTFOUND|socket hang up|Connection terminated|connection terminated|Server closed the connection|write EPIPE|read ECONNRESET|password authentication failed for connection|SSL SYSCALL|SSL connection|certificate verify failed|no pg_hba\.conf|connection pool/i.test(
+      msg
+    )
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 // =============================================================================
