@@ -640,9 +640,10 @@ export async function handleLoginWithDB(req: Request, res: Response) {
           reason: 'bad_password',
           email: redactEmail(email),
         });
-        return res.status(401).json({ 
-          error: 'Unauthorized', 
-          message: 'Invalid email or password' 
+        return res.status(401).json({
+          error: 'Unauthorized',
+          code: 'wrong_password',
+          message: 'La contraseña no es correcta.',
         });
       }
 
@@ -704,14 +705,28 @@ export async function handleLoginWithDB(req: Request, res: Response) {
       });
     }
 
+    if (user && !user.passwordHash) {
+      logAuthSecurityEvent('login_failed', req, {
+        reason: 'no_password_set',
+        email: redactEmail(email),
+      });
+      return res.status(401).json({
+        error: 'Unauthorized',
+        code: 'no_password',
+        message:
+          'Esta cuenta no tiene contraseña para iniciar sesión. Si registraste con otro método, usa ese acceso o crea una nueva cuenta.',
+      });
+    }
+
     // No user found and not a demo login
     logAuthSecurityEvent('login_failed', req, {
       reason: 'bad_credentials',
       email: redactEmail(email),
     });
-    return res.status(401).json({ 
-      error: 'Unauthorized', 
-      message: 'Invalid email or password' 
+    return res.status(401).json({
+      error: 'Unauthorized',
+      code: 'user_not_found',
+      message: 'No hay una cuenta asociada a este correo.',
     });
   } catch (error) {
     console.error('[AUTH LOGIN ERROR]', error);
