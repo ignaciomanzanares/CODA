@@ -106,7 +106,14 @@ export const users = pgTable("users", {
   language: text("language").default("English"),
   profilePicture: text("profile_picture"),
   userMetadata: text("user_metadata"), // JSON string for additional user preferences
-  twoFactorEnabled: integer("two_factor_enabled").default(0), // 0 = false, 1 = true
+  twoFactorEnabled: integer("two_factor_enabled").notNull().default(0), // 0 = false, 1 = true (2FA por correo)
+  /** JWT / producto: persona | empresa */
+  role: text("role").notNull().default("persona"),
+  /** TOTP (futuro); 0/1 — alineado con script SQL y SQLite en @coda/db */
+  totpEnabled: integer("totp_enabled").notNull().default(0),
+  totpSecret: text("totp_secret"),
+  /** Códigos de respaldo (JSON o lista serializada); en PG puede ser TEXT */
+  backupCodes: text("backup_codes"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

@@ -36,7 +36,14 @@ export const users = table("users", {
   profilePicture: text("profile_picture"),
   userMetadata: text("user_metadata"),
   /** 0 = desactivado, 1 = activado (login con segundo factor). */
-  twoFactorEnabled: integer("two_factor_enabled").default(0),
+  twoFactorEnabled: integer("two_factor_enabled").notNull().default(0),
+  /** JWT / producto: persona | empresa */
+  role: text("role").notNull().default("persona"),
+  /** TOTP (futuro); 0/1 */
+  totpEnabled: integer("totp_enabled").notNull().default(0),
+  totpSecret: text("totp_secret"),
+  /** Códigos de respaldo (JSON o similar); mismo nombre que columna en Postgres */
+  backupCodes: text("backup_codes"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
