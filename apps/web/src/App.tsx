@@ -46,6 +46,7 @@ import FinancialAssistant from "@/components/FinancialAssistant";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import LegacySplitRedirect from "@/components/LegacySplitRedirect";
 import SeoHelmet from "@/components/SeoHelmet";
+import PWAUpdatePrompt from "@/components/PWAUpdatePrompt";
 
 const BillSplit = lazy(() => import("@/pages/BillSplit"));
 
@@ -268,6 +269,7 @@ function App() {
         </Route>
       </Switch>
       <Toaster />
+      <PWAUpdatePrompt />
       {/* Floating AI Assistant - available on all pages */}
       <FinancialAssistant />
       </CurrencyProvider>
