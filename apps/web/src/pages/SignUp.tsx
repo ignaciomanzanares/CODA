@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Wallet, User, Lock, Mail, Loader2, CheckCircle2, ArrowLeft, Eye, EyeOff } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ROUTES } from "@/lib/routes";
+import { mapUserFacingApiError } from "@/lib/userFacingErrors";
 import { Analytics } from "@/lib/analytics";
 
 export default function SignUp() {
@@ -21,11 +21,7 @@ export default function SignUp() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [cData, setCData] = useState(false);
-  const [cScore, setCScore] = useState(false);
-  const [cRec, setCRec] = useState(false);
-  const [cMkt, setCMkt] = useState(false);
-  const consentsOk = cData && cScore && cRec;
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
 
   // Redirect if already authenticated
   if (isAuthenticated) {
@@ -60,8 +56,8 @@ export default function SignUp() {
       return;
     }
 
-    if (!consentsOk) {
-      setError("Debes aceptar las tres finalidades obligatorias (tratamiento de datos, scoring y recomendaciones).");
+    if (!acceptedLegal) {
+      setError("Debes aceptar los términos para crear tu cuenta.");
       return;
     }
 
@@ -73,7 +69,7 @@ export default function SignUp() {
           data_processing: true,
           scoring: true,
           recommendations: true,
-          marketing: cMkt,
+          marketing: false,
         },
         policyVersion: "1.0",
       });
@@ -84,13 +80,7 @@ export default function SignUp() {
       Analytics.signupCompleted("persona");
       setLocation(ROUTES.panel);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Error al registrarse";
-      setError(message);
-      toast({
-        title: "Error al crear la cuenta",
-        description: message,
-        variant: "destructive",
-      });
+      setError(mapUserFacingApiError(err));
     } finally {
       setIsLoading(false);
     }
@@ -123,7 +113,10 @@ export default function SignUp() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                <div
+                  role="alert"
+                  className="rounded-md border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-sm text-[#dc2626] animate-in fade-in duration-200"
+                >
                   {error}
                 </div>
               )}
@@ -143,7 +136,7 @@ export default function SignUp() {
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="John Doe"
+                    placeholder="Nombre y apellido"
                     disabled={isLoading}
                     className="flex h-10 w-full rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
                   />
@@ -165,7 +158,7 @@ export default function SignUp() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    placeholder="tu@correo.cl"
                     disabled={isLoading}
                     className="flex h-10 w-full rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
                   />
@@ -251,41 +244,10 @@ export default function SignUp() {
                 )}
               </div>
 
-              <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
-                <p className="text-sm font-medium text-foreground">Consentimientos (Política v1.0)</p>
-                <p className="text-xs text-muted-foreground">
-                  Finalidades obligatorias para usar CODA. Puedes revocarlas después desde tu perfil, con los efectos que indique la política.
-                </p>
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <Checkbox checked={cData} onCheckedChange={(v) => setCData(v === true)} className="mt-0.5" />
-                  <span className="text-sm text-gray-700">
-                    <strong>Tratamiento de datos personales</strong> — uso de tus datos de cuenta y perfil para operar el servicio.
-                  </span>
-                </label>
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <Checkbox checked={cScore} onCheckedChange={(v) => setCScore(v === true)} className="mt-0.5" />
-                  <span className="text-sm text-gray-700">
-                    <strong>Score crediticio y transaccional</strong> — cálculo de indicadores a partir de la información autorizada.
-                  </span>
-                </label>
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <Checkbox checked={cRec} onCheckedChange={(v) => setCRec(v === true)} className="mt-0.5" />
-                  <span className="text-sm text-gray-700">
-                    <strong>Recomendaciones de productos</strong> — ofertas acordes a tu perfil dentro de la plataforma.
-                  </span>
-                </label>
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <Checkbox checked={cMkt} onCheckedChange={(v) => setCMkt(v === true)} className="mt-0.5" />
-                  <span className="text-sm text-gray-700">
-                    <strong>Comunicaciones comerciales</strong> (opcional) — novedades y promociones por correo o notificaciones.
-                  </span>
-                </label>
-              </div>
-
               <Button
                 type="submit"
-                className="w-full"
-                disabled={isLoading || !isPasswordValid || !passwordsMatch || !consentsOk}
+                className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoading || !isPasswordValid || !passwordsMatch || !acceptedLegal}
               >
                 {isLoading ? (
                   <>
@@ -296,17 +258,40 @@ export default function SignUp() {
                   'Crear cuenta'
                 )}
               </Button>
-              <p className="text-center text-xs text-muted-foreground leading-relaxed pt-2">
-                Al registrarte, aceptas nuestros{" "}
-                <Link href={ROUTES.terminos} className="text-primary font-medium underline hover:no-underline">
-                  Términos y Condiciones
-                </Link>{" "}
-                y nuestra{" "}
-                <Link href={ROUTES.privacidad} className="text-primary font-medium underline hover:no-underline">
-                  Política de Privacidad
-                </Link>
-                .
-              </p>
+
+              <label className="mt-4 flex items-start gap-2 cursor-pointer text-xs leading-relaxed text-[#64748b]">
+                <input
+                  type="checkbox"
+                  checked={acceptedLegal}
+                  onChange={(e) => {
+                    setAcceptedLegal(e.target.checked);
+                    if (e.target.checked) setError("");
+                  }}
+                  disabled={isLoading}
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-input"
+                />
+                <span>
+                  He leído y acepto los{" "}
+                  <a
+                    href={ROUTES.terminos}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline hover:no-underline"
+                  >
+                    Términos y Condiciones
+                  </a>{" "}
+                  y la{" "}
+                  <a
+                    href={ROUTES.privacidad}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline hover:no-underline"
+                  >
+                    Política de Privacidad
+                  </a>{" "}
+                  de CODA, incluyendo el tratamiento de mis datos para operar el servicio.
+                </span>
+              </label>
             </form>
 
             {/* Sign In Link */}
@@ -328,6 +313,10 @@ export default function SignUp() {
             Volver al inicio
           </Link>
         </div>
+
+        <p className="text-center text-xs text-gray-500">
+          © {new Date().getFullYear()} CODA. Todos los derechos reservados.
+        </p>
 
       </div>
     </div>

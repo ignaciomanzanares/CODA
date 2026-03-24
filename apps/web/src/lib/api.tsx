@@ -1,6 +1,7 @@
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/apiBase";
+import { USER_FACING_CONNECTION_ERROR, extractApiErrorMessage } from "@/lib/userFacingErrors";
 import type {
   CreateBankConnectionData,
   CreateGoalData,
@@ -135,21 +136,45 @@ export function useApi(): ApiClient {
 
     // Prepend API_BASE_URL if url starts with '/api'
     const fullUrl = url.startsWith("/api") ? `${API_BASE_URL}${url.replace(/^\/api/, "")}` : url;
-    const res = await fetch(fullUrl, {
-      ...restOptions,
-      method,
-      headers,
-      body: data !== undefined ? JSON.stringify(data) : optsBody,
-    });
+
+    let res: Response;
+    try {
+      res = await fetch(fullUrl, {
+        ...restOptions,
+        method,
+        headers,
+        body: data !== undefined ? JSON.stringify(data) : optsBody,
+      });
+    } catch (e) {
+      if (e instanceof TypeError) {
+        throw new Error(USER_FACING_CONNECTION_ERROR);
+      }
+      throw e;
+    }
 
     const contentType = res.headers.get("content-type") || "";
 
     if (!res.ok) {
-      const errorBody = contentType.includes("application/json") ? await res.json().catch(() => ({})) : { message: await res.text().catch(() => "") };
-      if (res.status === 401) {
-        throw new Error("Unauthorized");
+      let errorBody: unknown = {};
+      if (contentType.includes("application/json")) {
+        errorBody = await res.json().catch(() => ({}));
+      } else {
+        const t = await res.text().catch(() => "");
+        if (t.trim().startsWith("{")) {
+          try {
+            errorBody = JSON.parse(t);
+          } catch {
+            errorBody = { message: t };
+          }
+        } else {
+          errorBody = { message: t };
+        }
       }
-      throw new Error((errorBody && (errorBody as any).message) || "API request failed");
+      const msg = extractApiErrorMessage(errorBody);
+      if (res.status === 401) {
+        throw new Error(msg || "Sesión expirada. Inicia sesión de nuevo.");
+      }
+      throw new Error(msg || `Error ${res.status}`);
     }
 
     if (res.status === 204) {

@@ -70,6 +70,12 @@ psql "$DATABASE_URL" -f apps/api/scripts/create-privacy-consent-events.sql
 
 Tras aplicar el script, el registro puede completarse con el registro auditable de consentimientos CMF.
 
+**Metas financieras devuelven error de base de datos (`financial_goals` no existe):** crear la tabla con:
+
+```bash
+psql "$DATABASE_URL" -f apps/api/scripts/create-goals-table.sql
+```
+
 **Tablas Empresas en Postgres:** Si la API devuelve `relation "empresas_companies" does not exist`, crear solo esas tablas con:
 ```bash
 psql "$DATABASE_URL" -f scripts/empresas-tables-postgres.sql

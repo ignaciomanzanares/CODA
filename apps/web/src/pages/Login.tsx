@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
+import { mapLoginAuthError } from "@/lib/userFacingErrors";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -65,12 +66,7 @@ export default function Login() {
         setLocation(defaultRedirect);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Credenciales inválidas");
-      toast({
-        title: "Error al iniciar sesión",
-        description: err instanceof Error ? err.message : "Credenciales inválidas",
-        variant: "destructive",
-      });
+      setError(mapLoginAuthError(err));
     } finally {
       setIsLoading(false);
     }
@@ -101,12 +97,7 @@ export default function Login() {
         window.location.href = defaultRedirect;
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Código de verificación inválido");
-      toast({
-        title: "Verificación fallida",
-        description: err instanceof Error ? err.message : "Código de verificación inválido",
-        variant: "destructive",
-      });
+      setError(mapLoginAuthError(err));
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +139,7 @@ export default function Login() {
           <p className="mt-2 text-sm text-gray-600">
             {isEmpresas
               ? "Gestión financiera para empresas"
-              : "Plataforma de finanzas personales y gestión de crédito"}
+              : "Tu salud financiera en un solo lugar"}
           </p>
         </div>
 
@@ -167,12 +158,6 @@ export default function Login() {
             {requires2FA ? (
               // 2FA Verification Form
               <form onSubmit={handleVerify2FA} className="space-y-4">
-                {error && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                    {error}
-                  </div>
-                )}
-                
                 <div className="space-y-2">
                   <label htmlFor="otp" className="block text-sm font-medium text-gray-700">
                     Código de verificación
@@ -199,6 +184,15 @@ export default function Login() {
                     Revisa tu correo ({email}) para el código de 6 dígitos
                   </p>
                 </div>
+
+                {error && (
+                  <div
+                    role="alert"
+                    className="rounded-md border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-sm text-[#dc2626] animate-in fade-in duration-200"
+                  >
+                    {error}
+                  </div>
+                )}
 
                 <Button
                   type="submit"
@@ -244,12 +238,6 @@ export default function Login() {
             ) : (
               // Login Form
               <form onSubmit={handleSubmit} className="space-y-4">
-                {error && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                    {error}
-                  </div>
-                )}
-                
                 <div className="space-y-2">
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                     Correo electrónico
@@ -264,7 +252,7 @@ export default function Login() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
+                      placeholder="tu@correo.cl"
                       disabled={isLoading}
                       className="flex h-10 w-full rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
                     />
@@ -305,6 +293,15 @@ export default function Login() {
                     </button>
                   </div>
                 </div>
+
+                {error && (
+                  <div
+                    role="alert"
+                    className="rounded-md border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-sm text-[#dc2626] animate-in fade-in duration-200"
+                  >
+                    {error}
+                  </div>
+                )}
 
                 <Button
                   type="submit"

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "@/lib/api";
+import { mapUserFacingApiError } from "@/lib/userFacingErrors";
 import { Analytics } from "@/lib/analytics";
 import { useToast } from "@/hooks/use-toast";
 import { format, formatDistanceToNow, differenceInDays } from "date-fns";
@@ -151,7 +152,7 @@ export default function Goals() {
       }
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "No se pudo crear la meta financiera",
+        description: mapUserFacingApiError(error),
         variant: "destructive",
       });
     },
@@ -205,7 +206,7 @@ export default function Goals() {
       }
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "No se pudo actualizar la meta",
+        description: mapUserFacingApiError(error),
         variant: "destructive",
       });
     },
@@ -239,7 +240,7 @@ export default function Goals() {
       }
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "No se pudo eliminar la meta",
+        description: mapUserFacingApiError(error),
         variant: "destructive",
       });
     },
@@ -313,9 +314,9 @@ export default function Goals() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    return new Intl.NumberFormat("es-CL", {
+      style: "currency",
+      currency: "CLP",
       minimumFractionDigits: 0,
     }).format(amount);
   };
