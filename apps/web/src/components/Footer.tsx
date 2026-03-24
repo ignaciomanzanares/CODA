@@ -75,24 +75,24 @@ export default function Footer() {
             <h4 className="text-white font-medium mb-4">Legal</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <a href="#" className="text-gray-300 hover:text-white">
+                <Link href={ROUTES.privacidad} className="text-gray-300 hover:text-white">
                   Política de privacidad
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-300 hover:text-white">
-                  Términos de servicio
-                </a>
+                <Link href={ROUTES.terminos} className="text-gray-300 hover:text-white">
+                  Términos y Condiciones
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-300 hover:text-white">
-                  Seguridad de datos
-                </a>
+                <Link href={ROUTES.privacidad} className="text-gray-300 hover:text-white">
+                  Protección de datos
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-300 hover:text-white">
-                  Cookies
-                </a>
+                <span className="text-gray-500 text-xs">
+                  Analytics: Plausible (sin cookies de publicidad)
+                </span>
               </li>
             </ul>
           </div>

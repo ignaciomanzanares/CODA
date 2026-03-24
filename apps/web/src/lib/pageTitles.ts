@@ -61,6 +61,11 @@ const EXACT: Record<string, string> = {
 
   "/empresas": "CODA Empresas",
   "/empresas/login": "Iniciar sesión — Empresas | CODA",
+
+  "/privacidad": "Política de Privacidad | CODA",
+  "/privacy": "Política de Privacidad | CODA",
+  "/terminos": "Términos y Condiciones | CODA",
+  "/terms": "Términos y Condiciones | CODA",
 };
 
 function normalizePath(path: string): string {
