@@ -63,8 +63,14 @@ if (process.env.NODE_ENV === 'production' && !dbUrl) {
   throw new Error('DATABASE_URL is required in production. Set the DATABASE_URL environment variable to your Postgres connection string.');
 }
 if (dbUrl && (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://'))) {
-  // Production: PostgreSQL (explicit postgres URL)
-  const client = postgres(dbUrl, { max: 1 });
+  // Production: PostgreSQL (Render, etc.). Pool pequeño pero >1 evita colgarse en picos; timeout explícito.
+  // Si la BD exige SSL, incluye ?sslmode=require en DATABASE_URL (recomendado en Render).
+  const poolMax = Math.min(20, Math.max(2, Number(process.env.PG_POOL_MAX) || 8));
+  const client = postgres(dbUrl, {
+    max: poolMax,
+    idle_timeout: 20,
+    connect_timeout: Number(process.env.PG_CONNECT_TIMEOUT_SEC) || 15,
+  });
   // Import the postgres-specific drizzle adapter which exports `drizzle`
   const { drizzle: drizzleFn } = await import('drizzle-orm/postgres-js');
   db = drizzleFn(client, { schema });
