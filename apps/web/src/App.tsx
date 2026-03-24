@@ -18,6 +18,8 @@ import CreditScoreInfo from "@/pages/CreditScoreInfo";
 import InsuranceRiskInfo from "@/pages/InsuranceRiskInfo";
 import FinancialGoalsInfo from "@/pages/FinancialGoalsInfo";
 import ProductComparisonInfo from "@/pages/ProductComparisonInfo";
+import PrivacyPolicy from "@/pages/legal/PrivacyPolicy";
+import TermsAndConditions from "@/pages/legal/TermsAndConditions";
 import Empresas from "@/pages/Empresas";
 import EmpresasLayout from "@/pages/empresas/EmpresasLayout";
 import EmpresasDashboard from "@/pages/empresas/EmpresasDashboard";
@@ -94,6 +96,14 @@ function App() {
         <Route path={ROUTES.infoComparacionProductos} component={ProductComparisonInfo} />
         <Route path="/info/product-comparison">
           <Redirect to={ROUTES.infoComparacionProductos} />
+        </Route>
+        <Route path={ROUTES.privacidad} component={PrivacyPolicy} />
+        <Route path={ROUTES.terminos} component={TermsAndConditions} />
+        <Route path="/privacy">
+          <Redirect to={ROUTES.privacidad} />
+        </Route>
+        <Route path="/terms">
+          <Redirect to={ROUTES.terminos} />
         </Route>
         
         {/* Special route for email invitations - no header/footer */}

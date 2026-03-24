@@ -5,6 +5,8 @@ Allow: /iniciar-sesion
 Allow: /signup
 Allow: /registro
 Allow: /info/
+Allow: /privacidad
+Allow: /terminos
 Disallow: /panel
 Disallow: /dashboard
 Disallow: /gastos

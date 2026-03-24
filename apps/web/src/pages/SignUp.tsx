@@ -296,6 +296,17 @@ export default function SignUp() {
                   'Crear cuenta'
                 )}
               </Button>
+              <p className="text-center text-xs text-muted-foreground leading-relaxed pt-2">
+                Al registrarte, aceptas nuestros{" "}
+                <Link href={ROUTES.terminos} className="text-primary font-medium underline hover:no-underline">
+                  Términos y Condiciones
+                </Link>{" "}
+                y nuestra{" "}
+                <Link href={ROUTES.privacidad} className="text-primary font-medium underline hover:no-underline">
+                  Política de Privacidad
+                </Link>
+                .
+              </p>
             </form>
 
             {/* Sign In Link */}
@@ -318,13 +329,6 @@ export default function SignUp() {
           </Link>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-xs text-gray-500">
-          Al crear una cuenta, aceptas nuestros{" "}
-          <a href="#" className="underline hover:text-gray-700">Términos de servicio</a>
-          {" "}y nuestra{" "}
-          <a href="#" className="underline hover:text-gray-700">Política de privacidad</a>
-        </p>
       </div>
     </div>
   );
