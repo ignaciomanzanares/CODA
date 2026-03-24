@@ -7,6 +7,7 @@
     "generate:icons": "node scripts/generate-icons.mjs",
     "prebuild": "npm run generate:icons",
     "build": "npx vite build",
+    "analyze": "ANALYZE=true vite build --mode production",
     "check": "tsc --noEmit",
     "preview": "vite preview",
     "translate": "node scripts/translate-auto.mjs",
@@ -68,6 +69,7 @@
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^1.1.0",
+    "web-vitals": "^5.1.0",
     "wouter": "^3.3.5"
   },
   "devDependencies": {
@@ -81,6 +83,7 @@
     "@vitejs/plugin-react": "^4.3.2",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
+    "rollup-plugin-visualizer": "^7.0.1",
     "sharp": "^0.33.5",
     "tailwindcss": "^3.4.17",
     "typescript": "5.6.3",

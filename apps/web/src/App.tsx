@@ -8,57 +8,58 @@ import { CurrencyProvider } from "./lib/CurrencyContext";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
+import PageLoader from "./components/PageLoader";
 import { Toaster } from "@/components/ui/toaster";
-import NotFound from "@/pages/not-found";
 import Login from "@/pages/Login";
 import SignUp from "@/pages/SignUp";
 import Landing from "@/pages/Landing";
-import About from "@/pages/About";
-import CreditScoreInfo from "@/pages/CreditScoreInfo";
-import InsuranceRiskInfo from "@/pages/InsuranceRiskInfo";
-import FinancialGoalsInfo from "@/pages/FinancialGoalsInfo";
-import ProductComparisonInfo from "@/pages/ProductComparisonInfo";
-import PrivacyPolicy from "@/pages/legal/PrivacyPolicy";
-import TermsAndConditions from "@/pages/legal/TermsAndConditions";
-import Empresas from "@/pages/Empresas";
-import EmpresasLayout from "@/pages/empresas/EmpresasLayout";
-import EmpresasDashboard from "@/pages/empresas/EmpresasDashboard";
-import EmpresasCompanies from "@/pages/empresas/EmpresasCompanies";
-import EmpresasTransactions from "@/pages/empresas/EmpresasTransactions";
-import EmpresasReconciliation from "@/pages/empresas/EmpresasReconciliation";
-import EmpresasStatements from "@/pages/empresas/EmpresasStatements";
-import EmpresasRisk from "@/pages/empresas/EmpresasRisk";
-import EmpresasDocuments from "@/pages/empresas/EmpresasDocuments";
-import EmpresasProducts from "@/pages/empresas/EmpresasProducts";
-import EmpresasPurchaseOrders from "@/pages/empresas/EmpresasPurchaseOrders";
-import Dashboard from "@/pages/Dashboard";
-import Onboarding from "@/pages/Onboarding";
-import Products from "@/pages/Products";
-import Goals from "@/pages/Goals";
-import Plan from "@/pages/Plan";
-import Profile from "@/pages/Profile";
-import Expenses from "@/pages/Expenses";
-import Movimientos from "@/pages/Movimientos";
-import ConsentConnections from "@/pages/ConsentConnections";
-import EmailInviteHandler from "@/pages/EmailInviteHandler";
-import ShareBillSplit from "@/pages/ShareBillSplit";
-import AuditDashboard from "@/pages/AuditDashboard";
-import ProductMetrics from "@/pages/ProductMetrics";
-import FinancialAssistant from "@/components/FinancialAssistant";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import LegacySplitRedirect from "@/components/LegacySplitRedirect";
 import SeoHelmet from "@/components/SeoHelmet";
 import PWAUpdatePrompt from "@/components/PWAUpdatePrompt";
 
+const About = lazy(() => import("@/pages/About"));
+const CreditScoreInfo = lazy(() => import("@/pages/CreditScoreInfo"));
+const InsuranceRiskInfo = lazy(() => import("@/pages/InsuranceRiskInfo"));
+const FinancialGoalsInfo = lazy(() => import("@/pages/FinancialGoalsInfo"));
+const ProductComparisonInfo = lazy(() => import("@/pages/ProductComparisonInfo"));
+const PrivacyPolicy = lazy(() => import("@/pages/legal/PrivacyPolicy"));
+const TermsAndConditions = lazy(() => import("@/pages/legal/TermsAndConditions"));
+const Empresas = lazy(() => import("@/pages/Empresas"));
+const EmpresasLayout = lazy(() => import("@/pages/empresas/EmpresasLayout"));
+const EmpresasDashboard = lazy(() => import("@/pages/empresas/EmpresasDashboard"));
+const EmpresasCompanies = lazy(() => import("@/pages/empresas/EmpresasCompanies"));
+const EmpresasTransactions = lazy(() => import("@/pages/empresas/EmpresasTransactions"));
+const EmpresasReconciliation = lazy(() => import("@/pages/empresas/EmpresasReconciliation"));
+const EmpresasStatements = lazy(() => import("@/pages/empresas/EmpresasStatements"));
+const EmpresasRisk = lazy(() => import("@/pages/empresas/EmpresasRisk"));
+const EmpresasDocuments = lazy(() => import("@/pages/empresas/EmpresasDocuments"));
+const EmpresasProducts = lazy(() => import("@/pages/empresas/EmpresasProducts"));
+const EmpresasPurchaseOrders = lazy(() => import("@/pages/empresas/EmpresasPurchaseOrders"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Onboarding = lazy(() => import("@/pages/Onboarding"));
+const Products = lazy(() => import("@/pages/Products"));
+const Goals = lazy(() => import("@/pages/Goals"));
+const Plan = lazy(() => import("@/pages/Plan"));
+const Profile = lazy(() => import("@/pages/Profile"));
+const Expenses = lazy(() => import("@/pages/Expenses"));
+const Movimientos = lazy(() => import("@/pages/Movimientos"));
+const ConsentConnections = lazy(() => import("@/pages/ConsentConnections"));
+const EmailInviteHandler = lazy(() => import("@/pages/EmailInviteHandler"));
+const ShareBillSplit = lazy(() => import("@/pages/ShareBillSplit"));
+const AuditDashboard = lazy(() => import("@/pages/AuditDashboard"));
+const ProductMetrics = lazy(() => import("@/pages/ProductMetrics"));
+const FinancialAssistant = lazy(() => import("@/components/FinancialAssistant"));
+const LegacySplitRedirect = lazy(() => import("@/components/LegacySplitRedirect"));
+const NotFound = lazy(() => import("@/pages/not-found"));
 const BillSplit = lazy(() => import("@/pages/BillSplit"));
-
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <CurrencyProvider>
       <SeoHelmet />
-      <Switch>
+      <Suspense fallback={<PageLoader />}>
+        <Switch>
         {/* Landing page - custom layout */}
         <Route path="/">
           <div className="relative flex min-h-screen flex-col">
@@ -212,15 +213,7 @@ function App() {
                   </Route>
                   <Route path={ROUTES.dividirCuenta}>
                     <ErrorBoundary>
-                      <Suspense fallback={
-                        <div className="container py-8 max-w-5xl mx-auto">
-                          <h1 className="text-3xl font-bold tracking-tight">Dividir cuenta</h1>
-                          <p className="text-muted-foreground mt-1">Cargando...</p>
-                          <div className="mt-6 h-32 bg-muted rounded animate-pulse" />
-                        </div>
-                      }>
-                        <BillSplit />
-                      </Suspense>
+                      <BillSplit />
                     </ErrorBoundary>
                   </Route>
                   <Route path="/bill-split">
@@ -278,10 +271,12 @@ function App() {
           </div>
         </Route>
       </Switch>
+      </Suspense>
       <Toaster />
       <PWAUpdatePrompt />
-      {/* Floating AI Assistant - available on all pages */}
-      <FinancialAssistant />
+      <Suspense fallback={null}>
+        <FinancialAssistant />
+      </Suspense>
       </CurrencyProvider>
     </QueryClientProvider>
   );

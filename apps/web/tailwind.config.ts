@@ -2,6 +2,7 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
+  /** Purge JIT: todas las rutas y componentes bajo src/ */
   content: ["./index.html", "./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
