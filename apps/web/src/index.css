@@ -65,19 +65,11 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    /* Safe area padding for body — prevents content behind notch / home indicator */
+    /* Safe area: el contenido no queda bajo notch / home indicator (PWA iOS/Android) */
     padding-top: var(--sat);
     padding-right: var(--sar);
     padding-bottom: var(--sab);
     padding-left: var(--sal);
-  }
-
-  /* ─── Task 1: Dynamic viewport height ─── */
-  .min-h-screen {
-    min-height: 100dvh;
-  }
-  .h-screen {
-    height: 100dvh;
   }
 }
 
@@ -176,4 +168,47 @@
 /* Fixed bottom nav / FAB: account for home indicator */
 .fixed-safe-bottom {
   bottom: var(--sab);
+}
+
+/* ─── PWA móvil (iOS / Android): refuerzo viewport, gestos y safe areas ─── */
+
+.min-h-screen {
+  min-height: 100dvh !important;
+}
+.h-screen {
+  height: 100dvh !important;
+}
+
+html {
+  overscroll-behavior: none;
+}
+body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+button,
+a,
+[role="button"],
+input,
+select,
+textarea {
+  min-height: 44px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+nav,
+header,
+footer,
+button,
+[role="tablist"] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.overflow-y-auto,
+.overflow-y-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
 }
