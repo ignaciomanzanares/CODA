@@ -5,7 +5,10 @@
   "installCommand": "npm install",
   "framework": "vite",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/((?!robots\\.txt$|sitemap\\.xml$|manifest\\.json$|favicon\\.svg$|sw\\.js$|og-image\\.png$)(?!assets/)(?!icons/).*)",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
