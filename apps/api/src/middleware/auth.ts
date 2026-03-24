@@ -15,6 +15,9 @@ import {
   redactEmail,
 } from './authSecurityLog.js';
 import { recordBatchAccept } from '../services/privacyConsent/privacyConsentService.js';
+import { isMissingPrivacyTableError } from '../services/privacyConsent/privacyConsentErrors.js';
+import { db, users } from '../db/index.js';
+import { eq } from 'drizzle-orm';
 import { REGISTRATION_REQUIRED_PURPOSES, PRIVACY_POLICY_VERSION } from '../services/privacyConsent/privacyConsentTypes.js';
 
 // =============================================================================
@@ -488,6 +491,26 @@ export async function handleRegister(req: Request, res: Response) {
       await recordBatchAccept(newUser.id, purposeVersions, registerClientMeta(req));
     } catch (consentErr) {
       console.error('Privacy consent recording failed:', consentErr);
+      logger.error(
+        {
+          err: consentErr,
+          message: consentErr instanceof Error ? consentErr.message : String(consentErr),
+          code: (consentErr as { code?: string })?.code,
+        },
+        'register: recordBatchAccept failed'
+      );
+      try {
+        await db.delete(users).where(eq(users.id, newUser.id));
+      } catch (rollbackErr) {
+        logger.error({ err: rollbackErr }, 'register: failed to delete user after consent failure');
+      }
+      if (isMissingPrivacyTableError(consentErr)) {
+        return res.status(503).json({
+          error: 'Service Unavailable',
+          message:
+            'Falta la tabla de consentimientos en la base de datos. Ejecute: psql "$DATABASE_URL" -f apps/api/scripts/create-privacy-consent-events.sql (URL externa de Postgres en Render).',
+        });
+      }
       return res.status(500).json({
         error: 'Internal Server Error',
         message: 'No se pudo registrar el consentimiento. Intente nuevamente.',

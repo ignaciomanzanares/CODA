@@ -62,6 +62,14 @@ psql "$DATABASE_URL" -f apps/api/scripts/add-auth-columns.sql
 
 (Usar la **External** URL del Postgres en Render, con `sslmode=require` si aplica.)
 
+**Alta de cuenta devuelve 500 (`No se pudo registrar el consentimiento`):** La tabla `privacy_consent_events` no existe o no coincide con el schema. Crearla con:
+
+```bash
+psql "$DATABASE_URL" -f apps/api/scripts/create-privacy-consent-events.sql
+```
+
+Tras aplicar el script, el registro puede completarse con el registro auditable de consentimientos CMF.
+
 **Tablas Empresas en Postgres:** Si la API devuelve `relation "empresas_companies" does not exist`, crear solo esas tablas con:
 ```bash
 psql "$DATABASE_URL" -f scripts/empresas-tables-postgres.sql
