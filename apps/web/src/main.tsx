@@ -1,5 +1,6 @@
 import "./i18n";
 import { createRoot } from "react-dom/client";
+import { HelmetProvider } from "react-helmet-async";
 import App from "./App";
 import "./index.css";
 import { AuthProvider } from "./lib/auth";
@@ -11,7 +12,9 @@ if ("serviceWorker" in navigator) {
 }
 
 createRoot(document.getElementById("root")!).render(
-  <AuthProvider>
-    <App />
-  </AuthProvider>
+  <HelmetProvider>
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  </HelmetProvider>
 );
