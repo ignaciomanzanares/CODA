@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Wallet, User, Lock, Loader2, ArrowLeft, Shield, RefreshCw, Eye, EyeOff } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
+import { Analytics } from "@/lib/analytics";
 
 export default function Login() {
   const [location, setLocation] = useLocation();
@@ -54,7 +55,8 @@ export default function Login() {
         title: "Sesión iniciada",
         description: "¡Bienvenido de nuevo!",
       });
-      
+      Analytics.loginSuccess(isEmpresas ? "empresa" : "persona");
+
       const redirectUrl = localStorage.getItem('redirectAfterLogin');
       if (redirectUrl) {
         localStorage.removeItem('redirectAfterLogin');
@@ -95,6 +97,7 @@ export default function Login() {
           title: "Sesión iniciada",
           description: "¡Bienvenido de nuevo!",
         });
+        Analytics.loginSuccess(isEmpresas ? "empresa" : "persona");
         window.location.href = defaultRedirect;
       }
     } catch (err) {

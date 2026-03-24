@@ -32,6 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
 import { rutaDividirPublico } from "@/lib/routes";
+import { Analytics } from "@/lib/analytics";
 
 // Montos guardados en CLP; mostrar en la moneda elegida (CLP por defecto)
 function formatAmount(amount: number, currency: "CLP" | "USD") {
@@ -583,6 +584,7 @@ export default function BillSplit() {
       return created as BillSplitWithParticipants;
     },
     onSuccess: async (data: BillSplitWithParticipants) => {
+      Analytics.billSplitCreated();
       // Actualizar caché con la respuesta del POST (misma forma que GET) para que el saldo se actualice al instante
       const shape = {
         ...data,

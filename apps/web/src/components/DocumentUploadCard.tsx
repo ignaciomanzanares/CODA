@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { FileText, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Analytics } from "@/lib/analytics";
 
 const STEPS: Record<string, string> = {
   reading: "Leyendo documento...",
@@ -149,9 +150,11 @@ export default function DocumentUploadCard() {
           ...(lastResult.cmf?.deudaTotalVigente != null && { cmfDeudaTotalVigente: lastResult.cmf.deudaTotalVigente }),
         });
         if (lastResult.documentType === "cartola") {
+          Analytics.documentUploaded("cartola");
           queryClient.invalidateQueries({ queryKey: ["/api/transactional-score"] });
         }
         if (lastResult.documentType === "cmf_informe_deudas") {
+          Analytics.documentUploaded("cmf");
           queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] });
         }
       }

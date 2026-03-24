@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useCreditScore } from "@/lib/api";
 import { useReportData } from "@/contexts/ReportDataContext";
@@ -26,6 +26,7 @@ import {
   Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Analytics, creditScoreRangeLabel } from "@/lib/analytics";
 
 function FactorCard({ 
   icon: Icon, 
@@ -64,6 +65,7 @@ export default function CreditScoreCard() {
   const { getCreditScore, refreshCreditScore } = useCreditScore();
   const { setCreditScore } = useReportData();
   const [showReportBreakdown, setShowReportBreakdown] = useState(false);
+  const scoreViewTracked = useRef(false);
 
   const { data: rawData, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["/api/credit-score"],
@@ -93,6 +95,14 @@ export default function CreditScoreCard() {
   useEffect(() => {
     if (creditScore?.score != null) setCreditScore(creditScore.score);
   }, [creditScore?.score, setCreditScore]);
+
+  useEffect(() => {
+    const s = creditScore?.score;
+    if (typeof s === "number" && !Number.isNaN(s) && !scoreViewTracked.current) {
+      scoreViewTracked.current = true;
+      Analytics.scoreViewed(creditScoreRangeLabel(s));
+    }
+  }, [creditScore?.score]);
 
   if (isLoading || isFetching) {
     return (

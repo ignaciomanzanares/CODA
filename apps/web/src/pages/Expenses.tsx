@@ -47,6 +47,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useApi } from "@/lib/api";
+import { Analytics } from "@/lib/analytics";
 import type { Expense } from "@/types";
 import { useAuth } from "@/lib/auth";
 import { generateDemoExpenses } from "@/lib/demoData";
@@ -266,6 +267,9 @@ export default function Expenses() {
       });
     },
     onSuccess: (data) => {
+      Analytics.expenseAdded(
+        typeof data?.category === "string" && data.category ? data.category : "unknown"
+      );
       const previousExpenses = queryClient.getQueryData<Expense[]>(["/api/expenses"]);
       if (previousExpenses && data) {
         queryClient.setQueryData<Expense[]>(["/api/expenses"], [...previousExpenses, data]);
@@ -642,6 +646,7 @@ export default function Expenses() {
       const lines = notificationText.split('\n').map(l => l.trim()).filter(Boolean);
       const result = await parseNotifications(lines);
       setParsedNotifications(result.results || []);
+      Analytics.notificationParsed();
     } catch (err) {
       toast({
         title: "Error al parsear",
@@ -695,6 +700,7 @@ export default function Expenses() {
     try {
       const result = await parseCartolaPdf(file);
       setCartolaResult(result);
+      Analytics.cartolaParsed();
       toast({
         title: "Cartola procesada",
         description: `Se encontraron ${result.movements?.length || 0} movimientos.`,
