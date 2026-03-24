@@ -4,6 +4,7 @@ import { HelmetProvider } from "react-helmet-async";
 import App from "./App";
 import "./index.css";
 import { AuthProvider } from "./lib/auth";
+import { reportWebVitals } from "./lib/webVitals";
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -18,3 +19,5 @@ createRoot(document.getElementById("root")!).render(
     </AuthProvider>
   </HelmetProvider>
 );
+
+reportWebVitals();
