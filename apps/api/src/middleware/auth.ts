@@ -713,8 +713,7 @@ export async function handleLoginWithDB(req: Request, res: Response) {
       return res.status(401).json({
         error: 'Unauthorized',
         code: 'no_password',
-        message:
-          'Esta cuenta no tiene contraseña para iniciar sesión. Si registraste con otro método, usa ese acceso o crea una nueva cuenta.',
+        message: 'Esta cuenta usa otro método de acceso.',
       });
     }
 
@@ -726,7 +725,7 @@ export async function handleLoginWithDB(req: Request, res: Response) {
     return res.status(401).json({
       error: 'Unauthorized',
       code: 'user_not_found',
-      message: 'No hay una cuenta asociada a este correo.',
+      message: 'No encontramos una cuenta con ese correo.',
     });
   } catch (error) {
     console.error('[AUTH LOGIN ERROR]', error);

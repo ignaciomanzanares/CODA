@@ -798,41 +798,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/financial-goals", authenticate, validateBody(createFinancialGoalSchema), async (req, res) => {
-    const userId = getUserIdFromAuth(req);
-    
-    // Ensure user exists in database (create if needed for foreign key constraint)
-    let user = await storage.getUser(userId);
-    if (!user) {
-      const userEmail = String((req as AuthenticatedRequest).user?.email || `${userId}@unknown.com`);
-      const userName = String((req as AuthenticatedRequest).user?.name || userId);
-      const [firstName, ...lastNameParts] = userName.split(' ');
-      
-      user = await storage.createUser({
-        id: userId,
-        username: userName,
-        email: userEmail,
-        passwordHash: "jwt-auth",
-        firstName: firstName || 'User',
-        lastName: lastNameParts.length > 0 ? lastNameParts.join(' ') : null
-      });
-      logger.info({ userId, email: userEmail }, 'Created new user for goal');
-    }
-    
-    const goalData = insertFinancialGoalSchema.parse({
-      ...req.body,
-      userId,
-      targetDate: typeof req.body.targetDate === 'string' 
-        ? req.body.targetDate 
-        : new Date(req.body.targetDate).toISOString() // Keep as ISO string for SQLite
-    });
-    const goal = await storage.createFinancialGoal(goalData);
-    // Emit a creation notification (non-blocking)
     try {
-      await notificationService.notifyGoalCreated(userId, goal.name, goal.id as number);
-    } catch (notificationError) {
-      logger.error({ err: notificationError }, 'Error creating goal notification');
+      console.log('[GOALS] Create attempt:', req.body);
+      const userId = getUserIdFromAuth(req);
+
+      // Ensure user exists in database (create if needed for foreign key constraint)
+      let user = await storage.getUser(userId);
+      if (!user) {
+        const userEmail = String((req as AuthenticatedRequest).user?.email || `${userId}@unknown.com`);
+        const userName = String((req as AuthenticatedRequest).user?.name || userId);
+        const [firstName, ...lastNameParts] = userName.split(' ');
+
+        user = await storage.createUser({
+          id: userId,
+          username: userName,
+          email: userEmail,
+          passwordHash: "jwt-auth",
+          firstName: firstName || 'User',
+          lastName: lastNameParts.length > 0 ? lastNameParts.join(' ') : null
+        });
+        logger.info({ userId, email: userEmail }, 'Created new user for goal');
+      }
+
+      const goalData = insertFinancialGoalSchema.parse({
+        ...req.body,
+        userId,
+        targetDate: typeof req.body.targetDate === 'string'
+          ? req.body.targetDate
+          : new Date(req.body.targetDate).toISOString() // Keep as ISO string for SQLite
+      });
+      const goal = await storage.createFinancialGoal(goalData);
+      // Emit a creation notification (non-blocking)
+      try {
+        await notificationService.notifyGoalCreated(userId, goal.name, goal.id as number);
+      } catch (notificationError) {
+        logger.error({ err: notificationError }, 'Error creating goal notification');
+      }
+      res.status(201).json(goal);
+    } catch (error) {
+      console.error('[GOALS ERROR]', error);
+      logger.error({ err: error }, 'financial-goals POST failed');
+      return res.status(500).json({
+        message: 'No pudimos guardar la meta. Intenta de nuevo.',
+      });
     }
-    res.status(201).json(goal);
   });
 
   app.put("/api/financial-goals/:id", authenticate, validateParams(idParamSchema), validateBody(updateFinancialGoalSchema), async (req, res) => {

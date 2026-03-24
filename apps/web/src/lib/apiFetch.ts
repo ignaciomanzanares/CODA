@@ -1,15 +1,26 @@
 /**
  * Cliente fetch para rutas /api (login, registro, etc.) sin sesión.
- * En error HTTP, lanza Error con el mensaje legible del backend (campo `message` en JSON).
+ * En error HTTP, lanza Error con el mensaje legible del backend (campo `message` o `error` en JSON).
  */
+
+import { AUTH_CONNECTION_ERROR } from "@/lib/userFacingErrors";
 
 function messageFromErrorBody(text: string, status: number): string {
   const trimmed = text?.trim() ?? "";
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
     try {
-      const j = JSON.parse(trimmed) as { message?: string; error?: string };
+      const j = JSON.parse(trimmed) as { message?: string; error?: string | unknown };
       if (typeof j.message === "string" && j.message.trim()) {
         return j.message.trim();
+      }
+      if (typeof j.error === "string" && j.error.trim()) {
+        return j.error.trim();
+      }
+      if (j.error && typeof j.error === "object") {
+        const nested = j.error as { message?: string };
+        if (typeof nested.message === "string" && nested.message.trim()) {
+          return nested.message.trim();
+        }
       }
     } catch {
       /* no es JSON válido */
@@ -45,7 +56,16 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
     }
   }
 
-  const res = await fetch(url as RequestInfo, init);
+  let res: Response;
+  try {
+    res = await fetch(url as RequestInfo, init);
+  } catch (e) {
+    if (e instanceof TypeError) {
+      throw new Error(AUTH_CONNECTION_ERROR);
+    }
+    throw e;
+  }
+
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(messageFromErrorBody(text, res.status));

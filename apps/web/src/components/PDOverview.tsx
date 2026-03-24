@@ -138,7 +138,7 @@ export default function PDOverview() {
         {showFeatures && (
           <div className="mt-4 p-3 bg-muted rounded border">
             <div className="text-sm font-semibold mb-1">Computed features</div>
-            <pre className="text-xs overflow-x-auto">{features ? JSON.stringify(features, null, 2) : 'Loading...'}</pre>
+            <pre className="text-xs overflow-x-auto">{features ? JSON.stringify(features, null, 2) : "Cargando..."}</pre>
           </div>
         )}
 

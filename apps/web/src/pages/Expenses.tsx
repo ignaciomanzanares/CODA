@@ -47,6 +47,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useApi } from "@/lib/api";
+import { mapUserFacingApiError } from "@/lib/userFacingErrors";
 import { Analytics } from "@/lib/analytics";
 import type { Expense } from "@/types";
 import { useAuth } from "@/lib/auth";
@@ -289,7 +290,7 @@ export default function Expenses() {
     onError: (error) => {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "No se pudo añadir el gasto",
+        description: mapUserFacingApiError(error),
         variant: "destructive",
       });
     },
@@ -364,7 +365,7 @@ export default function Expenses() {
       }
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "No se pudo actualizar el gasto",
+        description: mapUserFacingApiError(error),
         variant: "destructive",
       });
     },
@@ -397,7 +398,7 @@ export default function Expenses() {
       }
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "No se pudo eliminar el gasto",
+        description: mapUserFacingApiError(error),
         variant: "destructive",
       });
     },
