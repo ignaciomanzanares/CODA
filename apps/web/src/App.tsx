@@ -45,6 +45,7 @@ import ProductMetrics from "@/pages/ProductMetrics";
 import FinancialAssistant from "@/components/FinancialAssistant";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import LegacySplitRedirect from "@/components/LegacySplitRedirect";
+import SeoHelmet from "@/components/SeoHelmet";
 
 const BillSplit = lazy(() => import("@/pages/BillSplit"));
 
@@ -53,6 +54,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <CurrencyProvider>
+      <SeoHelmet />
       <Switch>
         {/* Landing page - custom layout */}
         <Route path="/">
