@@ -17,6 +17,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
+import { Analytics } from "@/lib/analytics";
 
 export default function Landing() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -53,7 +54,11 @@ export default function Landing() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href={ROUTES.iniciarSesion}>
-                <Button size="lg" className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg">
+                <Button
+                  size="lg"
+                  className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg"
+                  onClick={() => Analytics.signupStarted()}
+                >
                   Comenzar gratis
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
@@ -218,7 +223,11 @@ export default function Landing() {
             Únete a miles de usuarios que ya toman mejores decisiones financieras con CODA.
           </p>
           <Link href={ROUTES.registro}>
-            <Button size="lg" className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg">
+            <Button
+              size="lg"
+              className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg"
+              onClick={() => Analytics.signupStarted()}
+            >
               Crear cuenta gratis
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>

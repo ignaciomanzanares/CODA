@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "@/lib/api";
+import { Analytics } from "@/lib/analytics";
 import { useToast } from "@/hooks/use-toast";
 import { format, formatDistanceToNow, differenceInDays } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -133,6 +134,7 @@ export default function Goals() {
       return { previousGoals };
     },
     onSuccess: () => {
+      Analytics.goalCreated();
       queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
       // Also refresh notifications so the goal-created notification appears immediately
       queryClient.invalidateQueries({ queryKey: ['notifications'] });

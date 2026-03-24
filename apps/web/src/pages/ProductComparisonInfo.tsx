@@ -1,13 +1,19 @@
+import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, ShoppingCart, Sparkles, TrendingUp, Shield, DollarSign, ArrowRight, PiggyBank } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { ROUTES } from "@/lib/routes";
+import { Analytics } from "@/lib/analytics";
 
 export default function ProductComparisonInfo() {
   const [, navigate] = useLocation();
   const { isAuthenticated, isLoading } = useAuth();
+
+  useEffect(() => {
+    Analytics.productCompared();
+  }, []);
 
   return (
     <div className="min-h-screen bg-white">

@@ -32,6 +32,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
 import { useApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { Analytics } from "@/lib/analytics";
 
 interface ProductsTableProps {
   products: FinancialProduct[];
@@ -66,6 +67,12 @@ export default function ProductsTable({
 
   // Handle click on "Solicitar" button
   const handleApplyClick = (product: any) => {
+    const productName =
+      typeof product?.name === "string" && product.name.trim()
+        ? product.name
+        : (product?.providerName ?? product?.provider ?? "Producto");
+    Analytics.productClicked(productName);
+
     // Track click event
     if (isAuthenticated && product.id && product.matchScore) {
       trackProductEvent(product.id, 'click', product.matchScore, { category })

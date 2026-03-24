@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Wallet, User, Lock, Mail, Loader2, CheckCircle2, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ROUTES } from "@/lib/routes";
+import { Analytics } from "@/lib/analytics";
 
 export default function SignUp() {
   const [, setLocation] = useLocation();
@@ -80,6 +81,7 @@ export default function SignUp() {
         title: "¡Cuenta creada!",
         description: "Bienvenido a CODA. ¡Comencemos!",
       });
+      Analytics.signupCompleted("persona");
       setLocation(ROUTES.panel);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error al registrarse";

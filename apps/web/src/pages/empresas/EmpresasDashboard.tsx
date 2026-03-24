@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,6 +6,7 @@ import { getEmpresasCompaniesWithSummary, getEmpresasDashboard, type CompanyWith
 import { Building2, TrendingUp, TrendingDown, DollarSign, Wallet, ArrowRight } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
+import { Analytics } from "@/lib/analytics";
 
 export default function EmpresasDashboard() {
   const { currency } = useCurrency();
@@ -12,6 +14,19 @@ export default function EmpresasDashboard() {
     queryKey: ["empresas", "companies-summary"],
     queryFn: getEmpresasCompaniesWithSummary,
   });
+  const empresaDashboardTracked = useRef(false);
+
+  useEffect(() => {
+    if (
+      !isLoading &&
+      companies &&
+      companies.length > 0 &&
+      !empresaDashboardTracked.current
+    ) {
+      empresaDashboardTracked.current = true;
+      Analytics.empresaDashboardViewed();
+    }
+  }, [isLoading, companies]);
 
   if (isLoading) {
     return (
