@@ -20,14 +20,7 @@ import {
   acceptPurpose,
   revokePurpose,
 } from './services/privacyConsent/privacyConsentService.js';
-
-/** Si la tabla aún no existe en BD (migración pendiente en prod), devolver estado vacío en lugar de 500. */
-function isMissingPrivacyTableError(e: unknown): boolean {
-  const err = e as { code?: string; message?: string };
-  if (err?.code === '42P01') return true;
-  const m = typeof err?.message === 'string' ? err.message : '';
-  return m.includes('does not exist') && m.includes('privacy_consent');
-}
+import { isMissingPrivacyTableError } from './services/privacyConsent/privacyConsentErrors.js';
 
 function clientMeta(req: Request): { ipAddress: string | null; userAgent: string | null; channel: string } {
   const xf = req.headers['x-forwarded-for'];
