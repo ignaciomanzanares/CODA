@@ -52,11 +52,16 @@ export const {
   empresasRiskFactors,
 } = schema as any;
 import postgres from 'postgres';
+import { ensurePostgresSslMode } from './postgresUrl.js';
 
 let db: any;
 let dialect: 'postgres' | 'sqlite';
 
-const dbUrl = process.env.DATABASE_URL;
+const rawDbUrl = process.env.DATABASE_URL;
+const dbUrl =
+  rawDbUrl && (rawDbUrl.startsWith('postgres://') || rawDbUrl.startsWith('postgresql://'))
+    ? ensurePostgresSslMode(rawDbUrl)
+    : rawDbUrl;
 // In production, DATABASE_URL must be set. Fail early with a clear message instead
 if (process.env.NODE_ENV === 'production' && !dbUrl) {
   throw new Error('DATABASE_URL is required in production. Set the DATABASE_URL environment variable to your Postgres connection string.');

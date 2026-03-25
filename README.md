@@ -10,7 +10,7 @@
 
 - **API:** Node.js + Express (puerto 5000)
 - **Web:** React 18 + Vite (puerto 5173)
-- **BD:** Drizzle ORM — PostgreSQL en producción (Render), SQLite opcional en local
+- **BD:** Drizzle ORM — PostgreSQL en producción (Neon, Render, etc.), SQLite opcional en local
 - **ML:** Python 3.10+ (XGBoost, scikit-learn, SHAP) para credit scoring
 - **Compliance:** Sistema de trazabilidad algorítmica (NCG 502)
 
@@ -43,6 +43,17 @@ npm run dev:web    # Web en :5173
 ```
 
 Variables mínimas: `DATABASE_URL` (Postgres en prod), `JWT_SECRET`, `CORS_ORIGINS`, `CLIENT_URL`. Ver `apps/api/.env.example`.
+
+### Neon (Postgres) — nueva base vacía
+
+1. Copia la connection string del dashboard (pooler o direct). Incluye `?sslmode=require` o déjalo sin query: el backend **añade `sslmode=require`** si falta (`apps/api/src/db/postgresUrl.ts`).
+2. Sincroniza el schema y (opcional) datos demo:
+   ```bash
+   export DATABASE_URL="postgresql://...@...neon.tech/neondb"
+   npm run db:push
+   npm run seed:demo
+   ```
+3. `seed:demo` crea usuario `demo-seed@coda.app` / contraseña `DemoSeed123!` con cuentas, saldos y transacciones de ejemplo, **o** enlaza a un usuario ya registrado: `SEED_USER_EMAIL=tu@email.com npm run seed:demo`.
 
 ---
 
@@ -103,6 +114,7 @@ Root `apps/web`, variables `VITE_API_URL` (URL del API en Render) y `VITE_ENV=pr
 | `npm run dev:web` | Web             |
 | `npm run db:push` | Aplicar schema (raíz; con `DATABASE_URL` = Postgres) |
 | `npm run db:seed` | Seed (opcional) |
+| `npm run seed:demo` | Seed Personal: cuentas/saldos/transacciones demo en Postgres (`DATABASE_URL`) |
 | `npm run seed:empresas` | Seed empresas de ejemplo (desde raíz: `npm run seed:empresas -w @coda/api`; requiere `DATABASE_URL`) |
 | `npm run build`   | Build producción |
 | `npm run test`    | Tests API        |

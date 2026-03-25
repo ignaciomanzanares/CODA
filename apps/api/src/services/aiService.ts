@@ -85,8 +85,10 @@ function buildContextPrompt(context: FinancialContext): string {
   
   if (context.topSpendingCategories && context.topSpendingCategories.length > 0) {
     parts.push('\nTop spending categories this month:');
-    context.topSpendingCategories.slice(0, 5).forEach(cat => {
-      parts.push(`- ${cat.name}: $${cat.amount.toLocaleString()}`);
+    context.topSpendingCategories.slice(0, 5).forEach((cat) => {
+      if (!cat) return;
+      const amt = typeof cat.amount === 'number' && !Number.isNaN(cat.amount) ? cat.amount : 0;
+      parts.push(`- ${cat.name ?? 'Categoría'}: $${amt.toLocaleString()}`);
     });
   }
   
@@ -409,8 +411,18 @@ export function getQuickInsights(context: FinancialContext): string[] {
 
   if (context.topSpendingCategories && context.topSpendingCategories.length > 0) {
     const topCategory = context.topSpendingCategories[0];
-    const catName = topCategory.name === 'Housing' ? 'Vivienda' : topCategory.name === 'Food & Dining' ? 'Comida y restaurantes' : topCategory.name === 'Transportation' ? 'Transporte' : topCategory.name;
-    insights.push(`Tu mayor gasto es ${catName}: $${topCategory.amount}/mes. ¿Podrías reducirlo?`);
+    if (topCategory) {
+      const catName =
+        topCategory.name === 'Housing'
+          ? 'Vivienda'
+          : topCategory.name === 'Food & Dining'
+            ? 'Comida y restaurantes'
+            : topCategory.name === 'Transportation'
+              ? 'Transporte'
+              : topCategory.name ?? 'General';
+      const amt = typeof topCategory.amount === 'number' && !Number.isNaN(topCategory.amount) ? topCategory.amount : 0;
+      insights.push(`Tu mayor gasto es ${catName}: $${amt}/mes. ¿Podrías reducirlo?`);
+    }
   }
 
   if (context.monthlyExpenses) {
