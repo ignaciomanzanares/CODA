@@ -54,6 +54,7 @@ Variables mínimas: `DATABASE_URL` (Postgres en prod), `JWT_SECRET`, `CORS_ORIGI
    npm run db:push
    ```
 3. **No hace falta** ningún seed para que la app funcione: los usuarios se crean al registrarse. El comando `npm run seed:demo` es solo si quieres datos de prueba en cuentas/transacciones.
+4. **Migración con BD vacía y usuarios ya logueados (JWT):** esas cuentas pueden tener un hash placeholder hasta definir contraseña. En el hosting, define temporalmente `MIGRATION_RECOVERY_SECRET` (ver `apps/api/.env.example`), despliega, en login usa «Recuperar acceso», luego quita la variable.
 
 ---
 

@@ -36,7 +36,8 @@ export type AuthSecurityEvent =
   | 'logout'
   | 'enable_2fa'
   | 'disable_2fa'
-  | 'resend_2fa';
+  | 'resend_2fa'
+  | 'migration_password_recovery';
 
 export function logAuthSecurityEvent(
   event: AuthSecurityEvent,
