@@ -66,13 +66,29 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
     throw e;
   }
 
+  const text = await res.text().catch(() => "");
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
     throw new Error(messageFromErrorBody(text, res.status));
   }
-  try {
-    return await res.json();
-  } catch {
+  const trimmed = text.trim();
+  // Sin VITE_API_URL, /api/* en el dominio del front suele devolver index.html (200) → no es la API real.
+  const looksLikeHtml =
+    trimmed.startsWith("<!") ||
+    trimmed.toLowerCase().startsWith("<!doctype") ||
+    /^<html[\s>]/i.test(trimmed);
+  if (looksLikeHtml) {
+    throw new Error(
+      "La app no está hablando con el backend (se recibió HTML en lugar de JSON). En Vercel, define VITE_API_URL con la URL del API en Render y vuelve a desplegar el frontend."
+    );
+  }
+  if (!trimmed) {
     return null;
+  }
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    throw new Error(
+      "Respuesta del servidor no válida (no es JSON). Revisa VITE_API_URL y que el API esté en marcha."
+    );
   }
 }

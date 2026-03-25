@@ -1,5 +1,27 @@
 import { randomUUID } from "crypto";
-import { db, sql, users, bankConnections, accounts, balances, transactions, creditScores, transactionalScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc } from "./db/index.js";
+import {
+  db,
+  sql,
+  users,
+  bankConnections,
+  accounts,
+  balances,
+  transactions,
+  creditScores,
+  transactionalScores,
+  insuranceRisks,
+  financialGoals,
+  financialProducts,
+  expenses,
+  billSplits,
+  billSplitParticipants,
+  notifications,
+  eq,
+  and,
+  inArray,
+  isNull,
+  desc,
+} from "./db/index.js";
 import { logger } from "./logger.js";
 import { logTransactionalScoreComputationFireAndForget } from "./services/audit/traceabilityPersistence.js";
 import type {
@@ -172,7 +194,11 @@ export class DatabaseStorage implements IStorage {
   
   async getUserByEmail(email: string): Promise<User | undefined> {
     if (!db) return undefined;
-    const [user] = await db.select().from(users).where(eq(users.email, email));
+    const normalized = String(email).trim().toLowerCase();
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(sql`lower(${users.email}) = ${normalized}`);
     return user || undefined;
   }
   

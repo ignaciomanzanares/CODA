@@ -88,7 +88,7 @@ export default function Login() {
     setRecoveryLoading(true);
     setError("");
     try {
-      await apiFetch("/api/auth/recover-migration-password", {
+      const data = (await apiFetch("/api/auth/recover-migration-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -96,11 +96,15 @@ export default function Login() {
           newPassword: migrationNewPw,
           recoverySecret: migrationSecret,
         }),
-      });
+      })) as { success?: boolean };
+      if (!data || data.success !== true) {
+        throw new Error("El servidor no confirmó el cambio de contraseña. Revisa la consola de red o VITE_API_URL.");
+      }
       toast({
         title: "Contraseña actualizada",
-        description: "Ya puedes iniciar sesión con la nueva contraseña.",
+        description: `Inicia sesión con este mismo correo (${email.trim()}) y la contraseña nueva que acabas de definir.`,
       });
+      setPassword("");
       setShowMigrationRecovery(false);
       setMigrationNewPw("");
       setMigrationSecret("");
