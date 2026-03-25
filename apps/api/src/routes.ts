@@ -819,7 +819,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Financial goals routes
   app.get("/api/financial-goals", authenticate, async (req, res) => {
-    const userId = getUserIdFromAuth(req); // userId is string
+    const authReq = req as AuthenticatedRequest;
+    const userId = await ensureUserForToken(authReq.user!);
+    if (!userId) {
+      return res.status(401).json({ message: 'Sesión inválida. Cierra sesión y vuelve a entrar.' });
+    }
     const goals = await storage.getFinancialGoals(userId);
 
     const body = JSON.stringify(goals);
@@ -838,25 +842,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/financial-goals", authenticate, validateBody(createFinancialGoalSchema), async (req, res) => {
     try {
-      console.log('[GOALS] Create attempt:', req.body);
-      const userId = getUserIdFromAuth(req);
-
-      // Ensure user exists in database (create if needed for foreign key constraint)
-      let user = await storage.getUser(userId);
-      if (!user) {
-        const userEmail = String((req as AuthenticatedRequest).user?.email || `${userId}@unknown.com`);
-        const userName = String((req as AuthenticatedRequest).user?.name || userId);
-        const [firstName, ...lastNameParts] = userName.split(' ');
-
-        user = await storage.createUser({
-          id: userId,
-          username: userName,
-          email: userEmail,
-          passwordHash: "jwt-auth",
-          firstName: firstName || 'User',
-          lastName: lastNameParts.length > 0 ? lastNameParts.join(' ') : null
+      const authReq = req as AuthenticatedRequest;
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) {
+        return res.status(401).json({
+          message: 'No pudimos sincronizar tu cuenta con la base de datos. Cierra sesión y vuelve a entrar.',
         });
-        logger.info({ userId, email: userEmail }, 'Created new user for goal');
       }
 
       const goal = await storage.createFinancialGoal(
@@ -889,7 +880,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.put("/api/financial-goals/:id", authenticate, validateParams(idParamSchema), validateBody(updateFinancialGoalSchema), async (req, res) => {
-    const userId = getUserIdFromAuth(req);
+    const authReq = req as AuthenticatedRequest;
+    const userId = await ensureUserForToken(authReq.user!);
+    if (!userId) {
+      return res.status(401).json({ message: 'Sesión inválida. Cierra sesión y vuelve a entrar.' });
+    }
     const goalId = Number(req.params.id);
     const goal = await storage.getFinancialGoal(goalId);
     if (!goal || String(goal.userId) !== userId) {
@@ -932,7 +927,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.delete("/api/financial-goals/:id", authenticate, validateParams(idParamSchema), async (req, res) => {
-    const userId = getUserIdFromAuth(req);
+    const authReq = req as AuthenticatedRequest;
+    const userId = await ensureUserForToken(authReq.user!);
+    if (!userId) {
+      return res.status(401).json({ message: 'Sesión inválida. Cierra sesión y vuelve a entrar.' });
+    }
     const goalId = Number(req.params.id);
     const goal = await storage.getFinancialGoal(goalId);
     if (!goal || String(goal.userId) !== userId) {
@@ -3080,7 +3079,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Product recommendation endpoints (authenticated)
   app.get("/api/products/recommendations", authenticate, async (req: Request, res: Response) => {
     try {
-      const userId = getUserIdFromAuth(req);
+      const authReq = req as AuthenticatedRequest;
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) {
+        return res.status(401).json({ message: 'Sesión inválida. Cierra sesión y vuelve a entrar.' });
+      }
       const category = req.query.category as string | undefined;
       const limit = parseInt(req.query.limit as string) || 5;
 
@@ -3166,7 +3169,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Track product interaction
   app.post("/api/products/track", authenticate, async (req: Request, res: Response) => {
     try {
-      const userId = getUserIdFromAuth(req);
+      const authReq = req as AuthenticatedRequest;
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) {
+        return res.status(401).json({ message: 'Sesión inválida. Cierra sesión y vuelve a entrar.' });
+      }
       const { productId, eventType, matchScore, metadata } = req.body;
 
       if (!productId || !eventType) {
@@ -3230,7 +3237,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Apply to a product
   app.post("/api/products/apply", authenticate, async (req: Request, res: Response) => {
     try {
-      const userId = getUserIdFromAuth(req);
+      const authReq = req as AuthenticatedRequest;
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) {
+        return res.status(401).json({ message: 'Sesión inválida. Cierra sesión y vuelve a entrar.' });
+      }
       const { productId, requestedAmount, term, purpose, additionalInfo } = req.body;
 
       if (!productId) {
