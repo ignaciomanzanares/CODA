@@ -46,14 +46,14 @@ Variables mínimas: `DATABASE_URL` (Postgres en prod), `JWT_SECRET`, `CORS_ORIGI
 
 ### Neon (Postgres) — nueva base vacía
 
-1. Copia la connection string del dashboard (pooler o direct). Incluye `?sslmode=require` o déjalo sin query: el backend **añade `sslmode=require`** si falta (`apps/api/src/db/postgresUrl.ts`).
-2. Sincroniza el schema y (opcional) datos demo:
+1. Copia la connection string del dashboard. El runtime (Render) puede usar el endpoint **pooler**; para **`npm run db:push`** en tu PC, si se queda mucho rato en *Pulling schema from database…*, usa la URL de conexión **directa** (Neon → *Connection details* → *Direct*), o define en `apps/api/.env`:
+   - `DATABASE_URL_MIGRATE=postgresql://…@ep-xxxxx.region.aws.neon.tech/…` (directa), y/o
+   - deja `DATABASE_URL` como esté: el proyecto intenta quitar `-pooler` del host y añade `sslmode=require` + `connect_timeout=15` solo para drizzle-kit.
+2. Sincroniza el schema:
    ```bash
-   export DATABASE_URL="postgresql://...@...neon.tech/neondb"
    npm run db:push
-   npm run seed:demo
    ```
-3. `seed:demo` crea usuario `demo-seed@coda.app` / contraseña `DemoSeed123!` con cuentas, saldos y transacciones de ejemplo, **o** enlaza a un usuario ya registrado: `SEED_USER_EMAIL=tu@email.com npm run seed:demo`.
+3. **No hace falta** ningún seed para que la app funcione: los usuarios se crean al registrarse. El comando `npm run seed:demo` es solo si quieres datos de prueba en cuentas/transacciones.
 
 ---
 
