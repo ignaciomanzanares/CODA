@@ -700,6 +700,10 @@ export async function handleRecoverMigrationPassword(req: Request, res: Response
     passwordHash: hashPassword(newPassword),
     userMetadata: null,
   });
+  logger.info(
+    { userId: user.id, email: redactEmail(email) },
+    'migration_password_recovery: contraseña actualizada en BD'
+  );
   logAuthSecurityEvent('migration_password_recovery', req, {
     userId: user.id,
     email: redactEmail(email),
