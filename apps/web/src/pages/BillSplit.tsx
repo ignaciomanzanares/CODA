@@ -33,6 +33,9 @@ import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
 import { rutaDividirPublico } from "@/lib/routes";
 import { Analytics } from "@/lib/analytics";
+import SwipeableListRow from "@/components/SwipeableListRow";
+import ConfirmDestructiveDialog from "@/components/ConfirmDestructiveDialog";
+import { hapticLight } from "@/lib/haptics";
 
 // Montos guardados en CLP; mostrar en la moneda elegida (CLP por defecto)
 function formatAmount(amount: number, currency: "CLP" | "USD") {
@@ -199,55 +202,6 @@ function FriendBalanceRow({
   );
 }
 
-// Expense Card
-const SWIPE_THRESHOLD = 80;
-
-function SwipeToDeleteRow({ children, onDelete, canDelete }: { children: React.ReactNode; onDelete: () => void; canDelete: boolean }) {
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [offset, setOffset] = useState(0);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (!canDelete) return;
-    setTouchStart(e.touches[0].clientX);
-  };
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStart === null || !canDelete) return;
-    const diff = touchStart - e.touches[0].clientX;
-    if (diff > 0) setOffset(Math.min(diff, 120));
-  };
-  const handleTouchEnd = () => {
-    if (offset >= SWIPE_THRESHOLD) {
-      onDelete();
-    }
-    setTouchStart(null);
-    setOffset(0);
-  };
-
-  if (!canDelete) return <>{children}</>;
-
-  return (
-    <div className="relative overflow-hidden rounded-lg">
-      {offset > 0 && (
-        <div
-          className="absolute inset-y-0 right-0 w-24 flex items-center justify-center bg-destructive text-destructive-foreground text-sm font-medium z-0"
-          style={{ width: offset }}
-        >
-          Eliminar
-        </div>
-      )}
-      <div
-        className="relative z-10 transition-transform duration-150"
-        style={{ transform: offset > 0 ? `translateX(-${offset}px)` : undefined }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
 function ExpenseCard({ 
   expense, 
   currentUserId,
@@ -368,9 +322,9 @@ function ExpenseCard({
   );
 
   return (
-    <SwipeToDeleteRow canDelete={!!isCreator} onDelete={onDelete}>
+    <SwipeableListRow canDelete={!!isCreator} canEdit={false} onDelete={onDelete}>
       {card}
-    </SwipeToDeleteRow>
+    </SwipeableListRow>
   );
 }
 
@@ -393,6 +347,7 @@ export default function BillSplit() {
   }>({ isOpen: false });
   const [isScanningBill, setIsScanningBill] = useState(false);
   const billScanInputRef = useRef<HTMLInputElement>(null);
+  const [billSplitIdPendingDelete, setBillSplitIdPendingDelete] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -584,6 +539,7 @@ export default function BillSplit() {
       return created as BillSplitWithParticipants;
     },
     onSuccess: async (data: BillSplitWithParticipants) => {
+      hapticLight();
       Analytics.billSplitCreated();
       // Actualizar caché con la respuesta del POST (misma forma que GET) para que el saldo se actualice al instante
       const shape = {
@@ -617,16 +573,19 @@ export default function BillSplit() {
       return markParticipantAsPaid(billSplitId, participantId, amountPaid);
     },
     onSuccess: () => {
+      hapticLight();
       updateBalances();
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 
   const deleteSplitMutation = useMutation({
     mutationFn: (billSplitId: string) => deleteBillSplit(billSplitId),
     onSuccess: () => {
+      hapticLight();
       updateBalances();
       setSelectedExpense(null);
+      toast({ title: "Eliminado", description: "El dividir cuenta se eliminó." });
     },
   });
 
@@ -637,9 +596,15 @@ export default function BillSplit() {
   };
 
   const handleDeleteSplit = (billSplitId: string) => {
-    if (isAuthenticated && confirm('¿Eliminar este gasto? No se puede deshacer.')) {
-      deleteSplitMutation.mutate(billSplitId);
+    if (!isAuthenticated) return;
+    setBillSplitIdPendingDelete(billSplitId);
+  };
+
+  const confirmDeleteBillSplit = () => {
+    if (billSplitIdPendingDelete && isAuthenticated) {
+      deleteSplitMutation.mutate(billSplitIdPendingDelete);
     }
+    setBillSplitIdPendingDelete(null);
   };
 
   const handleBillScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1072,7 +1037,12 @@ export default function BillSplit() {
                       balance={balance.balance}
                       currency={currency}
                       onSettleUp={() => setIsSettleDialogOpen(true)}
-                      onRemind={() => alert('¡Recordatorio enviado!')}
+                      onRemind={() =>
+                        toast({
+                          title: "Recordatorio",
+                          description: "Función de envío por la app disponible próximamente.",
+                        })
+                      }
                     />
                   ))}
                 </div>
@@ -1314,6 +1284,18 @@ export default function BillSplit() {
       </Dialog>
 
       {/* Payment Dialog */}
+      <ConfirmDestructiveDialog
+        open={billSplitIdPendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setBillSplitIdPendingDelete(null);
+        }}
+        title="¿Eliminar este dividir cuenta?"
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={confirmDeleteBillSplit}
+        isPending={deleteSplitMutation.isPending}
+      />
+
       {paymentDialog.isOpen && paymentDialog.billSplit && paymentDialog.participant && (
         <PaymentDialog
           isOpen={paymentDialog.isOpen}

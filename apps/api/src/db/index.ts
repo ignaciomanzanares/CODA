@@ -30,7 +30,6 @@ export const {
   algorithmPredictionLogs,
   insertAccountSchema,
   insertBankConnectionSchema,
-  insertFinancialGoalSchema,
   insertExpenseSchema,
   // CODA Empresas (misma BD)
   empresasCompanies,

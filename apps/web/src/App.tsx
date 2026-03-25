@@ -16,6 +16,12 @@ import Landing from "@/pages/Landing";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SeoHelmet from "@/components/SeoHelmet";
 import PWAUpdatePrompt from "@/components/PWAUpdatePrompt";
+import { useVisualViewportHeight } from "@/hooks/useVisualViewportHeight";
+
+function VisualViewportRootSync() {
+  useVisualViewportHeight();
+  return null;
+}
 
 const About = lazy(() => import("@/pages/About"));
 const CreditScoreInfo = lazy(() => import("@/pages/CreditScoreInfo"));
@@ -57,6 +63,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <CurrencyProvider>
+      <VisualViewportRootSync />
       <SeoHelmet />
       <Suspense fallback={<PageLoader />}>
         <Switch>

@@ -304,36 +304,41 @@ export default function NotificationCenter({ className }: NotificationCenterProp
           </Button>
         </DialogTrigger>
         
-        <DialogContent className="max-w-2xl max-h-[600px] p-0">
-          <DialogHeader className="p-6 pb-4">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                Notificaciones
+        <DialogContent className="max-w-2xl w-[calc(100vw-1.5rem)] sm:w-full max-h-notification-panel flex flex-col gap-0 overflow-hidden rounded-t-2xl p-0 sm:rounded-lg">
+          <DialogHeader className="shrink-0 space-y-3 p-4 pb-3 sm:p-6 sm:pb-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <DialogTitle className="flex flex-wrap items-center gap-2 text-left">
+                <Bell className="h-5 w-5 shrink-0" />
+                <span>Notificaciones</span>
                 {unreadCount > 0 && (
-                  <Badge variant="secondary">{unreadCount} nuevas</Badge>
+                  <Badge variant="secondary" className="shrink-0">{unreadCount} nuevas</Badge>
                 )}
               </DialogTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2 sm:min-w-0 sm:flex-1 sm:justify-end">
                 {unreadCount > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => markAllAsReadMutation.mutate()}
                     disabled={markAllAsReadMutation.isPending}
+                    className="min-h-[44px] shrink-0 max-w-full sm:max-w-none"
+                    title="Marcar todas como leídas"
                   >
-                    <CheckCheck className="h-4 w-4 mr-2" />
-                    Marcar todas como leídas
+                    <CheckCheck className="h-4 w-4 mr-2 shrink-0" />
+                    <span className="truncate sm:whitespace-normal">
+                      <span className="sm:hidden">Marcar leídas</span>
+                      <span className="hidden sm:inline">Marcar todas como leídas</span>
+                    </span>
                   </Button>
                 )}
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="min-h-[44px] shrink-0" aria-label="Ajustes de notificaciones">
                   <Settings className="h-4 w-4" />
                 </Button>
               </div>
             </div>
           </DialogHeader>
 
-          <div className="px-6">
+          <div className="min-h-0 flex-1 overflow-y-auto scroll-touch-momentum px-4 pb-[calc(var(--sab)+1rem)] sm:px-6">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="all">Todas</TabsTrigger>
@@ -350,7 +355,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                 <TabsTrigger value="goal">Metas</TabsTrigger>
               </TabsList>
 
-              <TabsContent value={activeTab} className="mt-4 max-h-[400px] overflow-y-auto">
+              <TabsContent value={activeTab} className="mt-4 pb-2">
                 {isLoading ? (
                   <div className="space-y-4">
                     {[1, 2, 3].map(i => (
@@ -445,7 +450,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
             </Tabs>
           </div>
 
-          <div className="p-6 pt-4 border-t">
+          <div className="p-4 sm:p-6 pt-3 sm:pt-4 border-t shrink-0 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
             <div className="text-center">
               <p className="text-sm text-gray-500">
                 Gestiona las preferencias de notificaciones en tu{' '}
