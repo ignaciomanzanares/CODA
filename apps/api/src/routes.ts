@@ -240,21 +240,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userAccounts.map((account: { id: number }) => storage.getTransactions(account.id, { from: ninetyDaysAgo }))
       );
       const transactions = allTransactions.flat().filter((t: any) => 
+        t != null &&
+        t.postedAt &&
         new Date(t.postedAt) >= ninetyDaysAgo
       );
 
       // Calculate monthly income and expenses (last 30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const recentTransactions = transactions.filter((t: any) => new Date(t.postedAt) >= thirtyDaysAgo);
+      const recentTransactions = transactions.filter(
+        (t: any) => t != null && t.postedAt && new Date(t.postedAt) >= thirtyDaysAgo
+      );
       
+      const txAmount = (t: any) => parseFloat(String(t?.amount ?? 0));
       const monthlyIncome = recentTransactions
-        .filter((t: any) => parseFloat(t.amount) > 0)
-        .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
+        .filter((t: any) => txAmount(t) > 0)
+        .reduce((sum: number, t: any) => sum + txAmount(t), 0);
       
       const monthlyExpenses = Math.abs(recentTransactions
-        .filter((t: any) => parseFloat(t.amount) < 0)
-        .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0));
+        .filter((t: any) => txAmount(t) < 0)
+        .reduce((sum: number, t: any) => sum + txAmount(t), 0));
 
       const savingsRate = monthlyIncome > 0 
         ? Math.round(((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100) 
@@ -263,10 +268,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Spending by category (last 30 days)
       const spendingByCategory: Record<string, number> = {};
       recentTransactions
-        .filter((t: any) => parseFloat(t.amount) < 0)
+        .filter((t: any) => txAmount(t) < 0)
         .forEach((t: any) => {
-          const category = t.category || 'Other';
-          spendingByCategory[category] = (spendingByCategory[category] || 0) + Math.abs(parseFloat(t.amount));
+          const category = t?.category || 'Other';
+          spendingByCategory[category] = (spendingByCategory[category] || 0) + Math.abs(txAmount(t));
         });
 
       // Generate net worth trend (last 6 months - simulated based on current)
@@ -308,7 +313,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .map(([name, amount]) => ({
           name,
           amount: Math.round(amount * 100) / 100,
-          percentage: Math.round((amount / monthlyExpenses) * 100) || 0,
+          percentage:
+            monthlyExpenses > 0 ? Math.round((amount / monthlyExpenses) * 100) || 0 : 0,
         }));
 
       res.json({
@@ -535,8 +541,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             { name: 'Transportation', amount: 420 },
           ],
           financialGoals: goals.slice(0, 5).map((g: any) => ({
-            name: g.name,
-            progress: Math.round((g.currentAmount / g.targetAmount) * 100),
+            name: g?.name ?? 'Meta',
+            progress: Math.round(((g?.currentAmount ?? 0) / (g?.targetAmount || 1)) * 100),
           })),
         };
       } catch (_e) {

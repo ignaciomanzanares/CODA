@@ -32,13 +32,14 @@ export async function buildUserFeatureVector(userId: string, windowDays = 90): P
 
   let txs: Transaction[] = [];
   for (const acc of accounts) {
+    if (acc == null) continue;
     const accId = acc.id as number;
     const part = await storage.getTransactions(accId, { from, to, limit: undefined, offset: undefined });
-    txs = txs.concat(part);
+    txs = txs.concat(part.filter((t): t is Transaction => t != null));
   }
 
   // Basic stats
-  const amounts = txs.map(t => parseFloat(String(t.amount)));
+  const amounts = txs.map((t) => parseFloat(String(t?.amount ?? 0)));
   const debitAmounts = amounts.filter(a => a < 0);
   const creditAmounts = amounts.filter(a => a > 0);
 
@@ -52,11 +53,14 @@ export async function buildUserFeatureVector(userId: string, windowDays = 90): P
 
   // Active days
   const dayKey = (d: Date) => d.toISOString().slice(0, 10);
-  const activeDaySet = new Set(txs.map(t => dayKey(new Date(t.postedAt))));
+  const activeDaySet = new Set(
+    txs.filter((t) => t?.postedAt).map((t) => dayKey(new Date(t.postedAt!)))
+  );
 
   // Category distribution
   const categoryCounts = new Map<string, number>();
   for (const t of txs) {
+    if (t == null) continue;
     const key = (t.category || "uncategorized").toLowerCase();
     categoryCounts.set(key, (categoryCounts.get(key) || 0) + 1);
   }
@@ -87,8 +91,8 @@ export async function buildUserFeatureVector(userId: string, windowDays = 90): P
   const from30 = new Date(toDate.getTime());
   from30.setDate(toDate.getDate() - 30);
   const credits30 = txs
-    .filter(t => parseFloat(String(t.amount)) > 0 && new Date(t.postedAt) >= from30)
-    .map(t => parseFloat(String(t.amount)));
+    .filter((t) => t != null && parseFloat(String(t?.amount ?? 0)) > 0 && t.postedAt && new Date(t.postedAt) >= from30)
+    .map((t) => parseFloat(String(t?.amount ?? 0)));
   const income30 = sum(credits30);
   const income90 = totalCreditsSum;
   const incomeTrend30_90 = income90 > 0 ? income30 / income90 : 0;
@@ -96,9 +100,10 @@ export async function buildUserFeatureVector(userId: string, windowDays = 90): P
   // Daily net cashflow volatility
   const dailyMap = new Map<string, number>();
   for (const t of txs) {
+    if (t == null || !t.postedAt) continue;
     const k = dayKey(new Date(t.postedAt));
     const val = dailyMap.get(k) || 0;
-    dailyMap.set(k, val + parseFloat(String(t.amount)));
+    dailyMap.set(k, val + parseFloat(String(t?.amount ?? 0)));
   }
   const dailyVals = Array.from(dailyMap.values());
   const dailyMean = mean(dailyVals);
@@ -108,7 +113,8 @@ export async function buildUserFeatureVector(userId: string, windowDays = 90): P
   // Recurring expense share: merchants with >=2 negative transactions
   const merchantNegTotals = new Map<string, { count: number; total: number }>();
   for (const t of txs) {
-    const amt = parseFloat(String(t.amount));
+    if (t == null) continue;
+    const amt = parseFloat(String(t?.amount ?? 0));
     if (amt < 0) {
       const key = (t.merchantName || t.description || "unknown").toLowerCase();
       const cur = merchantNegTotals.get(key) || { count: 0, total: 0 };
