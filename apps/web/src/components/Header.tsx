@@ -91,7 +91,7 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 safe-x">
+    <header className="app-header sticky sticky-safe-top z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 safe-x">
       <div className="w-full flex h-14 min-h-[3.5rem] flex-nowrap items-center gap-2 pl-2 pr-2 sm:pl-3 sm:pr-3">
         {/* Izquierda: CODA Empresas / CODA — lo más a la izquierda */}
         <div className="flex shrink-0 items-center min-w-0">
@@ -208,7 +208,7 @@ export default function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-72">
-              <div className="flex flex-col mt-8">
+              <div className="flex flex-col mt-6">
                 {/* Only show nav items when authenticated */}
                 {isAuthenticated && (
                   <nav className="flex flex-col gap-1">
