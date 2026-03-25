@@ -68,10 +68,10 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
     /* Safe area: el contenido no queda bajo notch / home indicator (PWA iOS/Android) */
-    padding-top: var(--sat);
-    padding-right: var(--sar);
-    padding-bottom: var(--sab);
-    padding-left: var(--sal);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
   }
 }
 
@@ -226,4 +226,13 @@ button,
 /* Panel de notificaciones: un poco más bajo que modales de formulario (lista + teclado) */
 .max-h-notification-panel {
   max-height: min(80dvh, var(--visual-viewport-height, 100dvh));
+}
+
+/* PWA instalada (standalone): refuerzo de cabecera bajo la barra de estado iOS */
+@media all and (display-mode: standalone) {
+  header,
+  nav[role="banner"],
+  .app-header {
+    padding-top: max(env(safe-area-inset-top, 0px), 16px);
+  }
 }

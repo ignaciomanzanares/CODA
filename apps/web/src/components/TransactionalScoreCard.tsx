@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { useReportData } from "@/contexts/ReportDataContext";
 import { queryClient } from "@/lib/queryClient";
 import type { TransactionalScoreResult } from "@/types";
@@ -9,6 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle2, AlertTriangle, BarChart3, Loader2, RefreshCw, Package, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const TRANSACTIONAL_SCORE_TIMEOUT_MS = 10_000;
+const TRANSACTIONAL_SCORE_TIMEOUT_ERROR = "TRANSACTIONAL_SCORE_TIMEOUT";
+
+/** Mensaje unificado: sin cartola / timeout / error de red */
+const NO_SCORE_AVAILABLE_MSG =
+  "Score transaccional no disponible aún. Sube una cartola bancaria para calcularlo.";
 
 /** Códigos SFA → nombre para Ofertas Recomendadas */
 const PRODUCT_LABELS: Record<string, string> = {
@@ -73,17 +82,36 @@ function ScoreGauge({ score }: { score: number }) {
 }
 
 export default function TransactionalScoreCard() {
+  const [location] = useLocation();
+  const authContext = location.startsWith("/empresas") ? "empresas" : "personal";
+  const { isAuthenticated, isLoading: authLoading } = useAuth(authContext);
   const { getTransactionalScore } = useApi();
   const { setTransactionalResult } = useReportData();
 
-  const { data, isLoading, isRefetching, refetch, error } = useQuery({
+  const queryEnabled = isAuthenticated && !authLoading && authContext === "personal";
+
+  const { data, isLoading, isRefetching, error, isError, isSuccess, refetch } = useQuery({
     queryKey: ["/api/transactional-score"],
-    queryFn: getTransactionalScore,
+    queryFn: async () => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const timeout = new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error(TRANSACTIONAL_SCORE_TIMEOUT_ERROR)), TRANSACTIONAL_SCORE_TIMEOUT_MS);
+        });
+        const result = await Promise.race([getTransactionalScore(), timeout]);
+        if (timer) clearTimeout(timer);
+        return result;
+      } catch (e) {
+        if (timer) clearTimeout(timer);
+        throw e;
+      }
+    },
+    enabled: queryEnabled,
     retry: false,
   });
 
   const scoreResult: TransactionalScoreResult | null =
-    data && typeof data === 'object' && 'transactionalScore' in data && data.transactionalScore != null
+    data && typeof data === "object" && "transactionalScore" in data && data.transactionalScore != null
       ? {
           transactionalScore: data.transactionalScore,
           mainInsights: data.mainInsights ?? [],
@@ -93,7 +121,7 @@ export default function TransactionalScoreCard() {
       : null;
 
   useEffect(() => {
-    if (data && typeof data === 'object' && 'transactionalScore' in data && data.transactionalScore != null) {
+    if (data && typeof data === "object" && "transactionalScore" in data && data.transactionalScore != null) {
       setTransactionalResult({
         transactionalScore: data.transactionalScore,
         mainInsights: data.mainInsights ?? [],
@@ -103,7 +131,35 @@ export default function TransactionalScoreCard() {
   }, [data, setTransactionalResult]);
 
   const hasResult = scoreResult != null;
-  const pending = !hasResult && !isLoading;
+  /** Respuesta OK sin score = aún no hay cartola procesada (mismo mensaje que timeout). */
+  const noScoreFromApi = isSuccess && !hasResult;
+  const showUnavailable = noScoreFromApi || isError;
+  const showSpinner = isLoading && !isError;
+
+  if (authContext !== "personal") {
+    return null;
+  }
+
+  if (authLoading) {
+    return (
+      <Card className="h-full flex flex-col">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            Score Transaccional
+          </CardTitle>
+          <CardDescription>Cargando…</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-24 w-full rounded" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <Card className="h-full flex flex-col">
@@ -117,19 +173,19 @@ export default function TransactionalScoreCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col gap-4">
-        {pending && (
-          <div className="flex flex-col items-center justify-center py-6 gap-4">
+        {showUnavailable && (
+          <div className="flex flex-col items-center justify-center py-6 gap-3">
             <FileText className="h-12 w-12 text-muted-foreground" />
-            <p className="text-sm font-medium text-muted-foreground text-center">
-              Pendiente de Análisis
-            </p>
-            <p className="text-xs text-muted-foreground text-center max-w-xs">
-              Sube una o más cartolas bancarias en la tarjeta &quot;Documentos oficiales&quot; para calcular tu score y ver Saldo / Abonos.
-            </p>
+            <p className="text-sm font-medium text-muted-foreground text-center max-w-sm">{NO_SCORE_AVAILABLE_MSG}</p>
+            {isError && (
+              <Button variant="outline" size="sm" className="mt-1" onClick={() => refetch()}>
+                Reintentar
+              </Button>
+            )}
           </div>
         )}
 
-        {isLoading && (
+        {showSpinner && (
           <div className="space-y-4 py-2">
             <div className="flex flex-col items-center gap-3 py-4">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -139,7 +195,7 @@ export default function TransactionalScoreCard() {
           </div>
         )}
 
-        {hasResult && scoreResult && (
+        {hasResult && scoreResult && !showSpinner && (
           <TransactionalScoreContent
             score={scoreResult}
             onRefresh={() => queryClient.invalidateQueries({ queryKey: ["/api/transactional-score"] })}
