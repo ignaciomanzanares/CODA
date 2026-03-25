@@ -144,6 +144,8 @@ export function useApi(): ApiClient {
         method,
         headers,
         body: data !== undefined ? JSON.stringify(data) : optsBody,
+        // Evita caché HTTP/304 en listas (p. ej. metas con ETag): sin cuerpo JSON el refetch no actualiza React Query.
+        cache: method === "GET" ? "no-store" : restOptions?.cache,
       });
     } catch (e) {
       if (e instanceof TypeError) {

@@ -267,16 +267,15 @@ export default function Expenses() {
         tags: expense.tags ? expense.tags.split(",").map(t => t.trim()) : [],
       });
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       Analytics.expenseAdded(
         typeof data?.category === "string" && data.category ? data.category : "unknown"
       );
-      const previousExpenses = queryClient.getQueryData<Expense[]>(["/api/expenses"]);
-      if (previousExpenses && data) {
-        queryClient.setQueryData<Expense[]>(["/api/expenses"], [...previousExpenses, data]);
+      if (data) {
+        queryClient.setQueryData<Expense[]>(["/api/expenses"], (old) => [...(old ?? []), data]);
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       setIsAddDialogOpen(false);
       setScanPreFill(null);
       form.reset();
@@ -340,17 +339,14 @@ export default function Expenses() {
       
       return { previousExpenses };
     },
-    onSuccess: (data) => {
-      // Update the cache with the real data from server
+    onSuccess: async (data) => {
       if (data) {
-        const previousExpenses = queryClient.getQueryData<Expense[]>(["/api/expenses"]);
-        if (previousExpenses) {
-          const updatedExpenses = previousExpenses.map(exp => 
-            exp.id === data.id ? data : exp
-          );
-          queryClient.setQueryData<Expense[]>(["/api/expenses"], updatedExpenses);
-        }
+        queryClient.setQueryData<Expense[]>(["/api/expenses"], (old) => {
+          const list = old ?? [];
+          return list.map((exp) => (exp.id === data.id ? data : exp));
+        });
       }
+      await queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
       setIsEditDialogOpen(false);
       setSelectedExpense(null);
       editForm.reset();
@@ -385,8 +381,8 @@ export default function Expenses() {
       
       return { previousExpenses };
     },
-    onSuccess: () => {
-      // Don't invalidate - the optimistic update already removed it
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
       toast({
         title: "Gasto eliminado",
         description: "El gasto se ha eliminado correctamente.",

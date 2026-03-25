@@ -86,6 +86,11 @@ const goalFormSchema = z.object({
 
 type GoalFormValues = z.infer<typeof goalFormSchema>;
 
+/** IDs optimistas en onMutate usan Date.now() (≫ 1e12); los serial de Postgres son mucho menores. */
+function isOptimisticGoalId(id: unknown): boolean {
+  return typeof id === "number" && id > 10_000_000_000;
+}
+
 export default function Goals() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [isAddGoalOpen, setIsAddGoalOpen] = useState(false);
@@ -134,11 +139,22 @@ export default function Goals() {
       
       return { previousGoals };
     },
-    onSuccess: () => {
+    onSuccess: async (newGoal) => {
       Analytics.goalCreated();
-      queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
-      // Also refresh notifications so the goal-created notification appears immediately
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      // Sincronizar caché con la fila real del servidor (evita lista vacía o datos viejos tras invalidate).
+      queryClient.setQueryData<Goal[]>(["/api/financial-goals"], (old) => {
+        const list = old ?? [];
+        const withoutTemp = list.filter((g) => !isOptimisticGoalId(g.id));
+        if (!newGoal) return withoutTemp;
+        const id = Number(newGoal.id);
+        const hasId = withoutTemp.some((g) => Number(g.id) === id);
+        if (hasId) {
+          return withoutTemp.map((g) => (Number(g.id) === id ? { ...g, ...newGoal } : g));
+        }
+        return [...withoutTemp, newGoal as Goal];
+      });
+      await queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       setIsAddGoalOpen(false);
       addForm.reset();
       toast({
@@ -179,19 +195,15 @@ export default function Goals() {
       
       return { previousGoals };
     },
-    onSuccess: (data) => {
-      // Update the cache with the real data from server
+    onSuccess: async (data) => {
       if (data) {
-        const previousGoals = queryClient.getQueryData<Goal[]>(["/api/financial-goals"]);
-        if (previousGoals) {
-          const updatedGoals = previousGoals.map(goal => 
-            goal.id === data.id ? data : goal
-          );
-          queryClient.setQueryData<Goal[]>(["/api/financial-goals"], updatedGoals);
-        }
+        queryClient.setQueryData<Goal[]>(["/api/financial-goals"], (old) => {
+          const list = old ?? [];
+          return list.map((goal) => (Number(goal.id) === Number(data.id) ? { ...goal, ...data } : goal));
+        });
       }
-      // Invalidate notifications to show goal milestone notifications
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       setIsEditGoalOpen(false);
       setSelectedGoal(null);
       editForm.reset();
@@ -227,8 +239,8 @@ export default function Goals() {
       
       return { previousGoals };
     },
-    onSuccess: () => {
-      // Don't invalidate - the optimistic update already removed it
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
       toast({
         title: "Meta eliminada",
         description: "La meta financiera ha sido eliminada.",
