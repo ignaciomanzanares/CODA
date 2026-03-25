@@ -70,10 +70,13 @@ psql "$DATABASE_URL" -f apps/api/scripts/create-privacy-consent-events.sql
 
 Tras aplicar el script, el registro puede completarse con el registro auditable de consentimientos CMF.
 
-**Metas financieras devuelven error de base de datos (`financial_goals` no existe):** crear la tabla con:
+**Metas financieras devuelven error de base de datos (`financial_goals` no existe):** aplica la migración del repo (recomendado) o el script suelto:
 
 ```bash
-psql "$DATABASE_URL" -f apps/api/scripts/create-goals-table.sql
+npm run db:migrate
+# o solo la tabla:
+psql "$DATABASE_URL" -f migrations/013_financial_goals.sql
+# equivalente: apps/api/scripts/create-goals-table.sql
 ```
 
 **Tablas Empresas en Postgres:** Si la API devuelve `relation "empresas_companies" does not exist`, crear solo esas tablas con:

@@ -5,8 +5,8 @@ import { registerConsentRoutes } from "./routes-consent.js";
 import { registerPrivacyConsentRoutes } from "./routes-privacy-consent.js";
 import { registerTestRoutes } from "./routes-test.js";
 import { storage } from "./storage.js";
-import { db, dialect, users, bankConnections, accounts, balances, transactions, creditScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc, insertAccountSchema, insertBankConnectionSchema, insertFinancialGoalSchema } from "./db/index.js";
-import { ZodError } from "zod";
+import { db, dialect, users, bankConnections, accounts, balances, transactions, creditScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc, insertAccountSchema, insertBankConnectionSchema } from "./db/index.js";
+import { ZodError, z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { 
   authenticate, 
@@ -56,6 +56,39 @@ import type { BillSplitParticipant } from "./schema.js";
 function getUserIdFromAuth(req: Request): string {
   const authReq = req as AuthenticatedRequest;
   return authReq.user?.userId || '';
+}
+
+/** Fila lista para `storage.createFinancialGoal` (sin depender de insertFinancialGoalSchema del paquete). */
+function rowFromCreateGoalBody(
+  userId: string,
+  body: z.infer<typeof createFinancialGoalSchema>
+): {
+  userId: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  targetDate: string;
+  category: string;
+} {
+  const targetAmount = Math.round(Number(body.targetAmount));
+  const currentAmount = Math.round(Number(body.currentAmount ?? 0));
+  const td = body.targetDate;
+  let targetDateStr: string;
+  if (typeof td === "string") {
+    targetDateStr = td.includes("T") ? td.split("T")[0]! : td;
+  } else if (td instanceof Date) {
+    targetDateStr = td.toISOString().split("T")[0]!;
+  } else {
+    targetDateStr = new Date(td as unknown as string).toISOString().split("T")[0]!;
+  }
+  return {
+    userId,
+    name: body.name.trim(),
+    targetAmount,
+    currentAmount,
+    targetDate: targetDateStr,
+    category: body.category || "other",
+  };
 }
 
 // Helper to resolve ML artifacts directory
@@ -820,14 +853,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.info({ userId, email: userEmail }, 'Created new user for goal');
       }
 
-      const goalData = insertFinancialGoalSchema.parse({
-        ...req.body,
-        userId,
-        targetDate: typeof req.body.targetDate === 'string'
-          ? req.body.targetDate
-          : new Date(req.body.targetDate).toISOString() // Keep as ISO string for SQLite
-      });
-      const goal = await storage.createFinancialGoal(goalData);
+      const goal = await storage.createFinancialGoal(
+        rowFromCreateGoalBody(userId, req.body as z.infer<typeof createFinancialGoalSchema>)
+      );
       // Emit a creation notification (non-blocking)
       try {
         await notificationService.notifyGoalCreated(userId, goal.name, goal.id as number);
@@ -836,8 +864,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.status(201).json(goal);
     } catch (error) {
+      const e = error as { code?: string; message?: string };
       console.error('[GOALS ERROR]', error);
-      logger.error({ err: error }, 'financial-goals POST failed');
+      logger.error({ err: error, pgCode: e?.code }, 'financial-goals POST failed');
+      // 42P01 = relation does not exist (tabla financial_goals no creada en Postgres)
+      if (e?.code === '42P01' && String(e?.message ?? '').includes('financial_goals')) {
+        logger.warn(
+          'financial_goals table missing: run `npm run db:migrate` or psql -f migrations/013_financial_goals.sql'
+        );
+        return res.status(503).json({
+          message: 'No pudimos guardar la meta. Intenta de nuevo en unos minutos.',
+        });
+      }
       return res.status(500).json({
         message: 'No pudimos guardar la meta. Intenta de nuevo.',
       });
