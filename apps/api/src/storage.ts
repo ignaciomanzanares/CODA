@@ -25,6 +25,21 @@ import type {
   InsertNotification
 } from "./schema";
 
+/** Fecha de meta como texto yyyy-mm-dd (columna `target_date`). */
+function normalizeGoalTargetDate(raw: unknown): string {
+  if (raw instanceof Date) {
+    return raw.toISOString().split("T")[0]!;
+  }
+  if (typeof raw === "string") {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    if (raw.includes("T")) return raw.split("T")[0]!;
+    const d = new Date(raw);
+    if (!Number.isNaN(d.getTime())) return d.toISOString().split("T")[0]!;
+  }
+  const d = new Date(raw as string);
+  return d.toISOString().split("T")[0]!;
+}
+
 export interface IStorage {
   // User operations
   getUser(id: string): Promise<any>;
@@ -556,16 +571,40 @@ export class DatabaseStorage implements IStorage {
     return updatedRisk || undefined;
   }
   
-  // Financial goal methods
+  // Financial goal methods (PostgreSQL / SQLite via Drizzle cuando `db` existe)
   async getFinancialGoals(userId: string): Promise<any[]> {
+    if (db) {
+      return await db.select().from(financialGoals).where(eq(financialGoals.userId, userId));
+    }
     return Array.from(this.financialGoals.values()).filter(
       (goal: any) => goal.userId === userId,
     );
   }
   async getFinancialGoal(id: number): Promise<any | undefined> {
+    if (db) {
+      const [row] = await db.select().from(financialGoals).where(eq(financialGoals.id, id));
+      return row || undefined;
+    }
     return this.financialGoals.get(id);
   }
   async createFinancialGoal(insertGoal: any): Promise<any> {
+    if (db) {
+      const targetDateStr = normalizeGoalTargetDate(insertGoal.targetDate);
+      const targetAmount = Math.round(Number(insertGoal.targetAmount));
+      const currentAmount = Math.round(Number(insertGoal.currentAmount ?? 0));
+      const [row] = await db
+        .insert(financialGoals)
+        .values({
+          userId: insertGoal.userId,
+          name: String(insertGoal.name).trim(),
+          targetAmount,
+          currentAmount,
+          targetDate: targetDateStr,
+          category: String(insertGoal.category ?? "other"),
+        })
+        .returning();
+      return row;
+    }
     const id = this.currentFinancialGoalId++;
     const now = new Date().toISOString();
     const goal: any = {
@@ -578,6 +617,26 @@ export class DatabaseStorage implements IStorage {
     return goal;
   }
   async updateFinancialGoal(id: number, goal: any): Promise<any | undefined> {
+    if (db) {
+      const toUpdate: Record<string, unknown> = { ...goal };
+      delete toUpdate.id;
+      delete toUpdate.userId;
+      if (toUpdate.targetDate !== undefined) {
+        toUpdate.targetDate = normalizeGoalTargetDate(toUpdate.targetDate);
+      }
+      if (typeof toUpdate.targetAmount === "string") {
+        toUpdate.targetAmount = Math.round(parseFloat(String(toUpdate.targetAmount)));
+      }
+      if (typeof toUpdate.currentAmount === "string") {
+        toUpdate.currentAmount = Math.round(parseFloat(String(toUpdate.currentAmount)));
+      }
+      const [row] = await db
+        .update(financialGoals)
+        .set(toUpdate as any)
+        .where(eq(financialGoals.id, id))
+        .returning();
+      return row || undefined;
+    }
     const existingGoal = this.financialGoals.get(id);
     if (!existingGoal) return undefined;
     const updatedGoal: any = {
@@ -588,6 +647,10 @@ export class DatabaseStorage implements IStorage {
     return updatedGoal;
   }
   async deleteFinancialGoal(id: number): Promise<boolean> {
+    if (db) {
+      await db.delete(financialGoals).where(eq(financialGoals.id, id));
+      return true;
+    }
     return this.financialGoals.delete(id);
   }
   
@@ -1123,9 +1186,13 @@ export class DatabaseStorage implements IStorage {
       userInsuranceRisks.forEach(([id, _]) => this.insuranceRisks.delete(id));
       
       // Delete financial goals
-      const userGoals = Array.from(this.financialGoals.entries())
-        .filter(([_, goal]) => goal.userId === userId);
-      userGoals.forEach(([id, _]) => this.financialGoals.delete(id));
+      if (db) {
+        await db.delete(financialGoals).where(eq(financialGoals.userId, userId));
+      } else {
+        const userGoals = Array.from(this.financialGoals.entries())
+          .filter(([_, goal]) => goal.userId === userId);
+        userGoals.forEach(([id, _]) => this.financialGoals.delete(id));
+      }
       
       // Delete expenses
       const userExpenses = Array.from(this.expenses.entries())

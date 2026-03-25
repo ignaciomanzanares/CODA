@@ -24,7 +24,7 @@ import {
 } from "./middleware/auth.js";
 import { emailService } from "./services/emailService.js";
 import crypto from "crypto";
-import { notificationService } from "./services/notificationService.js";
+import { notificationService, expenseCategoryLabelEs } from "./services/notificationService.js";
 import { apiLimiter, expensiveLimiter, authLimiter } from "./middleware/rateLimiter.js";
 import multer from "multer";
 import { logger } from "./logger.js";
@@ -1081,14 +1081,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserIdFromAuth(req);
       const { sendPushToUser } = await import('./services/pushService.js');
       const sent = await sendPushToUser(userId, {
-        title: "CODA - Test",
-        body: "¡Las notificaciones push funcionan correctamente! 🎉",
-        url: "/dashboard",
+        title: "CODA — Prueba",
+        body: "¡Las notificaciones push funcionan correctamente!",
+        url: "/panel",
       });
       res.json({ success: true, devicesSent: sent });
     } catch (error) {
       logger.error({ error }, "Failed to send test push");
-      res.status(500).json({ message: "Error sending test push" });
+      res.status(500).json({ message: "Error al enviar la notificación de prueba" });
     }
   });
 
@@ -1899,12 +1899,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.debug({ amount: currentAmount }, 'Creating expense notification');
         await notificationService.createNotification({
           userId,
-          title: 'New Expense Added',
-          message: `You added a $${currentAmount.toFixed(2)} expense for ${expense.category}.`,
-          type: 'info',
-          category: 'expense',
-          actionUrl: '/expenses',
-          metadata: JSON.stringify({ expenseId: expense.id, amount: currentAmount, category: expense.category })
+          title: "Gasto registrado",
+          message: `Añadiste un gasto de ${new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(currentAmount)} en ${expenseCategoryLabelEs(String(expense.category))}.`,
+          type: "info",
+          category: "expense",
+          actionUrl: "/gastos",
+          metadata: JSON.stringify({ expenseId: expense.id, amount: currentAmount, category: expense.category }),
         });
         logger.debug('Expense notification created');
       }
@@ -2206,7 +2206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json({ 
-        message: `Payment confirmed! Thank you, ${participant.name}!`,
+        message: `¡Pago confirmado! Gracias, ${participant.name}.`,
         participant: {
           id: updatedParticipant?.id,
           name: updatedParticipant?.name,
@@ -2260,23 +2260,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get user info for notification
       const user = await storage.getUser(userId);
-      const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : 'Someone';
+      const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : "Alguien";
       
       // Notify the bill creator
       try {
         await storage.createNotification({
           userId: billSplit.createdBy,
-          type: 'bill_split',
-          category: 'bill_split',
-          title: 'Someone joined your split',
-          message: `${userName} joined "${billSplit.name}" as ${participant.name}`
+          type: "bill_split",
+          category: "bill_split",
+          title: "Alguien se unió a tu dividir cuenta",
+          message: `${userName} se unió a "${billSplit.name}" como ${participant.name}.`,
         });
       } catch (err) {
         logger.error({ err }, 'Error sending join notification');
       }
       
       res.json({ 
-        message: `You've been added as ${participant.name} to this split!`,
+        message: `Te añadieron como ${participant.name} en este dividir cuenta.`,
         participant: {
           id: updatedParticipant?.id,
           name: updatedParticipant?.name,
@@ -2438,7 +2438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (participantsFromBody && Array.isArray(participantsFromBody)) {
         const creatorName = user ? 
           `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username :
-          (req as AuthenticatedRequest).user?.name || (req as AuthenticatedRequest).user?.name || 'Someone';
+          (req as AuthenticatedRequest).user?.name || (req as AuthenticatedRequest).user?.name || "Alguien";
         
         for (const participant of participantsFromBody) {
           let participantUserId = null;
@@ -2640,18 +2640,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (String(billSplit.createdBy) !== userId) { // Only notify if payer is not the creator
         try {
           const payerUser = await storage.getUser(userId);
-          const payerName = payerUser ? 
-            `${payerUser.firstName || ''} ${payerUser.lastName || ''}`.trim() || payerUser.username :
-            'Someone';
+          const payerName = payerUser
+            ? `${payerUser.firstName || ""} ${payerUser.lastName || ""}`.trim() || payerUser.username
+            : "Alguien";
           
           await notificationService.createNotification({
             userId: String(billSplit.createdBy),
-            title: 'Payment Received',
-            message: `${payerName} has paid their share for "${billSplit.name}".`,
-            type: 'success',
-            category: 'bill_split',
-            actionUrl: '/bill-split',
-            metadata: JSON.stringify({ billSplitId, participantId, paidAmount: participant.amountPaid })
+            title: "Pago recibido",
+            message: `${payerName} pagó su parte de "${billSplit.name}".`,
+            type: "success",
+            category: "bill_split",
+            actionUrl: "/dividir-cuenta",
+            metadata: JSON.stringify({ billSplitId, participantId, paidAmount: participant.amountPaid }),
           });
         } catch (notificationError) {
           logger.error({ err: notificationError }, 'Error creating payment notification');
@@ -2799,7 +2799,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const creatorUser = await storage.getUser(userId);
       const creatorName = creatorUser ? 
         `${creatorUser.firstName || ''} ${creatorUser.lastName || ''}`.trim() || creatorUser.username :
-        String((req as AuthenticatedRequest).user?.name || (req as AuthenticatedRequest).user?.name || 'Someone');
+        String((req as AuthenticatedRequest).user?.name || (req as AuthenticatedRequest).user?.name || "Alguien");
       
       const inviteResults = [];
       

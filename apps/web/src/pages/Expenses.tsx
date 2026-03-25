@@ -48,6 +48,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useApi } from "@/lib/api";
 import { mapUserFacingApiError } from "@/lib/userFacingErrors";
+import SwipeableListRow from "@/components/SwipeableListRow";
+import ConfirmDestructiveDialog from "@/components/ConfirmDestructiveDialog";
+import { hapticLight } from "@/lib/haptics";
 import { Analytics } from "@/lib/analytics";
 import type { Expense } from "@/types";
 import { useAuth } from "@/lib/auth";
@@ -239,6 +242,7 @@ export default function Expenses() {
   } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const cartolaInputRef = useRef<HTMLInputElement>(null);
+  const [expensePendingDelete, setExpensePendingDelete] = useState<Expense | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { currency } = useCurrency();
@@ -268,6 +272,7 @@ export default function Expenses() {
       });
     },
     onSuccess: async (data) => {
+      hapticLight();
       Analytics.expenseAdded(
         typeof data?.category === "string" && data.category ? data.category : "unknown"
       );
@@ -340,6 +345,7 @@ export default function Expenses() {
       return { previousExpenses };
     },
     onSuccess: async (data) => {
+      hapticLight();
       if (data) {
         queryClient.setQueryData<Expense[]>(["/api/expenses"], (old) => {
           const list = old ?? [];
@@ -382,6 +388,7 @@ export default function Expenses() {
       return { previousExpenses };
     },
     onSuccess: async () => {
+      hapticLight();
       await queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
       toast({
         title: "Gasto eliminado",
@@ -540,6 +547,14 @@ export default function Expenses() {
         date: new Date(selectedExpense.date).toISOString().split('T')[0], // Keep original date
       };
       updateExpenseMutation.mutate({ id: Number(selectedExpense.id), expense: updatedExpense });
+    }
+  };
+
+  const confirmDeleteExpense = () => {
+    const e = expensePendingDelete;
+    setExpensePendingDelete(null);
+    if (e && isAuthenticated) {
+      deleteExpenseMutation.mutate(Number(e.id));
     }
   };
 
@@ -798,6 +813,17 @@ export default function Expenses() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      <ConfirmDestructiveDialog
+        open={expensePendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setExpensePendingDelete(null);
+        }}
+        title="¿Eliminar este gasto?"
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={confirmDeleteExpense}
+        isPending={deleteExpenseMutation.isPending}
+      />
       <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {!isAuthenticated && (
           <SignInBanner 
@@ -868,7 +894,7 @@ export default function Expenses() {
                   Añadir gasto
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md max-h-modal-viewport scroll-touch-momentum overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{scanPreFill ? "Revisar gasto escaneado" : "Añadir gasto (rápido)"}</DialogTitle>
                 </DialogHeader>
@@ -973,7 +999,14 @@ export default function Expenses() {
               const colorClass = getCategoryColor(expense.category);
               
               return (
-                <Card key={expense.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                <SwipeableListRow
+                  key={expense.id}
+                  canDelete={isAuthenticated}
+                  canEdit={isAuthenticated}
+                  onDelete={() => setExpensePendingDelete(expense)}
+                  onEdit={() => handleEditExpense(expense)}
+                >
+                <Card className="overflow-hidden hover:shadow-md transition-shadow">
                   <CardContent className="p-0">
                     <div className="flex">
                       {/* Category Color Bar */}
@@ -1042,7 +1075,7 @@ export default function Expenses() {
                               variant="ghost" 
                               size="icon"
                               className="h-9 w-9 sm:h-10 sm:w-10 text-red-500 hover:text-red-600 hover:bg-red-50"
-                              onClick={() => deleteExpenseMutation.mutate(Number(expense.id) as any)}
+                              onClick={() => setExpensePendingDelete(expense)}
                               disabled={deleteExpenseMutation.isPending || !isAuthenticated}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1069,6 +1102,7 @@ export default function Expenses() {
                     </div>
                   </CardContent>
                 </Card>
+                </SwipeableListRow>
               );
             })
           ) : (
@@ -1099,7 +1133,7 @@ export default function Expenses() {
           setIsNotificationDialogOpen(open);
           if (!open) { setParsedNotifications(null); setNotificationText(""); }
         }}>
-          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogContent className="max-w-lg max-h-modal-viewport scroll-touch-momentum overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <MessageSquare className="h-5 w-5 text-primary" />
@@ -1202,7 +1236,7 @@ export default function Expenses() {
           setIsCartolaDialogOpen(open);
           if (!open) setCartolaResult(null);
         }}>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-modal-viewport scroll-touch-momentum overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-primary" />
@@ -1339,7 +1373,7 @@ export default function Expenses() {
 
         {/* Edit Expense Dialog - Simplified (name, amount, category with icons) */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-modal-viewport scroll-touch-momentum overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar gasto</DialogTitle>
           </DialogHeader>

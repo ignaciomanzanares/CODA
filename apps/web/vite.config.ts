@@ -42,11 +42,16 @@ export default defineConfig({
           }),
         ]
       : []),
+    // PWA: manifest en public/manifest.json (display: standalone). Para Web Push futuro:
+    // registrar suscripción en el SW, endpoint en API y claves VAPID — workbox ya cachea assets;
+    // añadir handler de push en sw personalizado cuando se implemente.
     VitePWA({
       registerType: "prompt",
       injectRegister: "auto",
       manifest: false,
       includeAssets: ["favicon.svg", "icons/*.png", "og-image.png"],
+      /* Web Push: en el futuro se puede añadir push en el SW (eventos push/subscriptionchange).
+         La base Workbox + manifest standalone ya permite registrar handlers sin cambiar el build. */
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         navigateFallback: "/index.html",

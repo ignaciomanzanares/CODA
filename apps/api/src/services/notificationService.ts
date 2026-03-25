@@ -18,94 +18,120 @@ export interface GetNotificationsOptions {
   unreadOnly?: boolean;
 }
 
-// Notification templates for consistent messaging
+function fmtClp(n: number): string {
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
+    maximumFractionDigits: 0,
+  }).format(n);
+}
+
+/** Etiqueta en español para categorías de gasto (claves en inglés del cliente). */
+export function expenseCategoryLabelEs(cat: string): string {
+  const m: Record<string, string> = {
+    groceries: "Supermercado",
+    dining: "Restaurantes",
+    food_delivery: "Comida a domicilio",
+    transportation: "Transporte",
+    housing: "Vivienda",
+    healthcare: "Salud",
+    entertainment: "Entretenimiento",
+    shopping: "Compras",
+    utilities: "Servicios",
+    education: "Educación",
+    travel: "Viajes",
+    other: "Otros",
+  };
+  return m[String(cat).toLowerCase()] ?? cat;
+}
+
+/** Textos de notificación en español (Chile). */
 export const NotificationTemplates = {
   BILL_SPLIT_CREATED: (billName: string, amount: number) => ({
-    title: "New Bill Split Created",
-    message: '"' + billName + '" has been created for $' + amount.toFixed(2) + '. Check your share!',
+    title: "Nuevo dividir cuenta",
+    message: `Se creó "${billName}" por ${fmtClp(amount)}. Revisa tu parte.`,
     type: "info" as const,
     category: "bill_split" as const,
-    actionUrl: "/bill-split"
+    actionUrl: "/dividir-cuenta",
   }),
 
   BILL_SPLIT_PAYMENT_REMINDER: (billName: string, amount: number) => ({
-    title: "Payment Reminder",
-    message: 'You owe $' + amount.toFixed(2) + ' for "' + billName + '". Please settle up!',
+    title: "Recordatorio de pago",
+    message: `Debes ${fmtClp(amount)} por "${billName}". ¡Regulariza cuando puedas!`,
     type: "warning" as const,
     category: "bill_split" as const,
-    actionUrl: "/bill-split"
+    actionUrl: "/dividir-cuenta",
   }),
 
   BILL_SPLIT_PAID: (billName: string, payer: string) => ({
-    title: "Payment Received",
-    message: payer + ' has paid their share for "' + billName + '".',
+    title: "Pago recibido",
+    message: `${payer} pagó su parte de "${billName}".`,
     type: "success" as const,
     category: "bill_split" as const,
-    actionUrl: "/bill-split"
+    actionUrl: "/dividir-cuenta",
   }),
 
   CREDIT_SCORE_UPDATED: (newScore: number, change: number) => ({
-    title: "Credit Score Updated",
-    message: 'Your credit score is now ' + newScore + ' (' + (change > 0 ? '+' : '') + change + ' points).',
-    type: change > 0 ? "success" as const : "warning" as const,
+    title: "Score de crédito actualizado",
+    message: `Tu score ahora es ${newScore} (${change > 0 ? "+" : ""}${change} puntos).`,
+    type: change > 0 ? ("success" as const) : ("warning" as const),
     category: "credit_score" as const,
-    actionUrl: "/dashboard"
+    actionUrl: "/panel",
   }),
 
   GOAL_CREATED: (goalName: string) => ({
-    title: "Goal Created",
-    message: 'Your goal "' + goalName + '" has been created.',
+    title: "Meta creada",
+    message: `Tu meta "${goalName}" ha sido creada.`,
     type: "info" as const,
     category: "goal" as const,
-    actionUrl: "/goals"
+    actionUrl: "/metas",
   }),
 
   GOAL_MILESTONE: (goalName: string, progress: number) => ({
-    title: "Goal Milestone Reached",
-    message: 'Great job! You have reached ' + progress + '% of your "' + goalName + '" goal.',
+    title: "Hito de meta alcanzado",
+    message: `¡Bien! Llegaste al ${progress}% de tu meta "${goalName}".`,
     type: "success" as const,
     category: "goal" as const,
-    actionUrl: "/goals"
+    actionUrl: "/metas",
   }),
 
   GOAL_DEADLINE_APPROACHING: (goalName: string, daysLeft: number) => ({
-    title: "Goal Deadline Approaching",
-    message: 'Your "' + goalName + '" goal is due in ' + daysLeft + ' days. Stay on track!',
+    title: "Fecha límite de meta cercana",
+    message: `Tu meta "${goalName}" vence en ${daysLeft} días. ¡Sigue así!`,
     type: "warning" as const,
     category: "goal" as const,
-    actionUrl: "/goals"
+    actionUrl: "/metas",
   }),
 
   EXPENSE_UNUSUAL: (amount: number, category: string) => ({
-    title: "Unusual Spending Detected",
-    message: 'You spent $' + amount.toFixed(2) + ' on ' + category + ', which is higher than usual.',
+    title: "Gasto inusual",
+    message: `Gastaste ${fmtClp(amount)} en ${category}, por encima de lo habitual.`,
     type: "info" as const,
     category: "expense" as const,
-    actionUrl: "/expenses"
+    actionUrl: "/gastos",
   }),
 
   SECURITY_LOGIN: (location: string) => ({
-    title: "New Login Detected",
-    message: 'A new login was detected from ' + location + ". If this wasn't you, please secure your account.",
+    title: "Nuevo inicio de sesión",
+    message: `Detectamos un acceso desde ${location}. Si no fuiste tú, protege tu cuenta.`,
     type: "warning" as const,
     category: "security" as const,
-    actionUrl: "/profile"
+    actionUrl: "/perfil",
   }),
 
   PRODUCT_RECOMMENDATION: (productType: string) => ({
-    title: "New Product Recommendation",
-    message: 'We found a ' + productType + ' that might interest you based on your financial profile.',
+    title: "Nueva recomendación",
+    message: `Encontramos un ${productType} que podría interesarte según tu perfil.`,
     type: "info" as const,
     category: "product" as const,
-    actionUrl: "/products"
-  })
+    actionUrl: "/productos",
+  }),
 };
 
 class NotificationServiceImpl implements NotificationService {
   async createNotification(notification: InsertNotification): Promise<Notification> {
     const created = await storage.createNotification(notification);
 
-    // Fire-and-forget push notification to all user devices
     const pushPayload: PushPayload = {
       title: notification.title,
       body: notification.message,
@@ -137,13 +163,12 @@ class NotificationServiceImpl implements NotificationService {
     return await storage.getUnreadNotificationCount(userId);
   }
 
-  // Helper methods for common notification scenarios
   async notifyBillSplitCreated(userId: string, billName: string, amount: number, billSplitId?: number): Promise<Notification> {
     const template = NotificationTemplates.BILL_SPLIT_CREATED(billName, amount);
     return await this.createNotification({
       userId,
       ...template,
-      metadata: JSON.stringify({ billSplitId })
+      metadata: JSON.stringify({ billSplitId }),
     });
   }
 
@@ -152,19 +177,19 @@ class NotificationServiceImpl implements NotificationService {
     return await this.createNotification({
       userId,
       ...template,
-      metadata: JSON.stringify({ billSplitId })
+      metadata: JSON.stringify({ billSplitId }),
     });
   }
 
   async notifyBillSplitPaymentReceived(userId: string, payerName: string, amount: number, billName: string, billSplitId?: number): Promise<Notification> {
     return await this.createNotification({
       userId,
-      title: 'Payment Received! 💰',
-      message: `${payerName} paid $${amount.toFixed(2)} for "${billName}"`,
-      type: 'success',
-      category: 'bill_split',
-      actionUrl: '/bill-split',
-      metadata: JSON.stringify({ billSplitId, payerName, amount })
+      title: "Pago recibido",
+      message: `${payerName} pagó ${fmtClp(amount)} por "${billName}".`,
+      type: "success",
+      category: "bill_split",
+      actionUrl: "/dividir-cuenta",
+      metadata: JSON.stringify({ billSplitId, payerName, amount }),
     });
   }
 
@@ -174,7 +199,7 @@ class NotificationServiceImpl implements NotificationService {
     return await this.createNotification({
       userId,
       ...template,
-      metadata: JSON.stringify({ newScore, oldScore, change })
+      metadata: JSON.stringify({ newScore, oldScore, change }),
     });
   }
 
@@ -183,7 +208,7 @@ class NotificationServiceImpl implements NotificationService {
     return await this.createNotification({
       userId,
       ...template,
-      metadata: JSON.stringify({ goalId, progress })
+      metadata: JSON.stringify({ goalId, progress }),
     });
   }
 
@@ -192,16 +217,16 @@ class NotificationServiceImpl implements NotificationService {
     return await this.createNotification({
       userId,
       ...template,
-      metadata: JSON.stringify({ goalId })
+      metadata: JSON.stringify({ goalId }),
     });
   }
 
   async notifyUnusualExpense(userId: string, amount: number, category: string, expenseId?: number): Promise<Notification> {
-    const template = NotificationTemplates.EXPENSE_UNUSUAL(amount, category);
+    const template = NotificationTemplates.EXPENSE_UNUSUAL(amount, expenseCategoryLabelEs(category));
     return await this.createNotification({
       userId,
       ...template,
-      metadata: JSON.stringify({ expenseId, amount, category })
+      metadata: JSON.stringify({ expenseId, amount, category }),
     });
   }
 
@@ -210,7 +235,7 @@ class NotificationServiceImpl implements NotificationService {
     return await this.createNotification({
       userId,
       ...template,
-      metadata: JSON.stringify({ location, timestamp: new Date().toISOString() })
+      metadata: JSON.stringify({ location, timestamp: new Date().toISOString() }),
     });
   }
 }

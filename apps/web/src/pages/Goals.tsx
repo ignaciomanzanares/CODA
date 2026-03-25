@@ -74,6 +74,7 @@ import { generateDemoFinancialGoals } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
 import type { Goal, UpdateGoalData } from "@/types";
 import { cn } from "@/lib/utils";
+import { hapticLight } from "@/lib/haptics";
 
 // Form schema for adding/editing a goal
 const goalFormSchema = z.object({
@@ -157,6 +158,7 @@ export default function Goals() {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       setIsAddGoalOpen(false);
       addForm.reset();
+      hapticLight();
       toast({
         title: "Meta creada",
         description: "Tu meta financiera se ha creado correctamente.",
@@ -207,6 +209,7 @@ export default function Goals() {
       setIsEditGoalOpen(false);
       setSelectedGoal(null);
       editForm.reset();
+      hapticLight();
       toast({
         title: "Meta actualizada",
         description: "Tu meta financiera se ha actualizado correctamente.",
@@ -241,6 +244,7 @@ export default function Goals() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
+      hapticLight();
       toast({
         title: "Meta eliminada",
         description: "La meta financiera ha sido eliminada.",
@@ -485,7 +489,7 @@ export default function Goals() {
                 Añadir meta
               </Button>
             </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-md max-h-modal-viewport scroll-touch-momentum overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Añadir meta financiera</DialogTitle>
               <DialogDescription>
@@ -787,7 +791,7 @@ export default function Goals() {
 
         {/* Edit Goal Dialog */}
       <Dialog open={isEditGoalOpen} onOpenChange={setIsEditGoalOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md max-h-modal-viewport scroll-touch-momentum overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar meta financiera</DialogTitle>
             <DialogDescription>
@@ -801,7 +805,7 @@ export default function Goals() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Goal Name</FormLabel>
+                    <FormLabel>Nombre de la meta</FormLabel>
                     <FormControl>
                       <Input placeholder="ej. Fondo de emergencia" {...field} />
                     </FormControl>
@@ -814,20 +818,20 @@ export default function Goals() {
                 name="category"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category</FormLabel>
+                    <FormLabel>Categoría</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a category" />
+                          <SelectValue placeholder="Elegir categoría" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="savings">Savings</SelectItem>
-                        <SelectItem value="debt_repayment">Debt Repayment</SelectItem>
-                        <SelectItem value="retirement">Retirement</SelectItem>
-                        <SelectItem value="home">Home</SelectItem>
-                        <SelectItem value="education">Education</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="savings">Ahorro</SelectItem>
+                        <SelectItem value="debt_repayment">Pago de deudas</SelectItem>
+                        <SelectItem value="retirement">Jubilación</SelectItem>
+                        <SelectItem value="home">Vivienda</SelectItem>
+                        <SelectItem value="education">Educación</SelectItem>
+                        <SelectItem value="other">Otros</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

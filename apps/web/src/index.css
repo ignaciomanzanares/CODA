@@ -30,6 +30,8 @@
     --sar: env(safe-area-inset-right, 0px);
     --sab: env(safe-area-inset-bottom, 0px);
     --sal: env(safe-area-inset-left, 0px);
+    /* Actualizado en runtime por useVisualViewportHeight (teclado móvil / iOS) */
+    --visual-viewport-height: 100dvh;
   }
  
   .dark {
@@ -211,4 +213,17 @@ button,
 .overflow-y-scroll {
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+}
+
+/* Modales con formulario: altura acotada al visual viewport (evita teclado tapando inputs en iOS) */
+.scroll-touch-momentum {
+  -webkit-overflow-scrolling: touch;
+}
+.max-h-modal-viewport {
+  max-height: min(92dvh, var(--visual-viewport-height, 100dvh));
+}
+
+/* Panel de notificaciones: un poco más bajo que modales de formulario (lista + teclado) */
+.max-h-notification-panel {
+  max-height: min(80dvh, var(--visual-viewport-height, 100dvh));
 }
