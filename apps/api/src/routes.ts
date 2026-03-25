@@ -20,6 +20,7 @@ import {
   handleEnable2FA,
   handleDisable2FA,
   handleResend2FA,
+  handleRecoverMigrationPassword,
   type AuthenticatedRequest 
 } from "./middleware/auth.js";
 import { emailService } from "./services/emailService.js";
@@ -146,6 +147,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.post("/api/auth/register", authLimiter, handleRegister);
   app.post("/api/auth/login", authLimiter, handleLoginWithDB);
+  /** Recuperar contraseña tras migración (requiere MIGRATION_RECOVERY_SECRET en el servidor). */
+  app.post("/api/auth/recover-migration-password", authLimiter, handleRecoverMigrationPassword);
   app.post("/api/auth/logout", authenticate, handleLogout);
   app.get("/api/auth/me", authenticate, handleMe);
   

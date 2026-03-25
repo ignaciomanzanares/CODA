@@ -616,6 +616,8 @@ export async function ensureUserForToken(payload: TokenPayload): Promise<string 
         firstName: firstName || 'Usuario',
         lastName: rest.length > 0 ? rest.join(' ') : null,
         displayName: payload.name?.trim() || null,
+        /** Marca cuenta creada solo para FK: la contraseña real no está en BD hasta login o recuperación. */
+        userMetadata: JSON.stringify({ jwtSynced: true }),
       });
       logger.info(
         { userId: created.id, email: redactEmail(email) },
@@ -633,6 +635,79 @@ export async function ensureUserForToken(payload: TokenPayload): Promise<string 
     'ensureUserForToken: faltan datos para crear usuario'
   );
   return null;
+}
+
+/** Cuenta creada por ensureUserForToken (hash placeholder, no la contraseña real del usuario). */
+export function isJwtSyncedMigrationUser(user: { userMetadata?: string | null }): boolean {
+  if (!user?.userMetadata) return false;
+  try {
+    const m = JSON.parse(user.userMetadata) as { jwtSynced?: boolean };
+    return m.jwtSynced === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Detecta el hash interno `hashPassword('__jwt_sync__' + userId + email)` aunque no exista `user_metadata`
+ * (filas creadas antes de guardar jwtSynced en metadata).
+ */
+export function isPlaceholderJwtSyncPassword(
+  user: { id: string; passwordHash: string },
+  email: string
+): boolean {
+  const secret = `__jwt_sync__${user.id}__${normalizeEmail(email)}`;
+  return verifyPassword(secret, user.passwordHash);
+}
+
+/**
+ * Tras migrar a Neon con BD vacía: el usuario puede tener fila creada por JWT sin su contraseña real.
+ * Requiere `MIGRATION_RECOVERY_SECRET` en el servidor (valor largo, solo tú lo conoces).
+ */
+export async function handleRecoverMigrationPassword(req: Request, res: Response) {
+  const secret = process.env.MIGRATION_RECOVERY_SECRET;
+  if (!secret || secret.length < 16) {
+    return res.status(503).json({
+      message:
+        'Recuperación no está activa. En el hosting, define MIGRATION_RECOVERY_SECRET (16+ caracteres), despliega, usa el formulario una vez y quita la variable.',
+    });
+  }
+  const { email: rawEmail, newPassword, recoverySecret } = req.body as {
+    email?: string;
+    newPassword?: string;
+    recoverySecret?: string;
+  };
+  if (recoverySecret !== secret) {
+    return res.status(403).json({ message: 'Código de recuperación inválido.' });
+  }
+  if (!rawEmail || typeof newPassword !== 'string' || newPassword.length < 8) {
+    return res.status(400).json({
+      message: 'Email y contraseña nueva (mínimo 8 caracteres) son obligatorios.',
+    });
+  }
+  const email = normalizeEmail(rawEmail);
+  const user = await storage.getUserByEmail(email);
+  if (!user) {
+    return res.status(404).json({ message: 'No encontramos una cuenta con ese correo.' });
+  }
+  if (!isJwtSyncedMigrationUser(user) && !isPlaceholderJwtSyncPassword(user, email)) {
+    return res.status(400).json({
+      message:
+        'Esta cuenta no está en modo recuperación por migración. Si olvidaste la contraseña, usa el flujo habitual cuando esté disponible.',
+    });
+  }
+  await storage.updateUser(user.id, {
+    passwordHash: hashPassword(newPassword),
+    userMetadata: null,
+  });
+  logAuthSecurityEvent('migration_password_recovery', req, {
+    userId: user.id,
+    email: redactEmail(email),
+  });
+  return res.json({
+    success: true,
+    message: 'Contraseña actualizada. Ya puedes iniciar sesión con la nueva clave.',
+  });
 }
 
 /**
@@ -692,6 +767,14 @@ export async function handleLoginWithDB(req: Request, res: Response) {
           reason: 'bad_password',
           email: redactEmail(email),
         });
+        if (isJwtSyncedMigrationUser(user) || isPlaceholderJwtSyncPassword(user, email)) {
+          return res.status(401).json({
+            error: 'Unauthorized',
+            code: 'migration_password_placeholder',
+            message:
+              '[migration_recovery] Tras migrar el servidor (Neon), tu cuenta existe pero la contraseña aún no está guardada aquí. Despliega en Render la variable MIGRATION_RECOVERY_SECRET (16+ caracteres), abre «Recuperar acceso» abajo, pon tu nueva clave y ese código, y luego borra la variable.',
+          });
+        }
         return res.status(401).json({
           error: 'Unauthorized',
           code: 'wrong_password',
