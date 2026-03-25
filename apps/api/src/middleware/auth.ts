@@ -565,21 +565,73 @@ export async function getOrCreateDemoUser(email: string): Promise<{ id: string; 
 }
 
 /**
- * Resolve the effective DB user id for the given JWT payload.
- * Use this in routes that write to tables with FK to users (e.g. consent_grants).
- * Returns null if the user does not exist and cannot be created (e.g. demo disabled).
+ * Resuelve el `users.id` efectivo para el JWT (FK en financial_goals, trazabilidad, etc.).
+ *
+ * - BD nueva (p. ej. Neon vacía): el JWT sigue siendo válido pero no hay fila → **creamos** una fila mínima.
+ * - Email ya existe con otro id (JWT antiguo): devolvemos el id de la fila en BD.
+ * - Demo: mismo comportamiento que antes con `getOrCreateDemoUser`.
  */
 export async function ensureUserForToken(payload: TokenPayload): Promise<string | null> {
   if (!payload?.userId && !payload?.email) return null;
-  const byId = await storage.getUser(payload.userId);
-  if (byId) return byId.id;
-  const byEmail = await storage.getUserByEmail(payload.email);
-  if (byEmail) return byEmail.id;
+
+  const email = payload.email ? normalizeEmail(payload.email) : null;
+
+  if (payload.userId) {
+    const byId = await storage.getUser(payload.userId);
+    if (byId) return byId.id;
+  }
+
+  if (email) {
+    const byEmail = await storage.getUserByEmail(email);
+    if (byEmail) {
+      if (payload.userId && byEmail.id !== payload.userId) {
+        logger.warn(
+          {
+            jwtUserId: payload.userId,
+            dbUserId: byEmail.id,
+            email: redactEmail(email),
+          },
+          'ensureUserForToken: JWT userId sin fila; usando usuario encontrado por email'
+        );
+      }
+      return byEmail.id;
+    }
+  }
+
   const demoModeEnabled = process.env.DEMO_MODE === 'true';
-  if (demoModeEnabled && payload.email) {
-    const user = await getOrCreateDemoUser(payload.email);
+  if (demoModeEnabled && email) {
+    const user = await getOrCreateDemoUser(email);
     return user.id;
   }
+
+  /** Migración a BD vacía: JWT verificado por `authenticate` pero `users` sin fila. */
+  if (payload.userId && email) {
+    try {
+      const [firstName, ...rest] = (payload.name ?? '').split(/\s+/).filter(Boolean);
+      const created = await storage.createUser({
+        id: payload.userId,
+        username: `u_${payload.userId.replace(/-/g, '')}`,
+        email,
+        passwordHash: hashPassword(`__jwt_sync__${payload.userId}__${email}`),
+        firstName: firstName || 'Usuario',
+        lastName: rest.length > 0 ? rest.join(' ') : null,
+        displayName: payload.name?.trim() || null,
+      });
+      logger.info(
+        { userId: created.id, email: redactEmail(email) },
+        'ensureUserForToken: fila users creada (JWT sin contraparte en BD)'
+      );
+      return created.id;
+    } catch (err) {
+      logger.error({ err }, 'ensureUserForToken: no se pudo crear usuario para FK');
+      return null;
+    }
+  }
+
+  logger.warn(
+    { hasUserId: !!payload.userId, hasEmail: !!email },
+    'ensureUserForToken: faltan datos para crear usuario'
+  );
   return null;
 }
 
