@@ -771,19 +771,9 @@ export async function handleLoginWithDB(req: Request, res: Response) {
       user = await storage.getUserByEmail(String(rawEmail).trim());
     }
 
-    console.log('[login-debug] email:', email);
-    console.log('[login-debug] user found:', !!user);
-
     if (user && user.passwordHash) {
-      // User exists with password - verify (PBKDF2 salt:hash; no bcrypt en este proyecto)
-      const pwdMatch = verifyPassword(password, user.passwordHash);
-      console.log(
-        '[login-debug] hash prefix:',
-        user.passwordHash ? String(user.passwordHash).substring(0, 10) : '(none)'
-      );
-      console.log('[login-debug] verifyPassword match:', pwdMatch);
-
-      if (!pwdMatch) {
+      // User exists with password - verify
+      if (!verifyPassword(password, user.passwordHash)) {
         logAuthSecurityEvent('login_failed', req, {
           reason: 'bad_password',
           email: redactEmail(email),
