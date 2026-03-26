@@ -666,17 +666,24 @@ export function isPlaceholderJwtSyncPassword(
  */
 export async function handleRecoverMigrationPassword(req: Request, res: Response) {
   const secret = process.env.MIGRATION_RECOVERY_SECRET;
+  const body = req.body as {
+    email?: string;
+    newPassword?: string;
+    recoverySecret?: string;
+    secret?: string;
+  };
+  console.log('[recovery-debug] email recibido:', body.email);
+  console.log('[recovery-debug] secret match (recoverySecret):', body.recoverySecret === secret);
+  console.log('[recovery-debug] secret match (body.secret):', body.secret === secret);
+  console.log('[recovery-debug] env secret configured:', !!(secret && secret.length >= 16));
+
   if (!secret || secret.length < 16) {
     return res.status(503).json({
       message:
         'Recuperación no está activa. En el hosting, define MIGRATION_RECOVERY_SECRET (16+ caracteres), despliega, usa el formulario una vez y quita la variable.',
     });
   }
-  const { email: rawEmail, newPassword, recoverySecret } = req.body as {
-    email?: string;
-    newPassword?: string;
-    recoverySecret?: string;
-  };
+  const { email: rawEmail, newPassword, recoverySecret } = body;
   if (recoverySecret !== secret) {
     return res.status(403).json({ message: 'Código de recuperación inválido.' });
   }
@@ -764,9 +771,19 @@ export async function handleLoginWithDB(req: Request, res: Response) {
       user = await storage.getUserByEmail(String(rawEmail).trim());
     }
 
+    console.log('[login-debug] email:', email);
+    console.log('[login-debug] user found:', !!user);
+
     if (user && user.passwordHash) {
-      // User exists with password - verify
-      if (!verifyPassword(password, user.passwordHash)) {
+      // User exists with password - verify (PBKDF2 salt:hash; no bcrypt en este proyecto)
+      const pwdMatch = verifyPassword(password, user.passwordHash);
+      console.log(
+        '[login-debug] hash prefix:',
+        user.passwordHash ? String(user.passwordHash).substring(0, 10) : '(none)'
+      );
+      console.log('[login-debug] verifyPassword match:', pwdMatch);
+
+      if (!pwdMatch) {
         logAuthSecurityEvent('login_failed', req, {
           reason: 'bad_password',
           email: redactEmail(email),
