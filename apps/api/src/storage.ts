@@ -9,6 +9,8 @@ import {
   transactions,
   creditScores,
   transactionalScores,
+  documentUploads,
+  userScores,
   insuranceRisks,
   financialGoals,
   financialProducts,
@@ -150,6 +152,34 @@ export interface IStorage {
   // User cleanup
   deleteUserData(userId: string): Promise<boolean>;
 
+  /** Documentos parseados (cartola / CMF). */
+  createDocumentUpload(row: {
+    id: string;
+    userId: string;
+    tipo: string;
+    banco?: string | null;
+    periodoDesde?: string | null;
+    periodoHasta?: string | null;
+    parsedData: unknown;
+    parseStatus?: string;
+  }): Promise<any>;
+
+  getDocumentUploadById(id: string, userId: string): Promise<any | undefined>;
+
+  insertUserScore(row: {
+    id: string;
+    userId: string;
+    scoreCrediticio?: number | null;
+    scoreTransaccional?: number | null;
+    categoria?: string | null;
+    componentes?: unknown;
+    insights?: unknown;
+    documentosUsados?: unknown;
+    periodoAnalizadoDesde?: string | null;
+    periodoAnalizadoHasta?: string | null;
+  }): Promise<any>;
+
+  getLatestUserScore(userId: string): Promise<any | undefined>;
 }
 
 // Minimal placeholder storage to satisfy the interface and keep the project compiling.
@@ -1192,6 +1222,96 @@ export class DatabaseStorage implements IStorage {
   }
   
   // User data cleanup
+  async createDocumentUpload(row: {
+    id: string;
+    userId: string;
+    tipo: string;
+    banco?: string | null;
+    periodoDesde?: string | null;
+    periodoHasta?: string | null;
+    parsedData: unknown;
+    parseStatus?: string;
+  }): Promise<any> {
+    if (!db) throw new Error("Database not available");
+    const [inserted] = await db
+      .insert(documentUploads)
+      .values({
+        id: row.id,
+        userId: row.userId,
+        tipo: row.tipo,
+        banco: row.banco ?? null,
+        periodoDesde: row.periodoDesde ?? null,
+        periodoHasta: row.periodoHasta ?? null,
+        parsedData: JSON.stringify(row.parsedData),
+        parseStatus: row.parseStatus ?? "success",
+        uploadedAt: new Date().toISOString(),
+      })
+      .returning();
+    return inserted;
+  }
+
+  async getDocumentUploadById(id: string, userId: string): Promise<any | undefined> {
+    if (!db) return undefined;
+    const [row] = await db
+      .select()
+      .from(documentUploads)
+      .where(and(eq(documentUploads.id, id), eq(documentUploads.userId, userId)));
+    if (!row) return undefined;
+    return {
+      ...row,
+      parsedData: row.parsedData ? JSON.parse(row.parsedData) : null,
+    };
+  }
+
+  async insertUserScore(row: {
+    id: string;
+    userId: string;
+    scoreCrediticio?: number | null;
+    scoreTransaccional?: number | null;
+    categoria?: string | null;
+    componentes?: unknown;
+    insights?: unknown;
+    documentosUsados?: unknown;
+    periodoAnalizadoDesde?: string | null;
+    periodoAnalizadoHasta?: string | null;
+  }): Promise<any> {
+    if (!db) throw new Error("Database not available");
+    const [inserted] = await db
+      .insert(userScores)
+      .values({
+        id: row.id,
+        userId: row.userId,
+        scoreCrediticio: row.scoreCrediticio ?? null,
+        scoreTransaccional: row.scoreTransaccional ?? null,
+        categoria: row.categoria ?? null,
+        componentes: row.componentes != null ? JSON.stringify(row.componentes) : null,
+        insights: row.insights != null ? JSON.stringify(row.insights) : null,
+        documentosUsados: row.documentosUsados != null ? JSON.stringify(row.documentosUsados) : null,
+        calculadoAt: new Date().toISOString(),
+        periodoAnalizadoDesde: row.periodoAnalizadoDesde ?? null,
+        periodoAnalizadoHasta: row.periodoAnalizadoHasta ?? null,
+      })
+      .returning();
+    return inserted;
+  }
+
+  async getLatestUserScore(userId: string): Promise<any | undefined> {
+    if (!db) return undefined;
+    const [row] = await db
+      .select()
+      .from(userScores)
+      .where(eq(userScores.userId, userId))
+      .orderBy(desc(userScores.calculadoAt))
+      .limit(1);
+    if (!row) return undefined;
+    return {
+      ...row,
+      componentes: row.componentes ? JSON.parse(row.componentes) : null,
+      insights: row.insights ? JSON.parse(row.insights) : null,
+      documentosUsados: row.documentosUsados ? JSON.parse(row.documentosUsados) : null,
+    };
+  }
+
   async deleteUserData(userId: string): Promise<boolean> {
     try {
       // Delete all user-related data from memory maps
@@ -1213,6 +1333,8 @@ export class DatabaseStorage implements IStorage {
       
       // Delete financial goals
       if (db) {
+        await db.delete(documentUploads).where(eq(documentUploads.userId, userId));
+        await db.delete(userScores).where(eq(userScores.userId, userId));
         await db.delete(financialGoals).where(eq(financialGoals.userId, userId));
       } else {
         const userGoals = Array.from(this.financialGoals.entries())
