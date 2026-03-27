@@ -278,35 +278,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
           spendingByCategory[category] = (spendingByCategory[category] || 0) + Math.abs(txAmount(t));
         });
 
-      // Generate net worth trend (last 6 months - simulated based on current)
-      const netWorthTrend = [];
+      // Últimos 6 meses calendario: ingresos y egresos reales por mes (sin ruido artificial).
+      // Patrimonio: mismo valor actual por mes (no hay series históricas de saldos en BD).
+      const netWorthTrend: { month: string; netWorth: number; assets: number; liabilities: number }[] = [];
+      const cashFlowTrend: { month: string; income: number; expenses: number }[] = [];
+      const now = new Date();
       for (let i = 5; i >= 0; i--) {
-        const date = new Date();
-        date.setMonth(date.getMonth() - i);
-        const monthLabel = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-        // Simulate growth trend (in production, calculate from historical data)
-        const variance = 1 - (i * 0.02) + (Math.random() * 0.02);
-        netWorthTrend.push({
-          month: monthLabel,
-          netWorth: Math.round(netWorth * variance),
-          assets: Math.round(totalAssets * variance),
-          liabilities: Math.round(totalLiabilities * (1 + (i * 0.01))),
-        });
-      }
-
-      // Monthly cash flow (last 6 months)
-      const cashFlowTrend = [];
-      for (let i = 5; i >= 0; i--) {
-        const date = new Date();
-        date.setMonth(date.getMonth() - i);
-        const monthLabel = date.toLocaleDateString('en-US', { month: 'short' });
-        // Simulate cash flow (in production, calculate from historical transactions)
-        const incomeVariance = 0.9 + (Math.random() * 0.2);
-        const expenseVariance = 0.85 + (Math.random() * 0.3);
+        const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
+        const monthLabelNw = monthStart.toLocaleDateString("es-CL", { month: "short", year: "2-digit" });
+        const monthLabelCf = monthStart.toLocaleDateString("es-CL", { month: "short" });
+        const inMonth = transactions.filter(
+          (t: any) =>
+            t != null &&
+            t.postedAt &&
+            new Date(t.postedAt) >= monthStart &&
+            new Date(t.postedAt) <= monthEnd
+        );
+        const inc = inMonth
+          .filter((t: any) => txAmount(t) > 0)
+          .reduce((s: number, t: any) => s + txAmount(t), 0);
+        const exp = Math.abs(
+          inMonth
+            .filter((t: any) => txAmount(t) < 0)
+            .reduce((s: number, t: any) => s + txAmount(t), 0)
+        );
         cashFlowTrend.push({
-          month: monthLabel,
-          income: Math.round(monthlyIncome * incomeVariance),
-          expenses: Math.round(monthlyExpenses * expenseVariance),
+          month: monthLabelCf,
+          income: Math.round(inc),
+          expenses: Math.round(exp),
+        });
+        netWorthTrend.push({
+          month: monthLabelNw,
+          netWorth: Math.round(netWorth),
+          assets: Math.round(totalAssets),
+          liabilities: Math.round(totalLiabilities),
         });
       }
 
@@ -396,96 +402,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  /**
-   * GET /api/financial-summary/demo
-   * Demo financial summary with realistic sample data
-   */
-  app.get("/api/financial-summary/demo", async (_req, res) => {
-    const demoData = {
-      summary: {
-        totalBalance: 24562.80,
-        totalAssets: 156850,
-        totalLiabilities: 14500,
-        netWorth: 142350,
-        monthlyIncome: 7500,
-        monthlyExpenses: 3845.20,
-        savingsRate: 49,
-        accountCount: 5,
-      },
-      accountsByType: {
-        checking: {
-          count: 2,
-          total: 8562.80,
-          accounts: [
-            { id: 1, name: "Main Checking", balance: 6234.50, institution: "Chase" },
-            { id: 2, name: "Bills Account", balance: 2328.30, institution: "BofA" },
-          ],
-        },
-        savings: {
-          count: 1,
-          total: 16000,
-          accounts: [
-            { id: 3, name: "Emergency Fund", balance: 16000, institution: "Ally" },
-          ],
-        },
-        creditCards: {
-          count: 2,
-          total: 2500,
-          accounts: [
-            { id: 4, name: "Sapphire Reserve", balance: 1800, limit: 15000 },
-            { id: 5, name: "Amex Gold", balance: 700, limit: 10000 },
-          ],
-        },
-        loans: {
-          count: 1,
-          total: 12000,
-          accounts: [
-            { id: 6, name: "Auto Loan", balance: 12000 },
-          ],
-        },
-        investments: {
-          count: 2,
-          total: 132287.20,
-          accounts: [
-            { id: 7, name: "401(k)", balance: 98500 },
-            { id: 8, name: "Brokerage", balance: 33787.20 },
-          ],
-        },
-      },
-      trends: {
-        netWorth: [
-          { month: "Aug '25", netWorth: 128500, assets: 142000, liabilities: 13500 },
-          { month: "Sep '25", netWorth: 131200, assets: 145500, liabilities: 14300 },
-          { month: "Oct '25", netWorth: 134800, assets: 149200, liabilities: 14400 },
-          { month: "Nov '25", netWorth: 137500, assets: 152000, liabilities: 14500 },
-          { month: "Dec '25", netWorth: 140100, assets: 154800, liabilities: 14700 },
-          { month: "Jan '26", netWorth: 142350, assets: 156850, liabilities: 14500 },
-        ],
-        cashFlow: [
-          { month: "Aug", income: 7200, expenses: 4100 },
-          { month: "Sep", income: 7500, expenses: 3800 },
-          { month: "Oct", income: 7500, expenses: 4200 },
-          { month: "Nov", income: 7800, expenses: 3900 },
-          { month: "Dec", income: 8200, expenses: 5100 },
-          { month: "Jan", income: 7500, expenses: 3845 },
-        ],
-      },
-      spending: {
-        total: 3845.20,
-        byCategory: [
-          { name: "Housing", amount: 1500, percentage: 39 },
-          { name: "Food & Dining", amount: 680, percentage: 18 },
-          { name: "Transportation", amount: 420, percentage: 11 },
-          { name: "Utilities", amount: 285, percentage: 7 },
-          { name: "Entertainment", amount: 340, percentage: 9 },
-          { name: "Shopping", amount: 620.20, percentage: 16 },
-        ],
-      },
-    };
-
-    res.json(demoData);
-  });
-
   // ==========================================================================
   // AI FINANCIAL ASSISTANT
   // ==========================================================================
@@ -502,72 +418,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Message is required' });
       }
 
-      // Dynamically import the AI service
       const { chat } = await import('./services/aiService.js');
+      const { buildFinancialContextForAssistant } = await import('./services/assistantContext.js');
 
-      // Get user's financial context
       const userId = getUserIdFromAuth(req);
-      
-      // Build financial context from user data
-      let financialContext: any = {};
-      
+      let financialContext: import("./services/aiService.js").FinancialContext = {};
       try {
-        // Get accounts and balances
-        const userAccounts = await storage.getAccounts(userId);
-        const accountsWithBalances = await Promise.all(
-          userAccounts.map(async (account: { id: number }) => {
-            const balances = await storage.getBalances(account.id);
-            const balance = balances.length > 0 ? balances[balances.length - 1] : null;
-            return { ...account, balance };
-          })
-        );
-        
-        // Calculate totals
-        const totalBalance = accountsWithBalances.reduce((sum: number, a: any) => 
-          sum + parseFloat(a.balance?.current || '0'), 0);
-        
-        // Get credit score
-        const creditScoreData = await storage.getCreditScore(userId);
-
-        // Get financial goals
-        const goals = await storage.getFinancialGoals(userId);
-
-        financialContext = {
-          totalBalance: Math.round(totalBalance),
-          monthlyIncome: 7500, // Would need income tracking feature
-          monthlyExpenses: 3845, // Would calculate from transactions
-          savingsRate: 28,
-          netWorth: Math.round(totalBalance * 1.5), // Simplified
-          creditScore: creditScoreData?.score || 720,
-          topSpendingCategories: [
-            { name: 'Housing', amount: 1500 },
-            { name: 'Food & Dining', amount: 680 },
-            { name: 'Transportation', amount: 420 },
-          ],
-          financialGoals: goals.slice(0, 5).map((g: any) => ({
-            name: g?.name ?? 'Meta',
-            progress: Math.round(((g?.currentAmount ?? 0) / (g?.targetAmount || 1)) * 100),
-          })),
-        };
+        financialContext = await buildFinancialContextForAssistant(userId);
       } catch (_e) {
-        // Use demo context if we can't fetch real data
-        financialContext = {
-          totalBalance: 24562,
-          monthlyIncome: 7500,
-          monthlyExpenses: 3845,
-          savingsRate: 28,
-          netWorth: 142350,
-          creditScore: 720,
-          topSpendingCategories: [
-            { name: 'Housing', amount: 1500 },
-            { name: 'Food & Dining', amount: 680 },
-            { name: 'Transportation', amount: 420 },
-          ],
-          financialGoals: [
-            { name: 'Emergency Fund', progress: 80 },
-            { name: 'Vacation Fund', progress: 45 },
-          ],
-        };
+        financialContext = {};
       }
 
       // Call the AI service
@@ -587,38 +446,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/assistant/insights", authenticate, async (req, res) => {
     try {
       const { getQuickInsights } = await import('./services/aiService.js');
-      
-      // Use demo context for quick insights
-      const context = {
-        savingsRate: 28,
-        monthlyExpenses: 3845,
-        netWorth: 142350,
-        monthlyIncome: 7500,
-        topSpendingCategories: [
-          { name: 'Housing', amount: 1500 },
-          { name: 'Food & Dining', amount: 680 },
-        ],
-      };
-
+      const { buildFinancialContextForAssistant } = await import('./services/assistantContext.js');
+      const userId = getUserIdFromAuth(req);
+      const context = await buildFinancialContextForAssistant(userId);
       const insights = getQuickInsights(context);
       res.json({ insights });
     } catch (error) {
       logger.error({ err: error }, 'AI insights error');
       res.status(500).json({ error: 'Failed to get insights' });
     }
-  });
-
-  /**
-   * GET /api/assistant/insights/demo
-   * Get quick AI insights (no auth required)
-   */
-  app.get("/api/assistant/insights/demo", async (_req, res) => {
-    const insights = [
-      "Muy bien: tu tasa de ahorro del 28% supera el 20% recomendado.",
-      "Tu mayor gasto es Comida y restaurantes: $680/mes. ¿Podrías reducirlo?",
-      "Recortar un 10% en gastos te ahorraría $385/mes o $4.620/año.",
-    ];
-    res.json({ insights });
   });
 
   // Accounts (Open Banking) routes
@@ -1101,133 +937,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // --- Public/demo routes (no auth required) ---
-
-  // ==========================================================================
-  // SEED DATA ENDPOINT - Populate database with test data
-  // ==========================================================================
-  
-  /**
-   * POST /api/seed
-   * Populates the database with comprehensive test data for the demo user
-   */
-  app.post("/api/seed", authenticate, async (req, res) => {
-    try {
-      const userId = getUserIdFromAuth(req);
-      logger.info({ userId }, 'Seeding database with test data');
-
-      // Clear existing data for this user (optional, based on query param)
-      const clearExisting = req.query.clear === 'true';
-
-      // 1. Create Financial Goals
-      const goalsData = [
-        { name: 'Emergency Fund', targetAmount: 15000, currentAmount: 12000, targetDate: new Date('2026-06-01'), category: 'savings' },
-        { name: 'Vacation to Europe', targetAmount: 5000, currentAmount: 2250, targetDate: new Date('2026-08-15'), category: 'travel' },
-        { name: 'New Car Down Payment', targetAmount: 10000, currentAmount: 3500, targetDate: new Date('2027-01-01'), category: 'purchase' },
-        { name: 'Investment Portfolio', targetAmount: 50000, currentAmount: 28000, targetDate: new Date('2028-12-31'), category: 'investment' },
-      ];
-
-      const createdGoals = [];
-      for (const goal of goalsData) {
-        const created = await storage.createFinancialGoal({ ...goal, userId });
-        createdGoals.push(created);
-      }
-
-      // 2. Create Expenses
-      const expensesData = [
-        { description: 'Grocery Shopping', amount: 156.78, category: 'Groceries', merchantName: 'Whole Foods', date: new Date('2026-01-25') },
-        { description: 'Monthly Gym Membership', amount: 49.99, category: 'Healthcare', merchantName: 'Planet Fitness', date: new Date('2026-01-20'), isRecurring: true },
-        { description: 'Dinner with Friends', amount: 85.50, category: 'Dining', merchantName: 'The Italian Place', date: new Date('2026-01-22') },
-        { description: 'Gas Station', amount: 45.00, category: 'Transportation', merchantName: 'Shell', date: new Date('2026-01-24') },
-        { description: 'Netflix Subscription', amount: 15.99, category: 'Entertainment', merchantName: 'Netflix', date: new Date('2026-01-15'), isRecurring: true },
-        { description: 'Electric Bill', amount: 125.00, category: 'Utilities', merchantName: 'City Power', date: new Date('2026-01-10'), isRecurring: true },
-        { description: 'New Headphones', amount: 199.99, category: 'Shopping', merchantName: 'Best Buy', date: new Date('2026-01-18') },
-        { description: 'Coffee Shop', amount: 6.50, category: 'Dining', merchantName: 'Starbucks', date: new Date('2026-01-27') },
-        { description: 'Uber Ride', amount: 24.50, category: 'Transportation', merchantName: 'Uber', date: new Date('2026-01-26') },
-        { description: 'Online Course', amount: 99.00, category: 'Education', merchantName: 'Udemy', date: new Date('2026-01-12') },
-      ];
-
-      const createdExpenses = [];
-      for (const expense of expensesData) {
-        const created = await storage.createExpense({ ...expense, userId, isAutoClassified: true });
-        createdExpenses.push(created);
-      }
-
-      // 3. Create Financial Products (if not exists)
-      const productsData = [
-        { name: 'Chase Sapphire Preferred', category: 'credit-cards', interestRate: '21.49', description: 'Premium travel rewards card with 2x points on travel and dining', features: ['60,000 bonus points', 'No foreign transaction fees', '$50 annual hotel credit'] },
-        { name: 'Discover it Cash Back', category: 'credit-cards', interestRate: '18.24', description: 'Rotating 5% cash back categories', features: ['5% cash back categories', 'Cash back match first year', 'No annual fee'] },
-        { name: 'Marcus Personal Loan', category: 'loans', interestRate: '7.49', description: 'No-fee personal loans for debt consolidation', features: ['No fees', 'Flexible terms', 'On-time payment reward'] },
-        { name: 'SoFi Student Loan Refi', category: 'loans', interestRate: '4.99', description: 'Refinance student loans at competitive rates', features: ['No fees', 'Unemployment protection', 'Career coaching'] },
-        { name: 'Ally High Yield Savings', category: 'savings', interestRate: '4.25', description: 'Online savings account with competitive APY', features: ['No minimum balance', 'No monthly fees', 'FDIC insured'] },
-        { name: 'Wealthfront Cash Account', category: 'savings', interestRate: '5.00', description: 'High-yield cash account with FDIC insurance', features: ['5.00% APY', 'FDIC insured up to $8M', 'No fees'] },
-        { name: 'Progressive Auto Insurance', category: 'insurance', interestRate: '0', description: 'Comprehensive auto coverage with discounts', features: ['Name Your Price tool', 'Snapshot discount', '24/7 claims'] },
-        { name: 'Lemonade Renters Insurance', category: 'insurance', interestRate: '0', description: 'AI-powered renters insurance', features: ['Instant coverage', 'Claims in 3 minutes', 'Giveback program'] },
-      ];
-
-      const createdProducts = [];
-      for (const product of productsData) {
-        try {
-          const created = await storage.createFinancialProduct(product);
-          createdProducts.push(created);
-        } catch (e) {
-          // Product might already exist
-        }
-      }
-
-      // 4. Create a Credit Score entry
-      try {
-        await storage.createCreditScore({
-          userId,
-          score: 742,
-          provider: 'CODA',
-          factors: JSON.stringify([
-            { factor: 'Payment History', status: 'Excellent', impact: 'positive' },
-            { factor: 'Credit Utilization', status: '23%', impact: 'positive' },
-            { factor: 'Credit Age', status: '4.2 years', impact: 'neutral' },
-            { factor: 'Credit Mix', status: 'Good', impact: 'positive' },
-            { factor: 'Recent Inquiries', status: '2', impact: 'neutral' },
-          ]),
-        });
-      } catch (e) {
-        // Update if exists
-        await storage.updateCreditScore(userId, { score: 742 });
-      }
-
-      // 5. Create Insurance Risk entry
-      try {
-        await storage.createInsuranceRisk({
-          userId,
-          overallRisk: 'Low',
-          healthRisk: 'Low',
-          autoRisk: 'Low',
-          propertyRisk: 'Medium',
-          factors: JSON.stringify([
-            { category: 'Health', factor: 'Non-smoker', impact: 'positive' },
-            { category: 'Auto', factor: 'Clean driving record', impact: 'positive' },
-            { category: 'Property', factor: 'Urban area', impact: 'neutral' },
-          ]),
-        });
-      } catch (e) {
-        // Update if exists
-        await storage.updateInsuranceRisk(userId, { overallRisk: 'Low' });
-      }
-
-      res.json({
-        success: true,
-        message: 'Database seeded successfully',
-        created: {
-          goals: createdGoals.length,
-          expenses: createdExpenses.length,
-          products: createdProducts.length,
-        }
-      });
-    } catch (error) {
-      logger.error({ err: error }, 'Error seeding database');
-      res.status(500).json({ error: 'Failed to seed database' });
-    }
-  });
-
   // Document upload: Import enhanced middleware with validation, OCR support
   const { documentUpload } = await import("./middleware/uploadMiddleware.js");
   app.post(
@@ -1378,55 +1087,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Demo ingestion: usa el userId del JWT para que cada usuario vea solo sus datos
-  app.post("/api/demo/ingest", authenticate, async (req: Request, res: Response) => {
+  /** Sincroniza ingesta Open Banking (cuentas y movimientos) para el usuario del token. */
+  app.post("/api/open-banking/sync", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
     try {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) {
         return res.status(404).json({
-          message: "Usuario no encontrado. Inicia sesión de nuevo o regístrate para usar la carga demo.",
+          message: "Usuario no encontrado. Inicia sesión de nuevo o regístrate.",
         });
       }
       const { ingestOpenBankingForUser } = await import("./jobs/ingest.js");
       await ingestOpenBankingForUser(userId);
-      res.json({ message: "Demo ingestion completed" });
+      res.json({ message: "Sincronización completada" });
     } catch (_e) {
-      logger.error({ err: _e }, 'Error running demo ingestion');
-      res.status(500).json({ message: 'Internal server error' });
+      logger.error({ err: _e }, "Error en sincronización Open Banking");
+      res.status(500).json({ message: "Error al sincronizar datos bancarios." });
     }
-  });
-
-  app.get("/api/demo/accounts", authenticate, async (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
-    const userId = await ensureUserForToken(authReq.user!);
-    if (!userId) {
-      return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
-    }
-    const accts = await storage.getAccounts(userId);
-    res.json(accts);
-  });
-
-  app.get("/api/demo/accounts/:id/transactions", authenticate, async (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
-    const userId = await ensureUserForToken(authReq.user!);
-    if (!userId) {
-      return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
-    }
-    const accountId = Number(req.params.id);
-    const account = await storage.getAccount(accountId);
-    if (!account || String(account.userId) !== userId) {
-      return res.status(404).json({ message: "Account not found" });
-    }
-    const { from, to, limit, offset } = req.query;
-    const options = {
-      from: from ? new Date(String(from)) : undefined,
-      to: to ? new Date(String(to)) : undefined,
-      limit: limit ? parseInt(String(limit)) : 20,
-      offset: offset ? parseInt(String(offset)) : 0,
-    };
-    const txs = await storage.getTransactions(accountId, options);
-    res.json(txs);
   });
 
   // Credit score: datos reales del Informe CMF cuando el usuario está autenticado
@@ -1466,26 +1143,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Insurance risk routes (demo) — now derived from feature vector + PD
-  app.get("/api/insurance-risk", async (_req, res) => {
+  // Riesgo de seguros a partir del vector de características + PD del usuario autenticado
+  app.get("/api/insurance-risk", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     try {
-      const userId = "demo-user";
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) {
+        return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
+      }
       const { buildUserFeatureVector } = await import("./ml/features.js");
       const { scorePD } = await import("./services/pdScoring.js");
       const { computeInsuranceRiskFromFeatures } = await import("./utils/insuranceRisk.js");
-
-      // Ensure demo user exists (some consumers read user fields)
-      let user = await storage.getUser(userId);
-      if (!user) {
-        user = await storage.createUser({
-          id: userId,
-          username: "demo",
-          email: "demo@example.com",
-          passwordHash: "demo-hash",
-          firstName: "Demo",
-          lastName: "User"
-        });
-      }
 
       const fv = await buildUserFeatureVector(userId, 90);
       const { pd } = scorePD(fv);
@@ -1500,8 +1168,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(saved ?? nextRisk);
     } catch (_e) {
-      logger.error({ err: _e }, 'Error computing insurance risk');
-      res.status(500).json({ message: 'Internal server error' });
+      logger.error({ err: _e }, "Error computing insurance risk");
+      res.status(500).json({ message: "Error al calcular el riesgo de seguros." });
     }
   });
 
@@ -1567,12 +1235,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Demo PD for demo-user
-  app.get("/api/demo/pd", async (req, res) => {
+  // PD (probabilidad de impago) para el usuario autenticado
+  app.get("/api/scoring/pd", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) {
+        return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
+      }
       const { buildUserFeatureVector } = await import("./ml/features.js");
       const { scorePD } = await import("./services/pdScoring.js");
-      const fv = await buildUserFeatureVector("demo-user", 90);
+      const fv = await buildUserFeatureVector(userId, 90);
       const { PDModelRegistry } = await import("./services/modelRegistry.js");
       const modelParam = String(req.query.model || "baseline");
       if (modelParam.toLowerCase() === "xgb") {
@@ -1620,51 +1293,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const scored = scorePD(fv);
       res.json({ pd: scored.pd, reasons: scored.reasons, features: fv });
     } catch (_e) {
-      logger.error({ err: _e }, 'Error scoring demo PD');
-      // Return a safe fallback PD score so the frontend continues to work
-      return res.json({ pd: 0.5, reasons: ['fallback'], features: { fallback: 1 } });
+      logger.error({ err: _e }, "Error scoring PD");
+      res.status(500).json({ message: "Error al calcular el PD." });
     }
   });
 
-  // Demo features for demo-user
-  app.get("/api/demo/features", async (_req, res) => {
+  app.get("/api/scoring/features", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     try {
-      let fv: any = {};
-      // If the DB schema isn't initialized (e.g. no `accounts` table), skip
-      // expensive feature-building which queries the DB and instead use a
-      // lightweight fallback vector.
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) {
+        return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
+      }
+      let fv: Record<string, unknown> = {};
       let canBuildFeatures = false;
       try {
         if (db) {
-          // Try a harmless select to verify `accounts` table exists
           await db.select().from(accounts).limit(1);
           canBuildFeatures = true;
         }
-      } catch (schemaErr) {
+      } catch {
         canBuildFeatures = false;
       }
 
       if (canBuildFeatures) {
         try {
           const mod = await import("./ml/features.js");
-          if (mod && typeof mod.buildUserFeatureVector === 'function') {
-            fv = await mod.buildUserFeatureVector("demo-user", 90);
+          if (mod && typeof mod.buildUserFeatureVector === "function") {
+            fv = await mod.buildUserFeatureVector(userId, 90);
           } else {
-            throw new Error('buildUserFeatureVector not available');
+            throw new Error("buildUserFeatureVector no disponible");
           }
         } catch (fvErr) {
-          logger.warn({ err: fvErr }, 'Failed to build feature vector for demo user, using fallback');
-          // Provide a minimal fallback feature vector so explanations can still be returned
-          fv = { fallback: 1 };
+          logger.warn({ err: fvErr }, "No se pudo construir el vector de características");
+          return res.status(503).json({ message: "No hay datos suficientes para el modelo." });
         }
       } else {
-        fv = { fallback: 1 };
+        return res.status(503).json({ message: "Base de datos no disponible para scoring." });
       }
       res.json(fv);
     } catch (_e) {
-      logger.error({ err: _e }, 'Error computing demo features');
-      // Return a lightweight fallback vector instead of failing the request
-      return res.json({ fallback: true, features: { fallback: 1 } });
+      logger.error({ err: _e }, "Error computing features");
+      res.status(500).json({ message: "Error al calcular características." });
     }
   });
 
@@ -1699,39 +1369,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Demo SHAP explanation (XGB) for demo-user
-  app.get("/api/demo/pd/explain", async (req, res) => {
+  // Explicación SHAP / heurística para el usuario autenticado
+  app.get("/api/scoring/pd/explain", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     try {
-      const top = Math.max(1, Math.min(20, parseInt(String(req.query.top || '5'), 10)));
-      let fv: any = {};
-      // If the DB schema isn't initialized (e.g. no `accounts` table), skip
-      // expensive feature-building which queries the DB and instead use a
-      // lightweight fallback vector.
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) {
+        return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
+      }
+      const top = Math.max(1, Math.min(20, parseInt(String(req.query.top || "5"), 10)));
+      let fv: Record<string, unknown> = {};
       let canBuildFeatures = false;
       try {
         if (db) {
-          // Try a harmless select to verify `accounts` table exists
           await db.select().from(accounts).limit(1);
           canBuildFeatures = true;
         }
-      } catch (schemaErr) {
+      } catch {
         canBuildFeatures = false;
       }
 
       if (canBuildFeatures) {
         try {
           const mod = await import("./ml/features.js");
-          if (mod && typeof mod.buildUserFeatureVector === 'function') {
-            fv = await mod.buildUserFeatureVector("demo-user", 90);
+          if (mod && typeof mod.buildUserFeatureVector === "function") {
+            fv = await mod.buildUserFeatureVector(userId, 90);
           } else {
-            throw new Error('buildUserFeatureVector not available');
+            throw new Error("buildUserFeatureVector no disponible");
           }
         } catch (fvErr) {
-          logger.warn({ err: fvErr }, 'Failed to build feature vector for demo explain, using fallback');
-          fv = { fallback: 1 };
+          logger.warn({ err: fvErr }, "No se pudo construir el vector para explicación PD");
+          return res.status(503).json({ message: "No hay datos suficientes para explicar el modelo." });
         }
       } else {
-        fv = { fallback: 1 };
+        return res.status(503).json({ message: "Base de datos no disponible para scoring." });
       }
 
       // Prepare to call Python explainer
@@ -1799,9 +1470,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (_e) {
-      logger.error({ err: _e }, 'Error in demo SHAP explain');
-      // Return a safe fallback so the frontend does not receive 501/500 errors
-      return res.json({ features: { fallback: 1 }, explanation: { method: 'fallback', topFeatures: [] } });
+      logger.error({ err: _e }, "Error en explicación PD");
+      res.status(500).json({ message: "Error al generar la explicación del modelo." });
     }
   });
 
@@ -2756,13 +2426,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if bill split exists
       const billSplit = await storage.getBillSplit(billSplitId);
       if (!billSplit) {
-        // Return user exists info even if bill split doesn't exist (for demo purposes)
-        return res.status(404).json({ 
-          message: "Bill split not found", 
+        return res.status(404).json({
+          message: "Partida no encontrada",
           userExists,
-          billSplitName: "Demo Bill Split",
           invitedEmail: email,
-          billSplitId: billSplitId
+          billSplitId: billSplitId,
         });
       }
       

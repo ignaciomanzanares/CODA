@@ -70,7 +70,6 @@ import {
   DollarSign
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { generateDemoFinancialGoals } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
 import type { Goal, UpdateGoalData } from "@/types";
 import { cn } from "@/lib/utils";
@@ -108,9 +107,6 @@ export default function Goals() {
     deleteFinancialGoal 
   } = useApi();
 
-  // Use demo data when not authenticated, real data when authenticated
-  const demoGoals = generateDemoFinancialGoals();
-  
   // Only fetch goals if authenticated and not loading
   const { data: realGoals, isLoading, error } = useQuery({
     queryKey: ["/api/financial-goals"],
@@ -119,7 +115,7 @@ export default function Goals() {
     staleTime: 0, // Ensure we always get fresh data from cache
   });
   
-  const goals = isAuthenticated ? realGoals : demoGoals;
+  const goals = isAuthenticated ? realGoals : [];
 
   // Add goal mutation
   const addGoalMutation = useMutation({
@@ -462,10 +458,10 @@ export default function Goals() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {!isAuthenticated && (
-          <SignInBanner 
-            title="Viendo metas financieras de demostración"
-            description="Estás explorando metas de ejemplo con seguimiento de progreso. Inicia sesión para crear y gestionar tus metas reales, definir fechas y seguir tu avance."
-            actionText="Iniciar sesión para metas reales"
+          <SignInBanner
+            title="Inicia sesión para tus metas"
+            description="Crea y sigue metas con tus datos reales."
+            actionText="Iniciar sesión"
           />
         )}
         

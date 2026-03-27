@@ -105,23 +105,24 @@ export default function Dashboard() {
   const { data: financialData, isLoading: financialLoading } = useQuery<FinancialSummaryData>({
     queryKey: ['financial-summary'],
     queryFn: async () => {
-      try {
-        // Try authenticated endpoint first
-        const token = localStorage.getItem('jwt_token');
-        if (token) {
-          const data = await apiFetch('/api/financial-summary', {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          // If we got real data with accounts, use it
-          if (data.summary?.accountCount > 0) {
-            return data;
-          }
-        }
-      } catch {
-        // Fall through to demo data
+      const token = localStorage.getItem('jwt_token');
+      if (!token) {
+        return {
+          summary: {
+            totalBalance: 0,
+            totalAssets: 0,
+            totalLiabilities: 0,
+            netWorth: 0,
+            monthlyIncome: 0,
+            monthlyExpenses: 0,
+            savingsRate: 0,
+            accountCount: 0,
+          },
+        };
       }
-      // Fall back to demo data
-      return await apiFetch('/api/financial-summary/demo');
+      return apiFetch('/api/financial-summary', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
     },
     staleTime: 30000, // Cache for 30 seconds
   });

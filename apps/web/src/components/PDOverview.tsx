@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 
 function bandForPD(pd: number) {
   if (pd < 0.05) return { label: "Bajo", color: "text-emerald-600", ring: "#10b981" };
@@ -11,6 +12,7 @@ function bandForPD(pd: number) {
 }
 
 export default function PDOverview() {
+  const { isAuthenticated } = useAuth();
   const [pd, setPd] = useState<number | null>(null);
   const [model, setModel] = useState<'baseline' | 'xgb'>('xgb');
   const [reasons, setReasons] = useState<string[]>([]);
@@ -21,11 +23,17 @@ export default function PDOverview() {
   const [error, setError] = useState<string | null>(null);
   const [showFeatures, setShowFeatures] = useState(false);
 
+  function authHeaders(): HeadersInit {
+    const token = localStorage.getItem("jwt_token");
+    if (!token) return {};
+    return { Authorization: `Bearer ${token}` };
+  }
+
   async function fetchPD() {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiFetch(`/api/demo/pd?model=${model}`);
+      const data = await apiFetch(`/api/scoring/pd?model=${model}`, { headers: authHeaders() });
       setPd(Number(data.pd));
       setReasons(Array.isArray(data.reasons) ? data.reasons : []);
       setFeatures(data.features || null);
@@ -38,7 +46,7 @@ export default function PDOverview() {
 
   async function fetchExplain() {
     try {
-      const data = await apiFetch('/api/demo/pd/explain?top=6');
+      const data = await apiFetch("/api/scoring/pd/explain?top=6", { headers: authHeaders() });
       const items = (data?.explanation?.top || data?.explanation || []) as any[];
       const mapped = items.map((it: any) => ({ feature: it.feature || String(it[0] ?? ''), value: it.value, shap: it.shap ?? it.importance }));
       setExplain(mapped);
@@ -55,7 +63,17 @@ export default function PDOverview() {
     } catch { setModelInfo(null); }
   }
 
-  useEffect(() => { fetchPD(); fetchModel(); if (model === 'xgb') fetchExplain(); }, [model]);
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setPd(null);
+      setError("Inicia sesión para ver el riesgo de impago calculado con tus datos.");
+      return;
+    }
+    setError(null);
+    fetchPD();
+    fetchModel();
+    if (model === "xgb") fetchExplain();
+  }, [model, isAuthenticated]);
 
   const percent = pd == null ? '-' : (pd * 100).toFixed(1);
   const band = useMemo(() => bandForPD(pd || 0), [pd]);
@@ -124,11 +142,11 @@ export default function PDOverview() {
                   ))}
                 </ul>
               ) : (
-                <div className="text-sm text-muted-foreground">No feature attributions available.</div>
+                <div className="text-sm text-muted-foreground">No hay atribuciones de variables disponibles.</div>
               )}
               {model === 'xgb' && (
                 <div className="mt-3">
-                  <Button size="sm" variant="outline" onClick={fetchExplain}>Explain instance</Button>
+                  <Button size="sm" variant="outline" onClick={fetchExplain}>Explicar instancia</Button>
                 </div>
               )}
             </div>
@@ -137,13 +155,13 @@ export default function PDOverview() {
 
         {showFeatures && (
           <div className="mt-4 p-3 bg-muted rounded border">
-            <div className="text-sm font-semibold mb-1">Computed features</div>
+            <div className="text-sm font-semibold mb-1">Variables calculadas</div>
             <pre className="text-xs overflow-x-auto">{features ? JSON.stringify(features, null, 2) : "Cargando..."}</pre>
           </div>
         )}
 
         <div className="text-xs text-muted-foreground mt-2">
-          This demonstration uses synthetic or sandbox data. Predictions are illustrative and not a lending decision.
+          El PD se calcula con tus movimientos y cuentas vinculadas. No constituye una decisión de crédito.
         </div>
       </CardContent>
     </Card>

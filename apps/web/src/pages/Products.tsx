@@ -5,7 +5,6 @@ import TabsComponent from "@/components/TabsComponent";
 import FiltersSection from "@/components/FiltersSection";
 import ProductsTable from "@/components/ProductsTable";
 import { useAuth } from "@/lib/auth";
-import { getDemoFinancialProductsByCategory } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
 import type { FinancialProduct } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,10 +54,6 @@ export default function Products() {
     }
   }, [categoryFromUrl]);
 
-  // Use demo data when not authenticated, real recommendations when authenticated
-  const demoProducts = getDemoFinancialProductsByCategory(activeCategory);
-  
-  // Fetch personalized recommendations when authenticated
   const {
     data: recommendedProducts,
     isLoading: productsLoading,
@@ -67,6 +62,12 @@ export default function Products() {
     queryKey: ["/api/products/recommendations", activeCategory],
     queryFn: () => getProductRecommendations(activeCategory, 20),
     enabled: isAuthenticated && !authLoading,
+  });
+
+  const { data: catalogProducts, isLoading: catalogLoading } = useQuery({
+    queryKey: ["/api/financial-products", activeCategory],
+    queryFn: () => getFinancialProducts(activeCategory),
+    enabled: !isAuthenticated && !authLoading,
   });
 
   // Track product views when recommendations load
@@ -82,7 +83,7 @@ export default function Products() {
     }
   }, [isAuthenticated, recommendedProducts, activeCategory]);
   
-  const products = isAuthenticated ? recommendedProducts : demoProducts;
+  const products = isAuthenticated ? recommendedProducts : catalogProducts ?? [];
 
   const handleTabChange = (tabId: string) => {
     setActiveCategory(tabId);
@@ -140,7 +141,8 @@ export default function Products() {
     { id: "insurance", label: "Seguros" },
   ];
 
-  if (authLoading || (isAuthenticated && productsLoading)) {
+  const listLoading = isAuthenticated ? productsLoading : catalogLoading;
+  if (authLoading || listLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
         <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
@@ -185,10 +187,10 @@ export default function Products() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div id="product-section" className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {!isAuthenticated && (
-          <SignInBanner 
-            title="Viendo productos financieros de demostración"
-            description="Estás explorando productos de ejemplo: créditos, tarjetas, ahorro y seguros. Inicia sesión para recibir recomendaciones personalizadas según tu perfil."
-            actionText="Iniciar sesión para recomendaciones"
+          <SignInBanner
+            title="Catálogo público de productos"
+            description="Inicia sesión para recomendaciones personalizadas según tu perfil y tus datos en CODA."
+            actionText="Iniciar sesión"
           />
         )}
         
@@ -279,7 +281,7 @@ export default function Products() {
           <ProductsTable
             products={filteredProducts}
             category="loans"
-            isLoading={productsLoading}
+            isLoading={listLoading}
             error={error}
           />
         </div>
@@ -288,7 +290,7 @@ export default function Products() {
           <ProductsTable
             products={filteredProducts}
             category="credit_cards"
-            isLoading={productsLoading}
+            isLoading={listLoading}
             error={error}
           />
         </div>
@@ -297,7 +299,7 @@ export default function Products() {
           <ProductsTable
             products={filteredProducts}
             category="savings"
-            isLoading={productsLoading}
+            isLoading={listLoading}
             error={error}
           />
         </div>
@@ -306,7 +308,7 @@ export default function Products() {
           <ProductsTable
             products={filteredProducts}
             category="insurance"
-            isLoading={productsLoading}
+            isLoading={listLoading}
             error={error}
           />
         </div>

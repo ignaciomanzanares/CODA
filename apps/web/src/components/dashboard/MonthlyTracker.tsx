@@ -50,48 +50,27 @@ interface MonthlyTrackerProps {
   historicalData?: HistoricalData[];
 }
 
-// Default demo data
-const defaultCategoryData: MonthlyData[] = [
-  { category: "Vivienda", budget: 1800, spent: 1500, color: "#8b5cf6" },
-  { category: "Comida y restaurantes", budget: 800, spent: 680, color: "#f59e0b" },
-  { category: "Transporte", budget: 500, spent: 420, color: "#3b82f6" },
-  { category: "Servicios", budget: 300, spent: 285, color: "#06b6d4" },
-  { category: "Entretenimiento", budget: 400, spent: 340, color: "#ec4899" },
-  { category: "Compras", budget: 600, spent: 620, color: "#eab308" },
-  { category: "Salud", budget: 200, spent: 150, color: "#ef4444" },
-  { category: "Otros", budget: 400, spent: 250, color: "#6b7280" },
-];
-
-const defaultHistoricalData: HistoricalData[] = [
-  { month: "Aug", spent: 4100, budget: 5000 },
-  { month: "Sep", spent: 3800, budget: 5000 },
-  { month: "Oct", spent: 4200, budget: 5000 },
-  { month: "Nov", spent: 3900, budget: 5000 },
-  { month: "Dec", spent: 5100, budget: 5000 },
-  { month: "Jan", spent: 3845, budget: 5000 },
-];
-
 export default function MonthlyTracker({
-  currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-  totalBudget = 5000,
-  totalSpent = 4245,
-  categoryData = defaultCategoryData,
-  historicalData = defaultHistoricalData,
+  currentMonth = new Date().toLocaleDateString("es-CL", { month: "long", year: "numeric" }),
+  totalBudget = 0,
+  totalSpent = 0,
+  categoryData = [],
+  historicalData = [],
 }: MonthlyTrackerProps) {
   const { currency } = useCurrency();
   const fmt = (value: number) => formatCurrency(value, currency);
   const [selectedMonth, setSelectedMonth] = useState(0); // 0 = current month
   
-  const percentUsed = (totalSpent / totalBudget) * 100;
+  const percentUsed = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
   const remaining = totalBudget - totalSpent;
   const isOverBudget = totalSpent > totalBudget;
   const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
   const currentDay = new Date().getDate();
   const daysRemaining = daysInMonth - currentDay;
-  const dailyBudget = remaining / daysRemaining;
+  const dailyBudget = daysRemaining > 0 ? remaining / daysRemaining : 0;
   
   // Calculate projected end-of-month spending
-  const avgDailySpend = totalSpent / currentDay;
+  const avgDailySpend = currentDay > 0 ? totalSpent / currentDay : 0;
   const projectedTotal = avgDailySpend * daysInMonth;
   const projectedOverUnder = projectedTotal - totalBudget;
 

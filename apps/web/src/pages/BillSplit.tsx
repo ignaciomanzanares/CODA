@@ -25,7 +25,6 @@ import { z } from "zod";
 import { useApi } from "@/lib/api";
 import type { BillSplit, BillSplitParticipant } from "@/types";
 import { useAuth } from "@/lib/auth";
-import { generateDemoBillSplits } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
 import PaymentDialog from "@/components/PaymentDialog";
 import { useToast } from "@/hooks/use-toast";
@@ -366,16 +365,6 @@ export default function BillSplit() {
     }
   }, []);
 
-  const [demoBillSplits, setDemoBillSplits] = useState<BillSplitWithParticipants[]>([]);
-
-  useEffect(() => {
-    if (isAuthenticated || !ready) return;
-    const id = requestAnimationFrame(() => {
-      setDemoBillSplits(generateDemoBillSplits());
-    });
-    return () => cancelAnimationFrame(id);
-  }, [isAuthenticated, ready]);
-
   const { data: realBillSplits = [], isLoading, isError } = useQuery<BillSplitWithParticipants[]>({
     queryKey: ["/api/bill-splits"],
     queryFn: getBillSplits,
@@ -383,7 +372,7 @@ export default function BillSplit() {
     retry: false,
   });
 
-  const billSplitsRaw = isAuthenticated ? realBillSplits : demoBillSplits;
+  const billSplitsRaw = isAuthenticated ? realBillSplits : [];
   const billSplits = Array.isArray(billSplitsRaw) ? billSplitsRaw : (billSplitsRaw ? [billSplitsRaw] : []);
 
   // Normalize API response so balance calc always has amountOwed (number), isPaid (bool), createdBy, userRole

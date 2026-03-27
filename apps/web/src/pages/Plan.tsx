@@ -13,16 +13,13 @@ import {
   TrendingUp, 
   Landmark, 
   ShieldCheck, 
-  Home, 
-  DollarSign, 
-  GraduationCap,
+  DollarSign,
   Calendar,
   LineChart,
   Lightbulb,
   Target
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { generateDemoCreditScore, generateDemoInsuranceRisk, generateDemoFinancialGoals } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
 import type { Goal } from "@/types";
 import { ROUTES } from "@/lib/routes";
@@ -56,11 +53,6 @@ export default function Plan() {
   // Get API functions from useApi hook
   const { getCreditScore, getInsuranceRisk, getFinancialGoals } = useApi();
 
-  // Use demo data when not authenticated, real data when authenticated
-  const demoCreditScore = generateDemoCreditScore();
-  const demoInsuranceRisk = generateDemoInsuranceRisk();
-  const demoGoals = generateDemoFinancialGoals();
-
   // Use useQuery with the correct functions
   const { data: realCreditScore, isLoading: isLoadingCreditScore } = useQuery({
     queryKey: ["/api/credit-score"],
@@ -82,21 +74,26 @@ export default function Plan() {
   const { data: financialData } = useQuery<FinancialSummaryData>({
     queryKey: ['financial-summary'],
     queryFn: async () => {
-      try {
-        const token = localStorage.getItem('jwt_token');
-        if (token) {
-          const data = await apiFetch('/api/financial-summary', {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (data.summary?.accountCount > 0) {
-            return data;
-          }
-        }
-      } catch {
-        // Fall through to demo data
+      const token = localStorage.getItem('jwt_token');
+      if (!token) {
+        return {
+          summary: {
+            totalBalance: 0,
+            totalAssets: 0,
+            totalLiabilities: 0,
+            netWorth: 0,
+            monthlyIncome: 0,
+            monthlyExpenses: 0,
+            savingsRate: 0,
+            accountCount: 0,
+          },
+        };
       }
-      return await apiFetch('/api/financial-summary/demo');
+      return apiFetch('/api/financial-summary', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
     },
+    enabled: isAuthenticated && !authLoading,
   });
 
   // Monthly summary from real expenses (for MonthlyTracker)
@@ -115,11 +112,13 @@ export default function Plan() {
   });
 
   const monthlyTrackerProps = (() => {
-    const totalBudget = financialData?.summary?.monthlyIncome ? financialData.summary.monthlyIncome * 0.7 : 5000;
+    const totalBudget = financialData?.summary?.monthlyIncome
+      ? financialData.summary.monthlyIncome * 0.7
+      : 0;
     if (!monthlySummary && !isAuthenticated) {
       return {
         totalBudget,
-        totalSpent: financialData?.summary?.monthlyExpenses ?? 3845,
+        totalSpent: financialData?.summary?.monthlyExpenses ?? 0,
         categoryData: undefined,
         historicalData: undefined,
       };
@@ -153,9 +152,9 @@ export default function Plan() {
     };
   })();
 
-  const creditScore = isAuthenticated ? realCreditScore : demoCreditScore;
-  const insuranceRisk = isAuthenticated ? realInsuranceRisk : demoInsuranceRisk;
-  const goals = isAuthenticated ? realGoals : demoGoals;
+  const creditScore = isAuthenticated ? realCreditScore : undefined;
+  const insuranceRisk = isAuthenticated ? realInsuranceRisk : undefined;
+  const goals = isAuthenticated ? realGoals : [];
 
   const isLoading = authLoading || (isAuthenticated && (isLoadingCreditScore || isLoadingInsuranceRisk || isLoadingGoals));
 
@@ -208,25 +207,6 @@ export default function Plan() {
         });
       }
     }
-
-    // General recommendations
-    recommendations.push({
-      id: 4,
-      icon: <Home />,
-      title: "Explora programas para compradores primerizos",
-      description: "Según tus ingresos y crédito, podrías calificar para programas con 3% de pie y tasas más bajas.",
-      actionText: "Ver elegibilidad",
-      actionLink: `${ROUTES.productos}?category=mortgage`,
-    });
-
-    recommendations.push({
-      id: 5,
-      icon: <GraduationCap />,
-      title: "Optimiza el pago de créditos estudiantiles",
-      description: "Refinanciar a tasas actuales podría ahorrarte $2.400 durante la vida del crédito.",
-      actionText: "Comparar tasas",
-      actionLink: `${ROUTES.productos}?category=loans`,
-    });
 
     return recommendations;
   };
@@ -286,10 +266,10 @@ export default function Plan() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {!isAuthenticated && (
-          <SignInBanner 
-            title="Viendo plan financiero de demostración"
-            description="Estás viendo datos de ejemplo. Inicia sesión para recibir recomendaciones personalizadas según tu situación real."
-            actionText="Iniciar sesión para plan personalizado"
+          <SignInBanner
+            title="Inicia sesión para tu plan personalizado"
+            description="Las recomendaciones y el presupuesto se calculan con tus cuentas, gastos y documentos cargados."
+            actionText="Iniciar sesión"
           />
         )}
         
