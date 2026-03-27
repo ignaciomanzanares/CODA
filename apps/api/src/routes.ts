@@ -457,6 +457,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  /** Mensaje inicial y chips del chat (datos reales, sin plantillas genéricas). */
+  app.get("/api/assistant/bootstrap", authenticate, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { buildAssistantBootstrap } = await import("./services/assistantBootstrap.js");
+      const payload = await buildAssistantBootstrap(userId);
+      res.json(payload);
+    } catch (e) {
+      logger.error({ err: e }, "assistant bootstrap error");
+      res.status(500).json({ message: "Error al preparar el asistente." });
+    }
+  });
+
+  /** Recomendaciones del plan financiero calculadas con gastos, cuentas y scores. */
+  app.get("/api/plan/insights", authenticate, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { buildPlanInsights } = await import("./services/planInsights.js");
+      const payload = await buildPlanInsights(userId);
+      res.json(payload);
+    } catch (e) {
+      logger.error({ err: e }, "plan insights error");
+      res.status(500).json({ message: "Error al calcular el plan." });
+    }
+  });
+
   // Accounts (Open Banking) routes
   app.get("/api/accounts", authenticate, async (req, res) => {
     try {
