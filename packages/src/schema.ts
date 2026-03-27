@@ -616,3 +616,31 @@ export const algorithmPredictionLogs = table('algorithm_prediction_logs', {
   userAgent: text('user_agent'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
+
+/** PDFs parseados (cartola, certificado CMF, liquidación). `parsed_data` = JSON serializado. */
+export const documentUploads = table('document_uploads', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  tipo: text('tipo').notNull(),
+  banco: text('banco'),
+  periodoDesde: text('periodo_desde'),
+  periodoHasta: text('periodo_hasta'),
+  parsedData: text('parsed_data').notNull(),
+  parseStatus: text('parse_status').default('success'),
+  uploadedAt: text('uploaded_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+/** Historial de scores combinados (transaccional 0–100 + crediticio 0–850) por cálculo. */
+export const userScores = table('user_scores', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  scoreCrediticio: integer('score_crediticio'),
+  scoreTransaccional: integer('score_transaccional'),
+  categoria: text('categoria'),
+  componentes: text('componentes'),
+  insights: text('insights'),
+  documentosUsados: text('documentos_usados'),
+  calculadoAt: text('calculado_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  periodoAnalizadoDesde: text('periodo_analizado_desde'),
+  periodoAnalizadoHasta: text('periodo_analizado_hasta'),
+});
