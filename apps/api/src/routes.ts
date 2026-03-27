@@ -4,6 +4,7 @@ import { registerEmpresasRoutes } from "./routes-empresas.js";
 import { registerConsentRoutes } from "./routes-consent.js";
 import { registerPrivacyConsentRoutes } from "./routes-privacy-consent.js";
 import { registerTestRoutes } from "./routes-test.js";
+import { registerDocumentParsingAndScoringRoutes } from "./routes-scoring-documents.js";
 import { storage } from "./storage.js";
 import { db, dialect, users, bankConnections, accounts, balances, transactions, creditScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc, insertAccountSchema, insertBankConnectionSchema } from "./db/index.js";
 import { ZodError, z } from "zod";
@@ -3650,6 +3651,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ success: false, message: 'Error al reconciliar' });
     }
   });
+
+  registerDocumentParsingAndScoringRoutes(app);
 
   const httpServer = createServer(app);
   return httpServer;

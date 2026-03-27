@@ -28,6 +28,8 @@ export const {
   privacyConsentEvents,
   algorithmModelVersions,
   algorithmPredictionLogs,
+  documentUploads,
+  userScores,
   insertAccountSchema,
   insertBankConnectionSchema,
   insertExpenseSchema,
