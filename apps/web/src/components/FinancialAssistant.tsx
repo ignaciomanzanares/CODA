@@ -71,19 +71,16 @@ export default function FinancialAssistant({
     }
   }, [isOpen, isMinimized]);
 
-  // Fetch quick insights for initial suggestions
   const { data: insightsData } = useQuery({
     queryKey: ['assistant-insights'],
     queryFn: async () => {
-      const endpoint = isAuthenticated ? '/api/assistant/insights' : '/api/assistant/insights/demo';
-      const headers: Record<string, string> = {};
-      if (isAuthenticated) {
-        const token = localStorage.getItem('jwt_token');
-        if (token) headers.Authorization = `Bearer ${token}`;
-      }
-      return await apiFetch(endpoint, { headers });
+      const token = localStorage.getItem('jwt_token');
+      if (!token) return { insights: [] as string[] };
+      return await apiFetch('/api/assistant/insights', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
     },
-    enabled: isOpen,
+    enabled: isOpen && isAuthenticated,
   });
 
   // Send message to AI

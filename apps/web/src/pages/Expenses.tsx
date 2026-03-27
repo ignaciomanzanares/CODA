@@ -54,7 +54,6 @@ import { hapticLight } from "@/lib/haptics";
 import { Analytics } from "@/lib/analytics";
 import type { Expense } from "@/types";
 import { useAuth } from "@/lib/auth";
-import { generateDemoExpenses } from "@/lib/demoData";
 import SignInBanner from "@/components/SignInBanner";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatCurrency, inputAmountToStoredClp, storedClpToDisplayAmount } from "@/lib/utils";
@@ -249,9 +248,6 @@ export default function Expenses() {
   // Montos guardados en CLP; mostrar en la moneda elegida (CLP por defecto)
   const formatCurrencyFn = (value: number) => formatCurrency(value, currency, { sourceCurrency: "CLP" });
 
-  // Use demo data when not authenticated, real data when authenticated
-  const demoExpenses = generateDemoExpenses();
-  
   const { data: realExpenses = [], isLoading } = useQuery<Expense[]>({
     queryKey: ["/api/expenses"],
     queryFn: getExpenses,
@@ -259,7 +255,7 @@ export default function Expenses() {
     staleTime: 0, // Ensure we always get fresh data from cache
   });
 
-  const expenses = isAuthenticated ? realExpenses : demoExpenses;
+  const expenses = isAuthenticated ? realExpenses : [];
 
   const createExpenseMutation = useMutation({
     mutationFn: (expense: ExpenseFormValues) => {
@@ -826,10 +822,10 @@ export default function Expenses() {
       />
       <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {!isAuthenticated && (
-          <SignInBanner 
-            title="Viendo datos de gastos de demostración"
-            description="Estás viendo datos de ejemplo para explorar las funciones. Inicia sesión para registrar tus gastos reales, añadir transacciones y sincronizar con tus cuentas bancarias."
-            actionText="Iniciar sesión para registrar gastos reales"
+          <SignInBanner
+            title="Inicia sesión para gestionar tus gastos"
+            description="Aquí verás solo tus gastos registrados y datos importados desde cuentas o documentos."
+            actionText="Iniciar sesión"
           />
         )}
         

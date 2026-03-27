@@ -1,41 +1,8 @@
-import { financialProducts, users, db, eq } from "./db/index.js";
+import { financialProducts, db } from "./db/index.js";
 
-/**
- * Seed demo user into the database
- */
-export async function seedDemoUser() {
-  // Check if demo user with ID "demo-user" already exists
-  const existingUsers = db.select().from(users).where(eq(users.id, "demo-user")).all();
-  
-  if (existingUsers.length > 0) {
-    console.log("Demo user already exists. Skipping user seed.");
-    return;
-  }
-  
-  console.log("Creating demo user...");
-  
-  try {
-    try {
-      db.insert(users).values({
-        id: "demo-user",
-        username: "demo",
-        email: "demo@example.com",
-        passwordHash: "$2b$10$demo-password-hash", // Demo password hash
-        firstName: "Demo",
-        lastName: "User",
-      }).run();
-      console.log("Successfully created demo user");
-    } catch (err: any) {
-      // Ignore unique-violation if demo user already created concurrently
-      if (err && err.code === '23505') {
-        console.log('Demo user already present (concurrent seed).');
-      } else {
-        throw err;
-      }
-    }
-  } catch (error) {
-    console.error("Error creating demo user:", error);
-  }
+/** Reservado: ya no se crean usuarios de prueba automáticamente. */
+export async function seedDemoUser(): Promise<void> {
+  return;
 }
 
 /**

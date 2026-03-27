@@ -85,10 +85,9 @@ export default function FinancialSummaryStats({ data }: FinancialSummaryStatsPro
     return formatCurrencyUtil(value, currency);
   };
 
-  // Calculate month-over-month changes (simulated for demo)
-  const netWorthChange = data.netWorth * 0.02; // ~2% monthly growth
-  const savingsThisMonth = data.monthlyIncome - data.monthlyExpenses;
-  const expensesBudgetDiff = data.monthlyIncome * 0.5 - data.monthlyExpenses; // Assuming 50% budget
+  const netWorthChange = 0;
+    const savingsThisMonth = data.monthlyIncome - data.monthlyExpenses;
+  const expensesBudgetDiff = data.monthlyIncome * 0.5 - data.monthlyExpenses;
   const budgetStatus = expensesBudgetDiff >= 0 
     ? `${Math.round((expensesBudgetDiff / (data.monthlyIncome * 0.5)) * 100)}% bajo presupuesto`
     : `${Math.round(Math.abs(expensesBudgetDiff / (data.monthlyIncome * 0.5)) * 100)}% sobre presupuesto`;

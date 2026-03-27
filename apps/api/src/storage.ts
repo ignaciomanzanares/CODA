@@ -182,9 +182,7 @@ export interface IStorage {
   getLatestUserScore(userId: string): Promise<any | undefined>;
 }
 
-// Minimal placeholder storage to satisfy the interface and keep the project compiling.
-// Replace with a real implementation (DatabaseStorage or MemStorage) when ready.
-// (placeholder removed) storage is provided by DatabaseStorage below
+// Implementación principal: `DatabaseStorage` más abajo.
 
 export class DatabaseStorage implements IStorage {
   // In-memory maps used by some helper methods (kept for compatibility).
@@ -739,7 +737,7 @@ export class DatabaseStorage implements IStorage {
     return product;
   }
   
-  // Seed financial products for demonstration
+  // Catálogo inicial de productos financieros (solo si la tabla está vacía)
   private async seedFinancialProducts() {
     // Loan products
     [

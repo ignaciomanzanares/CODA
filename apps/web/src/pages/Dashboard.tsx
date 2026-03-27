@@ -7,6 +7,7 @@ import { useCurrency } from "@/lib/CurrencyContext";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { ROUTES } from "@/lib/routes";
+import SignInBanner from "@/components/SignInBanner";
 
 // Components
 import DocumentUploadCard from "@/components/DocumentUploadCard";
@@ -45,29 +46,40 @@ interface FinancialSummaryData {
     savingsRate: number;
     accountCount: number;
   };
+  trends?: {
+    netWorth?: { month: string; netWorth: number }[];
+  };
 }
 
+const emptySummary: FinancialSummaryData = {
+  summary: {
+    totalBalance: 0,
+    totalAssets: 0,
+    totalLiabilities: 0,
+    netWorth: 0,
+    monthlyIncome: 0,
+    monthlyExpenses: 0,
+    savingsRate: 0,
+    accountCount: 0,
+  },
+};
+
 export default function Dashboard() {
-  const { isLoading: authLoading, user } = useAuth();
+  const { isLoading: authLoading, user, isAuthenticated } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [, navigate] = useLocation();
   const { currency } = useCurrency();
 
-  // Fetch financial summary
   const { data: financialData } = useQuery<FinancialSummaryData>({
     queryKey: ['financial-summary'],
     queryFn: async () => {
-      try {
-        const token = localStorage.getItem('jwt_token');
-        if (token) {
-          const data = await apiFetch('/api/financial-summary', {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (data.summary?.accountCount > 0) return data;
-        }
-      } catch {}
-      return await apiFetch('/api/financial-summary/demo');
+      const token = localStorage.getItem('jwt_token');
+      if (!token) return emptySummary;
+      return apiFetch('/api/financial-summary', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
     },
+    enabled: isAuthenticated && !authLoading,
     staleTime: 30000,
   });
   
@@ -96,10 +108,16 @@ export default function Dashboard() {
   const greeting = new Date().getHours() < 12 ? 'Buenos días' : new Date().getHours() < 18 ? 'Buenas tardes' : 'Buenas noches';
   
   const summary = financialData?.summary;
-  const netWorthChange = summary ? summary.netWorth * 0.02 : 0;
-  const netWorthChangePercent = summary && summary.netWorth > 0 
-    ? ((netWorthChange / (summary.netWorth - netWorthChange)) * 100).toFixed(1) 
-    : '0.0';
+  const nwTrend = financialData?.trends?.netWorth;
+  let netWorthChange = 0;
+  let netWorthChangePercent = '0.0';
+  if (nwTrend && nwTrend.length >= 2) {
+    const prev = nwTrend[nwTrend.length - 2]!.netWorth;
+    const last = nwTrend[nwTrend.length - 1]!.netWorth;
+    netWorthChange = last - prev;
+    netWorthChangePercent =
+      prev !== 0 ? ((netWorthChange / Math.abs(prev)) * 100).toFixed(1) : '0.0';
+  }
   const savingsThisMonth = summary ? summary.monthlyIncome - summary.monthlyExpenses : 0;
 
   return (
@@ -108,6 +126,14 @@ export default function Dashboard() {
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
         
         {/* Header - Minimalista */}
+        {!isAuthenticated && (
+          <SignInBanner
+            title="Inicia sesión para ver tu resumen"
+            description="Los datos del panel provienen de tus cuentas y documentos. Sin sesión no mostramos cifras de ejemplo."
+            actionText="Iniciar sesión"
+          />
+        )}
+
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-hero-title font-semibold text-foreground">

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
-interface DemoAccount {
+interface ObAccount {
   id: number;
   name?: string | null;
   type?: string | null;
@@ -12,7 +12,7 @@ interface DemoAccount {
   mask?: string | null;
 }
 
-interface DemoTransaction {
+interface ObTransaction {
   id: number;
   postedAt: string;
   description?: string | null;
@@ -26,22 +26,29 @@ interface DemoOpenBankingProps {
   onConnected?: () => void;
 }
 
+function authHeaders(): HeadersInit {
+  const token = localStorage.getItem("jwt_token");
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
+}
+
+/** Sincroniza cuentas Open Banking reales del usuario (misma ingesta que el panel). */
 export default function DemoOpenBanking({ onConnected }: DemoOpenBankingProps) {
   const [loading, setLoading] = useState(false);
-  const [accounts, setAccounts] = useState<DemoAccount[]>([]);
+  const [accounts, setAccounts] = useState<ObAccount[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
-  const [txs, setTxs] = useState<DemoTransaction[]>([]);
+  const [txs, setTxs] = useState<ObTransaction[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   async function runIngestion() {
     try {
       setLoading(true);
       setError(null);
-      await apiFetch("/api/demo/ingest", { method: "POST" });
+      await apiFetch("/api/open-banking/sync", { method: "POST", headers: authHeaders() });
       await loadAccounts();
       onConnected?.();
     } catch (_e) {
-      setError("Error al ejecutar la carga demo");
+      setError("No se pudo sincronizar. ¿Tienes sesión iniciada?");
     } finally {
       setLoading(false);
     }
@@ -49,20 +56,22 @@ export default function DemoOpenBanking({ onConnected }: DemoOpenBankingProps) {
 
   async function loadAccounts() {
     try {
-      const data = await apiFetch("/api/demo/accounts");
+      const data = await apiFetch("/api/accounts", { headers: authHeaders() });
       setAccounts(data);
     } catch {
-      // ignore
+      // ignorar
     }
   }
 
   async function loadTransactions(accountId: number) {
     setSelected(accountId);
     try {
-      const data = await apiFetch(`/api/demo/accounts/${accountId}/transactions?limit=25`);
+      const data = await apiFetch(`/api/accounts/${accountId}/transactions?limit=25`, {
+        headers: authHeaders(),
+      });
       setTxs(data);
     } catch {
-      // ignore
+      // ignorar
     }
   }
 
@@ -70,14 +79,14 @@ export default function DemoOpenBanking({ onConnected }: DemoOpenBankingProps) {
     <Card>
       <CardContent className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold">Demo: Carga Open Banking</h3>
+          <h3 className="text-lg font-bold">Open Banking</h3>
           <Button onClick={runIngestion} disabled={loading}>
-            {loading ? "Ejecutando…" : "Conectar y analizar (demo)"}
+            {loading ? "Sincronizando…" : "Sincronizar cuentas"}
           </Button>
         </div>
 
         <div className="text-sm text-muted-foreground">
-          Se generarán cuentas de ejemplo, saldos y transacciones de los últimos 90 días para un usuario demo.
+          Trae cuentas y movimientos de los últimos 90 días según la conexión configurada en el servidor.
         </div>
 
         {error && <div className="text-red-500 text-sm">{error}</div>}
@@ -88,16 +97,28 @@ export default function DemoOpenBanking({ onConnected }: DemoOpenBankingProps) {
           <div className="md:col-span-1 space-y-2">
             <div className="flex items-center justify-between">
               <h4 className="font-semibold">Cuentas</h4>
-              <Button variant="outline" size="sm" onClick={loadAccounts}>Actualizar</Button>
+              <Button variant="outline" size="sm" onClick={loadAccounts}>
+                Actualizar
+              </Button>
             </div>
             <div className="space-y-2">
               {accounts.length === 0 && (
-                <div className="text-sm text-muted-foreground">Aún no hay cuentas demo. Haz clic en Conectar y analizar.</div>
+                <div className="text-sm text-muted-foreground">
+                  Aún no hay cuentas. Pulsa sincronizar tras conectar el banco en el backend.
+                </div>
               )}
-              {accounts.map(a => (
-                <div key={a.id} className={`p-3 border rounded cursor-pointer ${selected===a.id? 'bg-accent' : ''}`} onClick={() => loadTransactions(a.id)}>
-                  <div className="font-medium">{a.name || a.type || 'Cuenta'} {a.mask ? `•${a.mask}` : ''}</div>
-                  <div className="text-xs text-muted-foreground">{a.type || ''} {a.currency? `• ${a.currency}`: ''}</div>
+              {accounts.map((a) => (
+                <div
+                  key={a.id}
+                  className={`p-3 border rounded cursor-pointer ${selected === a.id ? "bg-accent" : ""}`}
+                  onClick={() => loadTransactions(a.id)}
+                >
+                  <div className="font-medium">
+                    {a.name || a.type || "Cuenta"} {a.mask ? `•${a.mask}` : ""}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {a.type || ""} {a.currency ? `• ${a.currency}` : ""}
+                  </div>
                 </div>
               ))}
             </div>
@@ -105,7 +126,7 @@ export default function DemoOpenBanking({ onConnected }: DemoOpenBankingProps) {
           <div className="md:col-span-2">
             <h4 className="font-semibold mb-2">Transacciones recientes</h4>
             {selected === null ? (
-              <div className="text-sm text-muted-foreground">Elige una cuenta para ver las transacciones recientes.</div>
+              <div className="text-sm text-muted-foreground">Elige una cuenta para ver movimientos.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -118,12 +139,16 @@ export default function DemoOpenBanking({ onConnected }: DemoOpenBankingProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {txs.map(t => (
+                    {txs.map((t) => (
                       <tr key={t.id} className="border-b">
                         <td className="py-2 pr-4">{new Date(t.postedAt).toLocaleDateString()}</td>
-                        <td className="py-2 pr-4">{t.description || '-'}</td>
-                        <td className="py-2 pr-4">{t.merchantName || '-'}</td>
-                        <td className={`py-2 pr-4 text-right ${parseFloat(t.amount) < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{parseFloat(t.amount).toFixed(2)} {t.currency || ''}</td>
+                        <td className="py-2 pr-4">{t.description || "-"}</td>
+                        <td className="py-2 pr-4">{t.merchantName || "-"}</td>
+                        <td
+                          className={`py-2 pr-4 text-right ${parseFloat(t.amount) < 0 ? "text-red-600" : "text-emerald-600"}`}
+                        >
+                          {parseFloat(t.amount).toFixed(2)} {t.currency || ""}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

@@ -1,8 +1,6 @@
 /**
- * AI Service for Financial Assistant
- * Supports multiple AI providers: OpenAI, Anthropic Claude, Groq (Llama)
+ * Asistente financiero: OpenAI, Anthropic o Groq según variables de entorno.
  */
-
 import { logger } from '../logger.js';
 
 // Types
@@ -36,7 +34,7 @@ const getProvider = (): AIProvider => {
   if (process.env.OPENAI_API_KEY) return 'openai';
   if (process.env.ANTHROPIC_API_KEY) return 'anthropic';
   if (process.env.GROQ_API_KEY) return 'groq';
-  return 'openai'; // Default, will use demo mode if no key
+  return 'openai';
 };
 
 // System prompt for the financial assistant
@@ -60,9 +58,8 @@ Response format:
 - End with a clear action item or question when appropriate
 - Always write in Spanish`;
 
-// Build context prompt from user's financial data
 function buildContextPrompt(context: FinancialContext): string {
-  const parts: string[] = ['Current financial snapshot:'];
+  const parts: string[] = ['Resumen financiero del usuario:'];
   
   if (context.totalBalance) {
     parts.push(`- Total balance across accounts: $${context.totalBalance.toLocaleString()}`);
@@ -84,7 +81,7 @@ function buildContextPrompt(context: FinancialContext): string {
   }
   
   if (context.topSpendingCategories && context.topSpendingCategories.length > 0) {
-    parts.push('\nTop spending categories this month:');
+    parts.push('\nPrincipales categorías de gasto (aprox. último mes):');
     context.topSpendingCategories.slice(0, 5).forEach((cat) => {
       if (!cat) return;
       const amt = typeof cat.amount === 'number' && !Number.isNaN(cat.amount) ? cat.amount : 0;
@@ -93,9 +90,9 @@ function buildContextPrompt(context: FinancialContext): string {
   }
   
   if (context.financialGoals && context.financialGoals.length > 0) {
-    parts.push('\nFinancial goals:');
+    parts.push('\nMetas financieras:');
     context.financialGoals.forEach(goal => {
-      parts.push(`- ${goal.name}: ${goal.progress}% complete`);
+      parts.push(`- ${goal.name}: ${goal.progress}% completado`);
     });
   }
 
@@ -182,132 +179,12 @@ async function callGroq(messages: Message[], apiKey: string): Promise<string> {
   return data.choices[0]?.message?.content || '';
 }
 
-// Demo response generator (when no API key is configured)
-function generateDemoResponse(userMessage: string, context: FinancialContext): AIResponse {
-  const message = userMessage.toLowerCase();
-  
-  // Analyze spending patterns (ahorro / ahorrar / presupuesto)
-  if (message.includes('save') || message.includes('saving') || message.includes('budget') || message.includes('ahorro') || message.includes('ahorrar') || message.includes('presupuesto')) {
-    const coffeeEstimate = 5 * 20; // $5/day * 20 work days
-    const potentialSavings = Math.round(coffeeEstimate * 12);
-    
-    return {
-      message: `Buena pregunta sobre el ahorro. Según tu perfil, estas son algunas oportunidades:
-
-**Ganancias rápidas:**
-• Si compras café a diario (~$5/día), prepararlo en casa podría ahorrarte **$${potentialSavings}/año**
-• Tus gastos en comida de $${context.topSpendingCategories?.[1]?.amount || 680}/mes están por encima del promedio; reducir 15% te ahorraría $${Math.round((context.topSpendingCategories?.[1]?.amount || 680) * 0.15 * 12)}/año
-
-Tu tasa de ahorro actual de **${context.savingsRate || 28}%** es muy buena. Lo recomendado es 20%, así que vas bien.
-
-¿Quieres consejos para alguna categoría en particular?`,
-      suggestions: [
-        'Ver detalle de gastos en comida',
-        '¿Cómo automatizar el ahorro?',
-        'Comparar mis gastos con otros'
-      ],
-      actionItems: [
-        { title: 'Configurar transferencias automáticas', description: 'Traslada el 10% de tu ingreso al ahorro automáticamente', link: '/goals' },
-        { title: 'Revisar suscripciones', description: 'Revisa suscripciones mensuales que no uses', link: '/expenses' },
-      ]
-    };
-  }
-  
-  // Credit card offers (crédito / tarjeta / ofertas)
-  if (message.includes('credit') || message.includes('card') || message.includes('offer') || message.includes('crédito') || message.includes('tarjeta') || message.includes('ofertas')) {
-    return {
-      message: `Según tu puntaje de crédito **${context.creditScore || 720}** y tus gastos, estas son algunas opciones:
-
-**Tarjetas recomendadas:**
-• **Cashback**: Con $${context.monthlyExpenses?.toLocaleString() || '3,845'}/mes en gastos, una tarjeta con 2% de cashback podría darte **$${Math.round((context.monthlyExpenses || 3845) * 0.02 * 12)}/año**
-• **Viajes**: Si viajas, tus gastos podrían sumar más de 50.000 puntos al año
-
-Tu uso de crédito se ve saludable. ¿Quieres que te muestre ofertas de tarjetas para tu perfil?`,
-      suggestions: [
-        'Ver tarjetas con cashback',
-        'Comparar tarjetas de viajes',
-        '¿Cómo mejorar mi puntaje de crédito?'
-      ],
-      actionItems: [
-        { title: 'Comparar tarjetas', description: 'Ver recomendaciones personalizadas', link: '/products?category=credit-cards' },
-      ]
-    };
-  }
-  
-  // Investment advice (invertir / jubilación)
-  if (message.includes('invest') || message.includes('retirement') || message.includes('401k') || message.includes('invertir') || message.includes('jubilación') || message.includes('afp')) {
-    const monthlyToInvest = Math.round((context.monthlyIncome || 7500) * 0.15);
-    
-    return {
-      message: `Buena idea pensar en inversiones. Esto es lo que veo:
-
-**Tu potencial de inversión:**
-• Con un ingreso de $${(context.monthlyIncome || 7500).toLocaleString()}/mes, podrías invertir **$${monthlyToInvest}/mes** (15%)
-• Con un 7% de retorno promedio, sería aproximadamente **$${Math.round(monthlyToInvest * 12 * 1.07)}** al primer año
-
-**Recomendaciones:**
-1. Aprovecha primero el aporte patronal a tu AFP o fondo de pensiones
-2. Considera un ahorro voluntario en tu AFP si aún no lo tienes
-3. Para el resto, un fondo mutuo diversificado es una opción sólida
-
-¿Quieres que te ayude a crear una meta de inversión para seguir tu avance?`,
-      suggestions: [
-        'Crear meta de inversión',
-        'Explicar AFP y ahorro voluntario',
-        'Ver opciones de fondos mutuos'
-      ],
-      actionItems: [
-        { title: 'Crear meta de inversión', description: 'Seguir tu avance de inversión', link: '/goals' },
-      ]
-    };
-  }
-
-  // Goals and progress (metas / progreso)
-  if (message.includes('goal') || message.includes('progress') || message.includes('track') || message.includes('meta') || message.includes('progreso')) {
-    return {
-      message: `Aquí está el avance de tus metas financieras 📊
-
-**Progreso actual:**
-${context.financialGoals?.map(g => `• **${g.name}**: ${g.progress}% completado`).join('\n') || '• Aún no tienes metas; ¿quieres crear una?'}
-
-**Resumen:**
-Con una tasa de ahorro del ${context.savingsRate || 28}% vas muy bien. Tu patrimonio de **$${(context.netWorth || 142350).toLocaleString()}** te deja en buena posición.
-
-¿Quieres agregar una meta nueva o ajustar las que tienes?`,
-      suggestions: [
-        'Agregar una meta de ahorro',
-        'Ajustar mi fondo de emergencia',
-        'Crear meta para vacaciones'
-      ],
-      actionItems: [
-        { title: 'Gestionar metas', description: 'Ver y editar tus metas financieras', link: '/goals' },
-      ]
-    };
-  }
-
-  // Default response
-  const monthlySavings = ((context.monthlyIncome || 7500) - (context.monthlyExpenses || 3845)).toLocaleString();
+function serviceUnavailableResponse(): AIResponse {
   return {
-    message: `Hola, soy tu Asistente Financiero CODA. Puedo ayudarte con:
-
-**Qué puedo hacer:**
-• 💰 Analizar tus gastos y encontrar oportunidades de ahorro
-• 💳 Recomendar tarjetas y productos financieros
-• 📈 Ayudarte a cumplir tus metas financieras
-• 📊 Explicar tu puntaje de crédito y cómo mejorarlo
-
-**Tus números rápidos:**
-• Patrimonio: $${(context.netWorth || 142350).toLocaleString()}
-• Ahorro mensual: $${monthlySavings}
-• Tasa de ahorro: ${context.savingsRate || 28}%
-
-¿Qué te gustaría saber sobre tus finanzas?`,
-    suggestions: [
-      '¿Cómo puedo ahorrar más?',
-      'Ver ofertas de tarjetas de crédito',
-      '¿Cómo voy con mis metas?',
-      '¿En qué debería invertir?'
-    ]
+    message:
+      "El asistente con IA no está configurado en el servidor (falta OPENAI_API_KEY, ANTHROPIC_API_KEY o GROQ_API_KEY). " +
+      "Cuando el administrador configure una clave, podrás chatear con datos reales de tu cuenta.",
+    suggestions: [],
   };
 }
 
@@ -324,10 +201,9 @@ export async function chat(
     groq: process.env.GROQ_API_KEY,
   }[provider];
 
-  // If no API key, use demo mode
   if (!apiKey) {
-    logger.info('AI Service: Using demo mode (no API key configured)');
-    return generateDemoResponse(userMessage, financialContext);
+    logger.warn("Asistente IA: ninguna clave de API configurada");
+    return serviceUnavailableResponse();
   }
 
   try {
@@ -362,10 +238,12 @@ export async function chat(
       suggestions: extractSuggestions(response),
     };
   } catch (error) {
-    logger.error({ err: error, provider }, 'AI Service: Error calling provider');
-    
-    // Fallback to demo mode on error
-    return generateDemoResponse(userMessage, financialContext);
+    logger.error({ err: error, provider }, "Asistente IA: error del proveedor");
+    return {
+      message:
+        "No pudimos obtener respuesta del modelo de IA en este momento. Intenta de nuevo más tarde o revisa la configuración del servidor.",
+      suggestions: [],
+    };
   }
 }
 
