@@ -1,13 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  TrendingUp, 
+import {
+  TrendingUp,
   TrendingDown,
   Calendar,
   Target,
   PiggyBank,
   Wallet,
-  ArrowRight,
 } from "lucide-react";
 import {
   AreaChart,
@@ -22,78 +21,87 @@ import {
 } from "recharts";
 
 interface AnnualProjectionProps {
-  monthlyIncome?: number;
-  monthlyExpenses?: number;
-  currentSavings?: number;
-  savingsGoal?: number;
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  currentSavings: number;
+  savingsGoal: number | null;
 }
 
+const MONTHS_ES = [
+  "Ene",
+  "Feb",
+  "Mar",
+  "Abr",
+  "May",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dic",
+];
+
 export default function AnnualProjection({
-  monthlyIncome = 7500,
-  monthlyExpenses = 3845,
-  currentSavings = 16000,
-  savingsGoal = 50000,
+  monthlyIncome,
+  monthlyExpenses,
+  currentSavings,
+  savingsGoal,
 }: AnnualProjectionProps) {
   const monthlySavings = monthlyIncome - monthlyExpenses;
   const annualIncome = monthlyIncome * 12;
   const projectedAnnualExpenses = monthlyExpenses * 12;
   const projectedAnnualSavings = monthlySavings * 12;
-  const savingsRate = (monthlySavings / monthlyIncome) * 100;
-  
-  // Calculate months to reach savings goal
-  const remainingToGoal = savingsGoal - currentSavings;
-  const monthsToGoal = monthlySavings > 0 ? Math.ceil(remainingToGoal / monthlySavings) : Infinity;
-  
-  // Generate projection data for the year
+  const savingsRate =
+    monthlyIncome > 0 ? (monthlySavings / monthlyIncome) * 100 : 0;
+
+  const goal = savingsGoal != null && savingsGoal > 0 ? savingsGoal : null;
+  const remainingToGoal = goal != null ? goal - currentSavings : null;
+  const monthsToGoal =
+    goal != null && remainingToGoal != null && monthlySavings > 0
+      ? Math.ceil(remainingToGoal / monthlySavings)
+      : goal != null && remainingToGoal != null && remainingToGoal <= 0
+        ? 0
+        : Infinity;
+
   const currentMonth = new Date().getMonth();
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  
-  const projectionData = months.map((month, index) => {
-    const isPast = index < currentMonth;
-    const isCurrent = index === currentMonth;
-    
-    // Simulate some variance for past months
-    const variance = isPast ? (Math.random() * 0.2 - 0.1) : 0;
-    const actualIncome = isPast ? monthlyIncome * (1 + variance * 0.5) : null;
-    const actualExpenses = isPast ? monthlyExpenses * (1 + variance) : null;
-    
-    return {
-      month,
-      projectedIncome: monthlyIncome,
-      projectedExpenses: monthlyExpenses,
-      projectedSavings: monthlySavings,
-      actualIncome: actualIncome ? Math.round(actualIncome) : undefined,
-      actualExpenses: actualExpenses ? Math.round(actualExpenses) : undefined,
-      actualSavings: actualIncome && actualExpenses ? Math.round(actualIncome - actualExpenses) : undefined,
-      cumulativeSavings: currentSavings + (index - currentMonth + 1) * monthlySavings,
-    };
-  });
+
+  const projectionData = MONTHS_ES.map((month) => ({
+    month,
+    projectedIncome: monthlyIncome,
+    projectedExpenses: monthlyExpenses,
+    projectedSavings: monthlySavings,
+  }));
 
   const formatCurrency = (value: number) => {
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
+    if (!Number.isFinite(value)) return "—";
+    if (Math.abs(value) >= 1_000_000) {
+      return `${(value / 1_000_000).toFixed(1)}M`;
     }
-    if (value >= 1000) {
-      return `$${(value / 1000).toFixed(0)}K`;
+    if (Math.abs(value) >= 1000) {
+      return `${(value / 1000).toFixed(0)}k`;
     }
-    return `$${value}`;
+    return `${Math.round(value)}`;
   };
 
-  const formatFullCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+  const formatFullCurrency = (value: number) =>
+    new Intl.NumberFormat("es-CL", {
+      style: "currency",
+      currency: "CLP",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(value);
-  };
+    }).format(Math.round(value));
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: {
+    active?: boolean;
+    payload?: { value: number; name: string; color: string }[];
+    label?: string;
+  }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-background border rounded-lg shadow-lg p-3">
           <p className="font-medium text-sm mb-2">{label}</p>
-          {payload.map((entry: any, index: number) => (
+          {payload.map((entry, index) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
               {entry.name}: {formatFullCurrency(entry.value)}
             </p>
@@ -104,9 +112,28 @@ export default function AnnualProjection({
     return null;
   };
 
+  const hasAnyData =
+    monthlyIncome > 0 ||
+    monthlyExpenses > 0 ||
+    currentSavings > 0 ||
+    (goal != null && goal > 0);
+
+  if (!hasAnyData) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center text-muted-foreground">
+          <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p className="font-medium text-foreground">Sin datos para proyectar</p>
+          <p className="text-sm mt-2">
+            Cuando tengas ingresos y gastos estimados (movimientos o gastos registrados), aquí verás una proyección anual sin cifras inventadas.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Annual Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/30 border-green-200 dark:border-green-800">
           <CardContent className="p-5">
@@ -114,13 +141,13 @@ export default function AnnualProjection({
               <div className="p-2 bg-green-500 rounded-lg">
                 <Wallet className="h-4 w-4 text-white" />
               </div>
-              <span className="text-sm font-medium text-green-800 dark:text-green-300">Ingresos anuales</span>
+              <span className="text-sm font-medium text-green-800 dark:text-green-300">Ingresos anuales (proy.)</span>
             </div>
             <p className="text-2xl font-bold text-green-900 dark:text-green-100">
               {formatFullCurrency(annualIncome)}
             </p>
             <p className="text-xs text-green-700 dark:text-green-400 mt-1">
-              {formatFullCurrency(monthlyIncome)}/mes
+              {formatFullCurrency(monthlyIncome)}/mes (base período reciente)
             </p>
           </CardContent>
         </Card>
@@ -131,7 +158,7 @@ export default function AnnualProjection({
               <div className="p-2 bg-red-500 rounded-lg">
                 <TrendingDown className="h-4 w-4 text-white" />
               </div>
-              <span className="text-sm font-medium text-red-800 dark:text-red-300">Gastos proyectados</span>
+              <span className="text-sm font-medium text-red-800 dark:text-red-300">Gastos anuales (proy.)</span>
             </div>
             <p className="text-2xl font-bold text-red-900 dark:text-red-100">
               {formatFullCurrency(projectedAnnualExpenses)}
@@ -148,7 +175,7 @@ export default function AnnualProjection({
               <div className="p-2 bg-blue-500 rounded-lg">
                 <PiggyBank className="h-4 w-4 text-white" />
               </div>
-              <span className="text-sm font-medium text-blue-800 dark:text-blue-300">Ahorro proyectado</span>
+              <span className="text-sm font-medium text-blue-800 dark:text-blue-300">Ahorro anual (proy.)</span>
             </div>
             <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
               {formatFullCurrency(projectedAnnualSavings)}
@@ -165,25 +192,32 @@ export default function AnnualProjection({
               <div className="p-2 bg-purple-500 rounded-lg">
                 <Target className="h-4 w-4 text-white" />
               </div>
-              <span className="text-sm font-medium text-purple-800 dark:text-purple-300">Avance de la meta</span>
+              <span className="text-sm font-medium text-purple-800 dark:text-purple-300">Meta de ahorro</span>
             </div>
             <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
-              {monthsToGoal < 100 ? `${monthsToGoal} mes` : '—'}
+              {goal != null
+                ? monthsToGoal < 200
+                  ? `${monthsToGoal} mes`
+                  : "—"
+                : "—"}
             </p>
             <p className="text-xs text-purple-700 dark:text-purple-400 mt-1">
-              para alcanzar {formatFullCurrency(savingsGoal)}
+              {goal != null
+                ? `hasta ${formatFullCurrency(goal)}`
+                : "Define una meta en Metas"}
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Projection Chart */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Proyección de flujo de caja anual</CardTitle>
-              <CardDescription>Ingresos, gastos y ahorro proyectados por mes</CardDescription>
+              <CardTitle>Flujo mensual proyectado ({new Date().getFullYear()})</CardTitle>
+              <CardDescription>
+                Basado en ingresos y gastos recientes (cuentas / movimientos), sin variación aleatoria.
+              </CardDescription>
             </div>
             <Badge variant="secondary" className="text-xs">
               <Calendar className="h-3 w-3 mr-1" />
@@ -210,13 +244,8 @@ export default function AnnualProjection({
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis 
-                  dataKey="month" 
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis 
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                <YAxis
                   tickFormatter={formatCurrency}
                   tick={{ fontSize: 12 }}
                   tickLine={false}
@@ -224,15 +253,15 @@ export default function AnnualProjection({
                   width={60}
                 />
                 <Tooltip content={<CustomTooltip />} />
-                <Legend 
-                  wrapperStyle={{ paddingTop: '20px' }}
+                <Legend
+                  wrapperStyle={{ paddingTop: "20px" }}
                   formatter={(value) => <span className="text-sm text-muted-foreground">{value}</span>}
                 />
-                <ReferenceLine 
-                  x={months[new Date().getMonth()]} 
-                  stroke="#888" 
+                <ReferenceLine
+                  x={MONTHS_ES[currentMonth]}
+                  stroke="#888"
                   strokeDasharray="3 3"
-                  label={{ value: 'Hoy', position: 'top', fontSize: 10 }}
+                  label={{ value: "Hoy", position: "top", fontSize: 10 }}
                 />
                 <Area
                   type="monotone"
@@ -255,7 +284,7 @@ export default function AnnualProjection({
                 <Area
                   type="monotone"
                   dataKey="projectedSavings"
-                  name="Ahorro"
+                  name="Ahorro neto"
                   stroke="#3b82f6"
                   strokeWidth={2}
                   fillOpacity={1}
@@ -267,75 +296,46 @@ export default function AnnualProjection({
         </CardContent>
       </Card>
 
-      {/* Savings Goal Progress */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            Trayectoria de la meta de ahorro
-          </CardTitle>
-          <CardDescription>
-            Avance hacia tu meta de ahorro de {formatFullCurrency(savingsGoal)}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4 mb-6">
-            <div className="flex-1">
-              <div className="flex justify-between text-sm mb-2">
-                <span>Actual: {formatFullCurrency(currentSavings)}</span>
-                <span>Meta: {formatFullCurrency(savingsGoal)}</span>
-              </div>
-              <div className="h-4 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min((currentSavings / savingsGoal) * 100, 100)}%` }}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground mt-2">
-                {((currentSavings / savingsGoal) * 100).toFixed(1)}% completado
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-3xl font-bold text-primary">
-                {monthsToGoal < 100 ? monthsToGoal : '∞'}
-              </p>
-              <p className="text-sm text-muted-foreground">meses para la meta</p>
-            </div>
-          </div>
-
-          {/* Milestones */}
-          <div className="grid grid-cols-4 gap-2">
-            {[25, 50, 75, 100].map((milestone) => {
-              const milestoneAmount = (savingsGoal * milestone) / 100;
-              const isReached = currentSavings >= milestoneAmount;
-              const monthsToMilestone = monthlySavings > 0 
-                ? Math.max(0, Math.ceil((milestoneAmount - currentSavings) / monthlySavings))
-                : Infinity;
-              
-              return (
-                <div 
-                  key={milestone}
-                  className={`text-center p-3 rounded-lg ${
-                    isReached 
-                      ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800' 
-                      : 'bg-muted/50'
-                  }`}
-                >
-                  <p className={`text-lg font-bold ${isReached ? 'text-green-600' : ''}`}>
-                    {milestone}%
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatCurrency(milestoneAmount)}
-                  </p>
-                  <p className="text-xs mt-1">
-                    {isReached ? '✓ Alcanzado' : `${monthsToMilestone} mes`}
-                  </p>
+      {goal != null && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              Avance hacia la meta
+            </CardTitle>
+            <CardDescription>
+              Meta: {formatFullCurrency(goal)} · Actual estimado en cuentas: {formatFullCurrency(currentSavings)}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="flex-1">
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Actual: {formatFullCurrency(currentSavings)}</span>
+                  <span>Meta: {formatFullCurrency(goal)}</span>
                 </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                <div className="h-4 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min((currentSavings / goal) * 100, 100)}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {((currentSavings / goal) * 100).toFixed(1)}% completado
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-3xl font-bold text-primary">
+                  {monthsToGoal < 200 ? monthsToGoal : "∞"}
+                </p>
+                <p className="text-sm text-muted-foreground">meses estimados</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

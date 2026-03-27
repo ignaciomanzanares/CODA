@@ -83,6 +83,30 @@ export default function FinancialAssistant({
     enabled: isOpen && isAuthenticated,
   });
 
+  const {
+    data: bootstrapData,
+    isFetching: bootstrapLoading,
+    isError: bootstrapError,
+  } = useQuery({
+    queryKey: ['assistant-bootstrap'],
+    queryFn: async () => {
+      const token = localStorage.getItem('jwt_token');
+      if (!token) throw new Error('no token');
+      return apiFetch('/api/assistant/bootstrap', {
+        headers: { Authorization: `Bearer ${token}` },
+      }) as Promise<{ welcome: string; chips: string[] }>;
+    },
+    enabled: isOpen && isAuthenticated,
+  });
+
+  const prevAuthRef = useRef(isAuthenticated);
+  useEffect(() => {
+    if (prevAuthRef.current !== isAuthenticated) {
+      setMessages([]);
+      prevAuthRef.current = isAuthenticated;
+    }
+  }, [isAuthenticated]);
+
   // Send message to AI
   const sendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
@@ -124,11 +148,11 @@ export default function FinancialAssistant({
 
       setMessages(prev => (Array.isArray(prev) ? [...prev, assistantMessage] : [assistantMessage]));
     } catch (error) {
-      // Fallback response if API fails
+      const msg = error instanceof Error ? error.message : 'Error de conexión';
       const fallbackMessage: Message = {
         role: 'assistant',
-        content: "Ahora mismo no puedo conectar. Inténtalo de nuevo en un momento o explora el panel para ver información sobre tus finanzas.",
-        suggestions: ['Reintentar', 'Ver panel'],
+        content: `No se pudo obtener respuesta del servidor (${msg}). Revisa tu conexión o la configuración de la API de IA.`,
+        suggestions: [],
         timestamp: new Date(),
       };
       setMessages(prev => (Array.isArray(prev) ? [...prev, fallbackMessage] : [fallbackMessage]));
@@ -151,29 +175,43 @@ export default function FinancialAssistant({
     onClose?.();
   };
 
-  // Initial welcome message
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      setMessages([{
-        role: 'assistant',
-        content: `¡Hola! Soy tu Asistente Financiero CODA. 👋
-
-Puedo ayudarte a:
-• **Analizar gastos** y encontrar oportunidades de ahorro
-• **Comparar productos** como tarjetas y créditos
-• **Seguir metas** y planificar el futuro
-• **Responder preguntas** sobre tus finanzas
-
-¿En qué te ayudo?`,
-        suggestions: [
-          '¿Cómo puedo ahorrar más?',
-          'Muéstrame ofertas de tarjetas',
-          '¿Cómo van mis finanzas?',
-        ],
-        timestamp: new Date(),
-      }]);
+    if (!isOpen || messages.length > 0) return;
+    if (!isAuthenticated) {
+      setMessages([
+        {
+          role: 'assistant',
+          content:
+            'Inicia sesión para que el asistente use **tus gastos, cartolas y cuentas** cargadas en CODA. Sin sesión no hay datos personales que analizar.',
+          suggestions: [],
+          timestamp: new Date(),
+        },
+      ]);
+      return;
     }
-  }, [isOpen]);
+    if (bootstrapError) {
+      setMessages([
+        {
+          role: 'assistant',
+          content:
+            'No se pudo cargar tu resumen financiero. Escribe tu pregunta y, si el servidor tiene IA configurada, intentaremos responder con el contexto disponible.',
+          suggestions: [],
+          timestamp: new Date(),
+        },
+      ]);
+      return;
+    }
+    if (bootstrapData) {
+      setMessages([
+        {
+          role: 'assistant',
+          content: bootstrapData.welcome,
+          suggestions: bootstrapData.chips?.length ? bootstrapData.chips : undefined,
+          timestamp: new Date(),
+        },
+      ]);
+    }
+  }, [isOpen, isAuthenticated, bootstrapData, bootstrapError, messages.length]);
 
   // Floating chat button (when not embedded)
   if (!embedded && !isOpen) {
@@ -230,6 +268,12 @@ Puedo ayudarte a:
         <>
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-4">
+              {isAuthenticated && bootstrapLoading && messages.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                  <p className="text-sm">Cargando tu contexto financiero…</p>
+                </div>
+              )}
               {messages.map((message, index) => (
                 <div
                   key={index}
@@ -333,18 +377,19 @@ Puedo ayudarte a:
           </ScrollArea>
 
           {/* Quick Insights */}
-          {insightsData?.insights && messages.length === 1 && (
+          {isAuthenticated && insightsData?.insights?.length && messages.length === 1 && (
             <div className="px-4 pb-2">
-              <p className="text-xs text-muted-foreground mb-2">Resumen rápido:</p>
+              <p className="text-xs text-muted-foreground mb-2">Ideas según tus datos:</p>
               <div className="flex flex-wrap gap-2">
-                {insightsData.insights.slice(0, 2).map((insight: string, i: number) => (
-                  <Badge 
-                    key={i} 
-                    variant="secondary" 
-                    className="text-xs cursor-pointer hover:bg-secondary/80"
-                    onClick={() => handleSuggestionClick(`Cuéntame más sobre: ${insight}`)}
+                {insightsData.insights.slice(0, 3).map((insight: string, i: number) => (
+                  <Badge
+                    key={i}
+                    variant="secondary"
+                    className="text-xs cursor-pointer hover:bg-secondary/80 max-w-[220px] truncate"
+                    onClick={() => handleSuggestionClick(`Amplía: ${insight}`)}
+                    title={insight}
                   >
-                    {insight.substring(0, 50)}...
+                    {insight.length > 70 ? `${insight.slice(0, 70)}…` : insight}
                   </Badge>
                 ))}
               </div>
