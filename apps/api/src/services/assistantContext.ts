@@ -4,23 +4,29 @@
 import { storage } from "../storage.js";
 import type { FinancialContext } from "./aiService.js";
 
+/** Cuenta con saldo; incluye `type` para clasificar activos/pasivos. */
+type AccountWithBalance = {
+  id: number;
+  type?: string | null;
+  balance?: { current?: string } | null;
+};
+
 function txAmount(t: { amount?: unknown }): number {
   return parseFloat(String(t?.amount ?? 0));
 }
 
 export async function buildFinancialContextForAssistant(userId: string): Promise<FinancialContext> {
   const userAccounts = await storage.getAccounts(userId);
-  const accountsWithBalances = await Promise.all(
-    userAccounts.map(async (account: { id: number }) => {
+  const accountsWithBalances: AccountWithBalance[] = await Promise.all(
+    userAccounts.map(async (account) => {
       const balances = await storage.getBalances(account.id);
       const balance = balances.length > 0 ? balances[balances.length - 1] : null;
-      return { ...account, balance };
+      return { ...account, balance } as AccountWithBalance;
     })
   );
 
   const totalBalance = accountsWithBalances.reduce(
-    (sum: number, a: { balance?: { current?: string } }) =>
-      sum + parseFloat(a.balance?.current || "0"),
+    (sum, a) => sum + parseFloat(a.balance?.current || "0"),
     0
   );
 
@@ -75,25 +81,23 @@ export async function buildFinancialContextForAssistant(userId: string): Promise
   const goals = await storage.getFinancialGoals(userId);
 
   const checkingTotal = accountsWithBalances
-    .filter((a: { type?: string }) => a.type === "checking" || a.type === "depository")
-    .reduce((s: number, a: { balance?: { current?: string } }) => s + parseFloat(a.balance?.current || "0"), 0);
+    .filter((a) => a.type === "checking" || a.type === "depository")
+    .reduce((s, a) => s + parseFloat(a.balance?.current || "0"), 0);
   const savingsTotal = accountsWithBalances
-    .filter((a: { type?: string }) => a.type === "savings")
-    .reduce((s: number, a: { balance?: { current?: string } }) => s + parseFloat(a.balance?.current || "0"), 0);
+    .filter((a) => a.type === "savings")
+    .reduce((s, a) => s + parseFloat(a.balance?.current || "0"), 0);
   const investmentsTotal = accountsWithBalances
-    .filter(
-      (a: { type?: string }) => a.type === "investment" || a.type === "brokerage"
-    )
-    .reduce((s: number, a: { balance?: { current?: string } }) => s + parseFloat(a.balance?.current || "0"), 0);
+    .filter((a) => a.type === "investment" || a.type === "brokerage")
+    .reduce((s, a) => s + parseFloat(a.balance?.current || "0"), 0);
   const creditCardDebt = Math.abs(
     accountsWithBalances
-      .filter((a: { type?: string }) => a.type === "credit")
-      .reduce((s: number, a: { balance?: { current?: string } }) => s + parseFloat(a.balance?.current || "0"), 0)
+      .filter((a) => a.type === "credit")
+      .reduce((s, a) => s + parseFloat(a.balance?.current || "0"), 0)
   );
   const loansTotal = Math.abs(
     accountsWithBalances
-      .filter((a: { type?: string }) => a.type === "loan")
-      .reduce((s: number, a: { balance?: { current?: string } }) => s + parseFloat(a.balance?.current || "0"), 0)
+      .filter((a) => a.type === "loan")
+      .reduce((s, a) => s + parseFloat(a.balance?.current || "0"), 0)
   );
 
   const totalAssets = checkingTotal + savingsTotal + investmentsTotal;
