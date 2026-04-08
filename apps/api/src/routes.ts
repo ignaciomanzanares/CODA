@@ -2006,35 +2006,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Ensure user exists in database (create if needed)
       let user = await storage.getUser(userId);
       if (!user && possibleEmail) {
-        // Extract user info from JWT token token
-        const userName = String((req as AuthenticatedRequest).user?.name || (req as AuthenticatedRequest).user?.name || 'User');
-        const [firstName, ...lastNameParts] = userName.split(' ');
-        
-        user = await storage.createUser({
-          id: userId,
-          username: String((req as AuthenticatedRequest).user?.name || userId),
-          email: String(possibleEmail),
-          passwordHash: "jwt-auth",
-          firstName: firstName || 'User',
-          lastName: lastNameParts.length > 0 ? lastNameParts.join(' ') : null
-        });
+        // Reuse account by email to avoid unique-email conflicts when token userId changes.
+        user = await storage.getUserByEmail(String(possibleEmail));
+        if (!user) {
+          const userName = String((req as AuthenticatedRequest).user?.name || 'User');
+          const [firstName, ...lastNameParts] = userName.split(' ');
+          user = await storage.createUser({
+            id: userId,
+            username: String((req as AuthenticatedRequest).user?.name || userId),
+            email: String(possibleEmail),
+            passwordHash: "jwt-auth",
+            firstName: firstName || 'User',
+            lastName: lastNameParts.length > 0 ? lastNameParts.join(' ') : null
+          });
+        }
       }
+      const canonicalUserId = user?.id ? String(user.id) : userId;
       
       // Link existing participant records to this user if they match by email
       if (possibleEmail) {
         const unlinkedParticipants = await storage.getUnlinkedParticipantsByEmail(String(possibleEmail));
         if (unlinkedParticipants && unlinkedParticipants.length > 0) {
           for (const participant of unlinkedParticipants) {
-            await storage.updateBillSplitParticipant(participant.id, { userId: userId });
+            await storage.updateBillSplitParticipant(participant.id, { userId: canonicalUserId });
           }
         }
       }
       
       // Get bill splits where user is the creator
-      const createdBillSplits = await storage.getBillSplits(userId);
+      const createdBillSplits = await storage.getBillSplits(canonicalUserId);
       
       // Get bill splits where user is a participant
-      const participantBillSplits = await storage.getBillSplitsAsParticipant(userId);
+      const participantBillSplits = await storage.getBillSplitsAsParticipant(canonicalUserId);
       
       // Combine and deduplicate (in case user is both creator and participant)
       const allBillSplits = [...createdBillSplits];
@@ -2049,13 +2052,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allBillSplits.map(async (billSplit) => {
           const participants = await storage.getBillSplitParticipants(billSplit.id as number);
           const createdBy = billSplit.createdBy ?? (billSplit as any).created_by;
-          const isCreator = String(createdBy) === userId;
-          const isParticipant = participants.some((p: BillSplitParticipant) => String(p.userId ?? (p as any).user_id) === userId);
+          const isCreator = String(createdBy) === canonicalUserId;
+          const isParticipant = participants.some((p: BillSplitParticipant) => String(p.userId ?? (p as any).user_id) === canonicalUserId);
 
           // Solo un participante puede ser "tú": si eres creador, solo el primero (índice 0); si no, el que tenga tu userId
           const participantsWithCurrentUser = participants.map((p: BillSplitParticipant, i: number) => {
             const pUserId = p.userId ?? (p as any).user_id;
-            const matchesUserId = String(pUserId) === userId;
+            const matchesUserId = String(pUserId) === canonicalUserId;
             const isCurrentUser = isCreator ? matchesUserId && i === 0 : matchesUserId;
             return {
               id: p.id,
@@ -2092,20 +2095,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Ensure user exists in database (create if needed)
       let user = await storage.getUser(userId);
       if (!user) {
-        // Extract user info from JWT token token
         const userEmail = String((req as AuthenticatedRequest).user?.email || `${userId}@unknown.com`);
-        const userName = String((req as AuthenticatedRequest).user?.name || (req as AuthenticatedRequest).user?.name || 'User');
-        const [firstName, ...lastNameParts] = userName.split(' ');
-        
-        user = await storage.createUser({
-          id: userId,
-          username: String((req as AuthenticatedRequest).user?.name || userId),
-          email: userEmail,
-          passwordHash: "jwt-auth",
-          firstName: firstName || 'User',
-          lastName: lastNameParts.length > 0 ? lastNameParts.join(' ') : null
-        });
-        logger.info({ userId, email: userEmail }, 'Created new user');
+        // Reuse existing email owner first to avoid unique-email violations.
+        user = await storage.getUserByEmail(userEmail);
+        if (!user) {
+          const userName = String((req as AuthenticatedRequest).user?.name || 'User');
+          const [firstName, ...lastNameParts] = userName.split(' ');
+          user = await storage.createUser({
+            id: userId,
+            username: String((req as AuthenticatedRequest).user?.name || userId),
+            email: userEmail,
+            passwordHash: "jwt-auth",
+            firstName: firstName || 'User',
+            lastName: lastNameParts.length > 0 ? lastNameParts.join(' ') : null
+          });
+          logger.info({ userId, email: userEmail }, 'Created new user');
+        }
       }
       
       // Extract participants and optional flags from request body (don't include in bill split data)
