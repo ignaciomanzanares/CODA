@@ -262,11 +262,10 @@ export default function PrivacyPolicy() {
       <section id="cookies" className="scroll-mt-24">
         <h2>10. Cookies y tracking</h2>
         <p>
-          CODA no utiliza cookies de publicidad comportamental de terceros para fines de remarketing. Para
-          métricas de uso de sitio empleamos <strong>Plausible Analytics</strong>, orientado a privacidad
-          (sin cookies de seguimiento habituales en el sentido de publicidad). La sesión de la aplicación
-          puede mantenerse mediante <strong>token JWT</strong> almacenado en el dispositivo del usuario
-          (p. ej. almacenamiento local del navegador), necesario para recordar su sesión.
+          CODA no utiliza cookies de publicidad comportamental de terceros para fines de remarketing.
+          La sesión de la aplicación puede mantenerse mediante <strong>token JWT</strong> almacenado
+          en el dispositivo del usuario (p. ej. almacenamiento local del navegador), necesario para
+          recordar su sesión.
         </p>
       </section>
 

@@ -99,7 +99,7 @@ export default function DemoPDCard() {
               AUC:{" "}
               {typeof (modelInfo as { metrics?: { auc?: number } }).metrics?.auc === "number"
                 ? (modelInfo as { metrics: { auc: number } }).metrics.auc.toFixed(3)
-                : (modelInfo as { metrics?: { auc?: unknown } }).metrics?.auc}
+                : String((modelInfo as { metrics?: { auc?: unknown } }).metrics?.auc ?? "N/D")}
             </div>
           )}
         </div>
