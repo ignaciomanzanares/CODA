@@ -74,6 +74,7 @@ export async function processDocumentUpload(
   }
 
   if (doc.tipo === 'cmf_informe_deudas') {
+    const uploadId = randomUUID();
     // RUT como ancla: el informe debe contener un RUT válido (ej. 21.486.204-2). Si no hay, 400.
     const RUT_RE = /\b\d{1,2}\.\d{3}\.\d{3}-[\dKk]\b/;
     const rutExtraido = doc.rutDocumento?.trim();
@@ -189,6 +190,16 @@ export async function processDocumentUpload(
         : doc.numeroInstituciones > 0
           ? `Deuda total vigente: $${doc.deudaTotalVigente.toLocaleString('es-CL')} CLP en ${doc.numeroInstituciones} institución(es).`
           : 'Sin deudas vigentes reportadas en el informe CMF.';
+    await storage.createDocumentUpload({
+      id: uploadId,
+      userId,
+      tipo: "cmf",
+      banco: null,
+      periodoDesde: null,
+      periodoHasta: null,
+      parsedData: doc,
+      parseStatus: "success",
+    });
     return {
       step: 'done',
       documentType: 'cmf_informe_deudas',
@@ -203,8 +214,14 @@ export async function processDocumentUpload(
 
   if (doc.tipo === 'cartola') {
     const rut = doc.rutDocumento ?? '00.000.000-0';
-    const transactions = cartolaToSfaTransactions(doc, rut);
-    const products = cartolaToSfaProductos(doc, rut);
+    // Acumular todas las cartolas parseadas del usuario + la cartola actual.
+    const previousCartolas = await storage.listDocumentUploadsByType(userId, "cartola");
+    const previousParsed: CartolaExtraida[] = previousCartolas
+      .map((r) => r?.parsedData as CartolaExtraida | null)
+      .filter((c): c is CartolaExtraida => !!c && Array.isArray(c.transacciones));
+    const allCartolas = [...previousParsed, doc];
+    const transactions = allCartolas.flatMap((c) => cartolaToSfaTransactions(c, c.rutDocumento ?? rut));
+    const products = allCartolas.flatMap((c) => cartolaToSfaProductos(c, c.rutDocumento ?? rut));
     const engine = getSfaScoringEngine();
     const result = engine.run({ transactions, products });
     const hasInterest = doc.transacciones.some(
@@ -216,15 +233,26 @@ export async function processDocumentUpload(
         'Detectamos intereses de línea de crédito o tarjeta en tu cartola. Te recomendamos consolidar deudas y evaluar ofertas de ahorro según el Business Plan.'
       );
     }
+    await storage.createDocumentUpload({
+      id: randomUUID(),
+      userId,
+      tipo: "cartola",
+      banco: (doc as any).banco ?? null,
+      periodoDesde: (doc as any).periodo?.desde ? String((doc as any).periodo.desde) : null,
+      periodoHasta: (doc as any).periodo?.hasta ? String((doc as any).periodo.hasta) : null,
+      parsedData: doc,
+      parseStatus: "success",
+    });
     await storage.upsertTransactionalScore(userId, {
       transactionalScore: result.transactionalScore,
       metrics: result.metrics,
       mainInsights,
       recommendedProducts: result.recommendedProducts,
       algorithmInputs: {
-        pipeline: 'cartola_pdf',
+        pipeline: 'cartola_pdf_aggregated',
         transactionCount: transactions.length,
         productCount: products.length,
+        cartolasCount: allCartolas.length,
       },
     });
     return {
