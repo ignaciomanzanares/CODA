@@ -26,11 +26,6 @@ export default function Login() {
   // 2FA state
   const [requires2FA, setRequires2FA] = useState(false);
   const [otpCode, setOtpCode] = useState("");
-  /** Tras migración Neon: contraseña en BD es placeholder; recuperación con MIGRATION_RECOVERY_SECRET */
-  const [showMigrationRecovery, setShowMigrationRecovery] = useState(false);
-  const [migrationNewPw, setMigrationNewPw] = useState("");
-  const [migrationSecret, setMigrationSecret] = useState("");
-  const [recoveryLoading, setRecoveryLoading] = useState(false);
 
   // Redirect if already authenticated in this context (personal o empresas)
   if (isAuth) {
@@ -71,47 +66,9 @@ export default function Login() {
         setLocation(defaultRedirect);
       }
     } catch (err) {
-      const raw = err instanceof Error ? err.message : String(err);
-      if (raw.includes("[migration_recovery]")) {
-        setShowMigrationRecovery(true);
-        setError(raw.replace(/^\[migration_recovery\]\s*/i, "").trim());
-      } else {
-        setError(mapLoginAuthError(err));
-      }
+      setError(mapLoginAuthError(err));
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleMigrationRecovery = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setRecoveryLoading(true);
-    setError("");
-    try {
-      const data = (await apiFetch("/api/auth/recover-migration-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          newPassword: migrationNewPw,
-          recoverySecret: migrationSecret,
-        }),
-      })) as { success?: boolean };
-      if (!data || data.success !== true) {
-        throw new Error("El servidor no confirmó el cambio de contraseña. Revisa la consola de red o VITE_API_URL.");
-      }
-      toast({
-        title: "Contraseña actualizada",
-        description: `Inicia sesión con este mismo correo (${email.trim()}) y la contraseña nueva que acabas de definir.`,
-      });
-      setPassword("");
-      setShowMigrationRecovery(false);
-      setMigrationNewPw("");
-      setMigrationSecret("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo actualizar la contraseña.");
-    } finally {
-      setRecoveryLoading(false);
     }
   };
 
@@ -361,61 +318,6 @@ export default function Login() {
                   )}
                 </Button>
 
-                <div className="border-t pt-4 space-y-3">
-                    <button
-                      type="button"
-                      className="text-sm text-primary hover:underline w-full text-left"
-                      onClick={() => setShowMigrationRecovery((v) => !v)}
-                    >
-                      {showMigrationRecovery
-                        ? "Ocultar recuperación tras migración"
-                        : "¿Migraste la base de datos (Neon) y no puedes entrar? Recuperar acceso"}
-                    </button>
-                    {showMigrationRecovery && (
-                      <form onSubmit={handleMigrationRecovery} className="space-y-3 rounded-lg border bg-muted/30 p-3 text-left">
-                        <p className="text-xs text-muted-foreground">
-                          Define una contraseña nueva. El código es el valor de{" "}
-                          <code className="rounded bg-muted px-1">MIGRATION_RECOVERY_SECRET</code> en el hosting
-                          (créalo tú en Environment, despliega, úsalo una vez y quita la variable).
-                        </p>
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium">Nueva contraseña (mín. 8 caracteres)</label>
-                          <input
-                            type="password"
-                            autoComplete="new-password"
-                            required
-                            minLength={8}
-                            value={migrationNewPw}
-                            onChange={(e) => setMigrationNewPw(e.target.value)}
-                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                            disabled={recoveryLoading}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium">Código de recuperación</label>
-                          <input
-                            type="password"
-                            autoComplete="off"
-                            required
-                            value={migrationSecret}
-                            onChange={(e) => setMigrationSecret(e.target.value)}
-                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm font-mono"
-                            disabled={recoveryLoading}
-                          />
-                        </div>
-                        <Button type="submit" className="w-full" size="sm" disabled={recoveryLoading}>
-                          {recoveryLoading ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Guardando…
-                            </>
-                          ) : (
-                            "Guardar nueva contraseña"
-                          )}
-                        </Button>
-                      </form>
-                    )}
-                  </div>
               </form>
             )}
 

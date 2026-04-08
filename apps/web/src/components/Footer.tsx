@@ -89,11 +89,6 @@ export default function Footer() {
                   Protección de datos
                 </Link>
               </li>
-              <li>
-                <span className="text-gray-500 text-xs">
-                  Analytics: Plausible (sin cookies de publicidad)
-                </span>
-              </li>
             </ul>
           </div>
         </div>
