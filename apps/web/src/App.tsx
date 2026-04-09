@@ -88,6 +88,9 @@ function App() {
         <Route path="/about">
           <Redirect to={ROUTES.acerca} />
         </Route>
+        <Route path="/nosotros">
+          <Redirect to={ROUTES.acerca} />
+        </Route>
         <Route path="/empresas" component={Empresas} />
         <Route path={ROUTES.infoScoreCredito} component={CreditScoreInfo} />
         <Route path="/info/credit-score">

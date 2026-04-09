@@ -71,7 +71,6 @@ export default function CreditScoreCard() {
     queryKey: ["/api/credit-score"],
     queryFn: async () => {
       const res = await getCreditScore();
-      console.log("[CreditScoreCard] GET /api/credit-score response:", JSON.stringify(res));
       return res;
     },
   });

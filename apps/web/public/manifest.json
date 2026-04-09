@@ -1,7 +1,7 @@
 {
   "name": "CODA",
   "short_name": "CODA",
-  "description": "Tu asistente financiero personal: diagnóstico, score crediticio dual, plan de mejora y marketplace de productos financieros. Gratuito.",
+  "description": "Tu asistente financiero inteligente: diagnóstico con datos reales, score crediticio dual y recomendaciones personalizadas de productos financieros. Gratuito.",
   "start_url": "/panel",
   "id": "/",
   "display": "standalone",

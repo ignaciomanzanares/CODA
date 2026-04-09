@@ -13,8 +13,8 @@ export default function Footer() {
               <h3 className="text-white font-bold text-lg font-sans">CODA</h3>
             </div>
             <p className="text-gray-300 text-sm">
-              Tu asistente financiero automatizado. Diagnóstico, plan de mejora y
-              marketplace de productos financieros.
+              Tu asistente financiero inteligente. Diagnóstico, scoring,
+              plan de mejora y marketplace de productos financieros.
             </p>
           </div>
 
@@ -27,13 +27,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href={ROUTES.infoRiesgoSeguros} className="text-gray-300 hover:text-white">
-                  Riesgo de seguros
-                </Link>
-              </li>
-              <li>
-                <Link href={ROUTES.infoMetasFinancieras} className="text-gray-300 hover:text-white">
-                  Metas financieras
+                <Link href={ROUTES.productos} className="text-gray-300 hover:text-white">
+                  Productos
                 </Link>
               </li>
               <li>
@@ -45,11 +40,16 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="text-white font-medium mb-4">Recursos</h4>
+            <h4 className="text-white font-medium mb-4">Compañía</h4>
             <ul className="space-y-2 text-sm">
               <li>
+                <Link href="/" className="text-gray-300 hover:text-white">
+                  Inicio
+                </Link>
+              </li>
+              <li>
                 <Link href={ROUTES.acerca} className="text-gray-300 hover:text-white">
-                  Sobre Nosotros
+                  Nosotros
                 </Link>
               </li>
             </ul>
@@ -60,7 +60,7 @@ export default function Footer() {
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href={ROUTES.privacidad} className="text-gray-300 hover:text-white">
-                  Política de privacidad
+                  Privacidad
                 </Link>
               </li>
               <li>
@@ -72,32 +72,47 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Disclaimers regulatorios obligatorios */}
-        <div className="mt-8 pt-6 border-t border-gray-700 space-y-3">
-          <div className="text-gray-400 text-xs leading-relaxed space-y-2">
-            <p>
-              <strong className="text-gray-300">Chile Open-Data Analytics SpA</strong> — RUT 78.389.632-K
-            </p>
+        {/* Separador + bloque legal completo */}
+        <div className="mt-8 pt-6 border-t border-gray-700">
+          {/* Fila 1: Links */}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400 mb-4">
+            <Link href="/" className="hover:text-white">Inicio</Link>
+            <span className="text-gray-600">&middot;</span>
+            <Link href={ROUTES.acerca} className="hover:text-white">Nosotros</Link>
+            <span className="text-gray-600">&middot;</span>
+            <Link href={ROUTES.infoScoreCredito} className="hover:text-white">Score crediticio</Link>
+            <span className="text-gray-600">&middot;</span>
+            <Link href={ROUTES.productos} className="hover:text-white">Productos</Link>
+            <span className="text-gray-600">&middot;</span>
+            <Link href={ROUTES.privacidad} className="hover:text-white">Privacidad</Link>
+            <span className="text-gray-600">&middot;</span>
+            <Link href={ROUTES.terminos} className="hover:text-white">Términos</Link>
+          </div>
+
+          {/* Fila 2: Identificación */}
+          <p className="text-gray-400 text-xs mb-1">
+            <strong className="text-gray-300">Chile Open-Data Analytics SpA</strong> &middot; RUT 78.389.632-K
+          </p>
+          <p className="text-gray-500 text-xs mb-4">
+            Inscripción como prestador Fintec ante la CMF en trámite.
+          </p>
+
+          {/* Fila 3: Disclaimers regulatorios */}
+          <div className="text-gray-500 text-[11px] leading-relaxed space-y-2 mb-4">
             <p>
               CODA no capta recursos del público, no custodia fondos, no asume riesgo crediticio
-              y no concede crédito en cuenta propia.
-            </p>
-            <p>
-              Las recomendaciones generadas por CODA no garantizan aprobación ni condiciones
-              específicas de un producto financiero. La decisión final de otorgamiento
-              corresponde siempre al proveedor financiero.
-            </p>
-            <p>
-              CODA genera ingresos por comisiones de originación y acuerdos de revenue sharing
-              con instituciones financieras proveedoras de productos. El usuario final no paga
-              por el servicio.
+              y no concede crédito en cuenta propia. Las recomendaciones generadas por la plataforma
+              no garantizan aprobación ni condiciones específicas por parte de las instituciones
+              financieras. La decisión final de otorgamiento corresponde al proveedor del producto.
             </p>
           </div>
-        </div>
 
-        <div className="mt-6 pt-4 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center">
-          <div className="text-gray-400 text-xs mb-4 md:mb-0">
-            &copy; {new Date().getFullYear()} Chile Open-Data Analytics SpA. Todos los derechos reservados.
+          {/* Fila 4: Copyright + contacto */}
+          <div className="pt-4 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
+            <span>&copy; {new Date().getFullYear()} CODA. Todos los derechos reservados.</span>
+            <a href="mailto:contacto@codafinance.cl" className="hover:text-white mt-2 md:mt-0">
+              contacto@codafinance.cl
+            </a>
           </div>
         </div>
       </div>

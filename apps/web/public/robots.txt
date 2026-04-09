@@ -5,6 +5,7 @@ Allow: /iniciar-sesion
 Allow: /signup
 Allow: /registro
 Allow: /acerca
+Allow: /nosotros
 Allow: /info/
 Allow: /privacidad
 Allow: /terminos

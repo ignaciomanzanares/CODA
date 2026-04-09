@@ -4,27 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#3b82f6" />
-    <meta name="description" content="Tu asistente financiero automatizado: diagnóstico con datos reales, score crediticio dual, plan de mejora personalizado y marketplace de productos financieros. Gratuito para el usuario." />
-    <title>CODA | Tu asistente financiero personal</title>
+    <meta name="description" content="CODA diagnostica tu salud financiera, genera tu score crediticio con datos reales y te recomienda los mejores productos financieros en Chile. Gratuito para personas." />
+    <title>CODA | Tu asistente financiero inteligente</title>
     <link rel="canonical" href="https://www.codafinance.cl" />
 
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.codafinance.cl" />
-    <meta property="og:title" content="CODA | Tu asistente financiero personal" />
-    <meta property="og:description" content="Diagnóstico financiero automatizado, score crediticio dual, plan de mejora y marketplace de productos financieros. Gratuito." />
+    <meta property="og:title" content="CODA | Tu asistente financiero inteligente" />
+    <meta property="og:description" content="Diagnóstico financiero automatizado, score crediticio dual y recomendaciones personalizadas de productos financieros. Gratuito." />
     <meta property="og:image" content="https://www.codafinance.cl/og-image.png" />
     <meta property="og:locale" content="es_CL" />
     <meta property="og:site_name" content="CODA" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="CODA | Tu asistente financiero personal" />
-    <meta name="twitter:description" content="Diagnóstico financiero automatizado, score crediticio dual, plan de mejora y marketplace de productos financieros. Gratuito." />
+    <meta name="twitter:title" content="CODA | Tu asistente financiero inteligente" />
+    <meta name="twitter:description" content="Diagnóstico financiero automatizado, score crediticio dual y recomendaciones personalizadas de productos financieros. Gratuito." />
     <meta name="twitter:image" content="https://www.codafinance.cl/og-image.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="dns-prefetch" href="https://plausible.io" />
-    <!-- API producción (VITE_API_URL en .env.production); alinear si cambia el host en Render -->
     <link rel="preconnect" href="https://coda-api-fp1k.onrender.com" crossorigin />
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -45,15 +44,41 @@
       "alternateName": "CODA",
       "url": "https://www.codafinance.cl",
       "logo": "https://www.codafinance.cl/icons/icon-512x512.png",
-      "description": "Asistente financiero automatizado y marketplace financiero digital para Chile.",
+      "description": "Plataforma de salud financiera personal y marketplace financiero digital para Chile.",
       "foundingDate": "2025",
-      "areaServed": "CL",
-      "sameAs": []
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Santiago",
+        "addressRegion": "Región Metropolitana",
+        "addressCountry": "CL"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "CODA",
+      "url": "https://www.codafinance.cl",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "CLP"
+      }
     }
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="app-loader" style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0f172a;">
+        <div style="text-align:center;">
+          <div style="font-size:2rem;font-weight:700;color:#3b82f6;letter-spacing:0.05em;">CODA</div>
+          <div style="margin-top:0.5rem;font-size:0.875rem;color:#94a3b8;">Cargando...</div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
