@@ -32,10 +32,10 @@ export default function PrivacyPolicy() {
         </p>
         <ul>
           <li>
-            <strong>Razón social:</strong> CODA SpA (WeGroup), Chile
+            <strong>Razón social:</strong> Chile Open-Data Analytics SpA
           </li>
           <li>
-            <strong>RUT:</strong> XX.XXX.XXX-X <em>(dato pendiente de publicación)</em>
+            <strong>RUT:</strong> 78.389.632-K
           </li>
           <li>
             <strong>Domicilio:</strong> Santiago, Chile

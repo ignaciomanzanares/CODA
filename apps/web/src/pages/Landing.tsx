@@ -8,9 +8,7 @@ import {
   ArrowRight,
   BarChart3,
   CreditCard,
-  PiggyBank,
   Shield,
-  Split,
   Target,
   TrendingUp,
   Wallet,
@@ -46,11 +44,11 @@ export default function Landing() {
         <div className="container mx-auto px-4 py-20 md:py-32 relative">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-              Toma el control de tu{" "}
-              <span className="text-blue-200">futuro financiero</span>
+              Tu asistente financiero{" "}
+              <span className="text-blue-200">personal</span>
             </h1>
             <p className="text-xl md:text-2xl text-blue-100 mb-8 leading-relaxed">
-              Información impulsada por IA para controlar gastos, analizar riesgos, dividir cuentas con amigos y alcanzar tus metas financieras más rápido.
+              CODA diagnostica tu situación financiera con datos reales, genera un plan de mejora estructurado y te conecta con los mejores productos financieros del mercado. Gratuito para ti.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href={ROUTES.iniciarSesion}>
@@ -87,48 +85,48 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Todo lo que necesitas para gestionar tu dinero
+              Un asistente que diagnostica, proyecta, prioriza y acompaña
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Herramientas potentes para entender tus finanzas, reducir riesgos y construir patrimonio.
+              CODA usa tus datos financieros reales para mejorar tu salud financiera de manera medible y verificable.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             <FeatureCard
               icon={<BarChart3 className="h-8 w-8" />}
-              title="Panel inteligente"
-              description="Visión completa de tus finanzas con información en tiempo real y visualizaciones claras."
+              title="Diagnóstico financiero"
+              description="Análisis automatizado de tu situación financiera real con datos de fuentes oficiales."
               color="blue"
             />
             <FeatureCard
               icon={<Shield className="h-8 w-8" />}
-              title="Análisis de riesgo"
-              description="Evaluación de score crediticio y riesgo de seguros con IA para decisiones informadas."
+              title="Score crediticio dual"
+              description="Score tradicional (historial CMF) y transaccional (comportamiento bancario) para una evaluación completa."
               color="green"
             />
             <FeatureCard
-              icon={<Split className="h-8 w-8" />}
-              title="División de cuentas"
-              description="Divide gastos con amigos y familia sin esfuerzo. Comparte por enlace o correo."
+              icon={<Target className="h-8 w-8" />}
+              title="Plan de mejora"
+              description="Plan estructurado con acciones priorizadas para optimizar tu deuda, ahorro e inversiones."
               color="purple"
             />
             <FeatureCard
-              icon={<Wallet className="h-8 w-8" />}
-              title="Control de gastos"
-              description="Categoriza y sigue todos tus gastos de forma automática. Sabe a dónde va cada peso."
+              icon={<CreditCard className="h-8 w-8" />}
+              title="Marketplace financiero"
+              description="Compara y accede a productos financieros en 10 categorías: créditos, tarjetas, fondos mutuos, seguros, APV y más."
               color="orange"
             />
             <FeatureCard
-              icon={<Target className="h-8 w-8" />}
-              title="Metas financieras"
-              description="Define metas de ahorro y sigue tu avance. Alcanza tus objetivos más rápido."
+              icon={<TrendingUp className="h-8 w-8" />}
+              title="Monitoreo continuo"
+              description="Seguimiento de tu comportamiento financiero y alertas cuando surgen oportunidades para ti."
               color="pink"
             />
             <FeatureCard
-              icon={<CreditCard className="h-8 w-8" />}
-              title="Comparación de productos"
-              description="Compara productos financieros y encuentra las mejores tasas en créditos, tarjetas y más."
+              icon={<Wallet className="h-8 w-8" />}
+              title="Gratuito para ti"
+              description="No pagas nada. CODA genera ingresos por comisiones con las instituciones financieras, no contigo."
               color="cyan"
             />
           </div>
@@ -150,18 +148,18 @@ export default function Landing() {
           <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <StepCard
               number="1"
-              title="Conecta"
-              description="Vincula tus cuentas bancarias de forma segura o usa datos de prueba para explorar."
+              title="Regístrate"
+              description="Crea tu cuenta gratis y sube tus documentos financieros oficiales (informe CMF, cartola bancaria)."
             />
             <StepCard
               number="2"
-              title="Analiza"
-              description="Obtén información inmediata sobre tus patrones de gasto y salud financiera."
+              title="Diagnóstico"
+              description="CODA analiza tus datos reales y genera tu score crediticio dual con un plan de mejora personalizado."
             />
             <StepCard
               number="3"
-              title="Optimiza"
-              description="Sigue recomendaciones personalizadas para mejorar tus finanzas."
+              title="Actúa"
+              description="Recibe recomendaciones de productos financieros alineados a tu perfil y ejecuta tu plan."
             />
           </div>
         </div>
@@ -176,35 +174,35 @@ export default function Landing() {
                 ¿Por qué elegir CODA?
               </h2>
               <div className="space-y-4">
-                <BenefitItem text="Gratuito, sin cargos ocultos" />
-                <BenefitItem text="Seguridad de nivel bancario para tus datos" />
-                <BenefitItem text="Información y recomendaciones impulsadas por IA" />
-                <BenefitItem text="Divide cuentas con quien quieras, incluso sin cuenta" />
-                <BenefitItem text="Interfaz clara e intuitiva" />
-                <BenefitItem text="Disponible en cualquier dispositivo" />
+                <BenefitItem text="Gratuito para el usuario, sin cargos ocultos" />
+                <BenefitItem text="Datos reales, nunca inventados ni simulados" />
+                <BenefitItem text="Recomendaciones ordenadas por tu beneficio, no por comisión" />
+                <BenefitItem text="Trazabilidad algorítmica de cada recomendación" />
+                <BenefitItem text="Tus datos protegidos: no se comercializan a terceros" />
+                <BenefitItem text="Diseñado para cumplir con estándares CMF" />
               </div>
             </div>
             <div className="relative">
               <div className="bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl p-8">
                 <div className="bg-white rounded-xl shadow-lg p-6 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Saldo total</span>
-                    <TrendingUp className="h-5 w-5 text-green-500" />
+                    <span className="text-gray-600 font-medium">10 categorías de productos</span>
+                    <CreditCard className="h-5 w-5 text-blue-500" />
                   </div>
-                  <div className="text-3xl font-bold text-gray-900">$15.450.000</div>
-                  <div className="text-sm text-green-600">+$780.000 este mes</div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full w-3/4 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                    <div>
-                      <div className="text-sm text-gray-500">Tasa de ahorro</div>
-                      <div className="text-lg font-semibold text-gray-900">28%</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-500">Patrimonio neto</div>
-                      <div className="text-lg font-semibold text-gray-900">$89.500.000</div>
-                    </div>
+                  <ul className="text-sm text-gray-700 space-y-1.5">
+                    <li>Cuentas corrientes, vista y ahorro</li>
+                    <li>Tarjetas de crédito y débito</li>
+                    <li>Créditos de consumo y líneas de crédito</li>
+                    <li>Créditos hipotecarios y portabilidad</li>
+                    <li>Depósitos a plazo</li>
+                    <li>Fondos mutuos</li>
+                    <li>Seguros generales y de vida</li>
+                    <li>Ahorro previsional voluntario (APV)</li>
+                  </ul>
+                  <div className="pt-3 border-t">
+                    <p className="text-xs text-gray-500">
+                      Comparación intraclase: CODA compara ofertas equivalentes dentro de cada categoría para encontrar la mejor opción según tu perfil.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -220,7 +218,7 @@ export default function Landing() {
             ¿Listo para transformar tus finanzas?
           </h2>
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Únete a miles de usuarios que ya toman mejores decisiones financieras con CODA.
+            Mejora tu salud financiera de manera verificable, sin conocimientos técnicos y sin costo.
           </p>
           <Link href={ROUTES.registro}>
             <Button

@@ -312,13 +312,13 @@ export default function DocumentUploadCard() {
                 <p>Deuda indirecta: ${result.cmf.deudaIndirecta.toLocaleString("es-CL")} CLP</p>
                 <p>Número de instituciones: {result.cmf.numeroInstituciones}</p>
                 {result.creditScore != null && (
-                  <p className="font-medium pt-1">Score crediticio actualizado: {result.creditScore} (Excellent)</p>
+                  <p className="font-medium pt-1">Score crediticio actualizado: {result.creditScore} / 850</p>
                 )}
               </div>
             )}
             {result.documentType === "cartola" && result.transactionalScore != null && (
               <div className="text-sm space-y-1">
-                <p className="font-medium">Score transaccional: {result.transactionalScore} / 1000</p>
+                <p className="font-medium">Score transaccional: {result.transactionalScore} / 100</p>
                 {result.recommendedProducts && result.recommendedProducts.length > 0 && (
                   <p>Ofertas recomendadas: {result.recommendedProducts.join(", ")}</p>
                 )}

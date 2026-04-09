@@ -1,6 +1,5 @@
 import { Link } from "wouter";
-import { Wallet, Facebook, Twitter, Linkedin } from "lucide-react";
-import { FaInstagram, FaTiktok } from "react-icons/fa";
+import { Wallet } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 
 export default function Footer() {
@@ -14,8 +13,8 @@ export default function Footer() {
               <h3 className="text-white font-bold text-lg font-sans">CODA</h3>
             </div>
             <p className="text-gray-300 text-sm">
-              Te ayudamos a tomar mejores decisiones financieras con información
-              personalizada y recomendaciones.
+              Tu asistente financiero automatizado. Diagnóstico, plan de mejora y
+              marketplace de productos financieros.
             </p>
           </div>
 
@@ -53,21 +52,6 @@ export default function Footer() {
                   Sobre Nosotros
                 </Link>
               </li>
-              <li>
-                <a href="#" className="text-gray-300 hover:text-white">
-                  Blog
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-gray-300 hover:text-white">
-                  FAQ
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-gray-300 hover:text-white">
-                  Soporte
-                </a>
-              </li>
             </ul>
           </div>
 
@@ -84,36 +68,36 @@ export default function Footer() {
                   Términos y Condiciones
                 </Link>
               </li>
-              <li>
-                <Link href={ROUTES.privacidad} className="text-gray-300 hover:text-white">
-                  Protección de datos
-                </Link>
-              </li>
             </ul>
           </div>
         </div>
 
-        <div className="mt-8 pt-8 border-t border-gray-700 flex flex-col md:flex-row justify-between items-center">
-          <div className="text-gray-300 text-sm mb-4 md:mb-0">
-            &copy; {new Date().getFullYear()} CODA. Todos los derechos reservados.
+        {/* Disclaimers regulatorios obligatorios */}
+        <div className="mt-8 pt-6 border-t border-gray-700 space-y-3">
+          <div className="text-gray-400 text-xs leading-relaxed space-y-2">
+            <p>
+              <strong className="text-gray-300">Chile Open-Data Analytics SpA</strong> — RUT 78.389.632-K
+            </p>
+            <p>
+              CODA no capta recursos del público, no custodia fondos, no asume riesgo crediticio
+              y no concede crédito en cuenta propia.
+            </p>
+            <p>
+              Las recomendaciones generadas por CODA no garantizan aprobación ni condiciones
+              específicas de un producto financiero. La decisión final de otorgamiento
+              corresponde siempre al proveedor financiero.
+            </p>
+            <p>
+              CODA genera ingresos por comisiones de originación y acuerdos de revenue sharing
+              con instituciones financieras proveedoras de productos. El usuario final no paga
+              por el servicio.
+            </p>
           </div>
+        </div>
 
-          <div className="flex items-center gap-4">
-            <a href="#" className="text-gray-300 hover:text-white" aria-label="Facebook">
-              <Facebook size={20} />
-            </a>
-            <a href="#" className="text-gray-300 hover:text-white" aria-label="Twitter">
-              <Twitter size={20} />
-            </a>
-            <a href="#" className="text-gray-300 hover:text-white" aria-label="LinkedIn">
-              <Linkedin size={20} />
-            </a>
-            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white" aria-label="Instagram">
-              <FaInstagram size={20} />
-            </a>
-            <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white" aria-label="TikTok">
-              <FaTiktok size={20} />
-            </a>
+        <div className="mt-6 pt-4 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center">
+          <div className="text-gray-400 text-xs mb-4 md:mb-0">
+            &copy; {new Date().getFullYear()} Chile Open-Data Analytics SpA. Todos los derechos reservados.
           </div>
         </div>
       </div>

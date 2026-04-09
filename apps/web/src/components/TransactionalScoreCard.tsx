@@ -47,12 +47,12 @@ function isRecommendation(text: string): boolean {
   );
 }
 
-/** Gauge semicircular 0-1000. Arco ~π*50 ≈ 157 unidades. */
+/** Gauge semicircular 0-100. Arco ~π*50 ≈ 157 unidades. */
 function ScoreGauge({ score }: { score: number }) {
-  const pct = Math.min(100, Math.max(0, (score / 1000) * 100));
+  const pct = Math.min(100, Math.max(0, score));
   const dashLength = (pct / 100) * 157;
   const color =
-    score >= 700 ? "stroke-emerald-500" : score >= 450 ? "stroke-amber-500" : "stroke-rose-500";
+    score >= 70 ? "stroke-emerald-500" : score >= 45 ? "stroke-amber-500" : "stroke-rose-500";
 
   return (
     <div className="relative w-44 h-28 flex justify-center">
@@ -75,7 +75,7 @@ function ScoreGauge({ score }: { score: number }) {
       </svg>
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center">
         <span className="text-2xl font-bold tabular-nums">{score}</span>
-        <span className="text-xs text-muted-foreground block">/ 1000</span>
+        <span className="text-xs text-muted-foreground block">/ 100</span>
       </div>
     </div>
   );
@@ -221,7 +221,9 @@ function TransactionalScoreContent({
   return (
     <div className="space-y-4">
       <p className="text-xs text-center text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-md py-2 px-3">
-        Datos extraídos de cartolas bajo estándares CMF/SFA.
+        Modelo preliminar basado en comportamiento transaccional (Hjelkrem et al. 2022).
+        Se valida en paralelo con el score tradicional. Las decisiones comerciales no dependen
+        exclusivamente de este score.
       </p>
       <div className="flex flex-col items-center">
         <ScoreGauge score={score.transactionalScore} />
