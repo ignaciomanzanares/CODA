@@ -1,7 +1,7 @@
 {
   "name": "CODA",
   "short_name": "CODA",
-  "description": "Tu plataforma de salud financiera personal en Chile.",
+  "description": "Tu asistente financiero personal: diagnóstico, score crediticio dual, plan de mejora y marketplace de productos financieros. Gratuito.",
   "start_url": "/panel",
   "id": "/",
   "display": "standalone",

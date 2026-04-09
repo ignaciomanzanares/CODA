@@ -1,7 +1,7 @@
 /**
  * Títulos de documento por ruta (SPA). Rutas en español + alias en inglés.
  */
-const DEFAULT_TITLE = "CODA | Tu panel financiero personal";
+const DEFAULT_TITLE = "CODA | Tu asistente financiero personal";
 
 /** Coincidencia exacta (pathname sin query, sin barra final salvo /) */
 const EXACT: Record<string, string> = {

@@ -4,6 +4,7 @@ Allow: /login
 Allow: /iniciar-sesion
 Allow: /signup
 Allow: /registro
+Allow: /acerca
 Allow: /info/
 Allow: /privacidad
 Allow: /terminos

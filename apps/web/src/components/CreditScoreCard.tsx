@@ -17,10 +17,9 @@ import {
 import ProgressRing from "./ProgressRing";
 import { getCreditScoreStatus, getCircleColor } from "@/lib/creditScore";
 import { 
-  CreditCard, 
-  TrendingUp, 
-  Clock, 
-  Percent, 
+  CreditCard,
+  Clock,
+  Percent,
   ChevronRight,
   Sparkles,
   Info
@@ -40,8 +39,9 @@ function FactorCard({
   status: string;
 }) {
   const getStatusColor = (status: string) => {
-    if (status === 'Excellent' || status === 'Good') return 'text-green-600 bg-green-50';
-    if (status === 'Fair') return 'text-yellow-600 bg-yellow-50';
+    const s = status.toLowerCase();
+    if (s === 'excellent' || s === 'good' || s === 'excelente' || s === 'muy bueno' || s === 'bueno') return 'text-green-600 bg-green-50';
+    if (s === 'fair' || s === 'regular') return 'text-yellow-600 bg-yellow-50';
     return 'text-red-600 bg-red-50';
   };
 
@@ -182,9 +182,10 @@ export default function CreditScoreCard() {
   const progress = (creditScore.score / creditScore.maxScore) * 100;
   
   const getStatusBadgeStyle = () => {
-    if (scoreStatus.label === 'Excellent') return 'bg-green-100 text-green-700 border-green-200';
-    if (scoreStatus.label === 'Good') return 'bg-blue-100 text-blue-700 border-blue-200';
-    if (scoreStatus.label === 'Fair') return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+    const l = scoreStatus.label.toLowerCase();
+    if (l === 'excelente' || l === 'excellent') return 'bg-green-100 text-green-700 border-green-200';
+    if (l === 'muy bueno' || l === 'bueno' || l === 'good' || l === 'very good') return 'bg-blue-100 text-blue-700 border-blue-200';
+    if (l === 'regular' || l === 'fair') return 'bg-yellow-100 text-yellow-700 border-yellow-200';
     return 'bg-red-100 text-red-700 border-red-200';
   };
 
@@ -220,36 +221,32 @@ export default function CreditScoreCard() {
           </ProgressRing>
         </div>
 
-        {/* Score Change Indicator */}
-        <div className="flex items-center justify-center gap-2 mb-4">
-          <div className="flex items-center gap-1 text-green-600 text-sm">
-            <TrendingUp className="h-4 w-4" />
-            <span className="font-medium">+12 pts</span>
-          </div>
-          <span className="text-xs text-muted-foreground">desde el mes pasado</span>
-        </div>
-
         {/* Factors */}
         <div className="space-y-2 flex-1">
           <FactorCard
             icon={CreditCard}
             label="Historial de pagos"
-            value="Todos los pagos a tiempo"
+            value={creditScore.paymentHistory || "—"}
             status={creditScore.paymentHistory}
           />
           <FactorCard
             icon={Percent}
             label="Utilización de crédito"
-            value="23% del crédito disponible"
+            value={creditScore.utilization || "—"}
             status={creditScore.utilization}
           />
           <FactorCard
             icon={Clock}
             label="Antigüedad del crédito"
-            value="Promedio 4,2 años"
+            value={creditScore.ageOfCredit || "—"}
             status={creditScore.ageOfCredit}
           />
         </div>
+
+        {/* Disclaimer */}
+        <p className="text-xs text-muted-foreground text-center mt-2">
+          Score calculado desde tu Informe de Deudas CMF. No garantiza aprobación de productos.
+        </p>
 
         {/* Action Button: abre desglose del reporte */}
         <Button
@@ -292,22 +289,25 @@ export default function CreditScoreCard() {
             <FactorCard
               icon={CreditCard}
               label="Historial de pagos"
-              value="Todos los pagos a tiempo"
+              value={creditScore.paymentHistory || "—"}
               status={creditScore.paymentHistory}
             />
             <FactorCard
               icon={Percent}
               label="Utilización de crédito"
-              value="23% del crédito disponible"
+              value={creditScore.utilization || "—"}
               status={creditScore.utilization}
             />
             <FactorCard
               icon={Clock}
               label="Antigüedad del crédito"
-              value="Promedio 4,2 años"
+              value={creditScore.ageOfCredit || "—"}
               status={creditScore.ageOfCredit}
             />
           </div>
+          <p className="text-xs text-muted-foreground text-center">
+            Score basado en datos reales de tu Informe de Deudas CMF. Las decisiones de otorgamiento de productos corresponden al proveedor financiero.
+          </p>
         </div>
       </DialogContent>
     </Dialog>

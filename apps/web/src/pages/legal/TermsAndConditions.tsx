@@ -25,8 +25,8 @@ export default function TermsAndConditions() {
         <h2>1. Identificación y aceptación</h2>
         <p>
           El presente documento regula el acceso y uso de la plataforma digital <strong>CODA</strong>,
-          operada por <strong>CODA SpA</strong> (WeGroup), Chile, en adelante <strong>“CODA”</strong> o{" "}
-          <strong>“nosotros”</strong>, disponible en <strong>https://www.codafinance.cl</strong>.
+          operada por <strong>Chile Open-Data Analytics SpA</strong>, RUT 78.389.632-K, en adelante <strong>&ldquo;CODA&rdquo;</strong> o{" "}
+          <strong>”nosotros”</strong>, disponible en <strong>https://www.codafinance.cl</strong>.
         </p>
         <p>
           CODA es un <strong>prestador de servicios financieros</strong> en proceso de inscripción ante la
