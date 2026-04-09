@@ -26,7 +26,7 @@ const svg = `<?xml version="1.0" encoding="UTF-8"?>
   <rect width="100%" height="100%" fill="url(#bg)"/>
 
   <text x="600" y="260" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="120" font-weight="700" fill="#ffffff">CODA</text>
-  <text x="600" y="340" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="36" font-weight="500" fill="#cbd5e1">Tu panel financiero personal</text>
+  <text x="600" y="340" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="36" font-weight="500" fill="#cbd5e1">Tu asistente financiero personal</text>
 
   <text x="1160" y="590" text-anchor="end" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="28" font-weight="600" fill="#3b82f6">codafinance.cl</text>
 </svg>`;
