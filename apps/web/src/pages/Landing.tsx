@@ -6,22 +6,33 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   ArrowRight,
+  ArrowLeftRight,
   BarChart3,
-  CreditCard,
-  Shield,
+  Activity,
+  Store,
   Target,
-  TrendingUp,
-  Wallet,
+  Bell,
+  Lock,
   CheckCircle2,
+  Landmark,
+  CreditCard,
+  Banknote,
+  Wallet,
+  Home,
+  PiggyBank,
+  TrendingUp,
+  Shield,
+  DollarSign,
 } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { Analytics } from "@/lib/analytics";
+import { useTranslation } from "react-i18next";
 
 export default function Landing() {
   const { isAuthenticated, isLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const { t } = useTranslation();
 
-  // Redirect authenticated users to dashboard
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
       setLocation(ROUTES.panel);
@@ -44,35 +55,34 @@ export default function Landing() {
         <div className="container mx-auto px-4 py-20 md:py-32 relative">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-              Tu asistente financiero{" "}
-              <span className="text-blue-200">personal</span>
+              {t("landing.heroTitle")}{" "}
+              <span className="text-blue-200">{t("landing.heroTitleHighlight")}</span>
             </h1>
             <p className="text-xl md:text-2xl text-blue-100 mb-8 leading-relaxed">
-              CODA diagnostica tu situación financiera con datos reales, genera un plan de mejora estructurado y te conecta con los mejores productos financieros del mercado. Gratuito para ti.
+              {t("landing.heroSubtitle")}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href={ROUTES.iniciarSesion}>
+              <Link href={ROUTES.registro}>
                 <Button
                   size="lg"
                   className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg"
                   onClick={() => Analytics.signupStarted()}
                 >
-                  Comenzar gratis
+                  {t("landing.getStarted")}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Link href={ROUTES.acerca}>
+              <a href="#features">
                 <Button size="lg" variant="outline" className="border-2 border-white bg-transparent !text-white hover:bg-white hover:!text-blue-700 transition-colors px-8 py-6 text-lg">
-                  Conoce más
+                  {t("landing.learnMore")}
                 </Button>
-              </Link>
+              </a>
             </div>
             <p className="mt-6 text-blue-200 text-sm">
-              Sin pago requerido. Comienza en segundos.
+              {t("landing.noPaymentRequired")}
             </p>
           </div>
         </div>
-        {/* Wave decoration */}
         <div className="absolute bottom-0 left-0 right-0">
           <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M0 120L60 105C120 90 240 60 360 45C480 30 600 30 720 37.5C840 45 960 60 1080 67.5C1200 75 1320 75 1380 75L1440 75V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="white"/>
@@ -85,48 +95,48 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Un asistente que diagnostica, proyecta, prioriza y acompaña
+              {t("landing.featuresTitle")}
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              CODA usa tus datos financieros reales para mejorar tu salud financiera de manera medible y verificable.
+              {t("landing.featuresSubtitle")}
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             <FeatureCard
               icon={<BarChart3 className="h-8 w-8" />}
-              title="Diagnóstico financiero"
-              description="Análisis automatizado de tu situación financiera real con datos de fuentes oficiales."
+              title={t("landing.feature1Title")}
+              description={t("landing.feature1Desc")}
               color="blue"
             />
             <FeatureCard
-              icon={<Shield className="h-8 w-8" />}
-              title="Score crediticio dual"
-              description="Score tradicional (historial CMF) y transaccional (comportamiento bancario) para una evaluación completa."
+              icon={<Activity className="h-8 w-8" />}
+              title={t("landing.feature2Title")}
+              description={t("landing.feature2Desc")}
               color="green"
             />
             <FeatureCard
-              icon={<Target className="h-8 w-8" />}
-              title="Plan de mejora"
-              description="Plan estructurado con acciones priorizadas para optimizar tu deuda, ahorro e inversiones."
+              icon={<Store className="h-8 w-8" />}
+              title={t("landing.feature3Title")}
+              description={t("landing.feature3Desc")}
               color="purple"
             />
             <FeatureCard
-              icon={<CreditCard className="h-8 w-8" />}
-              title="Marketplace financiero"
-              description="Compara y accede a productos financieros en 10 categorías: créditos, tarjetas, fondos mutuos, seguros, APV y más."
+              icon={<Target className="h-8 w-8" />}
+              title={t("landing.feature4Title")}
+              description={t("landing.feature4Desc")}
               color="orange"
             />
             <FeatureCard
-              icon={<TrendingUp className="h-8 w-8" />}
-              title="Monitoreo continuo"
-              description="Seguimiento de tu comportamiento financiero y alertas cuando surgen oportunidades para ti."
+              icon={<Bell className="h-8 w-8" />}
+              title={t("landing.feature5Title")}
+              description={t("landing.feature5Desc")}
               color="pink"
             />
             <FeatureCard
-              icon={<Wallet className="h-8 w-8" />}
-              title="Gratuito para ti"
-              description="No pagas nada. CODA genera ingresos por comisiones con las instituciones financieras, no contigo."
+              icon={<Lock className="h-8 w-8" />}
+              title={t("landing.feature6Title")}
+              description={t("landing.feature6Desc")}
               color="cyan"
             />
           </div>
@@ -138,75 +148,78 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Comienza en minutos
+              {t("landing.howItWorksTitle")}
             </h2>
             <p className="text-xl text-gray-600">
-              Tres pasos simples hacia la claridad financiera
+              {t("landing.howItWorksSubtitle")}
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <StepCard
-              number="1"
-              title="Regístrate"
-              description="Crea tu cuenta gratis y sube tus documentos financieros oficiales (informe CMF, cartola bancaria)."
-            />
-            <StepCard
-              number="2"
-              title="Diagnóstico"
-              description="CODA analiza tus datos reales y genera tu score crediticio dual con un plan de mejora personalizado."
-            />
-            <StepCard
-              number="3"
-              title="Actúa"
-              description="Recibe recomendaciones de productos financieros alineados a tu perfil y ejecuta tu plan."
-            />
+            <StepCard number="1" title={t("landing.step1Title")} description={t("landing.step1Desc")} />
+            <StepCard number="2" title={t("landing.step2Title")} description={t("landing.step2Desc")} />
+            <StepCard number="3" title={t("landing.step3Title")} description={t("landing.step3Desc")} />
           </div>
         </div>
       </section>
 
-      {/* Benefits Section */}
+      {/* Product Categories Section */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
-            <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                ¿Por qué elegir CODA?
-              </h2>
-              <div className="space-y-4">
-                <BenefitItem text="Gratuito para el usuario, sin cargos ocultos" />
-                <BenefitItem text="Datos reales, nunca inventados ni simulados" />
-                <BenefitItem text="Recomendaciones ordenadas por tu beneficio, no por comisión" />
-                <BenefitItem text="Trazabilidad algorítmica de cada recomendación" />
-                <BenefitItem text="Tus datos protegidos: no se comercializan a terceros" />
-                <BenefitItem text="Diseñado para cumplir con estándares CMF" />
-              </div>
-            </div>
-            <div className="relative">
-              <div className="bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl p-8">
-                <div className="bg-white rounded-xl shadow-lg p-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600 font-medium">10 categorías de productos</span>
-                    <CreditCard className="h-5 w-5 text-blue-500" />
-                  </div>
-                  <ul className="text-sm text-gray-700 space-y-1.5">
-                    <li>Cuentas corrientes, vista y ahorro</li>
-                    <li>Tarjetas de crédito y débito</li>
-                    <li>Créditos de consumo y líneas de crédito</li>
-                    <li>Créditos hipotecarios y portabilidad</li>
-                    <li>Depósitos a plazo</li>
-                    <li>Fondos mutuos</li>
-                    <li>Seguros generales y de vida</li>
-                    <li>Ahorro previsional voluntario (APV)</li>
-                  </ul>
-                  <div className="pt-3 border-t">
-                    <p className="text-xs text-gray-500">
-                      Comparación intraclase: CODA compara ofertas equivalentes dentro de cada categoría para encontrar la mejor opción según tu perfil.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              {t("landing.categoriesTitle")}
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              {t("landing.categoriesSubtitle")}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 max-w-5xl mx-auto">
+            <CategoryCard icon={<Landmark className="h-6 w-6" />} title={t("landing.catCuentas")} desc={t("landing.catCuentasDesc")} />
+            <CategoryCard icon={<CreditCard className="h-6 w-6" />} title={t("landing.catTarjetas")} desc={t("landing.catTarjetasDesc")} />
+            <CategoryCard icon={<Banknote className="h-6 w-6" />} title={t("landing.catCreditos")} desc={t("landing.catCreditosDesc")} />
+            <CategoryCard icon={<Wallet className="h-6 w-6" />} title={t("landing.catLineas")} desc={t("landing.catLineasDesc")} />
+            <CategoryCard icon={<Home className="h-6 w-6" />} title={t("landing.catHipotecarios")} desc={t("landing.catHipotecariosDesc")} />
+            <CategoryCard icon={<PiggyBank className="h-6 w-6" />} title={t("landing.catDepositos")} desc={t("landing.catDepositosDesc")} />
+            <CategoryCard icon={<TrendingUp className="h-6 w-6" />} title={t("landing.catFondos")} desc={t("landing.catFondosDesc")} />
+            <CategoryCard icon={<Shield className="h-6 w-6" />} title={t("landing.catSeguros")} desc={t("landing.catSegurosDesc")} />
+            <CategoryCard icon={<Target className="h-6 w-6" />} title={t("landing.catAPV")} desc={t("landing.catAPVDesc")} />
+            <CategoryCard icon={<ArrowLeftRight className="h-6 w-6" />} title={t("landing.catPortabilidad")} desc={t("landing.catPortabilidadDesc")} />
+          </div>
+        </div>
+      </section>
+
+      {/* Why CODA Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              {t("landing.whyChooseTitle")}
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <WhyCard
+              icon={<DollarSign className="h-6 w-6 text-green-600" />}
+              title={t("landing.whyFreeTitle")}
+              description={t("landing.whyFreeDesc")}
+            />
+            <WhyCard
+              icon={<BarChart3 className="h-6 w-6 text-blue-600" />}
+              title={t("landing.whyRealDataTitle")}
+              description={t("landing.whyRealDataDesc")}
+            />
+            <WhyCard
+              icon={<Shield className="h-6 w-6 text-purple-600" />}
+              title={t("landing.whyNeutralTitle")}
+              description={t("landing.whyNeutralDesc")}
+            />
+            <WhyCard
+              icon={<Landmark className="h-6 w-6 text-indigo-600" />}
+              title={t("landing.whyRegulatedTitle")}
+              description={t("landing.whyRegulatedDesc")}
+            />
           </div>
         </div>
       </section>
@@ -215,10 +228,10 @@ export default function Landing() {
       <section className="py-20 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            ¿Listo para transformar tus finanzas?
+            {t("landing.ctaTitle")}
           </h2>
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Mejora tu salud financiera de manera verificable, sin conocimientos técnicos y sin costo.
+            {t("landing.ctaSubtitle")}
           </p>
           <Link href={ROUTES.registro}>
             <Button
@@ -226,7 +239,7 @@ export default function Landing() {
               className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg"
               onClick={() => Analytics.signupStarted()}
             >
-              Crear cuenta gratis
+              {t("landing.createAccount")}
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </Link>
@@ -236,7 +249,6 @@ export default function Landing() {
   );
 }
 
-// Feature Card Component
 function FeatureCard({
   icon,
   title,
@@ -270,7 +282,6 @@ function FeatureCard({
   );
 }
 
-// Step Card Component
 function StepCard({
   number,
   title,
@@ -291,12 +302,42 @@ function StepCard({
   );
 }
 
-// Benefit Item Component
-function BenefitItem({ text }: { text: string }) {
+function CategoryCard({
+  icon,
+  title,
+  desc,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+}) {
   return (
-    <div className="flex items-center gap-3">
-      <CheckCircle2 className="h-6 w-6 text-green-500 flex-shrink-0" />
-      <span className="text-gray-700">{text}</span>
+    <div className="group rounded-xl border border-gray-200 bg-white/80 p-4 text-center hover:shadow-md hover:border-blue-200 transition-all duration-200">
+      <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 group-hover:bg-blue-100 transition-colors">
+        {icon}
+      </div>
+      <h4 className="text-sm font-semibold text-gray-900 mb-1">{title}</h4>
+      <p className="text-xs text-gray-500">{desc}</p>
+    </div>
+  );
+}
+
+function WhyCard({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex gap-4 p-6 rounded-xl bg-white shadow-sm border border-gray-100">
+      <div className="flex-shrink-0 mt-1">{icon}</div>
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">{title}</h3>
+        <p className="text-gray-600 text-sm">{description}</p>
+      </div>
     </div>
   );
 }

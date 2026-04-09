@@ -1,12 +1,12 @@
 import { Link } from "wouter";
 import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Target, Users, Shield, TrendingUp } from "lucide-react";
+import { ArrowLeft, Compass, Layers, Handshake, Users, Building2 } from "lucide-react";
 
 export default function About() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero Section */}
+      {/* Hero */}
       <section className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white py-20">
         <div className="container mx-auto px-4">
           <Link href="/">
@@ -16,114 +16,144 @@ export default function About() {
             </Button>
           </Link>
           <div className="max-w-3xl">
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Sobre CODA
-            </h1>
+            <h1 className="text-4xl md:text-5xl font-bold mb-6">Sobre CODA</h1>
             <p className="text-xl text-blue-100 leading-relaxed">
-              CODA es una plataforma tecnológica que opera como asistente financiero automatizado
-              y marketplace financiero digital. Nuestro propósito es mejorar la salud financiera
-              de las personas en Chile, de manera medible y verificable.
+              Plataforma de salud financiera personal y marketplace financiero digital para Chile.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Misión y Propuesta */}
+      {/* Misión */}
       <section className="py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
-            <div className="grid md:grid-cols-2 gap-12">
+            <div className="flex items-start gap-4 mb-6">
+              <Compass className="h-10 w-10 text-blue-600 flex-shrink-0 mt-1" />
               <div>
-                <div className="flex items-center mb-4">
-                  <Target className="h-10 w-10 text-blue-600 mr-3" />
-                  <h2 className="text-3xl font-bold text-gray-900">Propuesta de valor</h2>
-                </div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">Misión</h2>
                 <p className="text-gray-600 text-lg leading-relaxed">
-                  CODA permite que una persona, sin conocimientos financieros especializados,
-                  acceda a un diagnóstico de su situación financiera, reciba un plan de mejora
-                  estructurado y pueda ejecutar decisiones recomendadas para optimizar su deuda,
-                  aumentar su ahorro e inversión, y elegir productos financieros adecuados a su perfil.
+                  CODA existe para que cualquier persona en Chile pueda tomar decisiones financieras
+                  informadas, objetivas y alineadas con su interés de largo plazo, sin necesidad de
+                  conocimientos técnicos especializados.
                 </p>
-              </div>
-
-              <div>
-                <div className="flex items-center mb-4">
-                  <Shield className="h-10 w-10 text-blue-600 mr-3" />
-                  <h2 className="text-3xl font-bold text-gray-900">Principios</h2>
-                </div>
-                <ul className="space-y-3 text-gray-600 text-lg">
-                  <li>Neutralidad del consejo</li>
-                  <li>Responsabilidad financiera</li>
-                  <li>Trazabilidad algorítmica</li>
-                  <li>Consentimiento informado</li>
-                  <li>Protección del usuario</li>
-                </ul>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Equipo */}
+      {/* Qué hacemos */}
       <section className="py-20 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center mb-8">
-              <Users className="h-10 w-10 text-blue-600 mr-3" />
+            <div className="flex items-start gap-4 mb-6">
+              <Layers className="h-10 w-10 text-blue-600 flex-shrink-0 mt-1" />
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">Qué hacemos</h2>
+                <div className="text-gray-600 text-lg leading-relaxed space-y-4">
+                  <p>
+                    Somos una plataforma de salud financiera que combina datos financieros reales,
+                    modelos de scoring propios y un marketplace de productos financieros para entregar
+                    diagnóstico, plan de mejora y ejecución en un solo lugar.
+                  </p>
+                  <p>
+                    No somos un comparador estático que muestra opciones y delega la decisión. CODA es
+                    un asistente que diagnostica, proyecta, prioriza y acompaña al usuario en la
+                    ejecución de su plan financiero.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Modelo de negocio */}
+      <section className="py-20">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-start gap-4 mb-6">
+              <Handshake className="h-10 w-10 text-blue-600 flex-shrink-0 mt-1" />
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">Modelo de negocio</h2>
+                <div className="text-gray-600 text-lg leading-relaxed space-y-4">
+                  <p>
+                    CODA es gratuito para las personas. Generamos ingresos por comisiones de originación
+                    y revenue sharing con instituciones financieras cuando un usuario contrata un producto
+                    a través de nuestra plataforma.
+                  </p>
+                  <p>
+                    Nuestras recomendaciones se ordenan siempre por valor neto para el usuario, no por la
+                    comisión que generan para CODA. Cuando dos productos son comparables, priorizamos el
+                    de menor costo para ti.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Equipo fundador */}
+      <section className="py-20 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center gap-3 mb-8">
+              <Users className="h-10 w-10 text-blue-600" />
               <h2 className="text-3xl font-bold text-gray-900">Equipo fundador</h2>
             </div>
-            <p className="text-gray-600 text-lg mb-8">
-              Tres socios con capacidades complementarias en las áreas críticas para una
-              entidad regulada: conocimiento legal y regulatorio, ingeniería de software, y análisis cuantitativo de datos.
-            </p>
             <div className="grid md:grid-cols-3 gap-8">
               <TeamMember
                 name="Thomas Schmidt Puga"
-                role="CEO — Legal y Regulatorio"
-                description="Gestión del frente normativo, coordinación del proceso de autorización ante la CMF y representación institucional."
+                role="CEO · Legal y Regulatorio"
+                description="Responsable del frente normativo y la relación con la CMF. Lidera gobernanza, cumplimiento regulatorio y representación institucional de la compañía."
               />
               <TeamMember
                 name="Ignacio Manzanares Banchero"
-                role="CTO — Tecnología"
-                description="Arquitectura del sistema, seguridad de la información, integraciones con el Sistema de Finanzas Abiertas y controles técnicos."
+                role="CTO · Tecnología"
+                description="Lidera el desarrollo de la plataforma, la arquitectura de seguridad, las integraciones técnicas y la implementación de los controles descritos ante el regulador."
               />
               <TeamMember
                 name="Tomás Andrés Marín Álamos"
-                role="COO — Data & Analytics"
-                description="Diseño y calibración de los modelos de scoring, pipeline de datos transaccionales y crediticios, operación cotidiana."
+                role="COO · Data & Analytics"
+                description="Responsable del diseño y calibración de los modelos de scoring, el pipeline de datos y la operación cotidiana de la compañía."
               />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Modelo de Negocio */}
+      {/* Marco regulatorio */}
       <section className="py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center mb-8">
-              <TrendingUp className="h-10 w-10 text-blue-600 mr-3" />
-              <h2 className="text-3xl font-bold text-gray-900">Modelo de negocio</h2>
-            </div>
-            <div className="prose prose-lg max-w-none text-gray-600">
-              <p className="mb-6">
-                CODA opera bajo un modelo B2B2C: el usuario final no paga por el servicio.
-                Los ingresos provienen de comisiones por originación y acuerdos de revenue sharing
-                con bancos, instituciones financieras, aseguradoras y administradoras de fondos,
-                bajo contratos comerciales formales y con reglas explícitas de mitigación de conflictos de interés.
-              </p>
-              <p className="mb-6">
-                CODA no desarrolla productos financieros propios ni comercializa datos individuales
-                de usuarios a terceros. Las recomendaciones se ordenan siempre por valor neto
-                esperado para el usuario, no por el ingreso que generan a CODA.
-              </p>
+            <div className="flex items-start gap-4 mb-6">
+              <Building2 className="h-10 w-10 text-blue-600 flex-shrink-0 mt-1" />
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">Marco regulatorio</h2>
+                <div className="text-gray-600 text-lg leading-relaxed space-y-4">
+                  <p>
+                    CODA ha sido diseñada desde su origen para operar como prestador de servicios
+                    financieros regulados. En abril de 2026, Chile Open-Data Analytics SpA presentó
+                    su solicitud de inscripción ante la Comisión para el Mercado Financiero (CMF)
+                    como prestador de servicios de asesoría crediticia y asesoría de inversión bajo
+                    el marco de la Ley N° 21.521 (Ley Fintec).
+                  </p>
+                  <p>
+                    La plataforma incorpora principios de trazabilidad algorítmica, protección al
+                    consumidor financiero, mitigación de conflictos de interés y seguridad de la
+                    información desde su diseño inicial.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Info corporativa */}
-      <section className="py-12 bg-gray-50">
+      <section className="py-8 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <p className="text-gray-500 text-sm">
@@ -133,20 +163,22 @@ export default function About() {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* CTA */}
       <section className="py-20 bg-blue-600 text-white">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Mejora tu salud financiera hoy
+            ¿Quieres saber más?
           </h2>
-          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Regístrate gratis y obtén tu diagnóstico financiero con datos reales.
-          </p>
-          <Link href={ROUTES.registro}>
-            <Button size="lg" className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg">
-              Comienza Gratis
-            </Button>
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">
+            <Link href={ROUTES.registro}>
+              <Button size="lg" className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg">
+                Crear cuenta gratis
+              </Button>
+            </Link>
+            <a href="mailto:contacto@codafinance.cl" className="text-blue-100 hover:text-white underline">
+              Contáctanos → contacto@codafinance.cl
+            </a>
+          </div>
         </div>
       </section>
     </div>

@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { ROUTES } from "@/lib/routes";
 import SignInBanner from "@/components/SignInBanner";
+import PreviewBanner from "@/components/PreviewBanner";
 
 // Components
 import DocumentUploadCard from "@/components/DocumentUploadCard";
@@ -132,6 +133,10 @@ export default function Dashboard() {
             description="Los datos del panel provienen de tus cuentas y documentos. Sin sesión no mostramos cifras de ejemplo."
             actionText="Iniciar sesión"
           />
+        )}
+
+        {isAuthenticated && summary && summary.accountCount === 0 && (
+          <PreviewBanner />
         )}
 
         <div className="flex items-center justify-between">

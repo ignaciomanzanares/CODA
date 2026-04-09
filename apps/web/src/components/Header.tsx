@@ -10,12 +10,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { 
-  Menu, 
+import {
+  Menu,
   X,
   LayoutDashboard,
   Receipt,
   Users,
+  Store,
   Package,
   Target,
   FileText,
@@ -27,6 +28,7 @@ import {
   GitMerge,
   Shield,
   Link2,
+  ArrowLeftRight,
   Activity
 } from "lucide-react";
 import NotificationCenter from "@/components/NotificationCenter";
@@ -36,15 +38,17 @@ import type { CurrencyCode } from "@/lib/utils";
 import { ROUTES } from "@/lib/routes";
 
 const navItems = [
+  // Grupo principal
   { href: ROUTES.panel, label: "Panel", icon: LayoutDashboard },
-  { href: ROUTES.movimientos, label: "Movimientos", icon: Receipt },
-  { href: ROUTES.conexiones, label: "Conexiones", icon: Link2 },
-  { href: ROUTES.gastos, label: "Gastos", icon: Receipt },
-  { href: ROUTES.dividirCuenta, label: "Dividir cuenta", icon: Users },
-  { href: ROUTES.productos, label: "Productos", icon: Package },
-  { href: ROUTES.metas, label: "Metas", icon: Target },
+  { href: ROUTES.infoScoreCredito, label: "Score", icon: Shield },
+  { href: ROUTES.productos, label: "Productos", icon: Store },
+  { href: ROUTES.movimientos, label: "Movimientos", icon: ArrowLeftRight },
+  { href: ROUTES.gastos, label: "Gastos", icon: Wallet },
   { href: ROUTES.plan, label: "Plan", icon: FileText },
-  // { href: "/audit", label: "Auditoría", icon: Activity }, // Hidden for now - will implement in future
+  // Grupo secundario
+  { href: ROUTES.metas, label: "Metas", icon: Target },
+  { href: ROUTES.dividirCuenta, label: "Dividir cuenta", icon: Users },
+  { href: ROUTES.conexiones, label: "Conexiones", icon: Link2 },
 ];
 
 const empresasNavItems = [
