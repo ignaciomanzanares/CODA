@@ -158,9 +158,11 @@ export function registerAuditRoutes(app: Express): void {
     '/api/audit/admin/stats',
     authenticate,
     async (req: Request, res: Response) => {
-      // TODO: Add admin role check
       const authReq = req as AuthenticatedRequest;
-      
+      if (authReq.user?.role !== 'admin') {
+        return res.status(403).json({ error: 'Acceso restringido a administradores' });
+      }
+
       try {
         const stats = getAuditStats();
         const activeModel = getActiveModelVersion();
@@ -189,8 +191,11 @@ export function registerAuditRoutes(app: Express): void {
     '/api/audit/admin/algorithm-changes',
     authenticate,
     async (req: Request, res: Response) => {
-      // TODO: Add admin role check
-      
+      const authReq = req as AuthenticatedRequest;
+      if (authReq.user?.role !== 'admin') {
+        return res.status(403).json({ error: 'Acceso restringido a administradores' });
+      }
+
       try {
         const changes = getAllAlgorithmChanges();
         res.json({ changes });
@@ -209,8 +214,11 @@ export function registerAuditRoutes(app: Express): void {
     '/api/audit/admin/export',
     authenticate,
     async (req: Request, res: Response) => {
-      // TODO: Add admin role check
-      
+      const authReq = req as AuthenticatedRequest;
+      if (authReq.user?.role !== 'admin') {
+        return res.status(403).json({ error: 'Acceso restringido a administradores' });
+      }
+
       try {
         const { startDate, endDate } = req.body;
         
