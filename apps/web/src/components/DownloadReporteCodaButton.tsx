@@ -1,13 +1,21 @@
 import { useRef, useCallback } from "react";
 import { useApi } from "@/lib/api";
 import { useReportData } from "@/contexts/ReportDataContext";
+import { useUserDocuments } from "@/hooks/useUserDocuments";
 import { generateCodaReportPdf } from "@/lib/codaReportPdf";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { FileDown } from "lucide-react";
 
 export default function DownloadReporteCodaButton() {
   const { reportData, setCreditScore, setReportIdentity } = useReportData();
   const { getCreditScore, getUserProfile } = useApi();
+  const { hasDocuments, isLoading } = useUserDocuments();
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const handleDownload = useCallback(async () => {
@@ -39,6 +47,34 @@ export default function DownloadReporteCodaButton() {
     }
     generateCodaReportPdf(data);
   }, [reportData, getCreditScore, getUserProfile, setCreditScore, setReportIdentity]);
+
+  if (isLoading) return null;
+
+  if (!hasDocuments) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2 opacity-50 cursor-not-allowed"
+                disabled
+              >
+                <FileDown className="h-4 w-4" />
+                Descargar Reporte de Salud Financiera
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Sube tus documentos para generar tu reporte</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
 
   return (
     <Button

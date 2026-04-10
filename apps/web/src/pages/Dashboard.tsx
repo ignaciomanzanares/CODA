@@ -2,6 +2,7 @@ import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from '@/lib/api';
 import { queryClient } from "@/lib/queryClient";
+import { useUserDocuments } from "@/hooks/useUserDocuments";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
 import { useState } from "react";
@@ -70,6 +71,7 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [, navigate] = useLocation();
   const { currency } = useCurrency();
+  const { hasDocuments } = useUserDocuments();
 
   const { data: financialData } = useQuery<FinancialSummaryData>({
     queryKey: ['financial-summary'],
@@ -135,7 +137,7 @@ export default function Dashboard() {
           />
         )}
 
-        {isAuthenticated && summary && summary.accountCount === 0 && (
+        {isAuthenticated && !hasDocuments && (
           <PreviewBanner />
         )}
 
