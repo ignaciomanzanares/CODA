@@ -149,6 +149,8 @@ export default function DocumentUploadCard() {
           ...(lastResult.cmf?.rutDocumento && { documentRut: lastResult.cmf.rutDocumento }),
           ...(lastResult.cmf?.deudaTotalVigente != null && { cmfDeudaTotalVigente: lastResult.cmf.deudaTotalVigente }),
         });
+        queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
+        queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
         if (lastResult.documentType === "cartola") {
           Analytics.documentUploaded("cartola");
           queryClient.invalidateQueries({ queryKey: ["/api/transactional-score"] });
@@ -198,7 +200,7 @@ export default function DocumentUploadCard() {
   }, [loading]);
 
   return (
-    <Card>
+    <Card id="document-upload-card">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-lg">
           <FileText className="h-5 w-5 text-primary" />

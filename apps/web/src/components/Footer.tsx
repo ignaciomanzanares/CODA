@@ -110,8 +110,8 @@ export default function Footer() {
           {/* Fila 4: Copyright + contacto */}
           <div className="pt-4 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
             <span>&copy; {new Date().getFullYear()} CODA. Todos los derechos reservados.</span>
-            <a href="mailto:contacto@codafinance.cl" className="hover:text-white mt-2 md:mt-0">
-              contacto@codafinance.cl
+            <a href="mailto:info@codafinance.cl" className="hover:text-white mt-2 md:mt-0">
+              info@codafinance.cl
             </a>
           </div>
         </div>

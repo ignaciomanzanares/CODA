@@ -166,6 +166,7 @@ export interface IStorage {
 
   getDocumentUploadById(id: string, userId: string): Promise<any | undefined>;
   listDocumentUploadsByType(userId: string, tipo: string): Promise<any[]>;
+  listAllDocumentUploads(userId: string): Promise<any[]>;
 
   insertUserScore(row: {
     id: string;
@@ -1276,6 +1277,24 @@ export class DatabaseStorage implements IStorage {
     return rows.map((row: any) => ({
       ...row,
       parsedData: row.parsedData ? JSON.parse(row.parsedData) : null,
+    }));
+  }
+
+  async listAllDocumentUploads(userId: string): Promise<any[]> {
+    if (!db) return [];
+    const rows = await db
+      .select()
+      .from(documentUploads)
+      .where(eq(documentUploads.userId, userId))
+      .orderBy(desc(documentUploads.uploadedAt));
+    return rows.map((row: any) => ({
+      id: row.id,
+      tipo: row.tipo,
+      banco: row.banco,
+      periodoDesde: row.periodoDesde,
+      periodoHasta: row.periodoHasta,
+      parseStatus: row.parseStatus,
+      uploadedAt: row.uploadedAt,
     }));
   }
 

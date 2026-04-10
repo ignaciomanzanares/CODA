@@ -55,6 +55,7 @@ import { Analytics } from "@/lib/analytics";
 import type { Expense } from "@/types";
 import { useAuth } from "@/lib/auth";
 import SignInBanner from "@/components/SignInBanner";
+import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatCurrency, inputAmountToStoredClp, storedClpToDisplayAmount } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
@@ -937,6 +938,9 @@ export default function Expenses() {
             color="bg-orange-500"
           />
         </div>
+
+        {/* Parsed transactions from uploaded cartolas */}
+        {isAuthenticated && <ParsedTransactionsTable />}
 
         {/* Filters */}
         <Card>

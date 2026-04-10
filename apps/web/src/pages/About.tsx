@@ -175,8 +175,8 @@ export default function About() {
                 Crear cuenta gratis
               </Button>
             </Link>
-            <a href="mailto:contacto@codafinance.cl" className="text-blue-100 hover:text-white underline">
-              Contáctanos → contacto@codafinance.cl
+            <a href="mailto:info@codafinance.cl" className="text-blue-100 hover:text-white underline">
+              Contáctanos → info@codafinance.cl
             </a>
           </div>
         </div>

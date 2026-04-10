@@ -327,16 +327,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
             monthlyExpenses > 0 ? Math.round((amount / monthlyExpenses) * 100) || 0 : 0,
         }));
 
+      // --- Augment with parsed cartola data when no linked accounts exist ---
+      let finalTotalBalance = Math.round(checkingTotal + savingsTotal);
+      let finalMonthlyIncome = Math.round(monthlyIncome);
+      let finalMonthlyExpenses = Math.round(monthlyExpenses);
+      let finalSavingsRate = savingsRate;
+      let finalNetWorth = Math.round(netWorth);
+      let finalTotalAssets = Math.round(totalAssets);
+      let finalTotalLiabilities = Math.round(totalLiabilities);
+      let docAccountCount = userAccounts.length;
+
+      if (userAccounts.length === 0) {
+        try {
+          const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
+          if (cartolas.length > 0) {
+            const now = new Date();
+            const thirtyDaysAgoTs = new Date();
+            thirtyDaysAgoTs.setDate(thirtyDaysAgoTs.getDate() - 30);
+
+            // Collect all raw transactions across all cartolas
+            interface RawTx { fecha: string; cargo: number; abono: number; saldo?: number }
+            const allRaw: RawTx[] = cartolas.flatMap((c: any) => {
+              const pd = c.parsedData as { transacciones?: RawTx[] } | null;
+              return pd?.transacciones ?? [];
+            });
+
+            // Parse dates and compute last 30-day metrics
+            let docIncome = 0;
+            let docExpenses = 0;
+            const spendingByCatDoc: Record<string, number> = {};
+            for (const tx of allRaw) {
+              let txDate: Date | null = null;
+              try { txDate = new Date(tx.fecha); } catch { /* skip */ }
+              const inWindow = txDate && txDate >= thirtyDaysAgoTs && txDate <= now;
+              if (inWindow) {
+                docIncome += tx.abono ?? 0;
+                docExpenses += tx.cargo ?? 0;
+              }
+              if (tx.cargo > 0) {
+                spendingByCatDoc['Gastos'] = (spendingByCatDoc['Gastos'] || 0) + tx.cargo;
+              }
+            }
+
+            // Use saldoFinal from the most recent cartola as balance
+            const latestCartola = cartolas[0] as any;
+            const latestSaldoFinal: number = (latestCartola?.parsedData as any)?.saldoFinal ?? 0;
+
+            const docSavingsRate = docIncome > 0
+              ? Math.round(((docIncome - docExpenses) / docIncome) * 100)
+              : 0;
+
+            finalTotalBalance = Math.round(latestSaldoFinal);
+            finalTotalAssets = Math.round(latestSaldoFinal);
+            finalMonthlyIncome = Math.round(docIncome);
+            finalMonthlyExpenses = Math.round(docExpenses);
+            finalSavingsRate = docSavingsRate;
+            finalNetWorth = Math.round(latestSaldoFinal);
+            // docAccountCount stays 0 so frontend knows there are no linked bank accounts
+          }
+        } catch (docErr) {
+          logger.warn({ docErr }, "Failed to augment financial-summary from cartola data");
+        }
+      }
+      // -----------------------------------------------------------------------
+
       res.json({
         summary: {
-          totalBalance: Math.round(checkingTotal + savingsTotal),
-          totalAssets: Math.round(totalAssets),
-          totalLiabilities: Math.round(totalLiabilities),
-          netWorth: Math.round(netWorth),
-          monthlyIncome: Math.round(monthlyIncome),
-          monthlyExpenses: Math.round(monthlyExpenses),
-          savingsRate,
-          accountCount: userAccounts.length,
+          totalBalance: finalTotalBalance,
+          totalAssets: finalTotalAssets,
+          totalLiabilities: finalTotalLiabilities,
+          netWorth: finalNetWorth,
+          monthlyIncome: finalMonthlyIncome,
+          monthlyExpenses: finalMonthlyExpenses,
+          savingsRate: finalSavingsRate,
+          accountCount: docAccountCount,
         },
         accountsByType: {
           checking: {
@@ -1088,6 +1152,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
+
+  // GET /api/transactions/parsed — all transactions extracted from uploaded cartola documents
+  app.get("/api/transactions/parsed", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) {
+        return res.status(404).json({ message: "Usuario no encontrado." });
+      }
+      const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
+      interface RawTx { fecha: string; descripcion: string; cargo: number; abono: number; saldo?: number }
+      interface ParsedTxOut {
+        id: string;
+        fecha: string;
+        descripcion: string;
+        monto: number;
+        tipo: 'ingreso' | 'egreso';
+        saldo: number | null;
+        banco: string | null;
+        periodoDesde: string | null;
+        periodoHasta: string | null;
+      }
+      const allTxs: ParsedTxOut[] = [];
+      for (const c of cartolas) {
+        const pd = (c.parsedData as { transacciones?: RawTx[] } | null);
+        const txs = pd?.transacciones ?? [];
+        for (let i = 0; i < txs.length; i++) {
+          const t = txs[i];
+          const monto = (t.abono ?? 0) > 0 ? (t.abono ?? 0) : -(t.cargo ?? 0);
+          allTxs.push({
+            id: `${c.id}-${i}`,
+            fecha: t.fecha,
+            descripcion: t.descripcion ?? "",
+            monto,
+            tipo: monto >= 0 ? "ingreso" : "egreso",
+            saldo: t.saldo ?? null,
+            banco: c.banco ?? null,
+            periodoDesde: c.periodoDesde ?? null,
+            periodoHasta: c.periodoHasta ?? null,
+          });
+        }
+      }
+      // Sort newest first
+      allTxs.sort((a, b) => (b.fecha > a.fecha ? 1 : b.fecha < a.fecha ? -1 : 0));
+      res.json({ transactions: allTxs, count: allTxs.length });
+    } catch (e) {
+      logger.error({ err: e }, "Failed to get parsed transactions");
+      res.status(500).json({ message: "Error al obtener transacciones." });
+    }
+  });
+
+  // GET /api/user/documents — list all document uploads for the authenticated user (metadata only, no parsedData)
+  app.get("/api/user/documents", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) {
+        return res.status(404).json({ message: "Usuario no encontrado." });
+      }
+      const docs = await storage.listAllDocumentUploads(userId);
+      res.json({ documents: docs, count: docs.length });
+    } catch (e) {
+      logger.error({ err: e }, "Failed to list user documents");
+      res.status(500).json({ message: "Error al obtener documentos." });
+    }
+  });
 
   app.get("/api/transactional-score", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;

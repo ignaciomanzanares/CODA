@@ -1,9 +1,14 @@
-import { Link } from "wouter";
 import { Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ROUTES } from "@/lib/routes";
 
 export default function PreviewBanner() {
+  const scrollToUpload = () => {
+    const el = document.getElementById("document-upload-card");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
   return (
     <div className="sticky top-16 z-40 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 px-4 py-3">
       <div className="flex items-center justify-between max-w-7xl mx-auto flex-wrap gap-2">
@@ -14,11 +19,14 @@ export default function PreviewBanner() {
             Sube tus documentos financieros para ver tu diagnóstico real.
           </span>
         </div>
-        <Link href={ROUTES.panel}>
-          <Button size="sm" variant="outline" className="border-amber-300 text-amber-800 hover:bg-amber-100">
-            Subir documentos →
-          </Button>
-        </Link>
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-amber-300 text-amber-800 hover:bg-amber-100"
+          onClick={scrollToUpload}
+        >
+          Subir documentos →
+        </Button>
       </div>
     </div>
   );

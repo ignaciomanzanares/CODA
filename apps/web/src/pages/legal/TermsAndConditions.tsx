@@ -228,7 +228,7 @@ export default function TermsAndConditions() {
           </li>
           <li>
             <strong>Reclamos y atención general:</strong>{" "}
-            <a href="mailto:contacto@codafinance.cl">contacto@codafinance.cl</a>
+            <a href="mailto:info@codafinance.cl">info@codafinance.cl</a>
           </li>
           <li>
             <strong>Protección de datos personales:</strong>{" "}
