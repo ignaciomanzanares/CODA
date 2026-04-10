@@ -341,31 +341,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
           if (cartolas.length > 0) {
-            const now = new Date();
-            const thirtyDaysAgoTs = new Date();
-            thirtyDaysAgoTs.setDate(thirtyDaysAgoTs.getDate() - 30);
+            // Collect all raw transactions (deduplicated by content key)
+            interface RawTx { fecha: string; cargo: number; abono: number; saldo?: number; descripcion?: string }
+            const seenDoc = new Set<string>();
+            const allRaw: RawTx[] = [];
+            for (const c of cartolas) {
+              const pd = (c.parsedData as { transacciones?: RawTx[] } | null);
+              for (const t of pd?.transacciones ?? []) {
+                const key = `${t.fecha}|${(t.descripcion ?? "").trim().toLowerCase()}|${t.abono ?? 0}|${t.cargo ?? 0}`;
+                if (seenDoc.has(key)) continue;
+                seenDoc.add(key);
+                allRaw.push(t);
+              }
+            }
 
-            // Collect all raw transactions across all cartolas
-            interface RawTx { fecha: string; cargo: number; abono: number; saldo?: number }
-            const allRaw: RawTx[] = cartolas.flatMap((c: any) => {
-              const pd = c.parsedData as { transacciones?: RawTx[] } | null;
-              return pd?.transacciones ?? [];
-            });
+            // Determine the most recent month that has transaction data
+            const txDates = allRaw
+              .map(t => { try { return new Date(t.fecha); } catch { return null; } })
+              .filter((d): d is Date => d != null && !isNaN(d.getTime()));
 
-            // Parse dates and compute last 30-day metrics
+            let windowStart: Date;
+            let windowEnd: Date;
+            if (txDates.length > 0) {
+              // Use the latest transaction date as the "end" of the window
+              const latestTxDate = new Date(Math.max(...txDates.map(d => d.getTime())));
+              windowEnd = new Date(latestTxDate.getFullYear(), latestTxDate.getMonth() + 1, 0, 23, 59, 59);
+              windowStart = new Date(latestTxDate.getFullYear(), latestTxDate.getMonth(), 1);
+            } else {
+              // Fallback to last 30 days from today
+              windowEnd = new Date();
+              windowStart = new Date();
+              windowStart.setDate(windowStart.getDate() - 30);
+            }
+
             let docIncome = 0;
             let docExpenses = 0;
-            const spendingByCatDoc: Record<string, number> = {};
             for (const tx of allRaw) {
               let txDate: Date | null = null;
               try { txDate = new Date(tx.fecha); } catch { /* skip */ }
-              const inWindow = txDate && txDate >= thirtyDaysAgoTs && txDate <= now;
+              const inWindow = txDate && !isNaN(txDate.getTime()) && txDate >= windowStart && txDate <= windowEnd;
               if (inWindow) {
                 docIncome += tx.abono ?? 0;
                 docExpenses += tx.cargo ?? 0;
-              }
-              if (tx.cargo > 0) {
-                spendingByCatDoc['Gastos'] = (spendingByCatDoc['Gastos'] || 0) + tx.cargo;
               }
             }
 
@@ -1175,12 +1192,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         periodoHasta: string | null;
       }
       const allTxs: ParsedTxOut[] = [];
+      // Deduplicate across cartola uploads using a content-based key
+      const seen = new Set<string>();
       for (const c of cartolas) {
         const pd = (c.parsedData as { transacciones?: RawTx[] } | null);
         const txs = pd?.transacciones ?? [];
         for (let i = 0; i < txs.length; i++) {
           const t = txs[i];
           const monto = (t.abono ?? 0) > 0 ? (t.abono ?? 0) : -(t.cargo ?? 0);
+          // Key: date + normalized description + amount (ignores which upload record it came from)
+          const dedupeKey = `${t.fecha}|${(t.descripcion ?? "").trim().toLowerCase()}|${monto}`;
+          if (seen.has(dedupeKey)) continue;
+          seen.add(dedupeKey);
           allTxs.push({
             id: `${c.id}-${i}`,
             fecha: t.fecha,

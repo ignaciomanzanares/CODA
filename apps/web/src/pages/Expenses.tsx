@@ -36,6 +36,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
@@ -939,9 +940,17 @@ export default function Expenses() {
           />
         </div>
 
-        {/* Parsed transactions from uploaded cartolas */}
-        {isAuthenticated && <ParsedTransactionsTable />}
+        <Tabs defaultValue="movimientos">
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="movimientos">Movimientos de cartola</TabsTrigger>
+            <TabsTrigger value="manual">Gastos manuales</TabsTrigger>
+          </TabsList>
 
+          <TabsContent value="movimientos">
+            {isAuthenticated && <ParsedTransactionsTable />}
+          </TabsContent>
+
+          <TabsContent value="manual" className="space-y-6">
         {/* Filters */}
         <Card>
           <CardContent className="p-4">
@@ -1127,6 +1136,8 @@ export default function Expenses() {
             </Card>
           )}
         </div>
+          </TabsContent>
+        </Tabs>
 
         {/* Notification Parser Dialog */}
         <Dialog open={isNotificationDialogOpen} onOpenChange={(open) => {
