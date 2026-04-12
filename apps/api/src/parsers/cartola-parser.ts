@@ -207,6 +207,16 @@ function normalizeDescKey(d: string): string {
     .trim();
 }
 
+/**
+ * Motor de categorización para cartolas chilenas.
+ * Prioridad: transferencias → ingresos → educación → salud →
+ * alimentación → supermercado → transporte → telecomunicaciones →
+ * entretenimiento → servicios → comercio → otro.
+ *
+ * Las glosas de bancos chilenos suelen venir en mayúsculas y con abreviaciones
+ * propias de cada institución (Santander, BCI, BancoEstado, Banco de Chile,
+ * Scotiabank, Itaú, Security).
+ */
 function categorizeTransaction(
   descripcion: string,
   monto: number,
@@ -214,40 +224,85 @@ function categorizeTransaction(
 ): TransactionCategory {
   const u = descripcion.toUpperCase();
 
-  if (/TRANSF\.?\s+A\s+|TRANSF\s+A\s+|TRASPASO\s+A\s+/i.test(descripcion)) {
+  // ── Transferencias (más específico primero) ──────────────────────────────
+  if (/TRANSF\.?\s+A\s+|TRANSF\s+A\s+|TRASPASO\s+A\s+|TEF\s+A\s+|GIRO\s+A\s+/i.test(u))
     return "transferencia_enviada";
-  }
-  if (/TRANSF\.?\s+DE\s+|TRANSF\s+DE\s+|TRASPASO\s+DE\s+/i.test(descripcion)) {
+  if (/TRANSF\.?\s+DE\s+|TRANSF\s+DE\s+|TRASPASO\s+DE\s+|TEF\s+DE\s+|TEF\s+CR|TRASPASO\s+AUTOM|ABONO\s+TEF|ABONO\s+TRANSF/i.test(u))
     return "transferencia_recibida";
-  }
-  if (/PONTIFICIA\s+UNIV|UNIVERSIDAD|COLEGIO|U\.\s*CHILE|U\.?CHILE|UTFSM|DUOC|INACAP/i.test(u)) {
-    return "educacion";
-  }
-  if (/ARCOS\s+DORADOS|MC\s*DONALD|BURGER|BK\s|PIZZA|SUSHI|KFC|SUBWAY|STARBUCKS/i.test(u)) {
-    return "alimentacion";
-  }
-  if (/BIP\b|PARKING|AUTOPARKING|BENCINA|COPEC|SHELL|PETROBRAS|TAG\b|AUTOPISTA/i.test(u)) {
-    return "transporte";
-  }
-  if (/ENTEL|CLARO|WOM|MOVISTAR|VTR|GTD|MUNDOTECH/i.test(u)) {
-    return "telecomunicaciones";
-  }
-  if (/MERCADOPAGO|PAYU|KUSHKI|STRIPE|WEBPAY|FLOW\b|TRANSBANK/i.test(u)) {
-    return "comercio";
-  }
-  if (/NETFLIX|SPOTIFY|PRIME|HBO|DISNEY|CINE|CINEMARK|MOVISTAR\s+PLAY/i.test(u)) {
-    return "entretenimiento";
-  }
-  if (/FONASA|ISAPRE|FARM|CRUZ\s+VERDE|SALCO|SALUD|DENTAL|HOSPITAL|CLINICA/i.test(u)) {
-    return "salud";
-  }
+
+  // ── Ingresos (sueldos, remuneraciones) ───────────────────────────────────
   if (
     tipo === "abono" &&
-    (monto > 500_000 ||
-      /INVERSION|INVERSI[ÓO]N|REMUNERACI[ÓO]N|SUELDO|LIQUIDACI[ÓO]N|HONORARIOS/i.test(u))
-  ) {
+    /REMUNERACI[OÓ]N|SUELDO|LIQUIDACI[OÓ]N|HONORARIO|PAGO\s+SUELDO|PLANILLA|BONIFICACI[OÓ]N|GRATIFICACI[OÓ]N|SUBSIDIO|DEVOLUCI[OÓ]N\s+SII|DEVOLUCI[OÓ]N\s+IMPUESTO|RENTA/i.test(u)
+  )
     return "ingreso_principal";
-  }
+  if (tipo === "abono" && monto >= 400_000 && /EMPRESA|S\.A\.|LTDA|SPA\b|EIRL/i.test(u))
+    return "ingreso_principal";
+
+  // ── Educación ────────────────────────────────────────────────────────────
+  if (/PONTIFICIA|UNIVERSIDAD|COLEGIO|LICEO|JARDÍN|JARDIN\s+INFANTIL|U\.\s*CHILE|UTFSM|DUOC|INACAP|CFT\b|PREUNIVERSITARIO|ACADEMIA|INSTITUTO\s+PROF|BRITANICO|NIDO|ESCUELA/i.test(u))
+    return "educacion";
+
+  // ── Salud ────────────────────────────────────────────────────────────────
+  if (/FONASA|ISAPRE|BANM[EÉ]DICA|CONSALUD|COLMENA|MASVIDA|ESENCIAL\s+SALUD|FARMACIA|FARMACIAS\s+AHUMADA|SALCO\s*BRAND|CRUZ\s+VERDE|DR\s+SIMI|MEDIC|DENTAL|DENTISTA|CLINICA|CLÍNICA|HOSPITAL|BUPA|ACHS|MUTUAL\s+DE\s+SEG|C[OÓ]NSULT|POLICL[IÍ]NICO/i.test(u))
+    return "salud";
+
+  // ── Supermercados / alimentación ─────────────────────────────────────────
+  if (/\bL[IÍ]DER\b|WALMART|JUMBO\b|TOTTUS|SANTA\s+ISABEL|UNIMARC|EKONO|COOP\b|BIGGER|ACUENTA|DECA\b|LA\s+DEHESA\s+MARKET|MARKET\s+CENTER|SUPERMERCADO|MAYORISTA\s+10|BIGBOX/i.test(u))
+    return "alimentacion";
+  if (/MC\s*DONALD|MCDO|ARCOS\s+DORADOS|BURGER\s+KING|KFC\b|SUBWAY\b|PIZZA\s+HUT|DOMINO|PAPA\s+JOHN|SUSHI|SUSHITIME|TELEPIZZA|LOMITO|EMPANADA|PANADERÍA|PANADERIA|RESTAURANTE|PICADA|COMIDA\s+RAPIDA|STARBUCKS|JUAN\s+VALDEZ|CAFÉ\s+DEL\s+CENTRO|CAFETERÍA|CAFETERIA|DELIVERY|RAPPI|PEDIDOS\s+YA|UBER\s*EATS|IFOOD|JUST\s+EAT/i.test(u))
+    return "alimentacion";
+  if (/VINOS|VINOTECA|BOTILLERÍA|BOTILLERIA|CERVECERÍA|DESPENSA|ALMACÉN\s+|\bALMACEN\b|MINIMARKET|KIOSKO/i.test(u))
+    return "alimentacion";
+
+  // ── Transporte ───────────────────────────────────────────────────────────
+  if (/\bBIP\b|TNE\b|TRANSANTIAGO|RED\s+METROPOLITANA|METRO\s+DE\s+STGO|METRO\b.*SANTIAGO/i.test(u))
+    return "transporte";
+  if (/COPEC\b|SHELL\b|PETROBRAS|ENAP\b|TERPEL|PETRONOR|BENCINA|ESTACI[OÓ]N\s+DE\s+SERVICIO|GASOLINERA/i.test(u))
+    return "transporte";
+  if (/AUTOPISTA|AUTOEXPR[EÉ]S|AUTOEXPRES|RUTA\s+5|VESPUCIO|COSTANERA\s+NORTE|AMERICO\s+VESPUCIO|TAG\b|TELEPASS|PEAJE/i.test(u))
+    return "transporte";
+  if (/UBER\b(?!\s*EATS)|CABIFY|DIDI\b|LIFT\b|EASY\s+TAXI|BLUE\s+EXPRESS|CHILEXPRESS|STARKEN|DHL\b|FEDEX|CORREO\s+CHILE|CARGO/i.test(u))
+    return "transporte";
+  if (/LATAM\b|SKY\s*AIRLINE|JET\s*SMART|AEROL[IÍ]NEA|VUELO|PASAJE\s+A[EÉ]REO|AEROPUERTO/i.test(u))
+    return "transporte";
+  if (/PARKING|AUTOPARKING|ESTACIONAMIENTO|PLAYA\s+DE\s+ESTAC/i.test(u))
+    return "transporte";
+
+  // ── Telecomunicaciones ───────────────────────────────────────────────────
+  if (/\bENTEL\b|CLARO\s*CHILE|CLARO\s*VTR|\bWOM\b|MOVISTAR|\bVTR\b|\bGTD\b|TELEFÓNICA|TELEFONICA|TELMEX|MUNDO\s*PACÍFICO|PAQUETE\s+CELULAR|PLAN\s+M[OÓ]VIL|INTERNET\s+HOGAR|FIBRA\s+[OÓ]PTICA/i.test(u))
+    return "telecomunicaciones";
+
+  // ── Entretenimiento / streaming ──────────────────────────────────────────
+  if (/NETFLIX|SPOTIFY|PRIME\s+VIDEO|HBO\s*MAX|DISNEY\+|DISNEY\s+PLUS|PARAMOUNT|APPLE\s+TV|YOUTUBE\s+PREMIUM|TWITCH|STEAM\b|PLAY\s+STATION|XBOX\s+LIVE|NINTENDO|CINEMARK|CINE\s+H[OA]Y|MOVIELAND|HOYTS|CIN[ÉE]POLIS|ENTR[AE]DA\s+AL\s+CINE|TEATRO|CONCIERTO/i.test(u))
+    return "entretenimiento";
+  if (/GIMNASIO|GYM\b|SMART\s*FIT|FITPASS|CLUB\s+DE\s+DEPORTES|PISCINA|ESTADIO|CANCHA/i.test(u))
+    return "entretenimiento";
+
+  // ── Servicios básicos / utilities ────────────────────────────────────────
+  if (/ENEL\b|CGE\b|CHILECTRA|LUZ\s+OSORNO|FRONTEL|SAESA|CONAFE|\bAGUA\b.*POTABLE|ESVAL|AGUAS\s+ANDINAS|AGUAS\s+ANTOFAGASTA|ESSBIO|AGUAS\s+DEL\s+VALLE|GAS\s+NATURAL|METROGAS|LIPIGAS|ABASTIBLE|GASVAL|SERVICIOS\s+B[AÁ]SICOS/i.test(u))
+    return "comercio"; // utilities → comercio como categoría más amplia de servicios
+
+  // ── Vivienda / arriendo ──────────────────────────────────────────────────
+  if (/ARRIENDO|DIVIDENDO|ADMINISTRACI[OÓ]N\s+EDIFICIO|CONDOMINIO|INMOBILIARIA|CORREDORA\s+PROP/i.test(u))
+    return "otro"; // vivienda no tiene categoría propia; usar "otro" hasta extender el enum
+
+  // ── Comercio general / retail ────────────────────────────────────────────
+  if (/FALABELLA|RIPLEY|PARIS\b|LA\s+POLAR|H&M\b|ZARA\b|FOREVER\s+21|CORONA\b|HITES\b|ABC\s+DIN|EASY\b|HOMECENTER|SODIMAC|IKEA\b|ABCDIN|TIENDA/i.test(u))
+    return "comercio";
+  if (/AMAZON\b|EBAY\b|ALIEXPRESS|SHEIN\b|WISH\b|MERCADOLIBRE|MERCADO\s+LIBRE|LINIO\b|PARIS\.CL|FALABELLA\.COM|RIPLEY\.COM/i.test(u))
+    return "comercio";
+  if (/MERCADOPAGO|PAYU\b|KUSHKI\b|STRIPE\b|WEBPAY|FLOW\b|TRANSBANK|GETNET|PAYPAL\b/i.test(u))
+    return "comercio";
+
+  // ── Financiero / seguros ─────────────────────────────────────────────────
+  if (/SEGURO|PRIMA\b|P[OÓ]LIZA|AFP\b|APV\b|FONDO\s+MUTUO|INVERSI[OÓ]N|BURSÁTIL|BURSATIL|CORREDORA\s+DE\s+BOLSA|CMF\b|SBIF\b/i.test(u))
+    return "otro";
+
+  // Fallback según tipo (abono sin clasificar → ingreso menor)
+  if (tipo === "abono" && monto >= 200_000)
+    return "ingreso_principal";
+
   return "otro";
 }
 

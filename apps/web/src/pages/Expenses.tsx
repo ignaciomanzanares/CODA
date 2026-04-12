@@ -1,12 +1,12 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { 
-  Plus, 
-  Search, 
-  Edit2, 
-  Trash2, 
-  Tag, 
-  Calendar, 
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  Tag,
+  Calendar,
   DollarSign,
   Receipt,
   Filter,
@@ -25,13 +25,13 @@ import {
   MoreHorizontal,
   ArrowUpRight,
   ArrowDownRight,
-  Camera,
-  MessageSquare,
   FileText,
   Upload,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Trash,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,8 +57,6 @@ import type { Expense } from "@/types";
 import { useAuth } from "@/lib/auth";
 import SignInBanner from "@/components/SignInBanner";
 import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
-import CategoryPieChart from "@/components/CategoryPieChart";
-import SmartInsights from "@/components/SmartInsights";
 import MultiFileDropzone from "@/components/MultiFileDropzone";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatCurrency, inputAmountToStoredClp, storedClpToDisplayAmount } from "@/lib/utils";
@@ -855,39 +853,6 @@ export default function Expenses() {
             onChange={handleScanImage}
           />
           <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="gap-2"
-              disabled={!isAuthenticated}
-              onClick={() => setIsNotificationDialogOpen(true)}
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span className="hidden sm:inline">Notificación</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="gap-2"
-              disabled={!isAuthenticated || isUploadingCartola}
-              onClick={() => setIsCartolaDialogOpen(true)}
-            >
-              <FileText className="w-4 h-4" />
-              <span className="hidden sm:inline">Cartola</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="gap-2"
-              disabled={!isAuthenticated || isScanning}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Camera className="w-4 h-4" />
-              {isScanning ? "Escaneando..." : "Escanear"}
-            </Button>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button disabled={!isAuthenticated} size="lg" className="gap-2" onClick={openAddDialog}>
@@ -952,24 +917,38 @@ export default function Expenses() {
           <TabsContent value="movimientos" className="space-y-4 mt-4">
             {isAuthenticated ? (
               <>
-                {/* Drag & drop multi-PDF upload */}
+                {/* Drag & drop multi-PDF upload + borrar */}
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-                      <Upload className="h-4 w-4 text-primary" />
-                      Subir cartolas bancarias
-                    </p>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-semibold flex items-center gap-2">
+                        <Upload className="h-4 w-4 text-primary" />
+                        Subir cartolas bancarias
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 gap-1.5"
+                        onClick={async () => {
+                          if (!confirm("¿Borrar todas las cartolas? Esta acción no se puede deshacer.")) return;
+                          const token = localStorage.getItem("jwt_token") ?? "";
+                          await fetch("/api/user/cartolas", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+                          queryClient.invalidateQueries({ queryKey: ["/api/transactions/parsed"] });
+                          queryClient.invalidateQueries({ queryKey: ["/api/transactions/insights"] });
+                          queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
+                          queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
+                          toast({ title: "Cartolas eliminadas", description: "Puedes subir nuevas cartolas cuando quieras." });
+                        }}
+                      >
+                        <Trash className="h-3.5 w-3.5" />
+                        Limpiar datos
+                      </Button>
+                    </div>
                     <MultiFileDropzone
                       onDone={(n) => n > 0 && toast({ title: `${n} cartola${n !== 1 ? "s" : ""} procesada${n !== 1 ? "s" : ""}`, description: "Tus movimientos ya están disponibles abajo." })}
                     />
                   </CardContent>
                 </Card>
-
-                {/* Charts & insights row */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <CategoryPieChart />
-                  <SmartInsights />
-                </div>
 
                 {/* Transactions table */}
                 <ParsedTransactionsTable />

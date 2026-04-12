@@ -1368,6 +1368,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DELETE /api/user/cartolas — elimina todas las cartolas del usuario (permite empezar desde cero)
+  app.delete("/api/user/cartolas", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+      const deleted = await storage.deleteDocumentUploadsByType(userId, "cartola");
+      logger.info({ userId, deleted }, "Cartolas deleted by user");
+      res.json({ deleted, message: `${deleted} cartola(s) eliminada(s).` });
+    } catch (e) {
+      logger.error({ err: e }, "Failed to delete cartolas");
+      res.status(500).json({ message: "Error al eliminar cartolas." });
+    }
+  });
+
   // GET /api/user/documents — list all document uploads for the authenticated user (metadata only, no parsedData)
   app.get("/api/user/documents", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
