@@ -17,6 +17,8 @@ import TransactionalScoreCard from "@/components/TransactionalScoreCard";
 import CreditScoreCard from "@/components/CreditScoreCard";
 import FinancialGoalsCard from "@/components/FinancialGoalsCard";
 import DownloadReporteCodaButton from "@/components/DownloadReporteCodaButton";
+import CategoryPieChart from "@/components/CategoryPieChart";
+import SmartInsights from "@/components/SmartInsights";
 import { ReportDataProvider } from "@/contexts/ReportDataContext";
 
 // UI components
@@ -222,6 +224,14 @@ export default function Dashboard() {
                 {summary.savingsRate >= 20 ? 'Excelente' : 'Mejorable'}
               </p>
             </div>
+          </div>
+        )}
+
+        {/* Spending breakdown — sólo cuando hay cartolas cargadas */}
+        {hasDocuments && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <CategoryPieChart />
+            <SmartInsights />
           </div>
         )}
 

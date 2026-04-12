@@ -167,6 +167,7 @@ export interface IStorage {
   getDocumentUploadById(id: string, userId: string): Promise<any | undefined>;
   listDocumentUploadsByType(userId: string, tipo: string): Promise<any[]>;
   listAllDocumentUploads(userId: string): Promise<any[]>;
+  deleteDocumentUploadsByType(userId: string, tipo: string): Promise<number>;
 
   insertUserScore(row: {
     id: string;
@@ -1296,6 +1297,14 @@ export class DatabaseStorage implements IStorage {
       parseStatus: row.parseStatus,
       uploadedAt: row.uploadedAt,
     }));
+  }
+
+  async deleteDocumentUploadsByType(userId: string, tipo: string): Promise<number> {
+    if (!db) return 0;
+    const result = await db
+      .delete(documentUploads)
+      .where(and(eq(documentUploads.userId, userId), eq(documentUploads.tipo, tipo)));
+    return (result as any).rowCount ?? (result as any).changes ?? 0;
   }
 
   async insertUserScore(row: {
