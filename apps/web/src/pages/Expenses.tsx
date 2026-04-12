@@ -945,14 +945,15 @@ export default function Expenses() {
           />
         </div>
 
-        <Tabs defaultValue="movimientos">
+        <Tabs defaultValue="gastos">
           <TabsList className="w-full sm:w-auto">
-            <TabsTrigger value="movimientos">Movimientos de cartola</TabsTrigger>
+            <TabsTrigger value="gastos">Gastos</TabsTrigger>
+            <TabsTrigger value="movimientos">Movimientos</TabsTrigger>
             <TabsTrigger value="manual">Gastos manuales</TabsTrigger>
           </TabsList>
 
-          {/* Tab: Movimientos — todos los movimientos de cartola (ingresos + egresos + saldo) */}
-          <TabsContent value="movimientos" className="space-y-3 mt-4">
+          {/* Tab: Gastos — solo egresos de cartola, tabla simple */}
+          <TabsContent value="gastos" className="space-y-3 mt-4">
             {isAuthenticated ? (
               <>
                 <div className="flex justify-end">
@@ -966,8 +967,21 @@ export default function Expenses() {
                     Limpiar datos
                   </Button>
                 </div>
-                <ParsedTransactionsTable />
+                <ParsedTransactionsTable mode="gastos" />
               </>
+            ) : (
+              <SignInBanner
+                title="Inicia sesión para ver tus gastos"
+                description="Sube tus cartolas bancarias y tus gastos aparecerán categorizados automáticamente."
+                actionText="Iniciar sesión"
+              />
+            )}
+          </TabsContent>
+
+          {/* Tab: Movimientos — todos los movimientos de cartola (ingresos + egresos + saldo) */}
+          <TabsContent value="movimientos" className="space-y-3 mt-4">
+            {isAuthenticated ? (
+              <ParsedTransactionsTable mode="movimientos" />
             ) : (
               <SignInBanner
                 title="Inicia sesión para ver tus movimientos"
@@ -977,7 +991,7 @@ export default function Expenses() {
             )}
           </TabsContent>
 
-          {/* Tab: Gastos manuales — tabla simple de gastos registrados a mano */}
+          {/* Tab: Gastos manuales — gastos registrados a mano */}
           <TabsContent value="manual" className="space-y-4 mt-4">
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3">
