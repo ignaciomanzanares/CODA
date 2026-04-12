@@ -91,12 +91,22 @@ function SortHeader({ label, field, sortField, sortDir, onSort }: {
 }
 
 // ── Main component ───────────────────────────────────────────────────────────
-export default function ParsedTransactionsTable() {
+interface ParsedTransactionsTableProps {
+  /** "gastos" = solo egresos, sin filtro de tipo, sin saldo. "movimientos" = todo. Default: "movimientos" */
+  mode?: "gastos" | "movimientos";
+  /** Título personalizado */
+  title?: string;
+  /** Subtítulo personalizado */
+  subtitle?: string;
+}
+
+export default function ParsedTransactionsTable({ mode = "movimientos", title, subtitle }: ParsedTransactionsTableProps) {
   const { isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
+  const isGastos = mode === "gastos";
 
   const [search, setSearch]         = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "ingreso" | "egreso">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "ingreso" | "egreso">(isGastos ? "egreso" : "all");
   const [catFilter, setCatFilter]   = useState<string>("all");
   const [bancoFilter, setBancoFilter] = useState<string>("all");
   const [dateFrom, setDateFrom]     = useState("");
@@ -116,7 +126,9 @@ export default function ParsedTransactionsTable() {
     staleTime: 30_000,
   });
 
-  const allTxs = data?.transactions ?? [];
+  // In gastos mode, pre-filter to only egresos before any user filters
+  const rawTxs = data?.transactions ?? [];
+  const allTxs = isGastos ? rawTxs.filter(t => t.tipo === "egreso") : rawTxs;
 
   // Derived filter options
   const banks = useMemo(() => {
@@ -202,12 +214,12 @@ export default function ParsedTransactionsTable() {
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <FileText className="h-4 w-4 text-primary" />
-          Movimientos de cartolas
+          {title ?? (isGastos ? "Gastos de cartola" : "Movimientos de cartolas")}
         </CardTitle>
         <CardDescription>
           {allTxs.length > 0
-            ? `${allTxs.length} transacciones extraídas · mostrando ${visibleItems.length}`
-            : "Transacciones extraídas de tus cartolas bancarias"}
+            ? `${allTxs.length} ${isGastos ? 'gastos' : 'transacciones'} extraídos · mostrando ${visibleItems.length}`
+            : (subtitle ?? (isGastos ? "Sube una cartola para ver tus gastos categorizados" : "Transacciones extraídas de tus cartolas bancarias"))}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -229,14 +241,16 @@ export default function ParsedTransactionsTable() {
                 className="max-w-[200px] h-8 text-sm"
               />
 
-              <Select value={typeFilter} onValueChange={v => setTypeFilter(v as any)}>
-                <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tipo: todos</SelectItem>
-                  <SelectItem value="ingreso">Ingresos</SelectItem>
-                  <SelectItem value="egreso">Egresos</SelectItem>
-                </SelectContent>
-              </Select>
+              {!isGastos && (
+                <Select value={typeFilter} onValueChange={v => setTypeFilter(v as any)}>
+                  <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tipo: todos</SelectItem>
+                    <SelectItem value="ingreso">Ingresos</SelectItem>
+                    <SelectItem value="egreso">Egresos</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
 
               {categories.length > 1 && (
                 <Select value={catFilter} onValueChange={setCatFilter}>
@@ -292,13 +306,15 @@ export default function ParsedTransactionsTable() {
                     <th className="px-3 py-2.5 text-right">
                       <SortHeader label="Monto" field="monto" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                     </th>
-                    <th className="px-3 py-2.5 text-right hidden md:table-cell text-xs font-medium text-muted-foreground uppercase tracking-wide">Saldo</th>
+                    {!isGastos && (
+                      <th className="px-3 py-2.5 text-right hidden md:table-cell text-xs font-medium text-muted-foreground uppercase tracking-wide">Saldo</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {visibleItems.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground text-sm">
+                      <td colSpan={isGastos ? 4 : 5} className="px-3 py-8 text-center text-muted-foreground text-sm">
                         Sin resultados para los filtros aplicados.
                       </td>
                     </tr>
@@ -326,13 +342,17 @@ export default function ParsedTransactionsTable() {
                         </td>
                         <td className={cn(
                           "px-3 py-2 text-right font-semibold whitespace-nowrap text-sm",
-                          tx.tipo === "ingreso" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                          isGastos
+                            ? "text-foreground"
+                            : tx.tipo === "ingreso" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                         )}>
-                          {tx.tipo === "ingreso" ? "+" : "−"}{formatClp(tx.monto)}
+                          {isGastos ? formatClp(tx.monto) : `${tx.tipo === "ingreso" ? "+" : "−"}${formatClp(tx.monto)}`}
                         </td>
-                        <td className="px-3 py-2 text-right text-muted-foreground text-xs whitespace-nowrap hidden md:table-cell">
-                          {tx.saldo != null ? formatClp(tx.saldo) : "—"}
-                        </td>
+                        {!isGastos && (
+                          <td className="px-3 py-2 text-right text-muted-foreground text-xs whitespace-nowrap hidden md:table-cell">
+                            {tx.saldo != null ? formatClp(tx.saldo) : "—"}
+                          </td>
+                        )}
                       </tr>
                     ))
                   )}
