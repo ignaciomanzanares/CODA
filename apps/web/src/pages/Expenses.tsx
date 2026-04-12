@@ -57,6 +57,9 @@ import type { Expense } from "@/types";
 import { useAuth } from "@/lib/auth";
 import SignInBanner from "@/components/SignInBanner";
 import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
+import CategoryPieChart from "@/components/CategoryPieChart";
+import SmartInsights from "@/components/SmartInsights";
+import MultiFileDropzone from "@/components/MultiFileDropzone";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatCurrency, inputAmountToStoredClp, storedClpToDisplayAmount } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
@@ -946,8 +949,38 @@ export default function Expenses() {
             <TabsTrigger value="manual">Gastos manuales</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="movimientos">
-            {isAuthenticated && <ParsedTransactionsTable />}
+          <TabsContent value="movimientos" className="space-y-4 mt-4">
+            {isAuthenticated ? (
+              <>
+                {/* Drag & drop multi-PDF upload */}
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <Upload className="h-4 w-4 text-primary" />
+                      Subir cartolas bancarias
+                    </p>
+                    <MultiFileDropzone
+                      onDone={(n) => n > 0 && toast({ title: `${n} cartola${n !== 1 ? "s" : ""} procesada${n !== 1 ? "s" : ""}`, description: "Tus movimientos ya están disponibles abajo." })}
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Charts & insights row */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <CategoryPieChart />
+                  <SmartInsights />
+                </div>
+
+                {/* Transactions table */}
+                <ParsedTransactionsTable />
+              </>
+            ) : (
+              <SignInBanner
+                title="Inicia sesión para ver tus movimientos"
+                description="Sube tus cartolas bancarias y visualiza todos tus movimientos categorizados."
+                actionText="Iniciar sesión"
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="manual" className="space-y-6">

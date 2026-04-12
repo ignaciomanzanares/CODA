@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -10,20 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import {
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  FileText,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ParsedTransaction {
@@ -36,41 +25,55 @@ interface ParsedTransaction {
   banco: string | null;
   periodoDesde: string | null;
   periodoHasta: string | null;
+  categoria: string;
 }
 
 type SortField = "fecha" | "descripcion" | "monto";
 type SortDir = "asc" | "desc";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 40;
 
-const clpFormat = new Intl.NumberFormat("es-CL", {
-  style: "currency",
-  currency: "CLP",
-  maximumFractionDigits: 0,
-});
-
-function formatClp(n: number) {
-  return clpFormat.format(Math.abs(n));
-}
-
-function formatDate(s: string) {
+// ── Formatting ──────────────────────────────────────────────────────────────
+const clpFmt = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+const formatClp  = (n: number) => clpFmt.format(Math.abs(n));
+const formatDate = (s: string) => {
   if (!s) return "—";
-  const d = new Date(s);
-  if (isNaN(d.getTime())) return s;
-  return d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
-}
+  const d = new Date(s + "T12:00:00");
+  return isNaN(d.getTime()) ? s : d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
+};
 
-function SortHeader({
-  label,
-  field,
-  sortField,
-  sortDir,
-  onSort,
-}: {
-  label: string;
-  field: SortField;
-  sortField: SortField;
-  sortDir: SortDir;
+// ── Category meta ────────────────────────────────────────────────────────────
+const CAT_LABELS: Record<string, string> = {
+  alimentacion:           "Alimentación",
+  transporte:             "Transporte",
+  entretenimiento:        "Entretenimiento",
+  telecomunicaciones:     "Telecomunicaciones",
+  transferencia_enviada:  "Transferencia",
+  transferencia_recibida: "Transferencia",
+  comercio:               "Comercio",
+  educacion:              "Educación",
+  salud:                  "Salud",
+  ingreso_principal:      "Ingreso",
+  otro:                   "Otro",
+};
+
+const CAT_COLORS: Record<string, string> = {
+  alimentacion:           "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  transporte:             "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  entretenimiento:        "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400",
+  telecomunicaciones:     "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400",
+  transferencia_enviada:  "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  transferencia_recibida: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
+  comercio:               "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+  educacion:              "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+  salud:                  "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  ingreso_principal:      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  otro:                   "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+};
+
+// ── Sort header ──────────────────────────────────────────────────────────────
+function SortHeader({ label, field, sortField, sortDir, onSort }: {
+  label: string; field: SortField; sortField: SortField; sortDir: SortDir;
   onSort: (f: SortField) => void;
 }) {
   const active = sortField === field;
@@ -80,93 +83,106 @@ function SortHeader({
       onClick={() => onSort(field)}
     >
       {label}
-      {active ? (
-        sortDir === "asc" ? (
-          <ArrowUp className="h-3 w-3" />
-        ) : (
-          <ArrowDown className="h-3 w-3" />
-        )
-      ) : (
-        <ArrowUpDown className="h-3 w-3 opacity-40" />
-      )}
+      {active
+        ? sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+        : <ArrowUpDown className="h-3 w-3 opacity-40" />}
     </button>
   );
 }
 
+// ── Main component ───────────────────────────────────────────────────────────
 export default function ParsedTransactionsTable() {
   const { isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch]         = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "ingreso" | "egreso">("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [sortField, setSortField] = useState<SortField>("fecha");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [page, setPage] = useState(1);
+  const [catFilter, setCatFilter]   = useState<string>("all");
+  const [bancoFilter, setBancoFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom]     = useState("");
+  const [dateTo, setDateTo]         = useState("");
+  const [sortField, setSortField]   = useState<SortField>("fecha");
+  const [sortDir, setSortDir]       = useState<SortDir>("desc");
+  const [page, setPage]             = useState(1);
 
   const { data, isLoading } = useQuery<{ transactions: ParsedTransaction[]; count: number }>({
     queryKey: ["/api/transactions/parsed"],
     queryFn: async () => {
       const token = localStorage.getItem("jwt_token");
       if (!token) return { transactions: [], count: 0 };
-      return apiFetch("/api/transactions/parsed", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch("/api/transactions/parsed", { headers: { Authorization: `Bearer ${token}` } });
     },
     enabled: isAuthenticated,
-    staleTime: 30000,
+    staleTime: 30_000,
   });
 
   const allTxs = data?.transactions ?? [];
 
+  // Derived filter options
+  const banks = useMemo(() => {
+    const set = new Set<string>();
+    allTxs.forEach(t => { if (t.banco) set.add(t.banco); });
+    return Array.from(set).sort();
+  }, [allTxs]);
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    allTxs.forEach(t => { if (t.categoria) set.add(t.categoria); });
+    return Array.from(set).sort();
+  }, [allTxs]);
+
   const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(field);
-      setSortDir("desc");
-    }
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("desc"); }
     setPage(1);
   };
 
   const filtered = useMemo(() => {
     let txs = allTxs;
-
-    if (typeFilter !== "all") {
-      txs = txs.filter((t) => t.tipo === typeFilter);
-    }
-
+    if (typeFilter !== "all") txs = txs.filter(t => t.tipo === typeFilter);
+    if (catFilter !== "all")  txs = txs.filter(t => t.categoria === catFilter);
+    if (bancoFilter !== "all") txs = txs.filter(t => t.banco === bancoFilter);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      txs = txs.filter((t) => t.descripcion.toLowerCase().includes(q));
+      txs = txs.filter(t => t.descripcion.toLowerCase().includes(q));
     }
+    if (dateFrom) txs = txs.filter(t => t.fecha >= dateFrom);
+    if (dateTo)   txs = txs.filter(t => t.fecha <= dateTo);
 
-    if (dateFrom) {
-      txs = txs.filter((t) => t.fecha >= dateFrom);
-    }
-    if (dateTo) {
-      txs = txs.filter((t) => t.fecha <= dateTo);
-    }
-
-    txs = [...txs].sort((a, b) => {
+    return [...txs].sort((a, b) => {
       let cmp = 0;
-      if (sortField === "fecha") {
-        cmp = a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0;
-      } else if (sortField === "descripcion") {
-        cmp = a.descripcion.localeCompare(b.descripcion, "es");
-      } else if (sortField === "monto") {
-        cmp = Math.abs(a.monto) - Math.abs(b.monto);
-      }
+      if (sortField === "fecha") cmp = a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0;
+      else if (sortField === "descripcion") cmp = a.descripcion.localeCompare(b.descripcion, "es");
+      else if (sortField === "monto") cmp = Math.abs(a.monto) - Math.abs(b.monto);
       return sortDir === "asc" ? cmp : -cmp;
     });
+  }, [allTxs, typeFilter, catFilter, bancoFilter, search, dateFrom, dateTo, sortField, sortDir]);
 
-    return txs;
-  }, [allTxs, typeFilter, search, dateFrom, dateTo, sortField, sortDir]);
-
+  // ── Infinite scroll sentinel ─────────────────────────────────────────────
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const visibleItems = filtered.slice(0, page * PAGE_SIZE);
 
+  const onIntersect = useCallback((entries: IntersectionObserverEntry[]) => {
+    if (entries[0]?.isIntersecting && page < totalPages) {
+      setPage(p => p + 1);
+    }
+  }, [page, totalPages]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(onIntersect, { threshold: 0.1 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [onIntersect]);
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [search, typeFilter, catFilter, bancoFilter, dateFrom, dateTo, sortField, sortDir]);
+
+  const hasActiveFilter = search || typeFilter !== "all" || catFilter !== "all" || bancoFilter !== "all" || dateFrom || dateTo;
+
+  // ── Loading state ────────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <Card>
@@ -175,9 +191,7 @@ export default function ParsedTransactionsTable() {
           <Skeleton className="h-4 w-72 mt-1" />
         </CardHeader>
         <CardContent className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 w-full" />
-          ))}
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
         </CardContent>
       </Card>
     );
@@ -186,131 +200,135 @@ export default function ParsedTransactionsTable() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2">
-          <FileText className="h-5 w-5 text-primary" />
+        <CardTitle className="flex items-center gap-2 text-base">
+          <FileText className="h-4 w-4 text-primary" />
           Movimientos de cartolas
         </CardTitle>
         <CardDescription>
-          Transacciones extraídas de tus cartolas bancarias subidas.
+          {allTxs.length > 0
+            ? `${allTxs.length} transacciones extraídas · mostrando ${visibleItems.length}`
+            : "Transacciones extraídas de tus cartolas bancarias"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {allTxs.length === 0 ? (
-          <div className="text-center py-10 space-y-3">
+          <div className="text-center py-12 space-y-3">
             <FileText className="h-10 w-10 text-muted-foreground mx-auto" />
-            <p className="font-medium text-muted-foreground">Sin movimientos</p>
-            <p className="text-sm text-muted-foreground">
-              Sube una cartola bancaria para ver tus transacciones aquí.
-            </p>
-            <Button size="sm" onClick={() => navigate(ROUTES.panel)}>
-              Subir cartola
-            </Button>
+            <p className="font-medium">Sin movimientos</p>
+            <p className="text-sm text-muted-foreground">Sube una cartola bancaria para ver tus transacciones aquí.</p>
+            <Button size="sm" onClick={() => navigate(ROUTES.panel)}>Subir cartola</Button>
           </div>
         ) : (
           <>
-            {/* Filters */}
+            {/* ── Filters ────────────────────────────────────────────────── */}
             <div className="flex flex-wrap gap-2 items-center">
               <Input
                 placeholder="Buscar descripción..."
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="max-w-xs h-8 text-sm"
+                onChange={e => setSearch(e.target.value)}
+                className="max-w-[200px] h-8 text-sm"
               />
-              <Select
-                value={typeFilter}
-                onValueChange={(v) => { setTypeFilter(v as any); setPage(1); }}
-              >
-                <SelectTrigger className="w-32 h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
+
+              <Select value={typeFilter} onValueChange={v => setTypeFilter(v as any)}>
+                <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="all">Tipo: todos</SelectItem>
                   <SelectItem value="ingreso">Ingresos</SelectItem>
                   <SelectItem value="egreso">Egresos</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+
+              {categories.length > 1 && (
+                <Select value={catFilter} onValueChange={setCatFilter}>
+                  <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Categoría: todas</SelectItem>
+                    {categories.map(c => (
+                      <SelectItem key={c} value={c}>{CAT_LABELS[c] ?? c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {banks.length > 1 && (
+                <Select value={bancoFilter} onValueChange={setBancoFilter}>
+                  <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Banco: todos</SelectItem>
+                    {banks.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
+
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <span>Desde</span>
-                <Input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                  className="w-36 h-8 text-sm"
-                />
+                <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-32 h-8 text-xs" />
               </div>
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <span>Hasta</span>
-                <Input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                  className="w-36 h-8 text-sm"
-                />
+                <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-32 h-8 text-xs" />
               </div>
-              {(search || typeFilter !== "all" || dateFrom || dateTo) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-xs"
-                  onClick={() => { setSearch(""); setTypeFilter("all"); setDateFrom(""); setDateTo(""); setPage(1); }}
-                >
+
+              {hasActiveFilter && (
+                <Button variant="ghost" size="sm" className="h-8 text-xs"
+                  onClick={() => { setSearch(""); setTypeFilter("all"); setCatFilter("all"); setBancoFilter("all"); setDateFrom(""); setDateTo(""); }}>
                   Limpiar filtros
                 </Button>
               )}
             </div>
 
-            {/* Table */}
+            {/* ── Table ──────────────────────────────────────────────────── */}
             <div className="overflow-x-auto rounded-md border">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40">
-                    <th className="px-3 py-2 text-left">
+                    <th className="px-3 py-2.5 text-left">
                       <SortHeader label="Fecha" field="fecha" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                     </th>
-                    <th className="px-3 py-2 text-left">
+                    <th className="px-3 py-2.5 text-left">
                       <SortHeader label="Descripción" field="descripcion" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                     </th>
-                    <th className="px-3 py-2 text-center">Tipo</th>
-                    <th className="px-3 py-2 text-right">
+                    <th className="px-3 py-2.5 text-center hidden sm:table-cell">Categoría</th>
+                    <th className="px-3 py-2.5 text-right">
                       <SortHeader label="Monto" field="monto" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                     </th>
-                    <th className="px-3 py-2 text-right hidden md:table-cell">Saldo</th>
+                    <th className="px-3 py-2.5 text-right hidden md:table-cell text-xs font-medium text-muted-foreground uppercase tracking-wide">Saldo</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pageItems.length === 0 ? (
+                  {visibleItems.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground text-sm">
+                      <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground text-sm">
                         Sin resultados para los filtros aplicados.
                       </td>
                     </tr>
                   ) : (
-                    pageItems.map((tx) => (
+                    visibleItems.map(tx => (
                       <tr key={tx.id} className="border-b hover:bg-muted/30 transition-colors">
                         <td className="px-3 py-2 whitespace-nowrap text-muted-foreground text-xs">
                           {formatDate(tx.fecha)}
                         </td>
-                        <td className="px-3 py-2 max-w-[240px] truncate" title={tx.descripcion}>
-                          {tx.descripcion || "—"}
+                        <td className="px-3 py-2 max-w-[200px]">
+                          <span className="block truncate text-sm" title={tx.descripcion}>
+                            {tx.descripcion || "—"}
+                          </span>
+                          {tx.banco && (
+                            <span className="text-[10px] text-muted-foreground">{tx.banco}</span>
+                          )}
                         </td>
-                        <td className="px-3 py-2 text-center">
+                        <td className="px-3 py-2 text-center hidden sm:table-cell">
                           <Badge
                             variant="secondary"
-                            className={cn(
-                              "text-xs",
-                              tx.tipo === "ingreso"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-red-100 text-red-700"
-                            )}
+                            className={cn("text-[10px] px-1.5 py-0.5", CAT_COLORS[tx.categoria] ?? CAT_COLORS.otro)}
                           >
-                            {tx.tipo === "ingreso" ? "Ingreso" : "Egreso"}
+                            {CAT_LABELS[tx.categoria] ?? tx.categoria}
                           </Badge>
                         </td>
                         <td className={cn(
-                          "px-3 py-2 text-right font-medium whitespace-nowrap",
-                          tx.tipo === "ingreso" ? "text-green-600" : "text-red-600"
+                          "px-3 py-2 text-right font-semibold whitespace-nowrap text-sm",
+                          tx.tipo === "ingreso" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                         )}>
-                          {tx.tipo === "ingreso" ? "+" : "-"}{formatClp(tx.monto)}
+                          {tx.tipo === "ingreso" ? "+" : "−"}{formatClp(tx.monto)}
                         </td>
                         <td className="px-3 py-2 text-right text-muted-foreground text-xs whitespace-nowrap hidden md:table-cell">
                           {tx.saldo != null ? formatClp(tx.saldo) : "—"}
@@ -320,37 +338,23 @@ export default function ParsedTransactionsTable() {
                   )}
                 </tbody>
               </table>
+
+              {/* Infinite scroll sentinel */}
+              <div ref={sentinelRef} className="h-4" />
             </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>
-                  {filtered.length} movimiento{filtered.length !== 1 ? "s" : ""} ·
-                  Página {page} de {totalPages}
+            {/* Footer summary */}
+            <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+              <span>
+                {filtered.length} movimiento{filtered.length !== 1 ? "s" : ""}
+                {hasActiveFilter ? " (filtrado" + (filtered.length !== allTxs.length ? `s de ${allTxs.length}` : "") + ")" : ""}
+              </span>
+              {page < totalPages && (
+                <span className="text-primary cursor-pointer hover:underline" onClick={() => setPage(p => p + 1)}>
+                  Cargar más ↓
                 </span>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </>
         )}
       </CardContent>
