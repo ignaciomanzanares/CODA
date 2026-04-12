@@ -341,10 +341,30 @@ export function parseCartolaPdf(text: string): CartolaExtraida | null {
 
   // ── commitTransaction: determina tipo y empuja a transacciones ────────────
   function commitTransaction(fullSegment: string, rawDesc: string, fecha: string, section: SectionCtx) {
-    let descripcion = rawDesc
-      .replace(/^\d{6,10}\s+\d{1,4}\s+/, '')
-      .replace(/\s+/g, ' ')
-      .trim();
+    let descripcion = rawDesc.replace(/\s+/g, ' ').trim();
+
+    // 1. Quitar prefijos de oficina/sucursal: "O.Gerencia", "S.Central", etc.
+    descripcion = descripcion.replace(/^[A-Z]\.[A-Za-záéíóúñÁÉÍÓÚÑ]+\s+/, '');
+
+    // 2. Quitar formato SUCURSAL(1-4 dígitos) + NDOC(7-12 dígitos): "93 0222260043"
+    descripcion = descripcion.replace(/^\d{1,4}\s+\d{7,12}\s+/, '');
+
+    // 3. Quitar formato NDOC(6-12 dígitos) + campo extra corto: "0650447700 3"
+    descripcion = descripcion.replace(/^\d{6,12}\s+\d{1,6}\s+/, '');
+
+    // 4. Quitar NDOC solo (sin sucursal siguiente): "0650447700 Transf..." → "Transf..."
+    descripcion = descripcion.replace(/^\d{6,12}\s+/, '');
+
+    // 5. Quitar cualquier token numérico inicial remanente
+    descripcion = descripcion.replace(/^(?:\d+\s+)+/, '');
+
+    // 6. Quitar monto CLP al final que se haya colado en la descripción: "... 11.000"
+    descripcion = descripcion.replace(/\s+\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?\s*$/, '');
+
+    // 7. Quitar número standalone largo al final (sub-número de doc): "... 0222260043"
+    descripcion = descripcion.replace(/\s+\d{5,12}\s*$/, '');
+
+    descripcion = descripcion.replace(/\s+/g, ' ').trim();
     if (descripcion.length < 3) return;
     // Evitar líneas de encabezado que hayan escapado el filtro
     if (/^\d+$/.test(descripcion)) return;

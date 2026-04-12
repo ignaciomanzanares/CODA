@@ -57,7 +57,6 @@ import type { Expense } from "@/types";
 import { useAuth } from "@/lib/auth";
 import SignInBanner from "@/components/SignInBanner";
 import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
-import MultiFileDropzone from "@/components/MultiFileDropzone";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatCurrency, inputAmountToStoredClp, storedClpToDisplayAmount } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
@@ -211,7 +210,7 @@ function StatCard({
 
 export default function Expenses() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { getExpenses, createExpense, updateExpense, deleteExpense, classifyExpense, scanExpense, parseNotifications, parseCartolaPdf, importCartolaMovements } = useApi();
+  const { getExpenses, createExpense, updateExpense, deleteExpense, classifyExpense, scanExpense, parseNotifications } = useApi();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedMonth, setSelectedMonth] = useState<string>("auto");
@@ -235,15 +234,67 @@ export default function Expenses() {
   }> | null>(null);
 
   // Cartola upload state
-  const [isCartolaDialogOpen, setIsCartolaDialogOpen] = useState(false);
-  const [isUploadingCartola, setIsUploadingCartola] = useState(false);
-  const [cartolaResult, setCartolaResult] = useState<{
-    movements: Array<{ date: string; description: string; amount: number; type: string; category: string; merchant: string; sfaCode: string }>;
-    summary: { totalIncome: number; totalExpenses: number; balance: number; transactionCount: number };
-    reconciled?: Array<{ participantId: string; billSplitId: string; amount: number }>;
-  } | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
+  const [isUploadingCartolas, setIsUploadingCartolas] = useState(false);
   const cartolaInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCartolaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!files.length || !isAuthenticated) return;
+    setIsUploadingCartolas(true);
+    let successCount = 0;
+    for (const file of files) {
+      try {
+        const token = localStorage.getItem("jwt_token") ?? "";
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/documents/parse-cartola", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        if (res.ok) successCount++;
+      } catch {
+        // continue with remaining files
+      }
+    }
+    setIsUploadingCartolas(false);
+    if (successCount > 0) {
+      queryClient.removeQueries({ queryKey: ["/api/transactions/parsed"] });
+      queryClient.removeQueries({ queryKey: ["/api/transactions/insights"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
+      toast({
+        title: `${successCount} cartola${successCount !== 1 ? "s" : ""} procesada${successCount !== 1 ? "s" : ""}`,
+        description: "Tus movimientos ya están disponibles en la tabla.",
+      });
+    } else {
+      toast({ title: "Error al subir", description: "No se pudo procesar ninguna cartola.", variant: "destructive" });
+    }
+  };
+
+  const handleLimpiarCartolas = async () => {
+    if (!confirm("¿Borrar todas las cartolas? Esta acción no se puede deshacer.")) return;
+    try {
+      const token = localStorage.getItem("jwt_token") ?? "";
+      const res = await fetch("/api/user/cartolas", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      queryClient.removeQueries({ queryKey: ["/api/transactions/parsed"] });
+      queryClient.removeQueries({ queryKey: ["/api/transactions/insights"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
+      toast({ title: "Cartolas eliminadas", description: "Puedes subir nuevas cartolas cuando quieras." });
+    } catch (err) {
+      toast({
+        title: "Error al limpiar",
+        description: err instanceof Error ? err.message : "No se pudieron eliminar las cartolas.",
+        variant: "destructive",
+      });
+    }
+  };
   const [expensePendingDelete, setExpensePendingDelete] = useState<Expense | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -698,57 +749,6 @@ export default function Expenses() {
     });
   };
 
-  const handleCartolaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !isAuthenticated) return;
-    e.target.value = "";
-    if (file.type !== "application/pdf") {
-      toast({ title: "Formato no válido", description: "Solo se aceptan archivos PDF.", variant: "destructive" });
-      return;
-    }
-    setIsUploadingCartola(true);
-    setCartolaResult(null);
-    try {
-      const result = await parseCartolaPdf(file);
-      setCartolaResult(result);
-      Analytics.cartolaParsed();
-      toast({
-        title: "Cartola procesada",
-        description: `Se encontraron ${result.movements?.length || 0} movimientos.`,
-      });
-    } catch (err) {
-      toast({
-        title: "Error al procesar cartola",
-        description: err instanceof Error ? err.message : "No se pudo leer el PDF.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploadingCartola(false);
-    }
-  };
-
-  const handleImportCartola = async () => {
-    if (!cartolaResult?.movements?.length) return;
-    setIsImporting(true);
-    try {
-      const result = await importCartolaMovements(cartolaResult.movements);
-      toast({
-        title: "Movimientos importados",
-        description: `${result.imported} gastos importados, ${result.skipped} omitidos.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
-      setIsCartolaDialogOpen(false);
-      setCartolaResult(null);
-    } catch (err) {
-      toast({
-        title: "Error al importar",
-        description: err instanceof Error ? err.message : "No se pudieron importar los movimientos.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsImporting(false);
-    }
-  };
 
   if (authLoading || (isAuthenticated && isLoading)) {
     return (
@@ -852,7 +852,29 @@ export default function Expenses() {
             className="hidden"
             onChange={handleScanImage}
           />
+          <input
+            ref={cartolaInputRef}
+            type="file"
+            multiple
+            accept=".pdf,application/pdf"
+            className="hidden"
+            onChange={handleCartolaUpload}
+          />
           <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="lg"
+              className="gap-2"
+              disabled={!isAuthenticated || isUploadingCartolas}
+              onClick={() => cartolaInputRef.current?.click()}
+            >
+              {isUploadingCartolas ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4" />
+              )}
+              Subir cartola
+            </Button>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button disabled={!isAuthenticated} size="lg" className="gap-2" onClick={openAddDialog}>
@@ -917,40 +939,17 @@ export default function Expenses() {
           <TabsContent value="movimientos" className="space-y-4 mt-4">
             {isAuthenticated ? (
               <>
-                {/* Drag & drop multi-PDF upload + borrar */}
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-sm font-semibold flex items-center gap-2">
-                        <Upload className="h-4 w-4 text-primary" />
-                        Subir cartolas bancarias
-                      </p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 gap-1.5"
-                        onClick={async () => {
-                          if (!confirm("¿Borrar todas las cartolas? Esta acción no se puede deshacer.")) return;
-                          const token = localStorage.getItem("jwt_token") ?? "";
-                          await fetch("/api/user/cartolas", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-                          queryClient.invalidateQueries({ queryKey: ["/api/transactions/parsed"] });
-                          queryClient.invalidateQueries({ queryKey: ["/api/transactions/insights"] });
-                          queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
-                          queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
-                          toast({ title: "Cartolas eliminadas", description: "Puedes subir nuevas cartolas cuando quieras." });
-                        }}
-                      >
-                        <Trash className="h-3.5 w-3.5" />
-                        Limpiar datos
-                      </Button>
-                    </div>
-                    <MultiFileDropzone
-                      onDone={(n) => n > 0 && toast({ title: `${n} cartola${n !== 1 ? "s" : ""} procesada${n !== 1 ? "s" : ""}`, description: "Tus movimientos ya están disponibles abajo." })}
-                    />
-                  </CardContent>
-                </Card>
-
-                {/* Transactions table */}
+                <div className="flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 gap-1.5"
+                    onClick={handleLimpiarCartolas}
+                  >
+                    <Trash className="h-3.5 w-3.5" />
+                    Limpiar datos
+                  </Button>
+                </div>
                 <ParsedTransactionsTable />
               </>
             ) : (
@@ -1242,153 +1241,6 @@ export default function Expenses() {
                     </Card>
                   ))}
                 </div>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Cartola Upload Dialog */}
-        <input
-          ref={cartolaInputRef}
-          type="file"
-          accept="application/pdf"
-          className="hidden"
-          onChange={handleCartolaUpload}
-        />
-        <Dialog open={isCartolaDialogOpen} onOpenChange={(open) => {
-          setIsCartolaDialogOpen(open);
-          if (!open) setCartolaResult(null);
-        }}>
-          <DialogContent className="max-w-2xl max-h-modal-viewport scroll-touch-momentum overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                Importar movimientos desde Cartola
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              {!cartolaResult ? (
-                <>
-                  <p className="text-sm text-muted-foreground">
-                    Sube tu cartola bancaria en PDF. Se extraerán todos los movimientos automáticamente,
-                    categorizados con IA. Si hay cobros pendientes en "Dividir cuenta", se intentará conciliar pagos.
-                  </p>
-                  <div
-                    className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={() => cartolaInputRef.current?.click()}
-                  >
-                    {isUploadingCartola ? (
-                      <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="h-10 w-10 text-primary animate-spin" />
-                        <p className="text-sm text-muted-foreground">Procesando cartola...</p>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center gap-3">
-                        <Upload className="h-10 w-10 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">Haz click para subir tu cartola PDF</p>
-                          <p className="text-sm text-muted-foreground mt-1">Soporta cartolas de bancos chilenos</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* Summary */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <Card>
-                      <CardContent className="p-3 text-center">
-                        <p className="text-xs text-muted-foreground">Movimientos</p>
-                        <p className="text-xl font-bold">{cartolaResult.summary.transactionCount}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-3 text-center">
-                        <p className="text-xs text-muted-foreground">Ingresos</p>
-                        <p className="text-xl font-bold text-green-600">
-                          {formatCurrencyFn(cartolaResult.summary.totalIncome)}
-                        </p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-3 text-center">
-                        <p className="text-xs text-muted-foreground">Gastos</p>
-                        <p className="text-xl font-bold text-red-600">
-                          {formatCurrencyFn(Math.abs(cartolaResult.summary.totalExpenses))}
-                        </p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-3 text-center">
-                        <p className="text-xs text-muted-foreground">Balance</p>
-                        <p className={`text-xl font-bold ${cartolaResult.summary.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {formatCurrencyFn(cartolaResult.summary.balance)}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Reconciliation results */}
-                  {cartolaResult.reconciled && cartolaResult.reconciled.length > 0 && (
-                    <Card className="border-green-200 bg-green-50">
-                      <CardContent className="p-3">
-                        <div className="flex items-center gap-2 text-green-700">
-                          <CheckCircle className="h-4 w-4" />
-                          <span className="font-medium text-sm">
-                            {cartolaResult.reconciled.length} pago(s) conciliados automáticamente en Dividir cuenta
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Movements list */}
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    <h4 className="font-semibold text-sm sticky top-0 bg-background py-1">
-                      Movimientos ({cartolaResult.movements.length})
-                    </h4>
-                    {cartolaResult.movements.map((mov, idx) => {
-                      const isExpense = mov.amount < 0;
-                      return (
-                        <div key={idx} className="flex items-center justify-between py-2 px-3 rounded-lg border text-sm">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{mov.merchant || mov.description}</p>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span>{mov.date}</span>
-                              <Badge variant="secondary" className="text-xs">{mov.category}</Badge>
-                            </div>
-                          </div>
-                          <span className={`font-bold ${isExpense ? 'text-red-600' : 'text-green-600'}`}>
-                            {isExpense ? '-' : '+'}{formatCurrencyFn(Math.abs(mov.amount))}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Import actions */}
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => { setCartolaResult(null); }}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      className="flex-1"
-                      disabled={isImporting || !cartolaResult.movements || cartolaResult.movements.length === 0}
-                      onClick={handleImportCartola}
-                    >
-                      {isImporting ? (
-                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Importando...</>
-                      ) : (
-                        <><Plus className="h-4 w-4 mr-2" /> Importar gastos</>
-                      )}
-                    </Button>
-                  </div>
-                </>
               )}
             </div>
           </DialogContent>
