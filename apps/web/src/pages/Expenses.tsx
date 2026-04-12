@@ -47,7 +47,7 @@ import { Separator } from "@/components/ui/separator";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useApi } from "@/lib/api";
+import { useApi, API_URL } from "@/lib/api";
 import { mapUserFacingApiError } from "@/lib/userFacingErrors";
 import SwipeableListRow from "@/components/SwipeableListRow";
 import ConfirmDestructiveDialog from "@/components/ConfirmDestructiveDialog";
@@ -237,6 +237,11 @@ export default function Expenses() {
   const [isUploadingCartolas, setIsUploadingCartolas] = useState(false);
   const cartolaInputRef = useRef<HTMLInputElement>(null);
 
+  // Build absolute API URL — in production VITE_API_URL = "https://coda-api.onrender.com"
+  // Raw fetch("/api/...") hits Vercel (static host) and gets 405; must prefix with the backend base.
+  const apiBase = (API_URL || "").replace(/\/$/, "");
+  const apiUrl = (path: string) => (apiBase ? `${apiBase}${path}` : path);
+
   const handleCartolaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
@@ -248,7 +253,7 @@ export default function Expenses() {
         const token = localStorage.getItem("jwt_token") ?? "";
         const formData = new FormData();
         formData.append("file", file);
-        const res = await fetch("/api/documents/parse-cartola", {
+        const res = await fetch(apiUrl("/api/documents/parse-cartola"), {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
@@ -277,7 +282,7 @@ export default function Expenses() {
     if (!confirm("¿Borrar todas las cartolas? Esta acción no se puede deshacer.")) return;
     try {
       const token = localStorage.getItem("jwt_token") ?? "";
-      const res = await fetch("/api/user/cartolas", {
+      const res = await fetch(apiUrl("/api/user/cartolas"), {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

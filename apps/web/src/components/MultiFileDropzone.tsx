@@ -7,6 +7,7 @@ import { useRef, useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { API_URL } from "@/lib/api";
 import { Upload, FileText, CheckCircle2, XCircle, Loader2, X } from "lucide-react";
 
 interface FileStatus {
@@ -63,7 +64,8 @@ export default function MultiFileDropzone({ onDone, className }: MultiFileDropzo
         const formData = new FormData();
         formData.append("file", fs.file);
 
-        const res = await fetch("/api/documents/parse-cartola", {
+        const apiBase = (API_URL || "").replace(/\/$/, "");
+        const res = await fetch(`${apiBase}/api/documents/parse-cartola`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
