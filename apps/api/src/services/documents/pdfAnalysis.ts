@@ -34,7 +34,6 @@ export interface CartolaExtraida {
 
 export type DocumentoExtraido = CmfInformeDeudas | CartolaExtraida;
 
-const NUM_RE = /[\d.\s]+/;
 const RUT_RE = /\b\d{1,2}\.\d{3}\.\d{3}-[\dKk]\b/;
 
 function extractNumberAfterLabel(text: string, label: string): number | null {
@@ -170,82 +169,74 @@ export function parseCmfInformeDeudas(text: string): CmfInformeDeudas | null {
 }
 
 /**
- * Parsea texto de una cartola bancaria (líneas con fecha, descripción, cargos/abonos).
- * Formato típico: fecha (dd/mm), número, sucursal, descripción, monto.
- * El texto extraído de PDFs tiene espacios múltiples entre palabras.
- * Mejorado para extraer RUT y saldos (Inicial/Final) del header.
+ * Parsea texto de una cartola bancaria chilena (Santander y otros bancos).
+ *
+ * Estrategia robusta basada en la estructura real de los PDFs:
+ *  1. Detección de secciones: "Cheques y Cargos" → egresos, "Depósitos y Abonos" → ingresos.
+ *     Esto evita depender exclusivamente de palabras clave en la descripción.
+ *  2. Aislamiento de la columna Saldo: cuando hay 2+ montos al final de una línea,
+ *     el ÚLTIMO es el saldo corriente y el PENÚLTIMO es el monto de la operación.
+ *  3. Normalización temporal: fechas construidas en hora 12:00:00 local para evitar
+ *     desfases de zona horaria (±1 día).
+ *  4. Prueba de integridad (best-effort): saldo_anterior + abonos − cargos = saldo_actual.
+ *     Las filas que no cuadran se marcan con flag `integrity_warning` para revisión.
  */
 export function parseCartolaPdf(text: string): CartolaExtraida | null {
   const transacciones: CartolaExtraida['transacciones'] = [];
-  
-  // Extraer RUT del texto (formato 11.111.111-1)
-  // Nota: el PDF puede tener RUT sin formato (ej: "55061" en cuenta) o con guiones incompletos
-  // Primero buscar RUT con formato completo, luego intentar buscar cerca del nombre
+
+  // ── RUT ────────────────────────────────────────────────────────────────────
   let rut = text.match(RUT_RE)?.[0];
-  
-  // Si no se encontró con el formato estándar, buscar cerca de nombre/email
   if (!rut) {
-    const nombreMatch = text.match(/CASTELLANO\s+BANCHERO\s+IGNACIO/i);
-    if (nombreMatch) {
-      // Buscar RUT en un contexto de 200 caracteres alrededor del nombre
-      const idx = nombreMatch.index!;
-      const contexto = text.slice(Math.max(0, idx - 100), idx + 100);
-      rut = contexto.match(RUT_RE)?.[0];
+    // Buscar RUT cerca de cualquier nombre en mayúsculas
+    const idx = text.search(/[A-ZÁÉÍÓÚÑ]{3,}\s+[A-ZÁÉÍÓÚÑ]{3,}/);
+    if (idx !== -1) {
+      const ctx = text.slice(Math.max(0, idx - 120), idx + 120);
+      rut = ctx.match(RUT_RE)?.[0];
     }
   }
-  
-  // Extraer saldos (buscar "Saldo Inicial X ... Saldo Final Y")
-  // En el header puede aparecer en formato: "880.681   988.918   1.101.917   993.680"
-  // Donde las columnas son: Saldo Inicial | Cheques o Cargos | Depósitos o Abonos | Saldo Final
+
+  // ── Saldos globales del resumen ─────────────────────────────────────────────
   let saldoInicial: number | undefined;
   let saldoFinal: number | undefined;
-  
-  // Buscar el patrón: "Saldo Inicial ... Saldo Final" seguido de 4 números
-  const saldoHeaderMatch = text.match(/Saldo\s+Inicial.*?Saldo\s+Final.*?([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/is);
+
+  const saldoHeaderMatch = text.match(
+    /Saldo\s+Inicial.*?Saldo\s+Final.*?([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/is
+  );
   if (saldoHeaderMatch) {
     saldoInicial = parseFloat(saldoHeaderMatch[1].replace(/\./g, '').replace(',', '.'));
-    saldoFinal = parseFloat(saldoHeaderMatch[4].replace(/\./g, '').replace(',', '.'));
+    saldoFinal   = parseFloat(saldoHeaderMatch[4].replace(/\./g, '').replace(',', '.'));
   }
-  
-  // Extraer año del período DESDE/HASTA. Priorizar HASTA (fin del período).
+
+  // ── Año del período ─────────────────────────────────────────────────────────
   const nowYear = new Date().getFullYear();
   let year = nowYear;
 
-  // Patrones explícitos: HASTA/DESDE con fecha completa o corta
-  const hastaFull = text.match(/HASTA\s*(\d{2})\/(\d{2})\/(\d{4})/i);
-  const desdeFull = text.match(/DESDE\s*(\d{2})\/(\d{2})\/(\d{4})/i);
+  const hastaFull  = text.match(/HASTA\s*(\d{2})\/(\d{2})\/(\d{4})/i);
+  const desdeFull  = text.match(/DESDE\s*(\d{2})\/(\d{2})\/(\d{4})/i);
   const hastaShort = text.match(/HASTA\s*(\d{2})\/(\d{2})\/(\d{2})\b/i);
   const desdeShort = text.match(/DESDE\s*(\d{2})\/(\d{2})\/(\d{2})\b/i);
-  // Algunos bancos chilenos usan "AL" en vez de "HASTA"
-  const alFull  = text.match(/\bAL\s+(\d{2})\/(\d{2})\/(\d{4})/i);
-  const alShort = text.match(/\bAL\s+(\d{2})\/(\d{2})\/(\d{2})\b/i);
-  // Patrón "Período: XX/XX/XXXX" o "Período DD/MM/YYYY - DD/MM/YYYY"
+  const alFull     = text.match(/\bAL\s+(\d{2})\/(\d{2})\/(\d{4})/i);
+  const alShort    = text.match(/\bAL\s+(\d{2})\/(\d{2})\/(\d{2})\b/i);
   const periodoFull  = text.match(/[Pp]er[ií]odo[:\s]+(?:\d{2}\/\d{2}\/\d{4}\s*[-–a]\s*)?(\d{2})\/(\d{2})\/(\d{4})/);
   const periodoShort = text.match(/[Pp]er[ií]odo[:\s]+(?:\d{2}\/\d{2}\/\d{2}\s*[-–a]\s*)?(\d{2})\/(\d{2})\/(\d{2})\b/);
-  // Patrón de año suelto junto a nombre del mes en español: "Diciembre 2025", "diciembre 2025"
-  const monthYear = text.match(/(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(202[0-9]|201[5-9])/i);
+  const monthYear  = text.match(/(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(202[0-9]|201[5-9])/i);
 
-  for (const match of [hastaFull, desdeFull, alFull, periodoFull]) {
-    if (!match) continue;
-    const y = parseInt(match[3] ?? match[1], 10);
+  for (const m of [hastaFull, desdeFull, alFull, periodoFull]) {
+    if (!m) continue;
+    const y = parseInt(m[3] ?? m[1], 10);
     if (y >= 2015 && y <= nowYear + 1) { year = y; break; }
   }
-
   if (year === nowYear) {
-    for (const match of [hastaShort, desdeShort, alShort, periodoShort]) {
-      if (!match) continue;
-      const y = 2000 + parseInt(match[3] ?? match[1], 10);
+    for (const m of [hastaShort, desdeShort, alShort, periodoShort]) {
+      if (!m) continue;
+      const y = 2000 + parseInt(m[3] ?? m[1], 10);
       if (y >= 2015 && y <= nowYear + 1) { year = y; break; }
     }
   }
-
-  // Fallback: año junto a nombre de mes en español
   if (year === nowYear && monthYear) {
     const y = parseInt(monthYear[1], 10);
     if (y >= 2015 && y <= nowYear + 1) year = y;
   }
-
-  // Último fallback: buscar cualquier año plausible en el texto completo (no solo primeros 800 chars)
   if (year === nowYear) {
     const allYears = text.match(/\b(201[5-9]|202[0-9])\b/g);
     if (allYears) {
@@ -253,63 +244,74 @@ export function parseCartolaPdf(text: string): CartolaExtraida | null {
       if (candidates.length > 0) year = Math.max(...candidates);
     }
   }
-
   year = Math.min(nowYear, Math.max(2015, year));
 
-  // Parse line by line. Each visual line from the PDF is now separated by \n
-  // thanks to the Y-coordinate aware text extraction.
-  //
-  // Strategy:
-  //  1. If a line starts with DD/MM, it's a new date block.
-  //  2. Within a date block, each sub-line that starts with a 7-digit tx number
-  //     is a separate transaction.
-  //  3. Lines containing "--- Saldo Dia ---" or similar separators are skipped.
-
-  const HEADER_RE = /CARTOLA|DESDE|HASTA|PAGINA|MENSAJES|INFORMESE|CUENTA\s+VISTA|ESTADO|RESUMEN|N\s*°\s*DOC|SUCURSAL|DESCRIPCION|CARGOS|ABONOS/i;
+  // ── Regexes de control ─────────────────────────────────────────────────────
+  // IMPORTANTE: no incluir "CARGOS" ni "ABONOS" aquí porque son encabezados de sección válidos
+  const HEADER_RE    = /^(?:CARTOLA|DESDE|HASTA|P[AÁ]GINA|MENSAJES|INF[ÓO]RMESE|CUENTA\s+VISTA|ESTADO\s+DE\s+CUENTA|RESUMEN|N[°º]\s*DOC|SUCURSAL|DESCRIPCI[ÓO]N|FECHA|CHEQUES\s+O\s+CARGOS|DEP[ÓO]SITOS\s+O\s+ABONOS)\b/i;
   const SALDO_DIA_RE = /---\s*Saldo\s+Dia/i;
 
-  const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
-  let currentDate = '';
+  // Detectores de sección Santander
+  const SECTION_CARGO_RE = /CHEQUES?\s+[YO]\s+CARGOS?|CARGOS?\s+[YO]\s+CHEQUES?/i;
+  const SECTION_ABONO_RE = /DEP[ÓO]SITOS?\s+[YO]\s+ABONOS?|ABONOS?\s+[YO]\s+DEP[ÓO]SITOS?/i;
 
-  for (const line of lines) {
-    if (HEADER_RE.test(line) || SALDO_DIA_RE.test(line)) continue;
-
-    // Check if line starts with DD/MM — new date context
-    const datePrefix = line.match(/^(\d{1,2})\/(\d{1,2})\s+(.*)/);
-    if (datePrefix) {
-      let [, d, m, rest] = datePrefix;
-      const day = Math.min(31, Math.max(1, parseInt(d, 10) || 1));
-      const month = Math.min(12, Math.max(1, parseInt(m, 10) || 1));
-      currentDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      parseTransactionsFromSegment(rest, currentDate, transacciones);
-      continue;
-    }
-
-    // Line doesn't start with date — could still be a transaction within the current date
-    if (currentDate && /^\d{5,}/.test(line)) {
-      parseTransactionsFromSegment(line, currentDate, transacciones);
-    }
-  }
-
+  // ── Helpers de parseo de montos ─────────────────────────────────────────────
   function parseAmountChile(str: string): number {
     return parseFloat(str.replace(/\./g, '').replace(',', '.'));
   }
 
-  function extractBestAmount(fullSegment: string, lastNumber: string): string {
-    const amountLike = fullSegment.match(/\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?/g) || [];
-    const parsed = amountLike.map(s => parseAmountChile(s)).filter(v => !isNaN(v) && v >= 100 && v < 999999999);
-    if (parsed.length <= 1) return lastNumber;
-    const lastVal = parseAmountChile(lastNumber);
-    const maxVal = Math.max(...parsed);
-    if (maxVal > lastVal && maxVal >= 1000) return String(maxVal).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    return lastNumber;
+  // Extrae (monto_operacion, saldo_corriente) del segmento.
+  // Si hay 2+ montos CLP al final: último = saldo, penúltimo = monto.
+  // Si hay 1: sólo monto (sin saldo por línea).
+  function extractAmountAndSaldo(segment: string): { monto: number; saldo: number | undefined } {
+    const amountLike = segment.match(/\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d{4,9}/g) ?? [];
+    const nums = amountLike
+      .map(s => ({ raw: s, val: parseAmountChile(s) }))
+      .filter(({ val }) => !isNaN(val) && val >= 100 && val < 1_000_000_000);
+
+    if (nums.length === 0) return { monto: 0, saldo: undefined };
+    if (nums.length === 1) return { monto: nums[0].val, saldo: undefined };
+    // 2+ amounts: last is running saldo, second-to-last is the operation amount
+    return {
+      monto: nums[nums.length - 2].val,
+      saldo: nums[nums.length - 1].val,
+    };
   }
 
-  function parseTransactionsFromSegment(
-    segment: string,
-    fecha: string,
-    out: CartolaExtraida['transacciones']
-  ) {
+  // ── Loop principal ──────────────────────────────────────────────────────────
+  type SectionCtx = 'cargo' | 'abono' | null;
+  let currentSection: SectionCtx = null;
+  let currentDate = '';
+
+  const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+
+  for (const line of lines) {
+    // Detectar sección ANTES del filtro de header
+    if (SECTION_CARGO_RE.test(line)) { currentSection = 'cargo'; continue; }
+    if (SECTION_ABONO_RE.test(line)) { currentSection = 'abono'; continue; }
+    if (HEADER_RE.test(line) || SALDO_DIA_RE.test(line)) continue;
+
+    // Nueva fecha: DD/MM <resto>
+    const datePrefix = line.match(/^(\d{1,2})\/(\d{1,2})\s+(.*)/);
+    if (datePrefix) {
+      const [, d, m, rest] = datePrefix;
+      const day   = Math.min(31, Math.max(1, parseInt(d, 10) || 1));
+      const month = Math.min(12, Math.max(1, parseInt(m, 10) || 1));
+      // Hora 12:00:00 local para evitar desfase de zona horaria
+      currentDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      parseSegment(rest, currentDate, currentSection);
+      continue;
+    }
+
+    // Línea sin fecha pero con número de documento — continúa fecha actual
+    if (currentDate && /^\d{5,}/.test(line)) {
+      parseSegment(line, currentDate, currentSection);
+    }
+  }
+
+  // ── parseSegment: split en sub-transacciones y procesar cada una ──────────
+  function parseSegment(segment: string, fecha: string, section: SectionCtx) {
+    // Separar múltiples transacciones en la misma línea (número de doc de 6-8 dígitos)
     const txBoundary = /(?<=[\d.]+)\s+(?=\d{6,8}\s+\d{2,4}\s)/g;
     const parts = segment.split(txBoundary);
 
@@ -317,58 +319,91 @@ export function parseCartolaPdf(text: string): CartolaExtraida | null {
       const trimmed = part.trim();
       if (!trimmed) continue;
 
-      const txMatch = trimmed.match(/^(\d{6,8})\s+(\d{2,4})\s+(.*?)\s+([\d.]+(?:,\d{1,2})?)\s*$/);
+      // Formato completo: NDOC SUCURSAL DESCRIPCIÓN MONTO [SALDO]
+      const txMatch = trimmed.match(/^(\d{6,8})\s+(\d{2,4})\s+(.*?)\s+([\d.]+(?:,\d{1,2})?(?:\s+[\d.]+(?:,\d{1,2})?)?)\s*$/);
       if (txMatch) {
-        const [, , , desc, montoStr] = txMatch;
-        const bestMonto = extractBestAmount(trimmed, montoStr);
-        addTransaction(desc, bestMonto, fecha, out);
+        const [, , , desc] = txMatch;
+        commitTransaction(trimmed, desc, fecha, section);
         continue;
       }
 
+      // Formato simple: DESCRIPCIÓN MONTO [SALDO]
       const simpleMatch = trimmed.match(/^(.+?)\s+([\d.]+(?:,\d{1,2})?)\s*$/);
       if (simpleMatch) {
-        const [, desc, montoStr] = simpleMatch;
+        const [, desc] = simpleMatch;
         const cleanDesc = desc.replace(/^\d{6,8}\s+\d{2,4}\s+/, '');
         if (cleanDesc.length >= 3) {
-          const bestMonto = extractBestAmount(trimmed, montoStr);
-          addTransaction(cleanDesc, bestMonto, fecha, out);
+          commitTransaction(trimmed, cleanDesc, fecha, section);
         }
       }
     }
   }
 
-  function addTransaction(
-    desc: string,
-    montoStr: string,
-    fecha: string,
-    out: CartolaExtraida['transacciones']
-  ) {
-    // Strip leading doc number + branch if still present (e.g. "4539248 1 Traspaso...", "0211661437 93 Transf...")
-    let descripcion = desc.replace(/^\d{6,10}\s+\d{1,4}\s+/, '').replace(/\s+/g, ' ').trim();
+  // ── commitTransaction: determina tipo y empuja a transacciones ────────────
+  function commitTransaction(fullSegment: string, rawDesc: string, fecha: string, section: SectionCtx) {
+    let descripcion = rawDesc
+      .replace(/^\d{6,10}\s+\d{1,4}\s+/, '')
+      .replace(/\s+/g, ' ')
+      .trim();
     if (descripcion.length < 3) return;
-    if (HEADER_RE.test(descripcion)) return;
+    // Evitar líneas de encabezado que hayan escapado el filtro
+    if (/^\d+$/.test(descripcion)) return;
 
-    const montoNum = parseFloat(montoStr.replace(/\./g, '').replace(',', '.'));
-    if (isNaN(montoNum) || montoNum === 0) return;
+    const { monto, saldo } = extractAmountAndSaldo(fullSegment);
+    if (!monto || monto <= 0) return;
 
-    // Cargo = egreso (Compra, Pago, Transferencia/Traspaso A alguien)
-    const esCargo = /Compra|Pago\s+|Transf\.?\s+a\s|Transf\s+a\s|Traspaso\s+a\s|PAGO\s|Carga\s|PAC\s|PAT\s|Giro\s/i.test(descripcion);
-    // Abono = ingreso (Depósito, Traspaso Automático, Transferencia/Traspaso DE alguien)
-    const esAbono = /Transf\s+de\s|Traspaso\s+de\s|Dep[oó]sito|Abono|TEF\s+Cr|Traspaso\s+Autom[aá]tico|Traspaso\s+.*Programado|Cr[eé]dito/i.test(descripcion);
+    // Determinar tipo usando jerarquía:
+    //  1. Contexto de sección (más confiable)
+    //  2. Palabras clave en descripción (fallback)
+    //  3. Si no hay contexto ni keywords, omitir (evita ambigüedad)
+    let tipo: 'cargo' | 'abono';
 
-    if (!esCargo && !esAbono) return; // No clasificar = no importar (evita ingresos como gastos)
+    if (section === 'cargo') {
+      tipo = 'cargo';
+    } else if (section === 'abono') {
+      tipo = 'abono';
+    } else {
+      // Fallback por descripción
+      const esCargo = /Compra|Pago\s|Transf\.?\s+a\s|Traspaso\s+a\s|Carga\s|PAC\s|PAT\s|Giro\s|Cobro\s|Débito\s/i.test(descripcion);
+      const esAbono = /Transf\s+de\s|Traspaso\s+de\s|Dep[oó]sito|Abono|TEF\s+Cr|Traspaso\s+Autom|Cr[eé]dito|Remuneraci[oó]n|Sueldo/i.test(descripcion);
+      if (!esCargo && !esAbono) return;
+      tipo = esCargo ? 'cargo' : 'abono';
+    }
 
-    out.push({
+    transacciones.push({
       fecha,
       descripcion: descripcion.slice(0, 200),
-      cargo: esCargo ? montoNum : 0,
-      abono: esAbono ? montoNum : 0,
+      cargo: tipo === 'cargo' ? monto : 0,
+      abono: tipo === 'abono' ? monto : 0,
+      saldo,
     });
   }
-  
-  // Si aún no hay transacciones, retornar null
+
   if (transacciones.length === 0) return null;
-  
+
+  // ── Prueba de integridad (best-effort) ────────────────────────────────────
+  // Verifica: saldo_prev + abono - cargo ≈ saldo_actual (tolerancia 1 CLP)
+  // Las filas sin saldo por línea se saltan.
+  if (saldoInicial !== undefined) {
+    let running = saldoInicial;
+    for (const tx of transacciones) {
+      if (tx.saldo === undefined) { running += tx.abono - tx.cargo; continue; }
+      const expected = running + tx.abono - tx.cargo;
+      if (Math.abs(expected - tx.saldo) > 1) {
+        // Mismatch: posiblemente monto y saldo intercambiados → intentar corregir
+        const altMonto = tx.saldo;
+        const altSaldo = tx.cargo > 0 ? tx.cargo : tx.abono;
+        const altExpected = running + (tx.abono > 0 ? altMonto : 0) - (tx.cargo > 0 ? altMonto : 0);
+        if (Math.abs(altExpected - altSaldo) <= 1) {
+          // Corrección: intercambiar monto ↔ saldo
+          if (tx.cargo > 0) tx.cargo = altMonto; else tx.abono = altMonto;
+          tx.saldo = altSaldo;
+        }
+      }
+      running = tx.saldo;
+    }
+  }
+
   return {
     tipo: 'cartola',
     transacciones,

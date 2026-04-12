@@ -1175,54 +1175,196 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const authReq = req as AuthenticatedRequest;
     try {
       const userId = await ensureUserForToken(authReq.user!);
-      if (!userId) {
-        return res.status(404).json({ message: "Usuario no encontrado." });
-      }
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+
       const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
-      interface RawTx { fecha: string; descripcion: string; cargo: number; abono: number; saldo?: number }
+
+      // Supports both storage formats:
+      //   • CartolaParseResult (new): { tipo, monto, saldo_despues, categoria, ... }
+      //   • CartolaExtraida   (old):  { cargo, abono, saldo, ... }
+      interface NewFmtTx { fecha: string; descripcion: string; tipo: 'cargo'|'abono'; monto: number; saldo_despues?: number; categoria?: string }
+      interface OldFmtTx { fecha: string; descripcion: string; cargo: number; abono: number; saldo?: number }
+      type AnyTx = NewFmtTx | OldFmtTx;
+
       interface ParsedTxOut {
-        id: string;
-        fecha: string;
-        descripcion: string;
-        monto: number;
-        tipo: 'ingreso' | 'egreso';
-        saldo: number | null;
-        banco: string | null;
-        periodoDesde: string | null;
-        periodoHasta: string | null;
+        id: string; fecha: string; descripcion: string;
+        monto: number; tipo: 'ingreso'|'egreso';
+        saldo: number | null; banco: string | null;
+        periodoDesde: string | null; periodoHasta: string | null;
+        categoria: string;
       }
+
       const allTxs: ParsedTxOut[] = [];
-      // Deduplicate across cartola uploads using a content-based key
       const seen = new Set<string>();
+
       for (const c of cartolas) {
-        const pd = (c.parsedData as { transacciones?: RawTx[] } | null);
+        const pd = c.parsedData as { transacciones?: AnyTx[] } | null;
         const txs = pd?.transacciones ?? [];
+
         for (let i = 0; i < txs.length; i++) {
-          const t = txs[i];
-          const monto = (t.abono ?? 0) > 0 ? (t.abono ?? 0) : -(t.cargo ?? 0);
-          // Key: date + normalized description + amount (ignores which upload record it came from)
-          const dedupeKey = `${t.fecha}|${(t.descripcion ?? "").trim().toLowerCase()}|${monto}`;
+          const t = txs[i] as AnyTx;
+
+          // Normalise to signed monto
+          let monto: number;
+          let saldo: number | null;
+          let categoria: string;
+
+          if ('tipo' in t && typeof (t as NewFmtTx).monto === 'number') {
+            // New CartolaParseResult format
+            const nt = t as NewFmtTx;
+            monto    = nt.tipo === 'abono' ? nt.monto : -nt.monto;
+            saldo    = nt.saldo_despues ?? null;
+            categoria = nt.categoria ?? 'otro';
+          } else {
+            // Old CartolaExtraida format
+            const ot = t as OldFmtTx;
+            const abono = ot.abono ?? 0;
+            const cargo = ot.cargo ?? 0;
+            monto    = abono > 0 ? abono : -cargo;
+            saldo    = ot.saldo ?? null;
+            categoria = 'otro';
+          }
+
+          if (monto === 0) continue;
+
+          // Normalise fecha: strip time component if present
+          const fechaStr = typeof t.fecha === 'string'
+            ? t.fecha.slice(0, 10)
+            : new Date(t.fecha as unknown as string).toISOString().slice(0, 10);
+
+          const dedupeKey = `${fechaStr}|${(t.descripcion ?? '').trim().toLowerCase()}|${monto}`;
           if (seen.has(dedupeKey)) continue;
           seen.add(dedupeKey);
+
           allTxs.push({
             id: `${c.id}-${i}`,
-            fecha: t.fecha,
-            descripcion: t.descripcion ?? "",
+            fecha: fechaStr,
+            descripcion: t.descripcion ?? '',
             monto,
-            tipo: monto >= 0 ? "ingreso" : "egreso",
-            saldo: t.saldo ?? null,
+            tipo: monto >= 0 ? 'ingreso' : 'egreso',
+            saldo,
             banco: c.banco ?? null,
             periodoDesde: c.periodoDesde ?? null,
             periodoHasta: c.periodoHasta ?? null,
+            categoria,
           });
         }
       }
-      // Sort newest first
+
       allTxs.sort((a, b) => (b.fecha > a.fecha ? 1 : b.fecha < a.fecha ? -1 : 0));
       res.json({ transactions: allTxs, count: allTxs.length });
     } catch (e) {
       logger.error({ err: e }, "Failed to get parsed transactions");
       res.status(500).json({ message: "Error al obtener transacciones." });
+    }
+  });
+
+  // GET /api/transactions/insights — behavioral insights derived from cartola data
+  app.get("/api/transactions/insights", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+
+      const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
+      interface NewFmtTx { fecha: string; tipo: 'cargo'|'abono'; monto: number; categoria?: string; descripcion: string }
+      interface OldFmtTx { fecha: string; cargo: number; abono: number; descripcion: string }
+      type AnyTx = NewFmtTx | OldFmtTx;
+
+      // Collect all egresos with category and date
+      const egresos: { fecha: string; monto: number; categoria: string; dia: number }[] = [];
+      const seen = new Set<string>();
+
+      for (const c of cartolas) {
+        const pd = c.parsedData as { transacciones?: AnyTx[] } | null;
+        for (const t of pd?.transacciones ?? []) {
+          let monto: number; let cat: string;
+          if ('tipo' in t && typeof (t as NewFmtTx).monto === 'number') {
+            const nt = t as NewFmtTx;
+            if (nt.tipo !== 'cargo') continue;
+            monto = nt.monto; cat = nt.categoria ?? 'otro';
+          } else {
+            const ot = t as OldFmtTx;
+            monto = ot.cargo ?? 0; cat = 'otro';
+            if (monto <= 0) continue;
+          }
+          const fechaStr = (t.fecha as string).slice(0, 10);
+          const key = `${fechaStr}|${(t.descripcion ?? '').trim().toLowerCase()}|${monto}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const dia = new Date(fechaStr + 'T12:00:00').getDate();
+          egresos.push({ fecha: fechaStr, monto, categoria: cat, dia });
+        }
+      }
+
+      // ── Gastos por categoría ──────────────────────────────────────────────
+      const byCategoria: Record<string, number> = {};
+      for (const e of egresos) {
+        byCategoria[e.categoria] = (byCategoria[e.categoria] ?? 0) + e.monto;
+      }
+      const totalEgresos = Object.values(byCategoria).reduce((s, v) => s + v, 0);
+      const spendingByCategory = Object.entries(byCategoria)
+        .map(([cat, total]) => ({ categoria: cat, total, pct: totalEgresos > 0 ? Math.round((total / totalEgresos) * 100) : 0 }))
+        .sort((a, b) => b.total - a.total);
+
+      // ── Smart Insights ────────────────────────────────────────────────────
+      const insights: { type: string; title: string; body: string; icon: string }[] = [];
+
+      // 1. Quincena fuerte: ¿más gasto en primera o segunda mitad del mes?
+      const primeraQ = egresos.filter(e => e.dia <= 15).reduce((s, e) => s + e.monto, 0);
+      const segundaQ = egresos.filter(e => e.dia > 15).reduce((s, e) => s + e.monto, 0);
+      if (primeraQ > 0 || segundaQ > 0) {
+        if (primeraQ > segundaQ * 1.3) {
+          insights.push({ type: 'pattern', icon: 'calendar', title: 'Gastas más los primeros 15 días', body: `El ${Math.round((primeraQ / (primeraQ + segundaQ)) * 100)}% de tus egresos ocurren en la primera quincena del mes.` });
+        } else if (segundaQ > primeraQ * 1.3) {
+          insights.push({ type: 'pattern', icon: 'calendar', title: 'Gastas más la segunda quincena', body: `El ${Math.round((segundaQ / (primeraQ + segundaQ)) * 100)}% de tus egresos ocurren en la segunda mitad del mes.` });
+        }
+      }
+
+      // 2. Categoría dominante
+      if (spendingByCategory.length > 0) {
+        const top = spendingByCategory[0];
+        if (top.pct >= 30) {
+          const labels: Record<string, string> = { alimentacion: 'Alimentación', transporte: 'Transporte', entretenimiento: 'Entretenimiento', telecomunicaciones: 'Telecomunicaciones', transferencia_enviada: 'Transferencias', comercio: 'Comercio', educacion: 'Educación', salud: 'Salud', otro: 'Otros' };
+          insights.push({ type: 'alert', icon: 'pie-chart', title: `${labels[top.categoria] ?? top.categoria} concentra el ${top.pct}% de tus gastos`, body: 'Evalúa si puedes reducir o renegociar en esta categoría.' });
+        }
+      }
+
+      // 3. Pagos recurrentes
+      const descCount: Record<string, number> = {};
+      for (const e of egresos) {
+        const k = e.categoria + '|' + e.monto;
+        descCount[k] = (descCount[k] ?? 0) + 1;
+      }
+      const recurrentes = Object.entries(descCount).filter(([, v]) => v >= 2).length;
+      if (recurrentes > 0) {
+        insights.push({ type: 'info', icon: 'repeat', title: `${recurrentes} cargo${recurrentes > 1 ? 's' : ''} recurrente${recurrentes > 1 ? 's' : ''} detectado${recurrentes > 1 ? 's' : ''}`, body: 'Revisa si todos los cargos periódicos siguen siendo necesarios.' });
+      }
+
+      // 4. Balance saludable
+      const ingresos = cartolas.reduce((s, c) => {
+        const pd = c.parsedData as { transacciones?: AnyTx[] } | null;
+        for (const t of pd?.transacciones ?? []) {
+          if ('tipo' in t && (t as NewFmtTx).tipo === 'abono') s += (t as NewFmtTx).monto;
+          else if ('abono' in t) s += (t as OldFmtTx).abono ?? 0;
+        }
+        return s;
+      }, 0);
+      if (ingresos > 0 && totalEgresos > 0) {
+        const tasaAhorro = Math.round(((ingresos - totalEgresos) / ingresos) * 100);
+        if (tasaAhorro >= 20) {
+          insights.push({ type: 'positive', icon: 'trending-up', title: `Tasa de ahorro del ${tasaAhorro}%`, body: 'Estás ahorrando sobre el umbral recomendado del 20%. ¡Buen trabajo!' });
+        } else if (tasaAhorro < 5 && tasaAhorro >= 0) {
+          insights.push({ type: 'warning', icon: 'alert-triangle', title: `Tasa de ahorro baja (${tasaAhorro}%)`, body: 'Tus egresos consumen casi la totalidad de tus ingresos. Considera reducir gastos variables.' });
+        } else if (tasaAhorro < 0) {
+          insights.push({ type: 'alert', icon: 'alert-circle', title: 'Egresos superan ingresos', body: `Tus gastos superan tus ingresos en un ${Math.abs(tasaAhorro)}% en el período analizado.` });
+        }
+      }
+
+      res.json({ spendingByCategory, insights, totalEgresos, totalIngresos: ingresos });
+    } catch (e) {
+      logger.error({ err: e }, "Failed to compute transaction insights");
+      res.status(500).json({ message: "Error al calcular insights." });
     }
   });
 
