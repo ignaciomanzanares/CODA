@@ -248,6 +248,7 @@ export default function Expenses() {
     if (!files.length || !isAuthenticated) return;
     setIsUploadingCartolas(true);
     let successCount = 0;
+    const errors: string[] = [];
     for (const file of files) {
       try {
         const token = localStorage.getItem("jwt_token") ?? "";
@@ -258,9 +259,14 @@ export default function Expenses() {
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });
-        if (res.ok) successCount++;
-      } catch {
-        // continue with remaining files
+        if (res.ok) {
+          successCount++;
+        } else {
+          const body = await res.json().catch(() => ({}));
+          errors.push(body.message ?? `Error ${res.status} en ${file.name}`);
+        }
+      } catch (err) {
+        errors.push(err instanceof Error ? err.message : `Error en ${file.name}`);
       }
     }
     setIsUploadingCartolas(false);
@@ -271,10 +277,14 @@ export default function Expenses() {
       queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
       toast({
         title: `${successCount} cartola${successCount !== 1 ? "s" : ""} procesada${successCount !== 1 ? "s" : ""}`,
-        description: "Tus movimientos ya están disponibles en la tabla.",
+        description: errors.length > 0 ? `${errors[0]}` : "Tus movimientos ya están disponibles en la tabla.",
       });
     } else {
-      toast({ title: "Error al subir", description: "No se pudo procesar ninguna cartola.", variant: "destructive" });
+      toast({
+        title: "Error al subir",
+        description: errors[0] ?? "No se pudo procesar ninguna cartola.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -941,7 +951,8 @@ export default function Expenses() {
             <TabsTrigger value="manual">Gastos manuales</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="movimientos" className="space-y-4 mt-4">
+          {/* Tab: Movimientos — todos los movimientos de cartola (ingresos + egresos + saldo) */}
+          <TabsContent value="movimientos" className="space-y-3 mt-4">
             {isAuthenticated ? (
               <>
                 <div className="flex justify-end">
@@ -966,23 +977,21 @@ export default function Expenses() {
             )}
           </TabsContent>
 
-          <TabsContent value="manual" className="space-y-6">
+          {/* Tab: Gastos manuales — tabla simple de gastos registrados a mano */}
+          <TabsContent value="manual" className="space-y-4 mt-4">
         {/* Filters */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar gastos..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 h-9"
                 />
               </div>
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-full sm:w-48">
-                  <Filter className="h-4 w-4 mr-2" />
+                <SelectTrigger className="w-full sm:w-44 h-9 text-sm">
                   <SelectValue placeholder="Todas las categorías" />
                 </SelectTrigger>
                 <SelectContent>
@@ -995,8 +1004,7 @@ export default function Expenses() {
                 </SelectContent>
               </Select>
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-full sm:w-44">
-                  <Calendar className="h-4 w-4 mr-2" />
+                <SelectTrigger className="w-full sm:w-40 h-9 text-sm">
                   <SelectValue placeholder="Mes" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1013,8 +1021,6 @@ export default function Expenses() {
                 </SelectContent>
               </Select>
             </div>
-          </CardContent>
-        </Card>
 
         {/* Expenses List */}
         <div className="space-y-3">
