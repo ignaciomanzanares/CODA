@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Receipt, Upload, Loader2, Trash } from "lucide-react";
+import { Receipt, Upload, Loader2, Trash, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { API_URL } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -17,9 +17,18 @@ export default function Expenses() {
   const [isUploadingCartolas, setIsUploadingCartolas] = useState(false);
   const cartolaInputRef = useRef<HTMLInputElement>(null);
 
-  // Build absolute API URL — in production VITE_API_URL = "https://coda-api.onrender.com"
+  // Build absolute API URL
   const apiBase = (API_URL || "").replace(/\/$/, "");
   const apiUrl = (path: string) => (apiBase ? `${apiBase}${path}` : path);
+
+  // Listen for custom event to trigger file upload from child components
+  useEffect(() => {
+    const handleTriggerUpload = () => {
+      cartolaInputRef.current?.click();
+    };
+    window.addEventListener('trigger-cartola-upload', handleTriggerUpload);
+    return () => window.removeEventListener('trigger-cartola-upload', handleTriggerUpload);
+  }, []);
 
   const handleCartolaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -105,13 +114,13 @@ export default function Expenses() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-primary/10">
               <Receipt className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-hero-title font-bold">Gastos</h1>
+              <h1 className="text-2xl font-bold tracking-tight">Gastos</h1>
               <p className="text-muted-foreground">Gastos identificados desde tus cartolas bancarias</p>
             </div>
           </div>
@@ -126,39 +135,21 @@ export default function Expenses() {
           />
 
           {isAuthenticated && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="lg"
-                className="gap-2"
-                disabled={isUploadingCartolas}
-                onClick={() => cartolaInputRef.current?.click()}
-              >
-                {isUploadingCartolas ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Upload className="w-4 h-4" />
-                )}
-                Subir cartola
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 gap-1.5"
+              onClick={handleLimpiarCartolas}
+            >
+              <Trash className="h-3.5 w-3.5" />
+              Limpiar datos
+            </Button>
           )}
         </div>
 
         {/* Content */}
         {isAuthenticated ? (
           <>
-            <div className="flex justify-end">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 gap-1.5"
-                onClick={handleLimpiarCartolas}
-              >
-                <Trash className="h-3.5 w-3.5" />
-                Limpiar datos
-              </Button>
-            </div>
             <ParsedTransactionsTable mode="gastos" />
           </>
         ) : (

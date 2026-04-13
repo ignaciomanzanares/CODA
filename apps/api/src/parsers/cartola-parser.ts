@@ -9,6 +9,7 @@ import {
   extractPdfText,
   parseCartolaPdf,
   type CartolaExtraida,
+  type PdfLine,
 } from "../services/documents/pdfAnalysis.js";
 
 export type TransactionCategory =
@@ -347,16 +348,24 @@ function flagsForDescription(desc: string): {
   return { es_transferencia, es_compra };
 }
 
-async function bufferToText(buffer: Buffer): Promise<string> {
+async function bufferToTextAndLines(buffer: Buffer): Promise<{ text: string; lines: PdfLine[] }> {
+  // Always use extractPdfText to get PdfLine[] with X coordinates for column detection.
+  // Fall back to pdf-parse only for text if pdfjs fails.
+  try {
+    const result = await extractPdfText(buffer);
+    const t = (result.text || "").trim();
+    if (t.length >= 80) return { text: t, lines: result.lines };
+  } catch {
+    /* pdfjs falló — try pdf-parse as text-only fallback */
+  }
   try {
     const data = await pdfParse(buffer);
     const t = (data.text || "").trim();
-    if (t.length >= 80) return t;
+    if (t.length >= 80) return { text: t, lines: [] };
   } catch {
-    /* pdf-parse falló */
+    /* pdf-parse also failed */
   }
-  const { text } = await extractPdfText(buffer);
-  return (text || "").trim();
+  return { text: "", lines: [] };
 }
 
 function buildSaldosDiarios(
@@ -430,7 +439,7 @@ function parseCartolaDate(fechaStr: string): Date {
  * Parsea un PDF de cartola y devuelve el resultado estructurado.
  */
 export async function parseCartolaPdfBuffer(buffer: Buffer): Promise<CartolaParseResult> {
-  const text = await bufferToText(buffer);
+  const { text, lines: pdfLines } = await bufferToTextAndLines(buffer);
   if (!text || text.length < 40) {
     throw new Error("No se pudo extraer texto del PDF.");
   }
@@ -441,7 +450,7 @@ export async function parseCartolaPdfBuffer(buffer: Buffer): Promise<CartolaPars
   const periodo = extractPeriodo(text);
   const resumen = extractResumenMontos(text);
 
-  const cartola = parseCartolaPdf(text);
+  const cartola = parseCartolaPdf(text, pdfLines);
   if (!cartola || cartola.transacciones.length === 0) {
     // Devolver estructura vacía válida en lugar de lanzar error
     const now = new Date();
@@ -538,30 +547,11 @@ function enrichCartola(
     const k = normalizeDescKey(row.descripcion);
     const es_pago_recurrente = k.length >= 4 && (descCounts.get(k) ?? 0) > 1;
 
-    // CORRECT tipo based on categorization - fix mismatches
-    let correctedTipo = row.tipo;
-    let correctedMonto = row.monto;
-
-    // If categorized as income but marked as expense, flip it
-    if (cat === "transferencia_recibida" || cat === "ingreso_principal") {
-      if (row.tipo === "cargo") {
-        correctedTipo = "abono";
-        correctedMonto = Math.abs(row.monto); // Ensure positive
-      }
-    }
-    // If categorized as outgoing transfer but marked as income, flip it
-    if (cat === "transferencia_enviada") {
-      if (row.tipo === "abono") {
-        correctedTipo = "cargo";
-        correctedMonto = Math.abs(row.monto); // Ensure positive
-      }
-    }
-
     transacciones.push({
       fecha: row.fecha,
       descripcion: row.descripcion,
-      tipo: correctedTipo,
-      monto: correctedMonto,
+      tipo: row.tipo,
+      monto: row.monto,
       saldo_despues: running,
       categoria: cat,
       es_transferencia,
