@@ -245,9 +245,11 @@ function categorizeTransaction(
   const u = descripcion.toUpperCase();
 
   // ── Transferencias (más específico primero) ──────────────────────────────
-  if (/TRANSF\.?\s+A\s+|TRANSF\s+A\s+|TRASPASO\s+A\s+|TEF\s+A\s+|GIRO\s+A\s+|PAGO\s+A\s+/i.test(u))
+  // Outgoing transfers (expenses) - transfers TO someone
+  if (/TRANSF(?:E?R)?\.?\s+A\s+|TRANS(?:F|E)?\s+A\s+|TRASPASO\s+A\s+|TEF\s+A\s+|GIRO\s+A\s+|PAGO\s+A\s+|TRANSF(?:E?R)?\s+DESDE|TRANSFERENCIA\s+A/i.test(u))
     return "transferencia_enviada";
-  if (/TRANSF\.?\s+DE\s+|TRANSF\s+DE\s+|TRASPASO\s+DE\s+|TEF\s+DE\s+|TEF\s+CR|TRASPASO\s+AUTOM|ABONO\s+TEF|ABONO\s+TRANSF|TRANSFERENCIA\s+RECIBIDA/i.test(u))
+  // Incoming transfers (income) - transfers FROM someone
+  if (/TRANSF(?:E?R)?\.?\s+DE\s+|TRANS(?:F|E)?\s+DE\s+|TRASPASO\s+DE\s+|TEF\s+DE\s+|TEF\s+CR|TRASPASO\s+AUTOM|ABONO\s+TEF|ABONO\s+TRANSF|TRANSF(?:E?R)?ENCIA\s+RECIBIDA|TRANSF(?:E?R)?\s+RECIB|ABONO\s+POR\s+TRANSF/i.test(u))
     return "transferencia_recibida";
 
   // ── Ingresos (sueldos, remuneraciones) ───────────────────────────────────
@@ -536,11 +538,30 @@ function enrichCartola(
     const k = normalizeDescKey(row.descripcion);
     const es_pago_recurrente = k.length >= 4 && (descCounts.get(k) ?? 0) > 1;
 
+    // CORRECT tipo based on categorization - fix mismatches
+    let correctedTipo = row.tipo;
+    let correctedMonto = row.monto;
+
+    // If categorized as income but marked as expense, flip it
+    if (cat === "transferencia_recibida" || cat === "ingreso_principal") {
+      if (row.tipo === "cargo") {
+        correctedTipo = "abono";
+        correctedMonto = Math.abs(row.monto); // Ensure positive
+      }
+    }
+    // If categorized as outgoing transfer but marked as income, flip it
+    if (cat === "transferencia_enviada") {
+      if (row.tipo === "abono") {
+        correctedTipo = "cargo";
+        correctedMonto = Math.abs(row.monto); // Ensure positive
+      }
+    }
+
     transacciones.push({
       fecha: row.fecha,
       descripcion: row.descripcion,
-      tipo: row.tipo,
-      monto: row.monto,
+      tipo: correctedTipo,
+      monto: correctedMonto,
       saldo_despues: running,
       categoria: cat,
       es_transferencia,
