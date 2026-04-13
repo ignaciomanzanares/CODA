@@ -2,9 +2,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { useLocation } from "wouter";
-import { ROUTES } from "@/lib/routes";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ArrowUpDown, ArrowUp, ArrowDown, FileText, ChevronLeft, ChevronRight, Upload } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ParsedTransaction {
@@ -72,14 +70,18 @@ const CAT_COLORS: Record<string, string> = {
 };
 
 // ── Sort header ──────────────────────────────────────────────────────────────
-function SortHeader({ label, field, sortField, sortDir, onSort }: {
+function SortHeader({ label, field, sortField, sortDir, onSort, align = "left" }: {
   label: string; field: SortField; sortField: SortField; sortDir: SortDir;
   onSort: (f: SortField) => void;
+  align?: "left" | "right";
 }) {
   const active = sortField === field;
   return (
     <button
-      className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground uppercase tracking-wide"
+      className={cn(
+        "flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground uppercase tracking-wide w-full",
+        align === "right" && "justify-end"
+      )}
       onClick={() => onSort(field)}
     >
       {label}
@@ -102,7 +104,6 @@ interface ParsedTransactionsTableProps {
 
 export default function ParsedTransactionsTable({ mode = "movimientos", title, subtitle }: ParsedTransactionsTableProps) {
   const { isAuthenticated } = useAuth();
-  const [, navigate] = useLocation();
   const isGastos = mode === "gastos";
 
   const [search, setSearch]         = useState("");
@@ -212,10 +213,6 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <FileText className="h-4 w-4 text-primary" />
-          {title ?? (isGastos ? "Gastos" : "Movimientos")}
-        </CardTitle>
         <CardDescription>
           {allTxs.length > 0
             ? `${allTxs.length} ${isGastos ? 'gastos' : 'transacciones'} extraídos · mostrando ${visibleItems.length}`
@@ -286,7 +283,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
 
               {banks.length > 1 && (
                 <Select value={bancoFilter} onValueChange={setBancoFilter}>
-                  <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Banco: todos</SelectItem>
                     {banks.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
@@ -296,11 +293,11 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
 
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <span>Desde</span>
-                <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-32 h-8 text-xs" />
+                <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-36 h-8 text-xs" />
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <span>Hasta</span>
-                <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-32 h-8 text-xs" />
+                <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-36 h-8 text-xs" />
               </div>
 
               {hasActiveFilter && (
@@ -324,7 +321,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                     </th>
                     <th className="px-3 py-2.5 text-center hidden sm:table-cell">Categoría</th>
                     <th className="px-3 py-2.5 text-right">
-                      <SortHeader label="Monto" field="monto" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                      <SortHeader label="Monto" field="monto" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
                     </th>
                     {!isGastos && (
                       <th className="px-3 py-2.5 text-right hidden md:table-cell text-xs font-medium text-muted-foreground uppercase tracking-wide">Saldo</th>

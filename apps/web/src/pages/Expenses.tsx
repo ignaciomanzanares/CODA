@@ -1,7 +1,17 @@
 import { useState, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Receipt, Upload, Loader2, Trash, FileText } from "lucide-react";
+import { Receipt, Trash, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { API_URL } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import SignInBanner from "@/components/SignInBanner";
@@ -13,28 +23,26 @@ export default function Expenses() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Cartola upload state
-  const [isUploadingCartolas, setIsUploadingCartolas] = useState(false);
+  const [, setIsUploading] = useState(false);
+  const [showLimpiarDialog, setShowLimpiarDialog] = useState(false);
+  const [isLimpiando, setIsLimpiando] = useState(false);
   const cartolaInputRef = useRef<HTMLInputElement>(null);
 
-  // Build absolute API URL
   const apiBase = (API_URL || "").replace(/\/$/, "");
   const apiUrl = (path: string) => (apiBase ? `${apiBase}${path}` : path);
 
-  // Listen for custom event to trigger file upload from child components
+  // Trigger file upload from child components (ParsedTransactionsTable "Subir cartola" button)
   useEffect(() => {
-    const handleTriggerUpload = () => {
-      cartolaInputRef.current?.click();
-    };
-    window.addEventListener('trigger-cartola-upload', handleTriggerUpload);
-    return () => window.removeEventListener('trigger-cartola-upload', handleTriggerUpload);
+    const handleTriggerUpload = () => cartolaInputRef.current?.click();
+    window.addEventListener("trigger-cartola-upload", handleTriggerUpload);
+    return () => window.removeEventListener("trigger-cartola-upload", handleTriggerUpload);
   }, []);
 
   const handleCartolaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     if (!files.length || !isAuthenticated) return;
-    setIsUploadingCartolas(true);
+    setIsUploading(true);
     let successCount = 0;
     const errors: string[] = [];
     for (const file of files) {
@@ -57,7 +65,7 @@ export default function Expenses() {
         errors.push(err instanceof Error ? err.message : `Error en ${file.name}`);
       }
     }
-    setIsUploadingCartolas(false);
+    setIsUploading(false);
     if (successCount > 0) {
       queryClient.removeQueries({ queryKey: ["/api/transactions/parsed"] });
       queryClient.removeQueries({ queryKey: ["/api/transactions/insights"] });
@@ -65,7 +73,7 @@ export default function Expenses() {
       queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
       toast({
         title: `${successCount} cartola${successCount !== 1 ? "s" : ""} procesada${successCount !== 1 ? "s" : ""}`,
-        description: errors.length > 0 ? `${errors[0]}` : "Tus gastos ya están disponibles en la tabla.",
+        description: errors.length > 0 ? errors[0] : "Tus gastos ya están disponibles en la tabla.",
       });
     } else {
       toast({
@@ -76,8 +84,8 @@ export default function Expenses() {
     }
   };
 
-  const handleLimpiarCartolas = async () => {
-    if (!confirm("¿Borrar todas las cartolas? Esta acción no se puede deshacer.")) return;
+  const confirmLimpiarCartolas = async () => {
+    setIsLimpiando(true);
     try {
       const token = localStorage.getItem("jwt_token") ?? "";
       const res = await fetch(apiUrl("/api/user/cartolas"), {
@@ -89,13 +97,16 @@ export default function Expenses() {
       queryClient.removeQueries({ queryKey: ["/api/transactions/insights"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
       queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
-      toast({ title: "Cartolas eliminadas", description: "Puedes subir nuevas cartolas cuando quieras." });
+      toast({ title: "Datos eliminados", description: "Puedes subir nuevas cartolas cuando quieras." });
     } catch (err) {
       toast({
         title: "Error al limpiar",
         description: err instanceof Error ? err.message : "No se pudieron eliminar las cartolas.",
         variant: "destructive",
       });
+    } finally {
+      setIsLimpiando(false);
+      setShowLimpiarDialog(false);
     }
   };
 
@@ -112,6 +123,32 @@ export default function Expenses() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      {/* Confirm limpiar dialog */}
+      <AlertDialog open={showLimpiarDialog} onOpenChange={setShowLimpiarDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              ¿Eliminar todas las cartolas?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Se borrarán todos los movimientos y gastos importados desde tus cartolas bancarias.
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLimpiando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmLimpiarCartolas}
+              disabled={isLimpiando}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {isLimpiando ? "Eliminando..." : "Sí, eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between gap-4">
@@ -139,7 +176,7 @@ export default function Expenses() {
               variant="ghost"
               size="sm"
               className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 gap-1.5"
-              onClick={handleLimpiarCartolas}
+              onClick={() => setShowLimpiarDialog(true)}
             >
               <Trash className="h-3.5 w-3.5" />
               Limpiar datos
@@ -149,9 +186,7 @@ export default function Expenses() {
 
         {/* Content */}
         {isAuthenticated ? (
-          <>
-            <ParsedTransactionsTable mode="gastos" />
-          </>
+          <ParsedTransactionsTable mode="gastos" />
         ) : (
           <SignInBanner
             title="Inicia sesión para ver tus gastos"
