@@ -1,9 +1,12 @@
+import { useState, useRef, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Receipt, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, API_URL } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
 
 interface TransactionSummary {
@@ -60,6 +63,65 @@ function SummaryCard({
 
 export default function Movimientos() {
   const { isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [isUploadingCartolas, setIsUploadingCartolas] = useState(false);
+  const cartolaInputRef = useRef<HTMLInputElement>(null);
+
+  const apiBase = (API_URL || "").replace(/\/$/, "");
+  const apiUrl = (path: string) => (apiBase ? `${apiBase}${path}` : path);
+
+  // Listen for upload trigger from child components (ParsedTransactionsTable buttons)
+  useEffect(() => {
+    const handleTriggerUpload = () => cartolaInputRef.current?.click();
+    window.addEventListener("trigger-cartola-upload", handleTriggerUpload);
+    return () => window.removeEventListener("trigger-cartola-upload", handleTriggerUpload);
+  }, []);
+
+  const handleCartolaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!files.length || !isAuthenticated) return;
+    setIsUploadingCartolas(true);
+    let successCount = 0;
+    const errors: string[] = [];
+    for (const file of files) {
+      try {
+        const token = localStorage.getItem("jwt_token") ?? "";
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch(apiUrl("/api/documents/parse-cartola"), {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        if (res.ok) { successCount++; }
+        else {
+          const body = await res.json().catch(() => ({}));
+          errors.push(body.message ?? `Error ${res.status} en ${file.name}`);
+        }
+      } catch (err) {
+        errors.push(err instanceof Error ? err.message : `Error en ${file.name}`);
+      }
+    }
+    setIsUploadingCartolas(false);
+    if (successCount > 0) {
+      queryClient.removeQueries({ queryKey: ["/api/transactions/parsed"] });
+      queryClient.removeQueries({ queryKey: ["/api/transactions/insights"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
+      toast({
+        title: `${successCount} cartola${successCount !== 1 ? "s" : ""} procesada${successCount !== 1 ? "s" : ""}`,
+        description: errors.length > 0 ? errors[0] : "Tus movimientos ya están disponibles.",
+      });
+    } else {
+      toast({
+        title: "Error al subir",
+        description: errors[0] ?? "No se pudo procesar ninguna cartola.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const { data: summary, isLoading: isLoadingSummary } = useQuery<TransactionSummary>({
     queryKey: ["/api/transactions/summary"],
@@ -94,6 +156,15 @@ export default function Movimientos() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      <input
+        ref={cartolaInputRef}
+        type="file"
+        multiple
+        accept=".pdf,application/pdf"
+        className="hidden"
+        onChange={handleCartolaUpload}
+      />
+
       <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
@@ -135,23 +206,19 @@ export default function Movimientos() {
               amount={formatCLP(summary.summary.netBalance)}
               icon={Wallet}
               colorClass={summary.summary.netBalance >= 0 ? "text-blue-600" : "text-orange-600"}
-              subtitle="Ingresos - Egresos"
+              subtitle="Ingresos − Egresos"
             />
             <SummaryCard
               title="Saldo Actual"
               amount={summary.summary.currentBalance !== null ? formatCLP(summary.summary.currentBalance) : "N/A"}
               icon={Receipt}
               colorClass="text-purple-600"
-              subtitle={`Desde ${summary.summary.documentCount} cartola${summary.summary.documentCount !== 1 ? 's' : ''}`}
+              subtitle={`Desde ${summary.summary.documentCount} cartola${summary.summary.documentCount !== 1 ? "s" : ""}`}
             />
           </div>
         ) : null}
 
-        <ParsedTransactionsTable
-          mode="movimientos"
-          title="Movimientos"
-          subtitle="Ingresos, egresos y saldos de tus cartolas bancarias"
-        />
+        <ParsedTransactionsTable mode="movimientos" />
       </div>
     </div>
   );
