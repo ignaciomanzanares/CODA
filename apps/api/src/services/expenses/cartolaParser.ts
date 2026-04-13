@@ -105,7 +105,7 @@ export async function parseCartolaPdfToJson(
   paymentMethod: string = 'debito'
 ): Promise<CartolaStructured> {
   try {
-    const { text, numPages } = await extractPdfText(buffer);
+    const { text, numPages, lines: pdfLines } = await extractPdfText(buffer);
 
     if (!text || text.length < 50) {
       return {
@@ -120,7 +120,7 @@ export async function parseCartolaPdfToJson(
       };
     }
 
-    const cartola = parseCartolaPdf(text);
+    const cartola = parseCartolaPdf(text, pdfLines);
 
     if (!cartola || cartola.transacciones.length === 0) {
       return {

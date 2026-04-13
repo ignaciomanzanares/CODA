@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ArrowUpDown, ArrowUp, ArrowDown, FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, FileText, ChevronLeft, ChevronRight, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ParsedTransaction {
@@ -214,7 +214,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <FileText className="h-4 w-4 text-primary" />
-          {title ?? (isGastos ? "Gastos de cartola" : "Movimientos de cartolas")}
+          {title ?? (isGastos ? "Gastos" : "Movimientos")}
         </CardTitle>
         <CardDescription>
           {allTxs.length > 0
@@ -224,16 +224,36 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
       </CardHeader>
       <CardContent className="space-y-4">
         {allTxs.length === 0 ? (
-          <div className="text-center py-12 space-y-3">
-            <FileText className="h-10 w-10 text-muted-foreground mx-auto" />
-            <p className="font-medium">Sin movimientos</p>
-            <p className="text-sm text-muted-foreground">Sube una cartola bancaria para ver tus transacciones aquí.</p>
-            <Button size="sm" onClick={() => navigate(ROUTES.panel)}>Subir cartola</Button>
+          <div className="text-center py-16 space-y-4 border-2 border-dashed border-muted rounded-lg">
+            <div className="p-4 rounded-full bg-primary/10 mx-auto w-fit">
+              <Upload className="h-8 w-8 text-primary" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-medium text-lg">Sin movimientos</p>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">Sube una cartola bancaria para ver tus transacciones aquí.</p>
+            </div>
+            <Button
+              size="lg"
+              onClick={() => window.dispatchEvent(new CustomEvent('trigger-cartola-upload'))}
+              className="gap-2"
+            >
+              <Upload className="h-5 w-5" />
+              Subir cartola
+            </Button>
           </div>
         ) : (
           <>
             {/* ── Filters ────────────────────────────────────────────────── */}
             <div className="flex flex-wrap gap-2 items-center">
+              <Button
+                size="sm"
+                onClick={() => window.dispatchEvent(new CustomEvent('trigger-cartola-upload'))}
+                className="gap-1.5"
+              >
+                <Upload className="h-4 w-4" />
+                Subir cartola
+              </Button>
+
               <Input
                 placeholder="Buscar descripción..."
                 value={search}
