@@ -372,10 +372,13 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
       if (mClp) {
         rawVal = mClp[1];
       } else {
-        // For items in the column area (right half of line), also accept bare integers
-        // as small amounts (e.g. "500" for 500 CLP). Require ≥ 3 digits to avoid
-        // matching single/double-digit branch codes like "93".
-        if (item.x > cargoAbonoMidX) {
+        // For items at or near the column area, also accept bare integers as small
+        // amounts (e.g. "700" for 700 CLP). The threshold starts just before the
+        // cargo column (leftmost amount column) so that cargo amounts < 1,000 are
+        // detected, not just abono amounts. Single/double-digit branch codes (e.g.
+        // "93") are already excluded by requiring ≥ 3 digits.
+        const bareIntMinX = hasColumnLayout ? cargoColX! - 40 : cargoAbonoMidX;
+        if (item.x > bareIntMinX) {
           const mInt = item.str.match(/^(\d{3,6})$/);
           if (mInt) rawVal = mInt[1];
         }
@@ -493,7 +496,13 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
     if (descripcion.length < 3) return;
     if (/^\d+$/.test(descripcion)) return;
 
-    const tipo: 'cargo' | 'abono' = cargo > 0 ? 'cargo' : 'abono';
+    let tipo: 'cargo' | 'abono' = cargo > 0 ? 'cargo' : 'abono';
+
+    // Safety: "COMPRA" is unambiguously a cargo. Correct column-based misclassification
+    // that can occur when small amounts render slightly off the expected column X range.
+    if (tipo === 'abono' && /\bCOMPRA\b/i.test(descripcion)) {
+      tipo = 'cargo';
+    }
 
     transacciones.push({
       fecha,
