@@ -97,6 +97,29 @@ export default function Login() {
   const [requires2FA, setRequires2FA] = useState(false);
   const [otpCode, setOtpCode] = useState("");
 
+  // Forgot password flow
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    try {
+      await apiFetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+    } catch {
+      // Intentionally ignore errors — always show success to avoid email enumeration
+    } finally {
+      setForgotLoading(false);
+      setForgotSent(true);
+    }
+  };
+
   if (isAuth) {
     setLocation(defaultRedirect);
     return null;
@@ -214,7 +237,64 @@ export default function Login() {
             </div>
           )}
 
-          {requires2FA ? (
+          {showForgot ? (
+            /* ── Forgot password panel ── */
+            forgotSent ? (
+              <div className="space-y-5">
+                <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-4 text-sm text-green-700 space-y-1">
+                  <p className="font-medium">Revisa tu correo</p>
+                  <p className="text-green-600">Si el correo <strong>{forgotEmail}</strong> está registrado, recibirás las instrucciones para restablecer tu contraseña.</p>
+                </div>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
+                  onClick={() => { setShowForgot(false); setForgotSent(false); setForgotEmail(""); setError(""); }}
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Volver al inicio de sesión
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-5">
+                <div>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.
+                  </p>
+                  <div className="space-y-1.5">
+                    <label htmlFor="forgot-email" className="block text-sm font-medium text-gray-700">
+                      Correo electrónico
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        id="forgot-email"
+                        type="email"
+                        required
+                        value={forgotEmail}
+                        onChange={e => setForgotEmail(e.target.value)}
+                        placeholder="tu@correo.cl"
+                        disabled={forgotLoading}
+                        className="flex h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold text-sm"
+                  disabled={forgotLoading}
+                >
+                  {forgotLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...</> : "Enviar enlace"}
+                </Button>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
+                  onClick={() => { setShowForgot(false); setForgotEmail(""); setError(""); }}
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Volver
+                </button>
+              </form>
+            )
+          ) : requires2FA ? (
             <form onSubmit={handleVerify2FA} className="space-y-5">
               <div className="space-y-1.5">
                 <label htmlFor="otp" className="block text-sm font-medium text-gray-700">
@@ -303,6 +383,16 @@ export default function Login() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className="text-xs text-blue-600 hover:underline"
+                  onClick={() => { setShowForgot(true); setForgotEmail(email); setError(""); }}
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
               </div>
 
               <Button

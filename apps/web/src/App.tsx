@@ -58,6 +58,7 @@ const FinancialAssistant = lazy(() => import("@/components/FinancialAssistant"))
 const LegacySplitRedirect = lazy(() => import("@/components/LegacySplitRedirect"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const BillSplit = lazy(() => import("@/pages/BillSplit"));
+const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 
 function App() {
   return (
@@ -82,6 +83,7 @@ function App() {
         <Route path={ROUTES.iniciarSesion} component={Login} />
         <Route path="/login" component={Login} />
         <Route path="/empresas/login" component={Login} />
+        <Route path={ROUTES.restablecerContrasena} component={ResetPassword} />
         <Route path={ROUTES.registro} component={SignUp} />
         <Route path="/signup" component={SignUp} />
         <Route path={ROUTES.acerca} component={About} />

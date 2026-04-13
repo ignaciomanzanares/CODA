@@ -9,21 +9,23 @@ import { storage } from "./storage.js";
 import { db, dialect, users, bankConnections, accounts, balances, transactions, creditScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc, insertAccountSchema, insertBankConnectionSchema } from "./db/index.js";
 import { ZodError, z } from "zod";
 import { fromZodError } from "zod-validation-error";
-import { 
-  authenticate, 
+import {
+  authenticate,
   ensureUserForToken,
-  handleLogin, 
+  handleLogin,
   handleLoginWithDB,
-  handleLogout, 
-  handleMe, 
+  handleLogout,
+  handleMe,
   handleRegister,
   handleVerify2FA,
   handleEnable2FA,
   handleDisable2FA,
   handleResend2FA,
   handleRecoverMigrationPassword,
-  type AuthenticatedRequest 
+  hashPassword,
+  type AuthenticatedRequest
 } from "./middleware/auth.js";
+import { env } from "./env.js";
 import { emailService } from "./services/emailService.js";
 import crypto from "crypto";
 import { notificationService, expenseCategoryLabelEs } from "./services/notificationService.js";
@@ -158,6 +160,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/2fa/resend", authLimiter, handleResend2FA);
   app.post("/api/auth/2fa/enable", authenticate, handleEnable2FA);
   app.post("/api/auth/2fa/disable", authenticate, handleDisable2FA);
+
+  // Password reset token store: token -> { userId, expiresAt }
+  const passwordResetTokens = new Map<string, { userId: string; expiresAt: number }>();
+
+  /** POST /api/auth/forgot-password — generates a reset link and emails it */
+  app.post("/api/auth/forgot-password", authLimiter, async (req: Request, res: Response) => {
+    const { email } = req.body ?? {};
+    // Always respond with success to avoid email enumeration
+    const ok = () => res.json({ message: "Si el correo está registrado, recibirás las instrucciones." });
+    if (!email || typeof email !== "string") return ok();
+    try {
+      const [user] = await db.select().from(users).where(eq(users.email, email.trim().toLowerCase())).limit(1);
+      if (!user) return ok();
+      // Expire any previous token for this user
+      for (const [tok, val] of passwordResetTokens.entries()) {
+        if (val.userId === user.id) passwordResetTokens.delete(tok);
+      }
+      const token = crypto.randomBytes(32).toString("hex");
+      passwordResetTokens.set(token, { userId: user.id, expiresAt: Date.now() + 60 * 60 * 1000 });
+      const resetUrl = `${env.clientUrl}/restablecer-contrasena?token=${token}`;
+      await emailService.sendPasswordResetEmail(user.email, resetUrl);
+    } catch (err) {
+      logger.error({ err }, "forgot-password error");
+    }
+    return ok();
+  });
+
+  /** POST /api/auth/reset-password — validates token and sets new password */
+  app.post("/api/auth/reset-password", authLimiter, async (req: Request, res: Response) => {
+    const { token, password } = req.body ?? {};
+    if (!token || typeof token !== "string" || !password || typeof password !== "string") {
+      return res.status(400).json({ message: "Token y contraseña son requeridos." });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ message: "La contraseña debe tener al menos 8 caracteres." });
+    }
+    const entry = passwordResetTokens.get(token);
+    if (!entry || entry.expiresAt < Date.now()) {
+      return res.status(400).json({ message: "El enlace ha expirado o no es válido." });
+    }
+    try {
+      await db.update(users).set({ passwordHash: hashPassword(password) }).where(eq(users.id, entry.userId));
+      passwordResetTokens.delete(token);
+      return res.json({ message: "Contraseña actualizada correctamente." });
+    } catch (err) {
+      logger.error({ err }, "reset-password error");
+      return res.status(500).json({ message: "Error al actualizar la contraseña." });
+    }
+  });
 
   // Error handling middleware
   const handleZodError = (err: unknown, _req: Request, res: Response, next: (...args: unknown[]) => unknown) => {
@@ -1195,11 +1246,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const allTxs: ParsedTxOut[] = [];
-      const seen = new Set<string>();
+      // Dedup across documents: tracks how many times a content key has been seen
+      // globally and per-document. Two identical rows in the SAME document (genuine
+      // duplicates in the bank statement) are kept; the same row in two different
+      // documents (re-upload / overlapping periods) is deduped.
+      const globalContentCount = new Map<string, number>();
 
       for (const c of cartolas) {
         const pd = c.parsedData as { transacciones?: AnyTx[] } | null;
         const txs = pd?.transacciones ?? [];
+        // Track occurrence count of each content key within this document
+        const docLocalCount = new Map<string, number>();
 
         for (let i = 0; i < txs.length; i++) {
           const t = txs[i] as AnyTx;
@@ -1254,9 +1311,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             fechaStr = new Date().toISOString().slice(0, 10);
           }
 
-          const dedupeKey = `${fechaStr}|${(t.descripcion ?? '').trim().toLowerCase()}|${monto}`;
-          if (seen.has(dedupeKey)) continue;
-          seen.add(dedupeKey);
+          // Build a content key for this transaction
+          const contentKey = `${fechaStr}|${(t.descripcion ?? '').trim().toLowerCase()}|${monto}`;
+          // Track how many times this content appears in the current document
+          const localOcc = (docLocalCount.get(contentKey) ?? 0) + 1;
+          docLocalCount.set(contentKey, localOcc);
+          // The global dedup key slots by occurrence number:
+          // - 1st identical row in any doc uses slot "…|#1"
+          // - 2nd identical row in any doc uses slot "…|#2", etc.
+          // Two docs each having the same row once → both use slot #1 → second deduped ✓
+          // One doc with the same row twice → uses slots #1 and #2 → both kept ✓
+          const dedupeKey = `${contentKey}|#${localOcc}`;
+          const globalOcc = (globalContentCount.get(dedupeKey) ?? 0) + 1;
+          globalContentCount.set(dedupeKey, globalOcc);
+          if (globalOcc > 1) continue; // already seen this slot from another document
 
           allTxs.push({
             id: `${c.id}-${i}`,
