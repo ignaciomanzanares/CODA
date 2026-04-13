@@ -1,10 +1,78 @@
-import { Receipt } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Receipt, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/api";
 import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
+
+interface TransactionSummary {
+  summary: {
+    totalIncome: number;
+    totalExpenses: number;
+    netBalance: number;
+    currentBalance: number | null;
+    transactionCount: number;
+    documentCount: number;
+  };
+  categoryBreakdown: Record<string, { count: number; total: number }>;
+  monthlyData: Array<{ month: string; income: number; expenses: number }>;
+}
+
+function formatCLP(amount: number): string {
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function SummaryCard({
+  title,
+  amount,
+  icon: Icon,
+  colorClass,
+  subtitle,
+}: {
+  title: string;
+  amount: string;
+  icon: React.ElementType;
+  colorClass: string;
+  subtitle?: string;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <p className={`text-2xl font-bold mt-1 ${colorClass}`}>{amount}</p>
+            {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
+          </div>
+          <div className={`p-3 rounded-full ${colorClass.replace('text-', 'bg-').replace('600', '100').replace('700', '100')}`}>
+            <Icon className={`h-5 w-5 ${colorClass}`} />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Movimientos() {
   const { isAuthenticated } = useAuth();
+
+  const { data: summary, isLoading: isLoadingSummary } = useQuery<TransactionSummary>({
+    queryKey: ["/api/transactions/summary"],
+    queryFn: async () => {
+      const token = localStorage.getItem("jwt_token");
+      if (!token) return null;
+      return apiFetch("/api/transactions/summary", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    enabled: isAuthenticated,
+    staleTime: 30_000,
+  });
 
   if (!isAuthenticated) {
     return (
@@ -22,6 +90,8 @@ export default function Movimientos() {
     );
   }
 
+  const hasData = summary && summary.summary.transactionCount > 0;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
@@ -33,10 +103,49 @@ export default function Movimientos() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Movimientos</h1>
             <p className="text-muted-foreground">
-              Todos los movimientos de tus cartolas — últimos 90 días
+              Todos los movimientos de tus cartolas bancarias
             </p>
           </div>
         </div>
+
+        {/* Summary Cards */}
+        {isLoadingSummary ? (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-24" />
+            ))}
+          </div>
+        ) : hasData ? (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <SummaryCard
+              title="Ingresos Totales"
+              amount={formatCLP(summary.summary.totalIncome)}
+              icon={TrendingUp}
+              colorClass="text-emerald-600"
+              subtitle={`${summary.summary.transactionCount} transacciones`}
+            />
+            <SummaryCard
+              title="Egresos Totales"
+              amount={formatCLP(summary.summary.totalExpenses)}
+              icon={TrendingDown}
+              colorClass="text-red-600"
+            />
+            <SummaryCard
+              title="Balance Neto"
+              amount={formatCLP(summary.summary.netBalance)}
+              icon={Wallet}
+              colorClass={summary.summary.netBalance >= 0 ? "text-blue-600" : "text-orange-600"}
+              subtitle="Ingresos - Egresos"
+            />
+            <SummaryCard
+              title="Saldo Actual"
+              amount={summary.summary.currentBalance !== null ? formatCLP(summary.summary.currentBalance) : "N/A"}
+              icon={Receipt}
+              colorClass="text-purple-600"
+              subtitle={`Desde ${summary.summary.documentCount} cartola${summary.summary.documentCount !== 1 ? 's' : ''}`}
+            />
+          </div>
+        ) : null}
 
         <ParsedTransactionsTable
           mode="movimientos"

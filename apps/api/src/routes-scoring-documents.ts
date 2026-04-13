@@ -65,6 +65,21 @@ export function registerDocumentParsingAndScoringRoutes(app: Express): void {
         }
         const parsed = await parseCartolaPdfBuffer(file.buffer);
         const id = randomUUID();
+
+        // Convert Date objects to ISO strings for consistent storage
+        const parsedDataForStorage = {
+          ...parsed,
+          periodo: {
+            desde: parsed.periodo.desde.toISOString(),
+            hasta: parsed.periodo.hasta.toISOString(),
+            dias: parsed.periodo.dias,
+          },
+          transacciones: parsed.transacciones.map(tx => ({
+            ...tx,
+            fecha: tx.fecha instanceof Date ? tx.fecha.toISOString().slice(0, 10) : tx.fecha,
+          })),
+        };
+
         await storage.createDocumentUpload({
           id,
           userId,
@@ -72,7 +87,7 @@ export function registerDocumentParsingAndScoringRoutes(app: Express): void {
           banco: parsed.banco,
           periodoDesde: parsed.periodo.desde.toISOString().slice(0, 10),
           periodoHasta: parsed.periodo.hasta.toISOString().slice(0, 10),
-          parsedData: parsed,
+          parsedData: parsedDataForStorage,
           parseStatus: "success",
         });
         res.json({ ...parsed, document_id: id });

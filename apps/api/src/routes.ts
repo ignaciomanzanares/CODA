@@ -1227,10 +1227,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (monto === 0) continue;
 
-          // Normalise fecha: strip time component if present
-          const fechaStr = typeof t.fecha === 'string'
-            ? t.fecha.slice(0, 10)
-            : new Date(t.fecha as unknown as string).toISOString().slice(0, 10);
+          // Normalise fecha: handle both Date objects and ISO strings
+          let fechaStr: string;
+          const fechaVal = t.fecha as unknown;
+          if (fechaVal instanceof Date) {
+            fechaStr = fechaVal.toISOString().slice(0, 10);
+          } else if (typeof fechaVal === 'string') {
+            // Handle both ISO (YYYY-MM-DD) and Chilean formats (DD/MM/YYYY)
+            if (fechaVal.includes('/')) {
+              const parts = fechaVal.split('/');
+              if (parts.length === 3) {
+                if (parts[2].length === 2) {
+                  // DD/MM/YY format
+                  fechaStr = `20${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                } else {
+                  // DD/MM/YYYY format
+                  fechaStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                }
+              } else {
+                fechaStr = fechaVal.slice(0, 10);
+              }
+            } else {
+              fechaStr = fechaVal.slice(0, 10);
+            }
+          } else {
+            fechaStr = new Date().toISOString().slice(0, 10);
+          }
 
           const dedupeKey = `${fechaStr}|${(t.descripcion ?? '').trim().toLowerCase()}|${monto}`;
           if (seen.has(dedupeKey)) continue;
@@ -1256,6 +1278,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e) {
       logger.error({ err: e }, "Failed to get parsed transactions");
       res.status(500).json({ message: "Error al obtener transacciones." });
+    }
+  });
+
+  // GET /api/transactions/summary — income, expenses, and balance summary
+  app.get("/api/transactions/summary", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+
+      const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
+
+      let totalIncome = 0;
+      let totalExpenses = 0;
+      let transactionCount = 0;
+      const categoryBreakdown: Record<string, { count: number; total: number }> = {};
+      const monthlyData: Record<string, { income: number; expenses: number }> = {};
+
+      for (const c of cartolas) {
+        const pd = c.parsedData as { transacciones?: any[]; saldo_inicial?: number; saldo_final?: number } | null;
+        const txs = pd?.transacciones ?? [];
+
+        for (const t of txs) {
+          let monto: number;
+          let tipo: 'ingreso' | 'egreso';
+          let fecha: string;
+          let categoria = 'otro';
+
+          // Extract amount and type
+          if ('tipo' in t && typeof t.monto === 'number') {
+            // New format
+            monto = t.monto;
+            tipo = t.tipo === 'abono' ? 'ingreso' : 'egreso';
+            categoria = t.categoria ?? 'otro';
+          } else {
+            // Old format
+            const abono = t.abono ?? 0;
+            const cargo = t.cargo ?? 0;
+            if (abono > 0) {
+              monto = abono;
+              tipo = 'ingreso';
+            } else {
+              monto = cargo;
+              tipo = 'egreso';
+            }
+          }
+
+          // Extract and normalize date
+          if (t.fecha instanceof Date) {
+            fecha = t.fecha.toISOString().slice(0, 10);
+          } else if (typeof t.fecha === 'string') {
+            if (t.fecha.includes('/')) {
+              const parts = t.fecha.split('/');
+              if (parts.length === 3) {
+                if (parts[2].length === 2) {
+                  fecha = `20${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                } else {
+                  fecha = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                }
+              } else {
+                fecha = t.fecha.slice(0, 10);
+              }
+            } else {
+              fecha = t.fecha.slice(0, 10);
+            }
+          } else {
+            fecha = new Date().toISOString().slice(0, 10);
+          }
+
+          // Skip zero amounts
+          if (monto === 0) continue;
+
+          transactionCount++;
+
+          // Add to totals
+          if (tipo === 'ingreso') {
+            totalIncome += monto;
+          } else {
+            totalExpenses += monto;
+          }
+
+          // Category breakdown
+          if (!categoryBreakdown[categoria]) {
+            categoryBreakdown[categoria] = { count: 0, total: 0 };
+          }
+          categoryBreakdown[categoria].count++;
+          categoryBreakdown[categoria].total += monto;
+
+          // Monthly data
+          const monthKey = fecha.slice(0, 7); // YYYY-MM
+          if (!monthlyData[monthKey]) {
+            monthlyData[monthKey] = { income: 0, expenses: 0 };
+          }
+          if (tipo === 'ingreso') {
+            monthlyData[monthKey].income += monto;
+          } else {
+            monthlyData[monthKey].expenses += monto;
+          }
+        }
+      }
+
+      // Sort monthly data by date
+      const sortedMonthlyData = Object.entries(monthlyData)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, data]) => ({ month, ...data }));
+
+      // Get latest cartola for balance info
+      let currentBalance: number | null = null;
+      if (cartolas.length > 0) {
+        const latestCartola = cartolas[0];
+        const pd = latestCartola.parsedData as { saldo_final?: number; saldoFinal?: number } | null;
+        currentBalance = pd?.saldo_final ?? pd?.saldoFinal ?? null;
+      }
+
+      res.json({
+        summary: {
+          totalIncome,
+          totalExpenses,
+          netBalance: totalIncome - totalExpenses,
+          currentBalance,
+          transactionCount,
+          documentCount: cartolas.length,
+        },
+        categoryBreakdown,
+        monthlyData: sortedMonthlyData,
+      });
+    } catch (e) {
+      logger.error({ err: e }, "Failed to get transactions summary");
+      res.status(500).json({ message: "Error al obtener el resumen de transacciones." });
     }
   });
 
