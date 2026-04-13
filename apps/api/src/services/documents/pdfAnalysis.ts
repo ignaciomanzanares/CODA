@@ -242,8 +242,13 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
     return parseFloat(s.replace(/\./g, '').replace(',', '.'));
   }
 
-  /** Reconoce un monto CLP: 1.234 / 12.345 / 1.234.567 / con coma decimal */
-  const CLP_RE = /\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?/g;
+  /**
+   * Reconoce un monto CLP:
+   *  - Con separador de miles: 1.234 / 12.345 / 1.234.567 / con coma decimal
+   *  - Sin separador (< 1.000): bare integer of 1–3 digits preceded by space/start
+   *    and at end of line (to avoid matching doc numbers mid-line)
+   */
+  const CLP_RE = /\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\b\d{1,3}(?=\s*$)/g;
 
   /**
    * Extrae los últimos N montos CLP de una línea de texto.
@@ -351,15 +356,34 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
   /**
    * Given a PdfLine, classify each CLP-formatted amount item by its X coordinate.
    * Returns { cargo, abono, saldo } values.
+   *
+   * Matches both:
+   *  - Standard CLP with thousands separators: "1.234" / "12.345.678"
+   *  - Small amounts < 1,000 without separator: "500", "800", "999"
+   *    (safe because we gate on column position to avoid matching doc/branch numbers)
    */
   function classifyAmountsByColumn(pdfLine: PdfLine): { cargo: number; abono: number; saldo: number | undefined } {
     let cargo = 0, abono = 0, saldo: number | undefined;
 
     for (const item of pdfLine.items) {
-      const m = item.str.match(/^(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?)$/);
-      if (!m) continue;
-      const val = parseChile(m[1]);
-      if (!Number.isFinite(val) || val < 10) continue;
+      // Try CLP format with thousands separator first
+      let rawVal: string | null = null;
+      const mClp = item.str.match(/^(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?)$/);
+      if (mClp) {
+        rawVal = mClp[1];
+      } else {
+        // For items in the column area (right half of line), also accept bare integers
+        // as small amounts (e.g. "500" for 500 CLP). Require ≥ 3 digits to avoid
+        // matching single/double-digit branch codes like "93".
+        if (item.x > cargoAbonoMidX) {
+          const mInt = item.str.match(/^(\d{3,6})$/);
+          if (mInt) rawVal = mInt[1];
+        }
+      }
+      if (!rawVal) continue;
+
+      const val = parseChile(rawVal);
+      if (!Number.isFinite(val) || val < 1) continue;
 
       if (item.x > abonoSaldoMidX) {
         saldo = val;

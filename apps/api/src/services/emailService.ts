@@ -111,6 +111,39 @@ class EmailService {
   }
 
   /**
+   * Envía un enlace para restablecer contraseña.
+   */
+  async sendPasswordResetEmail(to: string, resetUrl: string): Promise<boolean> {
+    if (!this.transporter) {
+      logger.error('Email transporter not initialized (password reset)');
+      return false;
+    }
+    const from = process.env.SMTP_FROM || process.env.EMAIL_FROM || '"CODA" <noreply@coda.app>';
+    try {
+      await this.transporter.sendMail({
+        from,
+        to,
+        subject: 'Restablecer contraseña CODA',
+        text: `Recibimos una solicitud para restablecer tu contraseña.\n\nHaz clic en el siguiente enlace (válido por 1 hora):\n${resetUrl}\n\nSi no solicitaste esto, ignora este mensaje.`,
+        html: `
+          <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta CODA.</p>
+          <p style="margin:24px 0;">
+            <a href="${resetUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">
+              Restablecer contraseña
+            </a>
+          </p>
+          <p style="color:#64748b;font-size:14px;">El enlace es válido por 1 hora. Si no solicitaste esto, puedes ignorar este correo.</p>
+        `,
+      });
+      logger.info({ to: `${to[0] ?? '?'}***@${to.split('@')[1] ?? '?'}` }, 'Password reset email sent');
+      return true;
+    } catch (error) {
+      logger.error({ err: error }, 'Failed to send password reset email');
+      return false;
+    }
+  }
+
+  /**
    * Código OTP para 2FA (login). Requiere transporter configurado (Gmail/SMTP o Ethereal en dev).
    */
   async send2FACode(to: string, code: string): Promise<boolean> {
