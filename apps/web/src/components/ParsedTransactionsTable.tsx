@@ -363,6 +363,51 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
               <div ref={sentinelRef} className="h-4" />
             </div>
 
+            {/* Summary for movimientos mode */}
+            {!isGastos && filtered.length > 0 && (
+              <div className="grid grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">Ingresos</p>
+                  <p className="text-sm font-semibold text-emerald-600">
+                    +{formatClp(filtered.filter(t => t.tipo === "ingreso").reduce((sum, t) => sum + Math.abs(t.monto), 0))}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">Egresos</p>
+                  <p className="text-sm font-semibold text-red-600">
+                    −{formatClp(filtered.filter(t => t.tipo === "egreso").reduce((sum, t) => sum + Math.abs(t.monto), 0))}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">Balance</p>
+                  <p className={cn(
+                    "text-sm font-semibold",
+                    filtered.reduce((sum, t) => sum + t.monto, 0) >= 0 ? "text-emerald-600" : "text-red-600"
+                  )}>
+                    {formatClp(filtered.reduce((sum, t) => sum + t.monto, 0))}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Summary for gastos mode */}
+            {isGastos && filtered.length > 0 && (
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">Total Gastos</p>
+                  <p className="text-sm font-semibold text-red-600">
+                    {formatClp(filtered.reduce((sum, t) => sum + Math.abs(t.monto), 0))}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">Promedio por Gasto</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    {formatClp(filtered.reduce((sum, t) => sum + Math.abs(t.monto), 0) / filtered.length)}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Footer summary */}
             <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
               <span>
