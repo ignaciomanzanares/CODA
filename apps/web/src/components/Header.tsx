@@ -201,7 +201,17 @@ export default function Header() {
               </div>
             </>
           ) : (
-            <Button onClick={() => setLocation(isEmpresas ? "/empresas/login" : ROUTES.iniciarSesion)}>Iniciar sesión</Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="hidden sm:flex text-muted-foreground text-sm"
+                onClick={() => setLocation(ROUTES.infoScoreCredito)}
+              >
+                Ver mi score
+              </Button>
+              <Button onClick={() => setLocation(isEmpresas ? "/empresas/login" : ROUTES.iniciarSesion)}>Iniciar sesión</Button>
+            </div>
           )}
 
           {/* Mobile Menu Button */}

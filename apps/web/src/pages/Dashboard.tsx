@@ -75,7 +75,7 @@ export default function Dashboard() {
   const { currency } = useCurrency();
   const { hasDocuments } = useUserDocuments();
 
-  const { data: financialData } = useQuery<FinancialSummaryData>({
+  const { data: financialData, isLoading: financialLoading } = useQuery<FinancialSummaryData>({
     queryKey: ['financial-summary'],
     queryFn: async () => {
       const token = localStorage.getItem('jwt_token');
@@ -87,11 +87,28 @@ export default function Dashboard() {
     enabled: isAuthenticated && !authLoading,
     staleTime: 30000,
   });
-  
+
+  // Cartola-based summary (always fetched; used to fill gaps when fintoc summary is all zeros)
+  const { data: cartolaSummary } = useQuery<{
+    summary: { totalIncome: number; totalExpenses: number; netBalance: number; currentBalance: number | null; transactionCount: number; documentCount: number };
+  }>({
+    queryKey: ['/api/transactions/summary'],
+    queryFn: async () => {
+      const token = localStorage.getItem('jwt_token');
+      if (!token) return null;
+      return apiFetch('/api/transactions/summary', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    enabled: isAuthenticated && !authLoading,
+    staleTime: 30000,
+  });
+
   const refreshAllData = async () => {
     setIsRefreshing(true);
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions/summary'] }),
       queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] }),
       queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] }),
     ]);
@@ -112,7 +129,26 @@ export default function Dashboard() {
   const firstName = rawFirst === 'Investor' ? 'Inversor' : rawFirst;
   const greeting = new Date().getHours() < 12 ? 'Buenos días' : new Date().getHours() < 18 ? 'Buenas tardes' : 'Buenas noches';
   
-  const summary = financialData?.summary;
+  const rawSummary = financialData?.summary;
+
+  // If fintoc financial-summary is all zeros but we have cartola data, use that instead
+  const hasFintocData = rawSummary && (rawSummary.monthlyIncome > 0 || rawSummary.totalBalance > 0);
+  const hasCartolaData = cartolaSummary && cartolaSummary.summary.transactionCount > 0;
+  const usingCartolaFallback = !hasFintocData && hasCartolaData;
+
+  const summary = hasFintocData ? rawSummary : (hasCartolaData ? {
+    totalBalance: cartolaSummary!.summary.currentBalance ?? 0,
+    totalAssets: cartolaSummary!.summary.currentBalance ?? 0,
+    totalLiabilities: 0,
+    netWorth: cartolaSummary!.summary.currentBalance ?? cartolaSummary!.summary.netBalance,
+    monthlyIncome: cartolaSummary!.summary.totalIncome,
+    monthlyExpenses: cartolaSummary!.summary.totalExpenses,
+    savingsRate: cartolaSummary!.summary.totalIncome > 0
+      ? Math.round(((cartolaSummary!.summary.totalIncome - cartolaSummary!.summary.totalExpenses) / cartolaSummary!.summary.totalIncome) * 100)
+      : 0,
+    accountCount: 0,
+  } : rawSummary);
+
   const nwTrend = financialData?.trends?.netWorth;
   let netWorthChange = 0;
   let netWorthChangePercent = '0.0';
@@ -124,6 +160,7 @@ export default function Dashboard() {
       prev !== 0 ? ((netWorthChange / Math.abs(prev)) * 100).toFixed(1) : '0.0';
   }
   const savingsThisMonth = summary ? summary.monthlyIncome - summary.monthlyExpenses : 0;
+  const allZeros = summary && summary.monthlyIncome === 0 && summary.totalBalance === 0;
 
   return (
     <ReportDataProvider>
@@ -165,31 +202,64 @@ export default function Dashboard() {
         </div>
 
         {/* Main Balance - Hero Section */}
-        {summary && (
+        {summary && !allZeros && (
           <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">Patrimonio neto</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium text-muted-foreground">
+                {usingCartolaFallback ? 'Balance desde cartolas' : 'Patrimonio neto'}
+              </p>
+              {usingCartolaFallback && (
+                <span className="text-[10px] font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                  Cartola bancaria
+                </span>
+              )}
+            </div>
             <div className="flex items-baseline gap-3">
               <h2 className="text-hero-value font-bold tracking-tight">
                 {formatCurrency(summary.netWorth, currency)}
               </h2>
-              <div className={cn(
-                "flex items-center gap-1 text-sm font-medium",
-                netWorthChange >= 0 ? "text-green-600" : "text-red-600"
-              )}>
-                {netWorthChange >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                <span>{netWorthChange >= 0 ? '+' : ''}{netWorthChangePercent}%</span>
-              </div>
+              {!usingCartolaFallback && (
+                <div className={cn(
+                  "flex items-center gap-1 text-sm font-medium",
+                  netWorthChange >= 0 ? "text-green-600" : "text-red-600"
+                )}>
+                  {netWorthChange >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                  <span>{netWorthChange >= 0 ? '+' : ''}{netWorthChangePercent}%</span>
+                </div>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">
-              {formatCurrency(summary.totalAssets, currency)} en activos · {formatCurrency(summary.totalLiabilities, currency)} en pasivos
+              {usingCartolaFallback
+                ? `${cartolaSummary!.summary.transactionCount} movimientos · ${cartolaSummary!.summary.documentCount} cartola${cartolaSummary!.summary.documentCount !== 1 ? 's' : ''}`
+                : `${formatCurrency(summary.totalAssets, currency)} en activos · ${formatCurrency(summary.totalLiabilities, currency)} en pasivos`
+              }
             </p>
+          </div>
+        )}
+
+        {/* Zero-state: authenticated but no data yet */}
+        {isAuthenticated && !financialLoading && allZeros && !hasCartolaData && (
+          <div className="rounded-2xl border-2 border-dashed border-muted-foreground/20 bg-muted/20 p-8 text-center space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+              <FileText className="h-7 w-7 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg mb-1">Sube tu primera cartola</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                Arrastra tu cartola bancaria (PDF) y en segundos verás tus ingresos, gastos, score y análisis personalizados.
+              </p>
+            </div>
+            <Button onClick={() => navigate(ROUTES.movimientos)} className="gap-2">
+              <FileText className="h-4 w-4" />
+              Subir cartola bancaria
+            </Button>
           </div>
         )}
 
         <Separator />
 
         {/* Key Metrics - Clean Grid */}
-        {summary && (
+        {summary && !allZeros && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             <div className="space-y-1 min-w-0">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">Saldo total</p>
@@ -236,7 +306,7 @@ export default function Dashboard() {
         )}
 
         {/* Financial Insight - Subtle Card */}
-        {summary && (
+        {summary && !allZeros && (
           <Card className="border-l-4 border-l-blue-500 bg-blue-50/50 dark:bg-blue-950/20">
             <CardContent className="p-5">
               <div className="flex items-start justify-between gap-4">
