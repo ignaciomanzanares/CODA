@@ -29,19 +29,22 @@ import {
   Shield,
   Link2,
   ArrowLeftRight,
-  Activity
+  Activity,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react";
 import NotificationCenter from "@/components/NotificationCenter";
 import { cn } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
 import type { CurrencyCode } from "@/lib/utils";
 import { ROUTES } from "@/lib/routes";
+import { useTheme } from "@/lib/useTheme";
 
 const navItems = [
   // Grupo principal
   { href: ROUTES.panel, label: "Panel", icon: LayoutDashboard },
-  { href: ROUTES.infoScoreCredito, label: "Score", icon: Shield },
-  { href: ROUTES.productos, label: "Productos", icon: Store },
+{ href: ROUTES.productos, label: "Productos", icon: Store },
   { href: ROUTES.movimientos, label: "Movimientos", icon: ArrowLeftRight },
   { href: ROUTES.gastos, label: "Gastos", icon: Wallet },
   { href: ROUTES.plan, label: "Plan", icon: FileText },
@@ -69,6 +72,7 @@ export default function Header() {
   const authContext = isEmpresas ? 'empresas' : 'personal';
   const { isAuthenticated, user, logout } = useAuth(authContext);
   const { currency, setCurrency } = useCurrency();
+  const { theme, toggle: toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
@@ -149,6 +153,17 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+            onClick={toggleTheme}
+            title={theme === "light" ? "Modo oscuro" : theme === "dark" ? "Modo sistema" : "Modo claro"}
+          >
+            {theme === "light" && <Sun className="h-4 w-4" />}
+            {theme === "dark" && <Moon className="h-4 w-4" />}
+            {theme === "system" && <Monitor className="h-4 w-4" />}
+          </Button>
         </div>
 
         {/* Derecha: CODA Personal/Empresas, notificaciones, usuario — lo más a la derecha */}
@@ -202,14 +217,6 @@ export default function Header() {
             </>
           ) : (
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="hidden sm:flex text-muted-foreground text-sm"
-                onClick={() => setLocation(ROUTES.infoScoreCredito)}
-              >
-                Ver mi score
-              </Button>
               <Button onClick={() => setLocation(isEmpresas ? "/empresas/login" : ROUTES.iniciarSesion)}>Iniciar sesión</Button>
             </div>
           )}

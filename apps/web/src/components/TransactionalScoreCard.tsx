@@ -169,7 +169,7 @@ export default function TransactionalScoreCard() {
           Score Transaccional
         </CardTitle>
         <CardDescription>
-          Basado en cartolas bancarias (métricas SFA). Sube una cartola en Documentos Oficiales.
+          Análisis de tu comportamiento financiero real a partir de tus cartolas bancarias
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col gap-4">
@@ -220,10 +220,8 @@ function TransactionalScoreContent({
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-center text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-md py-2 px-3">
-        Modelo preliminar basado en comportamiento transaccional (Hjelkrem et al. 2022).
-        Se valida en paralelo con el score tradicional. Las decisiones comerciales no dependen
-        exclusivamente de este score.
+      <p className="text-xs text-center text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 rounded-md py-2 px-3">
+        7 factores analizados: liquidez, estabilidad de ingresos, gastos fijos, días críticos, tendencia de ahorro, fondo de emergencia y consistencia de gastos.
       </p>
       <div className="flex flex-col items-center">
         <ScoreGauge score={score.transactionalScore} />

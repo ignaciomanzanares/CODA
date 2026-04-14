@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Calendar, PieChart, Repeat, TrendingUp,
   AlertTriangle, AlertCircle, Info,
+  PiggyBank, Lightbulb, Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,9 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "alert-triangle": AlertTriangle,
   "alert-circle": AlertCircle,
   info: Info,
+  "piggy-bank": PiggyBank,
+  lightbulb: Lightbulb,
+  shield: Shield,
 };
 
 const TYPE_STYLES: Record<string, { bg: string; icon: string; border: string }> = {
@@ -75,7 +79,7 @@ export default function SmartInsights() {
   return (
     <Card>
       <CardContent className="p-4 space-y-2">
-        <p className="text-sm font-semibold text-foreground mb-3">Smart Insights</p>
+        <p className="text-sm font-semibold text-foreground mb-3">Insights y consejos de ahorro</p>
         {insights.map((ins, i) => (
           <InsightCard key={i} insight={ins} />
         ))}

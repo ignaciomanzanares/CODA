@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSearch } from "wouter";
 import { Receipt, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -65,6 +66,8 @@ export default function Movimientos() {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const searchString = useSearch();
+  const initialCategory = useMemo(() => new URLSearchParams(searchString).get("categoria") ?? undefined, [searchString]);
   const [isUploadingCartolas, setIsUploadingCartolas] = useState(false);
   const cartolaInputRef = useRef<HTMLInputElement>(null);
 
@@ -218,7 +221,7 @@ export default function Movimientos() {
           </div>
         ) : null}
 
-        <ParsedTransactionsTable mode="movimientos" />
+        <ParsedTransactionsTable mode="movimientos" initialCategory={initialCategory} />
       </div>
     </div>
   );

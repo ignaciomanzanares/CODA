@@ -18,6 +18,7 @@ import {
   billSplits,
   billSplitParticipants,
   notifications,
+  creditScoreHistory,
   eq,
   and,
   inArray,
@@ -107,6 +108,9 @@ export interface IStorage {
       algorithmInputs?: Record<string, unknown>;
     }
   ): Promise<any>;
+  // Score history
+  addScoreHistoryEntry(userId: string, score: number, maxScore: number, factors?: string): Promise<any>;
+  getScoreHistory(userId: string, limit?: number): Promise<any[]>;
   // Insurance risk operations
   getInsuranceRisk(userId: string): Promise<any>;
   createInsuranceRisk(insuranceRisk: any): Promise<any>;
@@ -594,6 +598,36 @@ export class DatabaseStorage implements IStorage {
     });
 
     return row;
+  }
+
+  // Score history
+  async addScoreHistoryEntry(userId: string, score: number, maxScore: number, factors?: string): Promise<any> {
+    if (!db) return undefined;
+    try {
+      const [entry] = await db
+        .insert(creditScoreHistory)
+        .values({ userId: String(userId), score, maxScore, factors: factors ?? null })
+        .returning();
+      return entry;
+    } catch (err) {
+      logger.error({ err, userId }, "Failed to insert score history entry");
+      return undefined;
+    }
+  }
+
+  async getScoreHistory(userId: string, limit = 50): Promise<any[]> {
+    if (!db) return [];
+    try {
+      return await db
+        .select()
+        .from(creditScoreHistory)
+        .where(eq(creditScoreHistory.userId, String(userId)))
+        .orderBy(desc(creditScoreHistory.calculatedAt))
+        .limit(limit);
+    } catch (err) {
+      logger.error({ err, userId }, "Failed to get score history");
+      return [];
+    }
   }
 
   // Insurance risk operations

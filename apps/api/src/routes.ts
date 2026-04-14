@@ -26,6 +26,7 @@ import {
   type AuthenticatedRequest
 } from "./middleware/auth.js";
 import { env } from "./env.js";
+import { evaluateGovernmentPrograms } from "./services/governmentPrograms.js";
 import { emailService } from "./services/emailService.js";
 import crypto from "crypto";
 import { notificationService, expenseCategoryLabelEs } from "./services/notificationService.js";
@@ -1478,6 +1479,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/transactions/monthly-comparison — per-category monthly spending for MoM comparison
+  app.get("/api/transactions/monthly-comparison", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+
+      const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
+
+      // month → category → total
+      const grid: Record<string, Record<string, number>> = {};
+      const allCategories = new Set<string>();
+
+      for (const c of cartolas) {
+        const pd = c.parsedData as { transacciones?: any[] } | null;
+        for (const t of pd?.transacciones ?? []) {
+          let monto: number;
+          let cat: string;
+          let fecha: string;
+
+          if ('tipo' in t && typeof t.monto === 'number') {
+            if (t.tipo !== 'cargo') continue;
+            monto = t.monto;
+            cat = t.categoria ?? 'otro';
+          } else {
+            monto = t.cargo ?? 0;
+            cat = 'otro';
+            if (monto <= 0) continue;
+          }
+
+          if (typeof t.fecha === 'string') {
+            if (t.fecha.includes('/')) {
+              const parts = t.fecha.split('/');
+              if (parts.length === 3) {
+                fecha = `${parts[2].length === 2 ? '20' + parts[2] : parts[2]}-${parts[1].padStart(2, '0')}`;
+              } else {
+                fecha = t.fecha.slice(0, 7);
+              }
+            } else {
+              fecha = t.fecha.slice(0, 7);
+            }
+          } else {
+            continue;
+          }
+
+          if (!grid[fecha]) grid[fecha] = {};
+          grid[fecha][cat] = (grid[fecha][cat] ?? 0) + monto;
+          allCategories.add(cat);
+        }
+      }
+
+      // Build sorted months array
+      const months = Object.keys(grid).sort();
+      const categories = [...allCategories].sort();
+
+      // Build comparison rows per category
+      const comparison = categories.map(cat => {
+        const monthlyTotals = months.map(m => ({
+          month: m,
+          total: grid[m]?.[cat] ?? 0,
+        }));
+
+        // Calculate MoM change for the last two months
+        const last = monthlyTotals.length >= 1 ? monthlyTotals[monthlyTotals.length - 1].total : 0;
+        const prev = monthlyTotals.length >= 2 ? monthlyTotals[monthlyTotals.length - 2].total : 0;
+        const change = prev > 0 ? Math.round(((last - prev) / prev) * 100) : null;
+
+        return {
+          categoria: cat,
+          months: monthlyTotals,
+          lastMonth: last,
+          previousMonth: prev,
+          changePct: change,
+        };
+      }).sort((a, b) => b.lastMonth - a.lastMonth);
+
+      res.json({ months, comparison });
+    } catch (e) {
+      logger.error({ err: e }, "Failed to get monthly comparison");
+      res.status(500).json({ message: "Error al obtener comparación mensual." });
+    }
+  });
+
   // GET /api/transactions/insights — behavioral insights derived from cartola data
   app.get("/api/transactions/insights", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
@@ -1569,8 +1653,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         return s;
       }, 0);
+      const tasaAhorro = ingresos > 0 ? Math.round(((ingresos - totalEgresos) / ingresos) * 100) : 0;
       if (ingresos > 0 && totalEgresos > 0) {
-        const tasaAhorro = Math.round(((ingresos - totalEgresos) / ingresos) * 100);
         if (tasaAhorro >= 20) {
           insights.push({ type: 'positive', icon: 'trending-up', title: `Tasa de ahorro del ${tasaAhorro}%`, body: 'Estás ahorrando sobre el umbral recomendado del 20%. ¡Buen trabajo!' });
         } else if (tasaAhorro < 5 && tasaAhorro >= 0) {
@@ -1580,10 +1664,181 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // 5. Savings projection — if positive savings, project 6 and 12 months
+      if (ingresos > 0 && tasaAhorro > 0) {
+        const ahorroMensual = Math.round((ingresos - totalEgresos));
+        const ahorro6m = ahorroMensual * 6;
+        const ahorro12m = ahorroMensual * 12;
+        const fmt = (n: number) => n.toLocaleString("es-CL", { maximumFractionDigits: 0 });
+        insights.push({
+          type: 'positive', icon: 'piggy-bank',
+          title: `Podrías ahorrar $${fmt(ahorro12m)} en 12 meses`,
+          body: `Manteniendo tu ritmo actual (~$${fmt(ahorroMensual)}/mes), en 6 meses acumularías ~$${fmt(ahorro6m)} y en 1 año ~$${fmt(ahorro12m)}. Automatizar la transferencia a una cuenta de ahorro protege ese monto.`,
+        });
+      }
+
+      // 6. Category reduction tip — top category reduction by 15%
+      if (spendingByCategory.length > 0 && totalEgresos > 0) {
+        const top = spendingByCategory[0];
+        const labels: Record<string, string> = { alimentacion: 'alimentación', transporte: 'transporte', entretenimiento: 'entretenimiento', telecomunicaciones: 'telecomunicaciones', transferencia_enviada: 'transferencias', comercio: 'comercio', educacion: 'educación', salud: 'salud', otro: 'otros' };
+        const reduction = Math.round(top.total * 0.15);
+        const annualSave = reduction * 12;
+        if (reduction > 1000 && top.pct >= 20) {
+          const fmt = (n: number) => n.toLocaleString("es-CL", { maximumFractionDigits: 0 });
+          insights.push({
+            type: 'info', icon: 'lightbulb',
+            title: `Reducir ${labels[top.categoria] ?? top.categoria} un 15% = $${fmt(reduction)}/mes`,
+            body: `Si logras bajar tu gasto en ${labels[top.categoria] ?? top.categoria} un 15%, ahorrarías ~$${fmt(annualSave)} al año. Evalúa suscripciones, frecuencia de compras y alternativas más económicas.`,
+          });
+        }
+      }
+
+      // 7. Recurring expense total
+      const recurringDescs: { desc: string; monto: number; count: number }[] = [];
+      const descMontoCount: Record<string, { desc: string; monto: number; count: number }> = {};
+      for (const e of egresos) {
+        const k = `${e.monto}`;
+        if (!descMontoCount[k]) descMontoCount[k] = { desc: e.categoria, monto: e.monto, count: 0 };
+        descMontoCount[k].count++;
+      }
+      let totalRecurrente = 0;
+      for (const v of Object.values(descMontoCount)) {
+        if (v.count >= 2) { recurringDescs.push(v); totalRecurrente += v.monto; }
+      }
+      if (totalRecurrente > 0 && ingresos > 0) {
+        const pctRecurrente = Math.round((totalRecurrente / ingresos) * 100);
+        if (pctRecurrente >= 15) {
+          const fmt = (n: number) => n.toLocaleString("es-CL", { maximumFractionDigits: 0 });
+          insights.push({
+            type: pctRecurrente >= 50 ? 'warning' : 'info', icon: 'repeat',
+            title: `$${fmt(totalRecurrente)} en cargos recurrentes (${pctRecurrente}% de ingresos)`,
+            body: `Tus pagos periódicos consumen el ${pctRecurrente}% de tus ingresos. Renegociar planes de telefonía, streaming o seguros puede liberar dinero mensual.`,
+          });
+        }
+      }
+
+      // 8. Emergency fund check
+      if (ingresos > 0) {
+        const gastoMensual = totalEgresos;
+        const lastCartola = cartolas[0] as any;
+        const saldoActual: number = (lastCartola?.parsedData as any)?.saldoFinal ?? 0;
+        const mesesCubiertos = gastoMensual > 0 ? Math.round((saldoActual / gastoMensual) * 10) / 10 : 0;
+        const fmt = (n: number) => n.toLocaleString("es-CL", { maximumFractionDigits: 0 });
+        if (mesesCubiertos < 1 && saldoActual > 0) {
+          insights.push({
+            type: 'warning', icon: 'shield',
+            title: `Fondo de emergencia: ${mesesCubiertos} meses de gastos`,
+            body: `Tu saldo actual ($${fmt(saldoActual)}) cubre menos de 1 mes de gastos. Se recomienda tener al menos 3 meses como colchón financiero.`,
+          });
+        } else if (mesesCubiertos >= 3) {
+          insights.push({
+            type: 'positive', icon: 'shield',
+            title: `Fondo de emergencia saludable: ${mesesCubiertos} meses`,
+            body: `Tu saldo cubre ${mesesCubiertos} meses de gastos. Superas el mínimo recomendado de 3 meses. Considera un depósito a plazo para rentabilizar ese excedente.`,
+          });
+        }
+      }
+
+      // ── Financial alert notifications (fire-and-forget) ──────────────
+      const alertKey = `alerts:${userId}:${new Date().toISOString().slice(0, 10)}`;
+      const alertsSentToday = (req as any).__alertsSent?.[alertKey];
+      if (!alertsSentToday && ingresos > 0) {
+        (req as any).__alertsSent = { ...(req as any).__alertsSent, [alertKey]: true };
+
+        // Alert: savings rate below 20%
+        if (tasaAhorro < 20 && tasaAhorro >= 0) {
+          const fmt = (n: number) => n.toLocaleString("es-CL", { maximumFractionDigits: 0 });
+          storage.createNotification({
+            userId,
+            title: `Tu tasa de ahorro bajó al ${tasaAhorro}%`,
+            message: `Tu tasa de ahorro actual (${tasaAhorro}%) está por debajo del 20% recomendado. Tus egresos suman $${fmt(totalEgresos)} vs ingresos de $${fmt(ingresos)}.`,
+            type: tasaAhorro < 5 ? "warning" : "info",
+            category: "expense",
+          }).catch(() => {});
+        }
+
+        // Alert: category spike (any category > 40% of total spending)
+        for (const cat of spendingByCategory) {
+          if (cat.pct >= 40) {
+            const catLabels: Record<string, string> = { alimentacion: 'Alimentación', transporte: 'Transporte', entretenimiento: 'Entretenimiento', telecomunicaciones: 'Telecomunicaciones', transferencia_enviada: 'Transferencias', comercio: 'Comercio', educacion: 'Educación', salud: 'Salud', otro: 'Otros' };
+            storage.createNotification({
+              userId,
+              title: `Alerta: ${catLabels[cat.categoria] ?? cat.categoria} al ${cat.pct}% de tus gastos`,
+              message: `La categoría ${catLabels[cat.categoria] ?? cat.categoria} concentra el ${cat.pct}% de tus egresos totales. Revisa si hay gastos que puedas optimizar.`,
+              type: "warning",
+              category: "expense",
+              actionUrl: `/movimientos?categoria=${encodeURIComponent(cat.categoria)}`,
+            }).catch(() => {});
+            break; // Only alert for the top offender
+          }
+        }
+      }
+
       res.json({ spendingByCategory, insights, totalEgresos, totalIngresos: ingresos });
     } catch (e) {
       logger.error({ err: e }, "Failed to compute transaction insights");
       res.status(500).json({ message: "Error al calcular insights." });
+    }
+  });
+
+  // GET /api/financial-health — decision tree evaluation + government programs eligibility
+  app.get("/api/financial-health", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+
+      const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
+      if (cartolas.length === 0) {
+        return res.json({ hasData: false, healthLevel: null, programs: [], savingsTips: [] });
+      }
+
+      interface RawTx { fecha: string; cargo: number; abono: number; descripcion?: string; categoria?: string }
+      let totalIncome = 0, totalExpenses = 0, hasEduExpenses = false, eduTotal = 0;
+
+      for (const c of cartolas) {
+        const pd = c.parsedData as { transacciones?: (RawTx & { tipo?: string; monto?: number })[] } | null;
+        for (const t of pd?.transacciones ?? []) {
+          if ('tipo' in t && t.tipo === 'abono' && typeof t.monto === 'number') {
+            totalIncome += t.monto;
+          } else if ('tipo' in t && t.tipo === 'cargo' && typeof t.monto === 'number') {
+            totalExpenses += t.monto;
+            if (t.categoria === 'educacion') { hasEduExpenses = true; eduTotal += t.monto; }
+          } else {
+            totalIncome += t.abono ?? 0;
+            const cargo = t.cargo ?? 0;
+            totalExpenses += cargo;
+          }
+        }
+      }
+
+      const latestCartola = cartolas[0] as any;
+      const saldoActual: number = (latestCartola?.parsedData as any)?.saldoFinal ?? 0;
+      const savingsRate = totalIncome > 0 ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100) : 0;
+      const mesesCubiertos = totalExpenses > 0 ? saldoActual / totalExpenses : 0;
+      const eduPct = totalIncome > 0 ? Math.round((eduTotal / totalIncome) * 100) : 0;
+
+      const credit = await storage.getCreditScore(userId);
+      const txScore = await storage.getTransactionalScore(userId);
+
+      const result = evaluateGovernmentPrograms({
+        monthlyIncome: totalIncome,
+        monthlyExpenses: totalExpenses,
+        savingsRate,
+        saldoActual,
+        creditScore: credit?.score ?? null,
+        transactionalScore: txScore?.transactionalScore ?? null,
+        hasEducationExpenses: hasEduExpenses,
+        educationExpensesPct: eduPct,
+        hasMortgage: false,
+        age: null,
+        mesesCubiertos,
+      });
+
+      res.json({ hasData: true, ...result });
+    } catch (e) {
+      logger.error({ err: e }, "Failed to evaluate financial health");
+      res.status(500).json({ message: "Error al evaluar salud financiera." });
     }
   });
 
@@ -1618,6 +1873,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/score-history — line chart data for score evolution
+  app.get("/api/score-history", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+      const history = await storage.getScoreHistory(userId, 100);
+      res.json({ history });
+    } catch (e) {
+      logger.error({ err: e }, "Failed to get score history");
+      res.status(500).json({ message: "Error al obtener historial de scores." });
+    }
+  });
+
   app.get("/api/transactional-score", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
     try {
@@ -1629,6 +1898,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!data) {
         return res.json({ transactionalScore: null, mainInsights: [], metrics: undefined, recommendedProducts: [] });
       }
+      // Save to score history (fire-and-forget)
+      if (data.transactionalScore != null) {
+        storage.addScoreHistoryEntry(userId, data.transactionalScore, 100, JSON.stringify(data.metrics ?? {})).catch(() => {});
+      }
+
       res.json({
         transactionalScore: data.transactionalScore,
         mainInsights: data.mainInsights ?? [],
@@ -3330,13 +3604,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Build user profile from available data
       const creditScore = await storage.getCreditScore(userId);
       const transactionalScoreData = await storage.getTransactionalScore(userId);
+
+      // Extract income/expenses from cartola data for richer matching
+      let monthlyIncome: number | undefined;
+      let monthlyDebt: number | undefined;
+      try {
+        const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
+        if (cartolas.length > 0) {
+          let totalIncome = 0;
+          let totalExpenses = 0;
+          let months = new Set<string>();
+          for (const c of cartolas) {
+            const pd = c.parsedData as { transacciones?: any[] } | null;
+            for (const t of pd?.transacciones ?? []) {
+              const fecha = typeof t.fecha === "string" ? t.fecha.slice(0, 7) : "";
+              if (fecha) months.add(fecha);
+              if ("tipo" in t && typeof t.monto === "number") {
+                if (t.tipo === "abono") totalIncome += t.monto;
+                else totalExpenses += t.monto;
+              } else {
+                totalIncome += t.abono ?? 0;
+                totalExpenses += t.cargo ?? 0;
+              }
+            }
+          }
+          const numMonths = Math.max(1, months.size);
+          monthlyIncome = Math.round(totalIncome / numMonths);
+          monthlyDebt = Math.round(totalExpenses / numMonths);
+        }
+      } catch (e) {
+        logger.warn({ err: e }, "Could not extract cartola data for product matching");
+      }
+
       const userProfile = {
         userId,
         creditScore: creditScore?.score,
         transactionalScore: transactionalScoreData?.transactionalScore ?? undefined,
-        // TODO: Get income/debt from user profile table (future enhancement)
-        monthlyIncome: undefined,
-        monthlyDebt: undefined
+        monthlyIncome,
+        monthlyDebt,
       };
 
       // Get recommendations

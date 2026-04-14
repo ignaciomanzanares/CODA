@@ -17,9 +17,15 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import SeoHelmet from "@/components/SeoHelmet";
 import PWAUpdatePrompt from "@/components/PWAUpdatePrompt";
 import { useVisualViewportHeight } from "@/hooks/useVisualViewportHeight";
+import { useBrowserNotifications } from "@/hooks/useBrowserNotifications";
 
 function VisualViewportRootSync() {
   useVisualViewportHeight();
+  return null;
+}
+
+function BrowserNotificationsInit() {
+  useBrowserNotifications();
   return null;
 }
 
@@ -65,6 +71,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <CurrencyProvider>
       <VisualViewportRootSync />
+      <BrowserNotificationsInit />
       <SeoHelmet />
       <Suspense fallback={<PageLoader />}>
         <Switch>
