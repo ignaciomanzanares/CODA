@@ -30,6 +30,7 @@ export const {
   algorithmPredictionLogs,
   documentUploads,
   userScores,
+  creditScoreHistory,
   insertAccountSchema,
   insertBankConnectionSchema,
   insertExpenseSchema,

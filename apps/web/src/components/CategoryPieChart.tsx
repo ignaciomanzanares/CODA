@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { ROUTES } from "@/lib/routes";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -50,6 +52,7 @@ function CustomTooltip({ active, payload }: any) {
 
 export default function CategoryPieChart() {
   const { isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
 
   const { data, isLoading } = useQuery<InsightsData>({
     queryKey: ["/api/transactions/insights"],
@@ -84,15 +87,21 @@ export default function CategoryPieChart() {
 
   const chartData = cats.map(c => ({
     name: CATEGORY_LABELS[c.categoria] ?? c.categoria,
+    categoria: c.categoria,
     value: c.total,
     pct: c.pct,
   }));
+
+  const handleSliceClick = (_: unknown, idx: number) => {
+    const cat = chartData[idx]?.categoria;
+    if (cat) setLocation(`${ROUTES.movimientos}?categoria=${encodeURIComponent(cat)}`);
+  };
 
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Gastos por categoría</CardTitle>
-        <CardDescription>Distribución de egresos extraídos de tus cartolas</CardDescription>
+        <CardDescription>Distribución de egresos — haz clic en una categoría para ver detalle</CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={240}>
@@ -105,9 +114,11 @@ export default function CategoryPieChart() {
               outerRadius={96}
               paddingAngle={2}
               dataKey="value"
+              onClick={handleSliceClick}
+              className="cursor-pointer"
             >
               {chartData.map((_, idx) => (
-                <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                <Cell key={idx} fill={COLORS[idx % COLORS.length]} className="cursor-pointer" />
               ))}
             </Pie>
             <Tooltip content={<CustomTooltip />} />

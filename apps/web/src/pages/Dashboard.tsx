@@ -16,9 +16,12 @@ import DocumentUploadCard from "@/components/DocumentUploadCard";
 import TransactionalScoreCard from "@/components/TransactionalScoreCard";
 import CreditScoreCard from "@/components/CreditScoreCard";
 import FinancialGoalsCard from "@/components/FinancialGoalsCard";
+import FinancialHealthCard from "@/components/FinancialHealthCard";
 import DownloadReporteCodaButton from "@/components/DownloadReporteCodaButton";
 import CategoryPieChart from "@/components/CategoryPieChart";
 import SmartInsights from "@/components/SmartInsights";
+import MonthlyComparisonCard from "@/components/MonthlyComparisonCard";
+import ScoreHistoryChart from "@/components/ScoreHistoryChart";
 import { ReportDataProvider } from "@/contexts/ReportDataContext";
 
 // UI components
@@ -305,6 +308,9 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Monthly comparison — MoM category changes */}
+        {hasDocuments && <MonthlyComparisonCard />}
+
         {/* Financial Insight - Subtle Card */}
         {summary && !allZeros && (
           <Card className="border-l-4 border-l-blue-500 bg-blue-50/50 dark:bg-blue-950/20">
@@ -350,6 +356,12 @@ export default function Dashboard() {
           <TransactionalScoreCard />
           <CreditScoreCard />
         </div>
+
+        {/* Score evolution chart */}
+        {hasDocuments && <ScoreHistoryChart />}
+
+        {/* Financial Health & Government Programs */}
+        {hasDocuments && <FinancialHealthCard />}
 
         {/* Goals */}
         <FinancialGoalsCard />

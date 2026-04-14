@@ -199,7 +199,8 @@ function calculateMatchScore(
 
   // Transactional score component (SFA score)
   if (weights.transactionalScore > 0 && userProfile.transactionalScore !== undefined) {
-    const transactionalNormalized = (userProfile.transactionalScore / 1000) * 100;
+    // Transactional score is 0-100 scale
+    const transactionalNormalized = userProfile.transactionalScore;
     totalScore += transactionalNormalized * weights.transactionalScore;
     totalWeight += weights.transactionalScore;
   }

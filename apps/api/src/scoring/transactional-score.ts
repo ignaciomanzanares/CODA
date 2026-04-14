@@ -12,6 +12,8 @@ export interface TransactionalScoreResult {
     gastos_fijos_sobre_ingresos: number;
     dias_saldo_critico: number;
     tendencia_ahorro: number;
+    fondo_emergencia: number;
+    consistencia_gastos: number;
   };
   pesos: Record<string, number>;
   insights: string[];
@@ -59,6 +61,30 @@ function scoreTendencia(delta: number): number {
   return clamp((1 + delta) * 39, 0, 39);
 }
 
+/**
+ * Emergency fund coverage: balance / monthly expenses.
+ * ≥ 3 months → 100, 2-3 → 80, 1-2 → 55, 0.5-1 → 30, < 0.5 → 10
+ */
+function scoreFondoEmergencia(mesesCubiertos: number): number {
+  if (mesesCubiertos >= 3) return 100;
+  if (mesesCubiertos >= 2) return clamp(80 + ((mesesCubiertos - 2) / 1) * 19, 80, 99);
+  if (mesesCubiertos >= 1) return clamp(55 + ((mesesCubiertos - 1) / 1) * 24, 55, 79);
+  if (mesesCubiertos >= 0.5) return clamp(30 + ((mesesCubiertos - 0.5) / 0.5) * 24, 30, 54);
+  return clamp(mesesCubiertos * 60, 0, 29);
+}
+
+/**
+ * Spending consistency: coefficient of variation of daily spending amounts.
+ * Low CV → predictable, disciplined spending → higher score.
+ * CV < 0.5 → 100, 0.5-1.0 → 70, 1.0-1.5 → 40, > 1.5 → 15
+ */
+function scoreConsistenciaGastos(cv: number): number {
+  if (cv < 0.5) return 100;
+  if (cv <= 1.0) return clamp(70 + ((1.0 - cv) / 0.5) * 29, 70, 99);
+  if (cv <= 1.5) return clamp(40 + ((1.5 - cv) / 0.5) * 29, 40, 69);
+  return clamp((2 - Math.min(cv, 2)) * 39, 0, 39);
+}
+
 function meanStd(values: number[]): { mean: number; std: number } {
   if (values.length === 0) return { mean: 0, std: 0 };
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
@@ -93,12 +119,25 @@ export function calculateTransactionalScore(cartola: CartolaParseResult): Transa
   const saldoIni = Math.max(1, cartola.saldo_inicial);
   const delta = (cartola.saldo_final - cartola.saldo_inicial) / saldoIni;
 
+  // Emergency fund: balance / monthly expenses
+  const mesesCubiertos = totalCargos > 0 ? saldoPromedio / totalCargos : (saldoPromedio > 0 ? 6 : 0);
+
+  // Spending consistency: CV of daily cargo amounts
+  const dailyAmounts = cartola.transacciones
+    .filter((t) => t.tipo === "cargo")
+    .map((t) => t.monto);
+  const { std: stdGasto, mean: meanGasto } = meanStd(dailyAmounts);
+  const cvGastos = meanGasto > 0 ? stdGasto / meanGasto : 0;
+
+  // Weights redistributed across 7 factors (sum = 1.0)
   const w = {
-    liquidez: 0.25,
-    estabilidad_ingresos: 0.2,
-    gastos_fijos: 0.2,
-    dias_criticos: 0.2,
-    tendencia: 0.15,
+    liquidez: 0.20,
+    estabilidad_ingresos: 0.15,
+    gastos_fijos: 0.15,
+    dias_criticos: 0.15,
+    tendencia: 0.10,
+    fondo_emergencia: 0.15,
+    consistencia_gastos: 0.10,
   };
 
   const sLiq = scoreLiquidez(ratioLiquidez);
@@ -106,13 +145,17 @@ export function calculateTransactionalScore(cartola: CartolaParseResult): Transa
   const sGF = scoreGastosFijosRatio(ratioGF);
   const sDc = scoreDiasCriticos(diasCriticos);
   const sTen = scoreTendencia(delta);
+  const sFE = scoreFondoEmergencia(mesesCubiertos);
+  const sCG = scoreConsistenciaGastos(cvGastos);
 
   const score =
     sLiq * w.liquidez +
     sEst * w.estabilidad_ingresos +
     sGF * w.gastos_fijos +
     sDc * w.dias_criticos +
-    sTen * w.tendencia;
+    sTen * w.tendencia +
+    sFE * w.fondo_emergencia +
+    sCG * w.consistencia_gastos;
 
   const insights = buildInsights(cartola, {
     diasCriticos,
@@ -120,6 +163,8 @@ export function calculateTransactionalScore(cartola: CartolaParseResult): Transa
     gastoDiarioPromedio,
     saldoPromedio,
     ingresosTotales,
+    mesesCubiertos,
+    cvGastos,
   });
 
   return {
@@ -130,6 +175,8 @@ export function calculateTransactionalScore(cartola: CartolaParseResult): Transa
       gastos_fijos_sobre_ingresos: Math.round(sGF),
       dias_saldo_critico: Math.round(sDc),
       tendencia_ahorro: Math.round(sTen),
+      fondo_emergencia: Math.round(sFE),
+      consistencia_gastos: Math.round(sCG),
     },
     pesos: w,
     insights,
@@ -148,6 +195,8 @@ function buildInsights(
     gastoDiarioPromedio: number;
     saldoPromedio: number;
     ingresosTotales: number;
+    mesesCubiertos: number;
+    cvGastos: number;
   }
 ): string[] {
   const out: string[] = [];
@@ -158,22 +207,41 @@ function buildInsights(
     );
   }
 
+  // Emergency fund insight
+  if (ctx.mesesCubiertos < 1) {
+    out.push(
+      `Tu saldo promedio cubre menos de 1 mes de gastos. Intenta construir un colchón de al menos 3 meses para emergencias.`
+    );
+  } else if (ctx.mesesCubiertos >= 3) {
+    out.push(
+      `Tu fondo de emergencia cubre ${Math.round(ctx.mesesCubiertos * 10) / 10} meses de gastos — supera el mínimo recomendado de 3 meses.`
+    );
+  }
+
+  // Spending consistency insight
+  if (ctx.cvGastos > 1.5) {
+    out.push(
+      `Tus gastos son muy variables (dispersión alta). Establecer un presupuesto fijo por categoría puede ayudarte a controlar mejor.`
+    );
+  } else if (ctx.cvGastos < 0.5 && ctx.gastoDiarioPromedio > 0) {
+    out.push(
+      `Tus gastos son consistentes y predecibles, lo que facilita la planificación. ¡Sigue así!`
+    );
+  }
+
   const edu = cartola.transacciones.filter((t) => t.categoria === "educacion" && t.tipo === "cargo");
   const gastoEdu = edu.reduce((s, t) => s + t.monto, 0);
   if (gastoEdu > 0 && ctx.ingresosTotales > 0) {
     const pct = Math.round((gastoEdu / ctx.ingresosTotales) * 100);
     out.push(
-      `Los pagos relacionados con educación sumaron $${fmtMoney(gastoEdu)} (${pct}% respecto a tus abonos del período).`
+      `Los pagos de educación sumaron $${fmtMoney(gastoEdu)} (${pct}% de tus ingresos). Verifica si aplicas a beneficios como CAE, Gratuidad o becas JUNAEB.`
     );
   }
 
-  const principalIngresos = cartola.transacciones.filter(
-    (t) => t.tipo === "abono" && t.categoria === "ingreso_principal"
-  );
-  if (principalIngresos.length > 0) {
-    const last = principalIngresos.reduce((a, b) => (a.fecha > b.fecha ? a : b));
+  // Fixed expenses ratio
+  if (ctx.ratioGF > 0.5) {
     out.push(
-      `Tu principal ingreso registrado fue el ${last.fecha.toLocaleDateString("es-CL")}, lo que puede concentrar la liquidez hacia fin de mes.`
+      `Tus gastos fijos representan el ${Math.round(ctx.ratioGF * 100)}% de tus ingresos. Renegociar planes o consolidar deudas podría bajar esa carga.`
     );
   }
 
@@ -181,14 +249,14 @@ function buildInsights(
   const gastoAlim = alim.reduce((s, t) => s + t.monto, 0);
   if (gastoAlim > 0 && ctx.ingresosTotales > 0) {
     const pct = Math.round((gastoAlim / ctx.ingresosTotales) * 100);
-    out.push(`Tus gastos en alimentación fueron $${fmtMoney(gastoAlim)} (${pct}% de tus abonos del período).`);
+    out.push(`Tus gastos en alimentación fueron $${fmtMoney(gastoAlim)} (${pct}% de tus ingresos). Planificar comidas semanalmente puede reducir este gasto un 20-30%.`);
   }
 
   if (out.length === 0) {
     out.push(
-      `Saldo promedio del período: $${fmtMoney(Math.round(ctx.saldoPromedio))}; gasto diario promedio (cargos/día): $${fmtMoney(Math.round(ctx.gastoDiarioPromedio))}.`
+      `Saldo promedio del período: $${fmtMoney(Math.round(ctx.saldoPromedio))}; gasto diario promedio: $${fmtMoney(Math.round(ctx.gastoDiarioPromedio))}.`
     );
   }
 
-  return out.slice(0, 4);
+  return out.slice(0, 5);
 }

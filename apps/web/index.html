@@ -71,6 +71,10 @@
     </script>
   </head>
   <body>
+    <script>
+      // Prevent FOUC: apply dark mode before first paint
+      (function(){var t=localStorage.getItem("coda-theme");var d=t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches);if(d)document.documentElement.classList.add("dark")})();
+    </script>
     <div id="root">
       <div id="app-loader" style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0f172a;">
         <div style="text-align:center;">

@@ -100,15 +100,17 @@ interface ParsedTransactionsTableProps {
   title?: string;
   /** Subtítulo personalizado */
   subtitle?: string;
+  /** Pre-select a category filter (e.g. from pie chart drill-down) */
+  initialCategory?: string;
 }
 
-export default function ParsedTransactionsTable({ mode = "movimientos", title, subtitle }: ParsedTransactionsTableProps) {
+export default function ParsedTransactionsTable({ mode = "movimientos", title, subtitle, initialCategory }: ParsedTransactionsTableProps) {
   const { isAuthenticated } = useAuth();
   const isGastos = mode === "gastos";
 
   const [search, setSearch]         = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "ingreso" | "egreso">(isGastos ? "egreso" : "all");
-  const [catFilter, setCatFilter]   = useState<string>("all");
+  const [catFilter, setCatFilter]   = useState<string>(initialCategory ?? "all");
   const [bancoFilter, setBancoFilter] = useState<string>("all");
   const [dateFrom, setDateFrom]     = useState("");
   const [dateTo, setDateTo]         = useState("");
