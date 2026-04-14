@@ -216,14 +216,18 @@ export default function FinancialAssistant({
   // Floating chat button (when not embedded)
   if (!embedded && !isOpen) {
     return (
-      <Button
+      <button
         onClick={() => setIsOpen(true)}
-        className="fixed right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all z-50 fixed-safe-bottom"
+        className="fixed right-6 z-50 flex items-center gap-2.5 bg-gradient-to-r from-primary to-blue-600 text-primary-foreground rounded-full shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:scale-105 transition-all px-4 h-13 py-3"
         style={{ bottom: "max(1.5rem, var(--sab, 0px))" }}
-        size="icon"
+        aria-label="Abrir asistente financiero"
       >
-        <MessageCircle className="h-6 w-6" />
-      </Button>
+        <div className="relative">
+          <MessageCircle className="h-5 w-5" />
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-primary animate-pulse" />
+        </div>
+        <span className="text-sm font-semibold whitespace-nowrap">Asistente IA</span>
+      </button>
     );
   }
 
@@ -231,30 +235,33 @@ export default function FinancialAssistant({
   const chatContent = (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-primary/10 to-primary/5">
+      <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-primary to-blue-600 text-white rounded-t-xl">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary rounded-lg">
-            <Bot className="h-5 w-5 text-primary-foreground" />
+          <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm">
+            <Bot className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold">Asistente Financiero</h3>
-            <p className="text-xs text-muted-foreground">Con tecnología de IA</p>
+            <h3 className="font-semibold text-white">Asistente Financiero</h3>
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+              <p className="text-xs text-blue-100">Con tecnología de IA · En línea</p>
+            </div>
           </div>
         </div>
         {!embedded && (
           <div className="flex items-center gap-1">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8"
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/20"
               onClick={() => setIsMinimized(!isMinimized)}
             >
               {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
             </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8"
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-white/80 hover:text-white hover:bg-white/20"
               onClick={handleClose}
             >
               <X className="h-4 w-4" />
@@ -360,14 +367,20 @@ export default function FinancialAssistant({
                 </div>
               ))}
 
-              {/* Loading indicator */}
+              {/* Loading indicator — three dots */}
               {isLoading && (
                 <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
                     <Sparkles className="h-4 w-4 text-primary-foreground" />
                   </div>
-                  <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                  <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1">
+                    {[0, 1, 2].map(i => (
+                      <span
+                        key={i}
+                        className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"
+                        style={{ animationDelay: `${i * 150}ms`, animationDuration: "900ms" }}
+                      />
+                    ))}
                   </div>
                 </div>
               )}
@@ -397,28 +410,30 @@ export default function FinancialAssistant({
           )}
 
           {/* Input */}
-          <form onSubmit={handleSubmit} className="p-4 border-t">
-            <div className="flex gap-2">
+          <form onSubmit={handleSubmit} className="p-3 border-t bg-muted/30">
+            <div className="flex gap-2 items-center bg-background rounded-xl border px-3 py-1.5 focus-within:ring-2 focus-within:ring-primary/30 transition-all">
               <Input
                 ref={inputRef}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Pregúntame lo que quieras sobre tus finanzas..."
+                placeholder={isAuthenticated ? "Pregunta sobre tus finanzas…" : "Escribe tu pregunta…"}
                 disabled={isLoading}
-                className="flex-1"
+                className="flex-1 border-0 shadow-none focus-visible:ring-0 bg-transparent px-0 text-sm"
+                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSubmit(e as any)}
               />
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 size="icon"
                 disabled={!inputValue.trim() || isLoading}
+                className="h-8 w-8 shrink-0 rounded-lg"
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-3.5 w-3.5" />
               </Button>
             </div>
             {!isAuthenticated && (
               <p className="text-xs text-muted-foreground mt-2 text-center">
                 <Link href={ROUTES.iniciarSesion} className="text-primary hover:underline">Inicia sesión</Link>
-                {' '}para consejos personalizados
+                {' '}para consejos personalizados basados en tus datos
               </p>
             )}
           </form>

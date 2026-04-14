@@ -73,9 +73,9 @@ export default function Landing() {
             {/* Left: Copy */}
             <div className="space-y-8">
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 rounded-full px-4 py-1.5 text-sm font-medium">
+              <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 text-slate-300 rounded-full px-4 py-1.5 text-sm font-medium">
                 <span className="text-base">🇨🇱</span>
-                Inscripción CMF en trámite · Chile
+                Hecho en Chile · Open Finance
               </div>
 
               {/* Headline */}
@@ -107,7 +107,7 @@ export default function Landing() {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white h-12 text-base"
+                    className="border-white/25 bg-white/10 text-white hover:bg-white/20 hover:border-white/40 h-12 text-base backdrop-blur-sm"
                   >
                     {t("landing.learnMore")}
                   </Button>
@@ -238,6 +238,60 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── SCORE PREVIEW ────────────────────────────────────────────────── */}
+      <section className="py-16 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white overflow-hidden relative">
+        <div className="absolute inset-0 opacity-[0.06]"
+          style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "40px 40px" }} />
+        <div className="relative container mx-auto px-4">
+          <div className="grid lg:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
+            <div className="space-y-5">
+              <p className="text-blue-200 font-semibold text-sm uppercase tracking-widest">Score dual</p>
+              <h2 className="text-3xl md:text-4xl font-bold leading-tight">
+                Tu salud financiera, medida con dos lentes complementarios
+              </h2>
+              <p className="text-blue-100 leading-relaxed">
+                El <strong>score crediticio tradicional</strong> (0–850) basado en el historial CMF, y el <strong>score transaccional</strong> (0–100) basado en tus comportamientos reales de gasto y ahorro. Juntos dan el panorama completo.
+              </p>
+              <Link href={ROUTES.infoScoreCredito}>
+                <Button className="bg-white text-blue-700 hover:bg-blue-50 font-semibold gap-2 mt-2">
+                  Entender mi score <ChevronRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { label: "Score crediticio", value: "720", max: "850", color: "from-emerald-400 to-teal-400", tag: "Muy bueno", pct: 85 },
+                { label: "Score transaccional", value: "78", max: "100", color: "from-blue-300 to-indigo-300", tag: "Bueno", pct: 78 },
+              ].map(({ label, value, max, color, tag, pct }) => (
+                <div key={label} className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-5 text-center">
+                  <p className="text-xs text-blue-200 mb-3">{label}</p>
+                  <div className="relative w-20 h-20 mx-auto mb-3">
+                    <svg viewBox="0 0 80 80" className="w-20 h-20 -rotate-90">
+                      <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="7"/>
+                      <circle cx="40" cy="40" r="32" fill="none" stroke="url(#grad)" strokeWidth="7"
+                        strokeDasharray={`${2 * Math.PI * 32}`}
+                        strokeDashoffset={`${2 * Math.PI * 32 * (1 - pct / 100)}`}
+                        strokeLinecap="round"/>
+                      <defs>
+                        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="white" stopOpacity="0.9"/>
+                          <stop offset="100%" stopColor="white"/>
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-xl font-bold text-white">{value}</span>
+                      <span className="text-[9px] text-blue-200">/{max}</span>
+                    </div>
+                  </div>
+                  <span className={`inline-block text-xs font-semibold bg-gradient-to-r ${color} bg-clip-text text-transparent`}>{tag}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
       <section id="como-funciona" className="py-24 bg-slate-50">
         <div className="container mx-auto px-4">
@@ -317,6 +371,9 @@ export default function Landing() {
             <h2 className="text-4xl md:text-5xl font-bold mb-4">
               {t("landing.whyChooseTitle")}
             </h2>
+            <p className="text-slate-400 text-lg leading-relaxed">
+              Creamos CODA porque los chilenos merecen entender y optimizar sus finanzas con las mismas herramientas que usan los expertos.
+            </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-5 max-w-4xl mx-auto">
@@ -338,11 +395,18 @@ export default function Landing() {
             ))}
           </div>
 
-          {/* CMF trust note */}
-          <div className="mt-12 text-center">
-            <div className="inline-flex items-center gap-2 bg-slate-800/80 border border-slate-700/50 rounded-full px-5 py-2.5 text-sm text-slate-400">
-              <Shield className="h-4 w-4 text-blue-400" />
-              Chile Open-Data Analytics SpA · RUT 78.389.632-K · Inscripción CMF en trámite
+          {/* Team/mission note */}
+          <div className="mt-14 text-center max-w-xl mx-auto">
+            <p className="text-slate-500 text-sm leading-relaxed">
+              Desarrollado por un equipo de ingenieros, economistas y diseñadores chilenos apasionados por democratizar las finanzas personales en Latinoamérica.
+            </p>
+            <div className="flex items-center justify-center gap-6 mt-6">
+              {["Sin comisiones ocultas", "Sin venta de datos", "Privacidad garantizada"].map(t => (
+                <span key={t} className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                  {t}
+                </span>
+              ))}
             </div>
           </div>
         </div>
