@@ -610,7 +610,8 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return entry;
     } catch (err) {
-      logger.error({ err, userId }, "Failed to insert score history entry");
+      // Table may not exist yet in production — warn once, don't spam
+      logger.warn("Score history table not available yet (run db:push to create)");
       return undefined;
     }
   }
@@ -624,8 +625,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(creditScoreHistory.userId, String(userId)))
         .orderBy(desc(creditScoreHistory.calculatedAt))
         .limit(limit);
-    } catch (err) {
-      logger.error({ err, userId }, "Failed to get score history");
+    } catch {
       return [];
     }
   }

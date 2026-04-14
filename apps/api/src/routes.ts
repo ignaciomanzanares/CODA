@@ -164,6 +164,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Password reset token store: token -> { userId, expiresAt }
   const passwordResetTokens = new Map<string, { userId: string; expiresAt: number }>();
+  /** Prevents duplicate financial alert notifications (max 1 per user per day). */
+  const financialAlertsSent = new Set<string>();
 
   /** POST /api/auth/forgot-password — generates a reset link and emails it */
   app.post("/api/auth/forgot-password", authLimiter, async (req: Request, res: Response) => {
@@ -1739,11 +1741,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // ── Financial alert notifications (fire-and-forget) ──────────────
+      // ── Financial alert notifications (fire-and-forget, max 1/day/user) ─
       const alertKey = `alerts:${userId}:${new Date().toISOString().slice(0, 10)}`;
-      const alertsSentToday = (req as any).__alertsSent?.[alertKey];
-      if (!alertsSentToday && ingresos > 0) {
-        (req as any).__alertsSent = { ...(req as any).__alertsSent, [alertKey]: true };
+      if (!financialAlertsSent.has(alertKey) && ingresos > 0) {
+        financialAlertsSent.add(alertKey);
 
         // Alert: savings rate below 20%
         if (tasaAhorro < 20 && tasaAhorro >= 0) {
