@@ -34,17 +34,22 @@ class EmailService {
       });
       logger.info({ provider: 'gmail', user: gmailUser }, 'Email service initialized');
     } else if (process.env.NODE_ENV === 'production') {
-      // Production SMTP configuration (you'll need to set these environment variables)
-      this.transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      });
-      logger.info({ provider: 'smtp' }, 'Email service initialized');
+      // Production SMTP configuration — only create if actually configured
+      if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+        this.transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST,
+          port: parseInt(process.env.SMTP_PORT || '587'),
+          secure: process.env.SMTP_SECURE === 'true',
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        });
+        logger.info({ provider: 'smtp' }, 'Email service initialized');
+      } else {
+        logger.warn('No email credentials configured (GMAIL_USER/GMAIL_APP_PASSWORD or SMTP_HOST/SMTP_USER). Email features (2FA, password reset) will be disabled.');
+        this.transporter = null;
+      }
     } else {
       // Development: Use Ethereal Email for testing (fake emails)
       try {
