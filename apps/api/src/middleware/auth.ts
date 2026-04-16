@@ -795,35 +795,46 @@ export async function handleLoginWithDB(req: Request, res: Response) {
 
       // Check if 2FA is enabled
       if (isTwoFactorEnabledFlag(user.twoFactorEnabled)) {
-        // Generate and send OTP
-        const otpCode = generateOTP();
-        storeOTP(email, otpCode);
+        // Check if email service is actually configured before attempting 2FA
+        const hasEmailConfig = !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) ||
+          !!(process.env.SMTP_HOST && process.env.SMTP_USER);
 
-        const sent = await emailService.send2FACode(email, otpCode);
-        logAuthSecurityEvent('twofa_challenge', req, {
-          email: redactEmail(email),
-          emailSent: sent,
-        });
+        if (!hasEmailConfig) {
+          // No email service configured — skip 2FA and log in directly
+          logAuthSecurityEvent('twofa_email_failed', req, {
+            email: redactEmail(email),
+            reason: 'no_email_config',
+          });
+          logger.warn({ email: redactEmail(email) }, '2FA skipped: no email service configured. Set GMAIL_USER + GMAIL_APP_PASSWORD in environment.');
+        } else {
+          // Generate and send OTP
+          const otpCode = generateOTP();
+          storeOTP(email, otpCode);
 
-        if (!sent) {
-          if (process.env.NODE_ENV === 'production') {
-            otpStorage.delete(email);
-            logAuthSecurityEvent('twofa_email_failed', req, { email: redactEmail(email) });
-            return res.status(503).json({
-              error: 'Service Unavailable',
-              message: 'No se pudo enviar el código. Intenta más tarde o contacta soporte.',
+          const sent = await emailService.send2FACode(email, otpCode);
+          logAuthSecurityEvent('twofa_challenge', req, {
+            email: redactEmail(email),
+            emailSent: sent,
+          });
+
+          if (!sent) {
+            if (process.env.NODE_ENV === 'production') {
+              otpStorage.delete(email);
+              logAuthSecurityEvent('twofa_email_failed', req, { email: redactEmail(email) });
+              // Fall through to normal login instead of blocking the user
+              logger.warn({ email: redactEmail(email) }, '2FA email failed to send — proceeding without 2FA');
+            }
+            if (isDevelopment()) {
+              console.log(`[DEV] 2FA code for ${email}: ${otpCode}`);
+            }
+          } else {
+            return res.json({
+              success: true,
+              requires2FA: true,
+              message: 'Verification code sent to your email',
             });
           }
-          if (isDevelopment()) {
-            console.log(`[DEV] 2FA code for ${email}: ${otpCode}`);
-          }
         }
-
-        return res.json({
-          success: true,
-          requires2FA: true,
-          message: 'Verification code sent to your email',
-        });
       }
 
       const tokenPayload: TokenPayload = buildAuthTokenPayload(user);
