@@ -1463,6 +1463,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentBalance = pd?.saldo_final ?? pd?.saldoFinal ?? null;
       }
 
+      // Compute monthly averages using the last 3 months (more stable than all-time totals)
+      const recentMonths = sortedMonthlyData.slice(-3);
+      const avgMonthlyIncome = recentMonths.length > 0
+        ? Math.round(recentMonths.reduce((s, m) => s + m.income, 0) / recentMonths.length)
+        : Math.round(totalIncome / Math.max(1, sortedMonthlyData.length));
+      const avgMonthlyExpenses = recentMonths.length > 0
+        ? Math.round(recentMonths.reduce((s, m) => s + m.expenses, 0) / recentMonths.length)
+        : Math.round(totalExpenses / Math.max(1, sortedMonthlyData.length));
+
       res.json({
         summary: {
           totalIncome,
@@ -1471,6 +1480,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           currentBalance,
           transactionCount,
           documentCount: cartolas.length,
+          avgMonthlyIncome,
+          avgMonthlyExpenses,
         },
         categoryBreakdown,
         monthlyData: sortedMonthlyData,

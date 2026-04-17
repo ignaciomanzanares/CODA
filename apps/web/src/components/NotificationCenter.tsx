@@ -12,6 +12,8 @@ import { formatRelativeTime, truncateText } from '@/lib/utils';
 import type { Notification } from '@/types';
 import { useApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useLocation } from 'wouter';
+import { ROUTES } from '@/lib/routes';
 
 interface NotificationCenterProps {
   className?: string;
@@ -23,7 +25,8 @@ export default function NotificationCenter({ className }: NotificationCenterProp
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { 
+  const [, navigate] = useLocation();
+  const {
     getNotifications, 
     markNotificationAsRead, 
     markAllNotificationsAsRead, 
@@ -291,17 +294,19 @@ export default function NotificationCenter({ className }: NotificationCenterProp
     <div className={className}>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          <Button variant="ghost" size="sm" className="relative">
-            <Bell className="h-5 w-5" />
+          <div className="relative inline-flex">
+            <Button variant="ghost" size="sm">
+              <Bell className="h-5 w-5" />
+            </Button>
             {unreadCount > 0 && (
-              <Badge 
-                variant="destructive" 
-                className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
+              <Badge
+                variant="destructive"
+                className="absolute -top-1 -right-1 h-5 min-w-[1.25rem] px-1 flex items-center justify-center text-[10px] font-bold pointer-events-none"
               >
                 {unreadCount > 99 ? '99+' : unreadCount}
               </Badge>
             )}
-          </Button>
+          </div>
         </DialogTrigger>
         
         <DialogContent className="max-w-2xl w-[calc(100vw-1.5rem)] sm:w-full max-h-notification-panel flex flex-col gap-0 overflow-hidden rounded-t-2xl p-0 sm:rounded-lg">
@@ -331,7 +336,13 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                     </span>
                   </Button>
                 )}
-                <Button variant="ghost" size="sm" className="min-h-[44px] shrink-0" aria-label="Ajustes de notificaciones">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="min-h-[44px] shrink-0"
+                  aria-label="Ajustes de notificaciones"
+                  onClick={() => { setIsOpen(false); navigate(ROUTES.perfil); }}
+                >
                   <Settings className="h-4 w-4" />
                 </Button>
               </div>
@@ -454,7 +465,11 @@ export default function NotificationCenter({ className }: NotificationCenterProp
             <div className="text-center">
               <p className="text-sm text-gray-500">
                 Gestiona las preferencias de notificaciones en tu{' '}
-                <Button variant="link" className="p-0 h-auto text-blue-600">
+                <Button
+                  variant="link"
+                  className="p-0 h-auto text-blue-600"
+                  onClick={() => { setIsOpen(false); navigate(ROUTES.perfil); }}
+                >
                   configuración de perfil
                 </Button>
               </p>

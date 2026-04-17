@@ -304,18 +304,18 @@ export default function FinancialAssistant({
 
                   {/* Message Content */}
                   <div className={cn(
-                    "max-w-[80%] space-y-2",
+                    "max-w-[80%] space-y-2 min-w-0",
                     message.role === 'user' && "text-right"
                   )}>
                     <div className={cn(
-                      "rounded-2xl px-4 py-3 text-sm",
-                      message.role === 'assistant' 
-                        ? "bg-muted rounded-tl-sm" 
+                      "rounded-2xl px-4 py-3 text-sm break-words overflow-hidden",
+                      message.role === 'assistant'
+                        ? "bg-muted rounded-tl-sm"
                         : "bg-primary text-primary-foreground rounded-tr-sm"
                     )}>
-                      <div 
-                        className="prose prose-sm dark:prose-invert max-w-none"
-                        dangerouslySetInnerHTML={{ 
+                      <div
+                        className="prose prose-sm dark:prose-invert max-w-none [&_*]:break-words"
+                        dangerouslySetInnerHTML={{
                           __html: message.content
                             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                             .replace(/\n/g, '<br/>')
