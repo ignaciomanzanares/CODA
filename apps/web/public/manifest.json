@@ -2,7 +2,7 @@
   "name": "CODA",
   "short_name": "CODA",
   "description": "Tu asistente financiero inteligente: diagnóstico con datos reales, score crediticio dual y recomendaciones personalizadas de productos financieros. Gratuito.",
-  "start_url": "/panel",
+  "start_url": "/",
   "id": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
@@ -13,6 +13,20 @@
   "lang": "es-CL",
   "prefer_related_applications": false,
   "categories": ["finance", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Ver mi score",
+      "short_name": "Score",
+      "url": "/info/score-credito",
+      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Gastos del mes",
+      "short_name": "Gastos",
+      "url": "/gastos",
+      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96", "type": "image/png" }]
+    }
+  ],
   "icons": [
     { "src": "/icons/icon-72x72.png", "sizes": "72x72", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-96x96.png", "sizes": "96x96", "type": "image/png", "purpose": "any" },
@@ -25,5 +39,20 @@
     { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-512x512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
-  "screenshots": []
+  "screenshots": [
+    {
+      "src": "/screenshots/mobile-dashboard.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Panel financiero CODA en móvil"
+    },
+    {
+      "src": "/screenshots/desktop-dashboard.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Panel financiero CODA en escritorio"
+    }
+  ]
 }

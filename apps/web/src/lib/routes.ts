@@ -30,6 +30,10 @@ export const ROUTES = {
   privacidad: "/privacidad",
   /** Términos y condiciones de uso */
   terminos: "/terminos",
+  /** Metodología de scoring */
+  metodologia: "/metodologia",
+  /** CODA para instituciones financieras */
+  instituciones: "/instituciones",
 } as const;
 
 /** Enlace público para invitados (compartir un dividir cuenta). */
