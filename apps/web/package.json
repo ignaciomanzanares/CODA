@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite",
     "generate:icons": "node scripts/generate-icons.mjs",
-    "prebuild": "npm run generate:icons",
+    "generate:sitemap": "node scripts/generate-sitemap.mjs",
+    "prebuild": "npm run generate:icons && npm run generate:sitemap",
     "build": "npx vite build",
     "analyze": "ANALYZE=true vite build --mode production",
     "check": "tsc --noEmit",
