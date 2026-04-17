@@ -20,7 +20,6 @@ import FinancialHealthCard from "@/components/FinancialHealthCard";
 import DownloadReporteCodaButton from "@/components/DownloadReporteCodaButton";
 import CategoryPieChart from "@/components/CategoryPieChart";
 import SmartInsights from "@/components/SmartInsights";
-import MonthlyComparisonCard from "@/components/MonthlyComparisonCard";
 import ScoreHistoryChart from "@/components/ScoreHistoryChart";
 import { ReportDataProvider } from "@/contexts/ReportDataContext";
 
@@ -93,7 +92,7 @@ export default function Dashboard() {
 
   // Cartola-based summary (always fetched; used to fill gaps when fintoc summary is all zeros)
   const { data: cartolaSummary } = useQuery<{
-    summary: { totalIncome: number; totalExpenses: number; netBalance: number; currentBalance: number | null; transactionCount: number; documentCount: number };
+    summary: { totalIncome: number; totalExpenses: number; netBalance: number; currentBalance: number | null; transactionCount: number; documentCount: number; avgMonthlyIncome?: number; avgMonthlyExpenses?: number };
   }>({
     queryKey: ['/api/transactions/summary'],
     queryFn: async () => {
@@ -139,18 +138,22 @@ export default function Dashboard() {
   const hasCartolaData = cartolaSummary && cartolaSummary.summary.transactionCount > 0;
   const usingCartolaFallback = !hasFintocData && hasCartolaData;
 
-  const summary = hasFintocData ? rawSummary : (hasCartolaData ? {
-    totalBalance: cartolaSummary!.summary.currentBalance ?? 0,
-    totalAssets: cartolaSummary!.summary.currentBalance ?? 0,
-    totalLiabilities: 0,
-    netWorth: cartolaSummary!.summary.currentBalance ?? cartolaSummary!.summary.netBalance,
-    monthlyIncome: cartolaSummary!.summary.totalIncome,
-    monthlyExpenses: cartolaSummary!.summary.totalExpenses,
-    savingsRate: cartolaSummary!.summary.totalIncome > 0
-      ? Math.round(((cartolaSummary!.summary.totalIncome - cartolaSummary!.summary.totalExpenses) / cartolaSummary!.summary.totalIncome) * 100)
-      : 0,
-    accountCount: 0,
-  } : rawSummary);
+  const summary = hasFintocData ? rawSummary : (hasCartolaData ? (() => {
+    const monthlyIncome = cartolaSummary!.summary.avgMonthlyIncome ?? cartolaSummary!.summary.totalIncome;
+    const monthlyExpenses = cartolaSummary!.summary.avgMonthlyExpenses ?? cartolaSummary!.summary.totalExpenses;
+    return {
+      totalBalance: cartolaSummary!.summary.currentBalance ?? 0,
+      totalAssets: cartolaSummary!.summary.currentBalance ?? 0,
+      totalLiabilities: 0,
+      netWorth: cartolaSummary!.summary.currentBalance ?? cartolaSummary!.summary.netBalance,
+      monthlyIncome,
+      monthlyExpenses,
+      savingsRate: monthlyIncome > 0
+        ? Math.round(((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100)
+        : 0,
+      accountCount: 0,
+    };
+  })() : rawSummary);
 
   const nwTrend = financialData?.trends?.netWorth;
   let netWorthChange = 0;
@@ -307,9 +310,6 @@ export default function Dashboard() {
             <SmartInsights />
           </div>
         )}
-
-        {/* Monthly comparison — MoM category changes */}
-        {hasDocuments && <MonthlyComparisonCard />}
 
         {/* Financial Insight - Subtle Card */}
         {summary && !allZeros && (

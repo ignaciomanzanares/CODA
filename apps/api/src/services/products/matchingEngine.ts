@@ -212,8 +212,9 @@ function calculateMatchScore(
     totalWeight += weights.profileComplete;
   }
 
-  // Normalize to 0-100
-  return totalWeight > 0 ? totalScore / totalWeight : 0;
+  // Normalize to 0-100; return a base score of 50 when no criteria to evaluate
+  // (allows eligible products with unknown profile to still be ranked)
+  return totalWeight > 0 ? totalScore / totalWeight : 50;
 }
 
 /**
@@ -306,8 +307,14 @@ export function getTopRecommendations(
   // Get all matches
   const matches = matchProductsToUser(filteredProducts, userProfile);
 
-  // Filter to only eligible products with decent match scores
-  const eligibleMatches = matches.filter(m => m.isEligible && m.matchScore >= 30);
+  // When the user's profile is sparse (no credit or transactional score), the
+  // matchScore can be artificially low even for eligible products. In that case,
+  // show all eligible products so the user always sees recommendations.
+  const hasRichProfile =
+    userProfile.creditScore !== undefined || userProfile.transactionalScore !== undefined;
+  const scoreThreshold = hasRichProfile ? 30 : 0;
+
+  const eligibleMatches = matches.filter(m => m.isEligible && m.matchScore >= scoreThreshold);
 
   // Return top N
   return eligibleMatches.slice(0, limit);

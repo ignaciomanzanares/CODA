@@ -1,5 +1,5 @@
 /**
- * Contexto financiero para el asistente: solo datos del usuario (cuentas, gastos, metas, score).
+ * Contexto financiero para el asistente: cuentas, gastos, cartolas, metas, score.
  */
 import { storage } from "../storage.js";
 import type { FinancialContext } from "./aiService.js";
@@ -104,14 +104,96 @@ export async function buildFinancialContextForAssistant(userId: string): Promise
   const totalLiabilities = creditCardDebt + loansTotal;
   const netWorth = totalAssets - totalLiabilities;
 
+  // Enrich context with cartola data when fintoc data is absent or sparse
+  let finalIncome = monthlyIncome;
+  let finalExpenses = monthlyExpenses;
+  let finalBalance = totalBalance;
+  let finalNetWorth = netWorth;
+  let finalSpendingCategories = topSpendingCategories;
+
+  try {
+    const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
+    if (cartolas.length > 0) {
+      let cartolaIncome = 0;
+      let cartolaExpenses = 0;
+      const months = new Set<string>();
+      const catTotals: Record<string, number> = {};
+
+      for (const c of cartolas) {
+        const pd = c.parsedData as { transacciones?: any[]; saldoFinal?: number; saldo_final?: number } | null;
+        if (!pd) continue;
+
+        const saldoFinal = pd.saldoFinal ?? pd.saldo_final;
+        if (saldoFinal != null && saldoFinal > 0) finalBalance = Math.max(finalBalance, saldoFinal);
+
+        for (const t of pd.transacciones ?? []) {
+          const fecha = typeof t.fecha === "string" ? t.fecha.slice(0, 7) : "";
+          if (fecha) months.add(fecha);
+
+          let monto = 0;
+          let esAbono = false;
+          let cat = "otro";
+
+          if ("tipo" in t && typeof t.monto === "number") {
+            monto = t.monto;
+            esAbono = t.tipo === "abono";
+            cat = t.categoria ?? "otro";
+          } else {
+            const abono = t.abono ?? 0;
+            const cargo = t.cargo ?? 0;
+            if (abono > 0) { monto = abono; esAbono = true; }
+            else { monto = cargo; esAbono = false; }
+            cat = "otro";
+          }
+
+          if (monto <= 0) continue;
+
+          if (esAbono) {
+            cartolaIncome += monto;
+          } else {
+            cartolaExpenses += monto;
+            catTotals[cat] = (catTotals[cat] ?? 0) + monto;
+          }
+        }
+      }
+
+      const numMonths = Math.max(1, months.size);
+      const avgCartolaIncome = Math.round(cartolaIncome / numMonths);
+      const avgCartolaExpenses = Math.round(cartolaExpenses / numMonths);
+
+      // Use cartola data when fintoc data is absent/sparse
+      if (avgCartolaIncome > finalIncome) finalIncome = avgCartolaIncome;
+      if (avgCartolaExpenses > finalExpenses) finalExpenses = avgCartolaExpenses;
+
+      // Replace spending categories with cartola-based ones if fintoc has none
+      if (finalSpendingCategories.length === 0 && Object.keys(catTotals).length > 0) {
+        finalSpendingCategories = Object.entries(catTotals)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([name, total]) => ({ name, amount: Math.round(total / numMonths) }));
+      }
+
+      // Estimate net worth from cartola when no fintoc accounts
+      if (userAccounts.length === 0 && finalBalance > 0) {
+        finalNetWorth = finalBalance;
+      }
+    }
+  } catch (_e) {
+    // Non-critical: continue without cartola enrichment
+  }
+
+  const finalSavingsRate = finalIncome > 0
+    ? Math.round(((finalIncome - finalExpenses) / finalIncome) * 100)
+    : savingsRate;
+
   return {
-    totalBalance: Math.round(totalBalance),
-    monthlyIncome: Math.round(monthlyIncome),
-    monthlyExpenses: Math.round(monthlyExpenses),
-    savingsRate,
-    netWorth: Math.round(netWorth),
+    totalBalance: Math.round(finalBalance),
+    monthlyIncome: Math.round(finalIncome),
+    monthlyExpenses: Math.round(finalExpenses),
+    savingsRate: finalSavingsRate,
+    netWorth: Math.round(finalNetWorth),
     creditScore: creditScoreData?.score ?? undefined,
-    topSpendingCategories,
+    topSpendingCategories: finalSpendingCategories,
     financialGoals: goals.slice(0, 5).map((g: { name?: string; currentAmount?: number; targetAmount?: number }) => ({
       name: g?.name ?? "Meta",
       progress: Math.round(((g?.currentAmount ?? 0) / (g?.targetAmount || 1)) * 100),
