@@ -4,67 +4,92 @@ import { ROUTES } from "@/lib/routes";
 
 export default function Footer() {
   return (
-    <footer className="bg-neutral-900 py-12 safe-x">
+    <footer className="bg-neutral-900 py-8 safe-x">
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
-          {/* Brand */}
-          <div className="col-span-2 md:col-span-1">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div>
             <div className="flex items-center mb-4">
               <Wallet className="text-white mr-2" />
               <h3 className="text-white font-bold text-lg font-sans">CODA</h3>
             </div>
-            <p className="text-gray-400 text-sm leading-relaxed">
-              Diagnóstico financiero automatizado, score crediticio dual y recomendaciones personalizadas.
+            <p className="text-gray-300 text-sm">
+              Tu asistente financiero inteligente. Diagnóstico, scoring,
+              plan de mejora y marketplace de productos financieros.
             </p>
           </div>
 
-          {/* Producto */}
           <div>
-            <h4 className="text-white font-medium mb-4 text-sm">Producto</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href={ROUTES.infoScoreCredito} className="text-gray-400 hover:text-white transition-colors">Score crediticio</Link></li>
-              <li><Link href={ROUTES.infoComparacionProductos} className="text-gray-400 hover:text-white transition-colors">Comparar productos</Link></li>
-              <li><Link href={ROUTES.infoMetasFinancieras} className="text-gray-400 hover:text-white transition-colors">Metas financieras</Link></li>
-              <li><Link href={ROUTES.infoRiesgoSeguros} className="text-gray-400 hover:text-white transition-colors">Riesgo y seguros</Link></li>
-            </ul>
-          </div>
-
-          {/* Empresa */}
-          <div>
-            <h4 className="text-white font-medium mb-4 text-sm">Empresa</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href={ROUTES.acerca} className="text-gray-400 hover:text-white transition-colors">Nosotros</Link></li>
-              <li><Link href="/instituciones" className="text-gray-400 hover:text-white transition-colors">Para instituciones</Link></li>
-              <li><Link href="/metodologia" className="text-gray-400 hover:text-white transition-colors">Metodología</Link></li>
-            </ul>
-          </div>
-
-          {/* Legal */}
-          <div>
-            <h4 className="text-white font-medium mb-4 text-sm">Legal</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href={ROUTES.privacidad} className="text-gray-400 hover:text-white transition-colors">Privacidad</Link></li>
-              <li><Link href={ROUTES.terminos} className="text-gray-400 hover:text-white transition-colors">Términos</Link></li>
-              <li><Link href="/metodologia" className="text-gray-400 hover:text-white transition-colors">Metodología</Link></li>
-            </ul>
-          </div>
-
-          {/* Contacto */}
-          <div>
-            <h4 className="text-white font-medium mb-4 text-sm">Contacto</h4>
+            <h4 className="text-white font-medium mb-4">Funcionalidades</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <a href="mailto:info@codafinance.cl" className="text-gray-400 hover:text-white transition-colors">
-                  info@codafinance.cl
-                </a>
+                <Link href={ROUTES.infoScoreCredito} className="text-gray-300 hover:text-white">
+                  Score crediticio
+                </Link>
+              </li>
+              <li>
+                <Link href={ROUTES.productos} className="text-gray-300 hover:text-white">
+                  Productos
+                </Link>
+              </li>
+              <li>
+                <Link href={ROUTES.infoComparacionProductos} className="text-gray-300 hover:text-white">
+                  Comparación de productos
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-white font-medium mb-4">Compañía</h4>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link href="/" className="text-gray-300 hover:text-white">
+                  Inicio
+                </Link>
+              </li>
+              <li>
+                <Link href={ROUTES.acerca} className="text-gray-300 hover:text-white">
+                  Nosotros
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-white font-medium mb-4">Legal</h4>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link href={ROUTES.privacidad} className="text-gray-300 hover:text-white">
+                  Privacidad
+                </Link>
+              </li>
+              <li>
+                <Link href={ROUTES.terminos} className="text-gray-300 hover:text-white">
+                  Términos y Condiciones
+                </Link>
               </li>
             </ul>
           </div>
         </div>
 
-        {/* Separator + legal block */}
-        <div className="mt-10 pt-6 border-t border-gray-700">
-          {/* Identification */}
+        {/* Separador + bloque legal completo */}
+        <div className="mt-8 pt-6 border-t border-gray-700">
+          {/* Fila 1: Links */}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400 mb-4">
+            <Link href="/" className="hover:text-white">Inicio</Link>
+            <span className="text-gray-600">&middot;</span>
+            <Link href={ROUTES.acerca} className="hover:text-white">Nosotros</Link>
+            <span className="text-gray-600">&middot;</span>
+            <Link href={ROUTES.infoScoreCredito} className="hover:text-white">Score crediticio</Link>
+            <span className="text-gray-600">&middot;</span>
+            <Link href={ROUTES.productos} className="hover:text-white">Productos</Link>
+            <span className="text-gray-600">&middot;</span>
+            <Link href={ROUTES.privacidad} className="hover:text-white">Privacidad</Link>
+            <span className="text-gray-600">&middot;</span>
+            <Link href={ROUTES.terminos} className="hover:text-white">Términos</Link>
+          </div>
+
+          {/* Fila 2: Identificación */}
           <p className="text-gray-400 text-xs mb-1">
             <strong className="text-gray-300">Chile Open-Data Analytics SpA</strong> &middot; RUT 78.389.632-K
           </p>
@@ -72,7 +97,7 @@ export default function Footer() {
             Inscripción como prestador Fintec ante la CMF en trámite.
           </p>
 
-          {/* Regulatory disclaimers */}
+          {/* Fila 3: Disclaimers regulatorios */}
           <div className="text-gray-500 text-[11px] leading-relaxed space-y-2 mb-4">
             <p>
               CODA no capta recursos del público, no custodia fondos, no asume riesgo crediticio
@@ -82,9 +107,9 @@ export default function Footer() {
             </p>
           </div>
 
-          {/* Copyright */}
+          {/* Fila 4: Copyright + contacto */}
           <div className="pt-4 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
-            <span>&copy; {new Date().getFullYear()} Chile Open-Data Analytics SpA — CODA es una marca de WeGroup Holding.</span>
+            <span>&copy; {new Date().getFullYear()} CODA. Todos los derechos reservados.</span>
             <a href="mailto:info@codafinance.cl" className="hover:text-white mt-2 md:mt-0">
               info@codafinance.cl
             </a>
