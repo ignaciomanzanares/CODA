@@ -52,6 +52,16 @@ export default function Footer() {
                   Nosotros
                 </Link>
               </li>
+              <li>
+                <Link href={ROUTES.instituciones} className="text-gray-300 hover:text-white">
+                  Instituciones
+                </Link>
+              </li>
+              <li>
+                <Link href={ROUTES.metodologia} className="text-gray-300 hover:text-white">
+                  Metodología
+                </Link>
+              </li>
             </ul>
           </div>
 

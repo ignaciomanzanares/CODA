@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Receipt, Trash, AlertTriangle } from "lucide-react";
+import { PastelIcon } from "@/components/ui/pastel-icon";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -153,12 +154,10 @@ export default function Expenses() {
         {/* Header */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-primary/10">
-              <Receipt className="h-6 w-6 text-primary" />
-            </div>
+            <PastelIcon icon={Receipt} color="pink" />
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Gastos</h1>
-              <p className="text-muted-foreground">Gastos identificados desde tus cartolas bancarias</p>
+              <p className="text-sm text-muted-foreground">Gastos identificados desde tus cartolas bancarias</p>
             </div>
           </div>
 

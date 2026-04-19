@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Link2, Shield, Calendar, RefreshCw, Loader2 } from "lucide-react";
+import { PastelIcon } from "@/components/ui/pastel-icon";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -123,13 +124,15 @@ export default function ConsentConnections() {
     <div className="container max-w-4xl py-8">
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Link2 className="h-8 w-8" />
-            Mis Conexiones Bancarias
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Panel de control de consentimientos. Aquí ves con qué instituciones compartes datos y puedes revocar el acceso.
-          </p>
+          <div className="flex items-center gap-3">
+            <PastelIcon icon={Link2} color="indigo" />
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Mis conexiones bancarias</h1>
+              <p className="text-sm text-muted-foreground">
+                Panel de control de consentimientos. Aquí ves con qué instituciones compartes datos y puedes revocar el acceso.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-4">

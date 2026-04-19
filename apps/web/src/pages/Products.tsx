@@ -9,15 +9,17 @@ import SignInBanner from "@/components/SignInBanner";
 import type { FinancialProduct } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Wallet, 
-  CreditCard, 
-  PiggyBank, 
+import {
+  Wallet,
+  CreditCard,
+  PiggyBank,
   Shield,
   Sparkles,
   TrendingUp,
   Percent
 } from "lucide-react";
+import { PastelIcon } from "@/components/ui/pastel-icon";
+import { FloatingChip } from "@/components/ui/floating-chip";
 import { useSearch } from "wouter";
 
 // Define a type for your filters
@@ -196,21 +198,17 @@ export default function Products() {
         
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/10">
-                <Wallet className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold">Productos financieros</h1>
-                <p className="text-muted-foreground">Recomendaciones personalizadas según tu perfil</p>
-              </div>
+          <div className="flex items-center gap-3">
+            <PastelIcon icon={Wallet} color="orange" />
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Productos financieros</h1>
+              <p className="text-sm text-muted-foreground">Recomendaciones personalizadas según tu perfil</p>
             </div>
           </div>
-          <Badge variant="secondary" className="gap-2 px-4 py-2 text-sm">
-            <Sparkles className="h-4 w-4" />
+          <FloatingChip className="bg-violet-600 dark:bg-violet-500">
+            <Sparkles className="h-3.5 w-3.5" />
             Coincidencia con IA
-          </Badge>
+          </FloatingChip>
         </div>
 
         {/* Quick Stats */}
