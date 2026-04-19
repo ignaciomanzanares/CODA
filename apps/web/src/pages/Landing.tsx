@@ -25,7 +25,14 @@ import {
   ChevronRight,
   Zap,
   FileText,
+  HelpCircle,
 } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { ROUTES } from "@/lib/routes";
 import { Analytics } from "@/lib/analytics";
 import { useTranslation } from "react-i18next";
@@ -408,6 +415,64 @@ export default function Landing() {
                 </span>
               ))}
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ ──────────────────────────────────────────────────────────── */}
+      <section className="py-24 bg-slate-50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-14 max-w-2xl mx-auto">
+            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
+              <HelpCircle className="h-6 w-6" />
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+              Preguntas frecuentes
+            </h2>
+          </div>
+
+          <div className="max-w-2xl mx-auto">
+            <Accordion type="single" collapsible className="space-y-2">
+              {[
+                {
+                  q: "¿CODA es gratis de verdad?",
+                  a: "Sí, para personas naturales en Chile es 100% gratuito y sin tarjeta de crédito. Para instituciones financieras ofrecemos planes B2B.",
+                },
+                {
+                  q: "¿Qué hacen con mis datos?",
+                  a: "Tus datos viven encriptados en nuestra infraestructura. Nunca los vendemos ni compartimos sin tu consentimiento explícito, en cumplimiento con la Ley 19.628 y la Ley Fintec 21.521.",
+                },
+                {
+                  q: "¿Necesito dar mi RUT para probar CODA?",
+                  a: "No. Puedes registrarte solo con correo electrónico. El RUT se solicita cuando calculamos tu score crediticio real con datos CMF.",
+                },
+                {
+                  q: "¿Cómo obtengo mi cartola bancaria para subirla?",
+                  a: "La descargas desde tu banco en formato PDF. CODA soporta los principales bancos chilenos (Santander, BCI, Banco de Chile, Estado, Itaú, Scotiabank, Security, BICE) y añadimos nuevos formatos regularmente.",
+                },
+                {
+                  q: "¿Están regulados por la CMF?",
+                  a: "CODA opera bajo el marco de la Ley 21.521 (Ley Fintec). Nuestra inscripción en el Registro de Prestadores de Servicios Financieros (RPSF) está en trámite ante la CMF.",
+                },
+                {
+                  q: "¿Puedo borrar mi cuenta y mis datos?",
+                  a: "Sí. Desde Configuración puedes eliminar tu cuenta en cualquier momento. Cumplimos con el derecho al olvido bajo la Ley 19.628.",
+                },
+              ].map(({ q, a }, i) => (
+                <AccordionItem
+                  key={i}
+                  value={`faq-${i}`}
+                  className="bg-white rounded-xl border border-gray-100 px-6 data-[state=open]:shadow-sm transition-shadow"
+                >
+                  <AccordionTrigger className="text-left text-gray-900 font-semibold text-sm md:text-base hover:no-underline">
+                    {q}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-gray-500 leading-relaxed">
+                    {a}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
           </div>
         </div>
       </section>
