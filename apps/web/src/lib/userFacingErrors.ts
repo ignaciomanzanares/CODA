@@ -6,22 +6,43 @@ export const USER_FACING_CONNECTION_ERROR =
 export const AUTH_CONNECTION_ERROR = "Problema de conexión. Verifica tu internet.";
 
 /**
- * Errores de login/2FA: mensajes amigables, sin depender del texto exacto del backend.
+ * Errores de login/2FA: mensajes amigables.
+ * Usa ApiError.status cuando está disponible para clasificación precisa.
  */
 export function mapLoginAuthError(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
-  const lower = raw.toLowerCase();
 
+  // Log para diagnóstico (visible en DevTools de preview y desarrollo)
+  console.error("[login] error capturado:", err);
+
+  // Status-based classification (ApiError from apiFetch)
+  const status = (err as { status?: number })?.status;
+  if (typeof status === "number") {
+    if (status === 0) {
+      // Network/timeout — apiFetch ya puso un mensaje descriptivo
+      if (raw.includes("tardó demasiado")) {
+        return "El servidor está iniciando. Intenta de nuevo en 30 segundos.";
+      }
+      return "No podemos conectar con el servidor. Revisa tu conexión.";
+    }
+    if (status === 429) {
+      return "Demasiados intentos. Espera un momento.";
+    }
+    if (status >= 500) {
+      return "El servidor está iniciando. Intenta de nuevo en 30 segundos.";
+    }
+  }
+
+  // Message-based classification (for backward compat with plain Error)
   if (
     raw.includes("NetworkError") ||
     raw.includes("Failed to fetch") ||
-    lower.includes("fetch failed") ||
-    lower.includes("load failed") ||
+    raw.toLowerCase().includes("fetch failed") ||
+    raw.toLowerCase().includes("load failed") ||
     raw.includes(AUTH_CONNECTION_ERROR) ||
-    raw.includes("Problema de conexión. Intenta de nuevo.") ||
-    raw.includes("No se pudo conectar con el servidor")
+    raw.includes("No podemos conectar con el servidor")
   ) {
-    return "Problema de conexión. Intenta de nuevo.";
+    return "No podemos conectar con el servidor. Revisa tu conexión.";
   }
 
   if (raw.includes("[migration_recovery]")) {
@@ -29,7 +50,7 @@ export function mapLoginAuthError(err: unknown): string {
   }
 
   if (raw.includes("La contraseña no es correcta")) {
-    return "La contraseña no es correcta.";
+    return "Correo o contraseña incorrectos.";
   }
 
   if (
@@ -40,12 +61,16 @@ export function mapLoginAuthError(err: unknown): string {
     return "No encontramos una cuenta con ese correo.";
   }
 
+  if (raw.includes("Revisa tu correo y contraseña") || (status === 401)) {
+    return "Correo o contraseña incorrectos.";
+  }
+
   if (raw.includes("Esta cuenta usa otro método") || raw.includes("no_password")) {
     return "Esta cuenta usa otro método de acceso.";
   }
 
   if (raw.includes("No se pudo enviar el código")) {
-    return "Problema de conexión. Intenta de nuevo.";
+    return "Problema al enviar el código. Intenta de nuevo.";
   }
 
   if (raw.includes("Invalid response") || raw === "Unauthorized") {
@@ -69,7 +94,7 @@ export function mapLoginAuthError(err: unknown): string {
     return "No encontramos una cuenta con ese correo.";
   }
   if (raw.includes("Verification failed")) {
-    return "Problema de conexión. Intenta de nuevo.";
+    return "Error de verificación. Intenta de nuevo.";
   }
 
   return "No pudimos iniciar sesión. Intenta de nuevo.";
