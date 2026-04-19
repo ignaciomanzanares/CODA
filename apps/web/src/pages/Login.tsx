@@ -102,6 +102,7 @@ export default function Login() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [showSlowHint, setShowSlowHint] = useState(false);
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,12 +130,16 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     setError("");
+    setShowSlowHint(false);
+    const slowTimer = setTimeout(() => setShowSlowHint(true), 3000);
     try {
       const result = await doLogin(authContext, email, password);
       if (result?.requires2FA) {
         setRequires2FA(true);
         toast({ title: "Verificación requerida", description: "Se ha enviado un código a tu correo." });
         setIsLoading(false);
+        clearTimeout(slowTimer);
+        setShowSlowHint(false);
         return;
       }
       toast({ title: "Sesión iniciada", description: "¡Bienvenido de nuevo!" });
@@ -149,6 +154,8 @@ export default function Login() {
     } catch (err) {
       setError(mapLoginAuthError(err));
     } finally {
+      clearTimeout(slowTimer);
+      setShowSlowHint(false);
       setIsLoading(false);
     }
   };
@@ -234,6 +241,13 @@ export default function Login() {
           {error && (
             <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
               {error}
+            </div>
+          )}
+
+          {showSlowHint && !error && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-600 flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+              Iniciando el servidor, esto toma unos segundos la primera vez…
             </div>
           )}
 

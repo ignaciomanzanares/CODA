@@ -1,9 +1,17 @@
 /**
  * Cliente fetch para rutas /api (login, registro, etc.) sin sesión.
- * En error HTTP, lanza Error con el mensaje legible del backend (campo `message` o `error` en JSON).
+ * En error HTTP, lanza ApiError con status + mensaje legible del backend.
  */
 
-import { AUTH_CONNECTION_ERROR } from "@/lib/userFacingErrors";
+/** Error con metadata HTTP para que los callers puedan diferenciar por status. */
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
 
 function messageFromErrorBody(text: string, status: number): string {
   const trimmed = text?.trim() ?? "";
@@ -41,6 +49,9 @@ function messageFromErrorBody(text: string, status: number): string {
   return trimmed ? trimmed.slice(0, 300) : `Error ${status}`;
 }
 
+/** Default timeout for API requests (45s to survive Render cold starts). */
+const DEFAULT_TIMEOUT_MS = 45_000;
+
 export async function apiFetch(input: RequestInfo, init?: RequestInit) {
   const apiBase =
     (typeof import.meta !== "undefined" &&
@@ -56,19 +67,42 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
     }
   }
 
+  // Timeout via AbortController (skip if caller already provides a signal)
+  let controller: AbortController | undefined;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const fetchInit = { ...init };
+  if (!fetchInit.signal) {
+    controller = new AbortController();
+    fetchInit.signal = controller.signal;
+    timeoutId = setTimeout(() => controller!.abort(), DEFAULT_TIMEOUT_MS);
+  }
+
   let res: Response;
   try {
-    res = await fetch(url as RequestInfo, init);
+    res = await fetch(url as RequestInfo, fetchInit);
   } catch (e) {
-    if (e instanceof TypeError) {
-      throw new Error(AUTH_CONNECTION_ERROR);
+    if (controller?.signal.aborted) {
+      throw new ApiError(
+        "El servidor tardó demasiado en responder. Puede estar iniciándose — intenta de nuevo en 30 segundos.",
+        0,
+      );
     }
-    throw e;
+    // Network-level failure (CORS, DNS, offline)
+    const detail = e instanceof Error ? e.message : "";
+    console.error("[apiFetch] network error:", detail, "url:", url);
+    throw new ApiError(
+      `No podemos conectar con el servidor. Revisa tu conexión. (${detail})`,
+      0,
+    );
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 
   const text = await res.text().catch(() => "");
   if (!res.ok) {
-    throw new Error(messageFromErrorBody(text, res.status));
+    const msg = messageFromErrorBody(text, res.status);
+    console.error(`[apiFetch] HTTP ${res.status}:`, msg, "url:", url);
+    throw new ApiError(msg, res.status);
   }
   const trimmed = text.trim();
   // Sin VITE_API_URL, /api/* en el dominio del front suele devolver index.html (200) → no es la API real.
