@@ -69,6 +69,7 @@ import {
   ChevronRight,
   DollarSign
 } from "lucide-react";
+import { PastelIcon } from "@/components/ui/pastel-icon";
 import { useAuth } from "@/lib/auth";
 import SignInBanner from "@/components/SignInBanner";
 import type { Goal, UpdateGoalData } from "@/types";
@@ -469,12 +470,10 @@ export default function Goals() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/10">
-                <Target className="h-6 w-6 text-primary" />
-              </div>
+              <PastelIcon icon={Target} color="green" />
               <div>
-                <h1 className="text-3xl font-bold">Metas financieras</h1>
-                <p className="text-muted-foreground">Sigue tu avance hacia la libertad financiera</p>
+                <h1 className="text-2xl font-bold tracking-tight">Metas financieras</h1>
+                <p className="text-sm text-muted-foreground">Sigue tu avance hacia la libertad financiera</p>
               </div>
             </div>
           </div>
@@ -597,9 +596,7 @@ export default function Goals() {
                   <p className="text-2xl font-bold mt-1">{formatCurrency(totalCurrent)}</p>
                   <p className="text-xs text-muted-foreground mt-1">de {formatCurrency(totalTarget)} objetivo</p>
                 </div>
-                <div className="p-3 rounded-xl bg-green-500">
-                  <DollarSign className="h-6 w-6 text-white" />
-                </div>
+                <PastelIcon icon={DollarSign} color="green" />
               </div>
             </CardContent>
           </Card>
@@ -611,9 +608,7 @@ export default function Goals() {
                   <p className="text-2xl font-bold mt-1">{overallProgress}%</p>
                   <Progress value={overallProgress} className="h-2 mt-2 w-24" />
                 </div>
-                <div className="p-3 rounded-xl bg-blue-500">
-                  <TrendingUp className="h-6 w-6 text-white" />
-                </div>
+                <PastelIcon icon={TrendingUp} color="blue" />
               </div>
             </CardContent>
           </Card>
@@ -625,9 +620,7 @@ export default function Goals() {
                   <p className="text-2xl font-bold mt-1">{activeGoals}</p>
                   <p className="text-xs text-muted-foreground mt-1">En progreso</p>
                 </div>
-                <div className="p-3 rounded-xl bg-purple-500">
-                  <Target className="h-6 w-6 text-white" />
-                </div>
+                <PastelIcon icon={Target} color="purple" />
               </div>
             </CardContent>
           </Card>
@@ -639,9 +632,7 @@ export default function Goals() {
                   <p className="text-2xl font-bold mt-1">{completedGoals}</p>
                   <p className="text-xs text-muted-foreground mt-1">Metas alcanzadas</p>
                 </div>
-                <div className="p-3 rounded-xl bg-orange-500">
-                  <CheckCircle className="h-6 w-6 text-white" />
-                </div>
+                <PastelIcon icon={CheckCircle} color="orange" />
               </div>
             </CardContent>
           </Card>

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "wouter";
 import { Receipt, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { PastelIcon } from "@/components/ui/pastel-icon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
@@ -37,25 +38,25 @@ function SummaryCard({
   icon: Icon,
   colorClass,
   subtitle,
+  pastelColor = "blue",
 }: {
   title: string;
   amount: string;
   icon: React.ElementType;
   colorClass: string;
   subtitle?: string;
+  pastelColor?: "blue" | "green" | "red" | "purple" | "orange" | "slate";
 }) {
   return (
-    <Card>
-      <CardContent className="p-6">
+    <Card className="hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 transition-all">
+      <CardContent className="p-5">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
             <p className={`text-2xl font-bold mt-1 ${colorClass}`}>{amount}</p>
             {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
           </div>
-          <div className={`p-3 rounded-full ${colorClass.replace('text-', 'bg-').replace('600', '100').replace('700', '100')}`}>
-            <Icon className={`h-5 w-5 ${colorClass}`} />
-          </div>
+          <PastelIcon icon={Icon} color={pastelColor} size="sm" />
         </div>
       </CardContent>
     </Card>
@@ -171,12 +172,10 @@ export default function Movimientos() {
       <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-primary/10">
-            <Receipt className="h-6 w-6 text-primary" />
-          </div>
+          <PastelIcon icon={Receipt} color="blue" />
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Movimientos</h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Todos los movimientos de tus cartolas bancarias
             </p>
           </div>
@@ -195,27 +194,31 @@ export default function Movimientos() {
               title="Ingresos Totales"
               amount={formatCLP(summary.summary.totalIncome)}
               icon={TrendingUp}
-              colorClass="text-emerald-600"
+              colorClass="text-emerald-600 dark:text-emerald-400"
+              pastelColor="green"
               subtitle={`${summary.summary.transactionCount} transacciones`}
             />
             <SummaryCard
               title="Egresos Totales"
               amount={formatCLP(summary.summary.totalExpenses)}
               icon={TrendingDown}
-              colorClass="text-red-600"
+              colorClass="text-red-600 dark:text-red-400"
+              pastelColor="red"
             />
             <SummaryCard
               title="Balance Neto"
               amount={formatCLP(summary.summary.netBalance)}
               icon={Wallet}
-              colorClass={summary.summary.netBalance >= 0 ? "text-blue-600" : "text-orange-600"}
+              colorClass={summary.summary.netBalance >= 0 ? "text-blue-600 dark:text-blue-400" : "text-orange-600 dark:text-orange-400"}
+              pastelColor={summary.summary.netBalance >= 0 ? "blue" : "orange"}
               subtitle="Ingresos − Egresos"
             />
             <SummaryCard
               title="Saldo Actual"
               amount={summary.summary.currentBalance !== null ? formatCLP(summary.summary.currentBalance) : "N/A"}
               icon={Receipt}
-              colorClass="text-purple-600"
+              colorClass="text-violet-600 dark:text-violet-400"
+              pastelColor="purple"
               subtitle={`Desde ${summary.summary.documentCount} cartola${summary.summary.documentCount !== 1 ? "s" : ""}`}
             />
           </div>

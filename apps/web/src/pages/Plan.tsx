@@ -22,6 +22,7 @@ import {
   Wallet,
   AlertTriangle,
 } from "lucide-react";
+import { PastelIcon } from "@/components/ui/pastel-icon";
 import { useAuth } from "@/lib/auth";
 import SignInBanner from "@/components/SignInBanner";
 import type { Goal } from "@/types";
@@ -285,12 +286,10 @@ export default function Plan() {
 
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-primary/10">
-              <Target className="h-6 w-6 text-primary" />
-            </div>
+            <PastelIcon icon={Target} color="indigo" />
             <div>
-              <h1 className="text-3xl font-bold">Plan financiero</h1>
-              <p className="text-muted-foreground">
+              <h1 className="text-2xl font-bold tracking-tight">Plan financiero</h1>
+              <p className="text-sm text-muted-foreground">
                 Basado en tus datos reales (sin cifras de demostración)
               </p>
             </div>

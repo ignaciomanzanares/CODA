@@ -99,7 +99,7 @@ export default function Header() {
   };
 
   return (
-    <header className="app-header sticky sticky-safe-top z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 safe-x">
+    <header className="app-header sticky sticky-safe-top z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 safe-x">
       <div className="w-full flex h-14 min-h-[3.5rem] flex-nowrap items-center gap-2 pl-2 pr-2 sm:pl-3 sm:pr-3">
         {/* Izquierda: CODA Empresas / CODA — lo más a la izquierda */}
         <div className="flex shrink-0 items-center min-w-0">
@@ -126,10 +126,10 @@ export default function Header() {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-1.5 px-2 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap shrink-0",
+                      "flex items-center gap-1.5 px-2.5 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all whitespace-nowrap shrink-0",
                       isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        ? "bg-primary/10 text-primary border border-primary/20 shadow-sm shadow-primary/5"
+                        : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                     )}
                   >
                     <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
