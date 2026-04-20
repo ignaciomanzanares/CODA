@@ -20,7 +20,6 @@ import FinancialHealthCard from "@/components/FinancialHealthCard";
 import DownloadReporteCodaButton from "@/components/DownloadReporteCodaButton";
 import CategoryPieChart from "@/components/CategoryPieChart";
 import SmartInsights from "@/components/SmartInsights";
-import ScoreHistoryChart from "@/components/ScoreHistoryChart";
 import { ReportDataProvider } from "@/contexts/ReportDataContext";
 
 // Shared primitives
@@ -355,9 +354,6 @@ export default function Dashboard() {
             <CreditScoreCard />
           </div>
         </div>
-
-        {/* Score evolution chart */}
-        {hasDocuments && <ScoreHistoryChart />}
 
         {/* Financial Health & Government Programs */}
         {hasDocuments && <FinancialHealthCard />}
