@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import SignInBanner from "@/components/SignInBanner";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { CurrencyCode } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
@@ -338,12 +337,25 @@ export default function Products() {
     <div className="min-h-screen bg-background">
       <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
 
+        {/* Option A conversion hook: stay on page, invite personalisation */}
         {!isAuthenticated && (
-          <SignInBanner
-            title="Catálogo de productos financieros"
-            description="Inicia sesión para que el motor de ranking adapte las recomendaciones a tu perfil e ingresos reales."
-            actionText="Iniciar sesión"
-          />
+          <div className="rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                Ranking personalizado disponible
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Inicia sesión para ver qué productos se adaptan a tu perfil real de ingresos y score.
+              </p>
+            </div>
+            <a
+              href="/iniciar-sesion"
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Personalizar ranking
+            </a>
+          </div>
         )}
 
         {/* Header */}

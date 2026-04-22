@@ -25,6 +25,12 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://www.codafinance.cl/productos</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.codafinance.cl/info/score-credito</loc>
     <lastmod>2026-04-22</lastmod>
     <changefreq>monthly</changefreq>

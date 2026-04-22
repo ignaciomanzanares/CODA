@@ -14,6 +14,7 @@ const urls = [
   { loc: "/registro", changefreq: "monthly", priority: "0.9" },
   { loc: "/iniciar-sesion", changefreq: "monthly", priority: "0.7" },
   { loc: "/acerca", changefreq: "monthly", priority: "0.7" },
+  { loc: "/productos", changefreq: "weekly", priority: "0.8" },
   { loc: "/info/score-credito", changefreq: "monthly", priority: "0.8" },
   { loc: "/info/comparacion-productos", changefreq: "monthly", priority: "0.6" },
   { loc: "/info/metas-financieras", changefreq: "monthly", priority: "0.6" },
