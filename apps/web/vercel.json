@@ -5,8 +5,8 @@
   "installCommand": "npm install",
   "framework": "vite",
   "redirects": [
-    { "source": "/nosotros", "destination": "/acerca", "permanent": true },
-    { "source": "/about", "destination": "/acerca", "permanent": true }
+    { "source": "/nosotros", "destination": "/acerca", "statusCode": 301 },
+    { "source": "/about", "destination": "/acerca", "statusCode": 301 }
   ],
   "rewrites": [
     {
