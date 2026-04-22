@@ -1,0 +1,86 @@
+/**
+ * Dispatcher principal del sistema de parseo de cartolas bancarias chilenas.
+ *
+ * Flujo:
+ *  1. Extraer texto del PDF (pdfjs → pdf-parse fallback).
+ *  2. detectFormat() → banco + confianza.
+ *  3. Si confianza < 0.85 → ParseError('FORMAT_UNKNOWN').
+ *  4. Enrutar al parser del banco correspondiente.
+ *  5. Parser añade confianza por transacción + conciliación de saldos.
+ *  6. Retornar ParseResult o lanzar ParseError tipado.
+ *
+ * Exporta también el tipo ParseResult y la clase ParseError para que
+ * los handlers de rutas puedan introspectarlos.
+ */
+
+import { detectFormat, assertFormatDetected } from "./detectFormat.js";
+import { ParseError } from "./base.js";
+import type { ParseResult } from "./base.js";
+
+import * as parsers from "./parsers.registry.js";
+
+export { ParseError };
+export type { ParseResult };
+export type { ParseErrorCode } from "./base.js";
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Public API
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Parsea un buffer PDF de cartola bancaria chilena.
+ *
+ * @returns ParseResult con confianza por transacción, conciliación y advertencias.
+ * @throws ParseError — con código tipado y mensaje en español.
+ */
+export async function parseCartolaBuffer(buffer: Buffer): Promise<ParseResult> {
+  // 1. Extract text for format detection (lightweight — uses same pdfjs instance)
+  const { extractPdfText } = await import(
+    "../services/documents/pdfAnalysis.js"
+  );
+  let text = "";
+  try {
+    const result = await extractPdfText(buffer);
+    text = result.text ?? "";
+  } catch {
+    /* will be caught by TEXT_EXTRACTION_FAILED in bankParser */
+  }
+
+  if (!text || text.trim().length < 40) {
+    // Try pdf-parse as text-only fallback before giving up
+    try {
+      const pdfParse = (await import("pdf-parse")).default;
+      const data = await pdfParse(buffer);
+      text = data.text ?? "";
+    } catch {
+      /* both failed */
+    }
+  }
+
+  if (!text || text.trim().length < 40) {
+    throw new ParseError(
+      "TEXT_EXTRACTION_FAILED",
+      "No se pudo extraer texto del PDF. " +
+        "Es posible que sea una imagen escaneada. " +
+        "Exporta la cartola directamente desde el portal web del banco (PDF digital, no escaneado).",
+      { text_length: text?.length ?? 0 }
+    );
+  }
+
+  // 2. Detect format and assert confidence threshold
+  const detected = detectFormat(text);
+  assertFormatDetected(detected); // throws FORMAT_UNKNOWN if confidence < 0.85
+
+  // 3. Route to bank-specific parser
+  const parserFn = parsers.getParser(detected.banco);
+  if (!parserFn) {
+    throw new ParseError(
+      "FORMAT_UNSUPPORTED",
+      `El banco "${detected.banco}" fue detectado pero su parser no está implementado aún. ` +
+        "Contacta a soporte para solicitar compatibilidad.",
+      { banco: detected.banco, confidence: detected.confidence }
+    );
+  }
+
+  return parserFn(buffer, detected.confidence);
+}
