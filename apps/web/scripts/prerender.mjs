@@ -87,6 +87,43 @@ const routes = [
       "Compara lado a lado créditos, tarjetas y cuentas de los principales bancos y cooperativas de Chile.",
     image: `${baseUrl}/og-image.png`,
   },
+  // ── Info pages also in sitemap but not yet pre-rendered ──
+  {
+    path: "/info/metas-financieras",
+    title: "Metas financieras · CODA",
+    description:
+      "Define y sigue tus metas de ahorro, inversión y reducción de deuda con el asistente financiero de CODA.",
+    image: `${baseUrl}/og-image.png`,
+  },
+  {
+    path: "/info/riesgo-seguros",
+    title: "Análisis de riesgo de seguros · CODA",
+    description:
+      "Evalúa tu exposición a riesgos y encuentra los seguros más adecuados para tu perfil financiero en Chile.",
+    image: `${baseUrl}/og-image.png`,
+  },
+  // ── Conversion pages (TG1 fix: were missing from pre-render) ──
+  {
+    path: "/registro",
+    title: "Crear cuenta gratis · CODA",
+    description:
+      "Regístrate gratis en CODA y obtén tu score crediticio dual con tus datos reales en minutos. Sin tarjeta de crédito.",
+    image: `${baseUrl}/og-image.png`,
+  },
+  {
+    path: "/iniciar-sesion",
+    title: "Iniciar sesión · CODA",
+    description:
+      "Accede a tu panel CODA para ver tu score, gastos y recomendaciones financieras personalizadas.",
+    image: `${baseUrl}/og-image.png`,
+  },
+  {
+    path: "/empresas",
+    title: "CODA Empresas · Salud financiera para PyMEs en Chile",
+    description:
+      "Diagnóstico financiero, análisis de flujo de caja y recomendaciones personalizadas para empresas chilenas. Próximamente.",
+    image: `${baseUrl}/og-image.png`,
+  },
 ];
 
 // ──────────────────────────────────────────────────────────────
