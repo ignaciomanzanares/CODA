@@ -7,7 +7,7 @@
     "generate:icons": "node scripts/generate-icons.mjs",
     "generate:sitemap": "node scripts/generate-sitemap.mjs",
     "prebuild": "npm run generate:icons && npm run generate:sitemap",
-    "build": "npx vite build",
+    "build": "npx vite build && node scripts/prerender.mjs",
     "analyze": "ANALYZE=true vite build --mode production",
     "check": "tsc --noEmit",
     "preview": "vite preview",

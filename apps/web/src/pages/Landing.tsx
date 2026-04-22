@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
+import ScoreExpressWidget from "@/components/ScoreExpressWidget";
 import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
@@ -476,6 +477,9 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* ── Score Express ────────────────────────────────────────────────── */}
+      <ScoreExpressWidget />
 
       {/* ── CTA ──────────────────────────────────────────────────────────── */}
       <section className="py-24 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 text-white">
