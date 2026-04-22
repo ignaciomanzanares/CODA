@@ -1,0 +1,28 @@
+BANCO SANTANDER
+Estado de Cuenta Corriente
+santander.cl
+
+Cliente: JUAN PABLO SOTO MORALES
+RUT: 12.345.678-9
+Cuenta Corriente Nº: 10101-67890-0-001-0
+
+Período: DESDE 01/03/2026 HASTA 31/03/2026
+
+Saldo Inicial   Cargos    Abonos    Saldo Final
+850.000         320.000   480.000   1.010.000
+
+DETALLE DE MOVIMIENTOS DEL PERÍODO
+
+FECHA       DESCRIPCION                         CHEQUES Y CARGOS    DEPOSITOS Y ABONOS    SALDO
+01/03/2026  Compra Nacional STARBUCKS MALL       11.500                                    838.500
+05/03/2026  TEF DE EMPRESA ABC LTDA                                  350.000               1.188.500
+10/03/2026  Compra Nacional LIDER VESPUCIO       62.300                                    1.126.200
+15/03/2026  Transf A Juan Perez                  100.000                                   1.026.200
+20/03/2026  PAC ENTEL MOVIL                      39.990                                    986.210
+25/03/2026  Compra Nacional JUMBO PLAZA          78.500                                    907.710
+28/03/2026  Sueldo EMPRESA XYZ SPA                                   130.000               1.037.710
+31/03/2026  Cargo Mantención Cuenta              25.000                                    1.012.710
+
+--- Saldo Día 31/03/2026   1.012.710
+
+TOTAL CARGOS: 316.790     TOTAL ABONOS: 480.000

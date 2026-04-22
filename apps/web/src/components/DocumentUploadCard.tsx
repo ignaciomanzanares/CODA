@@ -16,6 +16,37 @@ const STEPS: Record<string, string> = {
   done: "Listo",
 };
 
+/**
+ * Mensajes de error estructurados por código.
+ * Los códigos vienen del campo `error_code` de la API (ParseError en backend).
+ */
+const PARSE_ERROR_MESSAGES: Record<string, { title: string; hint: string }> = {
+  FORMAT_UNKNOWN: {
+    title: "Banco no reconocido",
+    hint: "Sube una cartola PDF de Santander, BCI, Banco de Chile, BancoEstado, Itaú o Scotiabank. Si el archivo es una imagen escaneada, descarga el PDF directamente desde el portal web del banco.",
+  },
+  FORMAT_UNSUPPORTED: {
+    title: "Banco no compatible aún",
+    hint: "Tu banco fue detectado pero aún no está soportado. Contáctanos para solicitar compatibilidad.",
+  },
+  TEXT_EXTRACTION_FAILED: {
+    title: "PDF no legible",
+    hint: "El archivo no tiene texto digital extraíble (probablemente es una imagen escaneada). Descarga la cartola directamente desde el sitio web de tu banco — no la escanees ni la fotografíes.",
+  },
+  NO_TRANSACTIONS: {
+    title: "Sin transacciones",
+    hint: "El parser leyó el PDF pero no encontró movimientos. Verifica que la cartola tenga al menos un movimiento en el período, o descárgala desde el portal web del banco (no desde una app móvil).",
+  },
+  BALANCE_MISMATCH: {
+    title: "Saldos no cuadran",
+    hint: "Las transacciones no cuadran con el saldo final reportado. Puede que la cartola esté incompleta o le falten páginas. Descarga el PDF completo del portal del banco.",
+  },
+  LOW_CONFIDENCE: {
+    title: "Extracción poco confiable",
+    hint: "La confianza del parseo es muy baja. Puede que el formato del PDF no sea compatible. Descarga la cartola directamente desde el portal web del banco.",
+  },
+};
+
 const ALLOWED_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -125,16 +156,18 @@ export default function DocumentUploadCard() {
             break;
           }
         } catch (e: any) {
-          // Better error messages
-          let errorMsg = "Error al procesar el documento.";
-          
-          if (e?.response?.data?.message) {
-            errorMsg = e.response.data.message;
-          } else if (e instanceof Error) {
-            errorMsg = e.message;
+          // Map structured error_code from API to a targeted message, fallback to raw message
+          const apiData = e?.response?.data ?? e?.data;
+          const errorCode: string | undefined = apiData?.error_code;
+          const rawMessage: string =
+            apiData?.message ?? (e instanceof Error ? e.message : "Error al procesar el documento.");
+
+          if (errorCode && PARSE_ERROR_MESSAGES[errorCode]) {
+            const { title, hint } = PARSE_ERROR_MESSAGES[errorCode];
+            setError(`${title}: ${hint}`);
+          } else {
+            setError(rawMessage);
           }
-          
-          setError(errorMsg);
           setProgressStep(null);
           break;
         }
