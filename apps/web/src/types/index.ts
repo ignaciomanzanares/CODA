@@ -172,6 +172,12 @@ export interface DocumentUploadResult {
   creditScore?: number;
   mainInsights?: string[];
   recommendedProducts?: string[];
+  /** Tier de detección del banco: HIGH | MEDIUM | LOW */
+  detection_tier?: 'HIGH' | 'MEDIUM' | 'LOW';
+  /** Confianza de detección (0–1) */
+  banco_confidence?: number;
+  /** Banco detectado */
+  detected_banco?: string;
   error?: string;
 }
 

@@ -114,6 +114,8 @@ export interface ReconciliationResult {
 export interface ParseResult {
   banco: string;
   banco_confidence: number;
+  /** Tier de detección del banco: HIGH (≥0.90) | MEDIUM (0.70–0.89) | LOW (<0.70) */
+  detection_tier: DetectionTier;
   titular: string;
   cuenta: string;
   periodo: { desde: Date; hasta: Date; dias: number };
@@ -129,11 +131,33 @@ export interface ParseResult {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Thresholds
+// Detection tiers
 // ──────────────────────────────────────────────────────────────────────────────
 
-/** Confianza mínima de detección de banco para proceder con el parseo */
+/**
+ * Nivel de confianza de detección del banco.
+ * - HIGH  (≥ 0.90): parseo silencioso
+ * - MEDIUM (0.70–0.89): parseo + banner de revisión en UI; confianza de transacciones
+ *   multiplicada por banco_confidence para propagar la incertidumbre
+ * - LOW   (< 0.70): rechaza con FORMAT_UNKNOWN
+ */
+export type DetectionTier = "HIGH" | "MEDIUM" | "LOW";
+
+/** Umbral mínimo para el tier HIGH */
+export const HIGH_TIER_THRESHOLD = 0.90;
+
+/** Umbral mínimo para el tier MEDIUM (por debajo = LOW → FORMAT_UNKNOWN) */
+export const MEDIUM_TIER_THRESHOLD = 0.70;
+
+/** @deprecated Usar HIGH_TIER_THRESHOLD / MEDIUM_TIER_THRESHOLD con getDetectionTier() */
 export const CONFIDENCE_THRESHOLD = 0.85;
+
+/** Devuelve el tier a partir de la confianza de detección. */
+export function getDetectionTier(confidence: number): DetectionTier {
+  if (confidence >= HIGH_TIER_THRESHOLD) return "HIGH";
+  if (confidence >= MEDIUM_TIER_THRESHOLD) return "MEDIUM";
+  return "LOW";
+}
 
 /** Confianza global mínima aceptable para devolver un resultado sin error */
 export const MIN_PARSE_CONFIDENCE = 0.40;

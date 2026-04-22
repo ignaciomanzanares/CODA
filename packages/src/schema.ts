@@ -644,3 +644,18 @@ export const userScores = table('user_scores', {
   periodoAnalizadoDesde: text('periodo_analizado_desde'),
   periodoAnalizadoHasta: text('periodo_analizado_hasta'),
 });
+
+/** Diagnósticos de detección de banco (metadata de parseo — sin contenido del PDF ni transacciones). */
+export const parserDiagnostics = table("parser_diagnostics", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").references(() => users.id),
+  timestamp: text("timestamp").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  detectedBank: text("detected_bank"),
+  confidenceScore: real("confidence_score").notNull(),
+  signalsEvaluated: text("signals_evaluated").notNull(), // JSON array of signal names
+  tier: text("tier").notNull(), // HIGH | MEDIUM | LOW
+  fileSize: integer("file_size"),
+  pageCount: integer("page_count"),
+  textLength: integer("text_length"),
+  userAction: text("user_action"),  // accepted | rejected | pending | null
+});

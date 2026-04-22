@@ -9,12 +9,15 @@ import { storage } from '../../storage.js';
 import { logger } from '../../logger.js';
 import {
   analyzePdfBuffer,
+  extractPdfText,
   cartolaToSfaTransactions,
   cartolaToSfaProductos,
   type CmfInformeDeudas,
   type CartolaExtraida,
   type DocumentoExtraido,
 } from './pdfAnalysis.js';
+import { detectFormat } from '../../parsers/detectFormat.js';
+import { getDetectionTier, type DetectionTier } from '../../parsers/base.js';
 import { logCreditScorePrediction } from '../audit/algorithmicTraceability.js';
 
 export const CREDIT_SCORE_EXCELLENT = 680;
@@ -38,6 +41,12 @@ export interface UploadResult {
   mainInsights?: string[];
   recommendedProducts?: string[];
   metrics?: UploadResultMetrics;
+  /** Tier de detección del banco (solo para cartolas) */
+  detection_tier?: DetectionTier;
+  /** Confianza de detección del banco (0–1, solo para cartolas) */
+  banco_confidence?: number;
+  /** Nombre del banco detectado */
+  detected_banco?: string;
   error?: string;
 }
 
@@ -213,6 +222,22 @@ export async function processDocumentUpload(
   }
 
   if (doc.tipo === 'cartola') {
+    // Detect tier from the PDF text (parallel to analyzePdfBuffer extraction)
+    let detectedTier: DetectionTier = 'HIGH';
+    let bancoCon = 1.0;
+    let detectedBanco = (doc as any).banco ?? 'Desconocido';
+    try {
+      const { text: pdfText } = await extractPdfText(buffer);
+      if (pdfText && pdfText.length >= 40) {
+        const fmt = detectFormat(pdfText);
+        detectedTier = getDetectionTier(fmt.confidence);
+        bancoCon = fmt.confidence;
+        if (fmt.banco !== 'Desconocido') detectedBanco = fmt.banco;
+      }
+    } catch {
+      /* detection failure is non-fatal — proceed with default HIGH tier */
+    }
+
     const rut = doc.rutDocumento ?? '00.000.000-0';
     // Acumular todas las cartolas parseadas del usuario + la cartola actual.
     const previousCartolas = await storage.listDocumentUploadsByType(userId, "cartola");
@@ -262,6 +287,9 @@ export async function processDocumentUpload(
       mainInsights,
       recommendedProducts: result.recommendedProducts,
       metrics: result.metrics,
+      detection_tier: detectedTier,
+      banco_confidence: bancoCon,
+      detected_banco: detectedBanco,
     };
   }
 
