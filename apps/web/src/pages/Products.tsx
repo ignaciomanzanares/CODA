@@ -1,316 +1,432 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useApi } from "@/lib/api";
-import TabsComponent from "@/components/TabsComponent";
-import FiltersSection from "@/components/FiltersSection";
-import ProductsTable from "@/components/ProductsTable";
+import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import SignInBanner from "@/components/SignInBanner";
-import type { FinancialProduct } from "@/types";
-import { Card, CardContent } from "@/components/ui/card";
+import { cn, formatCurrency } from "@/lib/utils";
+import type { CurrencyCode } from "@/lib/utils";
+import { useCurrency } from "@/lib/CurrencyContext";
+
+// Data & ranking
+import seedProducts from "@/data/products.seed.json";
+import { rankProductsByCategory } from "@/lib/product-ranking";
+import { PRODUCT_CATEGORIES } from "@/types/products";
+import type { Product, ProductCategory, UserFinancialProfile, RankedProduct, EligibilityStatus } from "@/types/products";
+
+// UI
+import { PastelIcon } from "@/components/ui/pastel-icon";
+import { EyebrowLabel } from "@/components/ui/eyebrow-label";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+
+// Icons
 import {
   Wallet,
   CreditCard,
   PiggyBank,
   Shield,
-  Sparkles,
   TrendingUp,
-  Percent
+  TrendingDown,
+  Banknote,
+  BarChart3,
+  Repeat2,
+  Sparkles,
+  ExternalLink,
+  CheckCircle2,
+  AlertCircle,
+  XCircle,
+  ChevronDown,
+  ChevronUp,
+  Info,
 } from "lucide-react";
-import { PastelIcon } from "@/components/ui/pastel-icon";
-import { FloatingChip } from "@/components/ui/floating-chip";
-import { useSearch } from "wouter";
 
-// Define a type for your filters
-type ProductFilters = {
-  type?: string;
-  rate?: string;
-  term?: string;
-  minAmount?: number;
-  maxAmount?: number;
+// ──────────────────────────────────────────────────────────────
+// Constants
+// ──────────────────────────────────────────────────────────────
+
+type TabKey = ProductCategory | "all";
+
+const TABS: { id: TabKey; label: string; icon: React.ElementType }[] = [
+  { id: "all", label: "Todos", icon: BarChart3 },
+  { id: "cuentas_ahorro", label: "Cuentas", icon: Wallet },
+  { id: "tarjetas_credito", label: "Tarjetas", icon: CreditCard },
+  { id: "creditos_consumo", label: "Consumo", icon: Banknote },
+  { id: "lineas_credito", label: "Líneas", icon: TrendingUp },
+  { id: "creditos_hipotecarios", label: "Hipotecarios", icon: PiggyBank },
+  { id: "depositos_plazo", label: "Depósitos", icon: TrendingUp },
+  { id: "fondos_mutuos", label: "Fondos", icon: BarChart3 },
+  { id: "seguros", label: "Seguros", icon: Shield },
+  { id: "apv", label: "APV", icon: TrendingUp },
+  { id: "portabilidad", label: "Portabilidad", icon: Repeat2 },
+];
+
+const ELIGIBILITY_CONFIG: Record<EligibilityStatus, {
+  label: string;
+  icon: React.ElementType;
+  badgeClass: string;
+}> = {
+  eligible: {
+    label: "Elegible",
+    icon: CheckCircle2,
+    badgeClass: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
+  },
+  borderline: {
+    label: "Posible",
+    icon: AlertCircle,
+    badgeClass: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
+  },
+  not_eligible: {
+    label: "No elegible",
+    icon: XCircle,
+    badgeClass: "bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400",
+  },
 };
+
+// ──────────────────────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────────────────────
+
+const emptyProfile: UserFinancialProfile = {
+  monthly_income_clp: null,
+  credit_score: null,
+  transactional_score: null,
+  monthly_debt_clp: null,
+  monthly_savings_clp: null,
+  age: null,
+  has_real_data: false,
+};
+
+function buildProfile(
+  financialSummary: { summary?: { monthlyIncome?: number; monthlyExpenses?: number } } | null,
+  creditScoreData: { score?: number } | null,
+  transactionalData: { transactionalScore?: number } | null,
+): UserFinancialProfile {
+  const income = financialSummary?.summary?.monthlyIncome ?? null;
+  const expenses = financialSummary?.summary?.monthlyExpenses ?? null;
+  const savings = income !== null && expenses !== null ? income - expenses : null;
+  return {
+    monthly_income_clp: income,
+    credit_score: creditScoreData?.score ?? null,
+    transactional_score: transactionalData?.transactionalScore ?? null,
+    monthly_debt_clp: null,
+    monthly_savings_clp: savings && savings > 0 ? savings : null,
+    age: null,
+    has_real_data: income !== null || (creditScoreData?.score ?? null) !== null,
+  };
+}
+
+// ──────────────────────────────────────────────────────────────
+// Sub-components
+// ──────────────────────────────────────────────────────────────
+
+function ScoreBar({ score }: { score: number }) {
+  const color =
+    score >= 70 ? "bg-emerald-500" : score >= 45 ? "bg-amber-500" : "bg-red-500";
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div
+          className={cn("h-full rounded-full transition-all", color)}
+          style={{ width: `${score}%` }}
+        />
+      </div>
+      <span className="text-[11px] font-semibold tabular-nums text-muted-foreground w-6 text-right">
+        {score}
+      </span>
+    </div>
+  );
+}
+
+function ProductCard({ product, currency }: { product: RankedProduct; currency: CurrencyCode }) {
+  const [expanded, setExpanded] = useState(false);
+  const cfg = ELIGIBILITY_CONFIG[product.eligibility];
+  const EligIcon = cfg.icon;
+
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-5">
+        <div className="flex items-start gap-4">
+          {/* Score gauge */}
+          <div className="shrink-0 flex flex-col items-center gap-1">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <span className="text-sm font-bold text-primary">{product.score}</span>
+            </div>
+            <span className="text-[10px] text-muted-foreground">score</span>
+          </div>
+
+          {/* Main content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-start gap-2 mb-1">
+              <span className="text-[11px] font-medium text-muted-foreground">
+                {product.institution}
+              </span>
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full",
+                  cfg.badgeClass
+                )}
+              >
+                <EligIcon className="h-3 w-3" />
+                {cfg.label}
+              </span>
+            </div>
+
+            <h3 className="font-semibold text-foreground leading-snug mb-1">
+              {product.name}
+            </h3>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+              {product.short_description}
+            </p>
+
+            {/* Key metrics row */}
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-3">
+              {product.annual_rate_pct !== null && (
+                <span className="text-foreground">
+                  <span className="text-muted-foreground">CAE/Tasa: </span>
+                  <strong>{product.annual_rate_pct.toFixed(2)}%</strong>
+                </span>
+              )}
+              {product.monthly_cost_clp !== null && (
+                <span className="text-foreground">
+                  <span className="text-muted-foreground">Mantención: </span>
+                  <strong>
+                    {product.monthly_cost_clp === 0
+                      ? "Gratis"
+                      : formatCurrency(product.monthly_cost_clp, currency) + "/mes"}
+                  </strong>
+                </span>
+              )}
+              {product.expected_benefit_clp !== null && product.expected_benefit_clp > 0 && (
+                <span className="text-emerald-600 dark:text-emerald-400">
+                  <span className="text-muted-foreground">Beneficio est.: </span>
+                  <strong>+{formatCurrency(product.expected_benefit_clp, currency)}/año</strong>
+                </span>
+              )}
+            </div>
+
+            {/* Score bar */}
+            <ScoreBar score={product.score} />
+          </div>
+        </div>
+
+        {/* Expand / Collapse reasons + CTA */}
+        <div className="mt-3 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Info className="h-3.5 w-3.5" />
+            {expanded ? "Ocultar razones" : "Ver razones"}
+            {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+          <a
+            href={product.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          >
+            Ver en {product.institution}
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+
+        {/* Reasons */}
+        {expanded && product.reasons.length > 0 && (
+          <div className="mt-3 space-y-1.5">
+            {product.reasons.map((r, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "flex items-start gap-2 text-xs rounded-lg px-3 py-2",
+                  r.weight > 0
+                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
+                    : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
+                )}
+              >
+                {r.weight > 0 ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                ) : (
+                  <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                )}
+                {r.explanation_es}
+              </div>
+            ))}
+            <p className="text-[11px] text-muted-foreground px-1 pt-1 leading-relaxed">
+              {product.disclosure}
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function EmptyCategory() {
+  return (
+    <div className="text-center py-16 text-muted-foreground">
+      <BarChart3 className="h-10 w-10 mx-auto mb-3 opacity-30" />
+      <p className="text-sm">No hay productos en esta categoría.</p>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// Page
+// ──────────────────────────────────────────────────────────────
 
 export default function Products() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { getFinancialProducts, getProductRecommendations, trackProductEvent } = useApi();
-  const searchString = useSearch();
-  const urlParams = new URLSearchParams(searchString);
-  const categoryFromUrl = urlParams.get("category");
-  
-  const [activeCategory, setActiveCategory] = useState(() => {
-    // Check if category from URL is valid
-    const validCategories = ["loans", "credit_cards", "savings", "insurance"];
-    if (categoryFromUrl && validCategories.includes(categoryFromUrl)) {
-      return categoryFromUrl;
-    }
-    return "loans";
-  });
-  const [filters, setFilters] = useState<ProductFilters>({});
-  
-  // Update active category when URL changes
-  useEffect(() => {
-    const validCategories = ["loans", "credit_cards", "savings", "insurance"];
-    if (categoryFromUrl && validCategories.includes(categoryFromUrl)) {
-      setActiveCategory(categoryFromUrl);
-    }
-  }, [categoryFromUrl]);
+  const { currency } = useCurrency();
+  const [activeTab, setActiveTab] = useState<TabKey>("all");
 
-  const {
-    data: recommendedProducts,
-    isLoading: productsLoading,
-    error,
-  } = useQuery({
-    queryKey: ["/api/products/recommendations", activeCategory],
-    queryFn: () => getProductRecommendations(activeCategory, 20),
-    enabled: isAuthenticated && !authLoading,
-  });
-
-  const { data: catalogProducts, isLoading: catalogLoading } = useQuery({
-    queryKey: ["/api/financial-products", activeCategory],
-    queryFn: () => getFinancialProducts(activeCategory),
-    enabled: !isAuthenticated && !authLoading,
-  });
-
-  // Track product views when recommendations load
-  useEffect(() => {
-    if (isAuthenticated && recommendedProducts && recommendedProducts.length > 0) {
-      // Track views in background (don't await)
-      recommendedProducts.forEach((product: any) => {
-        if (product.id && product.matchScore) {
-          trackProductEvent(product.id, 'view', product.matchScore, { category: activeCategory })
-            .catch(err => console.warn('Failed to track view:', err));
-        }
+  // Fetch financial profile data (best-effort, used for ranking)
+  const { data: financialSummary } = useQuery({
+    queryKey: ["financial-summary"],
+    queryFn: () => {
+      const token = localStorage.getItem("jwt_token");
+      if (!token) return null;
+      return apiFetch("/api/financial-summary", {
+        headers: { Authorization: `Bearer ${token}` },
       });
-    }
-  }, [isAuthenticated, recommendedProducts, activeCategory]);
-  
-  const products = isAuthenticated ? recommendedProducts : catalogProducts ?? [];
+    },
+    enabled: isAuthenticated && !authLoading,
+    staleTime: 30_000,
+  });
 
-  const handleTabChange = (tabId: string) => {
-    setActiveCategory(tabId);
-    setFilters({});
-  };
+  const { data: creditScoreData } = useQuery({
+    queryKey: ["/api/credit-score"],
+    queryFn: () => {
+      const token = localStorage.getItem("jwt_token");
+      if (!token) return null;
+      return apiFetch("/api/credit-score", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    enabled: isAuthenticated && !authLoading,
+    staleTime: 60_000,
+  });
 
-  const handleFilterChange = (newFilters: ProductFilters) => {
-    setFilters(newFilters);
-  };
+  const { data: transactionalData } = useQuery({
+    queryKey: ["/api/transactional-score"],
+    queryFn: () => {
+      const token = localStorage.getItem("jwt_token");
+      if (!token) return null;
+      return apiFetch("/api/transactional-score", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    enabled: isAuthenticated && !authLoading,
+    staleTime: 60_000,
+  });
 
-  // Apply filters to products
-  const filterProducts = (products: FinancialProduct[] | Record<string, unknown>[]): FinancialProduct[] => {
-    if (!products) return [];
-    return products.filter((product: FinancialProduct | Record<string, unknown>) => {
-      // Type guard to check if it's a proper FinancialProduct
-      const productType = (product as FinancialProduct).productType || (product as Record<string, unknown>).productType as string;
-      if (filters.type && filters.type !== "all" && productType?.toLowerCase() !== filters.type) {
-        return false;
-      }
-      if (filters.rate && filters.rate !== "any") {
-        const rate = ((product as FinancialProduct).interestRate || (product as Record<string, unknown>).interestRate as number) || 0;
-        if (filters.rate === "below_5" && rate >= 5) return false;
-        if (filters.rate === "5_to_10" && (rate < 5 || rate > 10)) return false;
-        if (filters.rate === "above_10" && rate <= 10) return false;
-      }
-      if (filters.term && filters.term !== "any") {
-        const productTerm = (product as Record<string, unknown>).term as number;
-        if (productTerm) {
-          const term = parseInt(filters.term);
-          if (term && productTerm < term) return false;
-        }
-      }
-      if (filters.minAmount !== undefined) {
-        const loanAmount = (product as Record<string, unknown>).loanAmount as number;
-        if (loanAmount && loanAmount < filters.minAmount) {
-          return false;
-        }
-      }
-      if (filters.maxAmount !== undefined) {
-        const loanAmount = (product as Record<string, unknown>).loanAmount as number;
-        if (loanAmount && loanAmount > filters.maxAmount) {
-          return false;
-        }
-      }
-      return true;
-    }) as FinancialProduct[];
-  };
+  // Build user profile
+  const profile = useMemo(() => {
+    if (!isAuthenticated) return emptyProfile;
+    return buildProfile(financialSummary ?? null, creditScoreData ?? null, transactionalData ?? null);
+  }, [isAuthenticated, financialSummary, creditScoreData, transactionalData]);
 
-  const filteredProducts = products ? filterProducts(products) : [];
+  // Rank products for the active tab
+  const rankedProducts: RankedProduct[] = useMemo(() => {
+    return rankProductsByCategory(seedProducts as Product[], activeTab, profile);
+  }, [activeTab, profile]);
 
-  const tabs = [
-    { id: "loans", label: "Créditos" },
-    { id: "credit_cards", label: "Tarjetas de crédito" },
-    { id: "savings", label: "Ahorro" },
-    { id: "insurance", label: "Seguros" },
-  ];
-
-  const listLoading = isAuthenticated ? productsLoading : catalogLoading;
-  if (authLoading || listLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-          <div className="h-10 bg-muted rounded animate-pulse w-64"></div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-24 bg-muted rounded animate-pulse"></div>
-            ))}
-          </div>
-          <div className="h-12 bg-muted rounded animate-pulse"></div>
-          <div className="space-y-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-32 bg-muted rounded animate-pulse"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Get stats for current category
-  const getCategoryStats = () => {
-    const count = filteredProducts.length;
-    switch (activeCategory) {
-      case 'loans':
-        return { icon: Wallet, color: 'bg-blue-500', label: 'Créditos disponibles', count };
-      case 'credit_cards':
-        return { icon: CreditCard, color: 'bg-purple-500', label: 'Tarjetas de crédito', count };
-      case 'savings':
-        return { icon: PiggyBank, color: 'bg-green-500', label: 'Cuentas de ahorro', count };
-      case 'insurance':
-        return { icon: Shield, color: 'bg-orange-500', label: 'Planes de seguro', count };
-      default:
-        return { icon: Wallet, color: 'bg-gray-500', label: 'Productos', count };
-    }
-  };
-
-  const stats = getCategoryStats();
-  const StatsIcon = stats.icon;
+  const eligibleCount = rankedProducts.filter(p => p.eligibility === "eligible").length;
+  const hasProfile = profile.has_real_data;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div id="product-section" className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+    <div className="min-h-screen bg-background">
+      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
+
         {!isAuthenticated && (
           <SignInBanner
-            title="Catálogo público de productos"
-            description="Inicia sesión para recomendaciones personalizadas según tu perfil y tus datos en CODA."
+            title="Catálogo de productos financieros"
+            description="Inicia sesión para que el motor de ranking adapte las recomendaciones a tu perfil e ingresos reales."
             actionText="Iniciar sesión"
           />
         )}
-        
+
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <PastelIcon icon={Wallet} color="orange" />
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Productos financieros</h1>
-              <p className="text-sm text-muted-foreground">Recomendaciones personalizadas según tu perfil</p>
-            </div>
+        <div className="flex items-start gap-4">
+          <PastelIcon icon={BarChart3} color="orange" size="md" />
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              Productos financieros
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {hasProfile
+                ? `Ranking personalizado · ${eligibleCount} productos elegibles para tu perfil`
+                : "Catálogo con más de 50 productos de instituciones chilenas"}
+            </p>
           </div>
-          <FloatingChip className="bg-violet-600 dark:bg-violet-500">
-            <Sparkles className="h-3.5 w-3.5" />
-            Coincidencia con IA
-          </FloatingChip>
+          {hasProfile && (
+            <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-medium bg-primary/10 text-primary px-2.5 py-1 rounded-full shrink-0">
+              <Sparkles className="h-3 w-3" />
+              Personalizado
+            </span>
+          )}
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className={activeCategory === 'loans' ? 'ring-2 ring-primary' : ''}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-500 text-white">
-                  <Wallet className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Mejor tasa de crédito</p>
-                  <p className="text-lg font-bold">3.99% APR</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className={activeCategory === 'credit_cards' ? 'ring-2 ring-primary' : ''}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-purple-500 text-white">
-                  <CreditCard className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Mejores beneficios</p>
-                  <p className="text-lg font-bold">5% Cashback</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className={activeCategory === 'savings' ? 'ring-2 ring-primary' : ''}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-500 text-white">
-                  <PiggyBank className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Mejor APY</p>
-                  <p className="text-lg font-bold">5.25% APY</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className={activeCategory === 'insurance' ? 'ring-2 ring-primary' : ''}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-orange-500 text-white">
-                  <Shield className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Coverage From</p>
-                  <p className="text-lg font-bold">$9.99/mo</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Profile notice when no data */}
+        {isAuthenticated && !hasProfile && (
+          <div className="rounded-xl border border-amber-200 dark:border-amber-700/40 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 flex items-start gap-3">
+            <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+            <p className="text-sm text-amber-700 dark:text-amber-300">
+              Sube una cartola bancaria para que el motor de ranking adapte los resultados a tu
+              perfil de ingresos y score.
+            </p>
+          </div>
+        )}
+
+        {/* Category tabs — scrollable on mobile */}
+        <div className="-mx-4 sm:mx-0">
+          <div className="flex gap-2 overflow-x-auto px-4 sm:px-0 pb-1 scrollbar-none">
+            {TABS.map(tab => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-medium transition-all shrink-0",
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Tabs and Products */}
-        <TabsComponent
-          tabs={tabs}
-          defaultActiveTab="loans"
-          className="mb-6"
-          onTabChange={handleTabChange}
-        >
-        <div id="loans" className="space-y-4">
-          <FiltersSection category="loans" onFilterChange={handleFilterChange} />
-          <ProductsTable
-            products={filteredProducts}
-            category="loans"
-            isLoading={listLoading}
-            error={error}
-          />
-        </div>
-        <div id="credit_cards" className="space-y-4">
-          <FiltersSection category="credit_cards" onFilterChange={handleFilterChange} />
-          <ProductsTable
-            products={filteredProducts}
-            category="credit_cards"
-            isLoading={listLoading}
-            error={error}
-          />
-        </div>
-        <div id="savings" className="space-y-4">
-          <FiltersSection category="savings" onFilterChange={handleFilterChange} />
-          <ProductsTable
-            products={filteredProducts}
-            category="savings"
-            isLoading={listLoading}
-            error={error}
-          />
-        </div>
-        <div id="insurance" className="space-y-4">
-          <FiltersSection category="insurance" onFilterChange={handleFilterChange} />
-          <ProductsTable
-            products={filteredProducts}
-            category="insurance"
-            isLoading={listLoading}
-            error={error}
-          />
-        </div>
-      </TabsComponent>
+        {/* Active category label */}
+        {activeTab !== "all" && (
+          <EyebrowLabel color="muted">
+            {PRODUCT_CATEGORIES[activeTab as ProductCategory]}
+          </EyebrowLabel>
+        )}
+
+        {/* Products list */}
+        {rankedProducts.length === 0 ? (
+          <EmptyCategory />
+        ) : (
+          <div className="space-y-4">
+            {rankedProducts.map(product => (
+              <ProductCard key={product.id} product={product} currency={currency} />
+            ))}
+          </div>
+        )}
+
+        {/* Legal footer */}
+        <p className="text-[11px] text-muted-foreground leading-relaxed border-t border-border pt-6">
+          Las tasas y condiciones mostradas son referenciales obtenidas de fuentes públicas de las
+          instituciones. CODA no es intermediario financiero ni garantiza aprobación. La decisión
+          final corresponde a cada institución. Última verificación: abril 2026.
+        </p>
       </div>
     </div>
   );

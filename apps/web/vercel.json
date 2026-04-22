@@ -4,6 +4,10 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": "vite",
+  "redirects": [
+    { "source": "/nosotros", "destination": "/acerca", "permanent": true },
+    { "source": "/about", "destination": "/acerca", "permanent": true }
+  ],
   "rewrites": [
     {
       "source": "/((?!robots\\.txt$|sitemap\\.xml$|manifest\\.json$|favicon\\.svg$|sw\\.js$|og-image\\.png$)(?!assets/)(?!icons/)(?!screenshots/).*)",
