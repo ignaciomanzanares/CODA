@@ -1,0 +1,172 @@
+{
+  "banco": "Santander",
+  "saldo_inicial": 901620,
+  "saldo_final": 880681,
+  "total_cargos": 1085092,
+  "total_abonos": 1064153,
+  "tx_count": 27,
+  "transacciones": [
+    {
+      "fecha": "2025-10-02",
+      "tipo": "cargo",
+      "monto": 813200,
+      "descripcion": "PAGO EN LINEA PONTIFICIA UNIV"
+    },
+    {
+      "fecha": "2025-10-03",
+      "tipo": "cargo",
+      "monto": 4120,
+      "descripcion": "Compra Nacional SENAL PARKING"
+    },
+    {
+      "fecha": "2025-10-03",
+      "tipo": "cargo",
+      "monto": 7090,
+      "descripcion": "Compra Nacional MC DONALDS"
+    },
+    {
+      "fecha": "2025-10-07",
+      "tipo": "cargo",
+      "monto": 11990,
+      "descripcion": "Compra Nacional NP ENTEL ONECL"
+    },
+    {
+      "fecha": "2025-10-07",
+      "tipo": "cargo",
+      "monto": 13800,
+      "descripcion": "Compra Nacional LBB LOS TRAPEN"
+    },
+    {
+      "fecha": "2025-10-10",
+      "tipo": "cargo",
+      "monto": 3300,
+      "descripcion": "Transf a Vicente Ar"
+    },
+    {
+      "fecha": "2025-10-10",
+      "tipo": "cargo",
+      "monto": 25230,
+      "descripcion": "Compra Nacional YA* 104496 RES"
+    },
+    {
+      "fecha": "2025-10-13",
+      "tipo": "abono",
+      "monto": 6750,
+      "descripcion": "Transf de MATEO BRU"
+    },
+    {
+      "fecha": "2025-10-13",
+      "tipo": "abono",
+      "monto": 25000,
+      "descripcion": "011351809K Transf de PATRICIO"
+    },
+    {
+      "fecha": "2025-10-13",
+      "tipo": "cargo",
+      "monto": 1025,
+      "descripcion": "Compra Internacional UBER *LIM"
+    },
+    {
+      "fecha": "2025-10-13",
+      "tipo": "cargo",
+      "monto": 2000,
+      "descripcion": "Transf a Vicente Ar"
+    },
+    {
+      "fecha": "2025-10-13",
+      "tipo": "cargo",
+      "monto": 3193,
+      "descripcion": "Compra Nacional NP PAYU"
+    },
+    {
+      "fecha": "2025-10-13",
+      "tipo": "cargo",
+      "monto": 4894,
+      "descripcion": "Compra Nacional NP PAYU"
+    },
+    {
+      "fecha": "2025-10-13",
+      "tipo": "cargo",
+      "monto": 7500,
+      "descripcion": "Compra Nacional SumUp * Licore"
+    },
+    {
+      "fecha": "2025-10-16",
+      "tipo": "cargo",
+      "monto": 2750,
+      "descripcion": "Transf a Vicente Ar"
+    },
+    {
+      "fecha": "2025-10-16",
+      "tipo": "cargo",
+      "monto": 20800,
+      "descripcion": "Transf a Vicente Ar"
+    },
+    {
+      "fecha": "2025-10-21",
+      "tipo": "cargo",
+      "monto": 7200,
+      "descripcion": "Transf a Álvaro Ign"
+    },
+    {
+      "fecha": "2025-10-27",
+      "tipo": "abono",
+      "monto": 30000,
+      "descripcion": "011351809K Transf de PATRICIO"
+    },
+    {
+      "fecha": "2025-10-27",
+      "tipo": "cargo",
+      "monto": 1000,
+      "descripcion": "Transf a Sebastian"
+    },
+    {
+      "fecha": "2025-10-27",
+      "tipo": "cargo",
+      "monto": 2000,
+      "descripcion": "Transf a Sebastian"
+    },
+    {
+      "fecha": "2025-10-27",
+      "tipo": "cargo",
+      "monto": 7000,
+      "descripcion": "Compra Nacional MERPAGO*BAZO S"
+    },
+    {
+      "fecha": "2025-10-27",
+      "tipo": "cargo",
+      "monto": 23000,
+      "descripcion": "Transf a Nicolas An"
+    },
+    {
+      "fecha": "2025-10-29",
+      "tipo": "abono",
+      "monto": 5000,
+      "descripcion": "Traspaso Automático Programado"
+    },
+    {
+      "fecha": "2025-10-29",
+      "tipo": "abono",
+      "monto": 997403,
+      "descripcion": "Transf de INVERSION"
+    },
+    {
+      "fecha": "2025-10-30",
+      "tipo": "cargo",
+      "monto": 3000,
+      "descripcion": "Pago Recurrente VD MERPAGO*PAG"
+    },
+    {
+      "fecha": "2025-10-30",
+      "tipo": "cargo",
+      "monto": 11000,
+      "descripcion": "Transf a Vicente Ar"
+    },
+    {
+      "fecha": "2025-10-30",
+      "tipo": "cargo",
+      "monto": 110000,
+      "descripcion": "Compra Nacional NP OLD REDLAND"
+    }
+  ]
+}

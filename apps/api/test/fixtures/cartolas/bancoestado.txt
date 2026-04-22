@@ -1,25 +1,20 @@
 BANCOESTADO
-Cartola CuentaRUT
+CARTOLA BANCOESTADO
 bancoestado.cl
+CUENTA RUT
+ESTADO DE CUENTA
+CLIENTE: MANZANARES IGNACIO
+RUT: 13.513.809-K
+PERIODO: DESDE 01/01/2026 HASTA 31/01/2026
 
-Titular: CARLOS ANDRES MENDOZA VEGA
-RUT: 15.432.876-K
-CUENTA RUT Nº: 15432876
+FECHA     DESCRIPCION                       CARGO      ABONO     SALDO
+05/01     Compra Debito LIDER             10.500                90.000
+07/01     Deposito Efectivo                          100.000   190.000
+15/01     Retiro Cajero Automatico         50.000              140.000
 
-Período: 01/03/2026 - 31/03/2026
+SALDO INICIAL: 100.500
+TOTAL CARGOS:  60.500
+TOTAL ABONOS: 100.000
+SALDO FINAL:  140.000
 
-Saldo Inicial: $0
-
-MOVIMIENTOS
-
-FECHA       DESCRIPCIÓN                             CARGO       ABONO       SALDO
-02/03/2026  ABONO REMUNERACION EMPRESA DEF LTDA                 650.000     650.000
-05/03/2026  COMPRA SANTA ISABEL RENCA              25.400                   624.600
-08/03/2026  GIRO CAJERO AUTOMATICO                 50.000                   574.600
-12/03/2026  PAC ENTEL HOGAR                        29.900                   544.700
-15/03/2026  TRANSFERENCIA A ROSA MENDOZA           200.000                  344.700
-20/03/2026  COMPRA FARMACIA AHUMADA                15.600                   329.100
-25/03/2026  COMPRA LIDER MAIPU                     42.300                   286.800
-28/03/2026  ABONO CUOTA AHORRO                                  50.000      336.800
-
-Saldo Final: $336.800
+MOVIMIENTO CARGO ABONO

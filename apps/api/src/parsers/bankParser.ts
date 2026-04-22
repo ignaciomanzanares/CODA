@@ -21,10 +21,12 @@ import {
   type ParsedTransaction,
   type TransactionCategory,
   type ReconciliationResult,
+  type DetectionTier,
   ParseError,
   buildTransactionConfidence,
   computeReconciliation,
   computeOverallConfidence,
+  getDetectionTier,
   MIN_PARSE_CONFIDENCE,
   RECONCILIATION_ERROR_PCT,
   RECONCILIATION_WARN_PCT,
@@ -188,9 +190,24 @@ export async function runBankParser(
   }
 
   // 4. Annotate each transaction with confidence scores
-  const transacciones: ParsedTransaction[] = raw.transacciones.map((tx) =>
+  const tier: DetectionTier = getDetectionTier(opts.banco_confidence);
+  const rawTransacciones: ParsedTransaction[] = raw.transacciones.map((tx) =>
     annotateTransaction(tx, opts.mode)
   );
+
+  // When MEDIUM tier: multiply each transaction's confidence by banco_confidence
+  // to propagate detection uncertainty into the transaction-level scores.
+  const transacciones: ParsedTransaction[] =
+    tier === "MEDIUM"
+      ? rawTransacciones.map((tx) => ({
+          ...tx,
+          confidence: {
+            ...tx.confidence,
+            overall:
+              Math.round(tx.confidence.overall * opts.banco_confidence * 1000) / 1000,
+          },
+        }))
+      : rawTransacciones;
 
   // 5. Reconciliation
   const reconciliation = computeReconciliation(
@@ -271,6 +288,7 @@ export async function runBankParser(
   return {
     banco: opts.banco,
     banco_confidence: opts.banco_confidence,
+    detection_tier: tier,
     titular: raw.titular,
     cuenta: raw.cuenta,
     periodo: raw.periodo,

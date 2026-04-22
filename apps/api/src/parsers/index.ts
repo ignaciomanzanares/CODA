@@ -13,8 +13,8 @@
  * los handlers de rutas puedan introspectarlos.
  */
 
-import { detectFormat, assertFormatDetected } from "./detectFormat.js";
-import { ParseError } from "./base.js";
+import { detectFormat } from "./detectFormat.js";
+import { ParseError, getDetectionTier } from "./base.js";
 import type { ParseResult } from "./base.js";
 
 import * as parsers from "./parsers.registry.js";
@@ -67,9 +67,23 @@ export async function parseCartolaBuffer(buffer: Buffer): Promise<ParseResult> {
     );
   }
 
-  // 2. Detect format and assert confidence threshold
+  // 2. Detect format and determine tier
   const detected = detectFormat(text);
-  assertFormatDetected(detected); // throws FORMAT_UNKNOWN if confidence < 0.85
+  const tier = getDetectionTier(detected.confidence);
+
+  if (tier === "LOW") {
+    throw new ParseError(
+      "FORMAT_UNKNOWN",
+      "No se reconoció el banco del documento. " +
+        "Sube una cartola PDF de Santander, BCI, Banco de Chile, BancoEstado, Itaú o Scotiabank. " +
+        "Si el PDF es una imagen escaneada, conviértelo a PDF con texto primero.",
+      {
+        detected_banco: detected.banco,
+        confidence: detected.confidence,
+        tier,
+      }
+    );
+  }
 
   // 3. Route to bank-specific parser
   const parserFn = parsers.getParser(detected.banco);

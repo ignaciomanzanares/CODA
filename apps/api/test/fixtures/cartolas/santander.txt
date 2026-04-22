@@ -1,28 +1,27 @@
 BANCO SANTANDER
-Estado de Cuenta Corriente
-santander.cl
+CUENTA VISTA
+ESTADO CUENTA VISTA
+SUCURSAL CARTOLADESDE HASTA PAGINA
+Saldo Inicial Cheques o Cargos Depositos o Abonos Saldo Final
+Banco Santander Chile
+MANZANARES BANCHERO IGNACIO
+IGNACIO.MANZANARES00@GMAIL.COM
+01/01/2026
+31/01/2026
+CHEQUES Y CARGOS
+DEPOSITOS Y ABONOS
+SALDO
 
-Cliente: JUAN PABLO SOTO MORALES
-RUT: 12.345.678-9
-Cuenta Corriente Nº: 10101-67890-0-001-0
+MOVIMIENTO DE SU CUENTA SALDO DIARIO
+FECHA NUMERO SUC DESCRIPCION CHEQUES Y CARGOS DEPOSITOS Y ABONOS SALDO
+05/01 Compra Nacional LIDER 10500
+05/01 Transf de EMPRESA SA 500000
+--- Saldo Dia ---
+06/01 Compra Nacional COPEC 35000
+06/01 011351809K Transf a PEDRO 80000
+--- Saldo Dia ---
+CARGO ABONO TRANSACCION MOVIMIENTO SALDO
 
-Período: DESDE 01/03/2026 HASTA 31/03/2026
-
-Saldo Inicial   Cargos    Abonos    Saldo Final
-850.000         320.000   480.000   1.010.000
-
-DETALLE DE MOVIMIENTOS DEL PERÍODO
-
-FECHA       DESCRIPCION                         CHEQUES Y CARGOS    DEPOSITOS Y ABONOS    SALDO
-01/03/2026  Compra Nacional STARBUCKS MALL       11.500                                    838.500
-05/03/2026  TEF DE EMPRESA ABC LTDA                                  350.000               1.188.500
-10/03/2026  Compra Nacional LIDER VESPUCIO       62.300                                    1.126.200
-15/03/2026  Transf A Juan Perez                  100.000                                   1.026.200
-20/03/2026  PAC ENTEL MOVIL                      39.990                                    986.210
-25/03/2026  Compra Nacional JUMBO PLAZA          78.500                                    907.710
-28/03/2026  Sueldo EMPRESA XYZ SPA                                   130.000               1.037.710
-31/03/2026  Cargo Mantención Cuenta              25.000                                    1.012.710
-
---- Saldo Día 31/03/2026   1.012.710
-
-TOTAL CARGOS: 316.790     TOTAL ABONOS: 480.000
+"INFORMESE SOBRE LAS ENTIDADES AUTORIZADAS PARA EMITIR TARJETAS DE PAGO EN EL PAIS,
+QUIENES SE ENCUENTRAN INSCRITAS EN LOS REGISTROS DE EMISORES DE TARJETAS QUE LLEVA LA CMF,
+EN WWW.CMFCHILE.CL"

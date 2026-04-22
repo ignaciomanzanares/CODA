@@ -1,0 +1,238 @@
+{
+  "banco": "Santander",
+  "saldo_inicial": 973959,
+  "saldo_final": 405125,
+  "total_cargos": 2333197,
+  "total_abonos": 1764363,
+  "tx_count": 38,
+  "transacciones": [
+    {
+      "fecha": "2026-01-05",
+      "tipo": "cargo",
+      "monto": 1000,
+      "descripcion": "Transf a MOVIRED"
+    },
+    {
+      "fecha": "2026-01-05",
+      "tipo": "cargo",
+      "monto": 19040,
+      "descripcion": "Transf a Thomas Mat"
+    },
+    {
+      "fecha": "2026-01-05",
+      "tipo": "cargo",
+      "monto": 80000,
+      "descripcion": "Transf a OLD REDLAN"
+    },
+    {
+      "fecha": "2026-01-06",
+      "tipo": "abono",
+      "monto": 3700,
+      "descripcion": "Transf. Vicente Nic"
+    },
+    {
+      "fecha": "2026-01-06",
+      "tipo": "cargo",
+      "monto": 2090,
+      "descripcion": "Compra Nacional SERVICIOS Y CO"
+    },
+    {
+      "fecha": "2026-01-06",
+      "tipo": "cargo",
+      "monto": 7380,
+      "descripcion": "Compra Nacional PRONTO CIUC PI"
+    },
+    {
+      "fecha": "2026-01-07",
+      "tipo": "cargo",
+      "monto": 11990,
+      "descripcion": "Compra Nacional NP ENTEL ONECL"
+    },
+    {
+      "fecha": "2026-01-08",
+      "tipo": "abono",
+      "monto": 40000,
+      "descripcion": "Trasp. desde Cta Mática/Intern"
+    },
+    {
+      "fecha": "2026-01-08",
+      "tipo": "abono",
+      "monto": 100000,
+      "descripcion": "011351809K Transf de PATRICIO"
+    },
+    {
+      "fecha": "2026-01-08",
+      "tipo": "cargo",
+      "monto": 6999,
+      "descripcion": "Transf a Diego Espi"
+    },
+    {
+      "fecha": "2026-01-08",
+      "tipo": "cargo",
+      "monto": 13440,
+      "descripcion": "Transf a MEDIO DE P"
+    },
+    {
+      "fecha": "2026-01-09",
+      "tipo": "cargo",
+      "monto": 13440,
+      "descripcion": "Transf a MEDIO DE P"
+    },
+    {
+      "fecha": "2026-01-09",
+      "tipo": "cargo",
+      "monto": 13890,
+      "descripcion": "Compra Nacional LA BIRRA CHILE"
+    },
+    {
+      "fecha": "2026-01-12",
+      "tipo": "cargo",
+      "monto": 7290,
+      "descripcion": "Compra Nacional MC DONALDS REN"
+    },
+    {
+      "fecha": "2026-01-12",
+      "tipo": "cargo",
+      "monto": 11380,
+      "descripcion": "Compra Nacional ARCOS DORADOS"
+    },
+    {
+      "fecha": "2026-01-12",
+      "tipo": "cargo",
+      "monto": 18590,
+      "descripcion": "Transf a Benjamin U"
+    },
+    {
+      "fecha": "2026-01-16",
+      "tipo": "cargo",
+      "monto": 8910,
+      "descripcion": "Compra Nacional BAR RESTAURANT"
+    },
+    {
+      "fecha": "2026-01-19",
+      "tipo": "cargo",
+      "monto": 1608,
+      "descripcion": "Compra Internacional UBER *LIM"
+    },
+    {
+      "fecha": "2026-01-19",
+      "tipo": "cargo",
+      "monto": 2340,
+      "descripcion": "Compra Nacional NP PAYU"
+    },
+    {
+      "fecha": "2026-01-19",
+      "tipo": "cargo",
+      "monto": 3100,
+      "descripcion": "Compra Nacional MERCADOPAGO*SU"
+    },
+    {
+      "fecha": "2026-01-19",
+      "tipo": "cargo",
+      "monto": 3410,
+      "descripcion": "Compra Nacional MERCADOPAGO*SU"
+    },
+    {
+      "fecha": "2026-01-19",
+      "tipo": "cargo",
+      "monto": 10500,
+      "descripcion": "Compra Nacional SumUp * Licore"
+    },
+    {
+      "fecha": "2026-01-19",
+      "tipo": "cargo",
+      "monto": 39600,
+      "descripcion": "Compra Nacional SumUp * Eventl"
+    },
+    {
+      "fecha": "2026-01-19",
+      "tipo": "cargo",
+      "monto": 750000,
+      "descripcion": "PAGO EN LINEA PRINCIPAL AD. GE"
+    },
+    {
+      "fecha": "2026-01-20",
+      "tipo": "abono",
+      "monto": 26300,
+      "descripcion": "Transf. Vicente Nic"
+    },
+    {
+      "fecha": "2026-01-20",
+      "tipo": "cargo",
+      "monto": 8000,
+      "descripcion": "Transf a Luis Felip"
+    },
+    {
+      "fecha": "2026-01-20",
+      "tipo": "cargo",
+      "monto": 40000,
+      "descripcion": "Transf a Tomas Igna"
+    },
+    {
+      "fecha": "2026-01-21",
+      "tipo": "abono",
+      "monto": 591697,
+      "descripcion": "Transf de NATALIA C"
+    },
+    {
+      "fecha": "2026-01-21",
+      "tipo": "cargo",
+      "monto": 11000,
+      "descripcion": "Compra Nacional EL BODEGON"
+    },
+    {
+      "fecha": "2026-01-21",
+      "tipo": "cargo",
+      "monto": 13800,
+      "descripcion": "Compra Nacional NP PASS LINE L"
+    },
+    {
+      "fecha": "2026-01-22",
+      "tipo": "cargo",
+      "monto": 450000,
+      "descripcion": "PAGO EN LINEA PRINCIPAL AD. GE"
+    },
+    {
+      "fecha": "2026-01-26",
+      "tipo": "cargo",
+      "monto": 4500,
+      "descripcion": "Compra Nacional SumUp * SEDA M"
+    },
+    {
+      "fecha": "2026-01-26",
+      "tipo": "cargo",
+      "monto": 9000,
+      "descripcion": "Compra Nacional MERCADOPAGO*HE"
+    },
+    {
+      "fecha": "2026-01-27",
+      "tipo": "cargo",
+      "monto": 2500,
+      "descripcion": "Compra Nacional SumUp * SEDA M"
+    },
+    {
+      "fecha": "2026-01-29",
+      "tipo": "abono",
+      "monto": 5000,
+      "descripcion": "Traspaso Automático Programado"
+    },
+    {
+      "fecha": "2026-01-29",
+      "tipo": "abono",
+      "monto": 997666,
+      "descripcion": "Transf de INVERSION"
+    },
+    {
+      "fecha": "2026-01-29",
+      "tipo": "cargo",
+      "monto": 750000,
+      "descripcion": "011351809K Transf a PATRICIO R"
+    },
+    {
+      "fecha": "2026-01-30",
+      "tipo": "cargo",
+      "monto": 18400,
+      "descripcion": "Transf a MEDIO DE P"
+    }
+  ]
+}

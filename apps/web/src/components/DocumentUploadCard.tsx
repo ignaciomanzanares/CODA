@@ -5,7 +5,7 @@ import { queryClient } from "@/lib/queryClient";
 import type { DocumentUploadResult } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { FileText, Loader2, CheckCircle2, AlertCircle, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Analytics } from "@/lib/analytics";
 
@@ -335,9 +335,43 @@ export default function DocumentUploadCard() {
           </div>
         )}
 
+        {result && result.step === "done" && !result.error && result.detection_tier === "MEDIUM" && result.documentType === "cartola" && (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium mb-1">
+                Detectamos como {result.detected_banco ?? "banco"} con{" "}
+                {result.banco_confidence != null
+                  ? `${Math.round(result.banco_confidence * 100)}%`
+                  : "baja"}{" "}
+                de confianza. Revisa antes de continuar.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-400 text-amber-800 hover:bg-amber-100"
+                onClick={() => {
+                  // CTA: transaction review — user can proceed after acknowledgment
+                  alert(
+                    "Revisa los movimientos extraídos en la sección de transacciones antes de usarlos para decisiones financieras."
+                  );
+                }}
+              >
+                <Eye className="h-3.5 w-3.5 mr-1" />
+                Revisar antes de continuar
+              </Button>
+            </div>
+          </div>
+        )}
+
         {result && result.step === "done" && !result.error && (
           <div className="space-y-3 rounded-lg border bg-card p-4">
-            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+            <div className={cn(
+              "flex items-center gap-2",
+              result.detection_tier === "MEDIUM"
+                ? "text-amber-600 dark:text-amber-400"
+                : "text-emerald-600 dark:text-emerald-400"
+            )}>
               <CheckCircle2 className="h-5 w-5" />
               <span className="font-medium">Datos procesados con éxito</span>
             </div>

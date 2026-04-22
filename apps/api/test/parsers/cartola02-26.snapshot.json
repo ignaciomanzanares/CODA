@@ -1,0 +1,190 @@
+{
+  "banco": "Santander",
+  "saldo_inicial": 405125,
+  "saldo_final": 938532,
+  "total_cargos": 733523,
+  "total_abonos": 1266930,
+  "tx_count": 30,
+  "transacciones": [
+    {
+      "fecha": "2026-02-02",
+      "tipo": "cargo",
+      "monto": 18173,
+      "descripcion": "Pago Recurrente VD CURSOR, AI"
+    },
+    {
+      "fecha": "2026-02-06",
+      "tipo": "cargo",
+      "monto": 10000,
+      "descripcion": "Transf a Tomas Igna"
+    },
+    {
+      "fecha": "2026-02-06",
+      "tipo": "cargo",
+      "monto": 144659,
+      "descripcion": "Compra Nacional CACHAGUA"
+    },
+    {
+      "fecha": "2026-02-09",
+      "tipo": "cargo",
+      "monto": 11990,
+      "descripcion": "Compra Nacional NP ENTEL ONECL"
+    },
+    {
+      "fecha": "2026-02-10",
+      "tipo": "cargo",
+      "monto": 35000,
+      "descripcion": "Transf a Tomas Igna"
+    },
+    {
+      "fecha": "2026-02-12",
+      "tipo": "cargo",
+      "monto": 5000,
+      "descripcion": "Transf a Tomas Igna"
+    },
+    {
+      "fecha": "2026-02-12",
+      "tipo": "cargo",
+      "monto": 5000,
+      "descripcion": "Transf a Tomas Igna"
+    },
+    {
+      "fecha": "2026-02-13",
+      "tipo": "cargo",
+      "monto": 2400,
+      "descripcion": "Compra Nacional BOTILLERIA LA"
+    },
+    {
+      "fecha": "2026-02-16",
+      "tipo": "abono",
+      "monto": 162000,
+      "descripcion": "011351809K Transf de PATRICIO"
+    },
+    {
+      "fecha": "2026-02-16",
+      "tipo": "cargo",
+      "monto": 13226,
+      "descripcion": "Transf a Álvaro Ign"
+    },
+    {
+      "fecha": "2026-02-16",
+      "tipo": "cargo",
+      "monto": 31990,
+      "descripcion": "Compra Nacional MERCADOPAGO*DR"
+    },
+    {
+      "fecha": "2026-02-16",
+      "tipo": "cargo",
+      "monto": 52800,
+      "descripcion": "Compra Nacional SumUp * Eventl"
+    },
+    {
+      "fecha": "2026-02-17",
+      "tipo": "abono",
+      "monto": 17600,
+      "descripcion": "021454377K Transf. Martin Fern"
+    },
+    {
+      "fecha": "2026-02-18",
+      "tipo": "cargo",
+      "monto": 1291,
+      "descripcion": "Compra Internacional UBER *TEM"
+    },
+    {
+      "fecha": "2026-02-18",
+      "tipo": "cargo",
+      "monto": 1986,
+      "descripcion": "Compra Nacional NP PAYU"
+    },
+    {
+      "fecha": "2026-02-18",
+      "tipo": "cargo",
+      "monto": 7190,
+      "descripcion": "Compra Nacional MC DONALDS PRO"
+    },
+    {
+      "fecha": "2026-02-18",
+      "tipo": "cargo",
+      "monto": 15000,
+      "descripcion": "Compra Nacional MERCADOPAGO*SU"
+    },
+    {
+      "fecha": "2026-02-18",
+      "tipo": "cargo",
+      "monto": 21450,
+      "descripcion": "Compra Nacional NP DP"
+    },
+    {
+      "fecha": "2026-02-18",
+      "tipo": "cargo",
+      "monto": 22550,
+      "descripcion": "Compra Nacional REUS SPA"
+    },
+    {
+      "fecha": "2026-02-18",
+      "tipo": "cargo",
+      "monto": 24000,
+      "descripcion": "Compra Nacional BAR-REST-PUB S"
+    },
+    {
+      "fecha": "2026-02-19",
+      "tipo": "cargo",
+      "monto": 1348,
+      "descripcion": "Transf a MATEO BRUN"
+    },
+    {
+      "fecha": "2026-02-19",
+      "tipo": "cargo",
+      "monto": 80000,
+      "descripcion": "Transf a Tomas Igna"
+    },
+    {
+      "fecha": "2026-02-23",
+      "tipo": "abono",
+      "monto": 11000,
+      "descripcion": "Transf de ISABEL MA"
+    },
+    {
+      "fecha": "2026-02-23",
+      "tipo": "abono",
+      "monto": 12000,
+      "descripcion": "Transf. Vicente Nic"
+    },
+    {
+      "fecha": "2026-02-24",
+      "tipo": "cargo",
+      "monto": 43470,
+      "descripcion": "Compra Nacional NP TICKETMASTE"
+    },
+    {
+      "fecha": "2026-02-25",
+      "tipo": "cargo",
+      "monto": 5000,
+      "descripcion": "Compra Nacional EVENTOS ARAUCO"
+    },
+    {
+      "fecha": "2026-02-27",
+      "tipo": "abono",
+      "monto": 16740,
+      "descripcion": "Transf."
+    },
+    {
+      "fecha": "2026-02-27",
+      "tipo": "abono",
+      "monto": 50000,
+      "descripcion": "011351809K Transf de PATRICIO"
+    },
+    {
+      "fecha": "2026-02-27",
+      "tipo": "abono",
+      "monto": 997590,
+      "descripcion": "Transf de INVERSION"
+    },
+    {
+      "fecha": "2026-02-27",
+      "tipo": "cargo",
+      "monto": 180000,
+      "descripcion": "Transf a OLD REDLAN"
+    }
+  ]
+}
