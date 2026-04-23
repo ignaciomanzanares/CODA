@@ -8,6 +8,7 @@
 // Importamos la versión legacy optimizada para Node.js
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { SfaTransaccionCuenta, SfaProductoVigenteCuenta } from '../../sfa/types.js';
+import { parseCLP } from '../../utils/clp.js';
 
 export interface CmfInformeDeudas {
   tipo: 'cmf_informe_deudas';
@@ -40,11 +41,16 @@ function extractNumberAfterLabel(text: string, label: string): number | null {
   const idx = text.search(new RegExp(label.replace(/\s+/g, '\\s+'), 'i'));
   if (idx === -1) return null;
   const slice = text.slice(idx, idx + 120);
-  const match = slice.match(/\$?\s*([\d.]+)\s*(?:UF|CLP|pesos)?/);
-  if (match) return parseFloat(match[1].replace(/\./g, '').replace(/,/, '.') || match[1]) || null;
-  const onlyDigits = slice.replace(/[^\d.]/g, ' ');
-  const num = onlyDigits.trim().split(/\s+/)[0];
-  return num ? parseFloat(num) : null;
+  // Primary: match Chilean-format monetary string (dots = thousands, optional comma decimal)
+  const match = slice.match(/\$?\s*([\d.,]+)\s*(?:UF|CLP|pesos)?/);
+  if (match) {
+    const val = parseCLP(match[1]);
+    return val > 0 ? val : null;
+  }
+  // Fallback: extract first run of digits only (no dots — avoids thousands-separator misparse)
+  const onlyDigits = slice.replace(/[^\d]/g, ' ');
+  const num = onlyDigits.trim().split(/\s+/).find(s => s.length > 0);
+  return num ? parseInt(num, 10) : null;
 }
 
 /**
@@ -133,12 +139,12 @@ export function parseCmfInformeDeudas(text: string): CmfInformeDeudas | null {
   
   const deudaIndirecta = extractNumberAfterLabel(normalized, 'Deuda Indirecta')
     ?? extractNumberAfterLabel(normalized, 'Deuda indirecta')
-    ?? (deudaIndirectaMatch ? parseFloat(deudaIndirectaMatch[1].replace(/\./g, '').replace(',', '.')) : null);
-  
+    ?? (deudaIndirectaMatch ? parseCLP(deudaIndirectaMatch[1]) : null);
+
   // Si no encontramos deuda total directamente, intentar sumar Directa + Indirecta de las secciones
   if (deudaTotal === null && deudaDirectaMatch && deudaIndirectaMatch) {
-    const directa = parseFloat(deudaDirectaMatch[1].replace(/\./g, '').replace(',', '.')) || 0;
-    const indirecta = parseFloat(deudaIndirectaMatch[1].replace(/\./g, '').replace(',', '.')) || 0;
+    const directa = parseCLP(deudaDirectaMatch[1]);
+    const indirecta = parseCLP(deudaIndirectaMatch[1]);
     deudaTotal = directa + indirecta;
   }
   
@@ -239,7 +245,7 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   function parseChile(s: string): number {
-    return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+    return parseCLP(s);
   }
 
   /**

@@ -23,15 +23,21 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixtureDir = join(__dirname, "../fixtures/cartolas/Santander");
 const snapshotDir = __dirname;
 
-const FIXTURES = [
+const ALL_FIXTURES = [
   "cartola01-26.pdf",
   "cartola02-26.pdf",
+  "cartola03-26.pdf",
   "cartola09-25.pdf",
   "cartola10-25.pdf",
   "cartola12-25.pdf",
   "cartola-50.pdf",
   "cartola-50-1.pdf",
 ];
+
+// Only run tests against fixtures that are actually present on disk
+const FIXTURES = ALL_FIXTURES.filter((f) =>
+  existsSync(join(fixtureDir, f))
+);
 
 /** Normalize whitespace in a description for comparison */
 function normalizeDesc(s: string): string {
