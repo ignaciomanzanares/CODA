@@ -8,16 +8,15 @@ import { getSfaScoringEngine } from '../scoring/index.js';
 import { storage } from '../../storage.js';
 import { logger } from '../../logger.js';
 import {
-  analyzePdfBuffer,
   extractPdfText,
+  parseCmfInformeDeudas,
   cartolaToSfaTransactions,
   cartolaToSfaProductos,
   type CmfInformeDeudas,
   type CartolaExtraida,
-  type DocumentoExtraido,
 } from './pdfAnalysis.js';
-import { detectFormat } from '../../parsers/detectFormat.js';
-import { getDetectionTier, type DetectionTier } from '../../parsers/base.js';
+import { parseCartolaBuffer, ParseError } from '../../parsers/index.js';
+import { type DetectionTier } from '../../parsers/base.js';
 import { logCreditScorePrediction } from '../audit/algorithmicTraceability.js';
 
 export const CREDIT_SCORE_EXCELLENT = 680;
@@ -64,27 +63,130 @@ export function validateDocumentBelongsToUser(
 
 /**
  * Procesa buffer de PDF: detecta tipo, extrae datos, actualiza scores y persiste.
+ *
+ * Pipeline: extract text once → check CMF signals → if not CMF, use hardened
+ * parseCartolaBuffer() (format detection + tier + reconciliation in one pass).
  */
 export async function processDocumentUpload(
   userId: string,
   buffer: Buffer
 ): Promise<UploadResult> {
-  const doc = await analyzePdfBuffer(buffer);
-  if (!doc) {
+  // 1. Extract text once — shared by CMF detection and cartola fallback
+  let text = '';
+  try {
+    const result = await extractPdfText(buffer);
+    text = result.text ?? '';
+  } catch {
+    /* will propagate as error below */
+  }
+
+  if (!text || text.trim().length < 40) {
     return {
       step: 'done',
       error: 'No se pudo reconocer el documento. Asegúrate de subir un Informe de Deudas CMF o una Cartola Bancaria en PDF.',
     };
   }
 
-  const validation = validateDocumentBelongsToUser(userId, doc.rutDocumento ?? undefined);
-  if (!validation.valid) {
-    return { step: 'done', error: validation.message ?? 'El documento no corresponde al usuario.' };
+  // 2. CMF path: text-only detection — no second PDF pass needed
+  const cmfDoc = parseCmfInformeDeudas(text);
+  if (cmfDoc) {
+    const validation = validateDocumentBelongsToUser(userId, cmfDoc.rutDocumento ?? undefined);
+    if (!validation.valid) {
+      return { step: 'done', error: validation.message ?? 'El documento no corresponde al usuario.' };
+    }
+    return processCmfUpload(userId, cmfDoc);
   }
 
-  if (doc.tipo === 'cmf_informe_deudas') {
+  // 3. Cartola path: hardened pipeline (format detection + tier + reconciliation in one pass)
+  try {
+    const parsed = await parseCartolaBuffer(buffer);
+
+    // Convert ParseResult → CartolaExtraida for SFA scoring aggregation with previous uploads
+    const cartolaExtraida: CartolaExtraida = {
+      tipo: 'cartola',
+      transacciones: parsed.transacciones.map((tx) => ({
+        fecha: tx.fecha instanceof Date ? tx.fecha.toISOString().slice(0, 10) : String(tx.fecha),
+        descripcion: tx.descripcion,
+        cargo: tx.tipo === 'cargo' ? tx.monto : 0,
+        abono: tx.tipo === 'abono' ? tx.monto : 0,
+        saldo: tx.saldo_despues,
+      })),
+      saldoInicial: parsed.saldo_inicial,
+      saldoFinal: parsed.saldo_final,
+      rutDocumento: undefined,
+    };
+
+    const rut = cartolaExtraida.rutDocumento ?? '00.000.000-0';
+    const previousCartolas = await storage.listDocumentUploadsByType(userId, "cartola");
+    const previousParsed: CartolaExtraida[] = previousCartolas
+      .map((r) => r?.parsedData as CartolaExtraida | null)
+      .filter((c): c is CartolaExtraida => !!c && Array.isArray(c.transacciones));
+    const allCartolas = [...previousParsed, cartolaExtraida];
+    const transactions = allCartolas.flatMap((c) => cartolaToSfaTransactions(c, c.rutDocumento ?? rut));
+    const products = allCartolas.flatMap((c) => cartolaToSfaProductos(c, c.rutDocumento ?? rut));
+
+    const engine = getSfaScoringEngine();
+    const scoreResult = engine.run({ transactions, products });
+
+    const hasInterest = parsed.transacciones.some(
+      (t) => /interés|interes|intereses|línea|linea|crédito|credito|tarjeta/i.test(t.descripcion)
+    );
+    const mainInsights = [...scoreResult.mainInsights];
+    if (hasInterest) {
+      mainInsights.push(
+        'Detectamos intereses de línea de crédito o tarjeta en tu cartola. Te recomendamos consolidar deudas y evaluar ofertas de ahorro según el Business Plan.'
+      );
+    }
+    if (parsed.warnings && parsed.warnings.length > 0) {
+      mainInsights.push(...parsed.warnings);
+    }
+
+    await storage.createDocumentUpload({
+      id: randomUUID(),
+      userId,
+      tipo: "cartola",
+      banco: parsed.banco ?? null,
+      periodoDesde: parsed.periodo?.desde instanceof Date ? parsed.periodo.desde.toISOString().slice(0, 10) : null,
+      periodoHasta: parsed.periodo?.hasta instanceof Date ? parsed.periodo.hasta.toISOString().slice(0, 10) : null,
+      parsedData: cartolaExtraida,
+      parseStatus: "success",
+    });
+    await storage.upsertTransactionalScore(userId, {
+      transactionalScore: scoreResult.transactionalScore,
+      metrics: scoreResult.metrics,
+      mainInsights,
+      recommendedProducts: scoreResult.recommendedProducts,
+      algorithmInputs: {
+        pipeline: 'cartola_pdf_hardened',
+        transactionCount: transactions.length,
+        productCount: products.length,
+        cartolasCount: allCartolas.length,
+        banco_confidence: parsed.banco_confidence,
+        detection_tier: parsed.detection_tier,
+        parse_confidence: parsed.parse_confidence,
+      },
+    });
+    return {
+      step: 'done',
+      documentType: 'cartola',
+      transactionalScore: scoreResult.transactionalScore,
+      mainInsights,
+      recommendedProducts: scoreResult.recommendedProducts,
+      metrics: scoreResult.metrics,
+      detection_tier: parsed.detection_tier,
+      banco_confidence: parsed.banco_confidence,
+      detected_banco: parsed.banco,
+    };
+  } catch (e) {
+    if (e instanceof ParseError) {
+      return { step: 'done', error: `${e.messageEs}` };
+    }
+    throw e;
+  }
+}
+
+async function processCmfUpload(userId: string, doc: CmfInformeDeudas): Promise<UploadResult> {
     const uploadId = randomUUID();
-    // RUT como ancla: el informe debe contener un RUT válido (ej. 21.486.204-2). Si no hay, 400.
     const RUT_RE = /\b\d{1,2}\.\d{3}\.\d{3}-[\dKk]\b/;
     const rutExtraido = doc.rutDocumento?.trim();
     const rutValido = rutExtraido && RUT_RE.test(rutExtraido);
@@ -94,24 +196,18 @@ export async function processDocumentUpload(
         error: 'No se encontró un RUT válido en el Informe CMF. Verifica que el PDF sea un informe de deudas oficial.',
       };
     }
-    
+
     const startTime = Date.now();
     const requestId = randomUUID();
-    
     const creditScoreValue = computeCreditScoreFromCmf(doc);
     const scoreNum = Number(creditScoreValue);
-    
-    // Determine risk category
     const riskCategory = scoreNum >= 750 ? 'EXCELLENT'
       : scoreNum >= 680 ? 'GOOD'
       : scoreNum >= 620 ? 'AVERAGE'
       : scoreNum >= 550 ? 'POOR'
       : 'VERY_POOR';
-    
-    // Approximate PD (Probability of Default) from score
     const pd = Math.max(0, Math.min(1, (850 - scoreNum) / 550));
-    
-    // Log prediction for audit trail (CMF compliance)
+
     const predictionLogId = logCreditScorePrediction(
       userId,
       requestId,
@@ -125,9 +221,9 @@ export async function processDocumentUpload(
             name: 'Deuda Total Vigente',
             value: doc.deudaTotalVigente,
             impact: doc.deudaTotalVigente === 0 ? 100 : -50,
-            explanation: doc.deudaTotalVigente === 0 
+            explanation: doc.deudaTotalVigente === 0
               ? 'Sin deudas vigentes (excelente)'
-              : `Deuda de $${doc.deudaTotalVigente.toLocaleString('es-CL')} CLP`
+              : `Deuda de $${doc.deudaTotalVigente.toLocaleString('es-CL')} CLP`,
           },
           {
             name: 'Deuda Indirecta',
@@ -135,15 +231,15 @@ export async function processDocumentUpload(
             impact: doc.deudaIndirecta === 0 ? 50 : -30,
             explanation: doc.deudaIndirecta === 0
               ? 'Sin deudas indirectas (excelente)'
-              : `Deuda indirecta de $${doc.deudaIndirecta.toLocaleString('es-CL')} CLP`
+              : `Deuda indirecta de $${doc.deudaIndirecta.toLocaleString('es-CL')} CLP`,
           },
           {
             name: 'Número de Instituciones',
             value: doc.numeroInstituciones,
             impact: doc.numeroInstituciones === 0 ? 30 : -20,
-            explanation: `${doc.numeroInstituciones} institución(es) reportada(s)`
-          }
-        ]
+            explanation: `${doc.numeroInstituciones} institución(es) reportada(s)`,
+          },
+        ],
       },
       {
         cmfData: doc,
@@ -152,20 +248,14 @@ export async function processDocumentUpload(
           deudaIndirecta: doc.deudaIndirecta,
           numeroInstituciones: doc.numeroInstituciones,
           hasDebt: doc.deudaTotalVigente > 0,
-          debtRatio: doc.deudaTotalVigente > 0 ? doc.deudaIndirecta / doc.deudaTotalVigente : 0
-        }
+          debtRatio: doc.deudaTotalVigente > 0 ? doc.deudaIndirecta / doc.deudaTotalVigente : 0,
+        },
       },
-      {
-        processingTimeMs: Date.now() - startTime
-      }
+      { processingTimeMs: Date.now() - startTime }
     );
-    
-    logger.info(
-      { userId, requestId, predictionLogId, score: scoreNum },
-      '[documentUploadService] CMF: prediction logged for audit trail'
-    );
-    
-    // Mismo patrón que cartola: un solo upsert con userId (ensureUserForToken ya dio el userId de la ruta).
+
+    logger.info({ userId, requestId, predictionLogId, score: scoreNum }, '[documentUploadService] CMF: prediction logged');
+
     const creditPayload = {
       score: scoreNum,
       maxScore: CREDIT_SCORE_MAX,
@@ -174,31 +264,28 @@ export async function processDocumentUpload(
       ageOfCredit: 'Good',
       lastUpdated: new Date().toISOString(),
     };
-    console.log('[documentUploadService] creditPayload exacto:', JSON.stringify(creditPayload));
-    logger.info(
-      { userId, creditPayload },
-      '[documentUploadService] CMF: mismo riel que cartola → storage.upsertCreditScore(userId, payload)'
-    );
-    // Misma forma de llamar al storage que cartolas: un solo upsert con userId.
+    logger.info({ userId, creditPayload }, '[documentUploadService] CMF: upsertCreditScore');
     await storage.upsertCreditScore(userId, creditPayload);
-    // Confirmación de DB: solo 200 OK si foundAfterSave es positivo.
+
     const afterSave = await storage.getCreditScore(userId);
     if (!afterSave) {
-      logger.error({ userId }, '[documentUploadService] CMF: upsert ejecutado pero getCreditScore no devolvió fila');
+      logger.error({ userId }, '[documentUploadService] CMF: getCreditScore returned nothing after upsert');
       throw new Error('Credit score no persistido en base de datos. Reintenta más tarde.');
     }
     const scoreEnDb = Number(afterSave.score);
     if (scoreEnDb !== scoreNum) {
-      logger.error({ userId, esperado: scoreNum, enDb: scoreEnDb }, '[documentUploadService] CMF: score en DB no coincide');
+      logger.error({ userId, esperado: scoreNum, enDb: scoreEnDb }, '[documentUploadService] CMF: score mismatch');
       throw new Error(`Credit score persistido no coincide (esperado ${scoreNum}, en DB ${scoreEnDb}). Reintenta más tarde.`);
     }
-    logger.info({ userId, score: scoreEnDb, foundAfterSave: true }, '[documentUploadService] CMF: confirmación DB OK, respondiendo 200');
+    logger.info({ userId, score: scoreEnDb }, '[documentUploadService] CMF: DB confirmed OK');
+
     const cmfInsight =
       doc.deudaTotalVigente === 0 && doc.deudaIndirecta === 0
         ? 'Perfil Crediticio Saludable: Sin deudas morosas. Estado vigente según Informe CMF.'
         : doc.numeroInstituciones > 0
           ? `Deuda total vigente: $${doc.deudaTotalVigente.toLocaleString('es-CL')} CLP en ${doc.numeroInstituciones} institución(es).`
           : 'Sin deudas vigentes reportadas en el informe CMF.';
+
     await storage.createDocumentUpload({
       id: uploadId,
       userId,
@@ -212,88 +299,10 @@ export async function processDocumentUpload(
     return {
       step: 'done',
       documentType: 'cmf_informe_deudas',
-      cmf: {
-        ...doc,
-        rutDocumento: doc.rutDocumento ?? undefined,
-      },
+      cmf: { ...doc, rutDocumento: doc.rutDocumento ?? undefined },
       creditScore: scoreNum,
       mainInsights: [cmfInsight],
     };
-  }
-
-  if (doc.tipo === 'cartola') {
-    // Detect tier from the PDF text (parallel to analyzePdfBuffer extraction)
-    let detectedTier: DetectionTier = 'HIGH';
-    let bancoCon = 1.0;
-    let detectedBanco = (doc as any).banco ?? 'Desconocido';
-    try {
-      const { text: pdfText } = await extractPdfText(buffer);
-      if (pdfText && pdfText.length >= 40) {
-        const fmt = detectFormat(pdfText);
-        detectedTier = getDetectionTier(fmt.confidence);
-        bancoCon = fmt.confidence;
-        if (fmt.banco !== 'Desconocido') detectedBanco = fmt.banco;
-      }
-    } catch {
-      /* detection failure is non-fatal — proceed with default HIGH tier */
-    }
-
-    const rut = doc.rutDocumento ?? '00.000.000-0';
-    // Acumular todas las cartolas parseadas del usuario + la cartola actual.
-    const previousCartolas = await storage.listDocumentUploadsByType(userId, "cartola");
-    const previousParsed: CartolaExtraida[] = previousCartolas
-      .map((r) => r?.parsedData as CartolaExtraida | null)
-      .filter((c): c is CartolaExtraida => !!c && Array.isArray(c.transacciones));
-    const allCartolas = [...previousParsed, doc];
-    const transactions = allCartolas.flatMap((c) => cartolaToSfaTransactions(c, c.rutDocumento ?? rut));
-    const products = allCartolas.flatMap((c) => cartolaToSfaProductos(c, c.rutDocumento ?? rut));
-    const engine = getSfaScoringEngine();
-    const result = engine.run({ transactions, products });
-    const hasInterest = doc.transacciones.some(
-      (t) => /interés|interes|intereses|línea|linea|crédito|credito|tarjeta/i.test(t.descripcion)
-    );
-    const mainInsights = [...result.mainInsights];
-    if (hasInterest) {
-      mainInsights.push(
-        'Detectamos intereses de línea de crédito o tarjeta en tu cartola. Te recomendamos consolidar deudas y evaluar ofertas de ahorro según el Business Plan.'
-      );
-    }
-    await storage.createDocumentUpload({
-      id: randomUUID(),
-      userId,
-      tipo: "cartola",
-      banco: (doc as any).banco ?? null,
-      periodoDesde: (doc as any).periodo?.desde ? String((doc as any).periodo.desde) : null,
-      periodoHasta: (doc as any).periodo?.hasta ? String((doc as any).periodo.hasta) : null,
-      parsedData: doc,
-      parseStatus: "success",
-    });
-    await storage.upsertTransactionalScore(userId, {
-      transactionalScore: result.transactionalScore,
-      metrics: result.metrics,
-      mainInsights,
-      recommendedProducts: result.recommendedProducts,
-      algorithmInputs: {
-        pipeline: 'cartola_pdf_aggregated',
-        transactionCount: transactions.length,
-        productCount: products.length,
-        cartolasCount: allCartolas.length,
-      },
-    });
-    return {
-      step: 'done',
-      documentType: 'cartola',
-      transactionalScore: result.transactionalScore,
-      mainInsights,
-      recommendedProducts: result.recommendedProducts,
-      metrics: result.metrics,
-      detection_tier: detectedTier,
-      banco_confidence: bancoCon,
-      detected_banco: detectedBanco,
-    };
-  }
-
-  return { step: 'done', error: 'Tipo de documento no soportado.' };
 }
 
 /**
