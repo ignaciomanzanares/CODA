@@ -30,6 +30,7 @@ import { EyebrowLabel } from "@/components/ui/eyebrow-label";
 // UI components
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 // Icons
 import {
@@ -131,6 +132,8 @@ export default function Dashboard() {
     },
     enabled: isAuthenticated && !authLoading,
     staleTime: 30000,
+    retry: 2,
+    retryDelay: (attempt: number) => Math.min(1000 * 2 ** attempt, 10000),
   });
 
   const refreshAllData = async () => {
@@ -163,7 +166,7 @@ export default function Dashboard() {
 
   // Priority: Fintoc data > dashboard/summary (cartola, explicit CLP) > transactions/summary fallback
   const hasFintocData = rawSummary && (rawSummary.monthlyIncome > 0 || rawSummary.totalBalance > 0);
-  const hasDashboardData = dashboardSummary && dashboardSummary.meta.cartola_count > 0;
+  const hasDashboardData = !!(dashboardSummary?.meta?.cartola_count);
   const hasCartolaData = cartolaSummary && cartolaSummary.summary.transactionCount > 0;
   const usingCartolaFallback = !hasFintocData && (hasDashboardData || hasCartolaData);
 
@@ -206,7 +209,19 @@ export default function Dashboard() {
   const savingsThisMonth = summary ? summary.monthlyIncome - summary.monthlyExpenses : 0;
   const allZeros = summary && summary.monthlyIncome === 0 && summary.totalBalance === 0;
 
+  const dashboardFallback = (
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-12 flex items-center justify-center min-h-[400px]">
+      <div className="text-center space-y-4">
+        <p className="text-sm text-muted-foreground">No se pudo cargar el panel.</p>
+        <Button variant="outline" onClick={() => window.location.reload()}>
+          Reintentar
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
+    <ErrorBoundary fallback={dashboardFallback}>
     <ReportDataProvider>
     <div className="min-h-screen bg-background">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
@@ -280,7 +295,7 @@ export default function Dashboard() {
               </div>
               <p className="text-xs text-muted-foreground">
                 {usingCartolaFallback
-                  ? `${cartolaSummary!.summary.transactionCount} movimientos · ${cartolaSummary!.summary.documentCount} cartola${cartolaSummary!.summary.documentCount !== 1 ? 's' : ''}`
+                  ? `${cartolaSummary?.summary?.transactionCount ?? 0} movimientos · ${cartolaSummary?.summary?.documentCount ?? 0} cartola${(cartolaSummary?.summary?.documentCount ?? 0) !== 1 ? 's' : ''}`
                   : `${formatCurrency(summary.totalAssets, currency)} en activos · ${formatCurrency(summary.totalLiabilities, currency)} en pasivos`
                 }
               </p>
@@ -417,5 +432,6 @@ export default function Dashboard() {
       </div>
     </div>
     </ReportDataProvider>
+    </ErrorBoundary>
   );
 }
