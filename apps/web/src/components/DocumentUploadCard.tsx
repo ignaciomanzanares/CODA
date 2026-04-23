@@ -184,6 +184,7 @@ export default function DocumentUploadCard() {
         });
         queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
         queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
         if (lastResult.documentType === "cartola") {
           Analytics.documentUploaded("cartola");
           queryClient.invalidateQueries({ queryKey: ["/api/transactional-score"] });

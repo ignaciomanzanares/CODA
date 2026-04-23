@@ -113,11 +113,32 @@ export default function Dashboard() {
     staleTime: 30000,
   });
 
+  // Panel cards with explicit CLP semantics — preferred source for the four stat cards
+  const { data: dashboardSummary } = useQuery<{
+    saldo_actual: number;
+    ingresos_promedio_mensual: number;
+    gastos_promedio_mensual: number;
+    tasa_ahorro_pct: number;
+    meta: { cartola_count: number; months_analyzed: number; data_source: string };
+  }>({
+    queryKey: ['/api/dashboard/summary'],
+    queryFn: async () => {
+      const token = localStorage.getItem('jwt_token');
+      if (!token) return null;
+      return apiFetch('/api/dashboard/summary', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    enabled: isAuthenticated && !authLoading,
+    staleTime: 30000,
+  });
+
   const refreshAllData = async () => {
     setIsRefreshing(true);
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['financial-summary'] }),
       queryClient.invalidateQueries({ queryKey: ['/api/transactions/summary'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/summary'] }),
       queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] }),
       queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] }),
     ]);
@@ -140,12 +161,22 @@ export default function Dashboard() {
 
   const rawSummary = financialData?.summary;
 
-  // If fintoc financial-summary is all zeros but we have cartola data, use that instead
+  // Priority: Fintoc data > dashboard/summary (cartola, explicit CLP) > transactions/summary fallback
   const hasFintocData = rawSummary && (rawSummary.monthlyIncome > 0 || rawSummary.totalBalance > 0);
+  const hasDashboardData = dashboardSummary && dashboardSummary.meta.cartola_count > 0;
   const hasCartolaData = cartolaSummary && cartolaSummary.summary.transactionCount > 0;
-  const usingCartolaFallback = !hasFintocData && hasCartolaData;
+  const usingCartolaFallback = !hasFintocData && (hasDashboardData || hasCartolaData);
 
-  const summary = hasFintocData ? rawSummary : (hasCartolaData ? (() => {
+  const summary = hasFintocData ? rawSummary : hasDashboardData ? {
+    totalBalance: dashboardSummary!.saldo_actual,
+    totalAssets: dashboardSummary!.saldo_actual,
+    totalLiabilities: 0,
+    netWorth: dashboardSummary!.saldo_actual,
+    monthlyIncome: dashboardSummary!.ingresos_promedio_mensual,
+    monthlyExpenses: dashboardSummary!.gastos_promedio_mensual,
+    savingsRate: dashboardSummary!.tasa_ahorro_pct,
+    accountCount: 0,
+  } : hasCartolaData ? (() => {
     const monthlyIncome = cartolaSummary!.summary.avgMonthlyIncome ?? cartolaSummary!.summary.totalIncome;
     const monthlyExpenses = cartolaSummary!.summary.avgMonthlyExpenses ?? cartolaSummary!.summary.totalExpenses;
     return {
@@ -160,7 +191,7 @@ export default function Dashboard() {
         : 0,
       accountCount: 0,
     };
-  })() : rawSummary);
+  })() : rawSummary;
 
   const nwTrend = financialData?.trends?.netWorth;
   let netWorthChange = 0;
