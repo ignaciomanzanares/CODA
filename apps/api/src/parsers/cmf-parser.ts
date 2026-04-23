@@ -5,18 +5,11 @@
 
 import pdfParse from "pdf-parse";
 import { extractPdfText } from "../services/documents/pdfAnalysis.js";
+import { parseCLP } from "../utils/clp.js";
 
 const RUT_RE = /\b\d{1,2}\.\d{3}\.\d{3}-[\dKk]\b/;
 
-function parseChileAmount(str: string): number {
-  const cleaned = String(str)
-    .replace(/\$/g, "")
-    .replace(/\s/g, "")
-    .replace(/\./g, "")
-    .replace(",", ".");
-  const n = parseFloat(cleaned);
-  return Number.isFinite(n) ? Math.round(n) : 0;
-}
+const parseChileAmount = parseCLP;
 
 function parseDateDMY(s: string): Date | null {
   const m = s.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);

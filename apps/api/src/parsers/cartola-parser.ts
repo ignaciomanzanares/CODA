@@ -11,6 +11,7 @@ import {
   type CartolaExtraida,
   type PdfLine,
 } from "../services/documents/pdfAnalysis.js";
+import { parseCLP } from "../utils/clp.js";
 
 export type TransactionCategory =
   | "educacion"
@@ -54,11 +55,7 @@ export interface CartolaParseResult {
 
 const CUENTA_RE = /\b\d+-\d+-\d+-\d+-\d+\b/;
 
-function parseChileAmount(str: string): number {
-  const cleaned = str.replace(/\./g, "").replace(",", ".");
-  const n = parseFloat(cleaned);
-  return Number.isFinite(n) ? Math.round(n) : 0;
-}
+const parseChileAmount = parseCLP;
 
 /** Detecta banco por marcas típicas en el PDF. */
 export function detectBankFromText(text: string): string {
