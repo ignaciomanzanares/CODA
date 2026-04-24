@@ -36,10 +36,8 @@ import {
   RefreshCw,
   TrendingUp,
   TrendingDown,
-  ArrowUpRight,
   ChevronRight,
   FileText,
-  Shield,
   Target,
   Wallet,
   BarChart3,
@@ -47,35 +45,14 @@ import {
   Users,
 } from "lucide-react";
 
-// Types
-interface FinancialSummaryData {
-  summary: {
-    totalBalance: number;
-    totalAssets: number;
-    totalLiabilities: number;
-    netWorth: number;
-    monthlyIncome: number;
-    monthlyExpenses: number;
-    savingsRate: number;
-    accountCount: number;
-  };
-  trends?: {
-    netWorth?: { month: string; netWorth: number }[];
-  };
+// Types — single source: /api/dashboard/summary
+interface DashboardSummary {
+  saldo_actual: number;
+  ingresos_promedio_mensual: number;
+  gastos_promedio_mensual: number;
+  tasa_ahorro_pct: number;
+  meta: { cartola_count: number; months_analyzed: number; data_source: string };
 }
-
-const emptySummary: FinancialSummaryData = {
-  summary: {
-    totalBalance: 0,
-    totalAssets: 0,
-    totalLiabilities: 0,
-    netWorth: 0,
-    monthlyIncome: 0,
-    monthlyExpenses: 0,
-    savingsRate: 0,
-    accountCount: 0,
-  },
-};
 
 export default function Dashboard() {
   const { isLoading: authLoading, user, isAuthenticated } = useAuth();
@@ -84,43 +61,7 @@ export default function Dashboard() {
   const { currency } = useCurrency();
   const { hasDocuments } = useUserDocuments();
 
-  const { data: financialData, isLoading: financialLoading } = useQuery<FinancialSummaryData>({
-    queryKey: ['financial-summary'],
-    queryFn: async () => {
-      const token = getPersonalToken();
-      if (!token) return emptySummary;
-      return apiFetch('/api/financial-summary', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    },
-    enabled: isAuthenticated && !authLoading,
-    staleTime: 30000,
-  });
-
-  // Cartola-based summary (always fetched; used to fill gaps when fintoc summary is all zeros)
-  const { data: cartolaSummary } = useQuery<{
-    summary: { totalIncome: number; totalExpenses: number; netBalance: number; currentBalance: number | null; transactionCount: number; documentCount: number; avgMonthlyIncome?: number; avgMonthlyExpenses?: number };
-  }>({
-    queryKey: ['/api/transactions/summary'],
-    queryFn: async () => {
-      const token = getPersonalToken();
-      if (!token) return null;
-      return apiFetch('/api/transactions/summary', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    },
-    enabled: isAuthenticated && !authLoading,
-    staleTime: 30000,
-  });
-
-  // Panel cards with explicit CLP semantics — preferred source for the four stat cards
-  const { data: dashboardSummary } = useQuery<{
-    saldo_actual: number;
-    ingresos_promedio_mensual: number;
-    gastos_promedio_mensual: number;
-    tasa_ahorro_pct: number;
-    meta: { cartola_count: number; months_analyzed: number; data_source: string };
-  }>({
+  const { data: ds, isLoading: dsLoading } = useQuery<DashboardSummary>({
     queryKey: ['/api/dashboard/summary'],
     queryFn: async () => {
       const token = getPersonalToken();
@@ -138,11 +79,10 @@ export default function Dashboard() {
   const refreshAllData = async () => {
     setIsRefreshing(true);
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['financial-summary'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/transactions/summary'] }),
       queryClient.invalidateQueries({ queryKey: ['/api/dashboard/summary'] }),
       queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] }),
       queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] }),
     ]);
     setTimeout(() => setIsRefreshing(false), 500);
   };
@@ -161,56 +101,13 @@ export default function Dashboard() {
   const firstName = rawFirst === 'Investor' ? 'Inversor' : rawFirst;
   const greeting = new Date().getHours() < 12 ? 'Buenos días' : new Date().getHours() < 18 ? 'Buenas tardes' : 'Buenas noches';
 
-  const rawSummary = financialData?.summary;
+  const hasData = !!(ds?.meta?.cartola_count && ds.meta.months_analyzed > 0);
 
-  // Priority: Fintoc data > dashboard/summary (cartola, explicit CLP) > transactions/summary fallback
-  const hasFintocData = rawSummary && (rawSummary.monthlyIncome > 0 || rawSummary.totalBalance > 0);
-  const hasDashboardData = !!(dashboardSummary?.meta?.cartola_count);
-  const hasCartolaData = cartolaSummary && cartolaSummary.summary.transactionCount > 0;
-  const usingCartolaFallback = !hasFintocData && (hasDashboardData || hasCartolaData);
-
-  /** Format a monetary value, telling formatCurrency it's already in integer CLP pesos when we're using cartola data. */
+  /** All dashboard/summary values are integer CLP — tell formatCurrency not to ×1000. */
   const fmt = (n: number) =>
-    formatCurrency(n, currency, usingCartolaFallback ? { sourceCurrency: 'CLP' as const } : undefined);
+    formatCurrency(n, currency, { sourceCurrency: 'CLP' as const });
 
-  const summary = hasFintocData ? rawSummary : hasDashboardData ? {
-    totalBalance: dashboardSummary!.saldo_actual,
-    totalAssets: dashboardSummary!.saldo_actual,
-    totalLiabilities: 0,
-    netWorth: dashboardSummary!.saldo_actual,
-    monthlyIncome: dashboardSummary!.ingresos_promedio_mensual,
-    monthlyExpenses: dashboardSummary!.gastos_promedio_mensual,
-    savingsRate: dashboardSummary!.tasa_ahorro_pct,
-    accountCount: 0,
-  } : hasCartolaData ? (() => {
-    const monthlyIncome = cartolaSummary!.summary.avgMonthlyIncome ?? cartolaSummary!.summary.totalIncome;
-    const monthlyExpenses = cartolaSummary!.summary.avgMonthlyExpenses ?? cartolaSummary!.summary.totalExpenses;
-    return {
-      totalBalance: cartolaSummary!.summary.currentBalance ?? 0,
-      totalAssets: cartolaSummary!.summary.currentBalance ?? 0,
-      totalLiabilities: 0,
-      netWorth: cartolaSummary!.summary.currentBalance ?? cartolaSummary!.summary.netBalance,
-      monthlyIncome,
-      monthlyExpenses,
-      savingsRate: monthlyIncome > 0
-        ? Math.round(((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100)
-        : 0,
-      accountCount: 0,
-    };
-  })() : rawSummary;
-
-  const nwTrend = financialData?.trends?.netWorth;
-  let netWorthChange = 0;
-  let netWorthChangePercent = '0.0';
-  if (nwTrend && nwTrend.length >= 2) {
-    const prev = nwTrend[nwTrend.length - 2]!.netWorth;
-    const last = nwTrend[nwTrend.length - 1]!.netWorth;
-    netWorthChange = last - prev;
-    netWorthChangePercent =
-      prev !== 0 ? ((netWorthChange / Math.abs(prev)) * 100).toFixed(1) : '0.0';
-  }
-  const savingsThisMonth = summary ? summary.monthlyIncome - summary.monthlyExpenses : 0;
-  const allZeros = summary && summary.monthlyIncome === 0 && summary.totalBalance === 0;
+  const savingsThisMonth = ds ? ds.ingresos_promedio_mensual - ds.gastos_promedio_mensual : 0;
 
   const dashboardFallback = (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-12 flex items-center justify-center min-h-[400px]">
@@ -264,53 +161,30 @@ export default function Dashboard() {
         </div>
 
         {/* ── Hero row: Net Worth + Stats ────────────────────────── */}
-        {summary && !allZeros && (
+        {hasData && ds && (
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             {/* Main balance card — spans 2 cols */}
             <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-6 space-y-3">
-              <div className="flex items-center gap-2">
-                <EyebrowLabel color="muted">
-                  {usingCartolaFallback ? 'Balance desde cartolas' : 'Patrimonio neto'}
-                </EyebrowLabel>
-                {usingCartolaFallback && (
-                  <span className="text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 px-2 py-0.5 rounded-full">
-                    Cartola bancaria
-                  </span>
-                )}
-              </div>
-              <div className="flex items-baseline gap-3">
-                <h2 className="text-hero-value font-bold tracking-tight text-foreground">
-                  {fmt(summary.netWorth)}
-                </h2>
-                {!usingCartolaFallback && (
-                  <div className={cn(
-                    "flex items-center gap-1 text-sm font-medium",
-                    netWorthChange >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
-                  )}>
-                    {netWorthChange >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                    <span>{netWorthChange >= 0 ? '+' : ''}{netWorthChangePercent}%</span>
-                  </div>
-                )}
-              </div>
+              <EyebrowLabel color="muted">Patrimonio neto</EyebrowLabel>
+              <h2 className="text-hero-value font-bold tracking-tight text-foreground tabular-nums">
+                {fmt(ds.saldo_actual)}
+              </h2>
               <p className="text-xs text-muted-foreground">
-                {usingCartolaFallback
-                  ? `${cartolaSummary?.summary?.transactionCount ?? 0} movimientos · ${cartolaSummary?.summary?.documentCount ?? 0} cartola${(cartolaSummary?.summary?.documentCount ?? 0) !== 1 ? 's' : ''}`
-                  : `${fmt(summary.totalAssets)} en activos · ${fmt(summary.totalLiabilities)} en pasivos`
-                }
+                {ds.meta.cartola_count} cartola{ds.meta.cartola_count !== 1 ? 's' : ''} · {ds.meta.months_analyzed} mes{ds.meta.months_analyzed !== 1 ? 'es' : ''}
               </p>
             </div>
 
             {/* 3 stat cards */}
             <StatCard
               label="Ingresos"
-              value={fmt(summary.monthlyIncome)}
+              value={fmt(ds.ingresos_promedio_mensual)}
               subtitle="Promedio mensual"
               icon={TrendingUp}
               iconColor="green"
             />
             <StatCard
               label="Gastos"
-              value={fmt(summary.monthlyExpenses)}
+              value={fmt(ds.gastos_promedio_mensual)}
               delta={`${savingsThisMonth >= 0 ? '+' : ''}${fmt(savingsThisMonth)} ahorrado`}
               deltaDirection={savingsThisMonth >= 0 ? "up" : "down"}
               icon={TrendingDown}
@@ -318,17 +192,17 @@ export default function Dashboard() {
             />
             <StatCard
               label="Tasa de ahorro"
-              value={`${summary.savingsRate}%`}
-              delta={summary.savingsRate >= 20 ? 'Excelente' : 'Mejorable'}
-              deltaDirection={summary.savingsRate >= 20 ? "up" : "neutral"}
+              value={`${ds.tasa_ahorro_pct}%`}
+              delta={ds.tasa_ahorro_pct >= 20 ? 'Excelente' : 'Mejorable'}
+              deltaDirection={ds.tasa_ahorro_pct >= 20 ? "up" : "neutral"}
               icon={Activity}
-              iconColor={summary.savingsRate >= 20 ? "green" : "orange"}
+              iconColor={ds.tasa_ahorro_pct >= 20 ? "green" : "orange"}
             />
           </div>
         )}
 
         {/* ── Empty state ─────────────────────────────────────────── */}
-        {isAuthenticated && !financialLoading && allZeros && !hasCartolaData && (
+        {isAuthenticated && !dsLoading && !hasData && (
           <div className="rounded-2xl border-2 border-dashed border-primary/20 bg-card p-10 text-center space-y-5">
             <PastelIcon icon={FileText} color="blue" size="lg" className="mx-auto" />
             <div>
@@ -353,16 +227,16 @@ export default function Dashboard() {
         )}
 
         {/* ── Financial insight card ──────────────────────────────── */}
-        {summary && !allZeros && (
+        {hasData && ds && (
           <Card className="border-l-4 border-l-primary bg-primary/5 dark:bg-primary/10">
             <CardContent className="p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <p className="text-sm font-semibold mb-1 text-foreground">Resumen financiero</p>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    {summary.savingsRate >= 20 ? (
+                    {ds.tasa_ahorro_pct >= 20 ? (
                       <>
-                        Tu tasa de ahorro del <strong className="text-foreground">{summary.savingsRate}%</strong> está
+                        Tu tasa de ahorro del <strong className="text-foreground">{ds.tasa_ahorro_pct}%</strong> está
                         por encima del 20% recomendado. Ahorras aproximadamente{' '}
                         <strong className="text-foreground">
                           {fmt(savingsThisMonth * 12)}
@@ -370,7 +244,7 @@ export default function Dashboard() {
                       </>
                     ) : (
                       <>
-                        Tu tasa de ahorro actual es del <strong className="text-foreground">{summary.savingsRate}%</strong>.
+                        Tu tasa de ahorro actual es del <strong className="text-foreground">{ds.tasa_ahorro_pct}%</strong>.
                         Recomendamos alcanzar al menos el 20% para un futuro financiero sólido.
                       </>
                     )}
