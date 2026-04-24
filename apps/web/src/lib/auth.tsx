@@ -60,38 +60,29 @@ export function getPersonalToken(): string | null {
   return _personalToken;
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [userPersonal, setUserPersonal] = useState<User | null>(null);
-  const [tokenPersonal, setTokenPersonal] = useState<string | null>(null);
-  const [userEmpresas, setUserEmpresas] = useState<User | null>(null);
-  const [tokenEmpresas, setTokenEmpresas] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+function loadStoredAuth(context: AuthContextType): { token: string | null; user: User | null } {
+  const { token: tk, user: uk } = getKeys(context);
+  const storedToken = localStorage.getItem(tk);
+  const storedUser = localStorage.getItem(uk);
+  if (storedToken && storedUser) {
+    try {
+      return { token: storedToken, user: JSON.parse(storedUser) };
+    } catch {
+      localStorage.removeItem(tk);
+      localStorage.removeItem(uk);
+    }
+  }
+  return { token: null, user: null };
+}
 
-  useEffect(() => {
-    const load = (context: AuthContextType) => {
-      const { token: tk, user: uk } = getKeys(context);
-      const storedToken = localStorage.getItem(tk);
-      const storedUser = localStorage.getItem(uk);
-      if (storedToken && storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser);
-          if (context === 'empresas') {
-            setTokenEmpresas(storedToken);
-            setUserEmpresas(parsed);
-          } else {
-            setTokenPersonal(storedToken);
-            setUserPersonal(parsed);
-          }
-        } catch {
-          localStorage.removeItem(tk);
-          localStorage.removeItem(uk);
-        }
-      }
-    };
-    load('personal');
-    load('empresas');
-    setIsLoading(false);
-  }, []);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  // Synchronous initialization from localStorage — no flash of
+  // unauthenticated state on hard reload.
+  const [userPersonal, setUserPersonal] = useState<User | null>(() => loadStoredAuth('personal').user);
+  const [tokenPersonal, setTokenPersonal] = useState<string | null>(() => loadStoredAuth('personal').token);
+  const [userEmpresas, setUserEmpresas] = useState<User | null>(() => loadStoredAuth('empresas').user);
+  const [tokenEmpresas, setTokenEmpresas] = useState<string | null>(() => loadStoredAuth('empresas').token);
+  const isLoading = false;
 
   // Keep the module-level mirror in sync so query functions outside React
   // context can call getPersonalToken() rather than reading localStorage.
