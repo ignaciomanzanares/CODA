@@ -170,6 +170,10 @@ export default function Dashboard() {
   const hasCartolaData = cartolaSummary && cartolaSummary.summary.transactionCount > 0;
   const usingCartolaFallback = !hasFintocData && (hasDashboardData || hasCartolaData);
 
+  /** Format a monetary value, telling formatCurrency it's already in integer CLP pesos when we're using cartola data. */
+  const fmt = (n: number) =>
+    formatCurrency(n, currency, usingCartolaFallback ? { sourceCurrency: 'CLP' as const } : undefined);
+
   const summary = hasFintocData ? rawSummary : hasDashboardData ? {
     totalBalance: dashboardSummary!.saldo_actual,
     totalAssets: dashboardSummary!.saldo_actual,
@@ -281,7 +285,7 @@ export default function Dashboard() {
               </div>
               <div className="flex items-baseline gap-3">
                 <h2 className="text-hero-value font-bold tracking-tight text-foreground">
-                  {formatCurrency(summary.netWorth, currency)}
+                  {fmt(summary.netWorth)}
                 </h2>
                 {!usingCartolaFallback && (
                   <div className={cn(
@@ -296,7 +300,7 @@ export default function Dashboard() {
               <p className="text-xs text-muted-foreground">
                 {usingCartolaFallback
                   ? `${cartolaSummary?.summary?.transactionCount ?? 0} movimientos · ${cartolaSummary?.summary?.documentCount ?? 0} cartola${(cartolaSummary?.summary?.documentCount ?? 0) !== 1 ? 's' : ''}`
-                  : `${formatCurrency(summary.totalAssets, currency)} en activos · ${formatCurrency(summary.totalLiabilities, currency)} en pasivos`
+                  : `${fmt(summary.totalAssets)} en activos · ${fmt(summary.totalLiabilities)} en pasivos`
                 }
               </p>
             </div>
@@ -304,15 +308,15 @@ export default function Dashboard() {
             {/* 3 stat cards */}
             <StatCard
               label="Ingresos"
-              value={formatCurrency(summary.monthlyIncome, currency)}
+              value={fmt(summary.monthlyIncome)}
               subtitle="Promedio mensual"
               icon={TrendingUp}
               iconColor="green"
             />
             <StatCard
               label="Gastos"
-              value={formatCurrency(summary.monthlyExpenses, currency)}
-              delta={`${savingsThisMonth >= 0 ? '+' : ''}${formatCurrency(savingsThisMonth, currency)} ahorrado`}
+              value={fmt(summary.monthlyExpenses)}
+              delta={`${savingsThisMonth >= 0 ? '+' : ''}${fmt(savingsThisMonth)} ahorrado`}
               deltaDirection={savingsThisMonth >= 0 ? "up" : "down"}
               icon={TrendingDown}
               iconColor="red"
@@ -366,7 +370,7 @@ export default function Dashboard() {
                         Tu tasa de ahorro del <strong className="text-foreground">{summary.savingsRate}%</strong> está
                         por encima del 20% recomendado. Ahorras aproximadamente{' '}
                         <strong className="text-foreground">
-                          {formatCurrency(savingsThisMonth * 12, currency)}
+                          {fmt(savingsThisMonth * 12)}
                         </strong>{' '}al año.
                       </>
                     ) : (
