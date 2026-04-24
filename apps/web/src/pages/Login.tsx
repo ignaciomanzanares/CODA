@@ -144,12 +144,18 @@ export default function Login() {
       }
       toast({ title: "Sesión iniciada", description: "¡Bienvenido de nuevo!" });
       Analytics.loginSuccess(isEmpresas ? "empresa" : "persona");
-      const redirectUrl = localStorage.getItem("redirectAfterLogin");
-      if (redirectUrl) {
-        localStorage.removeItem("redirectAfterLogin");
-        setLocation(redirectUrl);
+      const ssReturnTo = sessionStorage.getItem("coda:post_login_return_to");
+      if (ssReturnTo) {
+        sessionStorage.removeItem("coda:post_login_return_to");
+        setLocation(ssReturnTo);
       } else {
-        setLocation(defaultRedirect);
+        const redirectUrl = localStorage.getItem("redirectAfterLogin");
+        if (redirectUrl) {
+          localStorage.removeItem("redirectAfterLogin");
+          setLocation(redirectUrl);
+        } else {
+          setLocation(defaultRedirect);
+        }
       }
     } catch (err) {
       setError(mapLoginAuthError(err));

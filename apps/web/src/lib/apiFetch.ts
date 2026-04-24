@@ -13,6 +13,8 @@ export class ApiError extends Error {
   }
 }
 
+import { dispatchSessionExpired } from './authEvents';
+
 function messageFromErrorBody(text: string, status: number): string {
   const trimmed = text?.trim() ?? "";
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
@@ -100,6 +102,7 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
 
   const text = await res.text().catch(() => "");
   if (!res.ok) {
+    if (res.status === 401) dispatchSessionExpired(String(url));
     const msg = messageFromErrorBody(text, res.status);
     console.error(`[apiFetch] HTTP ${res.status}:`, msg, "url:", url);
     throw new ApiError(msg, res.status);
