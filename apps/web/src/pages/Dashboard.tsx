@@ -9,6 +9,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { ROUTES } from "@/lib/routes";
 import SignInBanner from "@/components/SignInBanner";
+import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 
 // Components
 import DocumentUploadCard from "@/components/DocumentUploadCard";
@@ -60,6 +61,7 @@ export default function Dashboard() {
   const [, navigate] = useLocation();
   const { currency } = useCurrency();
   const { hasDocuments } = useUserDocuments();
+  const { setOpen: openUploadDrawer } = useUploadDrawer();
 
   const { data: ds, isLoading: dsLoading } = useQuery<DashboardSummary>({
     queryKey: ['/api/dashboard/summary'],
@@ -211,7 +213,7 @@ export default function Dashboard() {
                 Arrastra tu cartola bancaria (PDF) y en segundos verás tus ingresos, gastos, score y análisis personalizados.
               </p>
             </div>
-            <Button onClick={() => navigate(ROUTES.movimientos)} className="gap-2">
+            <Button onClick={() => openUploadDrawer(true)} className="gap-2">
               <FileText className="h-4 w-4" />
               Subir cartola bancaria
             </Button>

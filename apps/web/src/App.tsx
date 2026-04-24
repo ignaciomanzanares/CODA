@@ -4,6 +4,8 @@ import { ROUTES } from "@/lib/routes";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { CurrencyProvider } from "./lib/CurrencyContext";
+import { UploadDrawerProvider, useUploadDrawer } from "./contexts/UploadDrawerContext";
+import UniversalUploadDrawer from "./components/UniversalUploadDrawer";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -69,10 +71,16 @@ const NotFound = lazy(() => import("@/pages/not-found"));
 const BillSplit = lazy(() => import("@/pages/BillSplit"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 
+function UploadDrawerGlobal() {
+  const { open, setOpen } = useUploadDrawer();
+  return <UniversalUploadDrawer open={open} onOpenChange={setOpen} />;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <CurrencyProvider>
+      <UploadDrawerProvider>
       <SessionExpiryGuard />
       <VisualViewportRootSync />
       <BrowserNotificationsInit />
@@ -302,6 +310,8 @@ function App() {
       <Suspense fallback={null}>
         <FinancialAssistant />
       </Suspense>
+      <UploadDrawerGlobal />
+      </UploadDrawerProvider>
       </CurrencyProvider>
     </QueryClientProvider>
   );
