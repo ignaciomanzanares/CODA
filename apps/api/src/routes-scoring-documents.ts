@@ -7,7 +7,6 @@ import multer from "multer";
 import { randomUUID } from "crypto";
 import { authenticate, type AuthenticatedRequest } from "./middleware/auth.js";
 import { storage } from "./storage.js";
-import { parseCartolaBuffer, ParseError, type ParseErrorCode } from "./parsers/index.js";
 import type { CartolaParseResult } from "./parsers/cartola-parser.js";
 import { parseCmfPdfBuffer, type CMFParseResult } from "./parsers/cmf-parser.js";
 import { calculateTransactionalScore, type TransactionalScoreResult } from "./scoring/transactional-score.js";
@@ -46,87 +45,6 @@ function recomendacionesFromScores(
 }
 
 export function registerDocumentParsingAndScoringRoutes(app: Express): void {
-  app.post(
-    "/api/documents/parse-cartola",
-    authenticate,
-    (req, res, next) => {
-      uploadPdf.single("file")(req, res, (err: unknown) => {
-        if (err) {
-          return res.status(400).json({ message: "No se pudo leer el archivo." });
-        }
-        next();
-      });
-    },
-    async (req: Request, res: Response) => {
-      try {
-        const userId = getUserId(req);
-        const file = (req as Request & { file?: Express.Multer.File }).file;
-        if (!file?.buffer) {
-          return res.status(400).json({
-            error_code: "NO_FILE",
-            message: "Adjunta un PDF en el campo 'file'.",
-          });
-        }
-
-        // ── Hardened parser: format detection + confidence + reconciliation ──
-        const parsed = await parseCartolaBuffer(file.buffer);
-        const id = randomUUID();
-
-        // Convert Date objects to ISO strings for consistent storage.
-        // Cast to CartolaParseResult for scoring (ParseResult is a strict superset).
-        const parsedForScoring = parsed as unknown as CartolaParseResult;
-        const parsedDataForStorage = {
-          ...parsed,
-          periodo: {
-            desde: parsed.periodo.desde.toISOString(),
-            hasta: parsed.periodo.hasta.toISOString(),
-            dias: parsed.periodo.dias,
-          },
-          transacciones: parsed.transacciones.map(tx => ({
-            ...tx,
-            fecha: tx.fecha instanceof Date ? tx.fecha.toISOString().slice(0, 10) : tx.fecha,
-          })),
-        };
-
-        await storage.createDocumentUpload({
-          id,
-          userId,
-          tipo: "cartola",
-          banco: parsed.banco,
-          periodoDesde: parsed.periodo.desde.toISOString().slice(0, 10),
-          periodoHasta: parsed.periodo.hasta.toISOString().slice(0, 10),
-          parsedData: parsedDataForStorage,
-          parseStatus: "success",
-        });
-
-        res.json({
-          ...parsedForScoring,
-          document_id: id,
-          // Extra fields from the hardened parser
-          banco_confidence: parsed.banco_confidence,
-          parse_confidence: parsed.parse_confidence,
-          reconciliation: parsed.reconciliation,
-          warnings: parsed.warnings,
-        });
-      } catch (e: unknown) {
-        logger.error({ err: e }, "parse-cartola");
-
-        if (e instanceof ParseError) {
-          // Structured, user-facing error from the hardened parser
-          const statusCode = e.code === "TEXT_EXTRACTION_FAILED" ? 422 : 400;
-          return res.status(statusCode).json({
-            error_code: e.code,
-            message: e.messageEs,
-            details: e.details,
-          });
-        }
-
-        const msg = e instanceof Error ? e.message : "Error al parsear cartola";
-        res.status(400).json({ error_code: "PARSE_ERROR", message: msg });
-      }
-    }
-  );
-
   app.post(
     "/api/documents/parse-cmf",
     authenticate,

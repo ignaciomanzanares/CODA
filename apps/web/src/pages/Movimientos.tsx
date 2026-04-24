@@ -93,8 +93,8 @@ export default function Movimientos() {
       try {
         const token = getPersonalToken() ?? "";
         const formData = new FormData();
-        formData.append("file", file);
-        const res = await fetch(apiUrl("/api/documents/parse-cartola"), {
+        formData.append("document", file);
+        const res = await fetch(apiUrl("/api/documents/upload"), {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
