@@ -1,29 +1,25 @@
 # Parser Endpoints — Drift Audit
 
-**Date:** 2026-04-23  
+**Date:** 2026-04-24 (updated Batch 9.1)
 **Commit:** (see git log)
 
-## Problem: two separate parser pipelines
+## Current state: ONE endpoint, ONE parser, ONE format
 
-Before this commit, document uploads went through two separate parser stacks
-depending on which HTTP endpoint was used:
+All document uploads (cartola + CMF) go through a single endpoint:
 
-| Endpoint | Parser used | Confidence/tier | Reconciliation |
-|----------|-------------|-----------------|----------------|
-| `POST /api/documents/upload` (main UI) | `analyzePdfBuffer()` → `parseCartolaPdf()` | Second redundant call to `detectFormat()` | None |
-| `POST /api/documents/parse-cartola` (scoring API) | `parseCartolaBuffer()` (hardened) | Included in ParseResult | Full, per-tx confidence |
+| Endpoint | Cartola parser | CMF parser | Notes |
+|----------|---------------|------------|-------|
+| `POST /api/documents/upload` | `parseCartolaBuffer()` (hardened) | `parseCmfInformeDeudas()` | Single text-extract pass; sole upload path |
+| `POST /api/documents/parse-cmf` | N/A | `parseCmfPdfBuffer()` | Standalone CMF parsing |
+| `POST /api/scoring/calculate` | N/A (reads from DB) | N/A | No change needed |
 
-This caused drift: the two paths produced different confidence metadata and
-neither was consistent with the hardened pipeline's reconciliation results.
+`POST /api/documents/parse-cartola` was deleted in Batch 9 — all frontend
+callers (Expenses, Movimientos, MultiFileDropzone, UniversalUploadDrawer)
+now POST to `/api/documents/upload` with field name `document`.
 
-Additionally, `processDocumentUpload()` was calling `extractPdfText()` **twice**
-for cartola uploads — once inside `analyzePdfBuffer()` and once again to get
-the tier info via `detectFormat()`.
+## Upload pipeline
 
-## Fix
-
-`processDocumentUpload()` in `documentUploadService.ts` now uses a **single
-extract-detect-parse pass**:
+`processDocumentUpload()` in `documentUploadService.ts`:
 
 ```
 1. extractPdfText(buffer)          → text  (once, shared)
@@ -40,33 +36,9 @@ extract-detect-parse pass**:
    with detection_tier, banco_confidence, detected_banco from ParseResult
 ```
 
-## Endpoints after consolidation
+## Storage format
 
-| Endpoint | Cartola parser | CMF parser | Notes |
-|----------|---------------|------------|-------|
-| `POST /api/documents/upload` | `parseCartolaBuffer()` ✅ | `parseCmfInformeDeudas()` ✅ | Single text-extract pass; sole upload path |
-| `POST /api/documents/parse-cmf` | N/A | `parseCmfPdfBuffer()` | Unchanged |
-| `POST /api/scoring/calculate` | N/A (reads from DB) | N/A | No change needed |
-
-`POST /api/documents/parse-cartola` was deleted in Batch 9 Commit 1 — all frontend callers
-(Expenses, Movimientos, MultiFileDropzone) now use `/api/documents/upload`.
-
-## ParseResult → CartolaExtraida conversion
-
-The SFA scoring engine expects `CartolaExtraida.transacciones` with
-`{ cargo, abono }` fields. `ParseResult.transacciones` uses `{ tipo, monto }`.
-Conversion at the point of aggregation:
-
-```typescript
-cargo: tx.tipo === 'cargo' ? tx.monto : 0,
-abono: tx.tipo === 'abono' ? tx.monto : 0,
-saldo: tx.saldo_despues,
-```
-
-This is lossless — no information is discarded.
-
-## Files changed
-
-- `apps/api/src/services/documents/documentUploadService.ts` — main consolidation
-- Imports removed: `analyzePdfBuffer`, `extractPdfText` (no longer needed separately), `detectFormat`, `getDetectionTier`
-- Imports added: `parseCmfInformeDeudas`, `parseCartolaBuffer`, `ParseError`
+All cartola data is stored in CartolaExtraida format (`{ abono, cargo }`).
+The legacy ParseResult format (`{ tipo, monto }`) is no longer written to
+the database. The dashboard endpoint (`/api/dashboard/summary`) reads only
+`abono`/`cargo` fields — the dual-format fallback was removed in Batch 9.
