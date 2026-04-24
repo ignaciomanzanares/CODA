@@ -23,8 +23,12 @@ import { logger } from "./logger.js";
 type RawTx = {
   fecha: string | Date;
   descripcion?: string;
+  // CartolaExtraida format (documentUploadService.ts)
   abono?: number;
   cargo?: number;
+  // ParseResult format (routes-scoring-documents.ts)
+  tipo?: string;
+  monto?: number;
 };
 
 /** Normalize a raw date value to YYYY-MM-DD string. */
@@ -74,8 +78,11 @@ export function registerDashboardRoutes(app: Express): void {
         const txs: RawTx[] = pd?.transacciones ?? [];
 
         for (const t of txs) {
-          const abono = Math.round(t.abono ?? 0);
-          const cargo = Math.round(t.cargo ?? 0);
+          // Support both storage formats:
+          //   CartolaExtraida (documentUploadService): { abono, cargo }
+          //   ParseResult     (routes-scoring-documents): { tipo, monto }
+          const abono = Math.round(t.abono ?? (t.tipo === 'abono' ? (t.monto ?? 0) : 0));
+          const cargo = Math.round(t.cargo ?? (t.tipo === 'cargo' ? (t.monto ?? 0) : 0));
           if (abono === 0 && cargo === 0) continue;
 
           const fechaStr = toDateStr(t.fecha);
