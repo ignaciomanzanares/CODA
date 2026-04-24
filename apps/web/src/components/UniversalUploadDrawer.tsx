@@ -2,7 +2,7 @@
  * UniversalUploadDrawer — Modal para subir uno o más documentos financieros
  * (cartolas PDF/imagen) desde cualquier parte de la app.
  *
- * - Sube archivos en serie a /api/documents/upload
+ * - Sube archivos en serie a /api/documents/upload (hardened parseCartolaBuffer pipeline)
  * - Muestra estado por archivo: En espera → Subiendo → Analizando → Listo / Error
  * - Invalida react-query keys al terminar
  * - Botón "Cerrar" se habilita cuando no hay uploads en curso
