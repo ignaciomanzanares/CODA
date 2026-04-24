@@ -50,7 +50,7 @@ export function StatCard({
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
             {label}
           </p>
-          <p className="text-2xl font-bold text-foreground truncate">{value}</p>
+          <p className="text-2xl font-bold text-foreground tabular-nums">{value}</p>
           {delta && (
             <div
               className={cn(
