@@ -16,6 +16,7 @@ import {
   type CartolaExtraida,
 } from './pdfAnalysis.js';
 import { parseCartolaBuffer, ParseError } from '../../parsers/index.js';
+import { categorizeTransaction } from '../../parsers/cartola-parser.js';
 import { type DetectionTier } from '../../parsers/base.js';
 import { logCreditScorePrediction } from '../audit/algorithmicTraceability.js';
 
@@ -110,6 +111,7 @@ export async function processDocumentUpload(
         cargo: tx.tipo === 'cargo' ? tx.monto : 0,
         abono: tx.tipo === 'abono' ? tx.monto : 0,
         saldo: tx.saldo_despues,
+        categoria: categorizeTransaction(tx.descripcion, tx.monto, tx.tipo),
       })),
       saldoInicial: parsed.saldo_inicial,
       saldoFinal: parsed.saldo_final,

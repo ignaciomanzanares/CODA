@@ -27,6 +27,7 @@ export interface CartolaExtraida {
     cargo: number;
     abono: number;
     saldo?: number;
+    categoria?: string;
   }>;
   saldoInicial?: number;
   saldoFinal?: number;

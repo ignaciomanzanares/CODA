@@ -1275,7 +1275,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const nt = t as NewFmtTx;
             monto    = nt.tipo === 'abono' ? nt.monto : -nt.monto;
             saldo    = nt.saldo_despues ?? null;
-            categoria = nt.categoria ?? 'otro';
           } else {
             // Old CartolaExtraida format
             const ot = t as OldFmtTx;
@@ -1283,8 +1282,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const cargo = ot.cargo ?? 0;
             monto    = abono > 0 ? abono : -cargo;
             saldo    = ot.saldo ?? null;
-            categoria = 'otro';
           }
+          categoria = (t as any).categoria ?? 'otro';
 
           if (monto === 0) continue;
 
@@ -1383,9 +1382,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // New format
             monto = t.monto;
             tipo = t.tipo === 'abono' ? 'ingreso' : 'egreso';
-            categoria = t.categoria ?? 'otro';
           } else {
-            // Old format
+            // Old format (CartolaExtraida: cargo/abono)
             const abono = t.abono ?? 0;
             const cargo = t.cargo ?? 0;
             if (abono > 0) {
@@ -1396,6 +1394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               tipo = 'egreso';
             }
           }
+          categoria = t.categoria ?? 'otro';
 
           // Extract and normalize date
           if (t.fecha instanceof Date) {
@@ -1516,12 +1515,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if ('tipo' in t && typeof t.monto === 'number') {
             if (t.tipo !== 'cargo') continue;
             monto = t.monto;
-            cat = t.categoria ?? 'otro';
           } else {
             monto = t.cargo ?? 0;
-            cat = 'otro';
             if (monto <= 0) continue;
           }
+          cat = t.categoria ?? 'otro';
 
           if (typeof t.fecha === 'string') {
             if (t.fecha.includes('/')) {
@@ -1599,12 +1597,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if ('tipo' in t && typeof (t as NewFmtTx).monto === 'number') {
             const nt = t as NewFmtTx;
             if (nt.tipo !== 'cargo') continue;
-            monto = nt.monto; cat = nt.categoria ?? 'otro';
+            monto = nt.monto;
           } else {
             const ot = t as OldFmtTx;
-            monto = ot.cargo ?? 0; cat = 'otro';
+            monto = ot.cargo ?? 0;
             if (monto <= 0) continue;
           }
+          cat = (t as any).categoria ?? 'otro';
           const fechaStr = (t.fecha as string).slice(0, 10);
           const key = `${fechaStr}|${(t.descripcion ?? '').trim().toLowerCase()}|${monto}`;
           if (seen.has(key)) continue;
@@ -4200,6 +4199,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   registerDocumentParsingAndScoringRoutes(app);
   registerDashboardRoutes(app);
+
+  // ── Admin: retroactive re-categorization of stored transactions ─────────
+  app.post("/api/admin/recategorize", authenticate, async (req: Request, res: Response) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { categorizeTransaction } = await import("./parsers/cartola-parser.js");
+
+      const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
+      let updated = 0;
+
+      for (const doc of cartolas) {
+        const pd = doc.parsedData as { transacciones?: any[] } | null;
+        if (!pd?.transacciones?.length) continue;
+
+        let docChanged = false;
+        for (const tx of pd.transacciones) {
+          if (!tx.descripcion) continue;
+          // Determine tipo from cargo/abono
+          const tipo: "cargo" | "abono" = (tx.abono ?? 0) > 0 ? "abono" : "cargo";
+          const monto = (tx.abono ?? 0) > 0 ? tx.abono : (tx.cargo ?? 0);
+          const newCat = categorizeTransaction(tx.descripcion, monto, tipo);
+          if (tx.categoria !== newCat) {
+            tx.categoria = newCat;
+            docChanged = true;
+            updated++;
+          }
+        }
+        if (docChanged) {
+          await storage.updateDocumentUploadParsedData(doc.id, pd);
+        }
+      }
+
+      res.json({ updated });
+    } catch (e) {
+      logger.error({ err: e }, "admin/recategorize");
+      res.status(500).json({ message: e instanceof Error ? e.message : "Error" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
