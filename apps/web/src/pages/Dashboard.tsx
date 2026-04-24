@@ -1,4 +1,4 @@
-import { useAuth } from "@/lib/auth";
+import { useAuth, getPersonalToken } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from '@/lib/api';
 import { queryClient } from "@/lib/queryClient";
@@ -88,7 +88,7 @@ export default function Dashboard() {
   const { data: financialData, isLoading: financialLoading } = useQuery<FinancialSummaryData>({
     queryKey: ['financial-summary'],
     queryFn: async () => {
-      const token = localStorage.getItem('jwt_token');
+      const token = getPersonalToken();
       if (!token) return emptySummary;
       return apiFetch('/api/financial-summary', {
         headers: { Authorization: `Bearer ${token}` },
@@ -104,7 +104,7 @@ export default function Dashboard() {
   }>({
     queryKey: ['/api/transactions/summary'],
     queryFn: async () => {
-      const token = localStorage.getItem('jwt_token');
+      const token = getPersonalToken();
       if (!token) return null;
       return apiFetch('/api/transactions/summary', {
         headers: { Authorization: `Bearer ${token}` },
@@ -124,7 +124,7 @@ export default function Dashboard() {
   }>({
     queryKey: ['/api/dashboard/summary'],
     queryFn: async () => {
-      const token = localStorage.getItem('jwt_token');
+      const token = getPersonalToken();
       if (!token) return null;
       return apiFetch('/api/dashboard/summary', {
         headers: { Authorization: `Bearer ${token}` },

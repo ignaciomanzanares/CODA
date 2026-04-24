@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useAuth, getPersonalToken } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,7 +121,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
   const { data, isLoading } = useQuery<{ transactions: ParsedTransaction[]; count: number }>({
     queryKey: ["/api/transactions/parsed"],
     queryFn: async () => {
-      const token = localStorage.getItem("jwt_token");
+      const token = getPersonalToken();
       if (!token) return { transactions: [], count: 0 };
       return apiFetch("/api/transactions/parsed", { headers: { Authorization: `Bearer ${token}` } });
     },

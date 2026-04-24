@@ -5,7 +5,7 @@ import { Receipt, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { PastelIcon } from "@/components/ui/pastel-icon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/lib/auth";
+import { useAuth, getPersonalToken } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch, API_URL } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -91,7 +91,7 @@ export default function Movimientos() {
     const errors: string[] = [];
     for (const file of files) {
       try {
-        const token = localStorage.getItem("jwt_token") ?? "";
+        const token = getPersonalToken() ?? "";
         const formData = new FormData();
         formData.append("file", file);
         const res = await fetch(apiUrl("/api/documents/parse-cartola"), {
@@ -130,7 +130,7 @@ export default function Movimientos() {
   const { data: summary, isLoading: isLoadingSummary } = useQuery<TransactionSummary>({
     queryKey: ["/api/transactions/summary"],
     queryFn: async () => {
-      const token = localStorage.getItem("jwt_token");
+      const token = getPersonalToken();
       if (!token) return null;
       return apiFetch("/api/transactions/summary", {
         headers: { Authorization: `Bearer ${token}` },

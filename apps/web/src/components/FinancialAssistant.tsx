@@ -20,7 +20,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/lib/auth";
+import { useAuth, getPersonalToken } from "@/lib/auth";
 import { Link } from "wouter";
 import { ROUTES } from "@/lib/routes";
 
@@ -74,7 +74,7 @@ export default function FinancialAssistant({
   const { data: insightsData } = useQuery({
     queryKey: ['assistant-insights'],
     queryFn: async () => {
-      const token = localStorage.getItem('jwt_token');
+      const token = getPersonalToken();
       if (!token) return { insights: [] as string[] };
       return await apiFetch('/api/assistant/insights', {
         headers: { Authorization: `Bearer ${token}` },
@@ -90,7 +90,7 @@ export default function FinancialAssistant({
   } = useQuery({
     queryKey: ['assistant-bootstrap'],
     queryFn: async () => {
-      const token = localStorage.getItem('jwt_token');
+      const token = getPersonalToken();
       if (!token) throw new Error('no token');
       return apiFetch('/api/assistant/bootstrap', {
         headers: { Authorization: `Bearer ${token}` },
@@ -122,7 +122,7 @@ export default function FinancialAssistant({
     setIsLoading(true);
 
     try {
-      const token = localStorage.getItem('jwt_token');
+      const token = getPersonalToken();
       const response = await apiFetch('/api/assistant/chat', {
         method: 'POST',
         headers: {

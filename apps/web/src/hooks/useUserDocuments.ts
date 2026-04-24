@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useAuth, getPersonalToken } from "@/lib/auth";
 
 interface UserDocument {
   id: string;
@@ -23,7 +23,7 @@ export function useUserDocuments() {
   const { data, isLoading } = useQuery<UserDocumentsResponse>({
     queryKey: ["/api/user/documents"],
     queryFn: async () => {
-      const token = localStorage.getItem("jwt_token");
+      const token = getPersonalToken();
       if (!token) return { documents: [], count: 0 };
       return apiFetch("/api/user/documents", {
         headers: { Authorization: `Bearer ${token}` },

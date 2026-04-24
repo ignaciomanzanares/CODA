@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useAuth, getPersonalToken } from "@/lib/auth";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { CurrencyCode } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
@@ -283,7 +283,7 @@ export default function Products() {
   const { data: financialSummary } = useQuery({
     queryKey: ["financial-summary"],
     queryFn: () => {
-      const token = localStorage.getItem("jwt_token");
+      const token = getPersonalToken();
       if (!token) return null;
       return apiFetch("/api/financial-summary", {
         headers: { Authorization: `Bearer ${token}` },
@@ -296,7 +296,7 @@ export default function Products() {
   const { data: creditScoreData } = useQuery({
     queryKey: ["/api/credit-score"],
     queryFn: () => {
-      const token = localStorage.getItem("jwt_token");
+      const token = getPersonalToken();
       if (!token) return null;
       return apiFetch("/api/credit-score", {
         headers: { Authorization: `Bearer ${token}` },
@@ -309,7 +309,7 @@ export default function Products() {
   const { data: transactionalData } = useQuery({
     queryKey: ["/api/transactional-score"],
     queryFn: () => {
-      const token = localStorage.getItem("jwt_token");
+      const token = getPersonalToken();
       if (!token) return null;
       return apiFetch("/api/transactional-score", {
         headers: { Authorization: `Bearer ${token}` },

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useAuth, getPersonalToken } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -44,7 +44,7 @@ export default function ScoreHistoryChart() {
   const { data, isLoading } = useQuery<{ history: ScoreEntry[] }>({
     queryKey: ["/api/score-history"],
     queryFn: () => {
-      const token = localStorage.getItem("jwt_token");
+      const token = getPersonalToken();
       if (!token) return Promise.resolve({ history: [] });
       return apiFetch("/api/score-history", {
         headers: { Authorization: `Bearer ${token}` },
