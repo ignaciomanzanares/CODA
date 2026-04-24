@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useApi } from "@/lib/api";
 import { useReportData } from "@/contexts/ReportDataContext";
 import { queryClient } from "@/lib/queryClient";
@@ -46,6 +46,8 @@ const PARSE_ERROR_MESSAGES: Record<string, { title: string; hint: string }> = {
     hint: "La confianza del parseo es muy baja. Puede que el formato del PDF no sea compatible. Descarga la cartola directamente desde el portal web del banco.",
   },
 };
+
+const PENDING_UPLOAD_KEY = 'coda:pending_upload';
 
 const ALLOWED_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -100,6 +102,20 @@ export default function DocumentUploadCard() {
   const [result, setResult] = useState<DocumentUploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [pendingUploadBanner, setPendingUploadBanner] = useState<{ filename: string } | null>(null);
+
+  // On mount: check if a prior upload was interrupted by a session expiry.
+  useEffect(() => {
+    const raw = sessionStorage.getItem(PENDING_UPLOAD_KEY);
+    if (raw) {
+      try {
+        const meta = JSON.parse(raw) as { filename?: string };
+        if (meta.filename) setPendingUploadBanner({ filename: meta.filename });
+      } catch {
+        sessionStorage.removeItem(PENDING_UPLOAD_KEY);
+      }
+    }
+  }, []);
 
   const processFiles = useCallback(
     async (fileList: File[]) => {
@@ -129,7 +145,7 @@ export default function DocumentUploadCard() {
       for (let i = 0; i < validFiles.length; i++) {
         setProgressCurrent(i + 1);
         setProgressStep("reading");
-        
+
         // Validate each file
         const validation = validateFile(validFiles[i]);
         if (!validation.valid) {
@@ -138,10 +154,26 @@ export default function DocumentUploadCard() {
           setLoading(false);
           return;
         }
-        
+
+        // Store minimal metadata so the interrupted-upload banner can surface
+        // if a 401 fires mid-upload and the user has to re-authenticate.
+        // We store only metadata (no file bytes) — File objects are not
+        // serializable and financial data must not linger in sessionStorage.
+        const currentFile = validFiles[i]!;
+        sessionStorage.setItem(
+          PENDING_UPLOAD_KEY,
+          JSON.stringify({
+            filename: currentFile.name,
+            size: currentFile.size,
+            lastModified: currentFile.lastModified,
+            sourcePage: window.location.pathname,
+          })
+        );
+        setPendingUploadBanner(null); // dismiss any stale banner
+
         try {
           setProgressStep("extracting");
-          const res = await uploadDocument(validFiles[i]);
+          const res = await uploadDocument(currentFile);
           setProgressStep("scoring");
           lastResult = res;
           
@@ -151,11 +183,17 @@ export default function DocumentUploadCard() {
           }
           
           if (res.error) {
+            sessionStorage.removeItem(PENDING_UPLOAD_KEY); // non-auth failure
             setError(res.error);
             setProgressStep(null);
             break;
           }
         } catch (e: any) {
+          // 401 is handled globally by SessionExpiryGuard; leave the
+          // PENDING_UPLOAD_KEY in sessionStorage so the banner shows on return.
+          const status = (e as { status?: number })?.status;
+          if (status !== 401) sessionStorage.removeItem(PENDING_UPLOAD_KEY);
+
           // Map structured error_code from API to a targeted message, fallback to raw message
           const apiData = e?.response?.data ?? e?.data;
           const errorCode: string | undefined = apiData?.error_code;
@@ -173,6 +211,7 @@ export default function DocumentUploadCard() {
         }
       }
       if (lastResult && !lastResult.error) {
+        sessionStorage.removeItem(PENDING_UPLOAD_KEY); // success
         setResult(lastResult);
         setProgressStep("done");
         setUploadResult({
@@ -230,7 +269,10 @@ export default function DocumentUploadCard() {
   );
 
   const onSelectClick = useCallback(() => {
-    if (!loading) inputRef.current?.click();
+    if (!loading) {
+      setPendingUploadBanner(null);
+      inputRef.current?.click();
+    }
   }, [loading]);
 
   return (
@@ -245,6 +287,31 @@ export default function DocumentUploadCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Interrupted-upload banner: shown when the user re-authenticates
+            after a session expiry that fired during a previous upload. */}
+        {pendingUploadBanner && (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium mb-1">Carga interrumpida</p>
+              <p>
+                Tu carga de <strong>{pendingUploadBanner.filename}</strong> se interrumpió.
+                Vuelve a seleccionar el archivo para continuar.
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label="Cerrar aviso"
+              className="text-amber-600 hover:text-amber-800 ml-2 shrink-0"
+              onClick={() => {
+                sessionStorage.removeItem(PENDING_UPLOAD_KEY);
+                setPendingUploadBanner(null);
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <input
           ref={inputRef}
           type="file"
