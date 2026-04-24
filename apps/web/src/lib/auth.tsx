@@ -34,10 +34,30 @@ const USER_KEY = 'user_data';
 const TOKEN_KEY_EMPRESAS = 'jwt_token_empresas';
 const USER_KEY_EMPRESAS = 'user_data_empresas';
 
+/** sessionStorage key set after first login so ProtectedRoute can tell a
+ *  real session expiry from a first-ever visit. */
+export const HAD_SESSION_KEY = 'coda:had_session';
+
 function getKeys(context: AuthContextType) {
   return context === 'empresas'
     ? { token: TOKEN_KEY_EMPRESAS, user: USER_KEY_EMPRESAS }
     : { token: TOKEN_KEY, user: USER_KEY };
+}
+
+/**
+ * Module-level mirror of the React auth state token.
+ *
+ * Query functions scattered across pages used to read localStorage directly;
+ * this variable is kept in sync with the React state so they can call
+ * `getPersonalToken()` instead. When the user deletes localStorage in DevTools
+ * without a hard reload, this still holds the in-memory token so API calls
+ * continue to work (and return a real 401 if the JWT is actually expired).
+ */
+let _personalToken: string | null = localStorage.getItem(TOKEN_KEY);
+
+/** Returns the current personal JWT from React state (not directly from localStorage). */
+export function getPersonalToken(): string | null {
+  return _personalToken;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -73,6 +93,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
+  // Keep the module-level mirror in sync so query functions outside React
+  // context can call getPersonalToken() rather than reading localStorage.
+  useEffect(() => {
+    _personalToken = tokenPersonal;
+  }, [tokenPersonal]);
+
   const login = async (
     context: AuthContextType,
     email: string,
@@ -95,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { token: tk, user: uk } = getKeys(context);
     localStorage.setItem(tk, data.token);
     localStorage.setItem(uk, JSON.stringify(data.user));
+    sessionStorage.setItem(HAD_SESSION_KEY, '1');
 
     if (context === 'empresas') {
       setTokenEmpresas(data.token);
@@ -129,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     localStorage.setItem(TOKEN_KEY, data.token);
     localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    sessionStorage.setItem(HAD_SESSION_KEY, '1');
     setTokenPersonal(data.token);
     setUserPersonal(data.user);
   };
@@ -145,6 +173,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { token: tk, user: uk } = getKeys(context);
     localStorage.removeItem(tk);
     localStorage.removeItem(uk);
+    // Clear the "had a session" marker so ProtectedRoute doesn't show the
+    // session-expired toast after an explicit logout.
+    sessionStorage.removeItem(HAD_SESSION_KEY);
 
     if (context === 'empresas') {
       setTokenEmpresas(null);

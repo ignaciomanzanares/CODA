@@ -23,7 +23,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { PastelIcon } from "@/components/ui/pastel-icon";
-import { useAuth } from "@/lib/auth";
+import { useAuth, getPersonalToken } from "@/lib/auth";
 import SignInBanner from "@/components/SignInBanner";
 import type { Goal } from "@/types";
 import { ROUTES } from "@/lib/routes";
@@ -95,7 +95,7 @@ export default function Plan() {
   const { data: financialData } = useQuery<FinancialSummaryData>({
     queryKey: ["financial-summary"],
     queryFn: async () => {
-      const token = localStorage.getItem("jwt_token");
+      const token = getPersonalToken();
       if (!token) {
         return {
           summary: {
@@ -124,7 +124,7 @@ export default function Plan() {
   }>({
     queryKey: ["/api/plan/insights"],
     queryFn: async () => {
-      const token = localStorage.getItem("jwt_token");
+      const token = getPersonalToken();
       if (!token) throw new Error("Not authenticated");
       return apiFetch("/api/plan/insights", {
         headers: { Authorization: `Bearer ${token}` },
@@ -149,7 +149,7 @@ export default function Plan() {
   }>({
     queryKey: ["/api/expenses/monthly-summary"],
     queryFn: async () => {
-      const token = localStorage.getItem("jwt_token");
+      const token = getPersonalToken();
       if (!token) throw new Error("Not authenticated");
       return apiFetch("/api/expenses/monthly-summary", {
         headers: { Authorization: `Bearer ${token}` },
