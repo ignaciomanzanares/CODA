@@ -14,7 +14,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { API_URL } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useAuth, getPersonalToken } from "@/lib/auth";
 import SignInBanner from "@/components/SignInBanner";
 import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
 import { useToast } from "@/hooks/use-toast";
@@ -48,10 +48,10 @@ export default function Expenses() {
     const errors: string[] = [];
     for (const file of files) {
       try {
-        const token = localStorage.getItem("jwt_token") ?? "";
+        const token = getPersonalToken() ?? "";
         const formData = new FormData();
-        formData.append("file", file);
-        const res = await fetch(apiUrl("/api/documents/parse-cartola"), {
+        formData.append("document", file);
+        const res = await fetch(apiUrl("/api/documents/upload"), {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,

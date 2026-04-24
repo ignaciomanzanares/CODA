@@ -1,6 +1,6 @@
 /**
  * MultiFileDropzone — Drag & drop para subir múltiples PDFs de cartola.
- * Cada archivo se sube en serie al endpoint /api/documents/parse-cartola,
+ * Cada archivo se sube en serie al endpoint /api/documents/upload,
  * con feedback visual de progreso por archivo.
  */
 import { useRef, useState, useCallback } from "react";
@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL } from "@/lib/api";
+import { getPersonalToken } from "@/lib/auth";
 import { Upload, FileText, CheckCircle2, XCircle, Loader2, X } from "lucide-react";
 
 interface FileStatus {
@@ -60,12 +61,12 @@ export default function MultiFileDropzone({ onDone, className }: MultiFileDropzo
       setFiles(prev => prev.map(f => f.file === fs.file ? { ...f, status: "uploading" } : f));
 
       try {
-        const token = localStorage.getItem("jwt_token") ?? "";
+        const token = getPersonalToken() ?? "";
         const formData = new FormData();
-        formData.append("file", fs.file);
+        formData.append("document", fs.file);
 
         const apiBase = (API_URL || "").replace(/\/$/, "");
-        const res = await fetch(`${apiBase}/api/documents/parse-cartola`, {
+        const res = await fetch(`${apiBase}/api/documents/upload`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
