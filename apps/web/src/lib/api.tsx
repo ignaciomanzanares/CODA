@@ -1,6 +1,7 @@
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/apiBase";
+import { dispatchSessionExpired } from "@/lib/authEvents";
 import { USER_FACING_CONNECTION_ERROR, extractApiErrorMessage } from "@/lib/userFacingErrors";
 import type {
   CreateBankConnectionData,
@@ -174,6 +175,7 @@ export function useApi(): ApiClient {
       }
       const msg = extractApiErrorMessage(errorBody);
       if (res.status === 401) {
+        dispatchSessionExpired(fullUrl);
         throw new Error(msg || "Sesión expirada. Inicia sesión de nuevo.");
       }
       throw new Error(msg || `Error ${res.status}`);
@@ -476,7 +478,10 @@ export function useApi(): ApiClient {
       body: formData,
     });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error((json as { message?: string }).message || "Error al subir el documento");
+    if (!res.ok) {
+      if (res.status === 401) dispatchSessionExpired(fullUrl);
+      throw new Error((json as { message?: string }).message || "Error al subir el documento");
+    }
     return json as import("@/types").DocumentUploadResult;
   };
 
@@ -531,7 +536,10 @@ export function useApi(): ApiClient {
       body: formData,
     });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error((json as { message?: string }).message || "Error al parsear la cartola");
+    if (!res.ok) {
+      if (res.status === 401) dispatchSessionExpired(fullUrl);
+      throw new Error((json as { message?: string }).message || "Error al parsear la cartola");
+    }
     return json as any;
   };
 

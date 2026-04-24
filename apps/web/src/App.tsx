@@ -14,6 +14,7 @@ import Login from "@/pages/Login";
 import SignUp from "@/pages/SignUp";
 import Landing from "@/pages/Landing";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import SessionExpiryGuard from "@/components/SessionExpiryGuard";
 import SeoHelmet from "@/components/SeoHelmet";
 import PWAUpdatePrompt from "@/components/PWAUpdatePrompt";
 import { useVisualViewportHeight } from "@/hooks/useVisualViewportHeight";
@@ -72,6 +73,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <CurrencyProvider>
+      <SessionExpiryGuard />
       <VisualViewportRootSync />
       <BrowserNotificationsInit />
       <SeoHelmet />
