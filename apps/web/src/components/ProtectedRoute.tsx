@@ -1,7 +1,8 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useRef } from "react";
 import { Redirect } from "wouter";
 import { ROUTES } from "@/lib/routes";
-import { useAuth, type AuthContextType } from "@/lib/auth";
+import { useAuth, HAD_SESSION_KEY, type AuthContextType } from "@/lib/auth";
+import { dispatchSessionExpired } from "@/lib/authEvents";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -12,6 +13,21 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children, context = "personal" }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth(context);
   const loginPath = context === "empresas" ? "/empresas/login" : ROUTES.iniciarSesion;
+  const didFireRef = useRef(false);
+
+  // When the route guard decides to redirect because there is no token,
+  // fire the session-expired event so SessionExpiryGuard shows the toast —
+  // but only if the user previously had a session (marker set by login/register).
+  // First-ever visitors get a silent redirect to /login as before.
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated && !didFireRef.current) {
+      const hadSession = sessionStorage.getItem(HAD_SESSION_KEY);
+      if (hadSession) {
+        didFireRef.current = true;
+        dispatchSessionExpired(window.location.pathname);
+      }
+    }
+  }, [isLoading, isAuthenticated]);
 
   if (isLoading) {
     return (
