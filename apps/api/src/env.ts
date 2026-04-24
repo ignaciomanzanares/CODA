@@ -35,7 +35,7 @@ export const env = {
   useMemStorage,
   databaseUrl: process.env.DATABASE_URL,
   jwtSecret,
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '30d',
   clientUrl: process.env.CLIENT_URL || (isProd ? '' : 'http://localhost:5173'),
 };
 

@@ -245,7 +245,7 @@ export function verifyToken(token: string): TokenPayload | null {
 export function invalidateToken(token: string): void {
   tokenBlacklist.add(token);
   // Clean up old tokens periodically (tokens expire anyway)
-  setTimeout(() => tokenBlacklist.delete(token), 7 * 24 * 60 * 60 * 1000);
+  setTimeout(() => tokenBlacklist.delete(token), 30 * 24 * 60 * 60 * 1000);
 }
 
 // =============================================================================
