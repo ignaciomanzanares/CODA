@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useApi } from "@/lib/api";
 import { useReportData } from "@/contexts/ReportDataContext";
+import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import { queryClient } from "@/lib/queryClient";
 import type { DocumentUploadResult } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -93,6 +94,7 @@ function validateFile(file: File): { valid: boolean; error?: string } {
 export default function DocumentUploadCard() {
   const { uploadDocument } = useApi();
   const { setUploadResult } = useReportData();
+  const { setOpen: openUploadDrawer } = useUploadDrawer();
   const inputRef = useRef<HTMLInputElement>(null);
   const [drag, setDrag] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -271,9 +273,9 @@ export default function DocumentUploadCard() {
   const onSelectClick = useCallback(() => {
     if (!loading) {
       setPendingUploadBanner(null);
-      inputRef.current?.click();
+      openUploadDrawer(true);
     }
-  }, [loading]);
+  }, [loading, openUploadDrawer]);
 
   return (
     <Card id="document-upload-card">

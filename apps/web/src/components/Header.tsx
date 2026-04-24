@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import UniversalUploadDrawer from "@/components/UniversalUploadDrawer";
+import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,7 +76,7 @@ export default function Header() {
   const { currency, setCurrency } = useCurrency();
   const { theme, toggle: toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [uploadOpen, setUploadOpen] = useState(false);
+  const { setOpen: setUploadOpen } = useUploadDrawer();
 
   const handleLogout = () => {
     logout(authContext);
@@ -311,8 +311,6 @@ export default function Header() {
           </Sheet>
         </div>
       </div>
-
-      <UniversalUploadDrawer open={uploadOpen} onOpenChange={setUploadOpen} />
     </header>
   );
 }
