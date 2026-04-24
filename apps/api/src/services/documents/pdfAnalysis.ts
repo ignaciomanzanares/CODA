@@ -229,8 +229,8 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
     if (valRow) {
       const nums = valRow[1].match(/[\d.,]+/g) ?? [];
       if (nums.length >= 2) {
-        saldoInicial = parseChile(nums[0]);
-        saldoFinal   = parseChile(nums[nums.length - 1]);
+        saldoInicial = parseChile(nums[0]!);
+        saldoFinal   = parseChile(nums[nums.length - 1]!);
       }
     }
   }
