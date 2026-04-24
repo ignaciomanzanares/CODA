@@ -118,7 +118,9 @@ export default function UniversalUploadDrawer({
           )
         );
 
+      // Yield to the renderer so "uploading" paint is guaranteed before fetch blocks.
       setStatus("uploading");
+      await new Promise((r) => setTimeout(r, 0));
       try {
         const token = getPersonalToken() ?? "";
         const formData = new FormData();
@@ -131,9 +133,13 @@ export default function UniversalUploadDrawer({
           body: formData,
         });
 
-        // Transition to "Analizando" while we read the response
+        // Show "Analizando" while reading the response body.
+        // Minimum 400ms so the user sees the state change.
         setStatus("parsing");
-        const json = await res.json().catch(() => ({}));
+        const [json] = await Promise.all([
+          res.json().catch(() => ({})),
+          new Promise((r) => setTimeout(r, 400)),
+        ]);
 
         if (!res.ok) {
           throw new Error(
