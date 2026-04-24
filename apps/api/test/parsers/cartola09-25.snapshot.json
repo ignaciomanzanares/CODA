@@ -1,8 +1,8 @@
 {
   "banco": "Otro",
   "saldo_inicial": 928195,
-  "saldo_final": 0,
-  "total_cargos": 0,
+  "saldo_final": 901620,
+  "total_cargos": 1223593,
   "total_abonos": 1197018,
   "tx_count": 38,
   "transacciones": [

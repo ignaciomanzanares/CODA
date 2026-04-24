@@ -214,15 +214,38 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
   let saldoInicial: number | undefined;
   let saldoFinal: number | undefined;
 
-  // Santander format: "Saldo Inicial ... Saldo Final ... N1 N2 N3 N4"
-  const saldoHeaderMatch = text.match(
-    /Saldo\s+Inicial.*?Saldo\s+Final.*?([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/is
-  );
-  if (saldoHeaderMatch) {
-    saldoInicial = parseChile(saldoHeaderMatch[1]);
-    saldoFinal   = parseChile(saldoHeaderMatch[4]);
+  // Strategy 1 — Santander header row + values row (4-col or 7-col layout).
+  // The header row ends with "Saldo Final"; the values row follows on the next
+  // line (or immediately inline). We extract ALL numbers from the values row
+  // and treat the FIRST as saldoInicial and the LAST as saldoFinal.
+  // This handles both the classic 4-col layout (saldoInicial, cargos, abonos,
+  // saldoFinal) and the Sep-2025 7-col layout (saldoInicial, depositos,
+  // otrosAbonos, cheques, otrosCargos, impuestos, saldoFinal).
+  const saldoHdrMatch = text.match(/Saldo\s+Inicial[^\n]*Saldo\s+Final[^\n]*/i);
+  if (saldoHdrMatch && saldoHdrMatch.index !== undefined) {
+    const afterHdr = text.slice(saldoHdrMatch.index + saldoHdrMatch[0].length);
+    // Capture numbers on the same or immediately following line (no cross-line matching)
+    const valRow = afterHdr.match(/^[ \t]*\n?([\d.,]+(?:[ \t]+[\d.,]+)*)/);
+    if (valRow) {
+      const nums = valRow[1].match(/[\d.,]+/g) ?? [];
+      if (nums.length >= 2) {
+        saldoInicial = parseChile(nums[0]);
+        saldoFinal   = parseChile(nums[nums.length - 1]);
+      }
+    }
   }
-  // BCI/Banco de Chile format: "Saldo Anterior: $1.234.567" / "Saldo Final: $1.234.567"
+  // Strategy 2 — Fallback: old 4-number inline pattern for PDFs where header
+  // labels and values appear on the same logical line without a newline break.
+  if (saldoInicial === undefined || saldoFinal === undefined) {
+    const saldoHeaderMatch = text.match(
+      /Saldo\s+Inicial.*?Saldo\s+Final.*?([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/is
+    );
+    if (saldoHeaderMatch) {
+      if (saldoInicial === undefined) saldoInicial = parseChile(saldoHeaderMatch[1]);
+      if (saldoFinal   === undefined) saldoFinal   = parseChile(saldoHeaderMatch[4]);
+    }
+  }
+  // Strategy 3 — BCI/Banco de Chile colon format: "Saldo Anterior: $X" / "Saldo Final: $X"
   if (saldoInicial === undefined) {
     const saMatch = text.match(/Saldo\s+(?:Anterior|Inicial)\s*[:\$]\s*\$?\s*([\d.,]+)/i);
     if (saMatch) saldoInicial = parseChile(saMatch[1]);
