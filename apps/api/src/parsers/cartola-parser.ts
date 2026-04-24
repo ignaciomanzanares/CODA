@@ -189,29 +189,61 @@ function extractPeriodo(text: string): { desde: Date; hasta: Date; dias: number 
   return { desde: desde!, hasta: hasta!, dias };
 }
 
-/** Extrae saldos y totales del bloque tipo Santander (4 montos consecutivos). */
+/** Extrae saldos y totales del bloque resumen de Santander (4-col o 7-col). */
 function extractResumenMontos(text: string): {
   saldo_inicial: number | null;
   total_cargos: number | null;
   total_abonos: number | null;
   saldo_final: number | null;
 } {
+  // Strategy 1 — header row + values row (handles 4-col and 7-col formats).
+  // Take first number as saldo_inicial and last as saldo_final.
+  // For the classic 4-col layout the middle two are cargos/abonos; for the
+  // 7-col Sep-2025 layout we leave totals null so enrichCartola falls back to
+  // summing from transactions (which is always correct).
+  const hdrMatch = text.match(/Saldo\s+Inicial[^\n]*Saldo\s+Final[^\n]*/i);
+  if (hdrMatch && hdrMatch.index !== undefined) {
+    const afterHdr = text.slice(hdrMatch.index + hdrMatch[0].length);
+    const valRow = afterHdr.match(/^[ \t]*\n?([\d.,]+(?:[ \t]+[\d.,]+)*)/);
+    if (valRow) {
+      const nums = valRow[1].match(/[\d.,]+/g) ?? [];
+      if (nums.length === 4) {
+        // Classic 4-column: saldoInicial, cargos, abonos, saldoFinal
+        return {
+          saldo_inicial: parseChileAmount(nums[0]!),
+          total_cargos:  parseChileAmount(nums[1]!),
+          total_abonos:  parseChileAmount(nums[2]!),
+          saldo_final:   parseChileAmount(nums[3]!),
+        };
+      } else if (nums.length >= 5) {
+        // Extended multi-column format: first=saldoInicial, last=saldoFinal.
+        // Leave totals null — enrichCartola will compute them from transactions.
+        return {
+          saldo_inicial: parseChileAmount(nums[0]!),
+          total_cargos:  null,
+          total_abonos:  null,
+          saldo_final:   parseChileAmount(nums[nums.length - 1]!),
+        };
+      }
+    }
+  }
+  // Strategy 2 — fallback: old inline 4-number pattern
   const saldoHeaderMatch = text.match(
     /Saldo\s+Inicial.*?Saldo\s+Final.*?([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/is
   );
   if (saldoHeaderMatch) {
     return {
       saldo_inicial: parseChileAmount(saldoHeaderMatch[1]!),
-      total_cargos: parseChileAmount(saldoHeaderMatch[2]!),
-      total_abonos: parseChileAmount(saldoHeaderMatch[3]!),
-      saldo_final: parseChileAmount(saldoHeaderMatch[4]!),
+      total_cargos:  parseChileAmount(saldoHeaderMatch[2]!),
+      total_abonos:  parseChileAmount(saldoHeaderMatch[3]!),
+      saldo_final:   parseChileAmount(saldoHeaderMatch[4]!),
     };
   }
   return {
     saldo_inicial: null,
-    total_cargos: null,
-    total_abonos: null,
-    saldo_final: null,
+    total_cargos:  null,
+    total_abonos:  null,
+    saldo_final:   null,
   };
 }
 
