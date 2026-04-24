@@ -44,10 +44,12 @@ extract-detect-parse pass**:
 
 | Endpoint | Cartola parser | CMF parser | Notes |
 |----------|---------------|------------|-------|
-| `POST /api/documents/upload` | `parseCartolaBuffer()` ✅ | `parseCmfInformeDeudas()` ✅ | Single text-extract pass |
-| `POST /api/documents/parse-cartola` | `parseCartolaBuffer()` ✅ | N/A | Unchanged (already hardened) |
+| `POST /api/documents/upload` | `parseCartolaBuffer()` ✅ | `parseCmfInformeDeudas()` ✅ | Single text-extract pass; sole upload path |
 | `POST /api/documents/parse-cmf` | N/A | `parseCmfPdfBuffer()` | Unchanged |
 | `POST /api/scoring/calculate` | N/A (reads from DB) | N/A | No change needed |
+
+`POST /api/documents/parse-cartola` was deleted in Batch 9 Commit 1 — all frontend callers
+(Expenses, Movimientos, MultiFileDropzone) now use `/api/documents/upload`.
 
 ## ParseResult → CartolaExtraida conversion
 
