@@ -24,6 +24,8 @@ export type TransactionCategory =
   | "entretenimiento"
   | "salud"
   | "ingreso_principal"
+  | "vivienda"
+  | "servicios"
   | "otro";
 
 export interface CartolaParseResult {
@@ -267,7 +269,7 @@ function normalizeDescKey(d: string): string {
  *
  * Mejorado para mayor precisión en categorización.
  */
-function categorizeTransaction(
+export function categorizeTransaction(
   descripcion: string,
   monto: number,
   tipo: "cargo" | "abono"
@@ -308,13 +310,13 @@ function categorizeTransaction(
     return "alimentacion";
 
   // ── Transporte ───────────────────────────────────────────────────────────
-  if (/\bBIP\b|TNE\b|TRANSANTIAGO|RED\s+METROPOLITANA|METRO\s+DE\s+STGO|METRO\b.*SANTIAGO|METRO\s+SANTIAGO|BUSES|LOCOMOCION/i.test(u))
+  if (/\bBIP\b|\bBIPO\b|TNE\b|TRANSANTIAGO|RED\s+METROPOLITANA|RED\s+MOVILIDAD|METRO\s+DE\s+STGO|METRO\b.*SANTIAGO|METRO\s+SANTIAGO|BUSES|LOCOMOCION|\bALSACIA\b|\bEXPRESS\s+SANTIAGO/i.test(u))
     return "transporte";
-  if (/COPEC\b|SHELL\b|PETROBRAS|ENAP\b|TERPEL|PETRONOR|BENCINA|COMBUSTIBLE|NAFTA|GASOLINA|DIESEL|ESTACI[OÓ]N\s+DE\s+SERVICIO|GASOLINERA|PETRO/i.test(u))
+  if (/COPEC\b|SHELL\b|PETROBRAS|ENAP\b|ENEX\b|TERPEL|PETRONOR|BENCINA|COMBUSTIBLE|NAFTA|GASOLINA|DIESEL|ESTACI[OÓ]N\s+DE\s+SERVICIO|GASOLINERA|PETRO|\bFULL\s+COPEC/i.test(u))
     return "transporte";
-  if (/AUTOPISTA|AUTOEXPR[EÉ]S|AUTOEXPRES|RUTA\s+5|VESPUCIO|COSTANERA\s+NORTE|SUR|AMERICO\s+VESPUCIO|TAG\b|TELEPASS|TELE\s+PASS|PEAJE|PASAJE\s+URBANO/i.test(u))
+  if (/AUTOPISTA|AUTOEXPR[EÉ]S|AUTOEXPRES|RUTA\s+5|VESPUCIO|COSTANERA\s+NORTE|SUR|AMERICO\s+VESPUCIO|\bAMB\b|TAG\b|TELEPASS|TELE\s+PASS|PEAJE|PASAJE\s+URBANO/i.test(u))
     return "transporte";
-  if (/UBER\b(?!\s*EATS)|CABIFY|DIDI\b|LIFT\b|LYFT\b|EASY\s+TAXI|TAXI|RADIO\s+TAXI|RECO/i.test(u))
+  if (/UBER\b(?!\s*EATS)|CABIFY|DIDI\b(?!\s*FOOD)|\bBOLT\b|LIFT\b|LYFT\b|EASY\s+TAXI|TAXI|RADIO\s+TAXI|RECO/i.test(u))
     return "transporte";
   if (/LATAM\b|SKY\s*AIRLINE|JET\s*SMART|JETSMART|AEROL[IÍ]NEA|VUELO|PASAJE\s+A[EÉ]REO|AEROPUERTO|AVION|DESPEGAR|BOOKING\s+VOO|KAYAK/i.test(u))
     return "transporte";
@@ -328,27 +330,29 @@ function categorizeTransaction(
     return "telecomunicaciones";
 
   // ── Entretenimiento / streaming ──────────────────────────────────────────
-  if (/NETFLIX|SPOTIFY|PRIME\s+VIDEO|HBO\s*MAX|HBO\s+MAX|DISNEY\+|DISNEY\s+PLUS|PARAMOUNT|APPLE\s+TV|YOUTUBE\s+PREMIUM|TWITCH|STEAM\b|EPIC\s+GAMES|PLAY\s*STATION|PLAYSTATION|XBOX\s+LIVE|NINTENDO|CINEMARK|CINE\s+H[OA]YTS|CINEHOYTS|MOVIELAND|HOYTS|CIN[ÉE]POLIS|ENTRADA\s+AL\s+CINE|TEATRO|CONCIERTO|EVENTO|ENTRETENIMIENTO/i.test(u))
+  if (/NETFLIX|SPOTIFY|PRIME\s+VIDEO|AMAZON\s+PRIME|HBO\s*MAX|HBO\s+MAX|DISNEY\+|DISNEY\s+PLUS|PARAMOUNT|STAR\s+PLUS|APPLE\s+TV|APPLE\s+MUSIC|YOUTUBE\s+PREMIUM|TWITCH|STEAM\b|EPIC\s+GAMES|PLAY\s*STATION|PLAYSTATION|XBOX\s+LIVE|XBOX\b|NINTENDO|DIRECTV|DIRECT\s+TV|CINEMARK|CINE\s+H[OA]YTS|CINEHOYTS|MOVIELAND|HOYTS|CIN[ÉE]POLIS|ENTRADA\s+AL\s+CINE|TEATRO|CONCIERTO|EVENTO|ENTRETENIMIENTO/i.test(u))
     return "entretenimiento";
   if (/GIMNASIO|GYM\b|SMART\s*FIT|FITNESS|FITPASS|CLUB\s+DE\s+DEPORTES|PISCINA|ESTADIO|CANCHA|DEPORTE|ACTIVIDAD\s+F[IÍ]SICA|YOGA|PILATES/i.test(u))
     return "entretenimiento";
 
   // ── Servicios básicos / utilities ────────────────────────────────────────
-  if (/ENEL\b|CGE\b|CHILECTRA|ELECTRA|LUZ\s+OSORNO|FRONTEL|SAESA|CONAFE|\bAGUA\b.*POTABLE|ESVAL|AGUAS\s+ANDINAS|AGUAS\s+ANTOFAGASTA|ESSBIO|AGUAS\s+DEL\s+VALLE|AGUAS\s+CHA[ÑN]AR|EMEL|EL[IÉ]CTRICA/i.test(u))
-    return "comercio";
+  if (/ENEL\b|CGE\b|CHILECTRA|ELECTRA|LUZ\s+OSORNO|FRONTEL|SAESA|CONAFE|\bAGUA\b.*POTABLE|ESVAL|AGUAS\s+ANDINAS|AGUAS\s+ANTOFAGASTA|ESSBIO|AGUAS\s+DEL\s+VALLE|AGUAS\s+CHA[ÑN]AR|EMEL|EL[IÉ]CTRICA|SMAPA/i.test(u))
+    return "servicios";
   if (/GAS\s+NATURAL|METROGAS|LIPIGAS|ABASTIBLE|GASVAL|GAS\s+ENERGY|GASCO|GLP/i.test(u))
-    return "comercio";
+    return "servicios";
+  if (/MERPAGO|MERCADOPAGO|MERCADO\s+PAGO|WEBPAY|SERVIPAG|SENCILLITO|MULTICAJA/i.test(u))
+    return "servicios";
 
   // ── Vivienda / arriendo ──────────────────────────────────────────────────
-  if (/ARRIENDO|ARRENDAMIENTO|DIVIDENDO|ADMINISTRACI[OÓ]N\s+EDIFICIO|CONDOMINIO|INMOBILIARIA|CORREDORA\s+PROP|PROPIEDAD|INMUEBLE/i.test(u))
-    return "otro";
+  if (/ARRIENDO|ARRENDAMIENTO|DIVIDENDO|HIPOTECARIO|MUTUARIA|ADMINISTRACI[OÓ]N\s+EDIFICIO|ADMINISTRACI[OÓ]N|CONDOMINIO|INMOBILIARIA|CORREDORA\s+PROP|PROPIEDAD|INMUEBLE/i.test(u))
+    return "vivienda";
 
   // ── Comercio general / retail ────────────────────────────────────────────
   if (/FALABELLA|RIPLEY|PARIS\b|LA\s+POLAR|H&M\b|ZARA\b|FOREVER\s+21|CORONA\b|HITES\b|ABC\s+DIN|EASY\b|HOMECENTER|SODIMAC|IKEA\b|ABCDIN|TIENDA|RETAIL|COMERCIO/i.test(u))
     return "comercio";
   if (/AMAZON\b|EBAY\b|ALIEXPRESS|SHEIN\b|WISH\b|SHOPEE|MERCADOLIBRE|MERCADO\s+LIBRE|LINIO\b|PARIS\.CL|FALABELLA\.COM|RIPLEY\.COM|TIENDA|COMPRA\s+ONLINE|ECOMMERCE|E-COMMERCE/i.test(u))
     return "comercio";
-  if (/MERCADOPAGO|MERCADO\s+PAGO|PAYU\b|KUSHKI\b|STRIPE\b|WEBPAY|FLOW\b|TRANSBANK|GETNET|PAYPAL\b|PAY\s+GOOGLE|APPLE\s+PAY/i.test(u))
+  if (/PAYU\b|KUSHKI\b|STRIPE\b|TRANSBANK|GETNET|PAYPAL\b|PAY\s+GOOGLE|APPLE\s+PAY/i.test(u))
     return "comercio";
 
   // ── Financiero / seguros ─────────────────────────────────────────────────

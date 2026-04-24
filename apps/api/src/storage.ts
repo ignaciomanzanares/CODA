@@ -169,6 +169,7 @@ export interface IStorage {
   }): Promise<any>;
 
   getDocumentUploadById(id: string, userId: string): Promise<any | undefined>;
+  updateDocumentUploadParsedData(id: string, parsedData: unknown): Promise<void>;
   listDocumentUploadsByType(userId: string, tipo: string): Promise<any[]>;
   listAllDocumentUploads(userId: string): Promise<any[]>;
   deleteDocumentUploadsByType(userId: string, tipo: string): Promise<number>;
@@ -1300,6 +1301,14 @@ export class DatabaseStorage implements IStorage {
       ...row,
       parsedData: row.parsedData ? JSON.parse(row.parsedData) : null,
     };
+  }
+
+  async updateDocumentUploadParsedData(id: string, parsedData: unknown): Promise<void> {
+    if (!db) return;
+    await db
+      .update(documentUploads)
+      .set({ parsedData: JSON.stringify(parsedData) })
+      .where(eq(documentUploads.id, id));
   }
 
   async listDocumentUploadsByType(userId: string, tipo: string): Promise<any[]> {
