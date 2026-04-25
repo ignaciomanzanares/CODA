@@ -1352,6 +1352,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/transactions/:id/category — update a single transaction's category
+  const VALID_CATEGORIES = new Set([
+    "educacion", "alimentacion", "transporte", "telecomunicaciones",
+    "transferencia_enviada", "transferencia_recibida", "comercio",
+    "entretenimiento", "salud", "ingreso_principal", "vivienda", "servicios", "otro",
+  ]);
+
+  app.patch("/api/transactions/:id/category", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+
+      const { category } = req.body as { category?: string };
+      if (!category || !VALID_CATEGORIES.has(category)) {
+        return res.status(400).json({ message: `Categoría inválida. Opciones: ${[...VALID_CATEGORIES].join(", ")}` });
+      }
+
+      // ID format: "{documentUploadId}-{transactionIndex}"
+      const txId = req.params.id;
+      const dashIdx = txId.lastIndexOf("-");
+      if (dashIdx < 0) return res.status(400).json({ message: "ID de transacción inválido." });
+
+      const docId = txId.slice(0, dashIdx);
+      const txIndex = parseInt(txId.slice(dashIdx + 1), 10);
+      if (isNaN(txIndex)) return res.status(400).json({ message: "Índice de transacción inválido." });
+
+      // Fetch the document upload and verify ownership
+      const doc = await storage.getDocumentUploadById(docId, userId);
+      if (!doc) return res.status(404).json({ message: "Documento no encontrado." });
+
+      const pd = doc.parsedData as { transacciones?: any[] } | null;
+      const txs = pd?.transacciones;
+      if (!txs || txIndex < 0 || txIndex >= txs.length) {
+        return res.status(404).json({ message: "Transacción no encontrada." });
+      }
+
+      // Update the category in-place
+      txs[txIndex].categoria = category;
+      await storage.updateDocumentUploadParsedData(docId, pd);
+
+      res.json({ id: txId, category });
+    } catch (e) {
+      logger.error({ err: e }, "Failed to update transaction category");
+      res.status(500).json({ message: "Error al actualizar categoría." });
+    }
+  });
+
   // GET /api/transactions/summary — income, expenses, and balance summary
   app.get("/api/transactions/summary", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;

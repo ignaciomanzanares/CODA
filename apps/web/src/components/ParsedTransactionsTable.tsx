@@ -1,17 +1,17 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiFetch, API_URL } from "@/lib/api";
 import { useAuth, getPersonalToken } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { ArrowUpDown, ArrowUp, ArrowDown, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 interface ParsedTransaction {
   id: string;
@@ -52,8 +52,17 @@ const CAT_LABELS: Record<string, string> = {
   educacion:              "Educación",
   salud:                  "Salud",
   ingreso_principal:      "Ingreso",
+  vivienda:               "Vivienda",
+  servicios:              "Servicios",
   otro:                   "Otro",
 };
+
+/** All valid categories for the dropdown — must match backend VALID_CATEGORIES */
+const ALL_CATEGORIES = [
+  "alimentacion", "transporte", "entretenimiento", "telecomunicaciones",
+  "transferencia_enviada", "transferencia_recibida", "comercio",
+  "educacion", "salud", "ingreso_principal", "vivienda", "servicios", "otro",
+] as const;
 
 const CAT_COLORS: Record<string, string> = {
   alimentacion:           "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
@@ -66,6 +75,8 @@ const CAT_COLORS: Record<string, string> = {
   educacion:              "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
   salud:                  "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
   ingreso_principal:      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  vivienda:               "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  servicios:              "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
   otro:                   "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
 };
 
@@ -106,6 +117,8 @@ interface ParsedTransactionsTableProps {
 
 export default function ParsedTransactionsTable({ mode = "movimientos", title, subtitle, initialCategory }: ParsedTransactionsTableProps) {
   const { isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const isGastos = mode === "gastos";
 
   const [search, setSearch]         = useState("");
@@ -196,6 +209,55 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
   useEffect(() => { setPage(1); }, [search, typeFilter, catFilter, bancoFilter, dateFrom, dateTo, sortField, sortDir]);
 
   const hasActiveFilter = search || typeFilter !== "all" || catFilter !== "all" || bancoFilter !== "all" || dateFrom || dateTo;
+
+  // ── Category inline edit ────────────────────────────────────────────────
+  const updateCategory = useCallback(async (txId: string, newCategory: string, oldCategory: string) => {
+    // Optimistic update
+    queryClient.setQueryData<{ transactions: ParsedTransaction[]; count: number }>(
+      ["/api/transactions/parsed"],
+      (prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          transactions: prev.transactions.map((t) =>
+            t.id === txId ? { ...t, categoria: newCategory } : t
+          ),
+        };
+      }
+    );
+    try {
+      const token = getPersonalToken() ?? "";
+      const apiBase = (API_URL || "").replace(/\/$/, "");
+      const res = await fetch(`${apiBase}/api/transactions/${txId}/category`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ category: newCategory }),
+      });
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      // Invalidate summaries so charts refresh
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
+    } catch {
+      // Revert on error
+      queryClient.setQueryData<{ transactions: ParsedTransaction[]; count: number }>(
+        ["/api/transactions/parsed"],
+        (prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            transactions: prev.transactions.map((t) =>
+              t.id === txId ? { ...t, categoria: oldCategory } : t
+            ),
+          };
+        }
+      );
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la categoría. Intenta de nuevo.",
+        variant: "destructive",
+      });
+    }
+  }, [queryClient, toast]);
 
   // ── Loading state ────────────────────────────────────────────────────────
   if (isLoading) {
@@ -352,12 +414,26 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                           )}
                         </td>
                         <td className="px-3 py-2 text-center hidden sm:table-cell">
-                          <Badge
-                            variant="secondary"
-                            className={cn("text-[10px] px-1.5 py-0.5", CAT_COLORS[tx.categoria] ?? CAT_COLORS.otro)}
+                          <Select
+                            value={tx.categoria}
+                            onValueChange={(val) => updateCategory(tx.id, val, tx.categoria)}
                           >
-                            {CAT_LABELS[tx.categoria] ?? tx.categoria}
-                          </Badge>
+                            <SelectTrigger
+                              className={cn(
+                                "h-6 w-auto min-w-[90px] max-w-[130px] border-0 bg-transparent px-1.5 text-[10px] font-medium rounded-full inline-flex",
+                                CAT_COLORS[tx.categoria] ?? CAT_COLORS.otro
+                              )}
+                            >
+                              <SelectValue>{CAT_LABELS[tx.categoria] ?? tx.categoria}</SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ALL_CATEGORIES.map((c) => (
+                                <SelectItem key={c} value={c} className="text-xs">
+                                  {CAT_LABELS[c] ?? c}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </td>
                         <td className={cn(
                           "px-3 py-2 text-right font-semibold whitespace-nowrap text-sm",
