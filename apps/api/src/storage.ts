@@ -10,6 +10,7 @@ import {
   creditScores,
   transactionalScores,
   documentUploads,
+  scoreDocumentUploads,
   userScores,
   insuranceRisks,
   financialGoals,
@@ -173,6 +174,17 @@ export interface IStorage {
   listDocumentUploadsByType(userId: string, tipo: string): Promise<any[]>;
   listAllDocumentUploads(userId: string): Promise<any[]>;
   deleteDocumentUploadsByType(userId: string, tipo: string): Promise<number>;
+
+  // Score-isolated document uploads
+  createScoreDocumentUpload(row: {
+    id: string; userId: string; tipo: string;
+    banco?: string | null; periodoDesde?: string | null; periodoHasta?: string | null;
+    parsedData: unknown; parseStatus?: string;
+  }): Promise<any>;
+  listScoreDocumentUploads(userId: string): Promise<any[]>;
+  listScoreDocumentUploadsByType(userId: string, tipo: string): Promise<any[]>;
+  deleteAllScoreDocumentUploads(userId: string): Promise<number>;
+  countScoreDocumentUploads(userId: string): Promise<number>;
 
   insertUserScore(row: {
     id: string;
@@ -1348,6 +1360,53 @@ export class DatabaseStorage implements IStorage {
       .delete(documentUploads)
       .where(and(eq(documentUploads.userId, userId), eq(documentUploads.tipo, tipo)));
     return (result as any).rowCount ?? (result as any).changes ?? 0;
+  }
+
+  // ── Score-isolated document uploads ────────────────────────────────────
+  async createScoreDocumentUpload(row: {
+    id: string; userId: string; tipo: string;
+    banco?: string | null; periodoDesde?: string | null; periodoHasta?: string | null;
+    parsedData: unknown; parseStatus?: string;
+  }): Promise<any> {
+    if (!db) return null;
+    const serialized = typeof row.parsedData === 'string' ? row.parsedData : JSON.stringify(row.parsedData);
+    const [inserted] = await db
+      .insert(scoreDocumentUploads)
+      .values({ ...row, parsedData: serialized, parseStatus: row.parseStatus ?? 'success' })
+      .returning();
+    return inserted;
+  }
+
+  async listScoreDocumentUploads(userId: string): Promise<any[]> {
+    if (!db) return [];
+    return db.select().from(scoreDocumentUploads)
+      .where(eq(scoreDocumentUploads.userId, userId))
+      .orderBy(desc(scoreDocumentUploads.uploadedAt));
+  }
+
+  async listScoreDocumentUploadsByType(userId: string, tipo: string): Promise<any[]> {
+    if (!db) return [];
+    const rows = await db.select().from(scoreDocumentUploads)
+      .where(and(eq(scoreDocumentUploads.userId, userId), eq(scoreDocumentUploads.tipo, tipo)))
+      .orderBy(desc(scoreDocumentUploads.uploadedAt));
+    return rows.map((r: any) => ({
+      ...r,
+      parsedData: typeof r.parsedData === 'string' ? JSON.parse(r.parsedData) : r.parsedData,
+    }));
+  }
+
+  async deleteAllScoreDocumentUploads(userId: string): Promise<number> {
+    if (!db) return 0;
+    const result = await db.delete(scoreDocumentUploads)
+      .where(eq(scoreDocumentUploads.userId, userId));
+    return (result as any).rowCount ?? (result as any).changes ?? 0;
+  }
+
+  async countScoreDocumentUploads(userId: string): Promise<number> {
+    if (!db) return 0;
+    const rows = await db.select({ count: sql`count(*)` }).from(scoreDocumentUploads)
+      .where(eq(scoreDocumentUploads.userId, userId));
+    return Number(rows[0]?.count ?? 0);
   }
 
   async insertUserScore(row: {

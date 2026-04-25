@@ -68,9 +68,15 @@ export function validateDocumentBelongsToUser(
  * Pipeline: extract text once → check CMF signals → if not CMF, use hardened
  * parseCartolaBuffer() (format detection + tier + reconciliation in one pass).
  */
+export interface ProcessDocumentOptions {
+  /** When true, persist to scoreDocumentUploads instead of documentUploads */
+  scoreOnly?: boolean;
+}
+
 export async function processDocumentUpload(
   userId: string,
-  buffer: Buffer
+  buffer: Buffer,
+  options: ProcessDocumentOptions = {}
 ): Promise<UploadResult> {
   // 1. Extract text once — shared by CMF detection and cartola fallback
   let text = '';
@@ -95,7 +101,7 @@ export async function processDocumentUpload(
     if (!validation.valid) {
       return { step: 'done', error: validation.message ?? 'El documento no corresponde al usuario.' };
     }
-    return processCmfUpload(userId, cmfDoc);
+    return processCmfUpload(userId, cmfDoc, options);
   }
 
   // 3. Cartola path: hardened pipeline (format detection + tier + reconciliation in one pass)
@@ -119,7 +125,9 @@ export async function processDocumentUpload(
     };
 
     const rut = cartolaExtraida.rutDocumento ?? '00.000.000-0';
-    const previousCartolas = await storage.listDocumentUploadsByType(userId, "cartola");
+    const previousCartolas = options.scoreOnly
+      ? await storage.listScoreDocumentUploadsByType(userId, "cartola")
+      : await storage.listDocumentUploadsByType(userId, "cartola");
     const previousParsed: CartolaExtraida[] = previousCartolas
       .map((r) => r?.parsedData as CartolaExtraida | null)
       .filter((c): c is CartolaExtraida => !!c && Array.isArray(c.transacciones));
@@ -143,7 +151,10 @@ export async function processDocumentUpload(
       mainInsights.push(...parsed.warnings);
     }
 
-    await storage.createDocumentUpload({
+    const createUpload = options.scoreOnly
+      ? storage.createScoreDocumentUpload.bind(storage)
+      : storage.createDocumentUpload.bind(storage);
+    await createUpload({
       id: randomUUID(),
       userId,
       tipo: "cartola",
@@ -187,7 +198,7 @@ export async function processDocumentUpload(
   }
 }
 
-async function processCmfUpload(userId: string, doc: CmfInformeDeudas): Promise<UploadResult> {
+async function processCmfUpload(userId: string, doc: CmfInformeDeudas, options: ProcessDocumentOptions = {}): Promise<UploadResult> {
     const uploadId = randomUUID();
     const RUT_RE = /\b\d{1,2}\.\d{3}\.\d{3}-[\dKk]\b/;
     const rutExtraido = doc.rutDocumento?.trim();
@@ -288,7 +299,10 @@ async function processCmfUpload(userId: string, doc: CmfInformeDeudas): Promise<
           ? `Deuda total vigente: $${doc.deudaTotalVigente.toLocaleString('es-CL')} CLP en ${doc.numeroInstituciones} institución(es).`
           : 'Sin deudas vigentes reportadas en el informe CMF.';
 
-    await storage.createDocumentUpload({
+    const createUpload = options.scoreOnly
+      ? storage.createScoreDocumentUpload.bind(storage)
+      : storage.createDocumentUpload.bind(storage);
+    await createUpload({
       id: uploadId,
       userId,
       tipo: "cmf",

@@ -29,6 +29,7 @@ export const {
   algorithmModelVersions,
   algorithmPredictionLogs,
   documentUploads,
+  scoreDocumentUploads,
   userScores,
   creditScoreHistory,
   insertAccountSchema,
