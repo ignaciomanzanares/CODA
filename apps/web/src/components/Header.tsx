@@ -190,6 +190,11 @@ export default function Header() {
           )}
           {isAuthenticated && user ? (
             <>
+              <div className="hidden sm:flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-sm font-medium">{displayName || user.email}</div>
+                </div>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
@@ -200,10 +205,7 @@ export default function Header() {
                 <span className="hidden md:inline">Subir documentos</span>
               </Button>
               <NotificationCenter />
-              <div className="hidden sm:flex items-center gap-3">
-                <div className="text-right">
-                  <div className="text-sm font-medium">{displayName || user.email}</div>
-                </div>
+              <div className="hidden sm:flex items-center">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="rounded-full">
