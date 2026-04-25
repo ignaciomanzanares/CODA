@@ -7,8 +7,9 @@
  * - Invalida react-query keys al terminar
  * - Botón "Cerrar" se habilita cuando no hay uploads en curso
  */
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import {
   Dialog,
   DialogContent,
@@ -59,6 +60,17 @@ export default function UniversalUploadDrawer({
   const [isUploading, setIsUploading] = useState(false);
   const [doneCount, setDoneCount] = useState<number | null>(null);
   const queryClient = useQueryClient();
+  const { autoPickFile, clearAutoPickFile } = useUploadDrawer();
+
+  // Auto-open file picker when requested via context
+  useEffect(() => {
+    if (open && autoPickFile) {
+      clearAutoPickFile();
+      // Small delay so the dialog renders before the file picker opens
+      const t = setTimeout(() => inputRef.current?.click(), 150);
+      return () => clearTimeout(t);
+    }
+  }, [open, autoPickFile, clearAutoPickFile]);
 
   const addFiles = useCallback((incoming: FileList | File[]) => {
     const accepted = Array.from(incoming).filter(

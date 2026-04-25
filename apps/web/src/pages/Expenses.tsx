@@ -24,7 +24,7 @@ export default function Expenses() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { setOpen: openUploadDrawer } = useUploadDrawer();
+  const { openWithFilePicker } = useUploadDrawer();
 
   const [showLimpiarDialog, setShowLimpiarDialog] = useState(false);
   const [isLimpiando, setIsLimpiando] = useState(false);
@@ -34,10 +34,10 @@ export default function Expenses() {
 
   // Trigger file upload from child components (ParsedTransactionsTable "Subir cartola" button)
   useEffect(() => {
-    const handleTriggerUpload = () => openUploadDrawer(true);
+    const handleTriggerUpload = () => openWithFilePicker();
     window.addEventListener("trigger-cartola-upload", handleTriggerUpload);
     return () => window.removeEventListener("trigger-cartola-upload", handleTriggerUpload);
-  }, [openUploadDrawer]);
+  }, [openWithFilePicker]);
 
   const confirmLimpiarCartolas = async () => {
     setIsLimpiando(true);

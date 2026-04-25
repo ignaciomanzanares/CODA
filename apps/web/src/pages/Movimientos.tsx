@@ -64,16 +64,16 @@ function SummaryCard({
 
 export default function Movimientos() {
   const { isAuthenticated } = useAuth();
-  const { setOpen: openUploadDrawer } = useUploadDrawer();
+  const { openWithFilePicker } = useUploadDrawer();
   const searchString = useSearch();
   const initialCategory = useMemo(() => new URLSearchParams(searchString).get("categoria") ?? undefined, [searchString]);
 
   // Listen for upload trigger from child components (ParsedTransactionsTable buttons)
   useEffect(() => {
-    const handleTriggerUpload = () => openUploadDrawer(true);
+    const handleTriggerUpload = () => openWithFilePicker();
     window.addEventListener("trigger-cartola-upload", handleTriggerUpload);
     return () => window.removeEventListener("trigger-cartola-upload", handleTriggerUpload);
-  }, [openUploadDrawer]);
+  }, [openWithFilePicker]);
 
   const { data: summary, isLoading: isLoadingSummary } = useQuery<TransactionSummary>({
     queryKey: ["/api/transactions/summary"],
