@@ -44,6 +44,7 @@ import {
   BarChart3,
   Activity,
   Users,
+  Trash2,
 } from "lucide-react";
 
 // Types — single source: /api/dashboard/summary
@@ -77,6 +78,40 @@ export default function Dashboard() {
     retry: 2,
     retryDelay: (attempt: number) => Math.min(1000 * 2 ** attempt, 10000),
   });
+
+  const { data: scoreDocCount } = useQuery<{ count: number }>({
+    queryKey: ['/api/score/documents/count'],
+    queryFn: async () => {
+      const token = getPersonalToken();
+      if (!token) return { count: 0 };
+      return apiFetch('/api/score/documents/count', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    enabled: isAuthenticated && !authLoading,
+    staleTime: 30000,
+  });
+  const [clearingScore, setClearingScore] = useState(false);
+
+  const handleClearScoreData = async () => {
+    if (!confirm("¿Estás seguro de que deseas eliminar todos los documentos del Score? Los scores se mantendrán hasta que subas nuevos documentos.")) return;
+    setClearingScore(true);
+    try {
+      const token = getPersonalToken();
+      await apiFetch('/api/score/documents', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/score/documents/count'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/transactional-score'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/credit-score'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/summary'] });
+    } catch {
+      alert("Error al eliminar datos del Score.");
+    } finally {
+      setClearingScore(false);
+    }
+  };
 
   const refreshAllData = async () => {
     setIsRefreshing(true);
@@ -274,6 +309,23 @@ export default function Dashboard() {
             <TransactionalScoreCard />
             <CreditScoreCard />
           </div>
+          {(scoreDocCount?.count ?? 0) > 0 && (
+            <div className="flex items-center justify-between mt-4 px-1">
+              <p className="text-sm text-muted-foreground">
+                {scoreDocCount!.count} documento{scoreDocCount!.count !== 1 ? 's' : ''} subido{scoreDocCount!.count !== 1 ? 's' : ''} al Score
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={handleClearScoreData}
+                disabled={clearingScore}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                {clearingScore ? "Eliminando..." : "Limpiar datos del Score"}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Financial Health & Government Programs */}

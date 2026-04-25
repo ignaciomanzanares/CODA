@@ -630,6 +630,19 @@ export const documentUploads = table('document_uploads', {
   uploadedAt: text('uploaded_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+/** Documentos subidos al Score Dual (aislados del pipeline de movimientos/gastos). */
+export const scoreDocumentUploads = table('score_document_uploads', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  tipo: text('tipo').notNull(),
+  banco: text('banco'),
+  periodoDesde: text('periodo_desde'),
+  periodoHasta: text('periodo_hasta'),
+  parsedData: text('parsed_data').notNull(),
+  parseStatus: text('parse_status').default('success'),
+  uploadedAt: text('uploaded_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 /** Historial de scores combinados (transaccional 0–100 + crediticio 0–850) por cálculo. */
 export const userScores = table('user_scores', {
   id: text('id').primaryKey(),

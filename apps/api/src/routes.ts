@@ -1225,6 +1225,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // ── Score-isolated document upload ─────────────────────────────────────
+  // Same pipeline as /api/documents/upload but persists to scoreDocumentUploads
+  // (does NOT pollute movimientos/gastos). Score tables ARE updated.
+  app.post(
+    "/api/score/documents/upload",
+    authenticate,
+    (req: Request, res: Response, next: NextFunction) => {
+      documentUpload.single("document")(req, res, (err: unknown) => {
+        if (err) {
+          const { handleMulterError } = require('./middleware/uploadMiddleware.js');
+          const errorMessage = handleMulterError(err);
+          return res.status(400).json({ message: errorMessage, step: 'validation' });
+        }
+        next();
+      });
+    },
+    async (req: Request, res: Response) => {
+      const authReq = req as AuthenticatedRequest;
+      try {
+        const userId = await ensureUserForToken(authReq.user!);
+        if (!userId) {
+          return res.status(404).json({ message: "Usuario no encontrado.", step: 'auth' });
+        }
+        const file = (req as { file?: Express.Multer.File }).file;
+        if (!file?.buffer) {
+          return res.status(400).json({ message: "No se recibió ningún archivo.", step: 'validation' });
+        }
+        const { validateDocument } = await import('./services/documents/documentValidator.js');
+        const validation = validateDocument({
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+          buffer: file.buffer,
+        });
+        if (!validation.valid) {
+          return res.status(400).json({
+            message: validation.errors.join(' '),
+            errors: validation.errors,
+            warnings: validation.warnings,
+            step: 'validation',
+          });
+        }
+        const { processDocumentUpload } = await import("./services/documents/index.js");
+        const result = await processDocumentUpload(userId, file.buffer, { scoreOnly: true });
+        if (result.error) {
+          return res.status(400).json({ message: result.error, step: result.step, warnings: validation.warnings });
+        }
+        res.json({ ...result, warnings: validation.warnings });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Error procesando documento";
+        if (msg.includes("password") || msg.includes("encrypted") || msg.includes("protected")) {
+          return res.status(400).json({ message: "El PDF está protegido. Usa un documento sin contraseña.", step: 'extraction' });
+        }
+        logger.error({ err: e, userId: authReq.user?.userId }, "Score document upload failed");
+        res.status(500).json({ message: "Error al procesar el documento.", step: 'processing' });
+      }
+    }
+  );
+
+  // DELETE /api/score/documents — clear all score documents for the user
+  app.delete("/api/score/documents", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+      await storage.deleteAllScoreDocumentUploads(userId);
+      res.json({ success: true, message: "Datos del Score eliminados." });
+    } catch (e) {
+      logger.error({ err: e, userId: authReq.user?.userId }, "Delete score documents failed");
+      res.status(500).json({ message: "Error al eliminar datos del Score." });
+    }
+  });
+
+  // GET /api/score/documents/count — count of score documents for the user
+  app.get("/api/score/documents/count", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+      const count = await storage.countScoreDocumentUploads(userId);
+      res.json({ count });
+    } catch (e) {
+      logger.error({ err: e }, "Count score documents failed");
+      res.status(500).json({ message: "Error al contar documentos." });
+    }
+  });
+
   // GET /api/transactions/parsed — all transactions extracted from uploaded cartola documents
   app.get("/api/transactions/parsed", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
