@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Receipt, Trash, AlertTriangle } from "lucide-react";
 import { PastelIcon } from "@/components/ui/pastel-icon";
@@ -18,72 +18,26 @@ import { useAuth, getPersonalToken } from "@/lib/auth";
 import SignInBanner from "@/components/SignInBanner";
 import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
 import { useToast } from "@/hooks/use-toast";
+import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 
 export default function Expenses() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { setOpen: openUploadDrawer } = useUploadDrawer();
 
-  const [, setIsUploading] = useState(false);
   const [showLimpiarDialog, setShowLimpiarDialog] = useState(false);
   const [isLimpiando, setIsLimpiando] = useState(false);
-  const cartolaInputRef = useRef<HTMLInputElement>(null);
 
   const apiBase = (API_URL || "").replace(/\/$/, "");
   const apiUrl = (path: string) => (apiBase ? `${apiBase}${path}` : path);
 
   // Trigger file upload from child components (ParsedTransactionsTable "Subir cartola" button)
   useEffect(() => {
-    const handleTriggerUpload = () => cartolaInputRef.current?.click();
+    const handleTriggerUpload = () => openUploadDrawer(true);
     window.addEventListener("trigger-cartola-upload", handleTriggerUpload);
     return () => window.removeEventListener("trigger-cartola-upload", handleTriggerUpload);
-  }, []);
-
-  const handleCartolaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = "";
-    if (!files.length || !isAuthenticated) return;
-    setIsUploading(true);
-    let successCount = 0;
-    const errors: string[] = [];
-    for (const file of files) {
-      try {
-        const token = getPersonalToken() ?? "";
-        const formData = new FormData();
-        formData.append("document", file);
-        const res = await fetch(apiUrl("/api/documents/upload"), {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
-        if (res.ok) {
-          successCount++;
-        } else {
-          const body = await res.json().catch(() => ({}));
-          errors.push(body.message ?? `Error ${res.status} en ${file.name}`);
-        }
-      } catch (err) {
-        errors.push(err instanceof Error ? err.message : `Error en ${file.name}`);
-      }
-    }
-    setIsUploading(false);
-    if (successCount > 0) {
-      queryClient.removeQueries({ queryKey: ["/api/transactions/parsed"] });
-      queryClient.removeQueries({ queryKey: ["/api/transactions/insights"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
-      toast({
-        title: `${successCount} cartola${successCount !== 1 ? "s" : ""} procesada${successCount !== 1 ? "s" : ""}`,
-        description: errors.length > 0 ? errors[0] : "Tus gastos ya están disponibles en la tabla.",
-      });
-    } else {
-      toast({
-        title: "Error al subir",
-        description: errors[0] ?? "No se pudo procesar ninguna cartola.",
-        variant: "destructive",
-      });
-    }
-  };
+  }, [openUploadDrawer]);
 
   const confirmLimpiarCartolas = async () => {
     setIsLimpiando(true);
@@ -160,15 +114,6 @@ export default function Expenses() {
               <p className="text-sm text-muted-foreground">Gastos identificados desde tus cartolas bancarias</p>
             </div>
           </div>
-
-          <input
-            ref={cartolaInputRef}
-            type="file"
-            multiple
-            accept=".pdf,application/pdf"
-            className="hidden"
-            onChange={handleCartolaUpload}
-          />
 
           {isAuthenticated && (
             <Button
