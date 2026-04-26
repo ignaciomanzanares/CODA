@@ -92,7 +92,7 @@ function validateFile(file: File): { valid: boolean; error?: string } {
 }
 
 export default function DocumentUploadCard() {
-  const { uploadDocument } = useApi();
+  const { uploadScoreDocument } = useApi();
   const { setUploadResult } = useReportData();
   const { setOpen: openUploadDrawer } = useUploadDrawer();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -175,7 +175,7 @@ export default function DocumentUploadCard() {
 
         try {
           setProgressStep("extracting");
-          const res = await uploadDocument(currentFile);
+          const res = await uploadScoreDocument(currentFile);
           setProgressStep("scoring");
           lastResult = res;
           
@@ -223,9 +223,8 @@ export default function DocumentUploadCard() {
           ...(lastResult.cmf?.rutDocumento && { documentRut: lastResult.cmf.rutDocumento }),
           ...(lastResult.cmf?.deudaTotalVigente != null && { cmfDeudaTotalVigente: lastResult.cmf.deudaTotalVigente }),
         });
-        queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
-        queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
+        // Score-only invalidation: this uploader feeds Score tables exclusively
+        queryClient.invalidateQueries({ queryKey: ["/api/score/documents/count"] });
         if (lastResult.documentType === "cartola") {
           Analytics.documentUploaded("cartola");
           queryClient.invalidateQueries({ queryKey: ["/api/transactional-score"] });
@@ -237,7 +236,7 @@ export default function DocumentUploadCard() {
       }
       setLoading(false);
     },
-    [uploadDocument, setUploadResult]
+    [uploadScoreDocument, setUploadResult]
   );
 
   const onDrop = useCallback(

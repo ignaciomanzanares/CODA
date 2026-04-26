@@ -1225,6 +1225,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // Score document upload: same validation pipeline but writes to score tables only
+  app.post(
+    "/api/score/documents/upload",
+    authenticate,
+    (req: Request, res: Response, next: NextFunction) => {
+      documentUpload.single("document")(req, res, (err: unknown) => {
+        if (err) {
+          const { handleMulterError } = require('./middleware/uploadMiddleware.js');
+          const errorMessage = handleMulterError(err);
+          return res.status(400).json({
+            message: errorMessage,
+            step: 'validation'
+          });
+        }
+        next();
+      });
+    },
+    async (req: Request, res: Response) => {
+      const authReq = req as AuthenticatedRequest;
+
+      try {
+        const userId = await ensureUserForToken(authReq.user!);
+        if (!userId) {
+          return res.status(404).json({
+            message: "Usuario no encontrado. Inicia sesión de nuevo o regístrate.",
+            step: 'auth'
+          });
+        }
+
+        const file = (req as { file?: Express.Multer.File }).file;
+        if (!file?.buffer) {
+          return res.status(400).json({
+            message: "No se recibió ningún archivo. Usa el campo 'document'.",
+            step: 'validation'
+          });
+        }
+
+        const { validateDocument } = await import('./services/documents/documentValidator.js');
+        const validation = validateDocument({
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+          buffer: file.buffer,
+        });
+
+        if (!validation.valid) {
+          logger.warn(
+            { userId, filename: file.originalname, errors: validation.errors },
+            '[ScoreUpload] Validation failed'
+          );
+          return res.status(400).json({
+            message: validation.errors.join(' '),
+            errors: validation.errors,
+            warnings: validation.warnings,
+            step: 'validation',
+          });
+        }
+
+        const { processDocumentUpload } = await import("./services/documents/index.js");
+        const result = await processDocumentUpload(userId, file.buffer, 'score');
+
+        if (result.error) {
+          logger.warn(
+            { userId, error: result.error, step: result.step },
+            '[ScoreUpload] Document processing failed'
+          );
+          return res.status(400).json({
+            message: result.error,
+            step: result.step,
+            warnings: validation.warnings
+          });
+        }
+
+        res.json({
+          ...result,
+          warnings: validation.warnings,
+          metadata: {
+            originalName: file.originalname,
+            size: file.size,
+            uploadedAt: new Date().toISOString(),
+          },
+        });
+
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Error procesando documento";
+
+        if (msg.includes("password") || msg.includes("encrypted") || msg.includes("protected")) {
+          return res.status(400).json({
+            message: "El PDF está protegido o encriptado. Usa un documento sin contraseña.",
+            step: 'extraction',
+          });
+        }
+
+        if (msg.includes("Invalid PDF")) {
+          return res.status(400).json({
+            message: "El archivo no es un PDF válido. Verifica que no esté corrupto.",
+            step: 'extraction',
+          });
+        }
+
+        logger.error({ err: e, userId: authReq.user?.userId }, "Score document upload failed");
+        res.status(500).json({
+          message: "Error al procesar el documento. Intenta de nuevo o contacta soporte.",
+          step: 'processing',
+        });
+      }
+    }
+  );
+
   // DELETE /api/score/documents — clear all score documents AND score results for the user
   app.delete("/api/score/documents", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
