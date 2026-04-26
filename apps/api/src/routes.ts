@@ -1441,9 +1441,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // PATCH /api/transactions/:id/category — update a single transaction's category
   const VALID_CATEGORIES = new Set([
-    "educacion", "alimentacion", "transporte", "telecomunicaciones",
-    "transferencia_enviada", "transferencia_recibida", "comercio",
-    "entretenimiento", "salud", "ingreso_principal", "vivienda", "servicios", "otro",
+    "vivienda", "alimentacion", "transporte", "seguros", "servicios_basicos",
+    "salud_bienestar", "educacion", "cuidado_personal",
+    "diversion", "hobbies", "suscripciones",
+    "deudas", "inversiones", "ahorros",
+    "regalos", "reparaciones", "imprevistos",
+    "telecomunicaciones", "transferencia_enviada", "transferencia_recibida",
+    "comercio", "entretenimiento", "salud", "ingreso_principal", "servicios", "otro",
   ]);
 
   app.patch("/api/transactions/:id/category", authenticate, async (req: Request, res: Response) => {

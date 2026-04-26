@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,7 +34,6 @@ import {
   Sun,
   Moon,
   Monitor,
-  Upload,
 } from "lucide-react";
 import NotificationCenter from "@/components/NotificationCenter";
 import { cn } from "@/lib/utils";
@@ -76,7 +75,6 @@ export default function Header() {
   const { currency, setCurrency } = useCurrency();
   const { theme, toggle: toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { setOpen: setUploadOpen } = useUploadDrawer();
 
   const handleLogout = () => {
     logout(authContext);
@@ -195,15 +193,6 @@ export default function Header() {
                   <div className="text-sm font-medium">{displayName || user.email}</div>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="hidden sm:flex items-center gap-1.5 text-muted-foreground hover:text-foreground shrink-0"
-                onClick={() => setUploadOpen(true)}
-              >
-                <Upload className="h-4 w-4" />
-                <span className="hidden md:inline">Subir documentos</span>
-              </Button>
               <NotificationCenter />
               <div className="hidden sm:flex items-center">
                 <DropdownMenu>

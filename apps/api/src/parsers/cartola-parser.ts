@@ -14,9 +14,23 @@ import {
 import { parseCLP } from "../utils/clp.js";
 
 export type TransactionCategory =
-  | "educacion"
+  | "vivienda"
   | "alimentacion"
   | "transporte"
+  | "seguros"
+  | "servicios_basicos"
+  | "salud_bienestar"
+  | "educacion"
+  | "cuidado_personal"
+  | "diversion"
+  | "hobbies"
+  | "suscripciones"
+  | "deudas"
+  | "inversiones"
+  | "ahorros"
+  | "regalos"
+  | "reparaciones"
+  | "imprevistos"
   | "telecomunicaciones"
   | "transferencia_enviada"
   | "transferencia_recibida"
@@ -24,7 +38,6 @@ export type TransactionCategory =
   | "entretenimiento"
   | "salud"
   | "ingreso_principal"
-  | "vivienda"
   | "servicios"
   | "otro";
 
@@ -355,8 +368,56 @@ export function categorizeTransaction(
   if (/PAYU\b|KUSHKI\b|STRIPE\b|TRANSBANK|GETNET|PAYPAL\b|PAY\s+GOOGLE|APPLE\s+PAY/i.test(u))
     return "comercio";
 
-  // ── Financiero / seguros ─────────────────────────────────────────────────
-  if (/SEGURO|PRIMA\b|P[OÓ]LIZA|AFP\b|APV\b|FONDO\s+MUTUO|INVERSI[OÓ]N|BURS[AÁ]TIL|CORREDORA\s+DE\s+BOLSA|CMF\b|SBIF\b|BANCO\s+CENTRAL|COMISI[OÓ]N|INTER[EÉ]S|GASTO\s+BANCARIO|COBRO\s+CUENTA|MANTENCION\s+CUENTA/i.test(u))
+  // ── Seguros ──────────────────────────────────────────────────────────────
+  if (/SEGURO|PRIMA\b|P[OÓ]LIZA|ASEGURADORA|MAPFRE|SURA\b|BCI\s+SEGUROS|HDI\b|LIBERTY|METLIFE|PRINCIPAL|CHILENA\s+CONSOLIDADA/i.test(u))
+    return "seguros";
+
+  // ── Servicios básicos (complementa "servicios" existente) ───────────────
+  if (/ELECTRICIDAD|CUENTA\s+LUZ|AGUA\s+POTABLE|INTERNET\s+HOGAR|PLAN\s+CELULAR/i.test(u))
+    return "servicios_basicos";
+
+  // ── Salud y bienestar ───────────────────────────────────────────────────
+  if (/GIMNASIO\s+PREMIUM|NUTRICI[OÓ]N|NUTRICIONISTA|PSIC[OÓ]LOGO|TERAPIA|KINESIOL/i.test(u))
+    return "salud_bienestar";
+
+  // ── Cuidado personal ────────────────────────────────────────────────────
+  if (/PELUQUER[IÍ]A|SAL[OÓ]N\s+DE\s+BELLEZA|COSM[EÉ]TICO|MANICURE|PEDICURE|SPA\b|BARBER[IÍ]A/i.test(u))
+    return "cuidado_personal";
+
+  // ── Diversión ───────────────────────────────────────────────────────────
+  if (/RESTAURANTE|BAR\b|PUB\b|DISCOTECA|KARAOKE|BOWLING|PARQUE\s+DIVERSI/i.test(u))
+    return "diversion";
+
+  // ── Suscripciones ───────────────────────────────────────────────────────
+  if (/SUSCRIPCI[OÓ]N|MEMBERSHIP|MEMBRES[IÍ]A|PATREON|CHATGPT|OPENAI|NOTION|CANVA|ADOBE/i.test(u))
+    return "suscripciones";
+
+  // ── Deudas ──────────────────────────────────────────────────────────────
+  if (/CUOTA\s+CR[EÉ]DITO|CUOTA\s+CONSUMO|PAGO\s+TARJETA|INTER[EÉ]S|GASTO\s+BANCARIO|COBRO\s+CUENTA|MANTENCION\s+CUENTA|COMISI[OÓ]N\s+BANCARIA|CR[EÉ]DITO\s+HIPOTECARIO/i.test(u))
+    return "deudas";
+
+  // ── Inversiones ─────────────────────────────────────────────────────────
+  if (/AFP\b|APV\b|FONDO\s+MUTUO|INVERSI[OÓ]N|BURS[AÁ]TIL|CORREDORA\s+DE\s+BOLSA|RENTA\s+VARIABLE|RENTA\s+FIJA|ETF\b|FINTUAL|RACIONAL/i.test(u))
+    return "inversiones";
+
+  // ── Ahorros ─────────────────────────────────────────────────────────────
+  if (/AHORRO|CUENTA\s+2|CUENTA\s+AHORRO|DEPOSITO\s+A\s+PLAZO|DAP\b/i.test(u))
+    return "ahorros";
+
+  // ── Regalos ─────────────────────────────────────────────────────────────
+  if (/REGALO|GIFT|FLOWER|FLORISTER[IÍ]A|JUGUETER[IÍ]A/i.test(u))
+    return "regalos";
+
+  // ── Reparaciones y mantenimiento ────────────────────────────────────────
+  if (/REPARACI[OÓ]N|MANTENCI[OÓ]N|GASFITER|ELECTRICISTA|MAESTRO|PINTUR|FERRET|TECNI/i.test(u))
+    return "reparaciones";
+
+  // ── Hobbies ─────────────────────────────────────────────────────────────
+  if (/CAMPING|ESCALADA|BICICLETA|CICL|OUTDOOR|MONTAÑA|DECO\s+HOGAR|MANUALIDAD|LIBRO|LIBRER[IÍ]A/i.test(u))
+    return "hobbies";
+
+  // ── Financiero genérico (fallback) ──────────────────────────────────────
+  if (/CMF\b|SBIF\b|BANCO\s+CENTRAL|COMISI[OÓ]N/i.test(u))
     return "otro";
 
   // Fallback según tipo (abono sin clasificar → ingreso menor)
