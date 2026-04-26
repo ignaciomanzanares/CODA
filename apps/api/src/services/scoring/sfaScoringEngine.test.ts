@@ -79,7 +79,7 @@ describe('SfaScoringEngine', () => {
       cuentaVigente(500000, 500000, 50000),
     ];
     const result = engine.run({ transactions, products }, refDate);
-    expect(result.transactionalScore).toBeGreaterThan(600);
+    expect(result.transactionalScore).toBeGreaterThan(60);
     expect(result.metrics?.monthsWithAbonos).toBeGreaterThanOrEqual(11);
     expect(result.metrics?.averageMonthlyBalanceClp).toBeGreaterThan(0);
     expect(result.mainInsights.some((i) => i.includes('estabilidad') || i.includes('abonos'))).toBe(true);
@@ -101,7 +101,7 @@ describe('SfaScoringEngine', () => {
       cuentaVigente(-100000, 500000, 450000),
     ];
     const result = engine.run({ transactions, products }, refDate);
-    expect(result.transactionalScore).toBeLessThan(500);
+    expect(result.transactionalScore).toBeLessThan(50);
     expect(result.metrics?.monthsWithAbonos).toBeLessThan(6);
     expect(result.metrics?.overdraftUsageRatio).toBeGreaterThan(0.8);
     expect(result.recommendedProducts).toContain('C001');

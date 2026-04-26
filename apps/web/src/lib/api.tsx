@@ -63,7 +63,6 @@ export type ApiClient = {
   revokePrivacyPurpose: (purpose: import("@/types").PrivacyPurposeKey) => Promise<import("@/types").PrivacyConsentPanelResponse>;
   simulateBankFlow: () => Promise<import("@/types").SimulateBankFlowResponse>;
   uploadDocument: (file: File) => Promise<import("@/types").DocumentUploadResult>;
-  uploadScoreDocument: (file: File) => Promise<import("@/types").DocumentUploadResult>;
   getTransactionalScore: () => Promise<{
     transactionalScore: number | null;
     mainInsights: string[];
@@ -484,24 +483,6 @@ export function useApi(): ApiClient {
     return json as import("@/types").DocumentUploadResult;
   };
 
-  const uploadScoreDocument = async (file: File): Promise<import("@/types").DocumentUploadResult> => {
-    if (!token) throw new Error("User not authenticated");
-    const formData = new FormData();
-    formData.append("document", file);
-    const fullUrl = `${API_BASE_URL}/score/documents/upload`;
-    const res = await fetch(fullUrl, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      if (res.status === 401) dispatchSessionExpired(fullUrl);
-      throw new Error((json as { message?: string }).message || "Error al subir el documento");
-    }
-    return json as import("@/types").DocumentUploadResult;
-  };
-
   const getTransactionalScore = async () => {
     return await apiRequest<{
       transactionalScore: number | null;
@@ -584,7 +565,6 @@ export function useApi(): ApiClient {
     revokePrivacyPurpose,
     simulateBankFlow,
     uploadDocument,
-    uploadScoreDocument,
     getTransactionalScore,
     parseNotifications,
   };

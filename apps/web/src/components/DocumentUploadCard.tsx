@@ -92,7 +92,7 @@ function validateFile(file: File): { valid: boolean; error?: string } {
 }
 
 export default function DocumentUploadCard() {
-  const { uploadScoreDocument } = useApi();
+  const { uploadDocument } = useApi();
   const { setUploadResult } = useReportData();
   const { setOpen: openUploadDrawer } = useUploadDrawer();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -175,7 +175,7 @@ export default function DocumentUploadCard() {
 
         try {
           setProgressStep("extracting");
-          const res = await uploadScoreDocument(currentFile);
+          const res = await uploadDocument(currentFile);
           setProgressStep("scoring");
           lastResult = res;
           
@@ -237,7 +237,7 @@ export default function DocumentUploadCard() {
       }
       setLoading(false);
     },
-    [uploadScoreDocument, setUploadResult]
+    [uploadDocument, setUploadResult]
   );
 
   const onDrop = useCallback(
