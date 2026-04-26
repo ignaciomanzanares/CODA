@@ -10,6 +10,7 @@ import { useLocation } from "wouter";
 import { ROUTES } from "@/lib/routes";
 import SignInBanner from "@/components/SignInBanner";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
+import { useToast } from "@/hooks/use-toast";
 
 // Components
 import DocumentUploadCard from "@/components/DocumentUploadCard";
@@ -64,6 +65,7 @@ export default function Dashboard() {
   const { currency } = useCurrency();
   const { hasDocuments } = useUserDocuments();
   const { setOpen: openUploadDrawer } = useUploadDrawer();
+  const { toast } = useToast();
 
   const { data: ds, isLoading: dsLoading } = useQuery<DashboardSummary>({
     queryKey: ['/api/dashboard/summary'],
@@ -95,7 +97,7 @@ export default function Dashboard() {
   const [clearingScore, setClearingScore] = useState(false);
 
   const handleClearScoreData = async () => {
-    if (!confirm("¿Estás seguro de que deseas eliminar todos los documentos del Score? Los scores se mantendrán hasta que subas nuevos documentos.")) return;
+    if (!confirm("¿Estás seguro? Se eliminarán los documentos subidos al Score y los resultados (score transaccional y crediticio). Tendrás que subir documentos nuevamente para recalcular.")) return;
     setClearingScore(true);
     try {
       const token = getPersonalToken();
@@ -103,12 +105,17 @@ export default function Dashboard() {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/score/documents/count'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/transactional-score'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/credit-score'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/summary'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/score/documents/count'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/transactional-score'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/credit-score'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/dashboard/summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['financial-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/user/documents'] }),
+      ]);
+      toast({ title: "Datos del Score eliminados correctamente" });
     } catch {
-      alert("Error al eliminar datos del Score.");
+      toast({ title: "Error al eliminar datos del Score", variant: "destructive" });
     } finally {
       setClearingScore(false);
     }

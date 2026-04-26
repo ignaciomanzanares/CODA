@@ -184,6 +184,8 @@ export interface IStorage {
   listScoreDocumentUploads(userId: string): Promise<any[]>;
   listScoreDocumentUploadsByType(userId: string, tipo: string): Promise<any[]>;
   deleteAllScoreDocumentUploads(userId: string): Promise<number>;
+  deleteTransactionalScore(userId: string): Promise<boolean>;
+  deleteCreditScore(userId: string): Promise<boolean>;
   countScoreDocumentUploads(userId: string): Promise<number>;
 
   insertUserScore(row: {
@@ -1400,6 +1402,18 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(scoreDocumentUploads)
       .where(eq(scoreDocumentUploads.userId, userId));
     return (result as any).rowCount ?? (result as any).changes ?? 0;
+  }
+
+  async deleteTransactionalScore(userId: string): Promise<boolean> {
+    if (!db) return false;
+    await db.delete(transactionalScores).where(eq(transactionalScores.userId, userId));
+    return true;
+  }
+
+  async deleteCreditScore(userId: string): Promise<boolean> {
+    if (!db) return false;
+    await db.delete(creditScores).where(eq(creditScores.userId, userId));
+    return true;
   }
 
   async countScoreDocumentUploads(userId: string): Promise<number> {
