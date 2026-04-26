@@ -42,40 +42,82 @@ const formatDate = (s: string) => {
 
 // ── Category meta ────────────────────────────────────────────────────────────
 const CAT_LABELS: Record<string, string> = {
+  // Gastos esenciales
+  vivienda:               "Vivienda",
   alimentacion:           "Alimentación",
   transporte:             "Transporte",
-  entretenimiento:        "Entretenimiento",
+  seguros:                "Seguros",
+  servicios_basicos:      "Servicios básicos",
+  // Gastos personales
+  salud_bienestar:        "Salud y bienestar",
+  educacion:              "Educación",
+  cuidado_personal:       "Cuidado personal",
+  // Ocio y entretenimiento
+  diversion:              "Diversión",
+  hobbies:                "Hobbies",
+  suscripciones:          "Suscripciones",
+  // Gastos financieros
+  deudas:                 "Deudas",
+  inversiones:            "Inversiones",
+  ahorros:                "Ahorros",
+  // Gastos ocasionales
+  regalos:                "Regalos",
+  reparaciones:           "Reparaciones",
+  imprevistos:            "Imprevistos",
+  // Legacy (still valid)
   telecomunicaciones:     "Telecomunicaciones",
   transferencia_enviada:  "Transferencia",
   transferencia_recibida: "Transferencia",
   comercio:               "Comercio",
-  educacion:              "Educación",
+  entretenimiento:        "Entretenimiento",
   salud:                  "Salud",
   ingreso_principal:      "Ingreso",
-  vivienda:               "Vivienda",
   servicios:              "Servicios",
   otro:                   "Otro",
 };
 
 /** All valid categories for the dropdown — must match backend VALID_CATEGORIES */
 const ALL_CATEGORIES = [
-  "alimentacion", "transporte", "entretenimiento", "telecomunicaciones",
-  "transferencia_enviada", "transferencia_recibida", "comercio",
-  "educacion", "salud", "ingreso_principal", "vivienda", "servicios", "otro",
+  "vivienda", "alimentacion", "transporte", "seguros", "servicios_basicos",
+  "salud_bienestar", "educacion", "cuidado_personal",
+  "diversion", "hobbies", "suscripciones",
+  "deudas", "inversiones", "ahorros",
+  "regalos", "reparaciones", "imprevistos",
+  "telecomunicaciones", "transferencia_enviada", "transferencia_recibida",
+  "comercio", "entretenimiento", "salud", "ingreso_principal", "servicios", "otro",
 ] as const;
 
 const CAT_COLORS: Record<string, string> = {
+  // Gastos esenciales
+  vivienda:               "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
   alimentacion:           "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
   transporte:             "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  entretenimiento:        "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400",
+  seguros:                "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400",
+  servicios_basicos:      "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
+  // Gastos personales
+  salud_bienestar:        "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  educacion:              "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+  cuidado_personal:       "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-400",
+  // Ocio y entretenimiento
+  diversion:              "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400",
+  hobbies:                "bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-400",
+  suscripciones:          "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
+  // Gastos financieros
+  deudas:                 "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
+  inversiones:            "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  ahorros:                "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  // Gastos ocasionales
+  regalos:                "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+  reparaciones:           "bg-stone-100 text-stone-700 dark:bg-stone-900/30 dark:text-stone-400",
+  imprevistos:            "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  // Legacy
   telecomunicaciones:     "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400",
   transferencia_enviada:  "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
   transferencia_recibida: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
   comercio:               "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-  educacion:              "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+  entretenimiento:        "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400",
   salud:                  "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
   ingreso_principal:      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  vivienda:               "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
   servicios:              "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
   otro:                   "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
 };

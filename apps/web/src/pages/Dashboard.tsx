@@ -45,6 +45,7 @@ import {
   Activity,
   Users,
   Trash2,
+  Upload,
 } from "lucide-react";
 
 // Types — single source: /api/dashboard/summary
@@ -184,6 +185,15 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => openUploadDrawer(true)}
+            >
+              <Upload className="h-4 w-4" />
+              <span className="hidden md:inline">Subir documentos</span>
+            </Button>
             <DownloadReporteCodaButton />
             <Button
               variant="outline"
@@ -309,23 +319,24 @@ export default function Dashboard() {
             <TransactionalScoreCard />
             <CreditScoreCard />
           </div>
-          {(scoreDocCount?.count ?? 0) > 0 && (
-            <div className="flex items-center justify-between mt-4 px-1">
-              <p className="text-sm text-muted-foreground">
-                {scoreDocCount!.count} documento{scoreDocCount!.count !== 1 ? 's' : ''} subido{scoreDocCount!.count !== 1 ? 's' : ''} al Score
-              </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={handleClearScoreData}
-                disabled={clearingScore}
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                {clearingScore ? "Eliminando..." : "Limpiar datos del Score"}
-              </Button>
-            </div>
-          )}
+          {/* Always visible so users can confirm clean state even with 0 documents */}
+          <div className="flex items-center justify-between mt-4 px-1">
+            <p className="text-sm text-muted-foreground">
+              {(scoreDocCount?.count ?? 0) === 0
+                ? "Sin documentos subidos al Score"
+                : `${scoreDocCount!.count} documento${scoreDocCount!.count !== 1 ? 's' : ''} subido${scoreDocCount!.count !== 1 ? 's' : ''} al Score`}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={handleClearScoreData}
+              disabled={clearingScore || (scoreDocCount?.count ?? 0) === 0}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              {clearingScore ? "Eliminando..." : "Limpiar datos del Score"}
+            </Button>
+          </div>
         </div>
 
         {/* Financial Health & Government Programs */}
