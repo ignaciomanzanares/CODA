@@ -1284,13 +1284,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  // DELETE /api/score/documents — clear all score documents for the user
+  // DELETE /api/score/documents — clear all score documents AND score results for the user
   app.delete("/api/score/documents", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
     try {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
-      await storage.deleteAllScoreDocumentUploads(userId);
+      // Delete score documents + transactional score + credit score atomically
+      await Promise.all([
+        storage.deleteAllScoreDocumentUploads(userId),
+        storage.deleteTransactionalScore(userId),
+        storage.deleteCreditScore(userId),
+      ]);
       res.json({ success: true, message: "Datos del Score eliminados." });
     } catch (e) {
       logger.error({ err: e, userId: authReq.user?.userId }, "Delete score documents failed");
