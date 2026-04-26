@@ -132,7 +132,7 @@ function computeLiquidity(
   const monthsWithAbonos = windowMonths.filter((m) => abonosByMonth.has(m)).length;
 
   return {
-    averageMonthlyBalanceClp: Math.round(averageMonthlyBalanceClp * 100) / 100,
+    averageMonthlyBalanceClp: Math.round(averageMonthlyBalanceClp),
     monthsWithAbonos,
     monthsWithGap,
     totalMonthsInWindow: windowMonths.length,
@@ -175,10 +175,10 @@ function detectOptimizationOpportunity(products: SfaProductoVigente[], rates: Ex
 }
 
 // -----------------------------------------------------------------------------
-// Fórmula del Score Transaccional (0-1000). Todas las entradas en CLP.
+// Fórmula del Score Transaccional (0-100). Todas las entradas en CLP.
 // -----------------------------------------------------------------------------
 
-const SCORE_MAX = 1000;
+const SCORE_MAX = 100;
 
 function liquidityComponent(
   avgBalanceClp: number,

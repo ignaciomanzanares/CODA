@@ -19,9 +19,9 @@ export interface SfaScoringInput {
   exchangeRates?: ExchangeRatesToClp;
 }
 
-/** Resultado del Score Transaccional: score 0-1000, insights y productos recomendados. */
+/** Resultado del Score Transaccional: score 0-100, insights y productos recomendados. */
 export interface SfaScoringResult {
-  /** Puntuación transaccional 0-1000 (mayor = mejor perfil). */
+  /** Puntuación transaccional 0-100 (mayor = mejor perfil). */
   transactionalScore: number;
   /** Insights principales para el usuario y para auditoría del perfil. */
   mainInsights: string[];
