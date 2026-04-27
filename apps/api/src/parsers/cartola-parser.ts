@@ -36,6 +36,7 @@ export type TransactionCategory =
   | "transferencia_recibida"
   | "comercio"
   | "entretenimiento"
+  | "restaurantes"
   | "salud"
   | "ingreso_principal"
   | "servicios"
@@ -314,13 +315,15 @@ export function categorizeTransaction(
   if (/FONASA|ISAPRE|BANM[EÉ]DICA|CONSALUD|COLMENA|MASVIDA|VIDA\s+TRES|ESENCIAL\s+SALUD|FARMACIA|FARMACIAS\s+AHUMADA|SALCO\s*BRAND|CRUZ\s+VERDE|DR\s+SIMI|MEDIC|DENTAL|DENTISTA|CLINICA|CL[IÍ]NICA|HOSPITAL|BUPA|ACHS|MUTUAL\s+DE\s+SEG|C[OÓ]NSULT|POLICL[IÍ]NICO|EX[AÁ]MENES|EXAMEN\s+MEDICO|URGENCIA|EMERGENCIA|CONSULTA\s+MEDICA/i.test(u))
     return "salud";
 
-  // ── Supermercados / alimentación ─────────────────────────────────────────
+  // ── Supermercados / alimentación (groceries — esenciales) ────────────────
   if (/\bL[IÍ]DER\b|WALMART|JUMBO\b|TOTTUS|SANTA\s+ISABEL|UNIMARC|EKONO|COOP\b|BIGGER|ACUENTA|DECA\b|LA\s+DEHESA\s+MARKET|MARKET\s+CENTER|SUPERMERCADO|MAYORISTA\s+10|BIGBOX|CENTRAL\s+MAYOR/i.test(u))
-    return "alimentacion";
-  if (/MC\s*DONALD|MCDONALD|MCDO|ARCOS\s+DORADOS|BURGER\s+KING|KFC\b|SUBWAY\b|PIZZA\s+HUT|DOMINO|DOMINO\s+PIZZA|PAPA\s+JOHN|SUSHI|SUSHITIME|TELEPIZZA|LOMITO|EMPANADA|PANADER[IÍ]A|CONFITER[IÍ]A|PASTELER[IÍ]A|RESTAURANT|RESTOBAR|PICADA|COMIDA\s+RAPIDA|STARBUCKS|JUAN\s+VALDEZ|CAF[EÉ]|CAFETER[IÍ]A|DELIVERY|RAPPI|PEDIDOS\s+YA|UBER\s*EATS|IFOOD|JUST\s+EAT|DIDI\s+FOOD|APP\s+DELIVERY/i.test(u))
     return "alimentacion";
   if (/VINOS|VINOTECA|BOTILLER[IÍ]A|CERVECER[IÍ]A|CERVECERIA|DESPENSA|ALMAC[EÉ]N|MINIMARKET|MINI\s+MARKET|KIOSKO|KIOSCO|MERKADERIA|ABARROTES/i.test(u))
     return "alimentacion";
+
+  // ── Restaurantes / comida fuera (eating out — ocio) ────────────────────
+  if (/MC\s*DONALD|MCDONALD|MCDO|ARCOS\s+DORADOS|BURGER\s+KING|KFC\b|SUBWAY\b|PIZZA\s+HUT|DOMINO|DOMINO\s+PIZZA|PAPA\s+JOHN|SUSHI|SUSHITIME|TELEPIZZA|LOMITO|EMPANADA|PANADER[IÍ]A|CONFITER[IÍ]A|PASTELER[IÍ]A|RESTAURANT|RESTOBAR|PICADA|COMIDA\s+RAPIDA|STARBUCKS|JUAN\s+VALDEZ|CAF[EÉ]|CAFETER[IÍ]A|DELIVERY|RAPPI|PEDIDOS\s+YA|UBER\s*EATS|IFOOD|JUST\s+EAT|DIDI\s+FOOD|APP\s+DELIVERY|BAR\b|PUB\b|DISCOTECA|KARAOKE|BOWLING/i.test(u))
+    return "restaurantes";
 
   // ── Transporte ───────────────────────────────────────────────────────────
   if (/\bBIP\b|\bBIPO\b|TNE\b|TRANSANTIAGO|RED\s+METROPOLITANA|RED\s+MOVILIDAD|METRO\s+DE\s+STGO|METRO\b.*SANTIAGO|METRO\s+SANTIAGO|BUSES|LOCOMOCION|\bALSACIA\b|\bEXPRESS\s+SANTIAGO/i.test(u))
@@ -384,9 +387,9 @@ export function categorizeTransaction(
   if (/PELUQUER[IÍ]A|SAL[OÓ]N\s+DE\s+BELLEZA|COSM[EÉ]TICO|MANICURE|PEDICURE|SPA\b|BARBER[IÍ]A/i.test(u))
     return "cuidado_personal";
 
-  // ── Diversión ───────────────────────────────────────────────────────────
-  if (/RESTAURANTE|BAR\b|PUB\b|DISCOTECA|KARAOKE|BOWLING|PARQUE\s+DIVERSI/i.test(u))
-    return "diversion";
+  // ── Diversión (merged into restaurantes/entretenimiento) ─────────────────
+  if (/PARQUE\s+DIVERSI/i.test(u))
+    return "entretenimiento";
 
   // ── Suscripciones ───────────────────────────────────────────────────────
   if (/SUSCRIPCI[OÓ]N|MEMBERSHIP|MEMBRES[IÍ]A|PATREON|CHATGPT|OPENAI|NOTION|CANVA|ADOBE/i.test(u))

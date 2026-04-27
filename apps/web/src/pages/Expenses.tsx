@@ -48,10 +48,10 @@ export default function Expenses() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);
+      // Deleting cartolas changes all financial data globally
       queryClient.removeQueries({ queryKey: ["/api/transactions/parsed"] });
       queryClient.removeQueries({ queryKey: ["/api/transactions/insights"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
-      queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
+      queryClient.invalidateQueries();
       toast({ title: "Datos eliminados", description: "Puedes subir nuevas cartolas cuando quieras." });
     } catch (err) {
       toast({

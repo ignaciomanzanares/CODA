@@ -1,187 +1,79 @@
-import { useAuth, getPersonalToken } from "@/lib/auth";
-import { useQuery } from "@tanstack/react-query";
-import { apiFetch } from '@/lib/api';
-import { queryClient } from "@/lib/queryClient";
-import { useUserDocuments } from "@/hooks/useUserDocuments";
-import { cn, formatCurrency } from "@/lib/utils";
-import { useCurrency } from "@/lib/CurrencyContext";
 import { useState } from "react";
-import { useLocation } from "wouter";
-import { ROUTES } from "@/lib/routes";
-import SignInBanner from "@/components/SignInBanner";
+import { useAuth } from "@/lib/auth";
+import { useDashboardData } from "@/hooks/useDashboardData";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
-import { useToast } from "@/hooks/use-toast";
+import type { DashboardPeriod } from "@/types/dashboard";
 
-// Components
-import DocumentUploadCard from "@/components/DocumentUploadCard";
-import TransactionalScoreCard from "@/components/TransactionalScoreCard";
-import CreditScoreCard from "@/components/CreditScoreCard";
-import FinancialGoalsCard from "@/components/FinancialGoalsCard";
-import FinancialHealthCard from "@/components/FinancialHealthCard";
-import DownloadReporteCodaButton from "@/components/DownloadReporteCodaButton";
-import CategoryPieChart from "@/components/CategoryPieChart";
-import SmartInsights from "@/components/SmartInsights";
-import { ReportDataProvider } from "@/contexts/ReportDataContext";
+// Dashboard subcomponents
+import PeriodToggle from "@/components/dashboard/PeriodToggle";
+import ScoreHero from "@/components/dashboard/ScoreHero";
+import AvailableCard from "@/components/dashboard/AvailableCard";
+import InsightCard from "@/components/dashboard/InsightCard";
+import FlowDonut from "@/components/dashboard/FlowDonut";
+import SavingsProgress from "@/components/dashboard/SavingsProgress";
+import CategoryCard from "@/components/dashboard/CategoryCard";
+import CreditScoreCard from "@/components/dashboard/CreditScoreCard";
+import PatrimonioSidebar from "@/components/dashboard/PatrimonioSidebar";
 
 // Shared primitives
-import { StatCard } from "@/components/ui/stat-card";
-import { PastelIcon } from "@/components/ui/pastel-icon";
-import { EyebrowLabel } from "@/components/ui/eyebrow-label";
-
-// UI components
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { PastelIcon } from "@/components/ui/pastel-icon";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import SignInBanner from "@/components/SignInBanner";
 
 // Icons
-import {
-  RefreshCw,
-  TrendingUp,
-  TrendingDown,
-  ChevronRight,
-  FileText,
-  Target,
-  Wallet,
-  BarChart3,
-  Activity,
-  Users,
-  Trash2,
-  Upload,
-} from "lucide-react";
-
-// Types — single source: /api/dashboard/summary
-interface DashboardSummary {
-  saldo_actual: number;
-  ingresos_promedio_mensual: number;
-  gastos_promedio_mensual: number;
-  tasa_ahorro_pct: number;
-  meta: { cartola_count: number; months_analyzed: number; data_source: string };
-}
+import { RefreshCw, FileText, Upload, ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { queryClient } from "@/lib/queryClient";
 
 export default function Dashboard() {
   const { isLoading: authLoading, user, isAuthenticated } = useAuth();
+  const [period, setPeriod] = useState<DashboardPeriod>("month");
+  const [monthOffset, setMonthOffset] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [, navigate] = useLocation();
-  const { currency } = useCurrency();
-  const { hasDocuments } = useUserDocuments();
   const { setOpen: openUploadDrawer } = useUploadDrawer();
-  const { toast } = useToast();
+  const { data, isLoading, totalMonths } = useDashboardData(period, monthOffset);
 
-  const { data: ds, isLoading: dsLoading } = useQuery<DashboardSummary>({
-    queryKey: ['/api/dashboard/summary'],
-    queryFn: async () => {
-      const token = getPersonalToken();
-      if (!token) return null;
-      return apiFetch('/api/dashboard/summary', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    },
-    enabled: isAuthenticated && !authLoading,
-    staleTime: 30000,
-    retry: 2,
-    retryDelay: (attempt: number) => Math.min(1000 * 2 ** attempt, 10000),
-  });
-
-  const { data: scoreDocCount } = useQuery<{ count: number }>({
-    queryKey: ['/api/score/documents/count'],
-    queryFn: async () => {
-      const token = getPersonalToken();
-      if (!token) return { count: 0 };
-      return apiFetch('/api/score/documents/count', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    },
-    enabled: isAuthenticated && !authLoading,
-    staleTime: 30000,
-  });
-  const [clearingScore, setClearingScore] = useState(false);
-  const [clearingMovements, setClearingMovements] = useState(false);
-
-  const handleClearScoreData = async () => {
-    if (!confirm("¿Estás seguro? Se eliminarán los documentos subidos al Score y los resultados (score transaccional y crediticio). Tendrás que subir documentos nuevamente para recalcular.")) return;
-    setClearingScore(true);
-    try {
-      const token = getPersonalToken();
-      await apiFetch('/api/score/documents', {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['/api/score/documents/count'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/transactional-score'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/credit-score'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/dashboard/summary'] }),
-        queryClient.invalidateQueries({ queryKey: ['financial-summary'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/user/documents'] }),
-      ]);
-      toast({ title: "Datos del Score eliminados correctamente" });
-    } catch {
-      toast({ title: "Error al eliminar datos del Score", variant: "destructive" });
-    } finally {
-      setClearingScore(false);
-    }
-  };
-
-  const handleClearMovements = async () => {
-    if (!confirm("¿Estás seguro? Se eliminarán todos los movimientos y gastos importados. Tendrás que subir tus cartolas nuevamente.")) return;
-    setClearingMovements(true);
-    try {
-      const token = getPersonalToken();
-      await apiFetch('/api/documents', {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['/api/user/documents'] }),
-        queryClient.invalidateQueries({ queryKey: ['financial-summary'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/dashboard/summary'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/transactions/parsed'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/transactions/insights'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/transactions/summary'] }),
-      ]);
-      toast({ title: "Movimientos y gastos eliminados correctamente" });
-    } catch {
-      toast({ title: "Error al eliminar movimientos", variant: "destructive" });
-    } finally {
-      setClearingMovements(false);
-    }
+  // Reset offset when switching period type
+  const handlePeriodChange = (p: DashboardPeriod) => {
+    setPeriod(p);
+    setMonthOffset(0);
   };
 
   const refreshAllData = async () => {
     setIsRefreshing(true);
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/summary'] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions/summary"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions/insights"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/transactional-score"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/score-history"] }),
+      queryClient.invalidateQueries({ queryKey: ["financial-summary"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions/parsed"] }),
       queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] }),
-      queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] }),
-      queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] }),
     ]);
     setTimeout(() => setIsRefreshing(false), 500);
   };
 
-  if (authLoading) {
+  // ── Loading state ───────────────────────────────────────────────────────
+  if (authLoading || isLoading) {
     return (
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-12">
-        <div className="flex items-center justify-center min-h-[400px]">
+      <div className="w-full max-w-2xl mx-auto px-4 py-16">
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
           <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Cargando tu dashboard...</p>
         </div>
       </div>
     );
   }
 
-  const rawFirst = user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'usuario';
-  const firstName = rawFirst === 'Investor' ? 'Inversor' : rawFirst;
-  const greeting = new Date().getHours() < 12 ? 'Buenos días' : new Date().getHours() < 18 ? 'Buenas tardes' : 'Buenas noches';
-
-  const hasData = !!(ds?.meta?.cartola_count && ds.meta.months_analyzed > 0);
-
-  /** All dashboard/summary values are integer CLP — tell formatCurrency not to ×1000. */
-  const fmt = (n: number) =>
-    formatCurrency(n, currency, { sourceCurrency: 'CLP' as const });
-
-  const savingsThisMonth = ds ? ds.ingresos_promedio_mensual - ds.gastos_promedio_mensual : 0;
+  // ── Greeting ────────────────────────────────────────────────────────────
+  const rawFirst = user?.name?.split(" ")[0] || user?.email?.split("@")[0] || "usuario";
+  const firstName = rawFirst === "Investor" ? "Inversor" : rawFirst;
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Buenos días" : hour < 18 ? "Buenas tardes" : "Buenas noches";
 
   const dashboardFallback = (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-12 flex items-center justify-center min-h-[400px]">
+    <div className="w-full max-w-2xl mx-auto px-4 py-16 flex items-center justify-center min-h-[400px]">
       <div className="text-center space-y-4">
         <p className="text-sm text-muted-foreground">No se pudo cargar el panel.</p>
         <Button variant="outline" onClick={() => window.location.reload()}>
@@ -193,230 +85,185 @@ export default function Dashboard() {
 
   return (
     <ErrorBoundary fallback={dashboardFallback}>
-    <ReportDataProvider>
-    <div className="min-h-screen bg-background">
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
+      <div className="min-h-screen bg-background">
+        <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
+          {/* ── Not authenticated banner ──────────────────────────────── */}
+          {!isAuthenticated && (
+            <SignInBanner
+              title="Inicia sesión para ver tu resumen"
+              description="Los datos del panel provienen de tus cuentas y documentos."
+              actionText="Iniciar sesión"
+            />
+          )}
 
-        {/* Banners */}
-        {!isAuthenticated && (
-          <SignInBanner
-            title="Inicia sesión para ver tu resumen"
-            description="Los datos del panel provienen de tus cuentas y documentos. Sin sesión no mostramos cifras de ejemplo."
-            actionText="Iniciar sesión"
-          />
-        )}
-
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-hero-title font-bold text-foreground">
-              {greeting}, {firstName}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => openUploadDrawer(true)}
-            >
-              <Upload className="h-4 w-4" />
-              <span className="hidden md:inline">Subir documentos</span>
-            </Button>
-            <DownloadReporteCodaButton />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={refreshAllData}
-              disabled={isRefreshing}
-              className="text-muted-foreground"
-            >
-              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-            </Button>
-          </div>
-        </div>
-
-        {/* ── Hero row: Net Worth + Stats ────────────────────────── */}
-        {hasData && ds && (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            {/* Main balance card — spans 2 cols */}
-            <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-6 space-y-3">
-              <EyebrowLabel color="muted">Patrimonio neto</EyebrowLabel>
-              <h2 className="text-hero-value font-bold tracking-tight text-foreground tabular-nums">
-                {fmt(ds.saldo_actual)}
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                {ds.meta.cartola_count} cartola{ds.meta.cartola_count !== 1 ? 's' : ''} · {ds.meta.months_analyzed} mes{ds.meta.months_analyzed !== 1 ? 'es' : ''}
-              </p>
+          {/* ── Header + Period Toggle ───────────────────────────────── */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+                  {greeting}, {firstName}
+                </h1>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {new Date().toLocaleDateString("es-CL", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  })}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => openUploadDrawer(true)}
+                >
+                  <Upload className="h-4 w-4" />
+                  <span className="hidden sm:inline">Subir documento</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={refreshAllData}
+                  disabled={isRefreshing}
+                  className="text-muted-foreground"
+                >
+                  <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+                </Button>
+              </div>
             </div>
 
-            {/* 3 stat cards */}
-            <StatCard
-              label="Ingresos"
-              value={fmt(ds.ingresos_promedio_mensual)}
-              subtitle="Promedio mensual"
-              icon={TrendingUp}
-              iconColor="green"
-            />
-            <StatCard
-              label="Gastos"
-              value={fmt(ds.gastos_promedio_mensual)}
-              delta={`${savingsThisMonth >= 0 ? '+' : ''}${fmt(savingsThisMonth)} ahorrado`}
-              deltaDirection={savingsThisMonth >= 0 ? "up" : "down"}
-              icon={TrendingDown}
-              iconColor="red"
-            />
-            <StatCard
-              label="Tasa de ahorro"
-              value={`${ds.tasa_ahorro_pct}%`}
-              delta={ds.tasa_ahorro_pct >= 20 ? 'Excelente' : 'Mejorable'}
-              deltaDirection={ds.tasa_ahorro_pct >= 20 ? "up" : "neutral"}
-              icon={Activity}
-              iconColor={ds.tasa_ahorro_pct >= 20 ? "green" : "orange"}
-            />
-          </div>
-        )}
-
-        {/* ── Empty state ─────────────────────────────────────────── */}
-        {isAuthenticated && !dsLoading && !hasData && (
-          <div className="rounded-2xl border-2 border-dashed border-primary/20 bg-card p-10 text-center space-y-5">
-            <PastelIcon icon={FileText} color="blue" size="lg" className="mx-auto" />
-            <div>
-              <h3 className="font-bold text-xl mb-2 text-foreground">Sube tu primera cartola</h3>
-              <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
-                Arrastra tu cartola bancaria (PDF) y en segundos verás tus ingresos, gastos, score y análisis personalizados.
-              </p>
+            <div className="flex items-center justify-between">
+              <PeriodToggle value={period} onChange={handlePeriodChange} />
+              {data?.hasData && data.periodLabel && (
+                <div className="flex items-center gap-1">
+                  {period === "month" && totalMonths > 1 && (
+                    <button
+                      onClick={() => setMonthOffset((o) => Math.max(-(totalMonths - 1), o - 1))}
+                      disabled={Math.abs(monthOffset) >= totalMonths - 1}
+                      className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                      aria-label="Mes anterior"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                  )}
+                  <span className="text-xs text-muted-foreground min-w-[100px] text-center">
+                    {data.periodLabel}
+                  </span>
+                  {period === "month" && totalMonths > 1 && (
+                    <button
+                      onClick={() => setMonthOffset((o) => Math.min(0, o + 1))}
+                      disabled={monthOffset >= 0}
+                      className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                      aria-label="Mes siguiente"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-            <Button onClick={() => openUploadDrawer(true)} className="gap-2">
-              <FileText className="h-4 w-4" />
-              Subir cartola bancaria
-            </Button>
           </div>
-        )}
 
-        {/* ── Spending breakdown ──────────────────────────────────── */}
-        {hasDocuments && (
-          <div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <CategoryPieChart />
-              <SmartInsights />
-            </div>
-            <div className="flex justify-end mt-3 px-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={handleClearMovements}
-                disabled={clearingMovements}
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                {clearingMovements ? "Eliminando..." : "Limpiar movimientos"}
+          {/* ═══════════════════════════════════════════════════════════ */}
+          {/* EMPTY STATE — no cartolas uploaded                         */}
+          {/* ═══════════════════════════════════════════════════════════ */}
+          {isAuthenticated && data && !data.hasData && (
+            <div className="rounded-2xl border-2 border-dashed border-primary/20 bg-card p-10 text-center space-y-5">
+              <PastelIcon icon={FileText} color="blue" size="lg" className="mx-auto" />
+              <div>
+                <h3 className="font-bold text-xl mb-2 text-foreground">
+                  Sube tu primer documento
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                  Arrastra tu cartola bancaria o informe CMF (PDF) y en segundos verás tu score,
+                  gastos, ahorro y análisis personalizados.
+                </p>
+              </div>
+              <Button onClick={() => openUploadDrawer(true)} className="gap-2">
+                <FileText className="h-4 w-4" />
+                Subir documento
               </Button>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ── Financial insight card ──────────────────────────────── */}
-        {hasData && ds && (
-          <Card className="border-l-4 border-l-primary bg-primary/5 dark:bg-primary/10">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <p className="text-sm font-semibold mb-1 text-foreground">Resumen financiero</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {ds.tasa_ahorro_pct >= 20 ? (
-                      <>
-                        Tu tasa de ahorro del <strong className="text-foreground">{ds.tasa_ahorro_pct}%</strong> está
-                        por encima del 20% recomendado. Ahorras aproximadamente{' '}
-                        <strong className="text-foreground">
-                          {fmt(savingsThisMonth * 12)}
-                        </strong>{' '}al año.
-                      </>
-                    ) : (
-                      <>
-                        Tu tasa de ahorro actual es del <strong className="text-foreground">{ds.tasa_ahorro_pct}%</strong>.
-                        Recomendamos alcanzar al menos el 20% para un futuro financiero sólido.
-                      </>
-                    )}
-                  </p>
-                  <Button
-                    variant="link"
-                    className="p-0 h-auto mt-2 text-sm"
-                    onClick={() => navigate(ROUTES.plan)}
-                  >
-                    Ver análisis completo <ChevronRight className="h-3 w-3 ml-1" />
-                  </Button>
-                </div>
+          {/* ═══════════════════════════════════════════════════════════ */}
+          {/* CAPA 1 — HERO (above the fold)                            */}
+          {/* ═══════════════════════════════════════════════════════════ */}
+          {data?.hasData && (
+            <>
+              {/* Score Hero */}
+              {data.score !== null && (
+                <ScoreHero score={data.score} delta={data.scoreDelta} />
+              )}
+
+              {/* Credit Score (compact, only when available) */}
+              {data.creditScore !== null && (
+                <CreditScoreCard
+                  score={data.creditScore}
+                  delta={data.creditScoreDelta}
+                  lastUpdated={data.creditScoreDate}
+                />
+              )}
+
+              {/* Balance del período */}
+              {(data.totalIncome > 0 || data.totalExpenses > 0) && (
+                <AvailableCard
+                  totalIncome={data.totalIncome}
+                  totalExpenses={data.totalExpenses}
+                  savingsGoal={data.savingsGoalAmount}
+                />
+              )}
+
+              {/* Insight of the day */}
+              {data.insight && <InsightCard insight={data.insight} />}
+
+              {/* ═══════════════════════════════════════════════════════ */}
+              {/* CAPA 2 — FLUJO DEL PERÍODO                            */}
+              {/* ═══════════════════════════════════════════════════════ */}
+              <div className="space-y-4">
+                <FlowDonut
+                  segments={data.flowSegments}
+                  pctIncomeSpent={data.pctIncomeSpent}
+                  totalExpenses={data.totalExpenses}
+                />
+                <SavingsProgress
+                  savingsNet={data.savingsNet}
+                  savingsRate={data.savingsRate}
+                  goalPct={data.savingsGoalPct}
+                  goalAmount={data.savingsGoalAmount}
+                />
               </div>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* ── Document Upload ─────────────────────────────────────── */}
-        <DocumentUploadCard />
+              {/* ═══════════════════════════════════════════════════════ */}
+              {/* CAPA 3 — DETALLE EXPANDIBLE                           */}
+              {/* ═══════════════════════════════════════════════════════ */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Detalle por categoría
+                </p>
+                {data.categoryGroups.map((group) => (
+                  <CategoryCard key={group.key} group={group} />
+                ))}
+              </div>
 
-        {/* ── Scores ──────────────────────────────────────────────── */}
-        <div>
-          <EyebrowLabel className="mb-4">Score dual</EyebrowLabel>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <TransactionalScoreCard />
-            <CreditScoreCard />
-          </div>
-          {/* Always visible so users can confirm clean state even with 0 documents */}
-          <div className="flex items-center justify-between mt-4 px-1">
-            <p className="text-sm text-muted-foreground">
-              {(scoreDocCount?.count ?? 0) === 0
-                ? "Sin documentos subidos al Score"
-                : `${scoreDocCount!.count} documento${scoreDocCount!.count !== 1 ? 's' : ''} subido${scoreDocCount!.count !== 1 ? 's' : ''} al Score`}
-            </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              onClick={handleClearScoreData}
-              disabled={clearingScore || (scoreDocCount?.count ?? 0) === 0}
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              {clearingScore ? "Eliminando..." : "Limpiar datos del Score"}
-            </Button>
-          </div>
+              {/* ═══════════════════════════════════════════════════════ */}
+              {/* PATRIMONIO                                             */}
+              {/* ═══════════════════════════════════════════════════════ */}
+              {data.patrimonio &&
+                (data.patrimonio.totalPatrimonioNeto !== 0 ||
+                  data.patrimonio.inversionesLiquidas !== 0 ||
+                  data.patrimonio.cuentasVista !== 0) && (
+                <PatrimonioSidebar
+                  inversionesLiquidas={data.patrimonio.inversionesLiquidas}
+                  cuentasVista={data.patrimonio.cuentasVista}
+                  totalPatrimonioNeto={data.patrimonio.totalPatrimonioNeto}
+                />
+              )}
+            </>
+          )}
         </div>
-
-        {/* Financial Health & Government Programs */}
-        {hasDocuments && <FinancialHealthCard />}
-
-        {/* Goals */}
-        <FinancialGoalsCard />
-
-        {/* ── Quick Actions ───────────────────────────────────────── */}
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <EyebrowLabel color="muted" className="mb-4">Acciones rápidas</EyebrowLabel>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { icon: Wallet, label: "Gastos", href: ROUTES.gastos, color: "blue" as const },
-              { icon: Users, label: "Dividir cuenta", href: ROUTES.dividirCuenta, color: "purple" as const },
-              { icon: Target, label: "Metas", href: ROUTES.metas, color: "green" as const },
-              { icon: BarChart3, label: "Productos", href: ROUTES.productos, color: "orange" as const },
-            ].map(({ icon: Icon, label, href, color }) => (
-              <button
-                key={href}
-                onClick={() => navigate(href)}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border bg-background hover:border-primary/30 hover:shadow-sm transition-all"
-              >
-                <PastelIcon icon={Icon} color={color} size="sm" />
-                <span className="text-xs font-medium text-foreground">{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
       </div>
-    </div>
-    </ReportDataProvider>
     </ErrorBoundary>
   );
 }
