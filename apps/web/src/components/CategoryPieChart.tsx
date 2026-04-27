@@ -92,7 +92,7 @@ export default function CategoryPieChart() {
           <Skeleton className="h-4 w-64 mt-1" />
         </CardHeader>
         <CardContent>
-          <Skeleton className="h-56 w-full rounded-lg" />
+          <Skeleton className="h-72 w-full rounded-lg" />
         </CardContent>
       </Card>
     );
@@ -119,14 +119,14 @@ export default function CategoryPieChart() {
         <CardDescription>Distribución de egresos — haz clic en una categoría para ver detalle</CardDescription>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={240}>
+        <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
               data={chartData}
               cx="50%"
-              cy="50%"
-              innerRadius={60}
-              outerRadius={96}
+              cy="40%"
+              innerRadius={55}
+              outerRadius={90}
               paddingAngle={2}
               dataKey="value"
               onClick={handleSliceClick}
