@@ -173,7 +173,9 @@ export interface IStorage {
   updateDocumentUploadParsedData(id: string, parsedData: unknown): Promise<void>;
   listDocumentUploadsByType(userId: string, tipo: string): Promise<any[]>;
   listAllDocumentUploads(userId: string): Promise<any[]>;
+  deleteDocumentUploadById(id: string, userId: string): Promise<boolean>;
   deleteDocumentUploadsByType(userId: string, tipo: string): Promise<number>;
+  deleteAllDocumentUploads(userId: string): Promise<number>;
 
   // Score-isolated document uploads
   createScoreDocumentUpload(row: {
@@ -183,6 +185,7 @@ export interface IStorage {
   }): Promise<any>;
   listScoreDocumentUploads(userId: string): Promise<any[]>;
   listScoreDocumentUploadsByType(userId: string, tipo: string): Promise<any[]>;
+  deleteScoreDocumentUploadById(id: string, userId: string): Promise<boolean>;
   deleteAllScoreDocumentUploads(userId: string): Promise<number>;
   deleteTransactionalScore(userId: string): Promise<boolean>;
   deleteCreditScore(userId: string): Promise<boolean>;
@@ -1356,11 +1359,26 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
+  async deleteDocumentUploadById(id: string, userId: string): Promise<boolean> {
+    if (!db) return false;
+    await db.delete(documentUploads)
+      .where(and(eq(documentUploads.id, id), eq(documentUploads.userId, userId)));
+    return true;
+  }
+
   async deleteDocumentUploadsByType(userId: string, tipo: string): Promise<number> {
     if (!db) return 0;
     const result = await db
       .delete(documentUploads)
       .where(and(eq(documentUploads.userId, userId), eq(documentUploads.tipo, tipo)));
+    return (result as any).rowCount ?? (result as any).changes ?? 0;
+  }
+
+  async deleteAllDocumentUploads(userId: string): Promise<number> {
+    if (!db) return 0;
+    const result = await db
+      .delete(documentUploads)
+      .where(eq(documentUploads.userId, userId));
     return (result as any).rowCount ?? (result as any).changes ?? 0;
   }
 
@@ -1395,6 +1413,13 @@ export class DatabaseStorage implements IStorage {
       ...r,
       parsedData: typeof r.parsedData === 'string' ? JSON.parse(r.parsedData) : r.parsedData,
     }));
+  }
+
+  async deleteScoreDocumentUploadById(id: string, userId: string): Promise<boolean> {
+    if (!db) return false;
+    await db.delete(scoreDocumentUploads)
+      .where(and(eq(scoreDocumentUploads.id, id), eq(scoreDocumentUploads.userId, userId)));
+    return true;
   }
 
   async deleteAllScoreDocumentUploads(userId: string): Promise<number> {

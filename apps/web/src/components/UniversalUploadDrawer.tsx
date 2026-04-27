@@ -167,19 +167,16 @@ export default function UniversalUploadDrawer({
       }
     }
 
-    // Invalidate all relevant query keys
+    // Invalidate all relevant query keys (movements + scores)
     await queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
     await queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
-    await queryClient.invalidateQueries({
-      queryKey: ["/api/transactions/parsed"],
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ["/api/transactions/insights"],
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ["/api/transactions/summary"],
-    });
+    await queryClient.invalidateQueries({ queryKey: ["/api/transactions/parsed"] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/transactions/insights"] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/transactions/summary"] });
     await queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/transactional-score"] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/score/documents/count"] });
 
     setIsUploading(false);
     setDoneCount(successCount);

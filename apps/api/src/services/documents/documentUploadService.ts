@@ -65,15 +65,16 @@ export function validateDocumentBelongsToUser(
 /**
  * Procesa buffer de PDF: detecta tipo, extrae datos, actualiza scores y persiste.
  *
- * Pipeline: extract text once → check CMF signals → if not CMF, use hardened
- * parseCartolaBuffer() (format detection + tier + reconciliation in one pass).
+ * Unified pipeline — every upload writes to BOTH tables (documentUploads for
+ * movements/gastos, scoreDocumentUploads for score computation). Duplicate
+ * cartolas (same banco + period) are detected and replaced, not duplicated.
+ *
+ * Credit score is ONLY computed/shown for CMF Informe de Deudas uploads.
+ * Transactional score is computed for every cartola upload.
  */
-export type UploadContext = 'movements' | 'score';
-
 export async function processDocumentUpload(
   userId: string,
   buffer: Buffer,
-  context: UploadContext = 'movements',
 ): Promise<UploadResult> {
   // 1. Extract text once — shared by CMF detection and cartola fallback
   let text = '';
@@ -98,7 +99,7 @@ export async function processDocumentUpload(
     if (!validation.valid) {
       return { step: 'done', error: validation.message ?? 'El documento no corresponde al usuario.' };
     }
-    return processCmfUpload(userId, cmfDoc, context);
+    return processCmfUpload(userId, cmfDoc);
   }
 
   // 3. Cartola path: hardened pipeline (format detection + tier + reconciliation in one pass)
@@ -121,40 +122,57 @@ export async function processDocumentUpload(
       rutDocumento: undefined,
     };
 
-    const uploadRow = {
-      id: randomUUID(),
+    const banco = parsed.banco ?? null;
+    const periodoDesde = parsed.periodo?.desde instanceof Date ? parsed.periodo.desde.toISOString().slice(0, 10) : null;
+    const periodoHasta = parsed.periodo?.hasta instanceof Date ? parsed.periodo.hasta.toISOString().slice(0, 10) : null;
+
+    // ── Duplicate detection: if same banco + period already exists, replace it ──
+    let duplicateReplaced = false;
+    if (banco && periodoDesde) {
+      const existing = await storage.listDocumentUploadsByType(userId, "cartola");
+      const dup = existing.find(
+        (r) => r.banco === banco && r.periodoDesde === periodoDesde && r.periodoHasta === periodoHasta
+      );
+      if (dup) {
+        await storage.deleteDocumentUploadById(dup.id, userId);
+        duplicateReplaced = true;
+        logger.info({ userId, banco, periodoDesde, periodoHasta }, '[documentUploadService] Cartola duplicada reemplazada en documentUploads');
+      }
+
+      const existingScore = await storage.listScoreDocumentUploadsByType(userId, "cartola");
+      const dupScore = existingScore.find(
+        (r) => r.banco === banco && r.periodoDesde === periodoDesde && r.periodoHasta === periodoHasta
+      );
+      if (dupScore) {
+        await storage.deleteScoreDocumentUploadById(dupScore.id, userId);
+        logger.info({ userId, banco, periodoDesde, periodoHasta }, '[documentUploadService] Cartola duplicada reemplazada en scoreDocumentUploads');
+      }
+    }
+
+    const baseRow = {
       userId,
       tipo: "cartola" as const,
-      banco: parsed.banco ?? null,
-      periodoDesde: parsed.periodo?.desde instanceof Date ? parsed.periodo.desde.toISOString().slice(0, 10) : null,
-      periodoHasta: parsed.periodo?.hasta instanceof Date ? parsed.periodo.hasta.toISOString().slice(0, 10) : null,
+      banco,
+      periodoDesde,
+      periodoHasta,
       parsedData: cartolaExtraida,
       parseStatus: "success" as const,
     };
 
-    if (context === 'movements') {
-      // Movements-only: write to documentUploads, NO score computation
-      await storage.createDocumentUpload(uploadRow);
-      return {
-        step: 'done',
-        documentType: 'cartola',
-        detection_tier: parsed.detection_tier,
-        banco_confidence: parsed.banco_confidence,
-        detected_banco: parsed.banco,
-      };
-    }
+    // Write to BOTH tables
+    await Promise.all([
+      storage.createDocumentUpload({ ...baseRow, id: randomUUID() }),
+      storage.createScoreDocumentUpload({ ...baseRow, id: randomUUID() }),
+    ]);
 
-    // Score context: write to scoreDocumentUploads + compute scores
-    await storage.createScoreDocumentUpload(uploadRow);
-
+    // ── Compute transactional score from ALL score cartolas ──
     const rut = cartolaExtraida.rutDocumento ?? '00.000.000-0';
-    const previousCartolas = await storage.listScoreDocumentUploadsByType(userId, "cartola");
-    const previousParsed: CartolaExtraida[] = previousCartolas
+    const allScoreCartolas = await storage.listScoreDocumentUploadsByType(userId, "cartola");
+    const allParsed: CartolaExtraida[] = allScoreCartolas
       .map((r) => r?.parsedData as CartolaExtraida | null)
       .filter((c): c is CartolaExtraida => !!c && Array.isArray(c.transacciones));
-    const allCartolas = [...previousParsed, cartolaExtraida];
-    const transactions = allCartolas.flatMap((c) => cartolaToSfaTransactions(c, c.rutDocumento ?? rut));
-    const products = allCartolas.flatMap((c) => cartolaToSfaProductos(c, c.rutDocumento ?? rut));
+    const transactions = allParsed.flatMap((c) => cartolaToSfaTransactions(c, c.rutDocumento ?? rut));
+    const products = allParsed.flatMap((c) => cartolaToSfaProductos(c, c.rutDocumento ?? rut));
 
     const engine = getSfaScoringEngine();
     const scoreResult = engine.run({ transactions, products });
@@ -171,6 +189,11 @@ export async function processDocumentUpload(
     if (parsed.warnings && parsed.warnings.length > 0) {
       mainInsights.push(...parsed.warnings);
     }
+    if (duplicateReplaced) {
+      mainInsights.push(
+        'Esta cartola ya había sido subida previamente (mismo banco y período). Los datos anteriores fueron reemplazados.'
+      );
+    }
 
     await storage.upsertTransactionalScore(userId, {
       transactionalScore: scoreResult.transactionalScore,
@@ -181,7 +204,7 @@ export async function processDocumentUpload(
         pipeline: 'cartola_pdf_hardened',
         transactionCount: transactions.length,
         productCount: products.length,
-        cartolasCount: allCartolas.length,
+        cartolasCount: allParsed.length,
         banco_confidence: parsed.banco_confidence,
         detection_tier: parsed.detection_tier,
         parse_confidence: parsed.parse_confidence,
@@ -206,8 +229,7 @@ export async function processDocumentUpload(
   }
 }
 
-async function processCmfUpload(userId: string, doc: CmfInformeDeudas, context: UploadContext): Promise<UploadResult> {
-    const uploadId = randomUUID();
+async function processCmfUpload(userId: string, doc: CmfInformeDeudas): Promise<UploadResult> {
     const RUT_RE = /\b\d{1,2}\.\d{3}\.\d{3}-[\dKk]\b/;
     const rutExtraido = doc.rutDocumento?.trim();
     const rutValido = rutExtraido && RUT_RE.test(rutExtraido);
@@ -226,7 +248,6 @@ async function processCmfUpload(userId: string, doc: CmfInformeDeudas, context: 
           : 'Sin deudas vigentes reportadas en el informe CMF.';
 
     const cmfRow = {
-      id: uploadId,
       userId,
       tipo: "cmf" as const,
       banco: null,
@@ -236,18 +257,13 @@ async function processCmfUpload(userId: string, doc: CmfInformeDeudas, context: 
       parseStatus: "success" as const,
     };
 
-    if (context === 'movements') {
-      // Movements-only: write to documentUploads, NO score computation
-      await storage.createDocumentUpload(cmfRow);
-      return {
-        step: 'done',
-        documentType: 'cmf_informe_deudas',
-        cmf: { ...doc, rutDocumento: doc.rutDocumento ?? undefined },
-        mainInsights: [cmfInsight],
-      };
-    }
+    // Write to BOTH tables
+    await Promise.all([
+      storage.createDocumentUpload({ ...cmfRow, id: randomUUID() }),
+      storage.createScoreDocumentUpload({ ...cmfRow, id: randomUUID() }),
+    ]);
 
-    // Score context: write to scoreDocumentUploads + compute/persist credit score
+    // Compute and persist credit score
     const startTime = Date.now();
     const requestId = randomUUID();
     const creditScoreValue = computeCreditScoreFromCmf(doc);
@@ -330,7 +346,6 @@ async function processCmfUpload(userId: string, doc: CmfInformeDeudas, context: 
     }
     logger.info({ userId, score: scoreEnDb }, '[documentUploadService] CMF: DB confirmed OK');
 
-    await storage.createScoreDocumentUpload(cmfRow);
     return {
       step: 'done',
       documentType: 'cmf_informe_deudas',
