@@ -52,7 +52,10 @@ export const queryClient = new QueryClient({
     queries: {
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      // 5 minutes: data stays fresh for navigation between pages but
+      // isn't so aggressive that we never refetch. After a document upload
+      // invalidateQueries() forces immediate refetch regardless.
+      staleTime: 5 * 60 * 1000,
       retry: false,
     },
     mutations: {

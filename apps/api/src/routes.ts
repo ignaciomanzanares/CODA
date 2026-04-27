@@ -1407,7 +1407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "deudas", "inversiones", "ahorros",
     "regalos", "reparaciones", "imprevistos",
     "telecomunicaciones", "transferencia_enviada", "transferencia_recibida",
-    "comercio", "entretenimiento", "salud", "ingreso_principal", "servicios", "otro",
+    "comercio", "entretenimiento", "restaurantes", "salud", "ingreso_principal", "servicios", "otro",
   ]);
 
   app.patch("/api/transactions/:id/category", authenticate, async (req: Request, res: Response) => {

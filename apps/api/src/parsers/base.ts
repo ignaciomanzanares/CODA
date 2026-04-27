@@ -57,6 +57,7 @@ export type TransactionCategory =
   | "transferencia_recibida"
   | "comercio"
   | "entretenimiento"
+  | "restaurantes"
   | "salud"
   | "ingreso_principal"
   | "otro";

@@ -10,6 +10,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
+import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
   DialogContent,
@@ -60,6 +61,7 @@ export default function UniversalUploadDrawer({
   const [isUploading, setIsUploading] = useState(false);
   const [doneCount, setDoneCount] = useState<number | null>(null);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { autoPickFile, clearAutoPickFile } = useUploadDrawer();
 
   // Auto-open file picker when requested via context
@@ -167,19 +169,24 @@ export default function UniversalUploadDrawer({
       }
     }
 
-    // Invalidate all relevant query keys (movements + scores)
-    await queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
-    await queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
-    await queryClient.invalidateQueries({ queryKey: ["/api/transactions/parsed"] });
-    await queryClient.invalidateQueries({ queryKey: ["/api/transactions/insights"] });
-    await queryClient.invalidateQueries({ queryKey: ["/api/transactions/summary"] });
-    await queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
-    await queryClient.invalidateQueries({ queryKey: ["/api/transactional-score"] });
-    await queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] });
-    await queryClient.invalidateQueries({ queryKey: ["/api/score/documents/count"] });
+    // Uploading a document changes the user's financial data globally —
+    // every page in the app could be affected (dashboard, movimientos,
+    // gastos, metas, etc.). Instead of maintaining a fragile list of
+    // specific query keys, invalidate ALL queries so every active and
+    // future observer sees fresh data.
+    await queryClient.invalidateQueries();
 
     setIsUploading(false);
     setDoneCount(successCount);
+
+    if (successCount > 0) {
+      toast({
+        title: "Datos actualizados",
+        description: successCount === 1
+          ? "Tu documento fue procesado. Los datos ya se actualizaron."
+          : `${successCount} documentos procesados. Los datos ya se actualizaron.`,
+      });
+    }
   };
 
   const hasPending = files.some(

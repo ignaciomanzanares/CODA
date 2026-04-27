@@ -12,6 +12,7 @@ import {
 import { ArrowUpDown, ArrowUp, ArrowDown, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { CATEGORY_TAXONOMY, categoryLabel } from "@/lib/categoryTaxonomy";
 
 interface ParsedTransaction {
   id: string;
@@ -40,52 +41,9 @@ const formatDate = (s: string) => {
   return isNaN(d.getTime()) ? s : d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
 };
 
-// ── Category meta ────────────────────────────────────────────────────────────
-const CAT_LABELS: Record<string, string> = {
-  // Gastos esenciales
-  vivienda:               "Vivienda",
-  alimentacion:           "Alimentación",
-  transporte:             "Transporte",
-  seguros:                "Seguros",
-  servicios_basicos:      "Servicios básicos",
-  // Gastos personales
-  salud_bienestar:        "Salud y bienestar",
-  educacion:              "Educación",
-  cuidado_personal:       "Cuidado personal",
-  // Ocio y entretenimiento
-  diversion:              "Diversión",
-  hobbies:                "Hobbies",
-  suscripciones:          "Suscripciones",
-  // Gastos financieros
-  deudas:                 "Deudas",
-  inversiones:            "Inversiones",
-  ahorros:                "Ahorros",
-  // Gastos ocasionales
-  regalos:                "Regalos",
-  reparaciones:           "Reparaciones",
-  imprevistos:            "Imprevistos",
-  // Legacy (still valid)
-  telecomunicaciones:     "Telecomunicaciones",
-  transferencia_enviada:  "Transferencia",
-  transferencia_recibida: "Transferencia",
-  comercio:               "Comercio",
-  entretenimiento:        "Entretenimiento",
-  salud:                  "Salud",
-  ingreso_principal:      "Ingreso",
-  servicios:              "Servicios",
-  otro:                   "Otro",
-};
-
-/** All valid categories for the dropdown — must match backend VALID_CATEGORIES */
-const ALL_CATEGORIES = [
-  "vivienda", "alimentacion", "transporte", "seguros", "servicios_basicos",
-  "salud_bienestar", "educacion", "cuidado_personal",
-  "diversion", "hobbies", "suscripciones",
-  "deudas", "inversiones", "ahorros",
-  "regalos", "reparaciones", "imprevistos",
-  "telecomunicaciones", "transferencia_enviada", "transferencia_recibida",
-  "comercio", "entretenimiento", "salud", "ingreso_principal", "servicios", "otro",
-] as const;
+// ── Category meta (single source of truth: categoryTaxonomy.ts) ──────────────
+/** All valid categories for the dropdown, grouped by taxonomy */
+const ALL_CATEGORIES = CATEGORY_TAXONOMY.flatMap((g) => g.parserCategories);
 
 const CAT_COLORS: Record<string, string> = {
   // Gastos esenciales
@@ -99,6 +57,7 @@ const CAT_COLORS: Record<string, string> = {
   educacion:              "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
   cuidado_personal:       "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-400",
   // Ocio y entretenimiento
+  restaurantes:           "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
   diversion:              "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400",
   hobbies:                "bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-400",
   suscripciones:          "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
@@ -276,9 +235,8 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
         body: JSON.stringify({ category: newCategory }),
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);
-      // Invalidate summaries so charts refresh
-      queryClient.invalidateQueries({ queryKey: ["/api/transactions/summary"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
+      // Recategorizing affects dashboard totals, flow chart, insights, etc.
+      queryClient.invalidateQueries();
     } catch {
       // Revert on error
       queryClient.setQueryData<{ transactions: ParsedTransaction[]; count: number }>(
@@ -341,7 +299,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
               className="gap-2"
             >
               <Upload className="h-5 w-5" />
-              Subir cartola
+              Subir documento
             </Button>
           </div>
         ) : (
@@ -354,7 +312,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                 className="gap-1.5"
               >
                 <Upload className="h-4 w-4" />
-                Subir cartola
+                Subir documento
               </Button>
 
               <Input
@@ -381,7 +339,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                   <SelectContent>
                     <SelectItem value="all">Categoría: todas</SelectItem>
                     {categories.map(c => (
-                      <SelectItem key={c} value={c}>{CAT_LABELS[c] ?? c}</SelectItem>
+                      <SelectItem key={c} value={c}>{categoryLabel(c)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -466,12 +424,12 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                                 CAT_COLORS[tx.categoria] ?? CAT_COLORS.otro
                               )}
                             >
-                              <SelectValue>{CAT_LABELS[tx.categoria] ?? tx.categoria}</SelectValue>
+                              <SelectValue>{categoryLabel(tx.categoria)}</SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {ALL_CATEGORIES.map((c) => (
                                 <SelectItem key={c} value={c} className="text-xs">
-                                  {CAT_LABELS[c] ?? c}
+                                  {categoryLabel(c)}
                                 </SelectItem>
                               ))}
                             </SelectContent>

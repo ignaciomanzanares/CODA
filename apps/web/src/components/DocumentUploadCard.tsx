@@ -223,22 +223,14 @@ export default function DocumentUploadCard() {
           ...(lastResult.cmf?.rutDocumento && { documentRut: lastResult.cmf.rutDocumento }),
           ...(lastResult.cmf?.deudaTotalVigente != null && { cmfDeudaTotalVigente: lastResult.cmf.deudaTotalVigente }),
         });
-        // Invalidate all: uploads now feed both movements and score tables
-        queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
-        queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/transactions/parsed"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/transactions/insights"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/transactions/summary"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/score/documents/count"] });
         if (lastResult.documentType === "cartola") {
           Analytics.documentUploaded("cartola");
-          queryClient.invalidateQueries({ queryKey: ["/api/transactional-score"] });
         }
         if (lastResult.documentType === "cmf_informe_deudas") {
           Analytics.documentUploaded("cmf");
-          queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] });
         }
+        // Invalidate ALL queries — financial data changed globally
+        queryClient.invalidateQueries();
       }
       setLoading(false);
     },
