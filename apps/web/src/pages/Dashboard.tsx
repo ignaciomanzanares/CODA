@@ -95,6 +95,7 @@ export default function Dashboard() {
     staleTime: 30000,
   });
   const [clearingScore, setClearingScore] = useState(false);
+  const [clearingMovements, setClearingMovements] = useState(false);
 
   const handleClearScoreData = async () => {
     if (!confirm("¿Estás seguro? Se eliminarán los documentos subidos al Score y los resultados (score transaccional y crediticio). Tendrás que subir documentos nuevamente para recalcular.")) return;
@@ -118,6 +119,31 @@ export default function Dashboard() {
       toast({ title: "Error al eliminar datos del Score", variant: "destructive" });
     } finally {
       setClearingScore(false);
+    }
+  };
+
+  const handleClearMovements = async () => {
+    if (!confirm("¿Estás seguro? Se eliminarán todos los movimientos y gastos importados. Tendrás que subir tus cartolas nuevamente.")) return;
+    setClearingMovements(true);
+    try {
+      const token = getPersonalToken();
+      await apiFetch('/api/documents', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/user/documents'] }),
+        queryClient.invalidateQueries({ queryKey: ['financial-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/dashboard/summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/transactions/parsed'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/transactions/insights'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/transactions/summary'] }),
+      ]);
+      toast({ title: "Movimientos y gastos eliminados correctamente" });
+    } catch {
+      toast({ title: "Error al eliminar movimientos", variant: "destructive" });
+    } finally {
+      setClearingMovements(false);
     }
   };
 
@@ -274,9 +300,23 @@ export default function Dashboard() {
 
         {/* ── Spending breakdown ──────────────────────────────────── */}
         {hasDocuments && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <CategoryPieChart />
-            <SmartInsights />
+          <div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <CategoryPieChart />
+              <SmartInsights />
+            </div>
+            <div className="flex justify-end mt-3 px-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={handleClearMovements}
+                disabled={clearingMovements}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                {clearingMovements ? "Eliminando..." : "Limpiar movimientos"}
+              </Button>
+            </div>
           </div>
         )}
 

@@ -92,7 +92,7 @@ function validateFile(file: File): { valid: boolean; error?: string } {
 }
 
 export default function DocumentUploadCard() {
-  const { uploadScoreDocument } = useApi();
+  const { uploadDocument } = useApi();
   const { setUploadResult } = useReportData();
   const { setOpen: openUploadDrawer } = useUploadDrawer();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -175,7 +175,7 @@ export default function DocumentUploadCard() {
 
         try {
           setProgressStep("extracting");
-          const res = await uploadScoreDocument(currentFile);
+          const res = await uploadDocument(currentFile);
           setProgressStep("scoring");
           lastResult = res;
           
@@ -223,7 +223,13 @@ export default function DocumentUploadCard() {
           ...(lastResult.cmf?.rutDocumento && { documentRut: lastResult.cmf.rutDocumento }),
           ...(lastResult.cmf?.deudaTotalVigente != null && { cmfDeudaTotalVigente: lastResult.cmf.deudaTotalVigente }),
         });
-        // Score-only invalidation: this uploader feeds Score tables exclusively
+        // Invalidate all: uploads now feed both movements and score tables
+        queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
+        queryClient.invalidateQueries({ queryKey: ["financial-summary"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/summary"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/transactions/parsed"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/transactions/insights"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/transactions/summary"] });
         queryClient.invalidateQueries({ queryKey: ["/api/score/documents/count"] });
         if (lastResult.documentType === "cartola") {
           Analytics.documentUploaded("cartola");
@@ -236,7 +242,7 @@ export default function DocumentUploadCard() {
       }
       setLoading(false);
     },
-    [uploadScoreDocument, setUploadResult]
+    [uploadDocument, setUploadResult]
   );
 
   const onDrop = useCallback(
