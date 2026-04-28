@@ -459,12 +459,36 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
 
   // ── Capa 3: Category Groups ───────────────────────────────────────────
 
+  // Previous month data for month-over-month comparison
+  const prevMonthResult = period === "month" && totalMonths > 1
+    ? filterByPeriod(allTx, "month", monthOffset - 1)
+    : null;
+  const prevMonthTx = prevMonthResult?.filtered ?? [];
+
+  // Group previous month expenses by taxonomy group
+  const prevGroupedExpenses = new Map<CategoryGroupKey, number>();
+  for (const tx of prevMonthTx) {
+    if (tx.tipo !== "egreso") continue;
+    const gk = resolveGroupKey(tx.categoria);
+    if (gk === "ingresos") continue;
+    prevGroupedExpenses.set(gk, (prevGroupedExpenses.get(gk) ?? 0) + tx.monto);
+  }
+  // Previous month income total
+  const prevMonthIncome = prevMonthTx
+    .filter((t) => t.tipo === "ingreso")
+    .reduce((s, t) => s + t.monto, 0);
+
   const incomeTx = periodTx.filter((t) => t.tipo === "ingreso");
 
   function buildCategoryGroup(key: CategoryGroupKey): CategoryGroup {
     const entry = getTaxonomyEntry(key);
     const txs = key === "ingresos" ? incomeTx : (groupedExpenses.get(key) ?? []);
     const total = txs.reduce((s, t) => s + t.monto, 0);
+
+    // Previous month total for comparison
+    const prevMonthTotal = prevMonthTx.length > 0
+      ? (key === "ingresos" ? prevMonthIncome : (prevGroupedExpenses.get(key) ?? 0))
+      : null;
 
     // Subcategories
     const subMap = new Map<string, DashboardTransaction[]>();
@@ -500,6 +524,7 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
       icon: entry.icon,
       color: entry.color,
       total,
+      prevMonthTotal,
       pctOfIncome: totalIncome > 0 ? Math.round((total / totalIncome) * 100) : 0,
       subcategories,
       sparklineData,

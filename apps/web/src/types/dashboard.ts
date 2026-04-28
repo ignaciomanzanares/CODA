@@ -32,6 +32,7 @@ export interface CategoryGroup {
   icon: LucideIcon;
   color: "green" | "blue" | "purple" | "orange" | "red";
   total: number;              // CLP sum of all subcategories
+  prevMonthTotal: number | null; // CLP sum from previous month (null if no data)
   pctOfIncome: number;        // 0-100
   subcategories: Subcategory[];
   /** Last 30 days of daily spending for sparkline */

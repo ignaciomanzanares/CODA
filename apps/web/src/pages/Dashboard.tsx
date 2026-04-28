@@ -22,22 +22,54 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import SignInBanner from "@/components/SignInBanner";
 
 // Icons
-import { RefreshCw, FileText, Upload, ChevronLeft, ChevronRight } from "lucide-react";
+import { RefreshCw, FileText, Upload, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
+import { apiFetch } from "@/lib/apiFetch";
+import { getPersonalToken } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const { isLoading: authLoading, user, isAuthenticated } = useAuth();
   const [period, setPeriod] = useState<DashboardPeriod>("month");
   const [monthOffset, setMonthOffset] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRecategorizing, setIsRecategorizing] = useState(false);
   const { setOpen: openUploadDrawer } = useUploadDrawer();
+  const { toast } = useToast();
   const { data, isLoading, totalMonths } = useDashboardData(period, monthOffset);
 
   // Reset offset when switching period type
   const handlePeriodChange = (p: DashboardPeriod) => {
     setPeriod(p);
     setMonthOffset(0);
+  };
+
+  const handleRecategorizeAll = async () => {
+    setIsRecategorizing(true);
+    try {
+      const token = getPersonalToken();
+      const result = await apiFetch("/api/admin/recategorize", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }) as { updated: number };
+      await queryClient.invalidateQueries();
+      const updated = result?.updated ?? 0;
+      toast({
+        title: "Categorías actualizadas",
+        description: updated > 0
+          ? `Se recategorizaron ${updated} transacciones.`
+          : "Todas las transacciones ya tenían la categoría correcta.",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudieron recategorizar las transacciones.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRecategorizing(false);
+    }
   };
 
   const refreshAllData = async () => {
@@ -245,6 +277,14 @@ export default function Dashboard() {
                 {data.categoryGroups.map((group) => (
                   <CategoryCard key={group.key} group={group} />
                 ))}
+                <button
+                  onClick={handleRecategorizeAll}
+                  disabled={isRecategorizing}
+                  className="flex items-center justify-center gap-1.5 w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  <RotateCcw className={cn("h-3 w-3", isRecategorizing && "animate-spin")} />
+                  {isRecategorizing ? "Recategorizando..." : "Recategorizar todas las transacciones"}
+                </button>
               </div>
 
               {/* ═══════════════════════════════════════════════════════ */}
