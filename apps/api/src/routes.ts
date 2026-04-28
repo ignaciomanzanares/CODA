@@ -4315,9 +4315,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let docChanged = false;
         for (const tx of pd.transacciones) {
           if (!tx.descripcion) continue;
-          // Determine tipo from cargo/abono
-          const tipo: "cargo" | "abono" = (tx.abono ?? 0) > 0 ? "abono" : "cargo";
-          const monto = (tx.abono ?? 0) > 0 ? tx.abono : (tx.cargo ?? 0);
+          // Support both stored formats:
+          // New format: tipo="cargo"|"abono", monto=number
+          // Old format: cargo=number, abono=number (legacy)
+          const tipo: "cargo" | "abono" = tx.tipo
+            ? tx.tipo
+            : (tx.abono ?? 0) > 0 ? "abono" : "cargo";
+          const monto = tx.monto ?? ((tx.abono ?? 0) > 0 ? tx.abono : (tx.cargo ?? 0));
           const newCat = categorizeTransaction(tx.descripcion, monto, tipo);
           if (tx.categoria !== newCat) {
             tx.categoria = newCat;

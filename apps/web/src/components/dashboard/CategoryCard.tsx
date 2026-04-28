@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
-import { ChevronDown, Tag, Loader2 } from "lucide-react";
+import { ChevronDown, Tag, Loader2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/apiFetch";
 import { getPersonalToken } from "@/lib/auth";
@@ -47,6 +48,12 @@ interface CategoryCardProps {
 export default function CategoryCard({ group }: CategoryCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(0);
+  const [, navigate] = useLocation();
+
+  const goToMovimientos = (categoria?: string) => {
+    const params = categoria ? `?categoria=${encodeURIComponent(categoria)}` : "";
+    navigate(`/movimientos${params}`);
+  };
 
   const isEmpty = group.total === 0 && group.subcategories.length === 0;
 
@@ -92,7 +99,24 @@ export default function CategoryCard({ group }: CategoryCardProps) {
             </p>
           </div>
           <div className="flex items-center justify-between gap-2 mt-1">
-            <p className="text-xs text-muted-foreground">{group.pctOfIncome}% del ingreso</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground">{group.pctOfIncome}% del ingreso</p>
+              {group.prevMonthTotal !== null && group.prevMonthTotal > 0 && (() => {
+                const delta = Math.round(((group.total - group.prevMonthTotal) / group.prevMonthTotal) * 100);
+                if (delta === 0) return null;
+                // For expenses: up = bad (red), down = good (green). For income: up = good, down = bad.
+                const isIncome = group.key === "ingresos";
+                const isGood = isIncome ? delta > 0 : delta < 0;
+                return (
+                  <span className={cn(
+                    "text-[10px] font-medium",
+                    isGood ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400",
+                  )}>
+                    {delta > 0 ? "+" : ""}{delta}% vs mes ant.
+                  </span>
+                );
+              })()}
+            </div>
             {/* Sparkline mini */}
             <div className="w-20 h-6">
               <ResponsiveContainer width="100%" height="100%">
@@ -149,12 +173,16 @@ export default function CategoryCard({ group }: CategoryCardProps) {
                 Subcategorías
               </p>
               {group.subcategories.map((sub) => (
-                <div key={sub.key} className="flex items-center justify-between py-1">
-                  <span className="text-sm text-foreground">{sub.label}</span>
+                <button
+                  key={sub.key}
+                  onClick={(e) => { e.stopPropagation(); goToMovimientos(sub.key); }}
+                  className="flex items-center justify-between py-1.5 px-2 -mx-2 rounded-lg w-full text-left hover:bg-muted/50 transition-colors group/sub"
+                >
+                  <span className="text-sm text-foreground group-hover/sub:text-primary transition-colors">{sub.label}</span>
                   <span className="text-sm font-medium tabular-nums text-foreground">
                     {fmtCLP(sub.total)}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
 
@@ -194,6 +222,15 @@ export default function CategoryCard({ group }: CategoryCardProps) {
                 )}
               </div>
             )}
+
+            {/* Drill-down link */}
+            <button
+              onClick={(e) => { e.stopPropagation(); goToMovimientos(group.subcategories[0]?.key); }}
+              className="flex items-center justify-center gap-1.5 w-full py-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+            >
+              <ExternalLink className="h-3 w-3" />
+              Ver en Movimientos
+            </button>
           </div>
         </div>
       </div>
