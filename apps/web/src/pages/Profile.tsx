@@ -108,8 +108,8 @@ export default function Profile() {
   const [profileData, setProfileData] = useState({
     displayName: "",
     email: "",
-    timezone: "UTC",
-    language: "English"
+    timezone: "America/Santiago",
+    language: "Spanish"
   });
 
   // Push notification state
@@ -171,8 +171,8 @@ export default function Profile() {
           setProfileData({
             displayName: profile.displayName || "",
             email: profile.email || "",
-            timezone: profile.timezone || "UTC",
-            language: profile.language || "English"
+            timezone: profile.timezone || "America/Santiago",
+            language: profile.language || "Spanish"
           });
         } catch (error) {
           console.error('Failed to load profile, falling back to datos de sesión:', error);
@@ -180,8 +180,8 @@ export default function Profile() {
           setProfileData({
             displayName: user?.name || "",
             email: user?.email || "",
-            timezone: "UTC",
-            language: "English"
+            timezone: "America/Santiago",
+            language: "Spanish"
           });
         }
       }
@@ -297,8 +297,8 @@ export default function Profile() {
         setProfileData({
           displayName: updatedProfile.displayName || "",
           email: updatedProfile.email || "",
-          timezone: updatedProfile.timezone || "UTC",
-          language: updatedProfile.language || "English"
+          timezone: updatedProfile.timezone || "America/Santiago",
+          language: updatedProfile.language || "Spanish"
         });
       }
       
@@ -471,7 +471,7 @@ export default function Profile() {
               </Avatar>
               <div>
                 <h2 className="text-2xl font-bold text-foreground">
-                  {user?.name || user?.email || "User"}
+                  {user?.name || user?.email || "Usuario"}
                 </h2>
                 <p className="text-muted-foreground flex items-center">
                   <Mail className="h-4 w-4 mr-2" />
@@ -570,33 +570,33 @@ export default function Profile() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Globe className="h-5 w-5 mr-2" />
-                  Account Information
+                  Información de la cuenta
                 </CardTitle>
                 <CardDescription>
-                  Ver detalles y estado de tu cuenta
+                  Detalles y estado de tu cuenta
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Account ID</Label>
+                  <Label>ID de cuenta</Label>
                   <div className="text-sm text-muted-foreground font-mono bg-muted/50 p-2 rounded break-all">
                     {user?.userId || "N/A"}
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Login Provider</Label>
+                  <Label>Método de acceso</Label>
                   <div className="text-sm text-muted-foreground">
                     📧 Correo y contraseña
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Account Type</Label>
-                  <Badge variant="secondary">Premium</Badge>
+                  <Label>Tipo de cuenta</Label>
+                  <Badge variant="secondary">Gratuita</Badge>
                 </div>
                 <div className="space-y-2">
-                  <Label>Last Login</Label>
+                  <Label>Último acceso</Label>
                   <div className="text-sm text-muted-foreground">
-                    {new Date().toLocaleString()}
+                    {new Date().toLocaleString("es-CL")}
                   </div>
                 </div>
               </CardContent>
@@ -682,7 +682,7 @@ export default function Profile() {
                 <div className="space-y-2">
                   <Label>Sesiones activas</Label>
                   <div className="text-sm text-muted-foreground">
-                    <div className="flex items-center justify-between p-2 bg-green-50 rounded">
+                    <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-500/10 rounded">
                       <span>Sesión actual</span>
                       <Badge variant="secondary">Activa</Badge>
                     </div>
@@ -919,34 +919,31 @@ export default function Profile() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <CreditCard className="h-5 w-5 mr-2" />
-                  Account Management
+                  Tu plan
                 </CardTitle>
                 <CardDescription>
-                  Manage your account and subscription
+                  Información sobre tu cuenta y datos
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Subscription Plan</Label>
-                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded">
+                  <Label>Plan actual</Label>
+                  <div className="flex items-center justify-between p-3 bg-primary/5 dark:bg-primary/10 rounded">
                     <div>
-                      <span className="font-medium">Premium Plan</span>
-                      <p className="text-sm text-muted-foreground">Full access to all features</p>
+                      <span className="font-medium">Plan Gratuito</span>
+                      <p className="text-sm text-muted-foreground">Acceso completo a todas las funciones</p>
                     </div>
-                    <Badge variant="secondary">Active</Badge>
+                    <Badge variant="secondary">Activo</Badge>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Billing</Label>
+                  <Label>Exportar datos</Label>
                   <Button variant="outline" size="sm" className="w-full" onClick={handleComingSoon}>
-                    Manage Billing
+                    Descargar mis datos
                   </Button>
-                </div>
-                <div className="space-y-2">
-                  <Label>Export Data</Label>
-                  <Button variant="outline" size="sm" className="w-full" onClick={handleComingSoon}>
-                    Export My Data
-                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Descarga una copia de tus datos personales (derecho de portabilidad, Ley 19.628).
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -955,24 +952,24 @@ export default function Profile() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <LogOut className="h-5 w-5 mr-2" />
-                  Account Actions
+                  Acciones de cuenta
                 </CardTitle>
                 <CardDescription>
-                  Sign out or manage your account
+                  Cerrar sesión o eliminar tu cuenta
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full"
                   onClick={handleLogout}
                 >
                   <LogOut className="h-4 w-4 mr-2" />
-                  Sign Out
+                  Cerrar sesión
                 </Button>
-                
+
                 <Separator />
-                
+
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="destructive" className="w-full">
@@ -990,7 +987,7 @@ export default function Profile() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction 
+                      <AlertDialogAction
                         className="bg-red-500 hover:bg-red-600"
                         onClick={handleDeleteAccount}
                       >
