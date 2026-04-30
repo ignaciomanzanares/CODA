@@ -214,23 +214,23 @@ export default function Login() {
       <BrandPanel isEmpresas={isEmpresas} />
 
       {/* Right: Form */}
-      <div className="flex-1 lg:w-1/2 flex flex-col justify-center bg-white px-6 py-12 sm:px-12 lg:px-16">
+      <div className="flex-1 lg:w-1/2 flex flex-col justify-center bg-background px-6 py-12 sm:px-12 lg:px-16">
         {/* Mobile logo */}
         <div className="lg:hidden flex items-center gap-2 mb-10">
           <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
             <Wallet className="h-5 w-5 text-white" />
           </div>
-          <span className="text-lg font-bold text-gray-900">
+          <span className="text-lg font-bold text-foreground">
             {isEmpresas ? "CODA Empresas" : "CODA"}
           </span>
         </div>
 
         <div className="w-full max-w-md mx-auto space-y-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-3xl font-bold text-foreground">
               {requires2FA ? "Verifica tu identidad" : "Iniciar sesión"}
             </h1>
-            <p className="mt-2 text-gray-500">
+            <p className="mt-2 text-muted-foreground">
               {requires2FA
                 ? `Ingresa el código enviado a ${email}`
                 : isEmpresas
@@ -245,13 +245,13 @@ export default function Login() {
           </div>
 
           {error && (
-            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            <div role="alert" className="rounded-xl border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400">
               {error}
             </div>
           )}
 
           {showSlowHint && !error && (
-            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-600 flex items-center gap-2">
+            <div className="rounded-xl border border-blue-200 dark:border-blue-500/20 bg-blue-50 dark:bg-blue-500/10 px-4 py-3 text-sm text-blue-600 dark:text-blue-400 flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin shrink-0" />
               Iniciando el servidor, esto toma unos segundos la primera vez…
             </div>
@@ -261,13 +261,13 @@ export default function Login() {
             /* ── Forgot password panel ── */
             forgotSent ? (
               <div className="space-y-5">
-                <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-4 text-sm text-green-700 space-y-1">
+                <div className="rounded-xl border border-green-200 dark:border-green-500/20 bg-green-50 dark:bg-green-500/10 px-4 py-4 text-sm text-green-700 dark:text-green-400 space-y-1">
                   <p className="font-medium">Revisa tu correo</p>
-                  <p className="text-green-600">Si el correo <strong>{forgotEmail}</strong> está registrado, recibirás las instrucciones para restablecer tu contraseña.</p>
+                  <p className="text-green-600 dark:text-green-400">Si el correo <strong>{forgotEmail}</strong> está registrado, recibirás las instrucciones para restablecer tu contraseña.</p>
                 </div>
                 <button
                   type="button"
-                  className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
                   onClick={() => { setShowForgot(false); setForgotSent(false); setForgotEmail(""); setError(""); }}
                 >
                   <ArrowLeft className="h-3.5 w-3.5" /> Volver al inicio de sesión
@@ -276,15 +276,15 @@ export default function Login() {
             ) : (
               <form onSubmit={handleForgotPassword} className="space-y-5">
                 <div>
-                  <p className="text-sm text-gray-500 mb-4">
+                  <p className="text-sm text-muted-foreground mb-4">
                     Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.
                   </p>
                   <div className="space-y-1.5">
-                    <label htmlFor="forgot-email" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="forgot-email" className="block text-sm font-medium text-foreground">
                       Correo electrónico
                     </label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <input
                         id="forgot-email"
                         type="email"
@@ -293,7 +293,7 @@ export default function Login() {
                         onChange={e => setForgotEmail(e.target.value)}
                         placeholder="tu@correo.cl"
                         disabled={forgotLoading}
-                        className="flex h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                        className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                       />
                     </div>
                   </div>
@@ -307,7 +307,7 @@ export default function Login() {
                 </Button>
                 <button
                   type="button"
-                  className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
                   onClick={() => { setShowForgot(false); setForgotEmail(""); setError(""); }}
                 >
                   <ArrowLeft className="h-3.5 w-3.5" /> Volver
@@ -317,11 +317,11 @@ export default function Login() {
           ) : requires2FA ? (
             <form onSubmit={handleVerify2FA} className="space-y-5">
               <div className="space-y-1.5">
-                <label htmlFor="otp" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="otp" className="block text-sm font-medium text-foreground">
                   Código de verificación
                 </label>
                 <div className="relative">
-                  <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input
                     id="otp"
                     type="text"
@@ -334,7 +334,7 @@ export default function Login() {
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
                     placeholder="123456"
                     disabled={isLoading}
-                    className="flex h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 tracking-widest text-center font-mono text-lg"
+                    className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 tracking-widest text-center font-mono text-lg"
                   />
                 </div>
               </div>
@@ -344,7 +344,7 @@ export default function Login() {
               </Button>
 
               <div className="flex items-center justify-between">
-                <button type="button" className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1" onClick={() => { setRequires2FA(false); setOtpCode(""); setError(""); }}>
+                <button type="button" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1" onClick={() => { setRequires2FA(false); setOtpCode(""); setError(""); }}>
                   <ArrowLeft className="h-3.5 w-3.5" /> Volver
                 </button>
                 <button type="button" className="text-sm text-blue-600 hover:underline flex items-center gap-1" onClick={handleResendCode} disabled={isLoading}>
@@ -355,11 +355,11 @@ export default function Login() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-1.5">
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="email" className="block text-sm font-medium text-foreground">
                   Correo electrónico
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input
                     id="email"
                     name="email"
@@ -370,17 +370,17 @@ export default function Login() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="tu@correo.cl"
                     disabled={isLoading}
-                    className="flex h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                    className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="password" className="block text-sm font-medium text-foreground">
                   Contraseña
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                   <input
                     id="password"
                     name="password"
@@ -391,12 +391,12 @@ export default function Login() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     disabled={isLoading}
-                    className="flex h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-11 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                    className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-11 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                   />
                   <button
                     type="button"
                     aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-400 hover:text-gray-700"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted-foreground hover:text-foreground"
                     onClick={() => setShowPassword((v) => !v)}
                     tabIndex={-1}
                   >
@@ -431,17 +431,17 @@ export default function Login() {
 
           {/* Footer links */}
           <div className="space-y-3 pt-2">
-            <Link href="/" className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600">
+            <Link href="/" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-gray-600">
               <ArrowLeft className="h-3.5 w-3.5" /> Volver al inicio
             </Link>
             {isEmpresas ? (
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 <Link href={ROUTES.iniciarSesion} className="text-blue-600 hover:underline">
                   Iniciar sesión en CODA Personal
                 </Link>
               </p>
             ) : (
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 <Link href="/empresas/login" className="text-blue-600 hover:underline">
                   ¿Eres empresa? CODA Empresas →
                 </Link>

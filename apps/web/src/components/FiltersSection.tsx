@@ -126,8 +126,8 @@ export default function FiltersSection({
   const termOptions = getTermOptions();
 
   return (
-    <div className={cn("bg-gray-50 p-4 rounded-lg mb-6 flex flex-wrap items-center gap-4", className)}>
-      <div className="font-medium text-gray-700">Filtros:</div>
+    <div className={cn("bg-muted/50 p-4 rounded-lg mb-6 flex flex-wrap items-center gap-4", className)}>
+      <div className="font-medium text-foreground">Filtros:</div>
 
       <div className="relative">
         <Select value={filters.type} onValueChange={(value) => handleFilterChange("type", value)}>

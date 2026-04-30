@@ -24,7 +24,7 @@ export default function ProgressIndicator({ steps, onSelect }: ProgressIndicator
                   disabled={!isEnabled}
                   onClick={() => isEnabled && onSelect?.(step.id)}
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors
-                    ${isEnabled ? 'bg-primary hover:brightness-110' : 'bg-gray-200 text-gray-500'}`}
+                    ${isEnabled ? 'bg-primary hover:brightness-110' : 'bg-muted text-muted-foreground'}`}
                 >
                   {step.state === 'done' ? (
                     <svg
@@ -45,7 +45,7 @@ export default function ProgressIndicator({ steps, onSelect }: ProgressIndicator
                 </button>
                 <div
                   className={`absolute -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap text-sm font-medium
-                    ${isActiveOrDone ? 'text-primary' : 'text-gray-500'}`}
+                    ${isActiveOrDone ? 'text-primary' : 'text-muted-foreground'}`}
                 >
                   {step.label}
                 </div>
@@ -53,7 +53,7 @@ export default function ProgressIndicator({ steps, onSelect }: ProgressIndicator
               {index < steps.length - 1 && (
                 <div
                   className={`flex-grow h-1 mx-4 ${
-                    steps[index + 1].state !== 'locked' ? 'bg-primary' : 'bg-gray-200'
+                    steps[index + 1].state !== 'locked' ? 'bg-primary' : 'bg-muted'
                   }`}
                 />
               )}

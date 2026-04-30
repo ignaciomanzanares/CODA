@@ -110,15 +110,15 @@ export default function PaymentDialog({
         
         <div className="space-y-4">
           {/* Payment Summary */}
-          <div className="bg-gray-50 p-4 rounded-lg text-center">
+          <div className="bg-muted/50 p-4 rounded-lg text-center">
             <h3 className="font-semibold text-lg">{billName}</h3>
-            <p className="text-gray-600 text-sm">
+            <p className="text-muted-foreground text-sm">
               {creatorName && `Solicitado por ${creatorName}`}
             </p>
-            <div className="text-3xl font-bold text-green-600 mt-2">
+            <div className="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">
               ${amount}
             </div>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               Tu parte del gasto
             </p>
           </div>
@@ -152,9 +152,9 @@ export default function PaymentDialog({
           </div>
 
           {/* Instructions */}
-          <div className="bg-blue-50 p-3 rounded-lg text-sm">
-            <p className="text-blue-800 font-medium mb-1">Cómo pagar:</p>
-            <ol className="text-blue-700 space-y-1">
+          <div className="bg-blue-50 dark:bg-blue-500/10 p-3 rounded-lg text-sm">
+            <p className="text-blue-800 dark:text-blue-300 font-medium mb-1">Cómo pagar:</p>
+            <ol className="text-blue-700 dark:text-blue-400 space-y-1">
               <li>1. Elige un método de pago arriba</li>
               <li>2. Envía ${amount} a {creatorName || 'el creador del gasto'}</li>
               <li>3. Incluye &quot;{billName}&quot; en el concepto o nota</li>
@@ -180,7 +180,7 @@ export default function PaymentDialog({
             </Button>
           </div>
 
-          <p className="text-xs text-gray-500 text-center">
+          <p className="text-xs text-muted-foreground text-center">
             CODA no procesa pagos directamente. Serás redirigido a la app de pago que elijas.
           </p>
         </div>

@@ -29,8 +29,8 @@ const brandFeatures = [
 
 function PasswordRequirement({ met, text }: { met: boolean; text: string }) {
   return (
-    <div className={`flex items-center gap-2 text-xs ${met ? "text-green-600" : "text-gray-400"}`}>
-      <CheckCircle2 className={`h-3 w-3 shrink-0 ${met ? "text-green-500" : "text-gray-300"}`} />
+    <div className={`flex items-center gap-2 text-xs ${met ? "text-green-600" : "text-muted-foreground"}`}>
+      <CheckCircle2 className={`h-3 w-3 shrink-0 ${met ? "text-green-500" : "text-muted-foreground/60"}`} />
       {text}
     </div>
   );
@@ -136,19 +136,19 @@ export default function SignUp() {
       </div>
 
       {/* Right: Form */}
-      <div className="flex-1 lg:w-1/2 flex flex-col justify-center bg-white px-6 py-12 sm:px-12 lg:px-16 overflow-y-auto">
+      <div className="flex-1 lg:w-1/2 flex flex-col justify-center bg-background px-6 py-12 sm:px-12 lg:px-16 overflow-y-auto">
         {/* Mobile logo */}
         <div className="lg:hidden flex items-center gap-2 mb-10">
           <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
             <Wallet className="h-5 w-5 text-white" />
           </div>
-          <span className="text-lg font-bold text-gray-900">CODA</span>
+          <span className="text-lg font-bold text-foreground">CODA</span>
         </div>
 
         <div className="w-full max-w-md mx-auto space-y-7">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Crear cuenta</h1>
-            <p className="mt-2 text-gray-500">
+            <h1 className="text-3xl font-bold text-foreground">Crear cuenta</h1>
+            <p className="mt-2 text-muted-foreground">
               ¿Ya tienes cuenta?{" "}
               <Link href={ROUTES.iniciarSesion} className="text-blue-600 hover:underline font-medium">
                 Iniciar sesión
@@ -157,7 +157,7 @@ export default function SignUp() {
           </div>
 
           {error && (
-            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            <div role="alert" className="rounded-xl border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400">
               {error}
             </div>
           )}
@@ -165,11 +165,11 @@ export default function SignUp() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Name */}
             <div className="space-y-1.5">
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="name" className="block text-sm font-medium text-foreground">
                 Nombre completo
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   id="name"
                   name="name"
@@ -180,18 +180,18 @@ export default function SignUp() {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Nombre y apellido"
                   disabled={isLoading}
-                  className="flex h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                  className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                 />
               </div>
             </div>
 
             {/* Email */}
             <div className="space-y-1.5">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="block text-sm font-medium text-foreground">
                 Correo electrónico
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   id="email"
                   name="email"
@@ -202,18 +202,18 @@ export default function SignUp() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="tu@correo.cl"
                   disabled={isLoading}
-                  className="flex h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                  className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                 />
               </div>
             </div>
 
             {/* Password */}
             <div className="space-y-1.5">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground">
                 Contraseña
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <input
                   id="password"
                   name="password"
@@ -224,12 +224,12 @@ export default function SignUp() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   disabled={isLoading}
-                  className="flex h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-11 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                  className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-11 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                 />
                 <button
                   type="button"
                   aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-400 hover:text-gray-700"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowPassword((v) => !v)}
                   tabIndex={-1}
                 >
@@ -248,11 +248,11 @@ export default function SignUp() {
 
             {/* Confirm password */}
             <div className="space-y-1.5">
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
                 Confirmar contraseña
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <input
                   id="confirmPassword"
                   name="confirmPassword"
@@ -263,12 +263,12 @@ export default function SignUp() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   disabled={isLoading}
-                  className="flex h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-11 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                  className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-11 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                 />
                 <button
                   type="button"
                   aria-label={showConfirmPassword ? "Ocultar confirmación" : "Mostrar confirmación"}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-400 hover:text-gray-700"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowConfirmPassword((v) => !v)}
                   tabIndex={-1}
                 >
@@ -290,9 +290,9 @@ export default function SignUp() {
                 checked={acceptedLegal}
                 onChange={(e) => { setAcceptedLegal(e.target.checked); if (e.target.checked) setError(""); }}
                 disabled={isLoading}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 accent-blue-600"
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-blue-600 accent-blue-600"
               />
-              <span className="text-xs text-gray-500 leading-relaxed">
+              <span className="text-xs text-muted-foreground leading-relaxed">
                 He leído y acepto los{" "}
                 <a href={ROUTES.terminos} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:no-underline">
                   Términos y Condiciones
@@ -318,7 +318,7 @@ export default function SignUp() {
             </Button>
           </form>
 
-          <Link href="/" className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600">
+          <Link href="/" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-3.5 w-3.5" /> Volver al inicio
           </Link>
         </div>
