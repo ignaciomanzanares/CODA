@@ -236,7 +236,17 @@ function buildExplainableInsights(
   const insights: string[] = [];
 
   if (total > 0) {
-    if (stability >= 0.75) {
+    // When there are gap months (no data uploaded), adjust the stability message
+    // to reflect the months we actually have data for, not the full window.
+    const monthsWithData = total - liquidity.monthsWithGap;
+    const dataStability = monthsWithData > 0 ? liquidity.monthsWithAbonos / monthsWithData : 0;
+
+    if (liquidity.monthsWithGap > 0 && dataStability >= 0.75) {
+      // User has good stability in uploaded months but gaps in the window
+      insights.push(
+        `Tu estabilidad de ingresos es moderada (abonos en ${liquidity.monthsWithAbonos} de ${total} meses). Subiendo cartolas de los meses faltantes tu score podría mejorar.`
+      );
+    } else if (stability >= 0.75) {
       insights.push(
         `Tu score refleja una buena estabilidad de ingresos: recibiste abonos en ${liquidity.monthsWithAbonos} de los últimos ${total} meses. Esto favorece tu perfil transaccional.`
       );
@@ -253,7 +263,7 @@ function buildExplainableInsights(
 
   if (liquidity.monthsWithGap > 0) {
     insights.push(
-      `En ${liquidity.monthsWithGap} de los ${total} meses no hubo movimientos en cuenta; se utilizó el último saldo conocido para el cálculo, según la norma de 12 meses.`
+      `No tenemos datos de ${liquidity.monthsWithGap} de los ${total} meses de la ventana de análisis. Sube más cartolas para cubrir la ventana completa y obtener un score más preciso.`
     );
   }
 
