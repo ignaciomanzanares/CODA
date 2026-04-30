@@ -253,10 +253,10 @@ export default function Profile() {
   if (!isAuthenticated) {
     return (
       <div className="container py-8 text-center">
-        <div className="bg-white shadow rounded-lg p-8 max-w-lg mx-auto">
-          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Autenticación requerida</h2>
-          <p className="text-gray-600">Debes iniciar sesión para ver tu perfil.</p>
+        <div className="bg-card shadow rounded-lg p-8 max-w-lg mx-auto">
+          <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-foreground mb-4">Autenticación requerida</h2>
+          <p className="text-muted-foreground">Debes iniciar sesión para ver tu perfil.</p>
         </div>
       </div>
     );
@@ -455,8 +455,8 @@ export default function Profile() {
     <div className="container py-8 space-y-8">
       {/* Header Section */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Configuración del perfil</h1>
-        <p className="text-gray-600">Gestiona tu cuenta y preferencias</p>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Configuración del perfil</h1>
+        <p className="text-muted-foreground">Gestiona tu cuenta y preferencias</p>
       </div>
 
       {/* Profile Overview Card */}
@@ -470,10 +470,10 @@ export default function Profile() {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-2xl font-bold text-foreground">
                   {user?.name || user?.email || "User"}
                 </h2>
-                <p className="text-gray-600 flex items-center">
+                <p className="text-muted-foreground flex items-center">
                   <Mail className="h-4 w-4 mr-2" />
                   {user?.email}
                 </p>
@@ -554,9 +554,9 @@ export default function Profile() {
                     type="email"
                     value={profileData.email}
                     disabled
-                    className="bg-gray-50"
+                    className="bg-muted/50"
                   />
-                  <p className="text-sm text-gray-500">El correo no se puede cambiar aquí por seguridad. Contacta soporte si necesitas actualizarlo.</p>
+                  <p className="text-sm text-muted-foreground">El correo no se puede cambiar aquí por seguridad. Contacta soporte si necesitas actualizarlo.</p>
                 </div>
                 {isEditing && (
                   <Button onClick={handleProfileUpdate} className="w-full">
@@ -579,13 +579,13 @@ export default function Profile() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Account ID</Label>
-                  <div className="text-sm text-gray-600 font-mono bg-gray-50 p-2 rounded break-all">
+                  <div className="text-sm text-muted-foreground font-mono bg-muted/50 p-2 rounded break-all">
                     {user?.userId || "N/A"}
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Login Provider</Label>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-muted-foreground">
                     📧 Correo y contraseña
                   </div>
                 </div>
@@ -595,7 +595,7 @@ export default function Profile() {
                 </div>
                 <div className="space-y-2">
                   <Label>Last Login</Label>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-muted-foreground">
                     {new Date().toLocaleString()}
                   </div>
                 </div>
@@ -620,8 +620,8 @@ export default function Profile() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Contraseña</Label>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                    <span className="text-sm text-gray-600">••••••••</span>
+                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded">
+                    <span className="text-sm text-muted-foreground">••••••••</span>
                     <Button variant="outline" size="sm" onClick={handlePasswordChange}>
                       <Key className="h-4 w-4 mr-2" />
                       Cambiar contraseña
@@ -632,10 +632,10 @@ export default function Profile() {
                   <Label>Autenticación en dos pasos</Label>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-muted-foreground">
                         {mfaEnrolled ? "Activada" : "No activada"}
                       </span>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted-foreground">
                         {mfaEnrolled
                           ? "Tu cuenta pide un segundo factor al iniciar sesión."
                           : "Añade seguridad extra a tu cuenta (CODA)."}
@@ -681,7 +681,7 @@ export default function Profile() {
                 <Separator />
                 <div className="space-y-2">
                   <Label>Sesiones activas</Label>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-muted-foreground">
                     <div className="flex items-center justify-between p-2 bg-green-50 rounded">
                       <span>Sesión actual</span>
                       <Badge variant="secondary">Activa</Badge>
@@ -706,8 +706,8 @@ export default function Profile() {
                   <Label>Notificaciones de inicio de sesión</Label>
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm text-gray-600">Notificaciones por correo al iniciar sesión</span>
-                      <p className="text-xs text-gray-500">Recibe avisos ante actividad sospechosa</p>
+                      <span className="text-sm text-muted-foreground">Notificaciones por correo al iniciar sesión</span>
+                      <p className="text-xs text-muted-foreground">Recibe avisos ante actividad sospechosa</p>
                     </div>
                     <Button variant="outline" size="sm" onClick={handleComingSoon}>
                       <Bell className="h-4 w-4 mr-2" />
@@ -719,8 +719,8 @@ export default function Profile() {
                   <Label>Recuperación de cuenta</Label>
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm text-gray-600">Correo de recuperación: {user?.email}</span>
-                      <p className="text-xs text-gray-500">Recuperación vía «Olvidé mi contraseña» en el inicio de sesión</p>
+                      <span className="text-sm text-muted-foreground">Correo de recuperación: {user?.email}</span>
+                      <p className="text-xs text-muted-foreground">Recuperación vía «Olvidé mi contraseña» en el inicio de sesión</p>
                     </div>
                     <Button variant="outline" size="sm" onClick={handleComingSoon}>
                       <Key className="h-4 w-4 mr-2" />
@@ -793,7 +793,7 @@ export default function Profile() {
                       <div>
                         <span className="text-sm">Notificaciones push</span>
                         {!pushSupported && (
-                          <p className="text-xs text-gray-400">No soportado en este navegador</p>
+                          <p className="text-xs text-muted-foreground">No soportado en este navegador</p>
                         )}
                         {pushSupported && getPushPermission() === "denied" && (
                           <p className="text-xs text-red-400">Permiso denegado en el navegador</p>
@@ -931,7 +931,7 @@ export default function Profile() {
                   <div className="flex items-center justify-between p-3 bg-blue-50 rounded">
                     <div>
                       <span className="font-medium">Premium Plan</span>
-                      <p className="text-sm text-gray-600">Full access to all features</p>
+                      <p className="text-sm text-muted-foreground">Full access to all features</p>
                     </div>
                     <Badge variant="secondary">Active</Badge>
                   </div>

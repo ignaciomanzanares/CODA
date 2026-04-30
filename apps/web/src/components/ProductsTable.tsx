@@ -89,15 +89,15 @@ export default function ProductsTable({
   const getProviderIcon = (category: string) => {
     switch (category) {
       case "loans":
-        return <Landmark className="h-5 w-5 text-gray-500" />;
+        return <Landmark className="h-5 w-5 text-muted-foreground" />;
       case "credit_cards":
-        return <CreditCard className="h-5 w-5 text-gray-500" />;
+        return <CreditCard className="h-5 w-5 text-muted-foreground" />;
       case "savings":
-        return <PiggyBank className="h-5 w-5 text-gray-500" />;
+        return <PiggyBank className="h-5 w-5 text-muted-foreground" />;
       case "insurance":
-        return <ShieldCheck className="h-5 w-5 text-gray-500" />;
+        return <ShieldCheck className="h-5 w-5 text-muted-foreground" />;
       default:
-        return <Landmark className="h-5 w-5 text-gray-500" />;
+        return <Landmark className="h-5 w-5 text-muted-foreground" />;
     }
   };
 
@@ -161,11 +161,11 @@ export default function ProductsTable({
       case "provider":
         return (
           <div className="flex items-center gap-3">
-            <div className="flex-shrink-0 h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center">
+            <div className="flex-shrink-0 h-8 w-8 bg-muted rounded-full flex items-center justify-center">
               {getProviderIcon(category)}
             </div>
             <div>
-              <div className="text-sm font-medium text-gray-900">{product.provider}</div>
+              <div className="text-sm font-medium text-foreground">{product.provider}</div>
               {isAuthenticated && (product as any).matchScore && (
                 <Badge variant="secondary" className="mt-1 text-xs gap-1">
                   <Sparkles className="h-3 w-3" />
@@ -176,7 +176,7 @@ export default function ProductsTable({
           </div>
         );
       case "productType":
-        return <div className="text-sm text-gray-900">{product.productType}</div>;
+        return <div className="text-sm text-foreground">{product.productType}</div>;
       case "interestRate":
         if (category === "savings") {
           return (
@@ -184,7 +184,7 @@ export default function ProductsTable({
               <div className={`text-sm font-medium ${(product.interestRate ?? 0) >= 4 ? "text-green-600" : "text-yellow-600"}`}>
                 {product.interestRate}%
               </div>
-              <div className="text-xs text-gray-500">APY</div>
+              <div className="text-xs text-muted-foreground">APY</div>
             </>
           );
         }
@@ -193,7 +193,7 @@ export default function ProductsTable({
             <div className={`text-sm font-medium ${(product.interestRate ?? 0) < 8 ? "text-green-600" : "text-yellow-600"}`}>
               {product.interestRate}%
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-muted-foreground">
               {category === "loans" ? "Fija" : "Variable"}
             </div>
           </>
@@ -202,10 +202,10 @@ export default function ProductsTable({
         if (isLoanProduct(product)) {
           return (
             <>
-              <div className="text-sm font-medium text-gray-900">
+              <div className="text-sm font-medium text-foreground">
                 ${product.monthlyPayment}
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-muted-foreground">
                 Por {formatCurrencyFn(product.loanAmount)}
               </div>
             </>
@@ -215,7 +215,7 @@ export default function ProductsTable({
       case "term":
         if (isLoanProduct(product)) {
           return (
-            <div className="text-sm text-gray-900">
+            <div className="text-sm text-foreground">
               {product.term} {product.termUnit}
             </div>
           );
@@ -224,7 +224,7 @@ export default function ProductsTable({
       case "rewardsRate": {
         const features = product.features || {};
         return (
-          <div className="text-sm text-gray-900">
+          <div className="text-sm text-foreground">
             {features.rewardsRate ? `${features.rewardsRate}% reembolso` : "Ninguno"}
           </div>
         );
@@ -232,7 +232,7 @@ export default function ProductsTable({
       case "annualFee": {
         const fee = (product.features?.annualFee as number) || 0;
         return (
-          <div className="text-sm text-gray-900">
+          <div className="text-sm text-foreground">
             {fee > 0 ? formatCurrencyFn(fee) : "Sin costo"}
           </div>
         );
@@ -240,7 +240,7 @@ export default function ProductsTable({
       case "minimumBalance": {
         const minBalance = (product.features?.minimumBalance as number) || 0;
         return (
-          <div className="text-sm text-gray-900">
+          <div className="text-sm text-foreground">
             {minBalance > 0 ? formatCurrencyFn(minBalance) : "Sin mínimo"}
           </div>
         );
@@ -252,7 +252,7 @@ export default function ProductsTable({
           .map(([key]) => key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()));
         
         return (
-          <div className="text-sm text-gray-900">
+          <div className="text-sm text-foreground">
             {featuresList.length > 0 ? featuresList.slice(0, 2).join(", ") : "Estándar"}
             {featuresList.length > 2 && "..."}
           </div>
@@ -260,13 +260,13 @@ export default function ProductsTable({
       }
       case "coverage":
         return (
-          <div className="text-sm text-gray-900">
+          <div className="text-sm text-foreground">
             {product.features?.replacementCost ? "Reemplazo total" : "Estándar"}
           </div>
         );
       case "premium":
         return (
-          <div className="text-sm text-gray-900">
+          <div className="text-sm text-foreground">
             Varía según perfil
           </div>
         );
@@ -286,13 +286,13 @@ export default function ProductsTable({
   if (isLoading) {
     return (
       <Card className="overflow-hidden">
-        <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="bg-card shadow rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   {columns.map((column) => (
-                    <TableHead key={column.key} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <TableHead key={column.key} className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       {column.label}
                     </TableHead>
                   ))}
@@ -332,19 +332,19 @@ export default function ProductsTable({
   if (products.length === 0) {
     return (
       <Card className="p-6 text-center">
-        <p className="text-gray-500">No hay productos que coincidan con tus criterios. Prueba a ajustar los filtros.</p>
+        <p className="text-muted-foreground">No hay productos que coincidan con tus criterios. Prueba a ajustar los filtros.</p>
       </Card>
     );
   }
 
   return (
-    <div className="bg-white shadow rounded-lg overflow-hidden">
+    <div className="bg-card shadow rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
               {columns.map((column) => (
-                <TableHead key={column.key} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <TableHead key={column.key} className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   {column.label}
                 </TableHead>
               ))}
@@ -352,7 +352,7 @@ export default function ProductsTable({
           </TableHeader>
           <TableBody>
             {currentProducts.map((product) => (
-              <TableRow key={product.id} className="hover:bg-gray-50">
+              <TableRow key={product.id} className="hover:bg-muted/50">
                 {columns.map((column) => (
                   <TableCell key={`${product.id}-${column.key}`} className="px-6 py-4 whitespace-nowrap">
                     {renderCellContent(product, column.key)}
@@ -364,9 +364,9 @@ export default function ProductsTable({
         </Table>
       </div>
       
-      <div className="px-6 py-4 bg-gray-50">
+      <div className="px-6 py-4 bg-muted/50">
         <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-muted-foreground">
             Mostrando {indexOfFirstProduct + 1} a {Math.min(indexOfLastProduct, products.length)} de {products.length} productos
           </div>
           

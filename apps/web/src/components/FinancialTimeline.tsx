@@ -21,7 +21,7 @@ export default function FinancialTimeline({ goals }: FinancialTimelineProps) {
       case "in_progress":
         return <ArrowRight className="h-4 w-4 text-white" />;
       default:
-        return <Clock className="h-4 w-4 text-gray-500" />;
+        return <Clock className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -33,7 +33,7 @@ export default function FinancialTimeline({ goals }: FinancialTimelineProps) {
       case "in_progress":
         return "bg-primary";
       default:
-        return "bg-gray-200";
+        return "bg-muted";
     }
   };
 
@@ -59,7 +59,7 @@ export default function FinancialTimeline({ goals }: FinancialTimelineProps) {
         <div key={goal.id} className="relative pl-8">
           {/* Vertical line connecting timeline items */}
           {index < goals.length - 1 && (
-            <div className="absolute left-0 top-0 h-full w-px bg-gray-200"></div>
+            <div className="absolute left-0 top-0 h-full w-px bg-muted"></div>
           )}
           
           {/* Timeline dot */}
@@ -68,9 +68,9 @@ export default function FinancialTimeline({ goals }: FinancialTimelineProps) {
           </div>
           
           <div>
-            <div className="text-sm font-medium text-gray-500">{getTimeLabel(goal.timeframe)}</div>
+            <div className="text-sm font-medium text-muted-foreground">{getTimeLabel(goal.timeframe)}</div>
             <div className="font-bold mb-1">{goal.name}</div>
-            <div className="text-gray-500 text-xs">{goal.progress}% Complete</div>
+            <div className="text-muted-foreground text-xs">{goal.progress}% Complete</div>
           </div>
         </div>
       ))}

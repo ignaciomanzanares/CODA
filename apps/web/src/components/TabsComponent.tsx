@@ -32,7 +32,7 @@ export default function TabsComponent({
 
   return (
     <div className={className}>
-      <div className="border-b border-gray-200">
+      <div className="border-b border-border">
         <div className="flex -mb-px">
           {tabs.map((tab) => (
             <button
@@ -41,7 +41,7 @@ export default function TabsComponent({
                 "py-2 px-4 font-medium",
                 activeTab === tab.id
                   ? "text-primary border-b-2 border-primary"
-                  : "text-gray-500 hover:text-primary"
+                  : "text-muted-foreground hover:text-primary"
               )}
               onClick={() => handleTabClick(tab.id)}
               type="button"

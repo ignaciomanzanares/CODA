@@ -246,14 +246,14 @@ export default function NotificationCenter({ className }: NotificationCenterProp
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'success':
-        return 'text-green-600 bg-green-50 border-green-200';
+        return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/20';
       case 'warning':
-        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+        return 'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-500/10 border-yellow-200 dark:border-yellow-500/20';
       case 'error':
-        return 'text-red-600 bg-red-50 border-red-200';
+        return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20';
       case 'info':
       default:
-        return 'text-blue-600 bg-blue-50 border-blue-200';
+        return 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20';
     }
   };
 
@@ -372,16 +372,16 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                     {[1, 2, 3].map(i => (
                       <Card key={i} className="animate-pulse">
                         <CardContent className="p-4">
-                          <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                          <div className="h-3 bg-gray-200 rounded w-full"></div>
+                          <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                          <div className="h-3 bg-muted rounded w-full"></div>
                         </CardContent>
                       </Card>
                     ))}
                   </div>
                 ) : displayNotifications.length === 0 ? (
                   <div className="text-center py-12">
-                    <BellOff className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-500">
+                    <BellOff className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">
                       {activeTab === 'unread' ? 'No hay notificaciones sin leer' : 'Aún no hay notificaciones'}
                     </p>
                   </div>
@@ -390,8 +390,8 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                     {displayNotifications.map((notification: Notification) => (
                       <Card 
                         key={notification.id}
-                        className={`cursor-pointer transition-colors hover:bg-gray-50 ${
-                          !notification.isRead ? 'border-l-4 border-l-blue-500 bg-blue-50/30' : ''
+                        className={`cursor-pointer transition-colors hover:bg-muted/50 ${
+                          !notification.isRead ? 'border-l-4 border-l-primary bg-primary/5' : ''
                         }`}
                         onClick={() => handleNotificationClick(notification)}
                       >
@@ -404,17 +404,17 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between mb-1">
-                                <p className="font-semibold text-sm text-gray-900 truncate">
+                                <p className="font-semibold text-sm text-foreground truncate">
                                   {notification.title}
                                 </p>
                                 <div className="flex items-center gap-1 ml-2">
-                                  <span className="text-xs text-gray-500 whitespace-nowrap">
+                                  <span className="text-xs text-muted-foreground whitespace-nowrap">
                                     {notification.createdAt ? formatRelativeTime(notification.createdAt) : 'N/A'}
                                   </span>
                                   <span className="text-lg">{getCategoryIcon(String(notification.category ?? ''))}</span>
                                 </div>
                               </div>
-                              <p className="text-sm text-gray-600 mb-2">
+                              <p className="text-sm text-muted-foreground mb-2">
                                 {truncateText(String(notification.message ?? ''), 100)}
                               </p>
                               <div className="flex items-center justify-between">
@@ -444,7 +444,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                                       deleteNotificationMutation.mutate(Number(notification.id) as any);
                                     }}
                                     disabled={deleteNotificationMutation.isPending}
-                                    className="h-6 w-6 p-0 text-gray-400 hover:text-red-600"
+                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-red-500"
                                   >
                                     <X className="h-3 w-3" />
                                   </Button>
@@ -463,11 +463,11 @@ export default function NotificationCenter({ className }: NotificationCenterProp
 
           <div className="p-4 sm:p-6 pt-3 sm:pt-4 border-t shrink-0 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
             <div className="text-center">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Gestiona las preferencias de notificaciones en tu{' '}
                 <Button
                   variant="link"
-                  className="p-0 h-auto text-blue-600"
+                  className="p-0 h-auto text-primary"
                   onClick={() => { setIsOpen(false); navigate(ROUTES.perfil); }}
                 >
                   configuración de perfil
