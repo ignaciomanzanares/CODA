@@ -76,6 +76,7 @@ export interface DashboardData {
   score: number | null;                   // 0-100 transactional score
   scoreDelta: number | null;              // vs previous period
   scoreMaxHistory: { date: string; score: number }[];
+  scoreInsights: string[];                // text insights from scoring engine
 
   // ── Credit score (CMF, 0-850) ──
   creditScore: number | null;

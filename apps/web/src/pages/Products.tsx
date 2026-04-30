@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { useAuth, getPersonalToken } from "@/lib/auth";
@@ -277,7 +277,15 @@ function EmptyCategory() {
 export default function Products() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { currency } = useCurrency();
-  const [activeTab, setActiveTab] = useState<TabKey>("all");
+
+  // Read ?tab= param from URL (e.g. from dashboard ActionCards)
+  const initialTab = (() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (tab && (tab === "all" || tab in PRODUCT_CATEGORIES)) return tab as TabKey;
+    return "all" as TabKey;
+  })();
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
 
   // Fetch financial profile data (best-effort, used for ranking)
   const { data: financialSummary } = useQuery({

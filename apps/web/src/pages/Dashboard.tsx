@@ -7,8 +7,10 @@ import type { DashboardPeriod } from "@/types/dashboard";
 // Dashboard subcomponents
 import PeriodToggle from "@/components/dashboard/PeriodToggle";
 import ScoreHero from "@/components/dashboard/ScoreHero";
+import ScoreBreakdown from "@/components/dashboard/ScoreBreakdown";
 import AvailableCard from "@/components/dashboard/AvailableCard";
 import InsightCard from "@/components/dashboard/InsightCard";
+import ActionCards from "@/components/dashboard/ActionCards";
 import FlowDonut from "@/components/dashboard/FlowDonut";
 import SavingsProgress from "@/components/dashboard/SavingsProgress";
 import CategoryCard from "@/components/dashboard/CategoryCard";
@@ -22,12 +24,19 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import SignInBanner from "@/components/SignInBanner";
 
 // Icons
-import { RefreshCw, FileText, Upload, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
+import { RefreshCw, FileText, Upload, ChevronLeft, ChevronRight, RotateCcw, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
 import { apiFetch } from "@/lib/apiFetch";
 import { getPersonalToken } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
+
+const fmtCLP = (n: number) =>
+  new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
+    maximumFractionDigits: 0,
+  }).format(n);
 
 export default function Dashboard() {
   const { isLoading: authLoading, user, isAuthenticated } = useAuth();
@@ -35,11 +44,11 @@ export default function Dashboard() {
   const [monthOffset, setMonthOffset] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isRecategorizing, setIsRecategorizing] = useState(false);
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
   const { setOpen: openUploadDrawer } = useUploadDrawer();
   const { toast } = useToast();
   const { data, isLoading, totalMonths } = useDashboardData(period, monthOffset);
 
-  // Reset offset when switching period type
   const handlePeriodChange = (p: DashboardPeriod) => {
     setPeriod(p);
     setMonthOffset(0);
@@ -47,6 +56,7 @@ export default function Dashboard() {
 
   const handleRecategorizeAll = async () => {
     setIsRecategorizing(true);
+    setShowAdminMenu(false);
     try {
       const token = getPersonalToken();
       const result = await apiFetch("/api/admin/recategorize", {
@@ -74,15 +84,7 @@ export default function Dashboard() {
 
   const refreshAllData = async () => {
     setIsRefreshing(true);
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["/api/transactions/summary"] }),
-      queryClient.invalidateQueries({ queryKey: ["/api/transactions/insights"] }),
-      queryClient.invalidateQueries({ queryKey: ["/api/transactional-score"] }),
-      queryClient.invalidateQueries({ queryKey: ["/api/score-history"] }),
-      queryClient.invalidateQueries({ queryKey: ["financial-summary"] }),
-      queryClient.invalidateQueries({ queryKey: ["/api/transactions/parsed"] }),
-      queryClient.invalidateQueries({ queryKey: ["/api/credit-score"] }),
-    ]);
+    await queryClient.invalidateQueries();
     setTimeout(() => setIsRefreshing(false), 500);
   };
 
@@ -128,43 +130,66 @@ export default function Dashboard() {
             />
           )}
 
-          {/* ── Header + Period Toggle ───────────────────────────────── */}
-          <div className="space-y-4">
+          {/* ── Compact Header ──────────────────────────────────────── */}
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-xl font-bold text-foreground truncate">
                   {greeting}, {firstName}
                 </h1>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {new Date().toLocaleDateString("es-CL", {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "long",
-                  })}
-                </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-1.5"
+                  className="gap-1.5 h-8"
                   onClick={() => openUploadDrawer(true)}
                 >
-                  <Upload className="h-4 w-4" />
-                  <span className="hidden sm:inline">Subir documento</span>
+                  <Upload className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline text-xs">Subir</span>
                 </Button>
                 <Button
                   variant="outline"
                   size="icon"
+                  className="h-8 w-8 text-muted-foreground"
                   onClick={refreshAllData}
                   disabled={isRefreshing}
-                  className="text-muted-foreground"
                 >
-                  <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+                  <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
                 </Button>
+                {/* Admin menu (recategorize, etc.) */}
+                <div className="relative">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground"
+                    onClick={() => setShowAdminMenu((s) => !s)}
+                  >
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  </Button>
+                  {showAdminMenu && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setShowAdminMenu(false)}
+                      />
+                      <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-xl border border-border bg-popover shadow-lg py-1">
+                        <button
+                          onClick={handleRecategorizeAll}
+                          disabled={isRecategorizing}
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors flex items-center gap-2 disabled:opacity-50"
+                        >
+                          <RotateCcw className={cn("h-3 w-3", isRecategorizing && "animate-spin")} />
+                          {isRecategorizing ? "Recategorizando..." : "Recategorizar transacciones"}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
+            {/* Period toggle + month nav */}
             <div className="flex items-center justify-between">
               <PeriodToggle value={period} onChange={handlePeriodChange} />
               {data?.hasData && data.periodLabel && (
@@ -198,7 +223,7 @@ export default function Dashboard() {
           </div>
 
           {/* ═══════════════════════════════════════════════════════════ */}
-          {/* EMPTY STATE — no cartolas uploaded                         */}
+          {/* EMPTY STATE — no documents uploaded                        */}
           {/* ═══════════════════════════════════════════════════════════ */}
           {isAuthenticated && data && !data.hasData && (
             <div className="rounded-2xl border-2 border-dashed border-primary/20 bg-card p-10 text-center space-y-5">
@@ -220,10 +245,12 @@ export default function Dashboard() {
           )}
 
           {/* ═══════════════════════════════════════════════════════════ */}
-          {/* CAPA 1 — HERO (above the fold)                            */}
+          {/* DASHBOARD CONTENT                                          */}
           {/* ═══════════════════════════════════════════════════════════ */}
           {data?.hasData && (
             <>
+              {/* ── CAPA 1: HERO ─────────────────────────────────────── */}
+
               {/* Score Hero */}
               {data.score !== null && (
                 <ScoreHero score={data.score} delta={data.scoreDelta} />
@@ -238,6 +265,15 @@ export default function Dashboard() {
                 />
               )}
 
+              {/* Score Breakdown — how to improve */}
+              {data.score !== null && (
+                <ScoreBreakdown
+                  score={data.score}
+                  insights={data.scoreInsights}
+                  creditScore={data.creditScore}
+                />
+              )}
+
               {/* Balance del período */}
               {(data.totalIncome > 0 || data.totalExpenses > 0) && (
                 <AvailableCard
@@ -247,12 +283,13 @@ export default function Dashboard() {
                 />
               )}
 
+              {/* ── ACTION CARDS — Revenue bridge ────────────────────── */}
+              <ActionCards data={data} />
+
               {/* Insight of the day */}
               {data.insight && <InsightCard insight={data.insight} />}
 
-              {/* ═══════════════════════════════════════════════════════ */}
-              {/* CAPA 2 — FLUJO DEL PERÍODO                            */}
-              {/* ═══════════════════════════════════════════════════════ */}
+              {/* ── CAPA 2: FLUJO DEL PERÍODO ────────────────────────── */}
               <div className="space-y-4">
                 <FlowDonut
                   segments={data.flowSegments}
@@ -267,9 +304,7 @@ export default function Dashboard() {
                 />
               </div>
 
-              {/* ═══════════════════════════════════════════════════════ */}
-              {/* CAPA 3 — DETALLE EXPANDIBLE                           */}
-              {/* ═══════════════════════════════════════════════════════ */}
+              {/* ── CAPA 3: DETALLE EXPANDIBLE ───────────────────────── */}
               <div className="space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                   Detalle por categoría
@@ -277,19 +312,9 @@ export default function Dashboard() {
                 {data.categoryGroups.map((group) => (
                   <CategoryCard key={group.key} group={group} />
                 ))}
-                <button
-                  onClick={handleRecategorizeAll}
-                  disabled={isRecategorizing}
-                  className="flex items-center justify-center gap-1.5 w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                >
-                  <RotateCcw className={cn("h-3 w-3", isRecategorizing && "animate-spin")} />
-                  {isRecategorizing ? "Recategorizando..." : "Recategorizar todas las transacciones"}
-                </button>
               </div>
 
-              {/* ═══════════════════════════════════════════════════════ */}
-              {/* PATRIMONIO                                             */}
-              {/* ═══════════════════════════════════════════════════════ */}
+              {/* ── PATRIMONIO ────────────────────────────────────────── */}
               {data.patrimonio &&
                 (data.patrimonio.totalPatrimonioNeto !== 0 ||
                   data.patrimonio.inversionesLiquidas !== 0 ||
