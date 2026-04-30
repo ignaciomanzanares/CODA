@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, useApi } from "@/lib/api";
 import { useAuth, getPersonalToken } from "@/lib/auth";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { CurrencyCode } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
+import { useToast } from "@/hooks/use-toast";
 
 // Data & ranking
 import seedProducts from "@/data/products.seed.json";
@@ -18,6 +19,9 @@ import { EyebrowLabel } from "@/components/ui/eyebrow-label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 // Icons
 import {
@@ -38,6 +42,9 @@ import {
   ChevronDown,
   ChevronUp,
   Info,
+  Send,
+  Loader2,
+  PartyPopper,
 } from "lucide-react";
 
 // ──────────────────────────────────────────────────────────────
@@ -137,127 +144,320 @@ function ScoreBar({ score }: { score: number }) {
   );
 }
 
+function LeadCaptureDialog({
+  product,
+  open,
+  onOpenChange,
+}: {
+  product: RankedProduct;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { applyToProduct, trackProductEvent } = useApi();
+  const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
+  const [purpose, setPurpose] = useState("");
+  const [amount, setAmount] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const needsAmount = ["creditos_consumo", "creditos_hipotecarios", "lineas_credito"].includes(
+    product.category
+  );
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAuthenticated) return;
+    setSubmitting(true);
+    try {
+      await applyToProduct(Number(product.id), {
+        purpose: purpose || undefined,
+        requestedAmount: amount ? parseInt(amount, 10) : undefined,
+      });
+      setSubmitted(true);
+      toast({
+        title: "Solicitud registrada",
+        description: `Tu interés en ${product.name} de ${product.institution} quedó registrado.`,
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudo registrar tu solicitud. Intenta de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleGoToBank = () => {
+    // Track click
+    trackProductEvent(Number(product.id), "click").catch(() => {});
+    window.open(product.source_url, "_blank", "noopener,noreferrer");
+    onOpenChange(false);
+    // Reset for next open
+    setTimeout(() => {
+      setSubmitted(false);
+      setPurpose("");
+      setAmount("");
+    }, 300);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => {
+      onOpenChange(v);
+      if (!v) setTimeout(() => { setSubmitted(false); setPurpose(""); setAmount(""); }, 300);
+    }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-lg">
+            Solicitar {product.name}
+          </DialogTitle>
+        </DialogHeader>
+
+        {submitted ? (
+          <div className="py-6 text-center space-y-4">
+            <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center mx-auto">
+              <PartyPopper className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground mb-1">¡Solicitud registrada!</p>
+              <p className="text-sm text-muted-foreground">
+                Tu interés quedó guardado. Ahora puedes continuar directamente en el sitio de{" "}
+                <strong>{product.institution}</strong> para completar el proceso.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 pt-2">
+              <Button onClick={handleGoToBank} className="gap-2">
+                <ExternalLink className="h-4 w-4" />
+                Ir a {product.institution}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="rounded-xl bg-muted/50 p-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <span className="text-xs font-bold text-primary">{product.score}</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground text-sm truncate">{product.name}</p>
+                  <p className="text-xs text-muted-foreground">{product.institution}</p>
+                </div>
+              </div>
+              {product.annual_rate_pct !== null && (
+                <p className="text-xs text-muted-foreground">
+                  CAE/Tasa: <strong className="text-foreground">{product.annual_rate_pct.toFixed(2)}%</strong>
+                </p>
+              )}
+            </div>
+
+            {needsAmount && (
+              <div className="space-y-1.5">
+                <Label htmlFor="lead-amount">Monto estimado (CLP)</Label>
+                <Input
+                  id="lead-amount"
+                  type="number"
+                  placeholder="Ej: 5000000"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
+                <p className="text-[11px] text-muted-foreground">Opcional. Ayuda a evaluar tu solicitud.</p>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="lead-purpose">¿Para qué lo necesitas?</Label>
+              <select
+                id="lead-purpose"
+                className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value)}
+              >
+                <option value="">Seleccionar (opcional)</option>
+                <option value="ahorro">Ahorro e inversión</option>
+                <option value="consolidar_deuda">Consolidar deudas</option>
+                <option value="compra_vivienda">Compra de vivienda</option>
+                <option value="vehiculo">Compra de vehículo</option>
+                <option value="educacion">Educación</option>
+                <option value="gastos_personales">Gastos personales</option>
+                <option value="negocio">Emprendimiento o negocio</option>
+                <option value="proteccion">Protección y seguros</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Al solicitar, registramos tu interés para conectarte con {product.institution}.
+              CODA no comparte datos personales sin tu consentimiento explícito.
+            </p>
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" className="flex-1 gap-2" disabled={submitting}>
+                {submitting ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Enviando...</>
+                ) : (
+                  <><Send className="h-4 w-4" /> Solicitar</>
+                )}
+              </Button>
+            </div>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ProductCard({ product, currency }: { product: RankedProduct; currency: CurrencyCode }) {
   const [expanded, setExpanded] = useState(false);
+  const [leadOpen, setLeadOpen] = useState(false);
+  const { isAuthenticated } = useAuth();
   const cfg = ELIGIBILITY_CONFIG[product.eligibility];
   const EligIcon = cfg.icon;
 
   return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-5">
-        <div className="flex items-start gap-4">
-          {/* Score gauge */}
-          <div className="shrink-0 flex flex-col items-center gap-1">
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <span className="text-sm font-bold text-primary">{product.score}</span>
-            </div>
-            <span className="text-[10px] text-muted-foreground">score</span>
-          </div>
-
-          {/* Main content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-start gap-2 mb-1">
-              <span className="text-[11px] font-medium text-muted-foreground">
-                {product.institution}
-              </span>
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full",
-                  cfg.badgeClass
-                )}
-              >
-                <EligIcon className="h-3 w-3" />
-                {cfg.label}
-              </span>
-            </div>
-
-            <h3 className="font-semibold text-foreground leading-snug mb-1">
-              {product.name}
-            </h3>
-            <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-              {product.short_description}
-            </p>
-
-            {/* Key metrics row */}
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-3">
-              {product.annual_rate_pct !== null && (
-                <span className="text-foreground">
-                  <span className="text-muted-foreground">CAE/Tasa: </span>
-                  <strong>{product.annual_rate_pct.toFixed(2)}%</strong>
-                </span>
-              )}
-              {product.monthly_cost_clp !== null && (
-                <span className="text-foreground">
-                  <span className="text-muted-foreground">Mantención: </span>
-                  <strong>
-                    {product.monthly_cost_clp === 0
-                      ? "Gratis"
-                      : formatCurrency(product.monthly_cost_clp, currency) + "/mes"}
-                  </strong>
-                </span>
-              )}
-              {product.expected_benefit_clp !== null && product.expected_benefit_clp > 0 && (
-                <span className="text-emerald-600 dark:text-emerald-400">
-                  <span className="text-muted-foreground">Beneficio est.: </span>
-                  <strong>+{formatCurrency(product.expected_benefit_clp, currency)}/año</strong>
-                </span>
-              )}
-            </div>
-
-            {/* Score bar */}
-            <ScoreBar score={product.score} />
-          </div>
-        </div>
-
-        {/* Expand / Collapse reasons + CTA */}
-        <div className="mt-3 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
-          <button
-            onClick={() => setExpanded(v => !v)}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Info className="h-3.5 w-3.5" />
-            {expanded ? "Ocultar razones" : "Ver razones"}
-            {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          </button>
-          <a
-            href={product.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-          >
-            Ver en {product.institution}
-            <ExternalLink className="h-3 w-3" />
-          </a>
-        </div>
-
-        {/* Reasons */}
-        {expanded && product.reasons.length > 0 && (
-          <div className="mt-3 space-y-1.5">
-            {product.reasons.map((r, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "flex items-start gap-2 text-xs rounded-lg px-3 py-2",
-                  r.weight > 0
-                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
-                    : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
-                )}
-              >
-                {r.weight > 0 ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                ) : (
-                  <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                )}
-                {r.explanation_es}
+    <>
+      <Card className="overflow-hidden">
+        <CardContent className="p-5">
+          <div className="flex items-start gap-4">
+            {/* Score gauge */}
+            <div className="shrink-0 flex flex-col items-center gap-1">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <span className="text-sm font-bold text-primary">{product.score}</span>
               </div>
-            ))}
-            <p className="text-[11px] text-muted-foreground px-1 pt-1 leading-relaxed">
-              {product.disclosure}
-            </p>
+              <span className="text-[10px] text-muted-foreground">score</span>
+            </div>
+
+            {/* Main content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-start gap-2 mb-1">
+                <span className="text-[11px] font-medium text-muted-foreground">
+                  {product.institution}
+                </span>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full",
+                    cfg.badgeClass
+                  )}
+                >
+                  <EligIcon className="h-3 w-3" />
+                  {cfg.label}
+                </span>
+              </div>
+
+              <h3 className="font-semibold text-foreground leading-snug mb-1">
+                {product.name}
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                {product.short_description}
+              </p>
+
+              {/* Key metrics row */}
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-3">
+                {product.annual_rate_pct !== null && (
+                  <span className="text-foreground">
+                    <span className="text-muted-foreground">CAE/Tasa: </span>
+                    <strong>{product.annual_rate_pct.toFixed(2)}%</strong>
+                  </span>
+                )}
+                {product.monthly_cost_clp !== null && (
+                  <span className="text-foreground">
+                    <span className="text-muted-foreground">Mantención: </span>
+                    <strong>
+                      {product.monthly_cost_clp === 0
+                        ? "Gratis"
+                        : formatCurrency(product.monthly_cost_clp, currency) + "/mes"}
+                    </strong>
+                  </span>
+                )}
+                {product.expected_benefit_clp !== null && product.expected_benefit_clp > 0 && (
+                  <span className="text-emerald-600 dark:text-emerald-400">
+                    <span className="text-muted-foreground">Beneficio est.: </span>
+                    <strong>+{formatCurrency(product.expected_benefit_clp, currency)}/año</strong>
+                  </span>
+                )}
+              </div>
+
+              {/* Score bar */}
+              <ScoreBar score={product.score} />
+            </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          {/* Expand / Collapse reasons + CTAs */}
+          <div className="mt-3 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
+            <button
+              onClick={() => setExpanded(v => !v)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Info className="h-3.5 w-3.5" />
+              {expanded ? "Ocultar razones" : "Ver razones"}
+              {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </button>
+            <div className="flex items-center gap-2">
+              <a
+                href={product.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Ver en {product.institution}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+              {isAuthenticated && product.eligibility !== "not_eligible" && (
+                <Button
+                  size="sm"
+                  className="h-7 text-xs gap-1.5 rounded-lg"
+                  onClick={() => setLeadOpen(true)}
+                >
+                  <Send className="h-3 w-3" />
+                  Solicitar
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Reasons */}
+          {expanded && product.reasons.length > 0 && (
+            <div className="mt-3 space-y-1.5">
+              {product.reasons.map((r, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    "flex items-start gap-2 text-xs rounded-lg px-3 py-2",
+                    r.weight > 0
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
+                      : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
+                  )}
+                >
+                  {r.weight > 0 ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  ) : (
+                    <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  )}
+                  {r.explanation_es}
+                </div>
+              ))}
+              <p className="text-[11px] text-muted-foreground px-1 pt-1 leading-relaxed">
+                {product.disclosure}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      <LeadCaptureDialog product={product} open={leadOpen} onOpenChange={setLeadOpen} />
+    </>
   );
 }
 
