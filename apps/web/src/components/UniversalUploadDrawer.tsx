@@ -9,6 +9,7 @@
  */
 import { useRef, useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -28,6 +29,9 @@ import {
   XCircle,
   Loader2,
   X,
+  TrendingUp,
+  ArrowRight,
+  Sparkles,
 } from "lucide-react";
 
 type FileState = "pending" | "uploading" | "parsing" | "success" | "error";
@@ -37,6 +41,40 @@ interface FileStatus {
   status: FileState;
   message?: string;
 }
+
+/** Data returned from the upload API after document processing. */
+interface UploadResultData {
+  transactionalScore?: number;
+  recommendedProducts?: string[];
+}
+
+/** Map SFA product codes to marketplace tab keys. */
+function getTabFromCode(code: string): string | null {
+  if (code.startsWith("A")) return "cuentas_ahorro";
+  if (code.startsWith("B")) return "tarjetas_credito";
+  if (code.startsWith("C")) {
+    const num = parseInt(code.slice(1), 10);
+    if (num >= 5 && num <= 11) return "creditos_hipotecarios";
+    return "creditos_consumo";
+  }
+  if (code.startsWith("D")) return "seguros";
+  if (code.startsWith("E")) {
+    const num = parseInt(code.slice(1), 10);
+    if (num >= 100) return "fondos_mutuos";
+    return "depositos_plazo";
+  }
+  return null;
+}
+
+const TAB_LABELS: Record<string, string> = {
+  cuentas_ahorro: "Cuentas de ahorro",
+  tarjetas_credito: "Tarjetas de crédito",
+  creditos_consumo: "Créditos de consumo",
+  creditos_hipotecarios: "Créditos hipotecarios",
+  seguros: "Seguros",
+  depositos_plazo: "Depósitos a plazo",
+  fondos_mutuos: "Fondos mutuos",
+};
 
 const LABEL: Record<FileState, string> = {
   pending: "En espera",
@@ -60,9 +98,11 @@ export default function UniversalUploadDrawer({
   const [files, setFiles] = useState<FileStatus[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [doneCount, setDoneCount] = useState<number | null>(null);
+  const [uploadResult, setUploadResult] = useState<UploadResultData | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { autoPickFile, clearAutoPickFile } = useUploadDrawer();
+  const [, navigate] = useLocation();
 
   // Auto-open file picker when requested via context
   useEffect(() => {
@@ -112,6 +152,7 @@ export default function UniversalUploadDrawer({
   const reset = () => {
     setFiles([]);
     setDoneCount(null);
+    setUploadResult(null);
   };
 
   const uploadAll = async () => {
@@ -122,7 +163,9 @@ export default function UniversalUploadDrawer({
 
     setIsUploading(true);
     setDoneCount(null);
+    setUploadResult(null);
     let successCount = 0;
+    let lastResult: UploadResultData | null = null;
 
     for (const fs of pending) {
       const setStatus = (status: FileState, message?: string) =>
@@ -161,6 +204,15 @@ export default function UniversalUploadDrawer({
           );
         }
 
+        // Capture scoring data from the response
+        const result = json as Record<string, unknown>;
+        if (result.transactionalScore || result.recommendedProducts) {
+          lastResult = {
+            transactionalScore: result.transactionalScore as number | undefined,
+            recommendedProducts: result.recommendedProducts as string[] | undefined,
+          };
+        }
+
         setStatus("success");
         successCount++;
       } catch (e: unknown) {
@@ -180,12 +232,7 @@ export default function UniversalUploadDrawer({
     setDoneCount(successCount);
 
     if (successCount > 0) {
-      toast({
-        title: "Datos actualizados",
-        description: successCount === 1
-          ? "Tu documento fue procesado. Los datos ya se actualizaron."
-          : `${successCount} documentos procesados. Los datos ya se actualizaron.`,
-      });
+      setUploadResult(lastResult);
     }
   };
 
@@ -327,14 +374,83 @@ export default function UniversalUploadDrawer({
             </div>
           )}
 
-          {/* Summary after completion */}
-          {doneCount !== null && (
+          {/* Summary after completion — with smart CTA */}
+          {doneCount !== null && !uploadResult && (
             <p className="text-sm text-center text-muted-foreground">
               {doneCount === total
                 ? `${doneCount} de ${total} documento${total !== 1 ? "s" : ""} procesado${total !== 1 ? "s" : ""} correctamente.`
                 : `${doneCount} de ${total} completado${total !== 1 ? "s" : ""}. Revisa los errores y vuelve a intentarlo.`}
             </p>
           )}
+
+          {/* Post-upload results panel */}
+          {uploadResult && doneCount !== null && doneCount > 0 && (() => {
+            const tabs = [...new Set(
+              (uploadResult.recommendedProducts ?? [])
+                .map(getTabFromCode)
+                .filter((t): t is string => t !== null)
+            )].slice(0, 3);
+
+            return (
+              <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 space-y-3">
+                {/* Score */}
+                {uploadResult.transactionalScore != null && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <TrendingUp className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        Tu score transaccional: {uploadResult.transactionalScore}/100
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Basado en los movimientos de tu cartola
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Recommended categories */}
+                {tabs.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                      Productos recomendados para tu perfil:
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {tabs.map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => {
+                            onOpenChange(false);
+                            navigate(`/productos?tab=${tab}`);
+                          }}
+                          className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                        >
+                          {TAB_LABELS[tab] ?? tab}
+                          <ArrowRight className="h-3 w-3" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Main CTA */}
+                <Button
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={() => {
+                    onOpenChange(false);
+                    navigate(tabs.length > 0 ? `/productos?tab=${tabs[0]}` : "/productos");
+                  }}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Ver recomendaciones personalizadas
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            );
+          })()}
 
           {/* Actions */}
           <div className="flex gap-2 justify-end pt-1">
