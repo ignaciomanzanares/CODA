@@ -126,24 +126,6 @@ function buildProfile(
 // Sub-components
 // ──────────────────────────────────────────────────────────────
 
-function ScoreBar({ score }: { score: number }) {
-  const color =
-    score >= 70 ? "bg-emerald-500" : score >= 45 ? "bg-amber-500" : "bg-red-500";
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-        <div
-          className={cn("h-full rounded-full transition-all", color)}
-          style={{ width: `${score}%` }}
-        />
-      </div>
-      <span className="text-[11px] font-semibold tabular-nums text-muted-foreground w-6 text-right">
-        {score}
-      </span>
-    </div>
-  );
-}
-
 function LeadCaptureDialog({
   product,
   open,
@@ -320,6 +302,93 @@ function LeadCaptureDialog({
   );
 }
 
+function MatchRing({ score }: { score: number }) {
+  const radius = 20;
+  const circumference = 2 * Math.PI * radius;
+  const progress = (score / 100) * circumference;
+  const color =
+    score >= 70
+      ? "text-emerald-500 dark:text-emerald-400"
+      : score >= 45
+        ? "text-amber-500 dark:text-amber-400"
+        : "text-red-500 dark:text-red-400";
+  const strokeColor =
+    score >= 70
+      ? "stroke-emerald-500 dark:stroke-emerald-400"
+      : score >= 45
+        ? "stroke-amber-500 dark:stroke-amber-400"
+        : "stroke-red-500 dark:stroke-red-400";
+
+  return (
+    <div className="shrink-0 flex flex-col items-center gap-0.5">
+      <div className="relative w-14 h-14 flex items-center justify-center">
+        <svg className="w-14 h-14 -rotate-90" viewBox="0 0 48 48">
+          <circle
+            cx="24" cy="24" r={radius}
+            fill="none"
+            className="stroke-muted/40"
+            strokeWidth="3"
+          />
+          <circle
+            cx="24" cy="24" r={radius}
+            fill="none"
+            className={strokeColor}
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference - progress}
+            style={{ transition: "stroke-dashoffset 0.6s ease" }}
+          />
+        </svg>
+        <span className={cn("absolute text-sm font-bold tabular-nums", color)}>
+          {score}
+        </span>
+      </div>
+      <span className="text-[10px] font-medium text-muted-foreground">match</span>
+    </div>
+  );
+}
+
+function BenefitBanner({ benefitClp, currency }: { benefitClp: number; currency: CurrencyCode }) {
+  const monthly = Math.round(benefitClp / 12);
+  return (
+    <div className="flex items-center gap-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200/60 dark:border-emerald-500/20 px-3 py-2">
+      <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center shrink-0">
+        <TrendingDown className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+          Ahorrarías ~{formatCurrency(monthly, currency)}/mes
+        </p>
+        <p className="text-[11px] text-emerald-600/80 dark:text-emerald-400/70">
+          {formatCurrency(benefitClp, currency)} estimados al año vs. promedio del mercado
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function TopReason({ reason }: { reason: RankingReason }) {
+  const isPositive = reason.weight > 0;
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 text-xs rounded-lg px-3 py-2",
+        isPositive
+          ? "bg-emerald-50/60 text-emerald-700 dark:bg-emerald-500/5 dark:text-emerald-300"
+          : "bg-red-50/60 text-red-600 dark:bg-red-500/5 dark:text-red-400"
+      )}
+    >
+      {isPositive ? (
+        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+      ) : (
+        <XCircle className="h-3.5 w-3.5 shrink-0" />
+      )}
+      <span className="leading-snug">{reason.explanation_es}</span>
+    </div>
+  );
+}
+
 function ProductCard({ product, currency }: { product: RankedProduct; currency: CurrencyCode }) {
   const [expanded, setExpanded] = useState(false);
   const [leadOpen, setLeadOpen] = useState(false);
@@ -327,22 +396,21 @@ function ProductCard({ product, currency }: { product: RankedProduct; currency: 
   const cfg = ELIGIBILITY_CONFIG[product.eligibility];
   const EligIcon = cfg.icon;
 
+  const hasBenefit = product.expected_benefit_clp !== null && product.expected_benefit_clp > 0;
+  const topPositiveReason = product.reasons.find(r => r.weight > 0);
+  const remainingReasons = expanded ? product.reasons.slice(1) : [];
+
   return (
     <>
       <Card className="overflow-hidden">
         <CardContent className="p-5">
           <div className="flex items-start gap-4">
-            {/* Score gauge */}
-            <div className="shrink-0 flex flex-col items-center gap-1">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <span className="text-sm font-bold text-primary">{product.score}</span>
-              </div>
-              <span className="text-[10px] text-muted-foreground">score</span>
-            </div>
+            {/* Match ring */}
+            <MatchRing score={product.score} />
 
             {/* Main content */}
             <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-start gap-2 mb-1">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span className="text-[11px] font-medium text-muted-foreground">
                   {product.institution}
                 </span>
@@ -365,7 +433,7 @@ function ProductCard({ product, currency }: { product: RankedProduct; currency: 
               </p>
 
               {/* Key metrics row */}
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-3">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
                 {product.annual_rate_pct !== null && (
                   <span className="text-foreground">
                     <span className="text-muted-foreground">CAE/Tasa: </span>
@@ -382,29 +450,38 @@ function ProductCard({ product, currency }: { product: RankedProduct; currency: 
                     </strong>
                   </span>
                 )}
-                {product.expected_benefit_clp !== null && product.expected_benefit_clp > 0 && (
-                  <span className="text-emerald-600 dark:text-emerald-400">
-                    <span className="text-muted-foreground">Beneficio est.: </span>
-                    <strong>+{formatCurrency(product.expected_benefit_clp, currency)}/año</strong>
-                  </span>
-                )}
               </div>
-
-              {/* Score bar */}
-              <ScoreBar score={product.score} />
             </div>
           </div>
 
-          {/* Expand / Collapse reasons + CTAs */}
+          {/* Benefit banner — prominent */}
+          {hasBenefit && (
+            <div className="mt-3">
+              <BenefitBanner benefitClp={product.expected_benefit_clp!} currency={currency} />
+            </div>
+          )}
+
+          {/* Top reason always visible */}
+          {topPositiveReason && (
+            <div className="mt-2">
+              <TopReason reason={topPositiveReason} />
+            </div>
+          )}
+
+          {/* Expand / Collapse more reasons + CTAs */}
           <div className="mt-3 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
-            <button
-              onClick={() => setExpanded(v => !v)}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Info className="h-3.5 w-3.5" />
-              {expanded ? "Ocultar razones" : "Ver razones"}
-              {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            </button>
+            {product.reasons.length > 1 ? (
+              <button
+                onClick={() => setExpanded(v => !v)}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Info className="h-3.5 w-3.5" />
+                {expanded ? "Ocultar detalles" : `Ver ${product.reasons.length - 1} razón${product.reasons.length - 1 > 1 ? "es" : ""} más`}
+                {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </button>
+            ) : (
+              <div />
+            )}
             <div className="flex items-center gap-2">
               <a
                 href={product.source_url}
@@ -428,10 +505,10 @@ function ProductCard({ product, currency }: { product: RankedProduct; currency: 
             </div>
           </div>
 
-          {/* Reasons */}
-          {expanded && product.reasons.length > 0 && (
+          {/* Remaining reasons */}
+          {expanded && remainingReasons.length > 0 && (
             <div className="mt-3 space-y-1.5">
-              {product.reasons.map((r, i) => (
+              {remainingReasons.map((r, i) => (
                 <div
                   key={i}
                   className={cn(
