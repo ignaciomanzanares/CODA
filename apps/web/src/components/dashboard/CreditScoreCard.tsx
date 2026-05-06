@@ -1,5 +1,11 @@
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, ShieldCheck } from "lucide-react";
+import { TrendingUp, TrendingDown, ShieldCheck, Info } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface CreditScoreCardProps {
   score: number;             // 0-850
@@ -55,6 +61,19 @@ export default function CreditScoreCard({
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Score Crediticio
           </p>
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" className="text-muted-foreground/60 hover:text-muted-foreground transition-colors">
+                  <Info className="h-3.5 w-3.5" />
+                  <span className="sr-only">Más información sobre el Score Crediticio</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[260px] text-xs leading-relaxed">
+                Basado en tu Informe de Deudas de la CMF. Refleja tu historial crediticio formal: deudas vigentes, morosidad y cantidad de acreedores. Escala de 0 a 850.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         {delta !== null && delta !== 0 && (
           <div
