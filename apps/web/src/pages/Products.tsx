@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import seedProducts from "@/data/products.seed.json";
 import { rankProductsByCategory } from "@/lib/product-ranking";
 import { PRODUCT_CATEGORIES } from "@/types/products";
-import type { Product, ProductCategory, UserFinancialProfile, RankedProduct, EligibilityStatus } from "@/types/products";
+import type { Product, ProductCategory, UserFinancialProfile, RankedProduct, RankingReason, EligibilityStatus } from "@/types/products";
 
 // UI
 import { PastelIcon } from "@/components/ui/pastel-icon";

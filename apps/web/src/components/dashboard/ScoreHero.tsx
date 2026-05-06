@@ -1,5 +1,11 @@
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Info } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ScoreHeroProps {
   score: number;           // 0-100
@@ -63,9 +69,24 @@ function HeroGauge({ score }: { score: number }) {
 export default function ScoreHero({ score, delta }: ScoreHeroProps) {
   return (
     <div className="flex flex-col items-center gap-2">
-      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-        Score Transaccional
-      </p>
+      <div className="flex items-center gap-1.5">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Score Transaccional
+        </p>
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" className="text-muted-foreground/60 hover:text-muted-foreground transition-colors">
+                <Info className="h-3.5 w-3.5" />
+                <span className="sr-only">Más información sobre el Score Transaccional</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[260px] text-xs leading-relaxed">
+              Mide tu salud financiera en base a tus movimientos bancarios: estabilidad de ingresos, nivel de ahorro, gastos fijos y liquidez. Se calcula a partir de tu cartola.
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
       <HeroGauge score={score} />
       {delta !== null && delta !== 0 && (
         <div
