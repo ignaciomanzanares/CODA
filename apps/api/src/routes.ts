@@ -544,12 +544,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   /**
    * POST /api/assistant/chat
-   * Chat with the AI financial assistant
+   * Chat with the AI financial assistant (non-streaming fallback)
    */
   app.post("/api/assistant/chat", authenticate, async (req, res) => {
     try {
       const { message, conversationHistory = [] } = req.body;
-      
+
       if (!message || typeof message !== 'string') {
         return res.status(400).json({ error: 'Message is required' });
       }
@@ -565,13 +565,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
         financialContext = {};
       }
 
-      // Call the AI service
       const response = await chat(message, conversationHistory, financialContext);
-
       res.json(response);
     } catch (error) {
       logger.error({ err: error }, 'AI Assistant chat error');
       res.status(500).json({ error: 'Failed to process message' });
+    }
+  });
+
+  /**
+   * POST /api/assistant/chat/stream
+   * SSE streaming chat with the AI financial assistant
+   */
+  app.post("/api/assistant/chat/stream", authenticate, async (req, res) => {
+    try {
+      const { message, conversationHistory = [] } = req.body;
+
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: 'Message is required' });
+      }
+
+      const { getStreamGenerator, parseStructuredResponse } = await import('./services/aiService.js');
+      const { buildFinancialContextForAssistant } = await import('./services/assistantContext.js');
+
+      const userId = getUserIdFromAuth(req);
+      let financialContext: import("./services/aiService.js").FinancialContext = {};
+      try {
+        financialContext = await buildFinancialContextForAssistant(userId);
+      } catch (_e) {
+        financialContext = {};
+      }
+
+      const result = getStreamGenerator(message, conversationHistory, financialContext);
+      if (!result) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.write(`data: ${JSON.stringify({ type: 'error', content: 'IA no configurada en el servidor.' })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      }
+
+      // SSE headers
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+      res.flushHeaders();
+
+      let fullText = '';
+      try {
+        for await (const chunk of result.stream) {
+          fullText += chunk;
+          res.write(`data: ${JSON.stringify({ type: 'chunk', content: chunk })}\n\n`);
+        }
+
+        // Parse the complete response for structured data (suggestions, actionItems)
+        const parsed = parseStructuredResponse(fullText);
+        res.write(`data: ${JSON.stringify({
+          type: 'done',
+          suggestions: parsed.suggestions,
+          actionItems: parsed.actionItems,
+          // If model returned JSON, send the clean message (without JSON wrapper)
+          message: parsed.message !== fullText ? parsed.message : undefined,
+        })}\n\n`);
+      } catch (streamError) {
+        logger.error({ err: streamError }, 'AI stream error');
+        res.write(`data: ${JSON.stringify({ type: 'error', content: 'Error en la respuesta del modelo.' })}\n\n`);
+      }
+
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } catch (error) {
+      logger.error({ err: error }, 'AI Assistant stream error');
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to process message' });
+      } else {
+        res.end();
+      }
     }
   });
 
