@@ -101,8 +101,8 @@ export default function Header() {
 
   return (
     <header className="app-header sticky sticky-safe-top z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 safe-x">
-      <div className="w-full flex h-14 min-h-[3.5rem] flex-nowrap items-center gap-2 pl-2 pr-2 sm:pl-3 sm:pr-3">
-        {/* Izquierda: CODA Empresas / CODA — lo más a la izquierda */}
+      <div className="w-full flex h-14 min-h-[3.5rem] flex-nowrap items-center gap-2 px-3 sm:px-4">
+        {/* Izquierda: CODA logo — siempre visible */}
         <div className="flex shrink-0 items-center min-w-0">
           <Link
             href={isEmpresas ? "/empresas/dashboard" : "/"}
@@ -111,7 +111,7 @@ export default function Header() {
             <div className="rounded-lg bg-primary p-1.5 shrink-0">
               <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
             </div>
-            <span className="text-base sm:text-lg truncate hidden sm:inline">{isEmpresas ? "CODA Empresas" : "CODA"}</span>
+            <span className="text-base sm:text-lg truncate">{isEmpresas ? "CODA" : "CODA"}</span>
           </Link>
         </div>
 
@@ -231,19 +231,34 @@ export default function Header() {
                 {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-72">
-              <div className="flex flex-col mt-6">
-                {/* Only show nav items when authenticated */}
+            <SheetContent side="right" className="overflow-y-auto">
+              <div className="flex flex-col mt-4">
+                {/* User info on mobile */}
+                {isAuthenticated && user && (
+                  <div className="flex items-center gap-3 px-3 pb-4 mb-3 border-b border-border/60">
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
+                        {getInitials()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{displayName || user.email}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Nav items */}
                 {isAuthenticated && (
-                  <nav className="flex flex-col gap-1">
+                  <nav className="flex flex-col gap-0.5">
                     {(isEmpresas ? empresasNavItems : navItems).map((item) => {
                       const Icon = item.icon;
-                      const isActive = location === item.href;
+                      const isActive = location === item.href || location.startsWith(`${item.href}/`);
                       return (
                         <button
                           key={item.href}
                           className={cn(
-                            "flex items-center gap-3 px-3 py-3 text-sm font-medium rounded-md transition-colors text-left min-h-[44px]",
+                            "flex items-center gap-3 px-3 py-3 text-sm font-medium rounded-xl transition-colors text-left",
                             isActive
                               ? "bg-primary/10 text-primary"
                               : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -253,41 +268,58 @@ export default function Header() {
                             setLocation(item.href);
                           }}
                         >
-                          <Icon className="h-5 w-5" />
+                          <Icon className="h-5 w-5 shrink-0" />
                           {item.label}
                         </button>
                       );
                     })}
                   </nav>
                 )}
-                
-                <div className={isAuthenticated ? "border-t mt-4 pt-4" : ""}>
+
+                {/* Switch CODA Personal / Empresas */}
+                {isAuthenticated && (
+                  <div className="border-t border-border/60 mt-3 pt-3">
+                    <button
+                      className="flex items-center gap-3 px-3 py-3 text-sm font-medium rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground text-left w-full"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setLocation(isEmpresas ? ROUTES.panel : "/empresas");
+                      }}
+                    >
+                      {isEmpresas ? <Wallet className="h-5 w-5 shrink-0" /> : <Building2 className="h-5 w-5 shrink-0" />}
+                      {isEmpresas ? "CODA Personal" : "CODA Empresas"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Account actions */}
+                <div className="border-t border-border/60 mt-3 pt-3">
                   {isAuthenticated ? (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-0.5">
                       <button
-                        className="flex items-center gap-3 px-3 py-3 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted hover:text-foreground text-left min-h-[44px]"
+                        className="flex items-center gap-3 px-3 py-3 text-sm font-medium rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground text-left"
                         onClick={() => {
                           setMobileMenuOpen(false);
                           setLocation(ROUTES.perfil);
                         }}
                       >
-                        <User className="h-5 w-5" />
-                        Perfil
+                        <User className="h-5 w-5 shrink-0" />
+                        Configuración
                       </button>
                       <button
-                        className="flex items-center gap-3 px-3 py-3 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted hover:text-foreground text-left min-h-[44px]"
+                        className="flex items-center gap-3 px-3 py-3 text-sm font-medium rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 text-left"
                         onClick={() => {
                           setMobileMenuOpen(false);
                           handleLogout();
                         }}
                       >
-                        <LogOut className="h-5 w-5" />
+                        <LogOut className="h-5 w-5 shrink-0" />
                         Cerrar sesión
                       </button>
                     </div>
                   ) : (
-                    <Button 
-                      className="w-full" 
+                    <Button
+                      className="w-full"
                       onClick={() => {
                         setMobileMenuOpen(false);
                         setLocation(isEmpresas ? "/empresas/login" : ROUTES.iniciarSesion);
