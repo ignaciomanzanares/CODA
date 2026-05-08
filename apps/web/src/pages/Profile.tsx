@@ -496,8 +496,8 @@ export default function Profile() {
         <div className="flex flex-col lg:flex-row gap-6">
 
           {/* Sidebar nav */}
-          <nav className="lg:w-56 shrink-0">
-            <div className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-1 lg:pb-0 scrollbar-none">
+          <nav className="lg:w-56 shrink-0 relative">
+            <div className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 scrollbar-none scroll-smooth">
               {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
@@ -513,6 +513,8 @@ export default function Profile() {
                 </button>
               ))}
             </div>
+            {/* Right fade on mobile */}
+            <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none lg:hidden" />
           </nav>
 
           {/* Content */}

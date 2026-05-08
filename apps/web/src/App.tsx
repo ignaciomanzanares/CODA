@@ -9,6 +9,7 @@ import UniversalUploadDrawer from "./components/UniversalUploadDrawer";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import PWAInstallBanner from "./components/PWAInstallBanner";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PageLoader from "./components/PageLoader";
 import { Toaster } from "@/components/ui/toaster";
@@ -91,6 +92,7 @@ function App() {
         <Route path="/">
           <div className="relative flex min-h-screen flex-col">
             <Header />
+            <PWAInstallBanner />
             <main className="flex-1">
               <Landing />
             </main>
@@ -166,6 +168,7 @@ function App() {
         <Route>
           <div className="relative flex min-h-screen flex-col">
             <Header />
+            <PWAInstallBanner />
             <main className="flex-1">
                 <Switch>
                   <Route path={ROUTES.bienvenida} component={Onboarding} />

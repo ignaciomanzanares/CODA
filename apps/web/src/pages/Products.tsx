@@ -675,9 +675,9 @@ export default function Products() {
           </div>
         )}
 
-        {/* Category tabs — scrollable on mobile */}
-        <div className="-mx-4 sm:mx-0">
-          <div className="flex gap-2 overflow-x-auto px-4 sm:px-0 pb-1 scrollbar-none">
+        {/* Category tabs — scrollable on mobile with fade hint */}
+        <div className="-mx-4 sm:mx-0 relative">
+          <div className="flex gap-2 overflow-x-auto px-4 sm:px-0 pb-2 scrollbar-none scroll-smooth">
             {TABS.map(tab => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -686,7 +686,7 @@ export default function Products() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-medium transition-all shrink-0",
+                    "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-medium transition-all shrink-0",
                     isActive
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
@@ -698,6 +698,8 @@ export default function Products() {
               );
             })}
           </div>
+          {/* Right fade hint — visible only on mobile to signal scrollability */}
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none sm:hidden" />
         </div>
 
         {/* Active category label */}
