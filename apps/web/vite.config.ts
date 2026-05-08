@@ -13,7 +13,10 @@ function manualChunks(id: string): string | undefined {
   }
   if (id.includes("node_modules/wouter")) return "vendor-router";
   if (id.includes("node_modules/@tanstack/react-query")) return "vendor-query";
-  /* recharts depende de react: no separar en chunk propio (evita ciclo vendor-react ↔ vendor-charts) */
+  if (id.includes("node_modules/recharts") || id.includes("node_modules/d3-")) {
+    return "vendor-charts";
+  }
+  if (id.includes("node_modules/@radix-ui")) return "vendor-radix";
   if (id.includes("node_modules/lucide-react")) return "vendor-ui";
   if (
     id.includes("node_modules/react-hook-form") ||
