@@ -17,6 +17,7 @@ import CategoryCard from "@/components/dashboard/CategoryCard";
 import CreditScoreCard from "@/components/dashboard/CreditScoreCard";
 import PatrimonioSidebar from "@/components/dashboard/PatrimonioSidebar";
 import ReferralShareCard from "@/components/dashboard/ReferralShareCard";
+import DashboardSkeleton from "@/components/dashboard/DashboardSkeleton";
 
 // Shared primitives
 import { Button } from "@/components/ui/button";
@@ -91,14 +92,7 @@ export default function Dashboard() {
 
   // ── Loading state ───────────────────────────────────────────────────────
   if (authLoading || isLoading) {
-    return (
-      <div className="w-full max-w-2xl mx-auto px-4 py-16">
-        <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
-          <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Cargando tu dashboard...</p>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   // ── Greeting ────────────────────────────────────────────────────────────
