@@ -126,7 +126,7 @@ export default function Login() {
     return null;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, retryCount = 0) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
@@ -158,6 +158,23 @@ export default function Login() {
         }
       }
     } catch (err) {
+      const status = (err as { status?: number })?.status;
+      const msg = err instanceof Error ? err.message : "";
+      const isColdStart =
+        status === 0 && msg.includes("tardó demasiado") ||
+        (typeof status === "number" && status >= 500);
+
+      // Auto-retry once on cold start (server waking up)
+      if (isColdStart && retryCount < 1) {
+        clearTimeout(slowTimer);
+        setShowSlowHint(true);
+        setError("");
+        // Wait 3s then retry automatically
+        setTimeout(() => {
+          handleSubmit(e, retryCount + 1);
+        }, 3000);
+        return;
+      }
       setError(mapLoginAuthError(err));
     } finally {
       clearTimeout(slowTimer);
@@ -251,9 +268,14 @@ export default function Login() {
           )}
 
           {showSlowHint && !error && (
-            <div className="rounded-xl border border-blue-200 dark:border-blue-500/20 bg-blue-50 dark:bg-blue-500/10 px-4 py-3 text-sm text-blue-600 dark:text-blue-400 flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-              Iniciando el servidor, esto toma unos segundos la primera vez…
+            <div className="rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400 flex items-start gap-2.5">
+              <RefreshCw className="h-4 w-4 animate-spin shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">Despertando el servidor...</p>
+                <p className="text-amber-600 dark:text-amber-400/80 text-xs mt-0.5">
+                  Primera conexión del día. Reintentando automáticamente.
+                </p>
+              </div>
             </div>
           )}
 

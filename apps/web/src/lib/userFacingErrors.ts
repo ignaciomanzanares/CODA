@@ -21,7 +21,7 @@ export function mapLoginAuthError(err: unknown): string {
     if (status === 0) {
       // Network/timeout — apiFetch ya puso un mensaje descriptivo
       if (raw.includes("tardó demasiado")) {
-        return "El servidor está iniciando. Intenta de nuevo en 30 segundos.";
+        return "El servidor está despertando. Intenta de nuevo en unos segundos.";
       }
       return "No podemos conectar con el servidor. Revisa tu conexión.";
     }
@@ -29,7 +29,7 @@ export function mapLoginAuthError(err: unknown): string {
       return "Demasiados intentos. Espera un momento.";
     }
     if (status >= 500) {
-      return "El servidor está iniciando. Intenta de nuevo en 30 segundos.";
+      return "El servidor está despertando. Intenta de nuevo en unos segundos.";
     }
   }
 
