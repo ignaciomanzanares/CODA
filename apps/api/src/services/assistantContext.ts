@@ -1,10 +1,10 @@
 /**
- * Contexto financiero para el asistente: cuentas, gastos, cartolas, metas, score.
+ * Contexto financiero enriquecido para el asistente IA.
+ * Cuentas, gastos, cartolas, metas, score, deudas, transacciones recientes.
  */
 import { storage } from "../storage.js";
 import type { FinancialContext } from "./aiService.js";
 
-/** Cuenta con saldo; incluye `type` para clasificar activos/pasivos. */
 type AccountWithBalance = {
   id: number;
   type?: string | null;
@@ -80,6 +80,7 @@ export async function buildFinancialContextForAssistant(userId: string): Promise
   const creditScoreData = await storage.getCreditScore(userId);
   const goals = await storage.getFinancialGoals(userId);
 
+  // ── Account summary by type ──
   const checkingTotal = accountsWithBalances
     .filter((a) => a.type === "checking" || a.type === "depository")
     .reduce((s, a) => s + parseFloat(a.balance?.current || "0"), 0);
@@ -104,7 +105,28 @@ export async function buildFinancialContextForAssistant(userId: string): Promise
   const totalLiabilities = creditCardDebt + loansTotal;
   const netWorth = totalAssets - totalLiabilities;
 
-  // Enrich context with cartola data when fintoc data is absent or sparse
+  // ── Recent transactions for AI context (last 10 expenses) ──
+  const recentTxForAI = recentTransactions
+    .filter((t) => txAmount(t) < 0)
+    .sort((a, b) => new Date(b.postedAt!).getTime() - new Date(a.postedAt!).getTime())
+    .slice(0, 10)
+    .map((t) => ({
+      description: (t as { description?: string }).description || 'Transacción',
+      amount: Math.abs(txAmount(t)),
+      category: (t as { category?: string }).category || 'Otro',
+      date: t.postedAt ? new Date(t.postedAt).toLocaleDateString('es-CL') : undefined,
+    }));
+
+  // ── Debts breakdown ──
+  const debts: { type: string; balance: number; rate?: number }[] = [];
+  if (creditCardDebt > 0) {
+    debts.push({ type: 'Tarjeta de crédito', balance: creditCardDebt });
+  }
+  if (loansTotal > 0) {
+    debts.push({ type: 'Préstamos', balance: loansTotal });
+  }
+
+  // ── Enrich with cartola data when fintoc is sparse ──
   let finalIncome = monthlyIncome;
   let finalExpenses = monthlyExpenses;
   let finalBalance = totalBalance;
@@ -161,11 +183,9 @@ export async function buildFinancialContextForAssistant(userId: string): Promise
       const avgCartolaIncome = Math.round(cartolaIncome / numMonths);
       const avgCartolaExpenses = Math.round(cartolaExpenses / numMonths);
 
-      // Use cartola data when fintoc data is absent/sparse
       if (avgCartolaIncome > finalIncome) finalIncome = avgCartolaIncome;
       if (avgCartolaExpenses > finalExpenses) finalExpenses = avgCartolaExpenses;
 
-      // Replace spending categories with cartola-based ones if fintoc has none
       if (finalSpendingCategories.length === 0 && Object.keys(catTotals).length > 0) {
         finalSpendingCategories = Object.entries(catTotals)
           .sort((a, b) => b[1] - a[1])
@@ -173,7 +193,6 @@ export async function buildFinancialContextForAssistant(userId: string): Promise
           .map(([name, total]) => ({ name, amount: Math.round(total / numMonths) }));
       }
 
-      // Estimate net worth from cartola when no fintoc accounts
       if (userAccounts.length === 0 && finalBalance > 0) {
         finalNetWorth = finalBalance;
       }
@@ -194,9 +213,14 @@ export async function buildFinancialContextForAssistant(userId: string): Promise
     netWorth: Math.round(finalNetWorth),
     creditScore: creditScoreData?.score ?? undefined,
     topSpendingCategories: finalSpendingCategories,
+    recentTransactions: recentTxForAI,
     financialGoals: goals.slice(0, 5).map((g: { name?: string; currentAmount?: number; targetAmount?: number }) => ({
       name: g?.name ?? "Meta",
       progress: Math.round(((g?.currentAmount ?? 0) / (g?.targetAmount || 1)) * 100),
     })),
+    debts: debts.length > 0 ? debts : undefined,
+    accountSummary: (checkingTotal > 0 || savingsTotal > 0 || creditCardDebt > 0 || investmentsTotal > 0)
+      ? { checking: Math.round(checkingTotal), savings: Math.round(savingsTotal), credit: Math.round(creditCardDebt), investment: Math.round(investmentsTotal) }
+      : undefined,
   };
 }
