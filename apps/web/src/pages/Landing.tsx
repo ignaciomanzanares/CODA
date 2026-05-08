@@ -83,6 +83,14 @@ function useFadeIn<T extends HTMLElement>() {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+
+    // If element is already in viewport on mount, animate immediately
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight && rect.bottom > 0) {
+      el.classList.add("animate-in");
+      return;
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -90,7 +98,7 @@ function useFadeIn<T extends HTMLElement>() {
           observer.unobserve(el);
         }
       },
-      { threshold: 0.12 },
+      { threshold: 0.05, rootMargin: "0px 0px -40px 0px" },
     );
     observer.observe(el);
     return () => observer.disconnect();
