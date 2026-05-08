@@ -22,6 +22,7 @@ import SeoHelmet from "@/components/SeoHelmet";
 import PWAUpdatePrompt from "@/components/PWAUpdatePrompt";
 import { useVisualViewportHeight } from "@/hooks/useVisualViewportHeight";
 import { useBrowserNotifications } from "@/hooks/useBrowserNotifications";
+import { useKeepAlive } from "@/hooks/useKeepAlive";
 
 function VisualViewportRootSync() {
   useVisualViewportHeight();
@@ -30,6 +31,11 @@ function VisualViewportRootSync() {
 
 function BrowserNotificationsInit() {
   useBrowserNotifications();
+  return null;
+}
+
+function KeepAliveInit() {
+  useKeepAlive();
   return null;
 }
 
@@ -85,6 +91,7 @@ function App() {
       <SessionExpiryGuard />
       <VisualViewportRootSync />
       <BrowserNotificationsInit />
+      <KeepAliveInit />
       <SeoHelmet />
       <Suspense fallback={<PageLoader />}>
         <Switch>
