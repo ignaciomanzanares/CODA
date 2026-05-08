@@ -1,7 +1,8 @@
 import { Link } from "wouter";
 import { useAuth } from "@/lib/auth";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation } from "wouter";
+import { Helmet } from "react-helmet-async";
 import ScoreExpressWidget from "@/components/ScoreExpressWidget";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +39,65 @@ import { ROUTES } from "@/lib/routes";
 import { Analytics } from "@/lib/analytics";
 import { useTranslation } from "react-i18next";
 
+// ── FAQ data (shared between UI and JSON-LD schema) ──────────────────────────
+const FAQ_ITEMS = [
+  {
+    q: "¿CODA es gratis de verdad?",
+    a: "Sí, para personas naturales en Chile es 100% gratuito y sin tarjeta de crédito. Para instituciones financieras ofrecemos planes B2B.",
+  },
+  {
+    q: "¿Qué hacen con mis datos?",
+    a: "Tus datos viven encriptados en nuestra infraestructura. Nunca los vendemos ni compartimos sin tu consentimiento explícito, en cumplimiento con la Ley 19.628 y la Ley Fintec 21.521.",
+  },
+  {
+    q: "¿Necesito dar mi RUT para probar CODA?",
+    a: "No. Puedes registrarte solo con correo electrónico. El RUT se solicita cuando calculamos tu score crediticio real con datos CMF.",
+  },
+  {
+    q: "¿Cómo obtengo mi cartola bancaria para subirla?",
+    a: "La descargas desde tu banco en formato PDF. CODA soporta los principales bancos chilenos (Santander, BCI, Banco de Chile, Estado, Itaú, Scotiabank, Security, BICE) y añadimos nuevos formatos regularmente.",
+  },
+  {
+    q: "¿Están regulados por la CMF?",
+    a: "CODA opera bajo el marco de la Ley 21.521 (Ley Fintec). Nuestra inscripción en el Registro de Prestadores de Servicios Financieros (RPSF) está en trámite ante la CMF.",
+  },
+  {
+    q: "¿Puedo borrar mi cuenta y mis datos?",
+    a: "Sí. Desde Configuración puedes eliminar tu cuenta en cualquier momento. Cumplimos con el derecho al olvido bajo la Ley 19.628.",
+  },
+];
+
+const FAQ_JSONLD = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQ_ITEMS.map(({ q, a }) => ({
+    "@type": "Question",
+    name: q,
+    acceptedAnswer: { "@type": "Answer", text: a },
+  })),
+});
+
+// ── Intersection Observer hook for fade-in on scroll ─────────────────────────
+function useFadeIn<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.classList.add("animate-in");
+          observer.unobserve(el);
+        }
+      },
+      { threshold: 0.12 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return ref;
+}
+
 export default function Landing() {
   const { isAuthenticated, isLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -57,8 +117,22 @@ export default function Landing() {
     );
   }
 
+  // Fade-in refs for each section
+  const featuresRef = useFadeIn<HTMLElement>();
+  const scoreRef = useFadeIn<HTMLElement>();
+  const howRef = useFadeIn<HTMLElement>();
+  const categoriesRef = useFadeIn<HTMLElement>();
+  const whyRef = useFadeIn<HTMLElement>();
+  const faqRef = useFadeIn<HTMLElement>();
+  const expressRef = useFadeIn<HTMLDivElement>();
+  const ctaRef = useFadeIn<HTMLElement>();
+
   return (
     <div className="min-h-screen font-sans">
+      {/* FAQPage structured data for rich snippets */}
+      <Helmet>
+        <script type="application/ld+json">{FAQ_JSONLD}</script>
+      </Helmet>
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden bg-[#0a0f1e] text-white">
@@ -205,7 +279,7 @@ export default function Landing() {
       </section>
 
       {/* ── FEATURES ─────────────────────────────────────────────────────── */}
-      <section id="features" className="py-24 bg-white">
+      <section ref={featuresRef} id="features" className="py-24 bg-white fade-section">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16 max-w-2xl mx-auto">
             <p className="text-blue-600 font-semibold text-sm uppercase tracking-widest mb-3">Funcionalidades</p>
@@ -247,7 +321,7 @@ export default function Landing() {
       </section>
 
       {/* ── SCORE PREVIEW ────────────────────────────────────────────────── */}
-      <section className="py-16 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white overflow-hidden relative">
+      <section ref={scoreRef} className="py-16 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white overflow-hidden relative fade-section">
         <div className="absolute inset-0 opacity-[0.06]"
           style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "40px 40px" }} />
         <div className="relative container mx-auto px-4">
@@ -301,7 +375,7 @@ export default function Landing() {
       </section>
 
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
-      <section id="como-funciona" className="py-24 bg-slate-50">
+      <section ref={howRef} id="como-funciona" className="py-24 bg-slate-50 fade-section">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16 max-w-2xl mx-auto">
             <p className="text-blue-600 font-semibold text-sm uppercase tracking-widest mb-3">Proceso</p>
@@ -336,7 +410,7 @@ export default function Landing() {
       </section>
 
       {/* ── PRODUCT CATEGORIES ───────────────────────────────────────────── */}
-      <section className="py-24 bg-white">
+      <section ref={categoriesRef} className="py-24 bg-white fade-section">
         <div className="container mx-auto px-4">
           <div className="text-center mb-14 max-w-2xl mx-auto">
             <p className="text-blue-600 font-semibold text-sm uppercase tracking-widest mb-3">Marketplace</p>
@@ -372,7 +446,7 @@ export default function Landing() {
       </section>
 
       {/* ── WHY CODA ─────────────────────────────────────────────────────── */}
-      <section className="py-24 bg-[#0a0f1e] text-white">
+      <section ref={whyRef} className="py-24 bg-[#0a0f1e] text-white fade-section">
         <div className="container mx-auto px-4">
           <div className="text-center mb-14 max-w-2xl mx-auto">
             <p className="text-blue-400 font-semibold text-sm uppercase tracking-widest mb-3">Diferencial</p>
@@ -421,7 +495,7 @@ export default function Landing() {
       </section>
 
       {/* ── FAQ ──────────────────────────────────────────────────────────── */}
-      <section className="py-24 bg-slate-50">
+      <section ref={faqRef} className="py-24 bg-slate-50 fade-section">
         <div className="container mx-auto px-4">
           <div className="text-center mb-14 max-w-2xl mx-auto">
             <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
@@ -434,32 +508,7 @@ export default function Landing() {
 
           <div className="max-w-2xl mx-auto">
             <Accordion type="single" collapsible className="space-y-2">
-              {[
-                {
-                  q: "¿CODA es gratis de verdad?",
-                  a: "Sí, para personas naturales en Chile es 100% gratuito y sin tarjeta de crédito. Para instituciones financieras ofrecemos planes B2B.",
-                },
-                {
-                  q: "¿Qué hacen con mis datos?",
-                  a: "Tus datos viven encriptados en nuestra infraestructura. Nunca los vendemos ni compartimos sin tu consentimiento explícito, en cumplimiento con la Ley 19.628 y la Ley Fintec 21.521.",
-                },
-                {
-                  q: "¿Necesito dar mi RUT para probar CODA?",
-                  a: "No. Puedes registrarte solo con correo electrónico. El RUT se solicita cuando calculamos tu score crediticio real con datos CMF.",
-                },
-                {
-                  q: "¿Cómo obtengo mi cartola bancaria para subirla?",
-                  a: "La descargas desde tu banco en formato PDF. CODA soporta los principales bancos chilenos (Santander, BCI, Banco de Chile, Estado, Itaú, Scotiabank, Security, BICE) y añadimos nuevos formatos regularmente.",
-                },
-                {
-                  q: "¿Están regulados por la CMF?",
-                  a: "CODA opera bajo el marco de la Ley 21.521 (Ley Fintec). Nuestra inscripción en el Registro de Prestadores de Servicios Financieros (RPSF) está en trámite ante la CMF.",
-                },
-                {
-                  q: "¿Puedo borrar mi cuenta y mis datos?",
-                  a: "Sí. Desde Configuración puedes eliminar tu cuenta en cualquier momento. Cumplimos con el derecho al olvido bajo la Ley 19.628.",
-                },
-              ].map(({ q, a }, i) => (
+              {FAQ_ITEMS.map(({ q, a }, i) => (
                 <AccordionItem
                   key={i}
                   value={`faq-${i}`}
@@ -479,10 +528,12 @@ export default function Landing() {
       </section>
 
       {/* ── Score Express ────────────────────────────────────────────────── */}
-      <ScoreExpressWidget />
+      <div ref={expressRef} className="fade-section">
+        <ScoreExpressWidget />
+      </div>
 
       {/* ── CTA ──────────────────────────────────────────────────────────── */}
-      <section className="py-24 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 text-white">
+      <section ref={ctaRef} className="py-24 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 text-white fade-section">
         <div className="container mx-auto px-4 text-center max-w-2xl">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
             {t("landing.ctaTitle")}
