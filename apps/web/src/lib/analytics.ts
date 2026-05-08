@@ -53,6 +53,12 @@ export const Analytics = {
   goalCreated: () => track("Goal Created"),
   goalCompleted: () => track("Goal Completed"),
 
+  // Referral
+  referralShared: (method: "whatsapp" | "copy") =>
+    track("Referral Shared", { method }),
+  referralSignup: (code: string) =>
+    track("Referral Signup", { referral_code: code }),
+
   // Empresas
   empresaDashboardViewed: () => track("Empresa Dashboard Viewed"),
 };

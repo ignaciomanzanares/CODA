@@ -227,6 +227,25 @@ button,
   max-height: min(80dvh, var(--visual-viewport-height, 100dvh));
 }
 
+/* ─── Landing page: fade-in on scroll ───────────────────────────── */
+.fade-section {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+}
+.fade-section.animate-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .fade-section {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
 /* PWA instalada (standalone): refuerzo de cabecera bajo la barra de estado iOS */
 @media all and (display-mode: standalone) {
   header,

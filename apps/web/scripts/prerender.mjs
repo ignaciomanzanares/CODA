@@ -6,6 +6,9 @@
  * public route with correct <title>, <meta name="description">, and Open
  * Graph tags so link-preview bots and crawlers see useful markup.
  *
+ * Route metadata is sourced from scripts/seo-routes.mjs (shared with
+ * src/lib/seo-routes.ts which drives runtime SEO).
+ *
  * Usage: node scripts/prerender.mjs   (run after `vite build`)
  * Called automatically via: npm run build
  */
@@ -13,126 +16,19 @@
 import { readFileSync, mkdirSync, writeFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { PUBLIC_ROUTES, BASE_URL, DEFAULT_OG_IMAGE } from "./seo-routes.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distDir = join(__dirname, "..", "dist");
-const baseUrl = "https://www.codafinance.cl";
-
-// ──────────────────────────────────────────────────────────────
-// Route definitions
-// Each entry becomes its own dist/<path>/index.html
-// ──────────────────────────────────────────────────────────────
-
-const routes = [
-  {
-    path: "/",
-    title: "CODA — Tu salud financiera en Chile",
-    description:
-      "Sube tu cartola, obtén tu score dual y descubre los mejores productos financieros personalizados para ti. Gratis y seguro.",
-    image: `${baseUrl}/og-image.png`,
-  },
-  {
-    path: "/acerca",
-    title: "Nosotros · CODA",
-    description:
-      "Conoce el equipo detrás de CODA, nuestra misión de democratizar la salud financiera en Chile y nuestra inscripción CMF.",
-    image: `${baseUrl}/og-image.png`,
-  },
-  {
-    path: "/productos",
-    title: "Productos financieros chilenos · CODA",
-    description:
-      "Compara créditos, tarjetas, cuentas, depósitos a plazo, fondos mutuos, APV y más. Ranking personalizado según tu perfil.",
-    image: `${baseUrl}/og-image.png`,
-  },
-  {
-    path: "/info/score-credito",
-    title: "Score crediticio en Chile · CODA",
-    description:
-      "Aprende cómo funciona el score CMF en Chile, qué lo afecta y cómo mejorar tu historial crediticio paso a paso.",
-    image: `${baseUrl}/og-image.png`,
-  },
-  {
-    path: "/metodologia",
-    title: "Metodología de scoring CODA",
-    description:
-      "Transparencia total: así calculamos el score transaccional CODA a partir de tus movimientos bancarios y datos CMF.",
-    image: `${baseUrl}/og-image.png`,
-  },
-  {
-    path: "/instituciones",
-    title: "CODA para instituciones financieras",
-    description:
-      "Integra el score transaccional CODA en tus procesos de evaluación crediticia. Contacta al equipo comercial.",
-    image: `${baseUrl}/og-image.png`,
-  },
-  {
-    path: "/privacidad",
-    title: "Política de privacidad · CODA",
-    description:
-      "CODA cumple con la Ley 19.628 y la Ley Fintec 21.521. Conoce cómo protegemos y usamos tus datos financieros.",
-    image: `${baseUrl}/og-image.png`,
-  },
-  {
-    path: "/terminos",
-    title: "Términos y condiciones · CODA",
-    description:
-      "Condiciones de uso de la plataforma CODA de Chile Open-Data Analytics SpA.",
-    image: `${baseUrl}/og-image.png`,
-  },
-  {
-    path: "/info/comparacion-productos",
-    title: "Comparación de productos financieros · CODA",
-    description:
-      "Compara lado a lado créditos, tarjetas y cuentas de los principales bancos y cooperativas de Chile.",
-    image: `${baseUrl}/og-image.png`,
-  },
-  // ── Info pages also in sitemap but not yet pre-rendered ──
-  {
-    path: "/info/metas-financieras",
-    title: "Metas financieras · CODA",
-    description:
-      "Define y sigue tus metas de ahorro, inversión y reducción de deuda con el asistente financiero de CODA.",
-    image: `${baseUrl}/og-image.png`,
-  },
-  {
-    path: "/info/riesgo-seguros",
-    title: "Análisis de riesgo de seguros · CODA",
-    description:
-      "Evalúa tu exposición a riesgos y encuentra los seguros más adecuados para tu perfil financiero en Chile.",
-    image: `${baseUrl}/og-image.png`,
-  },
-  // ── Conversion pages (TG1 fix: were missing from pre-render) ──
-  {
-    path: "/registro",
-    title: "Crear cuenta gratis · CODA",
-    description:
-      "Regístrate gratis en CODA y obtén tu score crediticio dual con tus datos reales en minutos. Sin tarjeta de crédito.",
-    image: `${baseUrl}/og-image.png`,
-  },
-  {
-    path: "/iniciar-sesion",
-    title: "Iniciar sesión · CODA",
-    description:
-      "Accede a tu panel CODA para ver tu score, gastos y recomendaciones financieras personalizadas.",
-    image: `${baseUrl}/og-image.png`,
-  },
-  {
-    path: "/empresas",
-    title: "CODA Empresas · Salud financiera para PyMEs en Chile",
-    description:
-      "Diagnóstico financiero, análisis de flujo de caja y recomendaciones personalizadas para empresas chilenas. Próximamente.",
-    image: `${baseUrl}/og-image.png`,
-  },
-];
 
 // ──────────────────────────────────────────────────────────────
 // Inject meta tags into the base HTML
 // ──────────────────────────────────────────────────────────────
 
-function buildHtml(template, route) {
-  const { title, description, image, path: routePath } = route;
-  const canonicalUrl = `${baseUrl}${routePath}`;
+function buildHtml(template, path, route) {
+  const { title, description } = route;
+  const image = route.ogImage || DEFAULT_OG_IMAGE;
+  const canonicalUrl = `${BASE_URL}${path}`;
 
   const metaBlock = `
     <title>${title}</title>
@@ -172,19 +68,22 @@ try {
   process.exit(1);
 }
 
-for (const route of routes) {
-  const html = buildHtml(template, route);
+let count = 0;
 
-  if (route.path === "/") {
+for (const [path, route] of Object.entries(PUBLIC_ROUTES)) {
+  const html = buildHtml(template, path, route);
+
+  if (path === "/") {
     // Overwrite root index.html directly
     writeFileSync(join(distDir, "index.html"), html, "utf-8");
     console.log(`[prerender] /  →  dist/index.html`);
   } else {
-    const routeDir = join(distDir, ...route.path.split("/").filter(Boolean));
+    const routeDir = join(distDir, ...path.split("/").filter(Boolean));
     mkdirSync(routeDir, { recursive: true });
     writeFileSync(join(routeDir, "index.html"), html, "utf-8");
-    console.log(`[prerender] ${route.path}  →  dist${route.path}/index.html`);
+    console.log(`[prerender] ${path}  →  dist${path}/index.html`);
   }
+  count++;
 }
 
-console.log(`[prerender] Done — ${routes.length} routes pre-rendered.`);
+console.log(`[prerender] Done — ${count} routes pre-rendered.`);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import {
 import { ROUTES } from "@/lib/routes";
 import { mapUserFacingApiError } from "@/lib/userFacingErrors";
 import { Analytics } from "@/lib/analytics";
+import { getRefFromUrl, storeReferralCode, getStoredReferralCode, clearStoredReferralCode } from "@/lib/referral";
 
 const brandFeatures = [
   { icon: BarChart3, text: "Score crediticio dual basado en tus datos reales" },
@@ -49,6 +50,18 @@ export default function SignUp() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [acceptedLegal, setAcceptedLegal] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+
+  // Capture referral code from URL on mount, persist in sessionStorage
+  useEffect(() => {
+    const refFromUrl = getRefFromUrl();
+    if (refFromUrl) {
+      storeReferralCode(refFromUrl);
+      setReferralCode(refFromUrl);
+    } else {
+      setReferralCode(getStoredReferralCode());
+    }
+  }, []);
 
   if (isAuthenticated) {
     setLocation(ROUTES.panel);
@@ -79,9 +92,14 @@ export default function SignUp() {
       await register(name, email, password, {
         consents: { data_processing: true, scoring: true, recommendations: true, marketing: false },
         policyVersion: "1.0",
+        ...(referralCode ? { referralCode } : {}),
       });
       toast({ title: "¡Cuenta creada!", description: "Bienvenido a CODA. ¡Comencemos!" });
       Analytics.signupCompleted("persona");
+      if (referralCode) {
+        Analytics.referralSignup(referralCode);
+        clearStoredReferralCode();
+      }
       setLocation(ROUTES.panel);
     } catch (err) {
       setError(mapUserFacingApiError(err));

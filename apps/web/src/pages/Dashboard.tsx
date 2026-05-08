@@ -16,6 +16,7 @@ import SavingsProgress from "@/components/dashboard/SavingsProgress";
 import CategoryCard from "@/components/dashboard/CategoryCard";
 import CreditScoreCard from "@/components/dashboard/CreditScoreCard";
 import PatrimonioSidebar from "@/components/dashboard/PatrimonioSidebar";
+import ReferralShareCard from "@/components/dashboard/ReferralShareCard";
 
 // Shared primitives
 import { Button } from "@/components/ui/button";
@@ -288,6 +289,9 @@ export default function Dashboard() {
 
               {/* Insight of the day */}
               {data.insight && <InsightCard insight={data.insight} />}
+
+              {/* Referral — organic growth */}
+              <ReferralShareCard />
 
               {/* ── CAPA 2: FLUJO DEL PERÍODO ────────────────────────── */}
               <div className="space-y-4">
