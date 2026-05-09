@@ -19,7 +19,7 @@ export const authLimiter = rateLimit({
  */
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: isProduction() ? 100 : 1000, // 100 requests per 15 min in production
+  max: isProduction() ? 300 : 1000, // 300 requests per 15 min in production
   message: "Too many requests, please try again later",
   standardHeaders: true,
   legacyHeaders: false,

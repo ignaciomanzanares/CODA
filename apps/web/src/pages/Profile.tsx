@@ -1,5 +1,5 @@
 import { useAuth } from "@/lib/auth";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/lib/api";
@@ -218,7 +218,9 @@ export default function Profile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user]);
 
-  // Load privacy consents
+  // Load privacy consents — only when the privacy tab is active
+  const privacyLoadedRef = useRef(false);
+
   const loadPrivacyConsents = useCallback(async () => {
     if (!isAuthenticated) return;
     setPrivacyConsentError(null);
@@ -226,16 +228,20 @@ export default function Profile() {
     try {
       const p = await getPrivacyConsents();
       setPrivacyPanel(p);
+      privacyLoadedRef.current = true;
     } catch (e) {
       setPrivacyConsentError(e instanceof Error ? e.message : "No se pudieron cargar los consentimientos");
     } finally {
       setPrivacyLoading(false);
     }
-  }, [isAuthenticated, getPrivacyConsents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    if (isAuthenticated) void loadPrivacyConsents();
-  }, [isAuthenticated, loadPrivacyConsents]);
+    if (isAuthenticated && activeSection === "privacy" && !privacyLoadedRef.current) {
+      void loadPrivacyConsents();
+    }
+  }, [isAuthenticated, activeSection, loadPrivacyConsents]);
 
   // Load MFA
   useEffect(() => {
@@ -454,9 +460,9 @@ export default function Profile() {
 
         {/* ── Profile Hero ── */}
         <Card className="overflow-hidden rounded-2xl border-border">
-          <div className="h-20 bg-gradient-to-r from-blue-600 to-indigo-600" />
+          <div className="h-28 bg-gradient-to-r from-blue-600 to-indigo-600" />
           <CardContent className="relative px-5 pb-5 pt-0">
-            <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-10">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12">
               <Avatar className="h-20 w-20 border-4 border-background shadow-lg">
                 <AvatarFallback className="text-xl bg-primary text-white font-bold">
                   {getInitials()}
