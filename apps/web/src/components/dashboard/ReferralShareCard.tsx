@@ -1,9 +1,8 @@
 /**
  * ReferralShareCard
  *
- * Shows the user's referral code and provides quick share actions:
- * WhatsApp deep link + copy-to-clipboard for the referral URL.
- * Displayed on the Dashboard to encourage organic growth.
+ * Compact, collapsible referral banner. Shows code inline with copy + WhatsApp
+ * actions. Starts collapsed to keep the dashboard clean.
  */
 
 import { useState, useMemo } from "react";
@@ -11,12 +10,12 @@ import { useAuth } from "@/lib/auth";
 import { generateReferralCode, getReferralUrl, getWhatsAppShareUrl } from "@/lib/referral";
 import { Analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
-import { Share2, Copy, Check, MessageCircle, Gift } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Copy, Check, MessageCircle, Gift, ChevronDown } from "lucide-react";
 
 export default function ReferralShareCard() {
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const code = useMemo(
     () => (user?.userId ? generateReferralCode(user.userId) : null),
@@ -31,21 +30,17 @@ export default function ReferralShareCard() {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(url);
-      setCopied(true);
-      Analytics.referralShared("copy");
-      setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback: select + copy
       const input = document.createElement("input");
       input.value = url;
       document.body.appendChild(input);
       input.select();
       document.execCommand("copy");
       document.body.removeChild(input);
-      setCopied(true);
-      Analytics.referralShared("copy");
-      setTimeout(() => setCopied(false), 2000);
     }
+    setCopied(true);
+    Analytics.referralShared("copy");
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleWhatsApp = () => {
@@ -54,58 +49,68 @@ export default function ReferralShareCard() {
   };
 
   return (
-    <div className="rounded-2xl border border-emerald-200 dark:border-emerald-500/20 bg-gradient-to-br from-emerald-50/80 to-emerald-50/30 dark:from-emerald-500/10 dark:to-emerald-500/5 p-5 space-y-4">
-      {/* Header */}
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-500/30 flex items-center justify-center shrink-0">
-          <Gift className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+    <div className="rounded-2xl border border-border bg-muted/30 overflow-hidden">
+      {/* Collapsed header — always visible */}
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+      >
+        <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center shrink-0">
+          <Gift className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
         </div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground">Invita a tus amigos</p>
-          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-            Comparte CODA y ayuda a otros a conocer su salud financiera
-          </p>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-foreground">Invita a tus amigos</p>
+          <p className="text-xs text-muted-foreground">Comparte CODA y gana beneficios</p>
         </div>
-      </div>
-
-      {/* Referral code display */}
-      <div className="flex items-center gap-2 rounded-xl bg-white/60 dark:bg-white/5 border border-emerald-100 dark:border-emerald-500/10 px-3 py-2.5">
-        <Share2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <span className="text-sm font-mono font-semibold text-foreground tracking-wide flex-1 truncate">
-          {code}
-        </span>
-        <button
-          onClick={handleCopy}
+        <ChevronDown
           className={cn(
-            "flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg transition-colors",
-            copied
-              ? "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/20"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+            "h-4 w-4 text-muted-foreground transition-transform duration-200",
+            expanded && "rotate-180",
           )}
-        >
-          {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-          {copied ? "Copiado" : "Copiar"}
-        </button>
-      </div>
+        />
+      </button>
 
-      {/* Share buttons */}
-      <div className="flex gap-2">
-        <Button
-          onClick={handleWhatsApp}
-          className="flex-1 h-9 bg-[#25D366] hover:bg-[#20BD5A] text-white text-xs font-semibold rounded-xl gap-1.5"
-        >
-          <MessageCircle className="h-3.5 w-3.5" />
-          Compartir por WhatsApp
-        </Button>
-        <Button
-          variant="outline"
-          onClick={handleCopy}
-          className="h-9 text-xs font-medium rounded-xl gap-1.5 px-3"
-        >
-          <Copy className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Copiar link</span>
-        </Button>
-      </div>
+      {/* Expanded content */}
+      {expanded && (
+        <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
+          {/* Code + copy */}
+          <div className="flex items-center gap-2 rounded-lg bg-background border border-border px-3 py-2">
+            <span className="text-sm font-mono font-semibold text-foreground tracking-wide flex-1 truncate">
+              {code}
+            </span>
+            <button
+              onClick={handleCopy}
+              className={cn(
+                "flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-colors",
+                copied
+                  ? "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/20"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted",
+              )}
+            >
+              {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              {copied ? "Copiado" : "Copiar"}
+            </button>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2">
+            <button
+              onClick={handleWhatsApp}
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground px-3 py-2 rounded-lg hover:bg-muted transition-colors"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              WhatsApp
+            </button>
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground px-3 py-2 rounded-lg hover:bg-muted transition-colors"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              Copiar link
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

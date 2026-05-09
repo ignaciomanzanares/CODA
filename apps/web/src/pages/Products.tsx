@@ -540,9 +540,12 @@ function ProductCard({ product, currency }: { product: RankedProduct; currency: 
 
 function EmptyCategory() {
   return (
-    <div className="text-center py-16 text-muted-foreground">
+    <div className="text-center py-16 text-muted-foreground space-y-2">
       <BarChart3 className="h-10 w-10 mx-auto mb-3 opacity-30" />
-      <p className="text-sm">No hay productos en esta categoría.</p>
+      <p className="text-sm font-medium">No hay productos en esta categoría</p>
+      <p className="text-xs max-w-xs mx-auto">
+        Prueba otra categoría o explora "Todos" para ver el catálogo completo.
+      </p>
     </div>
   );
 }
