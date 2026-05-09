@@ -93,20 +93,6 @@ export const PUBLIC_ROUTES: Record<string, RouteSeoEntry> = {
     changefreq: "monthly",
     priority: "0.6",
   },
-  "/metodologia": {
-    title: "Metodología de scoring | CODA",
-    description:
-      "Conoce la metodología de scoring crediticio y transaccional de CODA, basada en estándares CMF NCG 502.",
-    changefreq: "monthly",
-    priority: "0.5",
-  },
-  "/instituciones": {
-    title: "CODA para instituciones financieras",
-    description:
-      "Integraciones B2B para bancos, cooperativas y compañías de seguros. Diagnóstico financiero automatizado para tus clientes.",
-    changefreq: "monthly",
-    priority: "0.5",
-  },
   "/empresas": {
     title: "CODA Empresas | Gestión financiera empresarial",
     description:

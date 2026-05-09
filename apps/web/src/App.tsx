@@ -72,8 +72,6 @@ const AuditDashboard = lazy(() => import("@/pages/AuditDashboard"));
 const ProductMetrics = lazy(() => import("@/pages/ProductMetrics"));
 const FinancialAssistant = lazy(() => import("@/components/FinancialAssistant"));
 const LegacySplitRedirect = lazy(() => import("@/components/LegacySplitRedirect"));
-const Metodologia = lazy(() => import("@/pages/Metodologia"));
-const Instituciones = lazy(() => import("@/pages/Instituciones"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const BillSplit = lazy(() => import("@/pages/BillSplit"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
@@ -140,8 +138,6 @@ function App() {
         </Route>
         <Route path={ROUTES.privacidad} component={PrivacyPolicy} />
         <Route path={ROUTES.terminos} component={TermsAndConditions} />
-        <Route path="/metodologia" component={Metodologia} />
-        <Route path="/instituciones" component={Instituciones} />
         <Route path="/privacy">
           <Redirect to={ROUTES.privacidad} />
         </Route>
