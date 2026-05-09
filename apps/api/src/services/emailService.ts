@@ -31,6 +31,9 @@ class EmailService {
           user: gmailUser,
           pass: gmailPass, // This should be an App Password, not your regular password
         },
+        connectionTimeout: 10_000, // 10s to connect
+        socketTimeout: 15_000,     // 15s for socket inactivity
+        greetingTimeout: 10_000,   // 10s for SMTP greeting
       });
       logger.info({ provider: 'gmail', user: gmailUser }, 'Email service initialized');
     } else if (process.env.NODE_ENV === 'production') {

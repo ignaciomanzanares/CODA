@@ -811,18 +811,28 @@ export async function handleLoginWithDB(req: Request, res: Response) {
           const otpCode = generateOTP();
           storeOTP(email, otpCode);
 
-          const sent = await emailService.send2FACode(email, otpCode);
+          // Send 2FA email with a 12s timeout — if SMTP is slow, fall through to normal login
+          let sent = false;
+          try {
+            const sendPromise = emailService.send2FACode(email, otpCode);
+            const timeoutPromise = new Promise<false>((resolve) => setTimeout(() => resolve(false), 12_000));
+            sent = await Promise.race([sendPromise, timeoutPromise]);
+          } catch (emailErr) {
+            logger.warn({ err: emailErr, email: redactEmail(email) }, '2FA email threw — falling through to normal login');
+            sent = false;
+          }
+
           logAuthSecurityEvent('twofa_challenge', req, {
             email: redactEmail(email),
             emailSent: sent,
           });
 
           if (!sent) {
+            otpStorage.delete(email);
             if (process.env.NODE_ENV === 'production') {
-              otpStorage.delete(email);
               logAuthSecurityEvent('twofa_email_failed', req, { email: redactEmail(email) });
               // Fall through to normal login instead of blocking the user
-              logger.warn({ email: redactEmail(email) }, '2FA email failed to send — proceeding without 2FA');
+              logger.warn({ email: redactEmail(email) }, '2FA email failed/timed out — proceeding without 2FA');
             }
             if (isDevelopment()) {
               console.log(`[DEV] 2FA code for ${email}: ${otpCode}`);
