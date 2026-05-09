@@ -556,7 +556,12 @@ export default function FinancialAssistant({
                       )}
                     >
                       <div
-                        className="prose prose-sm dark:prose-invert max-w-none [&_*]:break-words"
+                        className={cn(
+                          "prose prose-sm max-w-none [&_*]:break-words",
+                          message.role === "user"
+                            ? "text-primary-foreground [&_*]:text-primary-foreground prose-headings:text-primary-foreground prose-strong:text-primary-foreground prose-code:text-primary-foreground"
+                            : "dark:prose-invert",
+                        )}
                         dangerouslySetInnerHTML={{
                           __html: renderMarkdown(message.content),
                         }}
