@@ -104,11 +104,16 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 (async () => {
   try {
     logger.info("🚀 Starting CODA application...");
-    
+
     // Initialize algorithmic traceability system (CMF compliance)
     initializeTraceabilitySystem();
-    await ensureSeedTraceabilityModels();
-    
+    try {
+      await ensureSeedTraceabilityModels();
+    } catch (seedErr) {
+      // Non-fatal: traceability seed can fail if DB is cold-starting — routes still work
+      logger.warn({ err: seedErr }, "⚠️ Traceability seed failed (non-fatal, will retry on first request)");
+    }
+
     logger.info("✅ Application initialization completed successfully");
   } catch (error) {
     logger.error({ error }, "❌ Error during application initialization");

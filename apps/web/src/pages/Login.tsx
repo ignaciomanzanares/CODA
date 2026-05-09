@@ -130,16 +130,20 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    setShowSlowHint(false);
-    const slowTimer = setTimeout(() => setShowSlowHint(true), 3000);
+
+    // Show "waking up" hint after 3s of waiting
+    if (retryCount === 0) setShowSlowHint(false);
+    const slowTimer = setTimeout(() => setShowSlowHint(true), retryCount > 0 ? 0 : 3000);
+
     try {
       const result = await doLogin(authContext, email, password);
+      clearTimeout(slowTimer);
+      setShowSlowHint(false);
+      setIsLoading(false);
+
       if (result?.requires2FA) {
         setRequires2FA(true);
         toast({ title: "Verificación requerida", description: "Se ha enviado un código a tu correo." });
-        setIsLoading(false);
-        clearTimeout(slowTimer);
-        setShowSlowHint(false);
         return;
       }
       toast({ title: "Sesión iniciada", description: "¡Bienvenido de nuevo!" });
@@ -158,28 +162,29 @@ export default function Login() {
         }
       }
     } catch (err) {
+      clearTimeout(slowTimer);
+
       const status = (err as { status?: number })?.status;
       const msg = err instanceof Error ? err.message : "";
       const isColdStart =
-        status === 0 && msg.includes("tardó demasiado") ||
+        (status === 0 && msg.includes("tardó demasiado")) ||
         (typeof status === "number" && status >= 500);
 
-      // Auto-retry once on cold start (server waking up)
-      if (isColdStart && retryCount < 1) {
-        clearTimeout(slowTimer);
+      // Auto-retry up to 2 times on cold start (server waking up)
+      if (isColdStart && retryCount < 2) {
         setShowSlowHint(true);
         setError("");
-        // Wait 3s then retry automatically
+        // Keep isLoading true — don't reset it
         setTimeout(() => {
           handleSubmit(e, retryCount + 1);
         }, 3000);
-        return;
+        return; // Don't fall through to setIsLoading(false)
       }
-      setError(mapLoginAuthError(err));
-    } finally {
-      clearTimeout(slowTimer);
+
+      // Real error — show it
       setShowSlowHint(false);
       setIsLoading(false);
+      setError(mapLoginAuthError(err));
     }
   };
 
