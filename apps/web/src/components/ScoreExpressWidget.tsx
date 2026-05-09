@@ -210,9 +210,16 @@ const CLP = new Intl.NumberFormat("es-CL", {
 });
 
 export default function ScoreExpressWidget() {
-  const [income, setIncome] = useState(800_000);
+  const [income, setIncomeRaw] = useState(800_000);
   const [expenses, setExpenses] = useState(500_000);
   const [debt, setDebt] = useState(100_000);
+
+  // When income drops, clamp expenses and debt to stay within bounds
+  const setIncome = (v: number) => {
+    setIncomeRaw(v);
+    setExpenses((prev) => Math.min(prev, v));
+    setDebt((prev) => Math.min(prev, Math.round(v * 0.6)));
+  };
   const [showProducts, setShowProducts] = useState(false);
 
   const score = useMemo(
