@@ -19,20 +19,22 @@ interface BillSplitInvitation {
 // ── Resend client (lazy-init) ────────────────────────────────────────────────
 
 let resendClient: import('resend').Resend | null = null;
+let resendInitFailed = false;
 let resendFrom: string = '';
 
-function getResend(): import('resend').Resend | null {
+async function getResend(): Promise<import('resend').Resend | null> {
   if (resendClient) return resendClient;
+  if (resendInitFailed) return null;
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return null;
-  // Dynamic import is already resolved at this point since we imported at top level
   try {
-    const { Resend } = require('resend') as typeof import('resend');
+    const { Resend } = await import('resend');
     resendClient = new Resend(apiKey);
-    resendFrom = process.env.RESEND_FROM || process.env.EMAIL_FROM || 'CODA <info@codafinance.com>';
+    resendFrom = process.env.RESEND_FROM || process.env.EMAIL_FROM || 'CODA <info@codafinance.cl>';
     logger.info({ provider: 'resend', from: resendFrom }, 'Email service: Resend configured');
     return resendClient;
   } catch (e) {
+    resendInitFailed = true;
     logger.warn({ err: e }, 'Failed to initialize Resend client');
     return null;
   }
@@ -47,7 +49,7 @@ async function sendEmail(opts: {
   html: string;
 }): Promise<boolean> {
   // Try Resend first (HTTP API — fast, no SMTP timeout issues)
-  const resend = getResend();
+  const resend = await getResend();
   if (resend) {
     try {
       const { error } = await resend.emails.send({
