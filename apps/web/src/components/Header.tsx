@@ -43,15 +43,10 @@ import { ROUTES } from "@/lib/routes";
 import { useTheme } from "@/lib/useTheme";
 
 const navItems = [
-  // Grupo principal
   { href: ROUTES.panel, label: "Panel", icon: LayoutDashboard },
-{ href: ROUTES.productos, label: "Productos", icon: Store },
+  { href: ROUTES.productos, label: "Productos", icon: Store },
   { href: ROUTES.movimientos, label: "Movimientos", icon: ArrowLeftRight },
-  { href: ROUTES.gastos, label: "Gastos", icon: Wallet },
   { href: ROUTES.plan, label: "Plan", icon: FileText },
-  // Grupo secundario
-  { href: ROUTES.metas, label: "Metas", icon: Target },
-  { href: ROUTES.dividirCuenta, label: "Dividir cuenta", icon: Users },
   { href: ROUTES.conexiones, label: "Conexiones", icon: Link2 },
 ];
 

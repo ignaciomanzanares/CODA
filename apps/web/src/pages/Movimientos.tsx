@@ -1,14 +1,22 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearch } from "wouter";
-import { Receipt, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import {
+  ArrowLeftRight, Receipt, TrendingUp, TrendingDown,
+  Wallet, CreditCard, PiggyBank, BarChart3, Users,
+} from "lucide-react";
 import { PastelIcon } from "@/components/ui/pastel-icon";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { useAuth, getPersonalToken } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
+import BillSplit from "@/pages/BillSplit";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
+import SignInBanner from "@/components/SignInBanner";
+
+// ── Types ────────────────────────────────────────────────────────────────────
 
 interface TransactionSummary {
   summary: {
@@ -19,63 +27,102 @@ interface TransactionSummary {
     transactionCount: number;
     documentCount: number;
   };
-  categoryBreakdown: Record<string, { count: number; total: number }>;
-  monthlyData: Array<{ month: string; income: number; expenses: number }>;
 }
 
-function formatCLP(amount: number): string {
-  return new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 0,
-  }).format(amount);
+interface FinancialSummary {
+  summary: {
+    totalBalance: number;
+    totalAssets: number;
+    totalLiabilities: number;
+    monthlyIncome: number;
+    monthlyExpenses: number;
+    savingsRate: number;
+    accountCount: number;
+    checkingTotal?: number;
+    savingsTotal?: number;
+    creditCardDebt?: number;
+    investmentsTotal?: number;
+  };
 }
 
-function SummaryCard({
-  title,
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+const CLP = new Intl.NumberFormat("es-CL", {
+  style: "currency",
+  currency: "CLP",
+  maximumFractionDigits: 0,
+});
+
+type TabId = "transacciones" | "dividir";
+
+const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
+  { id: "transacciones", label: "Transacciones", icon: Receipt },
+  { id: "dividir", label: "Dividir cuenta", icon: Users },
+];
+
+// ── Account chips ─────────────────────────────────────────────────────────────
+
+function AccountChip({
+  label,
   amount,
   icon: Icon,
-  colorClass,
-  subtitle,
-  pastelColor = "blue",
+  color,
+  negative,
 }: {
-  title: string;
-  amount: string;
+  label: string;
+  amount: number;
   icon: React.ElementType;
-  colorClass: string;
-  subtitle?: string;
-  pastelColor?: "blue" | "green" | "red" | "purple" | "orange" | "slate";
+  color: string;
+  negative?: boolean;
 }) {
+  const sign = negative ? "-" : "";
   return (
-    <Card className="hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 transition-all">
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
-            <p className={`text-2xl font-bold mt-1 ${colorClass}`}>{amount}</p>
-            {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
-          </div>
-          <PastelIcon icon={Icon} color={pastelColor} size="sm" />
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shrink-0">
+      <Icon className={cn("h-3.5 w-3.5", color)} />
+      <div className="min-w-0">
+        <p className="text-[10px] text-muted-foreground leading-none mb-0.5">{label}</p>
+        <p className={cn("text-sm font-semibold tabular-nums leading-none", color)}>
+          {sign}{CLP.format(Math.abs(amount))}
+        </p>
+      </div>
+    </div>
   );
 }
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Movimientos() {
   const { isAuthenticated } = useAuth();
   const { openWithFilePicker } = useUploadDrawer();
   const searchString = useSearch();
-  const initialCategory = useMemo(() => new URLSearchParams(searchString).get("categoria") ?? undefined, [searchString]);
 
-  // Listen for upload trigger from child components (ParsedTransactionsTable buttons)
+  const params = useMemo(() => new URLSearchParams(searchString), [searchString]);
+  const initialCategory = params.get("categoria") ?? undefined;
+  const initialTab = (params.get("tab") as TabId | null) ?? "transacciones";
+
+  const [activeTab, setActiveTab] = useState<TabId>(
+    TABS.some((t) => t.id === initialTab) ? initialTab : "transacciones",
+  );
+
+  // Keep URL in sync when switching tabs
   useEffect(() => {
-    const handleTriggerUpload = () => openWithFilePicker();
-    window.addEventListener("trigger-cartola-upload", handleTriggerUpload);
-    return () => window.removeEventListener("trigger-cartola-upload", handleTriggerUpload);
+    const url = new URL(window.location.href);
+    if (activeTab === "transacciones") {
+      url.searchParams.delete("tab");
+    } else {
+      url.searchParams.set("tab", activeTab);
+    }
+    window.history.replaceState(null, "", url.toString());
+  }, [activeTab]);
+
+  // Upload trigger from child table buttons
+  useEffect(() => {
+    const handle = () => openWithFilePicker();
+    window.addEventListener("trigger-cartola-upload", handle);
+    return () => window.removeEventListener("trigger-cartola-upload", handle);
   }, [openWithFilePicker]);
 
-  const { data: summary, isLoading: isLoadingSummary } = useQuery<TransactionSummary>({
+  const { data: txSummary, isLoading: loadingTx } = useQuery<TransactionSummary>({
     queryKey: ["/api/transactions/summary"],
     queryFn: async () => {
       const token = getPersonalToken();
@@ -88,82 +135,126 @@ export default function Movimientos() {
     staleTime: 30_000,
   });
 
+  const { data: financial } = useQuery<FinancialSummary>({
+    queryKey: ["financial-summary"],
+    queryFn: async () => {
+      const token = getPersonalToken();
+      if (!token) return null;
+      return apiFetch("/api/financial-summary", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+    enabled: isAuthenticated,
+    staleTime: 30_000,
+  });
+
   if (!isAuthenticated) {
     return (
-      <div className="container py-8 max-w-4xl mx-auto">
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Receipt className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h2 className="text-lg font-semibold mb-2">Movimientos</h2>
-            <p className="text-muted-foreground text-sm">
-              Inicia sesión para ver todos tus movimientos bancarios de los últimos 90 días.
-            </p>
-          </CardContent>
-        </Card>
+      <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8">
+        <SignInBanner
+          title="Inicia sesión para ver tus movimientos"
+          description="Conecta tus cuentas o sube cartolas para ver todos tus movimientos en un solo lugar."
+          actionText="Iniciar sesión"
+        />
       </div>
     );
   }
 
-  const hasData = summary && summary.summary.transactionCount > 0;
+  const s = txSummary?.summary;
+  const f = financial?.summary;
+
+  // Account chips: pull from financial-summary if available, fall back to tx summary
+  const hasAccounts = f && (f.checkingTotal || f.savingsTotal || f.creditCardDebt || f.investmentsTotal);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+
         {/* Header */}
         <div className="flex items-center gap-3">
-          <PastelIcon icon={Receipt} color="blue" />
+          <PastelIcon icon={ArrowLeftRight} color="blue" />
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Movimientos</h1>
             <p className="text-sm text-muted-foreground">
-              Todos los movimientos de tus cartolas bancarias
+              Transacciones, cuentas y gastos compartidos
             </p>
           </div>
         </div>
 
-        {/* Summary Cards */}
-        {isLoadingSummary ? (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-24" />
+        {/* Account chips */}
+        {loadingTx && !s ? (
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-12 w-36 rounded-xl shrink-0" />
             ))}
           </div>
-        ) : hasData ? (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <SummaryCard
-              title="Ingresos Totales"
-              amount={formatCLP(summary.summary.totalIncome)}
-              icon={TrendingUp}
-              colorClass="text-emerald-600 dark:text-emerald-400"
-              pastelColor="green"
-              subtitle={`${summary.summary.transactionCount} transacciones`}
-            />
-            <SummaryCard
-              title="Egresos Totales"
-              amount={formatCLP(summary.summary.totalExpenses)}
-              icon={TrendingDown}
-              colorClass="text-red-600 dark:text-red-400"
-              pastelColor="red"
-            />
-            <SummaryCard
-              title="Balance Neto"
-              amount={formatCLP(summary.summary.netBalance)}
-              icon={Wallet}
-              colorClass={summary.summary.netBalance >= 0 ? "text-blue-600 dark:text-blue-400" : "text-orange-600 dark:text-orange-400"}
-              pastelColor={summary.summary.netBalance >= 0 ? "blue" : "orange"}
-              subtitle="Ingresos − Egresos"
-            />
-            <SummaryCard
-              title="Saldo Actual"
-              amount={summary.summary.currentBalance !== null ? formatCLP(summary.summary.currentBalance) : "N/A"}
-              icon={Receipt}
-              colorClass="text-violet-600 dark:text-violet-400"
-              pastelColor="purple"
-              subtitle={`Desde ${summary.summary.documentCount} cartola${summary.summary.documentCount !== 1 ? "s" : ""}`}
-            />
+        ) : (
+          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
+            {hasAccounts ? (
+              <>
+                {(f!.checkingTotal ?? 0) > 0 && (
+                  <AccountChip label="Cuenta corriente" amount={f!.checkingTotal!} icon={Wallet} color="text-blue-600 dark:text-blue-400" />
+                )}
+                {(f!.savingsTotal ?? 0) > 0 && (
+                  <AccountChip label="Ahorro" amount={f!.savingsTotal!} icon={PiggyBank} color="text-emerald-600 dark:text-emerald-400" />
+                )}
+                {(f!.investmentsTotal ?? 0) > 0 && (
+                  <AccountChip label="Inversiones" amount={f!.investmentsTotal!} icon={BarChart3} color="text-violet-600 dark:text-violet-400" />
+                )}
+                {(f!.creditCardDebt ?? 0) > 0 && (
+                  <AccountChip label="Tarjeta crédito" amount={f!.creditCardDebt!} icon={CreditCard} color="text-red-500 dark:text-red-400" negative />
+                )}
+              </>
+            ) : s && s.transactionCount > 0 ? (
+              <>
+                <AccountChip label="Ingresos" amount={s.totalIncome} icon={TrendingUp} color="text-emerald-600 dark:text-emerald-400" />
+                <AccountChip label="Egresos" amount={s.totalExpenses} icon={TrendingDown} color="text-red-500 dark:text-red-400" negative />
+                {s.currentBalance !== null && (
+                  <AccountChip
+                    label="Saldo actual"
+                    amount={s.currentBalance}
+                    icon={Wallet}
+                    color={s.currentBalance >= 0 ? "text-blue-600 dark:text-blue-400" : "text-orange-500"}
+                  />
+                )}
+                <div className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 shrink-0">
+                  <span className="text-xs text-muted-foreground">{s.transactionCount} transacciones</span>
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                    {s.documentCount} cartola{s.documentCount !== 1 ? "s" : ""}
+                  </Badge>
+                </div>
+              </>
+            ) : null}
           </div>
-        ) : null}
+        )}
 
-        <ParsedTransactionsTable mode="movimientos" initialCategory={initialCategory} />
+        {/* Tab bar */}
+        <div className="flex gap-1 border-b border-border">
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+                activeTab === id
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        {activeTab === "transacciones" && (
+          <ParsedTransactionsTable mode="movimientos" initialCategory={initialCategory} />
+        )}
+
+        {activeTab === "dividir" && (
+          <BillSplit embedded />
+        )}
       </div>
     </div>
   );
