@@ -328,7 +328,7 @@ function ExpenseCard({
 }
 
 // Main Component
-export default function BillSplit() {
+export default function BillSplit({ embedded = false }: { embedded?: boolean } = {}) {
   const [ready, setReady] = useState(false);
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const { currency: contextCurrency } = useCurrency();
@@ -658,7 +658,7 @@ export default function BillSplit() {
 
   if (!ready) {
     return (
-      <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <div className={embedded ? "w-full space-y-6" : "w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6"}>
         <h1 className="text-3xl font-bold tracking-tight">Dividir cuenta</h1>
         <p className="text-muted-foreground">Registra y salda gastos compartidos</p>
         <div className="mt-6 h-24 bg-muted rounded animate-pulse" />
@@ -667,7 +667,7 @@ export default function BillSplit() {
   }
 
   return (
-    <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+    <div className={embedded ? "w-full space-y-6" : "w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6"}>
       {showLoading ? (
         <>
           <div className="h-8 bg-muted rounded animate-pulse w-48" />

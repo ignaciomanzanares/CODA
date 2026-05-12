@@ -243,20 +243,16 @@ function App() {
                     </ProtectedRoute>
                   </Route>
                   <Route path={ROUTES.gastos}>
-                    <ProtectedRoute>
-                      <Expenses />
-                    </ProtectedRoute>
+                    <Redirect to={ROUTES.movimientos} />
                   </Route>
                   <Route path="/expenses">
-                    <Redirect to={ROUTES.gastos} />
+                    <Redirect to={ROUTES.movimientos} />
                   </Route>
                   <Route path={ROUTES.dividirCuenta}>
-                    <ErrorBoundary>
-                      <BillSplit />
-                    </ErrorBoundary>
+                    <Redirect to={`${ROUTES.movimientos}?tab=dividir`} />
                   </Route>
                   <Route path="/bill-split">
-                    <Redirect to={ROUTES.dividirCuenta} />
+                    <Redirect to={`${ROUTES.movimientos}?tab=dividir`} />
                   </Route>
                   <Route path={ROUTES.auditoria}>
                     <ProtectedRoute>
@@ -283,12 +279,10 @@ function App() {
                     <Redirect to={ROUTES.productosMetricas} />
                   </Route>
                   <Route path={ROUTES.metas}>
-                    <ProtectedRoute>
-                      <Goals />
-                    </ProtectedRoute>
+                    <Redirect to={ROUTES.plan} />
                   </Route>
                   <Route path="/goals">
-                    <Redirect to={ROUTES.metas} />
+                    <Redirect to={ROUTES.plan} />
                   </Route>
                   <Route path="/plan">
                     <ProtectedRoute>
