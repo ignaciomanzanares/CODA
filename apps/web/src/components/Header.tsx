@@ -39,8 +39,6 @@ import {
 } from "lucide-react";
 import NotificationCenter from "@/components/NotificationCenter";
 import { cn } from "@/lib/utils";
-import { useCurrency } from "@/lib/CurrencyContext";
-import type { CurrencyCode } from "@/lib/utils";
 import { ROUTES } from "@/lib/routes";
 import { useTheme } from "@/lib/useTheme";
 
@@ -71,7 +69,6 @@ export default function Header() {
   const isEmpresas = location.startsWith("/empresas");
   const authContext = isEmpresas ? 'empresas' : 'personal';
   const { isAuthenticated, user, logout } = useAuth(authContext);
-  const { currency, setCurrency } = useCurrency();
   const { theme, toggle: toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -138,20 +135,6 @@ export default function Header() {
                 );
               })}
             </nav>
-          )}
-          {/* Moneda: oculta en la landing (/) para una cabecera más limpia */}
-          {location !== "/" && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground shrink-0">
-                  {currency === "CLP" ? "CLP $" : "USD $"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setCurrency("CLP" as CurrencyCode)}>Pesos (CLP)</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCurrency("USD" as CurrencyCode)}>Dólares (USD)</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           )}
           <Button
             variant="ghost"
