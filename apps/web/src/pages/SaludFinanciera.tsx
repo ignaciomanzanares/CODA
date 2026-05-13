@@ -60,9 +60,10 @@ export default function SaludFinanciera() {
   const { openWithFilePicker } = useUploadDrawer();
   const { apiRequest } = useApi();
 
-  const { data, isLoading } = useQuery<HealthResponse>({
+  const { data, isLoading, isError, error } = useQuery<HealthResponse>({
     queryKey: ['health-evaluation'],
     queryFn: () => apiRequest<HealthResponse>('GET', '/api/health-evaluation/me'),
+    retry: 1,
   });
 
   const recalcMutation = useMutation({
@@ -78,6 +79,23 @@ export default function SaludFinanciera() {
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    const msg = error instanceof Error ? error.message : 'Error desconocido';
+    return (
+      <div className="container max-w-2xl mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-6">Salud financiera</h1>
+        <Card>
+          <CardContent className="p-8 text-center space-y-4">
+            <p className="text-red-600 text-sm">{msg}</p>
+            <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['health-evaluation'] })}>
+              Reintentar
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -98,7 +116,9 @@ export default function SaludFinanciera() {
                 ? 'tu cartola bancaria y tu certificado de deudas CMF'
                 : missing?.cartola
                   ? 'tu cartola bancaria'
-                  : 'tu certificado de deudas CMF'}
+                  : missing?.cmf
+                    ? 'tu certificado de deudas CMF'
+                    : 'tus documentos financieros'}
               .
             </p>
             <Button className="gap-2" onClick={openWithFilePicker}>
