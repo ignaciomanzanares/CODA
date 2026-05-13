@@ -11,6 +11,21 @@ import { logFinancialHealthV2FireAndForget } from './services/audit/traceability
 import type { UserAsset } from './services/assets/types.js';
 import type { CMFParseResult } from './parsers/cmf-parser.js';
 
+const PLAZOS_MESES: Record<string, number> = {
+  vivienda: 300,   // ~25 años, estándar hipotecas Chile
+  comercial: 60,   // ~5 años
+  consumo: 36,     // ~3 años
+  otro: 36,
+};
+
+function estimarCuotaMensual(cmf: CMFParseResult, deudaTotalFallback: number): number {
+  if (cmf.deuda_directa.length === 0) return deudaTotalFallback / 36;
+  return cmf.deuda_directa.reduce((sum, d) => {
+    const plazo = PLAZOS_MESES[d.tipo_credito] ?? 36;
+    return sum + d.total / plazo;
+  }, 0);
+}
+
 /** Normaliza ambos formatos de CMF almacenados en BD a CMFParseResult. */
 function normalizeCmfData(raw: any): CMFParseResult {
   // Formato nuevo: cmf-parser.ts (tiene deuda_total)
@@ -100,7 +115,7 @@ export function registerHealthEvaluationRoutes(app: Express): void {
 
       // Derivar inputs del motor v2
       const deudaTotalClp: number = cmfData.deuda_total ?? 0;
-      const deudaMensualClp = deudaTotalClp > 0 ? deudaTotalClp / 36 : 0;
+      const deudaMensualClp = estimarCuotaMensual(cmfData, deudaTotalClp);
       const sfaAvg = txScore?.metrics?.averageMonthlyBalanceClp ?? undefined;
 
       const healthInput = deriveHealthInput({
