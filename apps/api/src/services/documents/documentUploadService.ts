@@ -9,12 +9,11 @@ import { storage } from '../../storage.js';
 import { logger } from '../../logger.js';
 import {
   extractPdfText,
-  parseCmfInformeDeudas,
   cartolaToSfaTransactions,
   cartolaToSfaProductos,
-  type CmfInformeDeudas,
   type CartolaExtraida,
 } from './pdfAnalysis.js';
+import { parseCmfPdfBuffer, type CMFParseResult } from '../../parsers/cmf-parser.js';
 import { parseCartolaBuffer, ParseError } from '../../parsers/index.js';
 import { categorizeTransaction } from '../../parsers/cartola-parser.js';
 import { type DetectionTier } from '../../parsers/base.js';
@@ -35,7 +34,7 @@ export interface UploadResultMetrics {
 export interface UploadResult {
   step: 'reading' | 'extracting' | 'scoring' | 'done';
   documentType?: 'cmf_informe_deudas' | 'cartola';
-  cmf?: CmfInformeDeudas;
+  cmf?: CMFParseResult;
   transactionalScore?: number;
   creditScore?: number;
   mainInsights?: string[];
@@ -76,33 +75,19 @@ export async function processDocumentUpload(
   userId: string,
   buffer: Buffer,
 ): Promise<UploadResult> {
-  // 1. Extract text once — shared by CMF detection and cartola fallback
-  let text = '';
+  // 1. Try CMF path first — parseCmfPdfBuffer handles its own text extraction
   try {
-    const result = await extractPdfText(buffer);
-    text = result.text ?? '';
-  } catch {
-    /* will propagate as error below */
-  }
-
-  if (!text || text.trim().length < 40) {
-    return {
-      step: 'done',
-      error: 'No se pudo reconocer el documento. Asegúrate de subir un Informe de Deudas CMF o una Cartola Bancaria en PDF.',
-    };
-  }
-
-  // 2. CMF path: text-only detection — no second PDF pass needed
-  const cmfDoc = parseCmfInformeDeudas(text);
-  if (cmfDoc) {
-    const validation = validateDocumentBelongsToUser(userId, cmfDoc.rutDocumento ?? undefined);
+    const cmfDoc = await parseCmfPdfBuffer(buffer);
+    const validation = validateDocumentBelongsToUser(userId, cmfDoc.rut ?? undefined);
     if (!validation.valid) {
       return { step: 'done', error: validation.message ?? 'El documento no corresponde al usuario.' };
     }
     return processCmfUpload(userId, cmfDoc);
+  } catch {
+    // Not a CMF document (no RUT, no dates, or can't extract text) — fall through to cartola path
   }
 
-  // 3. Cartola path: hardened pipeline (format detection + tier + reconciliation in one pass)
+  // 2. Cartola path: hardened pipeline (format detection + tier + reconciliation in one pass)
   try {
     const parsed = await parseCartolaBuffer(buffer);
 
@@ -229,9 +214,9 @@ export async function processDocumentUpload(
   }
 }
 
-async function processCmfUpload(userId: string, doc: CmfInformeDeudas): Promise<UploadResult> {
+async function processCmfUpload(userId: string, doc: CMFParseResult): Promise<UploadResult> {
     const RUT_RE = /\b\d{1,2}\.\d{3}\.\d{3}-[\dKk]\b/;
-    const rutExtraido = doc.rutDocumento?.trim();
+    const rutExtraido = doc.rut?.trim();
     const rutValido = rutExtraido && RUT_RE.test(rutExtraido);
     if (!rutValido) {
       return {
@@ -240,11 +225,12 @@ async function processCmfUpload(userId: string, doc: CmfInformeDeudas): Promise<
       };
     }
 
+    const numInstituciones = doc.deuda_directa.length;
     const cmfInsight =
-      doc.deudaTotalVigente === 0 && doc.deudaIndirecta === 0
+      doc.deuda_total === 0
         ? 'Perfil Crediticio Saludable: Sin deudas morosas. Estado vigente según Informe CMF.'
-        : doc.numeroInstituciones > 0
-          ? `Deuda total vigente: $${doc.deudaTotalVigente.toLocaleString('es-CL')} CLP en ${doc.numeroInstituciones} institución(es).`
+        : numInstituciones > 0
+          ? `Deuda total vigente: $${doc.deuda_total.toLocaleString('es-CL')} CLP en ${numInstituciones} institución(es).`
           : 'Sin deudas vigentes reportadas en el informe CMF.';
 
     const cmfRow = {
@@ -286,36 +272,38 @@ async function processCmfUpload(userId: string, doc: CmfInformeDeudas): Promise<
         topFactors: [
           {
             name: 'Deuda Total Vigente',
-            value: doc.deudaTotalVigente,
-            impact: doc.deudaTotalVigente === 0 ? 100 : -50,
-            explanation: doc.deudaTotalVigente === 0
+            value: doc.deuda_total,
+            impact: doc.deuda_total === 0 ? 100 : -50,
+            explanation: doc.deuda_total === 0
               ? 'Sin deudas vigentes (excelente)'
-              : `Deuda de $${doc.deudaTotalVigente.toLocaleString('es-CL')} CLP`,
+              : `Deuda de $${doc.deuda_total.toLocaleString('es-CL')} CLP`,
           },
           {
             name: 'Deuda Indirecta',
-            value: doc.deudaIndirecta,
-            impact: doc.deudaIndirecta === 0 ? 50 : -30,
-            explanation: doc.deudaIndirecta === 0
+            value: doc.deuda_indirecta.reduce((s, d) => s + d.total, 0),
+            impact: doc.deuda_indirecta.length === 0 ? 50 : -30,
+            explanation: doc.deuda_indirecta.length === 0
               ? 'Sin deudas indirectas (excelente)'
-              : `Deuda indirecta de $${doc.deudaIndirecta.toLocaleString('es-CL')} CLP`,
+              : `Deuda indirecta de $${doc.deuda_indirecta.reduce((s, d) => s + d.total, 0).toLocaleString('es-CL')} CLP`,
           },
           {
             name: 'Número de Instituciones',
-            value: doc.numeroInstituciones,
-            impact: doc.numeroInstituciones === 0 ? 30 : -20,
-            explanation: `${doc.numeroInstituciones} institución(es) reportada(s)`,
+            value: doc.deuda_directa.length,
+            impact: doc.deuda_directa.length === 0 ? 30 : -20,
+            explanation: `${doc.deuda_directa.length} institución(es) reportada(s)`,
           },
         ],
       },
       {
-        cmfData: doc,
+        cmfData: doc as any,
         features: {
-          deudaTotalVigente: doc.deudaTotalVigente,
-          deudaIndirecta: doc.deudaIndirecta,
-          numeroInstituciones: doc.numeroInstituciones,
-          hasDebt: doc.deudaTotalVigente > 0,
-          debtRatio: doc.deudaTotalVigente > 0 ? doc.deudaIndirecta / doc.deudaTotalVigente : 0,
+          deudaTotalVigente: doc.deuda_total,
+          deudaIndirecta: doc.deuda_indirecta.reduce((s, d) => s + d.total, 0),
+          numeroInstituciones: doc.deuda_directa.length,
+          hasDebt: doc.deuda_total > 0,
+          debtRatio: doc.deuda_total > 0
+            ? doc.deuda_indirecta.reduce((s, d) => s + d.total, 0) / doc.deuda_total
+            : 0,
         },
       },
       { processingTimeMs: Date.now() - startTime }
@@ -349,19 +337,16 @@ async function processCmfUpload(userId: string, doc: CmfInformeDeudas): Promise<
     return {
       step: 'done',
       documentType: 'cmf_informe_deudas',
-      cmf: { ...doc, rutDocumento: doc.rutDocumento ?? undefined },
+      cmf: doc,
       creditScore: scoreNum,
       mainInsights: [cmfInsight],
     };
 }
 
 /**
- * Score crediticio a partir del Informe CMF (Business Plan: sin morosidades = Excellent, 680).
+ * Score crediticio a partir del Informe CMF (usa metricas.score_cmf 0-100 → escala 300-850).
  */
-function computeCreditScoreFromCmf(cmf: CmfInformeDeudas): number {
-  if (cmf.deudaTotalVigente === 0 && cmf.deudaIndirecta === 0) return CREDIT_SCORE_EXCELLENT;
-  if (cmf.numeroInstituciones === 0) return CREDIT_SCORE_EXCELLENT;
-  const ratio = cmf.deudaIndirecta / Math.max(1, cmf.deudaTotalVigente);
-  const penalizacion = ratio > 0.5 ? 40 : ratio > 0.2 ? 20 : 0;
-  return Math.max(300, Math.min(CREDIT_SCORE_MAX, CREDIT_SCORE_EXCELLENT - penalizacion));
+function computeCreditScoreFromCmf(cmf: CMFParseResult): number {
+  const raw = Math.round(300 + cmf.metricas.score_cmf * 5.5);
+  return Math.max(300, Math.min(CREDIT_SCORE_MAX, raw));
 }

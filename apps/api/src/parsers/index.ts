@@ -46,12 +46,14 @@ export async function parseCartolaBuffer(buffer: Buffer): Promise<ParseResult> {
     /* will be caught by TEXT_EXTRACTION_FAILED in bankParser */
   }
 
+  let numPages = 0;
   if (!text || text.trim().length < 40) {
     // Try pdf-parse as text-only fallback before giving up
     try {
       const pdfParse = (await import("pdf-parse")).default;
       const data = await pdfParse(buffer);
       text = data.text ?? "";
+      numPages = data.numpages ?? 0;
     } catch {
       /* both failed */
     }
@@ -60,10 +62,17 @@ export async function parseCartolaBuffer(buffer: Buffer): Promise<ParseResult> {
   if (!text || text.trim().length < 40) {
     throw new ParseError(
       "TEXT_EXTRACTION_FAILED",
-      "No se pudo extraer texto del PDF. " +
-        "Es posible que sea una imagen escaneada. " +
-        "Exporta la cartola directamente desde el portal web del banco (PDF digital, no escaneado).",
+      "El PDF parece ser una imagen escaneada o un documento que no es una cartola bancaria (ej: escritura pública). Solo se aceptan cartolas bancarias en PDF con texto.",
       { text_length: text?.length ?? 0 }
+    );
+  }
+
+  // Detect scanned/image PDFs or long legal documents with very little extractable text
+  if (numPages > 3 && text.length / numPages < 100) {
+    throw new ParseError(
+      "TEXT_EXTRACTION_FAILED",
+      "El PDF parece ser una imagen escaneada o un documento que no es una cartola bancaria (ej: escritura pública). Solo se aceptan cartolas bancarias en PDF con texto.",
+      { text_length: text.length, numPages }
     );
   }
 
