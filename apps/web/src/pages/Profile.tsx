@@ -58,6 +58,8 @@ import {
   Save,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { useCurrency } from "@/lib/CurrencyContext";
+import type { CurrencyCode } from "@/lib/utils";
 
 // ──────────────────────────────────────────────────────────────
 // Constants
@@ -123,6 +125,7 @@ export default function Profile() {
     disableTwoFactor,
   } = useApi();
 
+  const { currency, setCurrency } = useCurrency();
   const [activeSection, setActiveSection] = useState<SectionId>("profile");
   const [privacyPanel, setPrivacyPanel] = useState<PrivacyConsentPanelResponse | null>(null);
   const [privacyLoading, setPrivacyLoading] = useState(false);
@@ -750,6 +753,22 @@ export default function Profile() {
                             <SelectItem value="UTC">UTC</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Moneda de visualización</Label>
+                        <Select
+                          value={currency}
+                          onValueChange={(v) => setCurrency(v as CurrencyCode)}
+                        >
+                          <SelectTrigger className="rounded-xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="CLP">Pesos chilenos (CLP)</SelectItem>
+                            <SelectItem value="USD">Dólares (USD)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">Se aplica a todos los montos en la app</p>
                       </div>
                     </div>
 
