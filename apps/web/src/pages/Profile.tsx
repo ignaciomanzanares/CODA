@@ -60,6 +60,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useCurrency } from "@/lib/CurrencyContext";
 import type { CurrencyCode } from "@/lib/utils";
+import i18n from "@/i18n";
 
 // ──────────────────────────────────────────────────────────────
 // Constants
@@ -200,13 +201,15 @@ export default function Profile() {
       if (!isAuthenticated) return;
       try {
         const profile = await getUserProfile();
+        const lang = profile.language || "Spanish";
         setProfileData({
           displayName: profile.displayName || "",
           email: profile.email || "",
           timezone: profile.timezone || "America/Santiago",
-          language: profile.language || "Spanish",
+          language: lang,
           createdAt: (profile as Record<string, unknown>).createdAt as string | null ?? null,
         });
+        void i18n.changeLanguage(lang === "English" ? "en" : "es");
       } catch {
         setProfileData({
           displayName: user?.name || "",
@@ -322,6 +325,7 @@ export default function Profile() {
           email: typeof u.email === "string" ? u.email : prev.email,
         }));
       }
+      void i18n.changeLanguage(profileData.language === "English" ? "en" : "es");
       toast({ title: "Preferencias guardadas" });
     } catch (error) {
       toast({
@@ -729,9 +733,10 @@ export default function Profile() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Spanish">Español</SelectItem>
-                            <SelectItem value="English">English</SelectItem>
+                            <SelectItem value="English">English (parcial)</SelectItem>
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">La app está principalmente en español</p>
                       </div>
                       <div className="space-y-2">
                         <Label>Zona horaria</Label>
