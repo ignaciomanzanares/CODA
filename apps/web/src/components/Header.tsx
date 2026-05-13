@@ -31,6 +31,7 @@ import {
   Link2,
   ArrowLeftRight,
   Activity,
+  HeartPulse,
   Sun,
   Moon,
   Monitor,
@@ -44,6 +45,7 @@ import { useTheme } from "@/lib/useTheme";
 
 const navItems = [
   { href: ROUTES.panel, label: "Panel", icon: LayoutDashboard },
+  { href: ROUTES.saludFinanciera, label: "Salud financiera", icon: HeartPulse },
   { href: ROUTES.productos, label: "Productos", icon: Store },
   { href: ROUTES.movimientos, label: "Movimientos", icon: ArrowLeftRight },
   { href: ROUTES.plan, label: "Plan", icon: FileText },
