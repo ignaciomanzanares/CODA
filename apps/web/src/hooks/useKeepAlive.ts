@@ -11,7 +11,7 @@
 import { useEffect } from "react";
 
 const PING_INTERVAL_MS = 14 * 60 * 1000; // 14 minutes
-const PING_URL = "/api/auth/me"; // lightweight authenticated endpoint (401 is fine, keeps server alive)
+const PING_URL = "/health"; // public endpoint — no auth needed, no 401 noise in logs
 
 export function useKeepAlive() {
   useEffect(() => {
@@ -19,7 +19,7 @@ export function useKeepAlive() {
 
     const ping = () => {
       if (document.hidden) return;
-      fetch(PING_URL, { method: "HEAD", credentials: "include" }).catch(() => {
+      fetch(PING_URL, { method: "HEAD" }).catch(() => {
         // Silently ignore — purpose is just to keep Render awake
       });
     };
