@@ -68,12 +68,17 @@ export function registerHealthEvaluationRoutes(app: Express): void {
       const requestId = randomUUID();
 
       // Obtener datos de scoring persistidos
-      const [credit, txScore, cartolas, cmfDocs] = await Promise.all([
+      // CMF: buscar ambos tipos — 'cmf' (parser nuevo) y 'cmf_informe_deudas' (parser antiguo)
+      const [credit, txScore, cartolas, cmfDocsNew, cmfDocsLegacy] = await Promise.all([
         storage.getCreditScore(userId),
         storage.getTransactionalScore(userId),
         storage.listDocumentUploadsByType(userId, 'cartola'),
         storage.listDocumentUploadsByType(userId, 'cmf'),
+        storage.listDocumentUploadsByType(userId, 'cmf_informe_deudas'),
       ]);
+      const cmfDocs = [...cmfDocsNew, ...cmfDocsLegacy].sort(
+        (a, b) => new Date(b.uploadedAt ?? 0).getTime() - new Date(a.uploadedAt ?? 0).getTime()
+      );
 
       if (cartolas.length === 0 || cmfDocs.length === 0) {
         return res.json({
