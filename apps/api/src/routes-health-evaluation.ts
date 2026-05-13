@@ -9,6 +9,28 @@ import { logger } from './logger.js';
 import { evaluateHealthV2, deriveHealthInput, HEALTH_EVALUATION_ENGINE_VERSION } from './services/healthEvaluation/index.js';
 import { logFinancialHealthV2FireAndForget } from './services/audit/traceabilityPersistence.js';
 import type { UserAsset } from './services/assets/types.js';
+import type { CMFParseResult } from './parsers/cmf-parser.js';
+
+/** Normaliza ambos formatos de CMF almacenados en BD a CMFParseResult. */
+function normalizeCmfData(raw: any): CMFParseResult {
+  // Formato nuevo: cmf-parser.ts (tiene deuda_total)
+  if (typeof raw?.deuda_total === 'number') return raw as CMFParseResult;
+  // Formato antiguo: pdfAnalysis.ts (tiene deudaTotalVigente)
+  const deudaTotal = raw?.deudaTotalVigente ?? 0;
+  return {
+    deuda_total: deudaTotal,
+    deuda_directa: [],
+    deuda_indirecta: [],
+    lineas_credito: [],
+    metricas: {
+      porcentaje_al_dia: deudaTotal === 0 ? 100 : 90,
+      score_cmf: deudaTotal === 0 ? 85 : 60,
+      tiene_mora: false,
+      credito_disponible_total: 0,
+      utilizacion_promedio: 0,
+    },
+  } as unknown as CMFParseResult;
+}
 
 const NIVEL_DESCRIPCION: Record<number, string> = {
   [-2]: 'Tu deuda supera tus activos o está en mora grave. Se recomienda asesoría legal para explorar reestructuración o proceso concursal.',
@@ -58,12 +80,13 @@ export function registerHealthEvaluationRoutes(app: Express): void {
         else { totalIngresos += t.abono ?? 0; totalGastos += t.cargo ?? 0; }
       }
 
-      // CMF más reciente
+      // CMF más reciente — normaliza ambos formatos posibles
       const latestCmf = cmfDocs[0] as any;
-      const cmfData = latestCmf?.parsedData;
-      if (!cmfData) {
+      const rawCmfData = latestCmf?.parsedData;
+      if (!rawCmfData) {
         return res.json({ hasData: false, missingData: { cartola: false, cmf: true } });
       }
+      const cmfData = normalizeCmfData(rawCmfData);
 
       // Activos declarados del usuario
       const assetRows = await db.select().from(userAssets).where(eq(userAssets.userId, userId));
