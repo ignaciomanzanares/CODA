@@ -658,6 +658,23 @@ export const userScores = table('user_scores', {
   periodoAnalizadoHasta: text('periodo_analizado_hasta'),
 });
 
+/** Activos declarados del usuario (propiedades, vehículos, cripto, inversiones). */
+export const userAssets = table('user_assets', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  type: text('type').notNull(),
+  name: text('name').notNull(),
+  acquisitionCostClp: integer('acquisition_cost_clp').notNull(),
+  estimatedValueClp: integer('estimated_value_clp'),
+  hasLien: integer('has_lien').notNull().default(0),
+  lienAmountClp: integer('lien_amount_clp'),
+  currency: text('currency').notNull().default('CLP'),
+  documentId: text('document_id'),
+  notes: text('notes'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 /** Diagnósticos de detección de banco (metadata de parseo — sin contenido del PDF ni transacciones). */
 export const parserDiagnostics = table("parser_diagnostics", {
   id: text("id").primaryKey(),
