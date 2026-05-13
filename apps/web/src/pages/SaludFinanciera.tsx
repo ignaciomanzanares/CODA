@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api";
+import { useApi } from "@/lib/api";
 import { Link } from "wouter";
 import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
@@ -58,14 +58,15 @@ const SALIDA_LABEL: Record<HealthSalida, string> = {
 export default function SaludFinanciera() {
   const queryClient = useQueryClient();
   const { openWithFilePicker } = useUploadDrawer();
+  const { apiRequest } = useApi();
 
   const { data, isLoading } = useQuery<HealthResponse>({
     queryKey: ['health-evaluation'],
-    queryFn: () => apiFetch('/api/health-evaluation/me') as Promise<HealthResponse>,
+    queryFn: () => apiRequest<HealthResponse>('GET', '/api/health-evaluation/me'),
   });
 
   const recalcMutation = useMutation({
-    mutationFn: () => apiFetch('/api/health-evaluation/me') as Promise<HealthResponse>,
+    mutationFn: () => apiRequest<HealthResponse>('GET', '/api/health-evaluation/me'),
     onSuccess: (result) => {
       queryClient.setQueryData(['health-evaluation'], result);
     },
