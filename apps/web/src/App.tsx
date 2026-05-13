@@ -75,6 +75,8 @@ const LegacySplitRedirect = lazy(() => import("@/components/LegacySplitRedirect"
 const NotFound = lazy(() => import("@/pages/not-found"));
 const BillSplit = lazy(() => import("@/pages/BillSplit"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
+const SaludFinanciera = lazy(() => import("@/pages/SaludFinanciera"));
+const MisActivos = lazy(() => import("@/pages/MisActivos"));
 
 function UploadDrawerGlobal() {
   const { open, setOpen } = useUploadDrawer();
@@ -296,6 +298,16 @@ function App() {
                   </Route>
                   <Route path="/profile">
                     <Redirect to={ROUTES.perfil} />
+                  </Route>
+                  <Route path={ROUTES.saludFinanciera}>
+                    <ProtectedRoute>
+                      <SaludFinanciera />
+                    </ProtectedRoute>
+                  </Route>
+                  <Route path={ROUTES.misActivos}>
+                    <ProtectedRoute>
+                      <MisActivos />
+                    </ProtectedRoute>
                   </Route>
                   <Route component={NotFound} />
                 </Switch>

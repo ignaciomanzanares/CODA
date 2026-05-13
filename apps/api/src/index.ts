@@ -5,6 +5,8 @@ import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { registerRoutes } from "./routes.js";
 import { registerAuditRoutes } from "./routes-audit.js";
+import { registerHealthEvaluationRoutes } from "./routes-health-evaluation.js";
+import { registerAssetsRoutes } from "./routes-assets.js";
 import { checkDatabaseConnection } from "./db/index.js";
 import { logger, httpLogger } from "./logger.js";
 import { initializeTraceabilitySystem } from "./services/audit/algorithmicTraceability.js";
@@ -123,7 +125,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   // IMPORTANT: Register ALL routes BEFORE starting server
   // Register audit & compliance routes FIRST
   registerAuditRoutes(app);
-  
+  registerAssetsRoutes(app);
+  registerHealthEvaluationRoutes(app);
+
   // Then register main routes
   const server = await registerRoutes(app);
 

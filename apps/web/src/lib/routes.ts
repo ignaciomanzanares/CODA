@@ -26,6 +26,8 @@ export const ROUTES = {
   infoMetasFinancieras: "/info/metas-financieras",
   infoComparacionProductos: "/info/comparacion-productos",
   restablecerContrasena: "/restablecer-contrasena",
+  saludFinanciera: "/salud-financiera",
+  misActivos: "/mis-activos",
   /** Política de privacidad (CMF / Ley Fintec) */
   privacidad: "/privacidad",
   /** Términos y condiciones de uso */
