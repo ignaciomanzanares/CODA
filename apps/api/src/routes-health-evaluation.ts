@@ -80,6 +80,8 @@ export function registerHealthEvaluationRoutes(app: Express): void {
         (a, b) => new Date(b.uploadedAt ?? 0).getTime() - new Date(a.uploadedAt ?? 0).getTime()
       );
 
+      logger.info({ userId, cartolas: cartolas.length, cmfNew: cmfDocsNew.length, cmfLegacy: cmfDocsLegacy.length }, '[health-eval] docs found');
+
       if (cartolas.length === 0 || cmfDocs.length === 0) {
         return res.json({
           hasData: false,
