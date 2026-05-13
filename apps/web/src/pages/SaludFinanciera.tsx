@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RefreshCw, ArrowRight, Upload, Wallet } from "lucide-react";
+import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import HealthLevelCard from "@/components/health/HealthLevelCard";
 import EvaluationBreakdown from "@/components/health/EvaluationBreakdown";
 
@@ -56,6 +57,7 @@ const SALIDA_LABEL: Record<HealthSalida, string> = {
 
 export default function SaludFinanciera() {
   const queryClient = useQueryClient();
+  const { openWithFilePicker } = useUploadDrawer();
 
   const { data, isLoading } = useQuery<HealthResponse>({
     queryKey: ['health-evaluation'],
@@ -98,12 +100,10 @@ export default function SaludFinanciera() {
                   : 'tu certificado de deudas CMF'}
               .
             </p>
-            <Link href={ROUTES.panel}>
-              <Button className="gap-2">
-                <Upload className="w-4 h-4" />
-                Subir documentos
-              </Button>
-            </Link>
+            <Button className="gap-2" onClick={openWithFilePicker}>
+              <Upload className="w-4 h-4" />
+              Subir documentos
+            </Button>
           </CardContent>
         </Card>
       </div>
