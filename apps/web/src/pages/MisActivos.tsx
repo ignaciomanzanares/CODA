@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api";
+import { useApi } from "@/lib/api";
 import { Link } from "wouter";
 import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
@@ -49,19 +49,16 @@ function clpFormat(n: number): string {
 export default function MisActivos() {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
+  const { apiRequest } = useApi();
 
   const { data: assets = [], isLoading } = useQuery<UserAsset[]>({
     queryKey: ['assets'],
-    queryFn: () => apiFetch('/api/assets') as Promise<UserAsset[]>,
+    queryFn: () => apiRequest<UserAsset[]>('GET', '/api/assets'),
   });
 
   const createMutation = useMutation({
     mutationFn: (data: AssetFormData) =>
-      apiFetch('/api/assets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      }),
+      apiRequest('POST', '/api/assets', data),
     onSuccess: () => {
       setAddOpen(false);
       void queryClient.invalidateQueries({ queryKey: ['assets'] });
