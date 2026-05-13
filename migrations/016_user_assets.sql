@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS user_assets (
   currency              TEXT NOT NULL DEFAULT 'CLP',
   document_id           TEXT REFERENCES document_uploads(id),
   notes                 TEXT,
-  created_at            TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_assets_user_id ON user_assets(user_id);
