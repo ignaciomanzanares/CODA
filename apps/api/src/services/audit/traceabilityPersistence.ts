@@ -52,6 +52,11 @@ export const TRACEABILITY_SEED_MODELS = {
     modelType: 'product_matching',
     version: 'v1.0.0',
   },
+  financialHealthV2: {
+    id: 'a0000004-0000-4000-8000-000000000001',
+    modelType: 'financial_health_v2',
+    version: 'v2.0.0',
+  },
 } as const;
 
 const MAX_JSON = 400_000;
@@ -115,6 +120,12 @@ export async function ensureSeedTraceabilityModels(activeCreditModel?: SeedCredi
     modelType: TRACEABILITY_SEED_MODELS.productMatching.modelType,
     version: TRACEABILITY_SEED_MODELS.productMatching.version,
     changelog: 'Weighted product matching (matchingEngine)',
+  });
+  await ensureModelVersionRow({
+    id: TRACEABILITY_SEED_MODELS.financialHealthV2.id,
+    modelType: TRACEABILITY_SEED_MODELS.financialHealthV2.modelType,
+    version: TRACEABILITY_SEED_MODELS.financialHealthV2.version,
+    changelog: 'Motor Evaluación Salud Financiera v2 — 8 niveles, Etapa 1 determinística + Etapa 2 score compuesto',
   });
   if (activeCreditModel) {
     await ensureModelVersionRow({
@@ -381,6 +392,66 @@ function safeParseJsonRecord(s: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+/** Persiste una evaluación del motor de salud financiera v2 (NCG 502). */
+export async function logFinancialHealthV2(params: {
+  userId: string;
+  requestId: string;
+  input: {
+    deudaFlujo: number;
+    deudaActivos: number;
+    ahorroIngreso: number;
+    moraActiva: boolean;
+    diasMora: number;
+  };
+  output: {
+    nivel: number;
+    nivelNombre: string;
+    salida: string;
+    zona: string;
+    scoreCompuesto: number;
+    scoreRatios: number;
+    scoreInterno: number;
+    nivelBruto: number;
+  };
+  processingTimeMs?: number;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}): Promise<void> {
+  const m = TRACEABILITY_SEED_MODELS.financialHealthV2;
+  await ensureModelVersionRow({
+    id: m.id,
+    modelType: m.modelType,
+    version: m.version,
+  });
+
+  const id = randomUUID();
+  await db.insert(algorithmPredictionLogs).values({
+    id,
+    userId: params.userId,
+    requestId: params.requestId,
+    kind: 'financial_health_v2',
+    modelVersionId: m.id,
+    modelVersion: m.version,
+    modelType: m.modelType,
+    inputFeatures: safeJson(params.input),
+    outputSnapshot: safeJson(params.output),
+    cmfData: null,
+    sfaData: null,
+    topFactors: null,
+    processingTimeMs: params.processingTimeMs ?? null,
+    ipAddress: params.ipAddress ?? null,
+    userAgent: params.userAgent ?? null,
+  });
+}
+
+export function logFinancialHealthV2FireAndForget(
+  params: Parameters<typeof logFinancialHealthV2>[0]
+): void {
+  void logFinancialHealthV2(params).catch((err) => {
+    logger.error({ err, userId: params.userId }, 'traceability: financial_health_v2 log failed');
+  });
 }
 
 /** Entrada legible para el usuario (sin PII extra); el JSON completo sigue en BD. */

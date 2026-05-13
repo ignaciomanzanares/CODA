@@ -4,12 +4,13 @@
     "composite": true,
     "outDir": "./dist",
     "types": ["node"],
-    "moduleResolution": "node",
+    "moduleResolution": "node16",
     "module": "ESNext",
     "target": "ES2021",
     "esModuleInterop": true,
     
     "skipLibCheck": true,
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@coda/db": ["../../packages/dist/index"],

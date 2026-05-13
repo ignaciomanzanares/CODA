@@ -1,0 +1,171 @@
+import type { Express, Request, Response } from 'express';
+import { randomUUID } from 'crypto';
+import { eq } from 'drizzle-orm';
+import { authenticate, type AuthenticatedRequest } from './middleware/auth.js';
+import { apiLimiter, expensiveLimiter } from './middleware/rateLimiter.js';
+import { storage } from './storage.js';
+import { db, userAssets } from './db/index.js';
+import { logger } from './logger.js';
+import { evaluateHealthV2, deriveHealthInput, HEALTH_EVALUATION_ENGINE_VERSION } from './services/healthEvaluation/index.js';
+import { logFinancialHealthV2FireAndForget } from './services/audit/traceabilityPersistence.js';
+import type { UserAsset } from './services/assets/types.js';
+
+const NIVEL_DESCRIPCION: Record<number, string> = {
+  [-2]: 'Tu deuda supera tus activos o está en mora grave. Se recomienda asesoría legal para explorar reestructuración o proceso concursal.',
+  [-1]: 'Tu carga de deuda es alta respecto a tu flujo. Una reestructuración puede reducir el peso mensual.',
+  [0]: 'Estás al día en deudas pero sin excedente de ahorro. Un refinanciamiento preventivo puede mejorar tus condiciones.',
+  [1]: 'Tienes excedente para empezar a ahorrar. El objetivo es construir un fondo de emergencia de 3 meses.',
+  [2]: 'Tienes un fondo básico consolidado. Es momento de considerar instrumentos de mayor rendimiento.',
+  [3]: 'Tu base financiera es sólida. Puedes diversificar con instrumentos de bajo riesgo como FFMM o ETF.',
+  [4]: 'Tienes un portafolio diversificado activo. Considera ampliar a activos alternativos o internacionales.',
+  [5]: 'Tus activos generan flujo sin necesidad de trabajo activo. El objetivo es optimizar y proteger el patrimonio.',
+};
+
+export function registerHealthEvaluationRoutes(app: Express): void {
+  // GET /api/health-evaluation/me — última evaluación del usuario
+  app.get('/api/health-evaluation/me', apiLimiter, authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    const t0 = Date.now();
+    try {
+      const userId = authReq.user!.userId;
+      const requestId = randomUUID();
+
+      // Obtener datos de scoring persistidos
+      const [credit, txScore, cartolas, cmfDocs] = await Promise.all([
+        storage.getCreditScore(userId),
+        storage.getTransactionalScore(userId),
+        storage.listDocumentUploadsByType(userId, 'cartola'),
+        storage.listDocumentUploadsByType(userId, 'cmf'),
+      ]);
+
+      if (cartolas.length === 0 || cmfDocs.length === 0) {
+        return res.json({
+          hasData: false,
+          missingData: {
+            cartola: cartolas.length === 0,
+            cmf: cmfDocs.length === 0,
+          },
+        });
+      }
+
+      // Calcular ingresos y gastos desde cartola más reciente
+      const latestCartola = cartolas[0] as any;
+      const pd = latestCartola?.parsedData as { transacciones?: Array<{ tipo?: string; monto?: number; abono?: number; cargo?: number }> } | null;
+      let totalIngresos = 0, totalGastos = 0;
+      for (const t of pd?.transacciones ?? []) {
+        if (t.tipo === 'abono' && typeof t.monto === 'number') totalIngresos += t.monto;
+        else if (t.tipo === 'cargo' && typeof t.monto === 'number') totalGastos += t.monto;
+        else { totalIngresos += t.abono ?? 0; totalGastos += t.cargo ?? 0; }
+      }
+
+      // CMF más reciente
+      const latestCmf = cmfDocs[0] as any;
+      const cmfData = latestCmf?.parsedData;
+      if (!cmfData) {
+        return res.json({ hasData: false, missingData: { cartola: false, cmf: true } });
+      }
+
+      // Activos declarados del usuario
+      const assetRows = await db.select().from(userAssets).where(eq(userAssets.userId, userId));
+      const assets: UserAsset[] = assetRows.map((row: any) => ({
+        id: row.id, userId: row.userId, type: row.type, name: row.name,
+        acquisitionCostClp: row.acquisitionCostClp, estimatedValueClp: row.estimatedValueClp ?? null,
+        hasLien: row.hasLien === 1 || row.hasLien === true, lienAmountClp: row.lienAmountClp ?? null,
+        currency: row.currency, documentId: row.documentId ?? null,
+        notes: row.notes ?? null, createdAt: row.createdAt, updatedAt: row.updatedAt,
+      }));
+
+      // Derivar inputs del motor v2
+      const deudaTotalClp: number = cmfData.deuda_total ?? 0;
+      const deudaMensualClp = deudaTotalClp > 0 ? deudaTotalClp / 36 : 0;
+      const sfaAvg = txScore?.metrics?.averageMonthlyBalanceClp ?? undefined;
+
+      const healthInput = deriveHealthInput({
+        ingresoMensualClp: totalIngresos,
+        deudaMensualClp,
+        deudaTotalClp,
+        ahorroMensualClp: totalIngresos - totalGastos,
+        cmf: cmfData,
+        sfaAvgMonthlyBalanceClp: sfaAvg,
+        userAssets: assets,
+      });
+
+      const evaluation = evaluateHealthV2(healthInput, {
+        creditScore: credit?.score ?? 0,
+        transactionalScore: txScore?.transactionalScore ?? 0,
+        monthlyIncome: totalIngresos,
+        monthlyDebt: deudaMensualClp,
+      });
+
+      // Trazabilidad NCG 502 (fire-and-forget, no bloquea respuesta)
+      logFinancialHealthV2FireAndForget({
+        userId,
+        requestId,
+        input: {
+          deudaFlujo: evaluation.ratios.deudaFlujo,
+          deudaActivos: evaluation.ratios.deudaActivos,
+          ahorroIngreso: evaluation.ratios.ahorroIngreso,
+          moraActiva: evaluation.ratios.moraActiva,
+          diasMora: evaluation.ratios.diasMora,
+        },
+        output: {
+          nivel: evaluation.nivel,
+          nivelNombre: evaluation.nivelNombre,
+          salida: evaluation.salida,
+          zona: evaluation.zona,
+          scoreCompuesto: evaluation.scoreCompuesto,
+          scoreRatios: evaluation.scoreRatios,
+          scoreInterno: evaluation.scoreInterno,
+          nivelBruto: evaluation.nivelBruto,
+        },
+        processingTimeMs: Date.now() - t0,
+        ipAddress: req.ip ?? null,
+        userAgent: req.headers['user-agent'] ?? null,
+      });
+
+      res.json({
+        hasData: true,
+        evaluation,
+        modelVersion: HEALTH_EVALUATION_ENGINE_VERSION,
+        descripcionNivel: NIVEL_DESCRIPCION[evaluation.nivel],
+      });
+    } catch (e) {
+      logger.error({ err: e }, 'GET /api/health-evaluation/me failed');
+      res.status(500).json({ message: 'Error al evaluar salud financiera.' });
+    }
+  });
+
+  // POST /api/health-evaluation/recalculate — fuerza recálculo (misma lógica que GET /me)
+  app.post('/api/health-evaluation/recalculate', expensiveLimiter, authenticate, async (req: Request, res: Response) => {
+    // Redirige internamente al mismo handler
+    req.method = 'GET';
+    res.redirect(307, '/api/health-evaluation/me');
+  });
+
+  // GET /api/health-evaluation/level/:level — explica un nivel y su producto
+  app.get('/api/health-evaluation/level/:level', apiLimiter, async (req: Request, res: Response) => {
+    const level = parseInt(req.params.level, 10);
+    if (isNaN(level) || level < -2 || level > 5) {
+      return res.status(400).json({ message: 'Nivel debe estar entre -2 y 5.' });
+    }
+
+    const nivelInfo: Record<number, { nombre: string; salida: string; productoEjemplo: string }> = {
+      [-2]: { nombre: 'Insolvencia activa', salida: 'Proceso concursal', productoEjemplo: 'Asesoría legal especializada' },
+      [-1]: { nombre: 'Endeudado', salida: 'Reestructuración', productoEjemplo: 'Plan de pago estructurado' },
+      [0]: { nombre: 'Sin deudas', salida: 'Refinanciamiento preventivo', productoEjemplo: 'Crédito de consolidación' },
+      [1]: { nombre: 'Fondo básico', salida: 'Ahorro', productoEjemplo: 'Cuenta de ahorro' },
+      [2]: { nombre: 'Fondo consolidado', salida: 'Ahorro', productoEjemplo: 'Depósito a plazo' },
+      [3]: { nombre: 'Inversión inicial', salida: 'Inversión', productoEjemplo: 'Fondo mutuo o ETF' },
+      [4]: { nombre: 'Inversión diversificada', salida: 'Inversión', productoEjemplo: 'Cartera diversificada multi-clase' },
+      [5]: { nombre: 'Independencia financiera', salida: 'Gestión patrimonial', productoEjemplo: 'Gestión de patrimonio activo' },
+    };
+
+    res.json({
+      nivel: level,
+      ...nivelInfo[level],
+      descripcion: NIVEL_DESCRIPCION[level],
+    });
+  });
+
+  logger.info('🩺 Health evaluation routes registered');
+}

@@ -54,6 +54,7 @@ export const {
   empresasJournalLines,
   empresasRiskScores,
   empresasRiskFactors,
+  userAssets,
 } = schema as any;
 import postgres from 'postgres';
 import { ensurePostgresSslMode } from './postgresUrl.js';
