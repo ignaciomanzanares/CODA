@@ -17,12 +17,14 @@ import CategoryCard from "@/components/dashboard/CategoryCard";
 import CreditScoreCard from "@/components/dashboard/CreditScoreCard";
 import PatrimonioSidebar from "@/components/dashboard/PatrimonioSidebar";
 import ReferralShareCard from "@/components/dashboard/ReferralShareCard";
+import DashboardTextInsights from "@/components/dashboard/DashboardTextInsights";
 import DashboardSkeleton from "@/components/dashboard/DashboardSkeleton";
 
 // Shared primitives
 import { Button } from "@/components/ui/button";
 import { PastelIcon } from "@/components/ui/pastel-icon";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import OnboardingChecklist from "@/components/OnboardingChecklist";
 import SignInBanner from "@/components/SignInBanner";
 
 // Icons
@@ -218,6 +220,11 @@ export default function Dashboard() {
           </div>
 
           {/* ═══════════════════════════════════════════════════════════ */}
+          {/* ONBOARDING CHECKLIST — shown while setup is incomplete     */}
+          {/* ═══════════════════════════════════════════════════════════ */}
+          {isAuthenticated && <OnboardingChecklist />}
+
+          {/* ═══════════════════════════════════════════════════════════ */}
           {/* EMPTY STATE — no documents uploaded                        */}
           {/* ═══════════════════════════════════════════════════════════ */}
           {isAuthenticated && data && !data.hasData && (
@@ -280,6 +287,9 @@ export default function Dashboard() {
 
               {/* ── ACTION CARDS — Revenue bridge ────────────────────── */}
               <ActionCards data={data} />
+
+              {/* Text insights — natural-language observations */}
+              <DashboardTextInsights data={data} />
 
               {/* Insight of the day */}
               {data.insight && <InsightCard insight={data.insight} />}

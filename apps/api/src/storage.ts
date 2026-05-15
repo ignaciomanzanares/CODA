@@ -86,8 +86,10 @@ export interface IStorage {
   updateAccount(id: number, account: any): Promise<any>;
   upsertBalance(balance: any): Promise<any>;
   getBalances(accountId: number): Promise<any[]>;
+  getLatestBalancesForAccounts(accountIds: number[]): Promise<Record<number, any>>;
   createTransactionsBulk(transactions: any[]): Promise<any[]>;
   getTransactions(accountId: number, options?: { from?: Date; to?: Date; limit?: number; offset?: number }): Promise<any[]>;
+  getTransactionsForAccounts(accountIds: number[], options?: { from?: Date }): Promise<any[]>;
   // Credit score operations
   getCreditScore(userId: string): Promise<any>;
   createCreditScore(creditScore: any): Promise<any>;
@@ -407,6 +409,29 @@ export class DatabaseStorage implements IStorage {
     result.sort((a: any, b: any) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime());
     if (options?.offset) result = result.slice(options.offset);
     if (options?.limit) result = result.slice(0, options.limit);
+    return result;
+  }
+
+  async getLatestBalancesForAccounts(accountIds: number[]): Promise<Record<number, any>> {
+    if (!db || accountIds.length === 0) return {};
+    const rows = await db.select().from(balances).where(inArray(balances.accountId, accountIds));
+    const byAccount: Record<number, any> = {};
+    for (const row of rows) {
+      const id = row.accountId as number;
+      if (!byAccount[id] || (row.id as number) > (byAccount[id].id as number)) {
+        byAccount[id] = row;
+      }
+    }
+    return byAccount;
+  }
+
+  async getTransactionsForAccounts(accountIds: number[], options?: { from?: Date }): Promise<any[]> {
+    if (!db || accountIds.length === 0) return [];
+    const rows = await db.select().from(transactions).where(inArray(transactions.accountId, accountIds));
+    let result = rows;
+    if (options?.from) {
+      result = result.filter((tx: any) => new Date(tx.postedAt) >= options.from!);
+    }
     return result;
   }
 
