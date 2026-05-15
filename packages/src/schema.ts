@@ -44,6 +44,8 @@ export const users = table("users", {
   totpSecret: text("totp_secret"),
   /** Códigos de respaldo (JSON o similar); mismo nombre que columna en Postgres */
   backupCodes: text("backup_codes"),
+  /** Set on logout — any token with iat < this value is rejected (cross-device logout). */
+  tokenInvalidatedAt: text("token_invalidated_at"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

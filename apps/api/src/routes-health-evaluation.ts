@@ -58,13 +58,13 @@ const NIVEL_DESCRIPCION: Record<number, string> = {
   [5]: 'Tus activos generan flujo sin necesidad de trabajo activo. El objetivo es optimizar y proteger el patrimonio.',
 };
 
-export function registerHealthEvaluationRoutes(app: Express): void {
-  // GET /api/health-evaluation/me — última evaluación del usuario
-  app.get('/api/health-evaluation/me', apiLimiter, authenticate, async (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
-    const t0 = Date.now();
-    try {
-      const userId = authReq.user!.userId;
+/** Shared handler for health evaluation — used by both GET /me and POST /recalculate. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleHealthEvaluationMe(req: Request, res: Response): Promise<any> {
+  const authReq = req as AuthenticatedRequest;
+  const t0 = Date.now();
+  try {
+    const userId = authReq.user!.userId;
       const requestId = randomUUID();
 
       // Obtener datos de scoring persistidos
@@ -175,20 +175,20 @@ export function registerHealthEvaluationRoutes(app: Express): void {
         descripcionNivel: NIVEL_DESCRIPCION[evaluation.nivel],
       });
     } catch (e) {
-      logger.error({ err: e }, 'GET /api/health-evaluation/me failed');
+      logger.error({ err: e }, 'health-evaluation/me failed');
       res.status(500).json({ message: 'Error al evaluar salud financiera.' });
     }
-  });
+}
+
+export function registerHealthEvaluationRoutes(app: Express): void {
+  // GET /api/health-evaluation/me — última evaluación del usuario
+  app.get('/api/health-evaluation/me', apiLimiter, authenticate, handleHealthEvaluationMe);
 
   // POST /api/health-evaluation/recalculate — fuerza recálculo (misma lógica que GET /me)
-  app.post('/api/health-evaluation/recalculate', expensiveLimiter, authenticate, async (req: Request, res: Response) => {
-    // Redirige internamente al mismo handler
-    req.method = 'GET';
-    res.redirect(307, '/api/health-evaluation/me');
-  });
+  app.post('/api/health-evaluation/recalculate', expensiveLimiter, authenticate, handleHealthEvaluationMe);
 
-  // GET /api/health-evaluation/level/:level — explica un nivel y su producto
-  app.get('/api/health-evaluation/level/:level', apiLimiter, async (req: Request, res: Response) => {
+  // GET /api/health-evaluation/level/:level — explica un nivel y su producto (requiere auth)
+  app.get('/api/health-evaluation/level/:level', apiLimiter, authenticate, async (req: Request, res: Response) => {
     const level = parseInt(req.params.level, 10);
     if (isNaN(level) || level < -2 || level > 5) {
       return res.status(400).json({ message: 'Nivel debe estar entre -2 y 5.' });

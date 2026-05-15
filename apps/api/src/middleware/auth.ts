@@ -37,11 +37,19 @@ export interface AuthenticatedRequest extends Request {
   user?: TokenPayload;
 }
 
-// Token blacklist for logout (in production, use Redis)
+// Token blacklist for logout — in-memory fast path (backs up DB check below)
 const tokenBlacklist = new Set<string>();
 
-// 2FA OTP storage (in production, use Redis with TTL)
+// 2FA OTP storage — in-memory with TTL enforced on access
 const otpStorage = new Map<string, { code: string; expiresAt: number; attempts: number }>();
+
+// Periodic cleanup: remove expired OTP entries every 15 minutes to prevent memory growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [email, entry] of otpStorage.entries()) {
+    if (entry.expiresAt < now) otpStorage.delete(email);
+  }
+}, 15 * 60 * 1000).unref();
 
 // =============================================================================
 // PASSWORD UTILITIES
@@ -240,12 +248,20 @@ export function verifyToken(token: string): TokenPayload | null {
 }
 
 /**
- * Invalidate a token (add to blacklist)
+ * Invalidate a token (in-memory blacklist + DB persistence for cross-device/restart safety).
  */
-export function invalidateToken(token: string): void {
+export function invalidateToken(token: string, userId?: string): void {
   tokenBlacklist.add(token);
-  // Clean up old tokens periodically (tokens expire anyway)
   setTimeout(() => tokenBlacklist.delete(token), 30 * 24 * 60 * 60 * 1000);
+
+  // Persist logout timestamp to DB — any token with iat < this value is rejected
+  // even after a server restart, covering all devices the user is logged into.
+  if (userId) {
+    db.update(users)
+      .set({ tokenInvalidatedAt: new Date().toISOString() })
+      .where(eq(users.id, userId))
+      .catch((err: unknown) => logger.error({ err, userId }, 'Failed to persist token invalidation to DB'));
+  }
 }
 
 // =============================================================================
@@ -254,30 +270,54 @@ export function invalidateToken(token: string): void {
 
 /**
  * JWT Authentication Middleware
- * Verifies the JWT token and attaches user to request
+ * Verifies the JWT token and checks DB-backed invalidation (cross-device logout).
  */
-export function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
+export async function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const authHeader = req.headers.authorization;
 
-  if (!authHeader?.startsWith('Bearer ')) {
-    return res.status(401).json({ 
-      error: 'Unauthorized', 
-      message: 'Missing or invalid authorization header' 
-    });
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Missing or invalid authorization header',
+      });
+    }
+
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+
+    if (!payload) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid or expired token',
+      });
+    }
+
+    // Check DB-backed invalidation: reject tokens issued before the user's last logout.
+    // This makes logout work across all devices even after server restarts.
+    const [userRow] = await db
+      .select({ tokenInvalidatedAt: users.tokenInvalidatedAt })
+      .from(users)
+      .where(eq(users.id, payload.userId))
+      .limit(1);
+
+    if (userRow?.tokenInvalidatedAt) {
+      const invalidatedAtMs = new Date(userRow.tokenInvalidatedAt).getTime();
+      const tokenIat = ((payload as unknown) as { iat?: number }).iat ?? 0;
+      if (tokenIat * 1000 < invalidatedAtMs) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Session expired. Please log in again.',
+        });
+      }
+    }
+
+    req.user = payload;
+    next();
+  } catch (err) {
+    logger.error({ err }, 'authenticate middleware error');
+    return res.status(500).json({ error: 'Internal Server Error', message: 'Authentication check failed' });
   }
-
-  const token = authHeader.substring(7);
-  const payload = verifyToken(token);
-
-  if (!payload) {
-    return res.status(401).json({ 
-      error: 'Unauthorized', 
-      message: 'Invalid or expired token' 
-    });
-  }
-
-  req.user = payload;
-  next();
 }
 
 /**
@@ -360,10 +400,10 @@ export async function handleLogin(req: Request, res: Response) {
  */
 export async function handleLogout(req: AuthenticatedRequest, res: Response) {
   const authHeader = req.headers.authorization;
-  
+
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
-    invalidateToken(token);
+    invalidateToken(token, req.user?.userId);
   }
 
   if (req.user?.userId) {
@@ -490,7 +530,6 @@ export async function handleRegister(req: Request, res: Response) {
     try {
       await recordBatchAccept(newUser.id, purposeVersions, registerClientMeta(req));
     } catch (consentErr) {
-      console.error('Privacy consent recording failed:', consentErr);
       logger.error(
         {
           err: consentErr,
@@ -535,10 +574,10 @@ export async function handleRegister(req: Request, res: Response) {
       user: tokenPayload,
     });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ 
-      error: 'Internal Server Error', 
-      message: 'Failed to create account' 
+    logger.error({ err: error }, 'Registration error');
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Failed to create account',
     });
   }
 }
@@ -672,10 +711,7 @@ export async function handleRecoverMigrationPassword(req: Request, res: Response
     recoverySecret?: string;
     secret?: string;
   };
-  console.log('[recovery-debug] email recibido:', body.email);
-  console.log('[recovery-debug] secret match (recoverySecret):', body.recoverySecret === secret);
-  console.log('[recovery-debug] secret match (body.secret):', body.secret === secret);
-  console.log('[recovery-debug] env secret configured:', !!(secret && secret.length >= 16));
+  logger.debug({ emailProvided: !!body.email, secretConfigured: !!(secret && secret.length >= 16) }, '[recovery] attempt');
 
   if (!secret || secret.length < 16) {
     return res.status(503).json({
@@ -737,7 +773,7 @@ export async function handleLoginWithDB(req: Request, res: Response) {
 
   const email = normalizeEmail(rawEmail);
 
-  console.log('[AUTH LOGIN] Attempt for:', email, 'at', new Date().toISOString());
+  logger.info({ email: redactEmail(email) }, '[AUTH LOGIN] attempt');
 
   // Check demo authentication FIRST (for quick demo access)
   const isProduction = process.env.NODE_ENV === 'production';
@@ -895,13 +931,6 @@ export async function handleLoginWithDB(req: Request, res: Response) {
       message: 'No encontramos una cuenta con ese correo.',
     });
   } catch (error) {
-    console.error('[AUTH LOGIN ERROR]', error);
-    const errRec = error as { message?: string; stack?: string; code?: string };
-    console.error('[AUTH LOGIN ERROR] Full error:', {
-      message: errRec?.message ?? (error instanceof Error ? error.message : String(error)),
-      stack: error instanceof Error ? error.stack : undefined,
-      code: errRec?.code,
-    });
     logger.error(
       { err: error, message: error instanceof Error ? error.message : String(error) },
       'Login error: handler exception'
@@ -978,10 +1007,10 @@ export async function handleVerify2FA(req: Request, res: Response) {
       user: tokenPayload,
     });
   } catch (error) {
-    console.error('2FA verification error:', error);
-    res.status(500).json({ 
-      error: 'Internal Server Error', 
-      message: 'Verification failed' 
+    logger.error({ err: error }, '2FA verification error');
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Verification failed',
     });
   }
 }
@@ -1020,10 +1049,10 @@ export async function handleEnable2FA(req: AuthenticatedRequest, res: Response) 
       message: '2FA has been enabled for your account',
     });
   } catch (error) {
-    console.error('Enable 2FA error:', error);
-    res.status(500).json({ 
-      error: 'Internal Server Error', 
-      message: 'Failed to enable 2FA' 
+    logger.error({ err: error }, 'Enable 2FA error');
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Failed to enable 2FA',
     });
   }
 }
@@ -1062,10 +1091,10 @@ export async function handleDisable2FA(req: AuthenticatedRequest, res: Response)
       message: '2FA has been disabled for your account',
     });
   } catch (error) {
-    console.error('Disable 2FA error:', error);
-    res.status(500).json({ 
-      error: 'Internal Server Error', 
-      message: 'Failed to disable 2FA' 
+    logger.error({ err: error }, 'Disable 2FA error');
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Failed to disable 2FA',
     });
   }
 }
@@ -1123,10 +1152,10 @@ export async function handleResend2FA(req: Request, res: Response) {
       message: 'Verification code sent to your email',
     });
   } catch (error) {
-    console.error('Resend 2FA error:', error);
-    res.status(500).json({ 
-      error: 'Internal Server Error', 
-      message: 'Failed to resend code' 
+    logger.error({ err: error }, 'Resend 2FA error');
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Failed to resend code',
     });
   }
 }

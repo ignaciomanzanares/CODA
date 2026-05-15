@@ -17,6 +17,7 @@ import Login from "@/pages/Login";
 import SignUp from "@/pages/SignUp";
 import Landing from "@/pages/Landing";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import RouteErrorBoundary from "@/components/RouteErrorBoundary";
 import SessionExpiryGuard from "@/components/SessionExpiryGuard";
 import SeoHelmet from "@/components/SeoHelmet";
 import PWAUpdatePrompt from "@/components/PWAUpdatePrompt";
@@ -85,6 +86,7 @@ function UploadDrawerGlobal() {
 
 function App() {
   return (
+    <ErrorBoundary pageLevel>
     <QueryClientProvider client={queryClient}>
       <CurrencyProvider>
       <UploadDrawerProvider>
@@ -175,6 +177,7 @@ function App() {
             <Header />
             <PWAInstallBanner />
             <main className="flex-1">
+              <RouteErrorBoundary>
                 <Switch>
                   <Route path={ROUTES.bienvenida} component={Onboarding} />
                   <Route path="/onboarding">
@@ -311,6 +314,7 @@ function App() {
                   </Route>
                   <Route component={NotFound} />
                 </Switch>
+              </RouteErrorBoundary>
             </main>
             <Footer />
           </div>
@@ -326,6 +330,7 @@ function App() {
       </UploadDrawerProvider>
       </CurrencyProvider>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

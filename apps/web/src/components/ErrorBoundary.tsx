@@ -1,9 +1,11 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 
 interface Props {
   children: ReactNode;
+  /** Full-page centered layout instead of inline card */
+  pageLevel?: boolean;
   fallback?: ReactNode;
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
 }
@@ -29,27 +31,61 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   render() {
-    if (this.state.hasError && this.state.error) {
-      if (this.props.fallback) return this.props.fallback;
+    if (!this.state.hasError) return this.props.children;
+    if (this.props.fallback) return this.props.fallback;
+
+    if (this.props.pageLevel) {
       return (
-        <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20">
-          <CardContent className="p-6">
-            <h2 className="text-lg font-semibold text-amber-800 dark:text-amber-200 mb-2">
-              Algo salió mal
-            </h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              La página no pudo cargarse correctamente. Prueba a recargar.
+        <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center space-y-6">
+          <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-950/30 flex items-center justify-center">
+            <AlertTriangle className="h-8 w-8 text-amber-500" />
+          </div>
+          <div className="space-y-2 max-w-sm">
+            <h2 className="text-xl font-semibold text-foreground">Algo salió mal</h2>
+            <p className="text-sm text-muted-foreground">
+              Esta página encontró un error inesperado. Puedes volver al panel o recargar la página.
             </p>
+          </div>
+          <div className="flex gap-3">
             <Button
               variant="outline"
+              className="gap-2"
+              onClick={() => { window.location.href = "/panel"; }}
+            >
+              <Home className="h-4 w-4" />
+              Ir al panel
+            </Button>
+            <Button
+              className="gap-2"
               onClick={() => window.location.reload()}
             >
-              Recargar página
+              <RefreshCw className="h-4 w-4" />
+              Recargar
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       );
     }
-    return this.props.children;
+
+    return (
+      <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 p-6 space-y-3">
+        <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <p className="text-sm font-semibold">Algo salió mal</p>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Este componente no pudo cargarse correctamente.
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() => this.setState({ hasError: false, error: null })}
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Reintentar
+        </Button>
+      </div>
+    );
   }
 }
