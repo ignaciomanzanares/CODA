@@ -44,7 +44,10 @@ interface FileStatus {
 
 /** Data returned from the upload API after document processing. */
 interface UploadResultData {
+  documentType?: string;
   transactionalScore?: number;
+  creditScore?: number;
+  mainInsights?: string[];
   recommendedProducts?: string[];
 }
 
@@ -206,9 +209,12 @@ export default function UniversalUploadDrawer({
 
         // Capture scoring data from the response
         const result = json as Record<string, unknown>;
-        if (result.transactionalScore || result.recommendedProducts) {
+        if (result.transactionalScore || result.recommendedProducts || result.creditScore) {
           lastResult = {
+            documentType: result.documentType as string | undefined,
             transactionalScore: result.transactionalScore as number | undefined,
+            creditScore: result.creditScore as number | undefined,
+            mainInsights: result.mainInsights as string[] | undefined,
             recommendedProducts: result.recommendedProducts as string[] | undefined,
           };
         }
@@ -385,6 +391,7 @@ export default function UniversalUploadDrawer({
 
           {/* Post-upload results panel */}
           {uploadResult && doneCount !== null && doneCount > 0 && (() => {
+            const isCmf = uploadResult.documentType === 'cmf' || uploadResult.documentType === 'cmf_informe_deudas';
             const tabs = [...new Set(
               (uploadResult.recommendedProducts ?? [])
                 .map(getTabFromCode)
@@ -393,8 +400,42 @@ export default function UniversalUploadDrawer({
 
             return (
               <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 space-y-3">
-                {/* Score */}
-                {uploadResult.transactionalScore != null && (
+                {/* CMF credit score */}
+                {isCmf && uploadResult.creditScore != null && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <TrendingUp className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        Tu score crediticio CMF: {uploadResult.creditScore}/100
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Basado en tu informe de deudas CMF
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* CMF without score — generic success */}
+                {isCmf && uploadResult.creditScore == null && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <TrendingUp className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        Informe CMF procesado
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Tu salud financiera se ha actualizado
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Transactional score (cartola) */}
+                {!isCmf && uploadResult.transactionalScore != null && (
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
                       <TrendingUp className="h-5 w-5 text-primary" />
@@ -410,8 +451,24 @@ export default function UniversalUploadDrawer({
                   </div>
                 )}
 
-                {/* Recommended categories */}
-                {tabs.length > 0 && (
+                {/* CMF main CTA — go to salud financiera */}
+                {isCmf && (
+                  <Button
+                    size="sm"
+                    className="w-full gap-2"
+                    onClick={() => {
+                      onOpenChange(false);
+                      navigate("/salud-financiera");
+                    }}
+                  >
+                    <TrendingUp className="h-3.5 w-3.5" />
+                    Ver salud financiera
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+
+                {/* Cartola: recommended categories */}
+                {!isCmf && tabs.length > 0 && (
                   <div>
                     <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1.5">
                       <Sparkles className="h-3.5 w-3.5 text-primary" />
@@ -435,19 +492,21 @@ export default function UniversalUploadDrawer({
                   </div>
                 )}
 
-                {/* Main CTA */}
-                <Button
-                  size="sm"
-                  className="w-full gap-2"
-                  onClick={() => {
-                    onOpenChange(false);
-                    navigate(tabs.length > 0 ? `/productos?tab=${tabs[0]}` : "/productos");
-                  }}
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Ver recomendaciones personalizadas
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Button>
+                {/* Cartola: main CTA */}
+                {!isCmf && (
+                  <Button
+                    size="sm"
+                    className="w-full gap-2"
+                    onClick={() => {
+                      onOpenChange(false);
+                      navigate(tabs.length > 0 ? `/productos?tab=${tabs[0]}` : "/productos");
+                    }}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Ver recomendaciones personalizadas
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
             );
           })()}

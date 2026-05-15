@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
 import BillSplit from "@/pages/BillSplit";
+import MonthlyFlowChart from "@/components/MonthlyFlowChart";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import SignInBanner from "@/components/SignInBanner";
 
@@ -246,6 +247,9 @@ export default function Movimientos() {
             </button>
           ))}
         </div>
+
+        {/* Monthly flow chart — visible only on transacciones tab */}
+        {activeTab === "transacciones" && <MonthlyFlowChart />}
 
         {/* Tab content */}
         {activeTab === "transacciones" && (

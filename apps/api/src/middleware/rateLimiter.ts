@@ -42,6 +42,24 @@ export const expensiveLimiter = rateLimit({
 });
 
 /**
+ * Rate limiter for document uploads.
+ * Keyed by authenticated userId so each user has their own bucket.
+ * Prevents parser abuse and cloud cost spikes.
+ */
+export const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: isProduction() ? 15 : 200, // 15 uploads/hour in production
+  keyGenerator: (req) => {
+    // Use userId from JWT payload if available, fall back to IP
+    const authReq = req as { user?: { userId?: string } };
+    return authReq.user?.userId ?? req.ip ?? 'unknown';
+  },
+  message: "Límite de subida de documentos alcanzado. Intenta de nuevo en una hora.",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
  * Rate limiter for public endpoints (no auth required)
  * Moderate limits to prevent abuse while allowing demos
  */
