@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ArrowUpDown, ArrowUp, ArrowDown, Upload } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Upload, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { CATEGORY_TAXONOMY, categoryLabel } from "@/lib/categoryTaxonomy";
@@ -258,6 +258,30 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
       });
     }
   }, [queryClient, toast]);
+
+  // ── CSV export ──────────────────────────────────────────────────────────
+  const exportCsv = useCallback(() => {
+    const rows = [
+      ["Fecha", "Descripcion", "Categoria", "Tipo", "Monto", "Saldo", "Banco"],
+      ...filtered.map((t) => [
+        t.fecha,
+        `"${t.descripcion.replace(/"/g, '""')}"`,
+        categoryLabel(t.categoria),
+        t.tipo,
+        t.monto.toString(),
+        t.saldo != null ? t.saldo.toString() : "",
+        t.banco ?? "",
+      ]),
+    ];
+    const csv = rows.map((r) => r.join(";")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `transacciones-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [filtered]);
 
   // ── Loading state ────────────────────────────────────────────────────────
   if (isLoading) {
@@ -509,11 +533,23 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                 {filtered.length} movimiento{filtered.length !== 1 ? "s" : ""}
                 {hasActiveFilter ? " (filtrado" + (filtered.length !== allTxs.length ? `s de ${allTxs.length}` : "") + ")" : ""}
               </span>
-              {page < totalPages && (
-                <span className="text-primary cursor-pointer hover:underline" onClick={() => setPage(p => p + 1)}>
-                  Cargar más ↓
-                </span>
-              )}
+              <div className="flex items-center gap-3">
+                {page < totalPages && (
+                  <span className="text-primary cursor-pointer hover:underline" onClick={() => setPage(p => p + 1)}>
+                    Cargar más ↓
+                  </span>
+                )}
+                {filtered.length > 0 && (
+                  <button
+                    onClick={exportCsv}
+                    className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                    title="Exportar a CSV"
+                  >
+                    <Download className="h-3 w-3" />
+                    Exportar CSV
+                  </button>
+                )}
+              </div>
             </div>
           </>
         )}

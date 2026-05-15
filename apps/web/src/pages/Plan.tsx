@@ -71,7 +71,13 @@ const goalFormSchema = z.object({
   currentAmount: z.coerce.number().min(0, "El monto actual debe ser 0 o más"),
   targetDate: z.string().min(1, "La fecha objetivo es obligatoria"),
   category: z.enum(["savings", "debt_repayment", "retirement", "home", "education", "other"]),
-});
+}).refine(
+  (d) => d.targetDate >= new Date().toISOString().slice(0, 10),
+  { message: "La fecha objetivo no puede ser en el pasado", path: ["targetDate"] }
+).refine(
+  (d) => d.currentAmount <= d.targetAmount,
+  { message: "El monto actual no puede superar el monto objetivo", path: ["currentAmount"] }
+);
 type GoalFormValues = z.infer<typeof goalFormSchema>;
 
 function isOptimisticId(id: unknown): boolean {

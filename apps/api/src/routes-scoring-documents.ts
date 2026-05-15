@@ -21,6 +21,12 @@ import { logger } from "./logger.js";
 const uploadPdf = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype !== "application/pdf") {
+      return cb(new Error("Solo se aceptan archivos PDF"));
+    }
+    cb(null, true);
+  },
 });
 
 function getUserId(req: Request): string {

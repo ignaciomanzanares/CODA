@@ -31,7 +31,7 @@ import { evaluateGovernmentPrograms } from "./services/governmentPrograms.js";
 import { emailService } from "./services/emailService.js";
 import crypto from "crypto";
 import { notificationService, expenseCategoryLabelEs } from "./services/notificationService.js";
-import { apiLimiter, expensiveLimiter, authLimiter } from "./middleware/rateLimiter.js";
+import { apiLimiter, expensiveLimiter, authLimiter, uploadLimiter } from "./middleware/rateLimiter.js";
 import multer from "multer";
 import { logger } from "./logger.js";
 import {
@@ -165,6 +165,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Password reset token store: token -> { userId, expiresAt }
   const passwordResetTokens = new Map<string, { userId: string; expiresAt: number }>();
+  // Periodic cleanup: remove expired reset tokens every hour to prevent memory growth
+  setInterval(() => {
+    const now = Date.now();
+    for (const [tok, val] of passwordResetTokens.entries()) {
+      if (val.expiresAt < now) passwordResetTokens.delete(tok);
+    }
+  }, 60 * 60 * 1000).unref();
   /** Prevents duplicate financial alert notifications (max 1 per user per day). */
   const financialAlertsSent = new Set<string>();
 
@@ -258,15 +265,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get all accounts for user
       const userAccounts = await storage.getAccounts(userId);
-      
-      // Get latest balances for each account
-      const accountsWithBalances = await Promise.all(
-        userAccounts.map(async (account: { id: number; type?: string; subtype?: string; name?: string; officialName?: string; bankConnectionId?: number }) => {
-          const balances = await storage.getBalances(account.id);
-          const balance = balances.length > 0 ? balances[balances.length - 1] : null;
-          return { ...account, balance };
-        })
-      );
+
+      // Bulk-fetch latest balances (single query instead of one per account)
+      const accountIds = userAccounts.map((a: { id: number }) => a.id);
+      const latestBalanceByAccount = await storage.getLatestBalancesForAccounts(accountIds);
+      const accountsWithBalances = userAccounts.map((account: { id: number; type?: string; subtype?: string; name?: string; officialName?: string; bankConnectionId?: number }) => ({
+        ...account,
+        balance: latestBalanceByAccount[account.id] ?? null,
+      }));
 
       // Categorize accounts
       const accountsByType = {
@@ -291,18 +297,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalLiabilities = creditCardDebt + loansTotal;
       const netWorth = totalAssets - totalLiabilities;
 
-      // Get transactions for the last 90 days
+      // Bulk-fetch transactions for the last 90 days (single query)
       const ninetyDaysAgo = new Date();
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-      
-      const allTransactions = await Promise.all(
-        userAccounts.map((account: { id: number }) => storage.getTransactions(account.id, { from: ninetyDaysAgo }))
-      );
-      const transactions = allTransactions.flat().filter((t: any) => 
-        t != null &&
-        t.postedAt &&
-        new Date(t.postedAt) >= ninetyDaysAgo
-      );
+
+      const transactions = await storage.getTransactionsForAccounts(accountIds, { from: ninetyDaysAgo });
 
       // Calculate monthly income and expenses (last 30 days)
       const thirtyDaysAgo = new Date();
@@ -1175,6 +1174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post(
     "/api/documents/upload",
     authenticate,
+    uploadLimiter,
     (req: Request, res: Response, next: NextFunction) => {
       documentUpload.single("document")(req, res, (err: unknown) => {
         if (err) {
@@ -1741,6 +1741,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e) {
       logger.error({ err: e }, "Failed to get monthly comparison");
       res.status(500).json({ message: "Error al obtener comparación mensual." });
+    }
+  });
+
+  // GET /api/transactions/monthly-flow — income vs expenses by month (last 12 months)
+  app.get("/api/transactions/monthly-flow", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+
+      const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
+      const byMonth: Record<string, { ingresos: number; egresos: number }> = {};
+
+      for (const c of cartolas) {
+        const pd = c.parsedData as { transacciones?: any[] } | null;
+        for (const t of pd?.transacciones ?? []) {
+          let fecha: string;
+          if (typeof t.fecha === "string") {
+            fecha = t.fecha.includes("/")
+              ? (() => { const p = t.fecha.split("/"); return p.length === 3 ? `${p[2].length === 2 ? "20" + p[2] : p[2]}-${p[1].padStart(2, "0")}` : t.fecha.slice(0, 7); })()
+              : t.fecha.slice(0, 7);
+          } else continue;
+
+          if (!byMonth[fecha]) byMonth[fecha] = { ingresos: 0, egresos: 0 };
+
+          if ("tipo" in t && typeof t.monto === "number") {
+            if (t.tipo === "abono") byMonth[fecha].ingresos += t.monto;
+            else if (t.tipo === "cargo") byMonth[fecha].egresos += t.monto;
+          } else {
+            byMonth[fecha].ingresos += t.abono ?? 0;
+            byMonth[fecha].egresos += t.cargo ?? 0;
+          }
+        }
+      }
+
+      const MONTH_LABELS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+      const now = new Date();
+      const result = [];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const entry = byMonth[key];
+        if (!entry) continue;
+        result.push({
+          month: key,
+          label: `${MONTH_LABELS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`,
+          ingresos: Math.round(entry.ingresos),
+          egresos: Math.round(entry.egresos),
+          balance: Math.round(entry.ingresos - entry.egresos),
+        });
+      }
+
+      res.json({ months: result });
+    } catch (e) {
+      logger.error({ err: e }, "Failed to get monthly flow");
+      res.status(500).json({ message: "Error al obtener flujo mensual." });
     }
   });
 
@@ -3399,80 +3455,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Debug endpoint to check what users exist
-  // SECURITY: Only available when DEBUG_ENDPOINTS=true AND not in production
-  // This endpoint should NEVER be enabled in production deployments
-  if (process.env.DEBUG_ENDPOINTS === 'true' && process.env.NODE_ENV !== 'production') {
-    app.get("/api/debug/users", async (req: Request, res: Response) => {
-      try {
-        // Get all users (limit to email and id for privacy)
-        const users = [];
-        const { MemStorage } = await import('./storage.js');
-        
-        if (storage instanceof MemStorage) {
-          // In-memory storage
-          for (const user of (storage as any).users.values()) {
-            users.push({ id: user.id, email: user.email });
-          }
-        } else {
-          // Database storage - would need a different approach
-          return res.json({ message: "Database storage detected - cannot easily list users" });
-        }
-        
-        res.json({ users, total: users.length });
-      } catch (error) {
-        logger.error({ err: error }, 'Error in debug users');
-        res.status(500).json({ message: 'Internal server error' });
-      }
-    });
-  }
-
-  // Check if user exists for email invitation (no auth required)
+  // Check if user exists for email invitation (no auth required).
+  // userExists is only returned on success (200) — never on 403/404 to prevent email enumeration.
   app.get("/api/bill-splits/:id/check-user/:email", async (req: Request, res: Response) => {
     try {
       const billSplitId = Number(req.params.id);
       const email = decodeURIComponent(req.params.email);
-      
-      // Always check if user exists by email first
-      logger.debug({ email }, 'Checking if user exists');
-      const user = await storage.getUserByEmail(email);
-      const userExists = !!user;
-      logger.debug({ userExists, userId: user?.id }, 'User existence check result');
-      
-      // Check if bill split exists
+
+      // Validate the bill split exists and the email is actually invited before revealing anything
       const billSplit = await storage.getBillSplit(billSplitId);
       if (!billSplit) {
-        return res.status(404).json({
-          message: "Partida no encontrada",
-          userExists,
-          invitedEmail: email,
-          billSplitId: billSplitId,
-        });
+        return res.status(404).json({ message: "Partida no encontrada" });
       }
-      
-      // Check if the email is actually invited to this bill split
+
       const participants = await storage.getBillSplitParticipants(billSplitId);
-      const isInvited = participants.some((p: BillSplitParticipant) => p.email && p.email.toLowerCase() === email.toLowerCase());
-      
+      const isInvited = participants.some(
+        (p: BillSplitParticipant) => p.email && p.email.toLowerCase() === email.toLowerCase()
+      );
+
       if (!isInvited) {
-        return res.status(403).json({ 
-          message: "Email not invited to this bill split", 
-          userExists,
-          billSplitName: billSplit.name,
-          invitedEmail: email,
-          billSplitId: billSplitId
-        });
+        return res.status(403).json({ message: "Email not invited to this bill split" });
       }
-      
-      res.json({ 
-        userExists,
+
+      // Only reveal userExists once we've confirmed the email is a legitimate invitee
+      const user = await storage.getUserByEmail(email);
+      res.json({
+        userExists: !!user,
         billSplitName: billSplit.name,
         invitedEmail: email,
-        billSplitId: billSplitId
+        billSplitId: billSplitId,
       });
     } catch (error) {
       logger.error({ err: error }, 'Error checking user for invitation');
-      res.status(500).json({ message: 'Internal server error', userExists: false });
+      res.status(500).json({ message: 'Internal server error' });
     }
   });
 
