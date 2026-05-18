@@ -169,8 +169,12 @@ async function streamChat(
 // ── Markdown rendering ───────────────────────────────────────────────────────
 
 function renderMarkdown(text: string): string {
-  return text
+  // Strip the trailing "PREGUNTAS:" suggestion line so it never appears in the bubble,
+  // even while the response is still streaming and we haven't parsed it yet.
+  const cleaned = text.replace(/\n?PREGUNTAS:\s*[^\n]*$/i, "").trim();
+  return cleaned
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/^- (.+)$/gm, "&bull; $1")
     .replace(/\n/g, "<br/>")
     .replace(/•/g, "&bull;");
 }
