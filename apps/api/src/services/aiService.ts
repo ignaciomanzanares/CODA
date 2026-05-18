@@ -82,28 +82,20 @@ Cuando sea relevante, recomienda funciones específicas de CODA:
 - **/conexiones** → Sincronizar cuentas bancarias vía Open Finance
 
 ## Formato de respuesta
-Responde SIEMPRE con JSON válido usando esta estructura exacta:
-\`\`\`json
-{
-  "message": "Tu respuesta aquí. Usa **negritas** para datos clave y saltos de línea (\\n) para separar párrafos. Usa viñetas con • para listas.",
-  "suggestions": ["Pregunta sugerida 1", "Pregunta sugerida 2", "Pregunta sugerida 3"],
-  "actionItems": [
-    {
-      "title": "Acción recomendada",
-      "description": "Breve explicación de qué hacer",
-      "link": "/ruta-en-coda",
-      "icon": "nombre-icono"
-    }
-  ]
-}
-\`\`\`
+Responde en **texto plano con markdown**, sin JSON, sin bloques de código, sin envolturas.
 
-### Reglas del JSON:
-- **message**: 2-4 párrafos máximo. Concreto, con números del usuario cuando estén disponibles. Usa \\n para párrafos.
-- **suggestions**: exactamente 3 preguntas de seguimiento relevantes y específicas al tema discutido. Máximo 60 caracteres cada una.
-- **actionItems**: 0-3 acciones. Solo incluye si hay algo concreto que el usuario pueda hacer en CODA. Links válidos: /panel, /gastos, /metas, /productos, /plan, /movimientos, /dividir-cuenta, /perfil, /conexiones. Icons válidos: target, piggy-bank, credit-card, trending-up, shield, calculator, wallet, bar-chart.
-- Montos siempre en pesos chilenos con formato $XXX.XXX (punto como separador de miles)
-- NUNCA incluyas comillas extras dentro del JSON ni caracteres que rompan el parsing
+- Usa **negritas** para datos clave (montos, porcentajes, plazos).
+- Separa párrafos con doble salto de línea.
+- Usa viñetas con \`-\` cuando corresponda (máximo 5).
+- Mantén la respuesta a 2-4 párrafos cortos. Sé concreto y usa los números del usuario cuando estén disponibles.
+- Montos en pesos chilenos con formato $XXX.XXX (punto como separador de miles).
+- NO empieces la respuesta con "Claro", "Por supuesto" ni saludos vacíos — entra directo al punto.
+
+Al final de tu respuesta, en una línea nueva separada por una línea en blanco, agrega exactamente este formato con 3 preguntas de seguimiento relevantes (cada una máximo 60 caracteres):
+
+PREGUNTAS: pregunta uno | pregunta dos | pregunta tres
+
+Esa línea es la última del mensaje. No agregues nada después.
 
 ## Reglas de seguridad
 - Nunca compartas números de cuenta, RUT completo ni datos sensibles
@@ -198,7 +190,6 @@ async function callOpenAI(messages: Message[], apiKey: string): Promise<string> 
       messages: messages.map(m => ({ role: m.role, content: m.content })),
       max_tokens: 1500,
       temperature: 0.6,
-      response_format: { type: "json_object" },
     }),
   });
 
@@ -251,7 +242,6 @@ async function callGroq(messages: Message[], apiKey: string): Promise<string> {
       messages: messages.map(m => ({ role: m.role, content: m.content })),
       max_tokens: 1500,
       temperature: 0.6,
-      response_format: { type: "json_object" },
     }),
   });
 
@@ -423,42 +413,55 @@ export async function* streamGroq(messages: Message[], apiKey: string): AsyncGen
 // ── Response parsing ─────────────────────────────────────────────────────────
 
 function parseStructuredResponse(raw: string): AIResponse {
-  // Try to extract JSON from the response (model might wrap in ```json blocks)
-  let jsonStr = raw.trim();
+  const trimmed = raw.trim();
 
-  // Strip markdown code fences if present
-  const fenceMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fenceMatch) {
-    jsonStr = fenceMatch[1].trim();
+  // Backward compat: if the model still returned JSON (or a ```json fence), parse it.
+  const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const candidate = fenceMatch ? fenceMatch[1].trim() : trimmed;
+  if (candidate.startsWith('{') && candidate.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (typeof parsed.message === 'string') {
+        return {
+          message: parsed.message,
+          suggestions: Array.isArray(parsed.suggestions)
+            ? parsed.suggestions.filter((s: unknown) => typeof s === 'string' && s.length > 0).slice(0, 3)
+            : extractFallbackSuggestions(parsed.message),
+          actionItems: Array.isArray(parsed.actionItems)
+            ? parsed.actionItems
+                .filter((a: unknown) => a && typeof a === 'object' && 'title' in (a as object))
+                .slice(0, 3)
+                .map((a: Record<string, unknown>) => ({
+                  title: String(a.title || ''),
+                  description: String(a.description || ''),
+                  link: typeof a.link === 'string' ? a.link : undefined,
+                  icon: typeof a.icon === 'string' ? a.icon : undefined,
+                }))
+            : [],
+        };
+      }
+    } catch {
+      // fall through to plain-text parsing
+    }
   }
 
-  try {
-    const parsed = JSON.parse(jsonStr);
-    return {
-      message: typeof parsed.message === 'string' ? parsed.message : raw,
-      suggestions: Array.isArray(parsed.suggestions)
-        ? parsed.suggestions.filter((s: unknown) => typeof s === 'string' && s.length > 0).slice(0, 3)
-        : extractFallbackSuggestions(raw),
-      actionItems: Array.isArray(parsed.actionItems)
-        ? parsed.actionItems
-            .filter((a: unknown) => a && typeof a === 'object' && 'title' in (a as object))
-            .slice(0, 3)
-            .map((a: Record<string, unknown>) => ({
-              title: String(a.title || ''),
-              description: String(a.description || ''),
-              link: typeof a.link === 'string' ? a.link : undefined,
-              icon: typeof a.icon === 'string' ? a.icon : undefined,
-            }))
-        : [],
-    };
-  } catch {
-    // Fallback: treat entire response as plain text
-    return {
-      message: raw,
-      suggestions: extractFallbackSuggestions(raw),
-      actionItems: [],
-    };
+  // Plain markdown path: split off the trailing "PREGUNTAS: a | b | c" line if present.
+  let message = trimmed;
+  let suggestions: string[] = [];
+  const preguntasMatch = trimmed.match(/(?:^|\n)PREGUNTAS:\s*(.+?)\s*$/i);
+  if (preguntasMatch) {
+    message = trimmed.slice(0, preguntasMatch.index).trim();
+    suggestions = preguntasMatch[1]
+      .split('|')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0 && s.length <= 80)
+      .slice(0, 3);
   }
+  if (suggestions.length === 0) {
+    suggestions = extractFallbackSuggestions(message);
+  }
+
+  return { message, suggestions, actionItems: [] };
 }
 
 function extractFallbackSuggestions(response: string): string[] {
