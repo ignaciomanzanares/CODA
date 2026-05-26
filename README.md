@@ -105,6 +105,17 @@ DATABASE_URL="postgresql://..." npm run seed:empresas -w @coda/api
 **Frontend (Vercel)**  
 Root `apps/web`, variables `VITE_API_URL` (URL del API en Render) y `VITE_ENV=production`.
 
+**Feature flag — `VITE_ENABLE_CODA_EMPRESAS` (default: `false`)**
+
+Controla la visibilidad pública del producto **CODA Empresas** en el sitio web
+(sección de landing, switch del header, rutas `/empresas/*`, entradas de
+sitemap y JSON-LD). Debe permanecer en `false` mientras la CMF no haya
+otorgado una autorización separada alineada con el giro exclusivo exigido por
+la Ley N° 21.521 (art. 5 inciso primero y art. 6 inciso tercero). Activarlo a
+`true` en Vercel/producción sin esa autorización previa puede comprometer la
+inscripción en el RPSF. El código de CODA Empresas se conserva en el
+repositorio pero queda inactivo cuando el flag está apagado.
+
 ---
 
 ## Scripts

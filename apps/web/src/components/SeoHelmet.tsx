@@ -8,6 +8,7 @@ import {
   PRIVATE_ROUTES,
   type RouteSeoEntry,
 } from "@/lib/seo-routes";
+import { FEATURES } from "@/config/features";
 
 /** Look up SEO data for the current pathname. */
 function getRouteSeo(pathname: string): RouteSeoEntry & { canonical: string } {
@@ -27,8 +28,8 @@ function getRouteSeo(pathname: string): RouteSeoEntry & { canonical: string } {
     };
   }
 
-  // Empresas sub-routes — all noIndex
-  if (normalized.startsWith("/empresas/")) {
+  // Empresas sub-routes — all noIndex. Only emitted when CODA Empresas flag is on.
+  if (FEATURES.codaEmpresas && normalized.startsWith("/empresas/")) {
     return { title: "CODA Empresas", description: "", canonical: "", noIndex: true };
   }
 
