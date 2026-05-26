@@ -41,6 +41,7 @@ import NotificationCenter from "@/components/NotificationCenter";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/routes";
 import { useTheme } from "@/lib/useTheme";
+import { FEATURES } from "@/config/features";
 
 const navItems = [
   { href: ROUTES.panel, label: "Panel", icon: LayoutDashboard },
@@ -113,6 +114,16 @@ export default function Header() {
 
         {/* Centro: navegación + moneda — centrado */}
         <div className="flex-1 min-w-0 flex items-center justify-center gap-1 sm:gap-2">
+          {!isAuthenticated && (
+            <nav className="hidden md:flex items-center gap-1 min-w-0 justify-center">
+              <a
+                href={location === "/" ? "#servicios" : "/#servicios"}
+                className="px-3 py-2 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors whitespace-nowrap"
+              >
+                Servicios
+              </a>
+            </nav>
+          )}
           {isAuthenticated && (
             <nav className="hidden lg:flex items-center gap-0.5 min-w-0 justify-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {(isEmpresas ? empresasNavItems : navItems).map((item) => {
@@ -151,22 +162,24 @@ export default function Header() {
 
         {/* Derecha: CODA Personal/Empresas, notificaciones, usuario — lo más a la derecha */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
-          {isEmpresas ? (
-            <Link href={ROUTES.panel}>
-              <Button variant="outline" size="sm" className="hidden md:flex items-center gap-1.5 shrink-0">
-                <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="xl:hidden">Personal</span>
-                <span className="hidden xl:inline">CODA Personal</span>
-              </Button>
-            </Link>
-          ) : (
-            <Link href="/empresas">
-              <Button variant="outline" size="sm" className="hidden md:flex items-center gap-1.5 shrink-0">
-                <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="xl:hidden">Empresas</span>
-                <span className="hidden xl:inline">CODA Empresas</span>
-              </Button>
-            </Link>
+          {FEATURES.codaEmpresas && (
+            isEmpresas ? (
+              <Link href={ROUTES.panel}>
+                <Button variant="outline" size="sm" className="hidden md:flex items-center gap-1.5 shrink-0">
+                  <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="xl:hidden">Personal</span>
+                  <span className="hidden xl:inline">CODA Personal</span>
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/empresas">
+                <Button variant="outline" size="sm" className="hidden md:flex items-center gap-1.5 shrink-0">
+                  <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="xl:hidden">Empresas</span>
+                  <span className="hidden xl:inline">CODA Empresas</span>
+                </Button>
+              </Link>
+            )
           )}
           {isAuthenticated && user ? (
             <>
@@ -259,7 +272,7 @@ export default function Header() {
                 )}
 
                 {/* Switch CODA Personal / Empresas */}
-                {isAuthenticated && (
+                {isAuthenticated && FEATURES.codaEmpresas && (
                   <div className="border-t border-border/60 mt-3 pt-3">
                     <button
                       className="flex items-center gap-3 px-3 py-3 text-sm font-medium rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground text-left w-full"

@@ -24,6 +24,7 @@ import PWAUpdatePrompt from "@/components/PWAUpdatePrompt";
 import { useVisualViewportHeight } from "@/hooks/useVisualViewportHeight";
 import { useBrowserNotifications } from "@/hooks/useBrowserNotifications";
 import { useKeepAlive } from "@/hooks/useKeepAlive";
+import { FEATURES } from "@/config/features";
 
 function VisualViewportRootSync() {
   useVisualViewportHeight();
@@ -112,7 +113,7 @@ function App() {
         {/* Public routes (español + alias en inglés) */}
         <Route path={ROUTES.iniciarSesion} component={Login} />
         <Route path="/login" component={Login} />
-        <Route path="/empresas/login" component={Login} />
+        {FEATURES.codaEmpresas && <Route path="/empresas/login" component={Login} />}
         <Route path={ROUTES.restablecerContrasena} component={ResetPassword} />
         <Route path={ROUTES.registro} component={SignUp} />
         <Route path="/signup" component={SignUp} />
@@ -123,7 +124,7 @@ function App() {
         <Route path="/nosotros">
           <Redirect to={ROUTES.acerca} />
         </Route>
-        <Route path="/empresas" component={Empresas} />
+        {FEATURES.codaEmpresas && <Route path="/empresas" component={Empresas} />}
         <Route path={ROUTES.infoScoreCredito} component={CreditScoreInfo} />
         <Route path="/info/credit-score">
           <Redirect to={ROUTES.infoScoreCredito} />
@@ -183,52 +184,57 @@ function App() {
                   <Route path="/onboarding">
                     <Redirect to={ROUTES.bienvenida} />
                   </Route>
-                  {/* CODA Empresas: sesión independiente de Personal */}
-                  <Route path="/empresas/dashboard">
-                    <ProtectedRoute context="empresas">
-                      <EmpresasLayout><EmpresasDashboard /></EmpresasLayout>
-                    </ProtectedRoute>
-                  </Route>
-                  <Route path="/empresas/companies">
-                    <ProtectedRoute context="empresas">
-                      <EmpresasLayout><EmpresasCompanies /></EmpresasLayout>
-                    </ProtectedRoute>
-                  </Route>
-                  <Route path="/empresas/transactions">
-                    <ProtectedRoute context="empresas">
-                      <EmpresasLayout><EmpresasTransactions /></EmpresasLayout>
-                    </ProtectedRoute>
-                  </Route>
-                  <Route path="/empresas/reconciliation">
-                    <ProtectedRoute context="empresas">
-                      <EmpresasLayout><EmpresasReconciliation /></EmpresasLayout>
-                    </ProtectedRoute>
-                  </Route>
-                  <Route path="/empresas/statements">
-                    <ProtectedRoute context="empresas">
-                      <EmpresasLayout><EmpresasStatements /></EmpresasLayout>
-                    </ProtectedRoute>
-                  </Route>
-                  <Route path="/empresas/risk">
-                    <ProtectedRoute context="empresas">
-                      <EmpresasLayout><EmpresasRisk /></EmpresasLayout>
-                    </ProtectedRoute>
-                  </Route>
-                  <Route path="/empresas/documents">
-                    <ProtectedRoute context="empresas">
-                      <EmpresasLayout><EmpresasDocuments /></EmpresasLayout>
-                    </ProtectedRoute>
-                  </Route>
-                  <Route path="/empresas/products">
-                    <ProtectedRoute context="empresas">
-                      <EmpresasLayout><EmpresasProducts /></EmpresasLayout>
-                    </ProtectedRoute>
-                  </Route>
-                  <Route path="/empresas/purchase-orders">
-                    <ProtectedRoute context="empresas">
-                      <EmpresasLayout><EmpresasPurchaseOrders /></EmpresasLayout>
-                    </ProtectedRoute>
-                  </Route>
+                  {/* CODA Empresas: sesión independiente de Personal — gated by flag,
+                      requires separate CMF authorization aligned to giro exclusivo (Ley 21.521) */}
+                  {FEATURES.codaEmpresas && (
+                    <>
+                      <Route path="/empresas/dashboard">
+                        <ProtectedRoute context="empresas">
+                          <EmpresasLayout><EmpresasDashboard /></EmpresasLayout>
+                        </ProtectedRoute>
+                      </Route>
+                      <Route path="/empresas/companies">
+                        <ProtectedRoute context="empresas">
+                          <EmpresasLayout><EmpresasCompanies /></EmpresasLayout>
+                        </ProtectedRoute>
+                      </Route>
+                      <Route path="/empresas/transactions">
+                        <ProtectedRoute context="empresas">
+                          <EmpresasLayout><EmpresasTransactions /></EmpresasLayout>
+                        </ProtectedRoute>
+                      </Route>
+                      <Route path="/empresas/reconciliation">
+                        <ProtectedRoute context="empresas">
+                          <EmpresasLayout><EmpresasReconciliation /></EmpresasLayout>
+                        </ProtectedRoute>
+                      </Route>
+                      <Route path="/empresas/statements">
+                        <ProtectedRoute context="empresas">
+                          <EmpresasLayout><EmpresasStatements /></EmpresasLayout>
+                        </ProtectedRoute>
+                      </Route>
+                      <Route path="/empresas/risk">
+                        <ProtectedRoute context="empresas">
+                          <EmpresasLayout><EmpresasRisk /></EmpresasLayout>
+                        </ProtectedRoute>
+                      </Route>
+                      <Route path="/empresas/documents">
+                        <ProtectedRoute context="empresas">
+                          <EmpresasLayout><EmpresasDocuments /></EmpresasLayout>
+                        </ProtectedRoute>
+                      </Route>
+                      <Route path="/empresas/products">
+                        <ProtectedRoute context="empresas">
+                          <EmpresasLayout><EmpresasProducts /></EmpresasLayout>
+                        </ProtectedRoute>
+                      </Route>
+                      <Route path="/empresas/purchase-orders">
+                        <ProtectedRoute context="empresas">
+                          <EmpresasLayout><EmpresasPurchaseOrders /></EmpresasLayout>
+                        </ProtectedRoute>
+                      </Route>
+                    </>
+                  )}
                   <Route path={ROUTES.panel}>
                     <ProtectedRoute>
                       <Dashboard />

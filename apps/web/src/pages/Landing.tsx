@@ -28,6 +28,8 @@ import {
   Zap,
   FileText,
   HelpCircle,
+  ClipboardCheck,
+  LineChart,
 } from "lucide-react";
 import {
   Accordion,
@@ -75,6 +77,60 @@ const FAQ_JSONLD = JSON.stringify({
     name: q,
     acceptedAnswer: { "@type": "Answer", text: a },
   })),
+});
+
+// ── Servicios regulados (Ley N° 21.521 · NCG N° 502) ────────────────────────
+const SERVICES = [
+  {
+    icon: ClipboardCheck,
+    title: "Asesoría Crediticia",
+    body:
+      "Entregamos evaluaciones y recomendaciones respecto de la capacidad o " +
+      "probabilidad de pago de personas naturales y jurídicas, para apoyarlas " +
+      "en la obtención, modificación o renegociación de créditos o " +
+      "financiamientos. Nuestro análisis se basa en información financiera " +
+      "abierta, datos transaccionales y otras fuentes autorizadas por la " +
+      "legislación vigente.",
+  },
+  {
+    icon: LineChart,
+    title: "Asesoría de Inversión",
+    body:
+      "Entregamos evaluaciones y recomendaciones respecto de la conveniencia " +
+      "de realizar determinadas inversiones u operaciones en valores de oferta " +
+      "pública, instrumentos financieros o proyectos de inversión, ajustadas " +
+      "al perfil y objetivos financieros de cada usuario. No comprende " +
+      "asesoría previsional, entidades de asesoría previsional, asesores " +
+      "financieros previsionales ni entidades de asesoría financiera a que se " +
+      "refiere el DL N° 3.500 de 1980, ni la actividad de agentes de venta " +
+      "de compañías de seguros.",
+  },
+] as const;
+
+const SERVICES_DISCLAIMER =
+  "La inscripción en el Registro de Prestadores de Servicios Financieros " +
+  "(RPSF) no implica que la Comisión para el Mercado Financiero recomiende " +
+  "la realización de las operaciones, ni garantice la calidad o solvencia " +
+  "de la entidad inscrita.";
+
+const SERVICES_JSONLD = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "FinancialService",
+  name: "CODA — Chile Open-Data Analytics SpA",
+  url: "https://www.codafinance.cl/",
+  areaServed: { "@type": "Country", name: "Chile" },
+  hasOfferCatalog: {
+    "@type": "OfferCatalog",
+    name: "Servicios regulados bajo Ley N° 21.521 (Ley Fintec) y NCG N° 502",
+    itemListElement: SERVICES.map(({ title, body }) => ({
+      "@type": "Offer",
+      itemOffered: {
+        "@type": "Service",
+        name: title,
+        description: body,
+      },
+    })),
+  },
 });
 
 // ── Intersection Observer hook for fade-in on scroll ─────────────────────────
@@ -126,6 +182,7 @@ export default function Landing() {
   }
 
   // Fade-in refs for each section
+  const serviciosRef = useFadeIn<HTMLElement>();
   const featuresRef = useFadeIn<HTMLElement>();
   const scoreRef = useFadeIn<HTMLElement>();
   const howRef = useFadeIn<HTMLElement>();
@@ -137,9 +194,10 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen font-sans">
-      {/* FAQPage structured data for rich snippets */}
+      {/* Structured data: FAQPage + FinancialService offer catalog */}
       <Helmet>
         <script type="application/ld+json">{FAQ_JSONLD}</script>
+        <script type="application/ld+json">{SERVICES_JSONLD}</script>
       </Helmet>
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
@@ -283,6 +341,47 @@ export default function Landing() {
           <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
             <path d="M0 60L480 20C720 0 960 0 1440 20V60H0Z" fill="white"/>
           </svg>
+        </div>
+      </section>
+
+      {/* ── NUESTROS SERVICIOS (regulados — Ley N° 21.521 · NCG N° 502) ──── */}
+      <section ref={serviciosRef} id="servicios" className="py-20 md:py-24 bg-white fade-section scroll-mt-20">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12 max-w-2xl mx-auto">
+            <p className="text-blue-600 font-semibold text-xs sm:text-sm uppercase tracking-widest mb-3">
+              Marco regulatorio
+            </p>
+            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-4">
+              Nuestros Servicios
+            </h2>
+            <p className="text-sm md:text-base text-gray-500 leading-relaxed">
+              Servicios prestados bajo el marco de la Ley N° 21.521 (Ley Fintec) y la
+              NCG N° 502 de la Comisión para el Mercado Financiero.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-5 max-w-4xl mx-auto">
+            {SERVICES.map(({ icon: Icon, title, body }) => (
+              <article
+                key={title}
+                className="flex flex-col p-6 sm:p-7 rounded-2xl border border-gray-200 bg-white hover:border-blue-200 hover:shadow-sm transition-all"
+              >
+                <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-3">
+                  {title}
+                </h3>
+                <p className="text-sm md:text-[15px] text-gray-600 leading-relaxed">
+                  {body}
+                </p>
+              </article>
+            ))}
+          </div>
+
+          <p className="mt-8 max-w-3xl mx-auto text-center text-xs text-gray-400 leading-relaxed px-4">
+            {SERVICES_DISCLAIMER}
+          </p>
         </div>
       </section>
 

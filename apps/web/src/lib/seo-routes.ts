@@ -7,6 +7,8 @@
  *  - scripts/generate-sitemap.mjs  (build-time, sitemap.xml)
  */
 
+import { FEATURES } from "@/config/features";
+
 export const BASE_URL = "https://www.codafinance.cl";
 export const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image.png`;
 
@@ -29,7 +31,20 @@ export interface RouteSeoEntry {
 // Public routes — indexed, pre-rendered, included in sitemap
 // ──────────────────────────────────────────────────────────────────────────────
 
+const codaEmpresasRoutes: Record<string, RouteSeoEntry> = FEATURES.codaEmpresas
+  ? {
+      "/empresas": {
+        title: "CODA Empresas | Gestión financiera empresarial",
+        description:
+          "Herramientas de gestión financiera, conciliación bancaria y análisis de riesgo para empresas chilenas.",
+        changefreq: "monthly",
+        priority: "0.5",
+      },
+    }
+  : {};
+
 export const PUBLIC_ROUTES: Record<string, RouteSeoEntry> = {
+  ...codaEmpresasRoutes,
   "/": {
     title: "CODA | Salud financiera y score crediticio para Chile",
     description:
@@ -92,13 +107,6 @@ export const PUBLIC_ROUTES: Record<string, RouteSeoEntry> = {
       "Conoce tu perfil de riesgo financiero y recomendaciones de seguros alineadas a tu situación real.",
     changefreq: "monthly",
     priority: "0.6",
-  },
-  "/empresas": {
-    title: "CODA Empresas | Gestión financiera empresarial",
-    description:
-      "Herramientas de gestión financiera, conciliación bancaria y análisis de riesgo para empresas chilenas.",
-    changefreq: "monthly",
-    priority: "0.5",
   },
   "/privacidad": {
     title: "Política de privacidad | CODA",

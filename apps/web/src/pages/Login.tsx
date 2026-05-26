@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import { Analytics } from "@/lib/analytics";
+import { FEATURES } from "@/config/features";
 
 const brandFeatures = [
   { icon: BarChart3, text: "Score crediticio dual basado en tus datos reales" },
@@ -29,6 +30,10 @@ const brandFeatures = [
 ];
 
 function BrandPanel({ isEmpresas }: { isEmpresas: boolean }) {
+  // "CODA Empresas" branding only when the CODA Empresas flag is on. Without
+  // the flag, /empresas/login isn't registered so isEmpresas can't be true,
+  // but we gate the literal anyway for grep-clean compliance.
+  const brand = FEATURES.codaEmpresas && isEmpresas ? "CODA Empresas" : "CODA";
   return (
     <div className="hidden lg:flex flex-col justify-between bg-[#0a0f1e] text-white p-12 w-1/2 relative overflow-hidden">
       {/* Background accent */}
@@ -40,9 +45,7 @@ function BrandPanel({ isEmpresas }: { isEmpresas: boolean }) {
         <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30">
           <Wallet className="h-5 w-5 text-white" />
         </div>
-        <span className="text-xl font-bold tracking-tight">
-          {isEmpresas ? "CODA Empresas" : "CODA"}
-        </span>
+        <span className="text-xl font-bold tracking-tight">{brand}</span>
       </div>
 
       {/* Main copy */}
@@ -243,7 +246,7 @@ export default function Login() {
             <Wallet className="h-5 w-5 text-white" />
           </div>
           <span className="text-lg font-bold text-foreground">
-            {isEmpresas ? "CODA Empresas" : "CODA"}
+            {FEATURES.codaEmpresas && isEmpresas ? "CODA Empresas" : "CODA"}
           </span>
         </div>
 
@@ -461,13 +464,14 @@ export default function Login() {
             <Link href="/" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-gray-600">
               <ArrowLeft className="h-3.5 w-3.5" /> Volver al inicio
             </Link>
-            {isEmpresas ? (
+            {FEATURES.codaEmpresas && isEmpresas && (
               <p className="text-sm text-muted-foreground">
                 <Link href={ROUTES.iniciarSesion} className="text-blue-600 hover:underline">
                   Iniciar sesión en CODA Personal
                 </Link>
               </p>
-            ) : (
+            )}
+            {FEATURES.codaEmpresas && !isEmpresas && (
               <p className="text-sm text-muted-foreground">
                 <Link href="/empresas/login" className="text-blue-600 hover:underline">
                   ¿Eres empresa? CODA Empresas →

@@ -8,10 +8,60 @@
  * If you add/change a public route, update BOTH files.
  */
 
+import { readFileSync, existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 export const BASE_URL = "https://www.codafinance.cl";
 export const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image.png`;
 
+// Read VITE_ENABLE_CODA_EMPRESAS from .env / .env.production / process.env.
+// Build scripts (sitemap, prerender) run under Node and don't share Vite's
+// env loading — we resolve the value manually so the flag stays the single
+// source of truth. Defaults to false to keep CODA Empresas hidden until
+// separate CMF authorization is obtained.
+function readCodaEmpresasFlag() {
+  if (typeof process.env.VITE_ENABLE_CODA_EMPRESAS === "string") {
+    return process.env.VITE_ENABLE_CODA_EMPRESAS === "true";
+  }
+  try {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const candidates = [
+      join(here, "..", ".env.production"),
+      join(here, "..", ".env"),
+      join(here, "..", ".env.example"),
+    ];
+    for (const file of candidates) {
+      if (!existsSync(file)) continue;
+      const text = readFileSync(file, "utf8");
+      const match = text.match(/^\s*VITE_ENABLE_CODA_EMPRESAS\s*=\s*(.+)\s*$/m);
+      if (match) {
+        const value = match[1].trim().replace(/^['"]|['"]$/g, "");
+        return value === "true";
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+export const FEATURES = { codaEmpresas: readCodaEmpresasFlag() };
+
+const codaEmpresasRoutes = FEATURES.codaEmpresas
+  ? {
+      "/empresas": {
+        title: "CODA Empresas | Gestión financiera empresarial",
+        description:
+          "Herramientas de gestión financiera, conciliación bancaria y análisis de riesgo para empresas chilenas.",
+        changefreq: "monthly",
+        priority: "0.5",
+      },
+    }
+  : {};
+
 export const PUBLIC_ROUTES = {
+  ...codaEmpresasRoutes,
   "/": {
     title: "CODA | Salud financiera y score crediticio para Chile",
     description:
@@ -86,13 +136,6 @@ export const PUBLIC_ROUTES = {
     title: "CODA para instituciones financieras",
     description:
       "Integraciones B2B para bancos, cooperativas y compañías de seguros. Diagnóstico financiero automatizado para tus clientes.",
-    changefreq: "monthly",
-    priority: "0.5",
-  },
-  "/empresas": {
-    title: "CODA Empresas | Gestión financiera empresarial",
-    description:
-      "Herramientas de gestión financiera, conciliación bancaria y análisis de riesgo para empresas chilenas.",
     changefreq: "monthly",
     priority: "0.5",
   },
