@@ -43,7 +43,6 @@ function KeepAliveInit() {
 
 const About = lazy(() => import("@/pages/About"));
 const CreditScoreInfo = lazy(() => import("@/pages/CreditScoreInfo"));
-const InsuranceRiskInfo = lazy(() => import("@/pages/InsuranceRiskInfo"));
 const FinancialGoalsInfo = lazy(() => import("@/pages/FinancialGoalsInfo"));
 const ProductComparisonInfo = lazy(() => import("@/pages/ProductComparisonInfo"));
 const PrivacyPolicy = lazy(() => import("@/pages/legal/PrivacyPolicy"));
@@ -129,11 +128,7 @@ function App() {
         <Route path="/info/credit-score">
           <Redirect to={ROUTES.infoScoreCredito} />
         </Route>
-        <Route path={ROUTES.infoRiesgoSeguros} component={InsuranceRiskInfo} />
-        <Route path="/info/insurance-risk">
-          <Redirect to={ROUTES.infoRiesgoSeguros} />
-        </Route>
-        <Route path={ROUTES.infoMetasFinancieras} component={FinancialGoalsInfo} />
+<Route path={ROUTES.infoMetasFinancieras} component={FinancialGoalsInfo} />
         <Route path="/info/financial-goals">
           <Redirect to={ROUTES.infoMetasFinancieras} />
         </Route>

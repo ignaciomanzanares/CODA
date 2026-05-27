@@ -20,7 +20,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   vivienda:               "Vivienda",
   alimentacion:           "Alimentación",
   transporte:             "Transporte",
-  seguros:                "Seguros",
+  seguros:                "Otros pagos recurrentes",
   servicios_basicos:      "Servicios básicos",
   salud_bienestar:        "Salud y bienestar",
   educacion:              "Educación",

@@ -31,8 +31,8 @@ export default function ProductComparisonInfo() {
               Comparación de Productos Financieros
             </h1>
             <p className="text-xl text-blue-100 leading-relaxed mb-8">
-              Encuentra los mejores productos financieros para tu perfil. Créditos, tarjetas, 
-              cuentas y seguros personalizados según tu situación.
+              Encuentra los mejores productos financieros para tu perfil. Créditos,
+              tarjetas, cuentas, depósitos y fondos mutuos personalizados según tu situación.
             </p>
             
             {/* CTA for authenticated users */}
@@ -138,7 +138,7 @@ export default function ProductComparisonInfo() {
                   </div>
                   <ul className="space-y-2 text-gray-600 text-sm">
                     <li>• <strong>Cashback:</strong> Hasta 3% en supermercados</li>
-                    <li>• <strong>Premium:</strong> Acceso salas VIP, seguros incluidos</li>
+                    <li>• <strong>Premium:</strong> Acceso a salas VIP y beneficios de viaje</li>
                     <li>• <strong>Sin costo:</strong> Opciones sin mantención ni emisión</li>
                   </ul>
                   <p className="text-xs text-gray-500 mt-4">
@@ -166,24 +166,6 @@ export default function ProductComparisonInfo() {
                 </CardContent>
               </Card>
 
-              <Card className="border-2 hover:border-orange-500 transition-colors">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 rounded-lg bg-orange-100">
-                      <Shield className="h-6 w-6 text-orange-600" />
-                    </div>
-                    <h3 className="text-xl font-semibold">Seguros</h3>
-                  </div>
-                  <ul className="space-y-2 text-gray-600 text-sm">
-                    <li>• <strong>Automotriz:</strong> Cobertura total + asistencia 24/7</li>
-                    <li>• <strong>Hogar:</strong> Protección contra incendio y robo</li>
-                    <li>• <strong>Vida:</strong> Cobertura hasta UF 5.000</li>
-                  </ul>
-                  <p className="text-xs text-gray-500 mt-4">
-                    De HDI, Metlife, Zurich Seguros
-                  </p>
-                </CardContent>
-              </Card>
             </div>
           </div>
         </div>

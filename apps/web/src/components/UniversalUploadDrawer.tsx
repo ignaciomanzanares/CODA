@@ -60,7 +60,6 @@ function getTabFromCode(code: string): string | null {
     if (num >= 5 && num <= 11) return "creditos_hipotecarios";
     return "creditos_consumo";
   }
-  if (code.startsWith("D")) return "seguros";
   if (code.startsWith("E")) {
     const num = parseInt(code.slice(1), 10);
     if (num >= 100) return "fondos_mutuos";
@@ -74,7 +73,6 @@ const TAB_LABELS: Record<string, string> = {
   tarjetas_credito: "Tarjetas de crédito",
   creditos_consumo: "Créditos de consumo",
   creditos_hipotecarios: "Créditos hipotecarios",
-  seguros: "Seguros",
   depositos_plazo: "Depósitos a plazo",
   fondos_mutuos: "Fondos mutuos",
 };

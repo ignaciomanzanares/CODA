@@ -24,7 +24,6 @@ export type ApiClient = {
   updateFinancialGoal: (goalId: string, goalData: import("@/types").UpdateGoalData) => Promise<import("@/types").Goal>;
   deleteFinancialGoal: (goalId: string) => Promise<import("@/types").ApiResponse>;
   getCreditScore: () => Promise<{ score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string }>;
-  getInsuranceRisk: () => Promise<{ riskLevel: string; healthRisk: string; propertyRisk: string; autoRisk: string }>;
   getFinancialProducts: (category?: string) => Promise<import("@/types").FinancialProduct[]>;
   getProductRecommendations: (category?: string, limit?: number) => Promise<any[]>;
   trackProductEvent: (productId: number, eventType: 'view' | 'click' | 'application', matchScore?: number, metadata?: Record<string, unknown>) => Promise<{ success: boolean }>;
@@ -84,13 +83,6 @@ export function useApi(): ApiClient {
     paymentHistory: string;
     utilization: string;
     ageOfCredit: string;
-  };
-
-  type InsuranceRisk = {
-    riskLevel: string;
-    healthRisk: string;
-    propertyRisk: string;
-    autoRisk: string;
   };
 
   type Notification = {
@@ -226,11 +218,6 @@ export function useApi(): ApiClient {
   // Example: get credit score
   const getCreditScore = async (): Promise<CreditScore> => {
     return await apiRequest<CreditScore>("GET", "/api/credit-score");
-  };
-
-  // Example: get insurance risk
-  const getInsuranceRisk = async (): Promise<InsuranceRisk> => {
-    return await apiRequest<InsuranceRisk>("GET", "/api/insurance-risk");
   };
 
   // Example: get financial products (public endpoint)
@@ -520,7 +507,6 @@ export function useApi(): ApiClient {
     updateFinancialGoal,
     deleteFinancialGoal,
     getCreditScore,
-    getInsuranceRisk,
     getFinancialProducts,
     // Product recommendations & tracking
     getProductRecommendations,
@@ -578,15 +564,6 @@ export const useCreditScore = () => {
     return await getCreditScore();
   };
   return { getCreditScore, refreshCreditScore };
-};
-
-export const useInsuranceRisk = () => {
-  const { getInsuranceRisk } = useApi();
-  const refreshInsuranceRisk = async () => {
-    // In a real implementation, this might refresh cached data
-    return await getInsuranceRisk();
-  };
-  return { getInsuranceRisk, refreshInsuranceRisk };
 };
 
 export const useFinancialGoals = () => {

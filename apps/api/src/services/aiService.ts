@@ -4,13 +4,20 @@
  * Prioriza proveedores gratuitos (Groq → Gemini) sobre pagos (Anthropic → OpenAI).
  */
 import { logger } from '../logger.js';
+import { TOOL_DEFINITIONS, executeTool, type ToolCall } from './aiTools.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface Message {
-  role: 'system' | 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
+  // OpenAI/Groq tool-calling extensions:
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
+  name?: string;
 }
+
+const MAX_TOOL_ITERATIONS = 3;
 
 export interface FinancialContext {
   totalBalance?: number;
@@ -256,19 +263,47 @@ async function callGemini(messages: Message[], apiKey: string): Promise<string> 
   return parts.map((p: { text?: string }) => p.text || '').join('');
 }
 
-async function callGroq(messages: Message[], apiKey: string): Promise<string> {
+// Serializa nuestro Message extendido al formato de wire de OpenAI/Groq.
+// Necesario porque ahora soportamos `tool_calls` (asistente) y rol `tool`.
+function toOpenAIWireMessage(m: Message): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    role: m.role,
+    content: m.content ?? '',
+  };
+  if (m.tool_calls && m.tool_calls.length > 0) out.tool_calls = m.tool_calls;
+  if (m.tool_call_id) out.tool_call_id = m.tool_call_id;
+  if (m.name) out.name = m.name;
+  return out;
+}
+
+interface GroqMessageResult {
+  content: string;
+  tool_calls?: ToolCall[];
+}
+
+async function callGroq(
+  messages: Message[],
+  apiKey: string,
+  opts: { withTools?: boolean } = {},
+): Promise<GroqMessageResult> {
+  const body: Record<string, unknown> = {
+    model: 'llama-3.3-70b-versatile',
+    messages: messages.map(toOpenAIWireMessage),
+    max_tokens: 1500,
+    temperature: 0.6,
+  };
+  if (opts.withTools) {
+    body.tools = TOOL_DEFINITIONS;
+    body.tool_choice = 'auto';
+  }
+
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: messages.map(m => ({ role: m.role, content: m.content })),
-      max_tokens: 1500,
-      temperature: 0.6,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -277,7 +312,39 @@ async function callGroq(messages: Message[], apiKey: string): Promise<string> {
   }
 
   const data = await response.json();
-  return data.choices[0]?.message?.content || '';
+  const msg = data.choices?.[0]?.message ?? {};
+  return { content: msg.content ?? '', tool_calls: msg.tool_calls };
+}
+
+// Bucle agéntico no-streaming: el modelo puede pedir herramientas hasta
+// MAX_TOOL_ITERATIONS veces; en la última iteración se llama sin tools para
+// forzar una respuesta textual final.
+async function callGroqWithToolLoop(
+  messages: Message[],
+  apiKey: string,
+  userId: string,
+): Promise<string> {
+  const working = [...messages];
+  for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+    const isLast = i === MAX_TOOL_ITERATIONS - 1;
+    const result = await callGroq(working, apiKey, { withTools: !isLast });
+
+    if (!isLast && result.tool_calls && result.tool_calls.length > 0) {
+      working.push({
+        role: 'assistant',
+        content: result.content,
+        tool_calls: result.tool_calls,
+      });
+      for (const tc of result.tool_calls) {
+        const out = await executeTool(tc.function.name, tc.function.arguments, userId);
+        working.push({ role: 'tool', content: out, tool_call_id: tc.id });
+      }
+      continue;
+    }
+
+    return result.content;
+  }
+  return '';
 }
 
 // ── Streaming implementations ────────────────────────────────────────────────
@@ -481,6 +548,118 @@ export async function* streamGroq(messages: Message[], apiKey: string): AsyncGen
   }
 }
 
+// Variante streaming agéntica para Groq: yields chunks de texto al usuario
+// pero entre stream y stream ejecuta tool calls de forma transparente.
+// Solo el texto final llega al cliente; las herramientas son invisibles
+// (la UI verá una pausa mientras se ejecutan).
+export async function* streamGroqWithTools(
+  messages: Message[],
+  apiKey: string,
+  userId: string,
+): AsyncGenerator<string> {
+  const working = [...messages];
+
+  for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
+    const isLast = iter === MAX_TOOL_ITERATIONS - 1;
+    const body: Record<string, unknown> = {
+      model: 'llama-3.3-70b-versatile',
+      messages: working.map(toOpenAIWireMessage),
+      max_tokens: 1500,
+      temperature: 0.6,
+      stream: true,
+    };
+    if (!isLast) {
+      body.tools = TOOL_DEFINITIONS;
+      body.tool_choice = 'auto';
+    }
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Groq API error: ${await response.text()}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    const toolCallsByIndex = new Map<number, ToolCall>();
+    let assistantText = '';
+    let finishReason: string | null = null;
+
+    streamLoop: while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data: ')) continue;
+        const data = trimmed.slice(6);
+        if (data === '[DONE]') break streamLoop;
+
+        try {
+          const parsed = JSON.parse(data);
+          const choice = parsed.choices?.[0];
+          if (!choice) continue;
+          const delta = choice.delta ?? {};
+
+          if (typeof delta.content === 'string' && delta.content) {
+            assistantText += delta.content;
+            yield delta.content;
+          }
+
+          if (Array.isArray(delta.tool_calls)) {
+            for (const d of delta.tool_calls) {
+              const idx = typeof d.index === 'number' ? d.index : 0;
+              const existing = toolCallsByIndex.get(idx) ?? {
+                id: '',
+                type: 'function' as const,
+                function: { name: '', arguments: '' },
+              };
+              if (d.id) existing.id = d.id;
+              if (d.function?.name) existing.function.name = d.function.name;
+              if (typeof d.function?.arguments === 'string') {
+                existing.function.arguments += d.function.arguments;
+              }
+              toolCallsByIndex.set(idx, existing);
+            }
+          }
+
+          if (choice.finish_reason) finishReason = choice.finish_reason;
+        } catch { /* skip malformed chunks */ }
+      }
+    }
+
+    // Si no hay tool calls (o finish_reason != tool_calls), terminamos.
+    if (toolCallsByIndex.size === 0 || finishReason !== 'tool_calls') {
+      return;
+    }
+
+    // Ejecutar herramientas y continuar el loop.
+    const calls = [...toolCallsByIndex.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([, v]) => v);
+
+    working.push({ role: 'assistant', content: assistantText, tool_calls: calls });
+    for (const tc of calls) {
+      const out = await executeTool(tc.function.name, tc.function.arguments, userId);
+      working.push({ role: 'tool', content: out, tool_call_id: tc.id });
+    }
+  }
+}
+
 // ── Response parsing ─────────────────────────────────────────────────────────
 
 function parseStructuredResponse(raw: string): AIResponse {
@@ -567,7 +746,8 @@ function serviceUnavailableResponse(): AIResponse {
 export async function chat(
   userMessage: string,
   conversationHistory: Message[],
-  financialContext: FinancialContext
+  financialContext: FinancialContext,
+  userId?: string,
 ): Promise<AIResponse> {
   const provider = getProvider();
   const apiKey = getApiKeyFor(provider);
@@ -588,9 +768,13 @@ export async function chat(
     let response: string;
     switch (provider) {
       case 'groq':
-        response = await callGroq(messages, apiKey);
+        // Si tenemos userId, habilitamos tool use (query_transactions, simulate_loan).
+        response = userId
+          ? await callGroqWithToolLoop(messages, apiKey, userId)
+          : (await callGroq(messages, apiKey)).content;
         break;
       case 'gemini':
+        // TODO: tool use en Gemini usa un formato distinto (function_declarations).
         response = await callGemini(messages, apiKey);
         break;
       case 'anthropic':
@@ -618,7 +802,8 @@ export async function chat(
 export function getStreamGenerator(
   userMessage: string,
   conversationHistory: Message[],
-  financialContext: FinancialContext
+  financialContext: FinancialContext,
+  userId?: string,
 ): { stream: AsyncGenerator<string>; provider: string } | null {
   const provider = getProvider();
   const apiKey = getApiKeyFor(provider);
@@ -635,9 +820,12 @@ export function getStreamGenerator(
   let stream: AsyncGenerator<string>;
   switch (provider) {
     case 'groq':
-      stream = streamGroq(messages, apiKey);
+      stream = userId
+        ? streamGroqWithTools(messages, apiKey, userId)
+        : streamGroq(messages, apiKey);
       break;
     case 'gemini':
+      // TODO: tool use en Gemini (formato function_declarations).
       stream = streamGemini(messages, apiKey);
       break;
     case 'anthropic':

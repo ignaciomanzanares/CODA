@@ -68,7 +68,7 @@ export const CATEGORY_TAXONOMY: CategoryTaxonomyEntry[] = [
       vivienda: "Vivienda",
       alimentacion: "Alimentación",
       transporte: "Transporte",
-      seguros: "Seguros",
+      seguros: "Otros pagos recurrentes",
       servicios_basicos: "Servicios básicos",
       servicios: "Servicios",
       telecomunicaciones: "Telecomunicaciones",

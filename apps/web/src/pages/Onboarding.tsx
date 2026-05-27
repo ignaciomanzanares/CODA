@@ -197,7 +197,7 @@ function OnboardingInner() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Marketplace financiero</p>
-                      <p className="text-sm text-muted-foreground">Créditos, cuentas, seguros y más — filtrados por tu perfil.</p>
+                      <p className="text-sm text-muted-foreground">Créditos, cuentas, depósitos a plazo y fondos mutuos — filtrados por tu perfil.</p>
                     </div>
                     <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>

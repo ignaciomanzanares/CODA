@@ -340,14 +340,7 @@ export interface SavingsProduct extends BaseFinancialProduct {
   };
 }
 
-export interface InsuranceProduct extends BaseFinancialProduct {
-  features?: {
-    replacementCost?: boolean;
-    [key: string]: unknown;
-  };
-}
-
-export type FinancialProduct = LoanProduct | CreditCardProduct | SavingsProduct | InsuranceProduct;
+export type FinancialProduct = LoanProduct | CreditCardProduct | SavingsProduct;
 
 // API Response wrapper type (for cases where we don't know the exact response shape)
 export interface ApiResponse<T = unknown> {

@@ -11,8 +11,6 @@ export const PRODUCT_CATEGORIES = {
   creditos_hipotecarios: "Créditos hipotecarios",
   depositos_plazo: "Depósitos a plazo",
   fondos_mutuos: "Fondos mutuos",
-  seguros: "Seguros",
-  apv: "APV",
   portabilidad: "Portabilidad financiera",
 } as const;
 

@@ -25,7 +25,7 @@ import { FEATURES } from "@/config/features";
 
 const brandFeatures = [
   { icon: BarChart3, text: "Score crediticio dual basado en tus datos reales" },
-  { icon: Store, text: "Marketplace con 10 categorías de productos financieros" },
+  { icon: Store, text: "Marketplace de productos financieros (créditos, tarjetas, depósitos, fondos)" },
   { icon: Shield, text: "Diseñado bajo la normativa CMF y Ley Fintec" },
 ];
 

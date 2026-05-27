@@ -215,22 +215,6 @@ function generateRecommendations(data: DashboardData): ActionRecommendation[] {
     });
   }
 
-  // 8. No insurance detected → suggest seguros
-  const personales = findGroup("personales");
-  const hasSeguros = esenciales?.subcategories.some((s) => s.key === "seguros") ?? false;
-  if (!hasSeguros && totalIncome > 500000) {
-    recs.push({
-      id: "no-insurance",
-      icon: Shield,
-      color: "blue",
-      title: "No detectamos pagos de seguros",
-      body: "Un seguro de salud o vida puede proteger tu estabilidad financiera ante imprevistos.",
-      cta: "Ver seguros disponibles",
-      href: "/productos?tab=seguros",
-      priority: 45,
-    });
-  }
-
   // Sort by priority (desc) and take top 3
   return recs.sort((a, b) => b.priority - a.priority).slice(0, 3);
 }
