@@ -15,7 +15,26 @@ function txAmount(t: { amount?: unknown }): number {
   return parseFloat(String(t?.amount ?? 0));
 }
 
+// Cache en memoria para evitar repetir N+1 queries por cada turno del chat.
+const CONTEXT_TTL_MS = 5 * 60 * 1000;
+const contextCache = new Map<string, { value: FinancialContext; expiresAt: number }>();
+
+export function invalidateAssistantContext(userId: string): void {
+  contextCache.delete(userId);
+}
+
 export async function buildFinancialContextForAssistant(userId: string): Promise<FinancialContext> {
+  const cached = contextCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.value;
+  }
+
+  const value = await buildFinancialContextUncached(userId);
+  contextCache.set(userId, { value, expiresAt: Date.now() + CONTEXT_TTL_MS });
+  return value;
+}
+
+async function buildFinancialContextUncached(userId: string): Promise<FinancialContext> {
   const userAccounts = await storage.getAccounts(userId);
   const accountsWithBalances: AccountWithBalance[] = await Promise.all(
     userAccounts.map(async (account) => {
