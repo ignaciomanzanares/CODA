@@ -20,6 +20,7 @@ import {
   billSplitParticipants,
   notifications,
   creditScoreHistory,
+  assistantFeedback,
   eq,
   and,
   inArray,
@@ -155,6 +156,16 @@ export interface IStorage {
   markAllNotificationsAsRead(userId: string): Promise<boolean>;
   deleteNotification(notificationId: number, userId: string): Promise<boolean>;
   getUnreadNotificationCount(userId: string): Promise<number>;
+
+  // Assistant feedback (thumbs up/down)
+  createAssistantFeedback(data: {
+    userId: string;
+    rating: 'up' | 'down';
+    userMessage: string;
+    assistantMessage: string;
+    provider?: string;
+    comment?: string;
+  }): Promise<void>;
 
   // User cleanup
   deleteUserData(userId: string): Promise<boolean>;
@@ -1520,6 +1531,31 @@ export class DatabaseStorage implements IStorage {
       insights: row.insights ? JSON.parse(row.insights) : null,
       documentosUsados: row.documentosUsados ? JSON.parse(row.documentosUsados) : null,
     };
+  }
+
+  async createAssistantFeedback(data: {
+    userId: string;
+    rating: 'up' | 'down';
+    userMessage: string;
+    assistantMessage: string;
+    provider?: string;
+    comment?: string;
+  }): Promise<void> {
+    if (!db) {
+      // Modo memoria (dev sin DATABASE_URL): no persistimos feedback. Es solo
+      // señal analítica; perder en dev no afecta a producción.
+      logger.debug({ rating: data.rating }, 'Assistant feedback (mem-storage, dropped)');
+      return;
+    }
+    await db.insert(assistantFeedback).values({
+      id: randomUUID(),
+      userId: data.userId,
+      rating: data.rating,
+      userMessage: data.userMessage,
+      assistantMessage: data.assistantMessage,
+      provider: data.provider ?? null,
+      comment: data.comment ?? null,
+    });
   }
 
   async deleteUserData(userId: string): Promise<boolean> {

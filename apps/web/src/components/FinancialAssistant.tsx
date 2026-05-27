@@ -27,6 +27,8 @@ import {
   Wallet,
   BarChart3,
   Trash2,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth, getPersonalToken } from "@/lib/auth";
@@ -51,6 +53,12 @@ interface ChatMessage {
   isStreaming?: boolean;
   // Etiqueta visible cuando el modelo está corriendo una tool call.
   toolStatus?: string | null;
+  // Proveedor que respondió (groq / gemini / anthropic / openai). Para feedback.
+  provider?: string;
+  // Pregunta del usuario que provocó esta respuesta. Para feedback.
+  userPrompt?: string;
+  // Estado del thumbs up/down ya enviado por el usuario.
+  feedback?: "up" | "down" | null;
 }
 
 // Etiquetas amigables (es-CL) para cada herramienta del backend.
@@ -101,6 +109,7 @@ interface StreamCallbacks {
     suggestions?: string[];
     actionItems?: ActionItem[];
     message?: string;
+    provider?: string;
   }) => void;
   onError: (msg: string) => void;
 }
@@ -169,6 +178,7 @@ async function streamChat(
               suggestions: parsed.suggestions,
               actionItems: parsed.actionItems,
               message: parsed.message,
+              provider: parsed.provider,
             });
           } else if (parsed.type === "error") {
             callbacks.onError(parsed.content || "Error inesperado.");
@@ -291,6 +301,7 @@ export default function FinancialAssistant({
         content: "",
         timestamp: new Date(),
         isStreaming: true,
+        userPrompt: content.trim(),
       };
       setMessages((prev) => [...prev, streamingMsg]);
 
@@ -352,6 +363,7 @@ export default function FinancialAssistant({
                   content: data.message || last.content,
                   suggestions: data.suggestions,
                   actionItems: data.actionItems,
+                  provider: data.provider,
                   isStreaming: false,
                   toolStatus: null,
                 };
@@ -407,6 +419,51 @@ export default function FinancialAssistant({
   const handleSuggestionClick = (suggestion: string) => {
     sendMessage(suggestion);
   };
+
+  const submitFeedback = useCallback(
+    async (messageIndex: number, rating: "up" | "down") => {
+      const msg = messages[messageIndex];
+      if (!msg || msg.role !== "assistant" || msg.feedback || !msg.userPrompt) return;
+
+      // Optimista: actualizar UI antes del fetch.
+      setMessages((prev) => {
+        const updated = [...prev];
+        if (updated[messageIndex]) {
+          updated[messageIndex] = { ...updated[messageIndex], feedback: rating };
+        }
+        return updated;
+      });
+
+      const token = getPersonalToken();
+      if (!token) return; // sin sesión no se envía; el UI ya quedó marcado
+
+      try {
+        await apiFetch("/api/assistant/feedback", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            rating,
+            userMessage: msg.userPrompt,
+            assistantMessage: msg.content,
+            provider: msg.provider,
+          }),
+        });
+      } catch {
+        // Si falla, revertir el feedback local.
+        setMessages((prev) => {
+          const updated = [...prev];
+          if (updated[messageIndex]) {
+            updated[messageIndex] = { ...updated[messageIndex], feedback: null };
+          }
+          return updated;
+        });
+      }
+    },
+    [messages],
+  );
 
   const handleClose = () => {
     abortRef.current?.abort();
@@ -671,14 +728,52 @@ export default function FinancialAssistant({
                         </div>
                       )}
 
-                    {/* Timestamp */}
+                    {/* Timestamp + thumbs feedback (solo en respuestas reales del asistente) */}
                     {!message.isStreaming && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {message.timestamp.toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-xs text-muted-foreground">
+                          {message.timestamp.toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                        {message.role === "assistant" && message.userPrompt && (
+                          <div className="flex items-center gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => submitFeedback(index, "up")}
+                              disabled={!!message.feedback}
+                              className={cn(
+                                "p-1 rounded transition-colors",
+                                message.feedback === "up"
+                                  ? "text-primary"
+                                  : "text-muted-foreground/60 hover:text-primary hover:bg-primary/10",
+                                message.feedback && message.feedback !== "up" && "opacity-30",
+                              )}
+                              aria-label="Buena respuesta"
+                              title="Buena respuesta"
+                            >
+                              <ThumbsUp className="h-3 w-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => submitFeedback(index, "down")}
+                              disabled={!!message.feedback}
+                              className={cn(
+                                "p-1 rounded transition-colors",
+                                message.feedback === "down"
+                                  ? "text-destructive"
+                                  : "text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10",
+                                message.feedback && message.feedback !== "down" && "opacity-30",
+                              )}
+                              aria-label="Respuesta no útil"
+                              title="Respuesta no útil"
+                            >
+                              <ThumbsDown className="h-3 w-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
