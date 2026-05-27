@@ -15,6 +15,25 @@ function txAmount(t: { amount?: unknown }): number {
   return parseFloat(String(t?.amount ?? 0));
 }
 
+// Las transferencias entre cuentas propias del usuario aparecen dos veces:
+// como cargo en la cuenta origen y como abono en la cuenta destino. Si las
+// sumamos sin filtrar, inflan tanto "ingreso mensual" como "gasto mensual".
+// Estos patrones cubren la mayoría de casos en bancos chilenos sin causar
+// falsos positivos (transferencias a terceros tienen otra descripción).
+function isInternalTransfer(t: { description?: string; category?: string }): boolean {
+  const desc = (t.description ?? '').toLowerCase();
+  const cat = (t.category ?? '').toLowerCase();
+  if (cat.includes('transfer') || cat.includes('traspaso')) return true;
+  return (
+    desc.includes('transferencia a cuenta propia') ||
+    desc.includes('traspaso entre cuentas') ||
+    desc.includes('tef a propia') ||
+    desc.includes('abono cuenta propia') ||
+    desc.includes('cargo cuenta propia') ||
+    desc.includes('traspaso a cuenta propia')
+  );
+}
+
 // Cache en memoria para evitar repetir N+1 queries por cada turno del chat.
 const CONTEXT_TTL_MS = 5 * 60 * 1000;
 const contextCache = new Map<string, { value: FinancialContext; expiresAt: number }>();
@@ -67,12 +86,16 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
     (t) => t != null && t.postedAt && new Date(t.postedAt) >= thirtyDaysAgo
   );
 
-  const monthlyIncome = recentTransactions
+  // Filtramos transferencias entre cuentas propias para que no inflen ingreso
+  // ni gasto. Ver isInternalTransfer arriba.
+  const realRecent = recentTransactions.filter((t) => !isInternalTransfer(t));
+
+  const monthlyIncome = realRecent
     .filter((t) => txAmount(t) > 0)
     .reduce((sum, t) => sum + txAmount(t), 0);
 
   const monthlyExpenses = Math.abs(
-    recentTransactions
+    realRecent
       .filter((t) => txAmount(t) < 0)
       .reduce((sum, t) => sum + txAmount(t), 0)
   );
@@ -83,7 +106,7 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
       : 0;
 
   const spendingByCategory: Record<string, number> = {};
-  recentTransactions
+  realRecent
     .filter((t) => txAmount(t) < 0)
     .forEach((t) => {
       const category = (t as { category?: string }).category || "Otro";
@@ -125,7 +148,7 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
   const netWorth = totalAssets - totalLiabilities;
 
   // ── Recent transactions for AI context (last 10 expenses) ──
-  const recentTxForAI = recentTransactions
+  const recentTxForAI = realRecent
     .filter((t) => txAmount(t) < 0)
     .sort((a, b) => new Date(b.postedAt!).getTime() - new Date(a.postedAt!).getTime())
     .slice(0, 10)
@@ -202,8 +225,21 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
       const avgCartolaIncome = Math.round(cartolaIncome / numMonths);
       const avgCartolaExpenses = Math.round(cartolaExpenses / numMonths);
 
-      if (avgCartolaIncome > finalIncome) finalIncome = avgCartolaIncome;
-      if (avgCartolaExpenses > finalExpenses) finalExpenses = avgCartolaExpenses;
+      // Si fintoc tiene pocas transacciones y la cartola cubre >=2 meses,
+      // confiamos en la cartola (es más completa). En cambio, si fintoc tiene
+      // datos densos, sólo usamos cartola como fallback cuando supera al de
+      // fintoc — evita pisar datos buenos con uno antiguo o incompleto.
+      const fintocSparse = realRecent.length < 10;
+      const cartolaSpansMultipleMonths = numMonths >= 2;
+      const preferCartola = fintocSparse && cartolaSpansMultipleMonths;
+
+      if (preferCartola) {
+        finalIncome = avgCartolaIncome;
+        finalExpenses = avgCartolaExpenses;
+      } else {
+        if (avgCartolaIncome > finalIncome) finalIncome = avgCartolaIncome;
+        if (avgCartolaExpenses > finalExpenses) finalExpenses = avgCartolaExpenses;
+      }
 
       if (finalSpendingCategories.length === 0 && Object.keys(catTotals).length > 0) {
         finalSpendingCategories = Object.entries(catTotals)

@@ -866,37 +866,9 @@ export async function* streamGroqWithTools(
 function parseStructuredResponse(raw: string): AIResponse {
   const trimmed = raw.trim();
 
-  // Backward compat: if the model still returned JSON (or a ```json fence), parse it.
-  const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const candidate = fenceMatch ? fenceMatch[1].trim() : trimmed;
-  if (candidate.startsWith('{') && candidate.endsWith('}')) {
-    try {
-      const parsed = JSON.parse(candidate);
-      if (typeof parsed.message === 'string') {
-        return {
-          message: parsed.message,
-          suggestions: Array.isArray(parsed.suggestions)
-            ? parsed.suggestions.filter((s: unknown) => typeof s === 'string' && s.length > 0).slice(0, 3)
-            : extractFallbackSuggestions(parsed.message),
-          actionItems: Array.isArray(parsed.actionItems)
-            ? parsed.actionItems
-                .filter((a: unknown) => a && typeof a === 'object' && 'title' in (a as object))
-                .slice(0, 3)
-                .map((a: Record<string, unknown>) => ({
-                  title: String(a.title || ''),
-                  description: String(a.description || ''),
-                  link: typeof a.link === 'string' ? a.link : undefined,
-                  icon: typeof a.icon === 'string' ? a.icon : undefined,
-                }))
-            : [],
-        };
-      }
-    } catch {
-      // fall through to plain-text parsing
-    }
-  }
-
-  // Plain markdown path: split off the trailing "PREGUNTAS: a | b | c" line if present.
+  // El prompt obliga al modelo a responder en markdown plano y terminar con
+  // una línea "PREGUNTAS: a | b | c". Aquí separamos esa línea y la usamos
+  // como sugerencias rápidas.
   let message = trimmed;
   let suggestions: string[] = [];
   const preguntasMatch = trimmed.match(/(?:^|\n)PREGUNTAS:\s*(.+?)\s*$/i);
