@@ -121,6 +121,7 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
 
   const creditScoreData = await storage.getCreditScore(userId);
   const goals = await storage.getFinancialGoals(userId);
+  const memorySummary = await storage.getAssistantSummary(userId);
 
   // ── Account summary by type ──
   const checkingTotal = accountsWithBalances
@@ -277,5 +278,6 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
     accountSummary: (checkingTotal > 0 || savingsTotal > 0 || creditCardDebt > 0 || investmentsTotal > 0)
       ? { checking: Math.round(checkingTotal), savings: Math.round(savingsTotal), credit: Math.round(creditCardDebt), investment: Math.round(investmentsTotal) }
       : undefined,
+    userSummary: memorySummary?.summary,
   };
 }

@@ -566,6 +566,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const response = await chat(message, conversationHistory, financialContext, userId);
       res.json(response);
+
+      // Fire-and-forget: actualizar la memoria del asistente con este intercambio.
+      // Nunca debe bloquear ni afectar la respuesta al usuario.
+      void import('./services/assistantMemory.js').then(({ updateAssistantSummary }) =>
+        updateAssistantSummary(userId, message, response.message),
+      ).catch(() => { /* ya logueado dentro */ });
     } catch (error) {
       logger.error({ err: error }, 'AI Assistant chat error');
       res.status(500).json({ error: 'Failed to process message' });
@@ -642,6 +648,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.write('data: [DONE]\n\n');
       res.end();
+
+      // Fire-and-forget: actualizar la memoria del asistente. Solo si la
+      // respuesta tiene contenido real (no fue un error a media stream).
+      if (fullText.trim().length > 0) {
+        void import('./services/assistantMemory.js').then(({ updateAssistantSummary }) =>
+          updateAssistantSummary(userId, message, fullText),
+        ).catch(() => { /* ya logueado dentro */ });
+      }
     } catch (error) {
       logger.error({ err: error }, 'AI Assistant stream error');
       if (!res.headersSent) {

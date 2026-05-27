@@ -21,6 +21,7 @@ import {
   notifications,
   creditScoreHistory,
   assistantFeedback,
+  assistantSummaries,
   eq,
   and,
   inArray,
@@ -166,6 +167,10 @@ export interface IStorage {
     provider?: string;
     comment?: string;
   }): Promise<void>;
+
+  // Assistant cross-session memory (rolling summary per user)
+  getAssistantSummary(userId: string): Promise<{ summary: string; exchangeCount: number } | null>;
+  upsertAssistantSummary(userId: string, data: { summary: string; exchangeCount: number }): Promise<void>;
 
   // User cleanup
   deleteUserData(userId: string): Promise<boolean>;
@@ -1556,6 +1561,41 @@ export class DatabaseStorage implements IStorage {
       provider: data.provider ?? null,
       comment: data.comment ?? null,
     });
+  }
+
+  async getAssistantSummary(userId: string): Promise<{ summary: string; exchangeCount: number } | null> {
+    if (!db) return null;
+    const [row] = await db
+      .select()
+      .from(assistantSummaries)
+      .where(eq(assistantSummaries.userId, userId));
+    if (!row) return null;
+    return { summary: row.summary, exchangeCount: row.exchangeCount ?? 0 };
+  }
+
+  async upsertAssistantSummary(
+    userId: string,
+    data: { summary: string; exchangeCount: number },
+  ): Promise<void> {
+    if (!db) return; // mem-storage dev: skip persistencia
+    const now = new Date().toISOString();
+    const [existing] = await db
+      .select()
+      .from(assistantSummaries)
+      .where(eq(assistantSummaries.userId, userId));
+    if (existing) {
+      await db
+        .update(assistantSummaries)
+        .set({ summary: data.summary, exchangeCount: data.exchangeCount, updatedAt: now })
+        .where(eq(assistantSummaries.userId, userId));
+    } else {
+      await db.insert(assistantSummaries).values({
+        userId,
+        summary: data.summary,
+        exchangeCount: data.exchangeCount,
+        updatedAt: now,
+      });
+    }
   }
 
   async deleteUserData(userId: string): Promise<boolean> {
