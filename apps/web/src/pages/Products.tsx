@@ -28,7 +28,6 @@ import {
   Wallet,
   CreditCard,
   PiggyBank,
-  Shield,
   TrendingUp,
   TrendingDown,
   Banknote,
@@ -62,8 +61,6 @@ const TABS: { id: TabKey; label: string; icon: React.ElementType }[] = [
   { id: "creditos_hipotecarios", label: "Hipotecarios", icon: PiggyBank },
   { id: "depositos_plazo", label: "Depósitos", icon: TrendingUp },
   { id: "fondos_mutuos", label: "Fondos", icon: BarChart3 },
-  { id: "seguros", label: "Seguros", icon: Shield },
-  { id: "apv", label: "APV", icon: TrendingUp },
   { id: "portabilidad", label: "Portabilidad", icon: Repeat2 },
 ];
 
@@ -268,7 +265,6 @@ function LeadCaptureDialog({
                 <option value="educacion">Educación</option>
                 <option value="gastos_personales">Gastos personales</option>
                 <option value="negocio">Emprendimiento o negocio</option>
-                <option value="proteccion">Protección y seguros</option>
                 <option value="otro">Otro</option>
               </select>
             </div>

@@ -76,7 +76,7 @@ export const PUBLIC_ROUTES: Record<string, RouteSeoEntry> = {
   "/productos": {
     title: "Productos Financieros | CODA",
     description:
-      "Compara créditos, tarjetas, cuentas, depósitos a plazo, fondos mutuos, APV y más. Ranking personalizado según tu perfil.",
+      "Compara créditos, tarjetas, cuentas, depósitos a plazo y fondos mutuos. Ranking personalizado según tu perfil.",
     changefreq: "weekly",
     priority: "0.8",
   },
@@ -98,13 +98,6 @@ export const PUBLIC_ROUTES: Record<string, RouteSeoEntry> = {
     title: "Metas financieras inteligentes | CODA",
     description:
       "Define y sigue metas financieras personalizadas. Ahorro, inversión, deuda: CODA te guía paso a paso.",
-    changefreq: "monthly",
-    priority: "0.6",
-  },
-  "/info/riesgo-seguros": {
-    title: "Evaluación de riesgo y seguros | CODA",
-    description:
-      "Conoce tu perfil de riesgo financiero y recomendaciones de seguros alineadas a tu situación real.",
     changefreq: "monthly",
     priority: "0.6",
   },

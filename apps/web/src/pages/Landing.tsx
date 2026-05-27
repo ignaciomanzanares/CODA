@@ -527,7 +527,7 @@ export default function Landing() {
             <p className="text-lg text-gray-500">{t("landing.categoriesSubtitle")}</p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 max-w-5xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-w-5xl mx-auto">
             {[
               { icon: Landmark, title: t("landing.catCuentas"), desc: t("landing.catCuentasDesc") },
               { icon: CreditCard, title: t("landing.catTarjetas"), desc: t("landing.catTarjetasDesc") },
@@ -536,8 +536,6 @@ export default function Landing() {
               { icon: Home, title: t("landing.catHipotecarios"), desc: t("landing.catHipotecariosDesc") },
               { icon: PiggyBank, title: t("landing.catDepositos"), desc: t("landing.catDepositosDesc") },
               { icon: TrendingUp, title: t("landing.catFondos"), desc: t("landing.catFondosDesc") },
-              { icon: Shield, title: t("landing.catSeguros"), desc: t("landing.catSegurosDesc") },
-              { icon: Target, title: t("landing.catAPV"), desc: t("landing.catAPVDesc") },
               { icon: ArrowLeftRight, title: t("landing.catPortabilidad"), desc: t("landing.catPortabilidadDesc") },
             ].map(({ icon: Icon, title, desc }) => (
               <div key={title} className="group flex flex-col items-center text-center p-4 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 hover:shadow-sm transition-all cursor-default">

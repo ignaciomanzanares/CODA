@@ -20,9 +20,8 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { 
-  CreditCard, 
-  PiggyBank, 
-  ShieldCheck, 
+  CreditCard,
+  PiggyBank,
   Landmark,
   Sparkles,
   ExternalLink
@@ -94,8 +93,6 @@ export default function ProductsTable({
         return <CreditCard className="h-5 w-5 text-muted-foreground" />;
       case "savings":
         return <PiggyBank className="h-5 w-5 text-muted-foreground" />;
-      case "insurance":
-        return <ShieldCheck className="h-5 w-5 text-muted-foreground" />;
       default:
         return <Landmark className="h-5 w-5 text-muted-foreground" />;
     }
@@ -128,15 +125,6 @@ export default function ProductsTable({
           { key: "productType", label: "Tipo de cuenta" },
           { key: "interestRate", label: "APY" },
           { key: "minimumBalance", label: "Saldo mínimo" },
-          { key: "features", label: "Características" },
-          { key: "action", label: "Acción" },
-        ];
-      case "insurance":
-        return [
-          { key: "provider", label: "Proveedor" },
-          { key: "productType", label: "Tipo de seguro" },
-          { key: "coverage", label: "Cobertura" },
-          { key: "premium", label: "Prima" },
           { key: "features", label: "Características" },
           { key: "action", label: "Acción" },
         ];

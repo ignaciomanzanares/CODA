@@ -37,16 +37,6 @@ function estimateBenefitClp(
     return Math.round(capitalBase * (product.annual_rate_pct / 100));
   }
 
-  // APV régimen A: bonificación del 15% sobre aportes (máx. 6 UTM ≈ $370.000)
-  if (cat === "apv") {
-    const monthlyContribution = Math.min(
-      (profile.monthly_savings_clp ?? 50_000) * 0.3,
-      30_000
-    );
-    const annualContribution = monthlyContribution * 12;
-    return Math.round(annualContribution * 0.15);
-  }
-
   // Créditos: ahorro vs tasa promedio de mercado (referencial 24%)
   if (
     (cat === "creditos_consumo" || cat === "lineas_credito") &&
@@ -171,11 +161,9 @@ const BENEFIT_SCALE_BY_CATEGORY: Record<string, number> = {
   lineas_credito: 300_000,
   creditos_hipotecarios: 1_000_000,
   depositos_plazo: 200_000,
-  apv: 150_000,
   fondos_mutuos: 300_000,
   cuentas_ahorro: 100_000,
   tarjetas_credito: 100_000,
-  seguros: 200_000,
   portabilidad: 800_000,
 };
 

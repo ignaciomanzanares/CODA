@@ -564,7 +564,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         financialContext = {};
       }
 
-      const response = await chat(message, conversationHistory, financialContext);
+      const response = await chat(message, conversationHistory, financialContext, userId);
       res.json(response);
     } catch (error) {
       logger.error({ err: error }, 'AI Assistant chat error');
@@ -595,7 +595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         financialContext = {};
       }
 
-      const result = getStreamGenerator(message, conversationHistory, financialContext);
+      const result = getStreamGenerator(message, conversationHistory, financialContext, userId);
       if (!result) {
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');

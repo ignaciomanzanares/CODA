@@ -22,7 +22,6 @@ export const ROUTES = {
   bienvenida: "/bienvenida",
   auditoria: "/auditoria",
   infoScoreCredito: "/info/score-credito",
-  infoRiesgoSeguros: "/info/riesgo-seguros",
   infoMetasFinancieras: "/info/metas-financieras",
   infoComparacionProductos: "/info/comparacion-productos",
   restablecerContrasena: "/restablecer-contrasena",

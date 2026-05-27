@@ -84,14 +84,6 @@ export default function FiltersSection({
           { value: "cd", label: "Depósitos a plazo" },
           { value: "money_market", label: "Cuentas de mercado monetario" },
         ];
-      case "insurance":
-        return [
-          { value: "all", label: "Todos los tipos" },
-          { value: "auto", label: "Seguro automotriz" },
-          { value: "home", label: "Seguro de hogar" },
-          { value: "life", label: "Seguro de vida" },
-          { value: "health", label: "Seguro de salud" },
-        ];
       default:
         return [{ value: "all", label: "Todos los tipos" }];
     }
@@ -195,7 +187,7 @@ export default function FiltersSection({
           </SheetHeader>
 
           <div className="py-6 space-y-6">
-            {(category === "loans" || category === "insurance") && (
+            {category === "loans" && (
               <div className="space-y-2">
                 <Label>Rango de monto</Label>
                 <div className="flex items-center justify-between">
