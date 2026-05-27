@@ -17,6 +17,12 @@ export interface Message {
   name?: string;
 }
 
+// Eventos emitidos por las generadoras de streaming.
+// Los chunks de texto se yieldean como string (el caso común). Las herramientas
+// emiten `tool_start`/`tool_end` para que la UI pueda mostrar "Consultando…"
+// mientras se ejecuta una tool call (que de otro modo sería una pausa muda).
+export type StreamEvent = string | { type: 'tool_start' | 'tool_end'; name: string };
+
 const MAX_TOOL_ITERATIONS = 3;
 
 export interface FinancialContext {
@@ -224,33 +230,85 @@ async function callAnthropic(messages: Message[], apiKey: string): Promise<strin
   return data.content[0]?.text || '';
 }
 
-// Gemini usa un esquema distinto: system_instruction separado y role "model" en vez de "assistant".
-function toGeminiPayload(messages: Message[], stream: boolean): { url: string; body: string } {
-  const systemMessage = messages.find(m => m.role === 'system')?.content || '';
-  const contents = messages
-    .filter(m => m.role !== 'system')
-    .map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    }));
+// Gemini usa un esquema distinto: system_instruction separado, rol "model" en
+// vez de "assistant", y tool calls como `functionCall`/`functionResponse` parts.
+interface GeminiPart {
+  text?: string;
+  functionCall?: { name: string; args: Record<string, unknown> };
+  functionResponse?: { name: string; response: Record<string, unknown> };
+}
+interface GeminiContent {
+  role: 'user' | 'model';
+  parts: GeminiPart[];
+}
 
-  const action = stream ? 'streamGenerateContent?alt=sse' : 'generateContent';
+function toGeminiContents(messages: Message[]): {
+  system_instruction?: { parts: { text: string }[] };
+  contents: GeminiContent[];
+} {
+  const systemMessage = messages.find(m => m.role === 'system')?.content || '';
+  const contents: GeminiContent[] = [];
+
+  for (const m of messages) {
+    if (m.role === 'system') continue;
+
+    if (m.role === 'user') {
+      contents.push({ role: 'user', parts: [{ text: m.content }] });
+    } else if (m.role === 'assistant') {
+      const parts: GeminiPart[] = [];
+      if (m.content) parts.push({ text: m.content });
+      if (m.tool_calls) {
+        for (const tc of m.tool_calls) {
+          let args: Record<string, unknown> = {};
+          try { args = tc.function.arguments ? JSON.parse(tc.function.arguments) : {}; } catch { /* keep empty */ }
+          parts.push({ functionCall: { name: tc.function.name, args } });
+        }
+      }
+      if (parts.length > 0) contents.push({ role: 'model', parts });
+    } else if (m.role === 'tool') {
+      // Gemini espera el resultado como un user message con functionResponse.
+      // El name lo guardamos en m.name al momento de ejecutar la tool.
+      let response: Record<string, unknown>;
+      try {
+        const parsed = JSON.parse(m.content);
+        response = parsed && typeof parsed === 'object' ? parsed : { content: m.content };
+      } catch {
+        response = { content: m.content };
+      }
+      contents.push({
+        role: 'user',
+        parts: [{ functionResponse: { name: m.name || 'unknown', response } }],
+      });
+    }
+  }
+
   return {
-    url: `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:${action}`,
-    body: JSON.stringify({
-      system_instruction: systemMessage ? { parts: [{ text: systemMessage }] } : undefined,
-      contents,
-      generationConfig: { maxOutputTokens: 1500, temperature: 0.6 },
-    }),
+    system_instruction: systemMessage ? { parts: [{ text: systemMessage }] } : undefined,
+    contents,
   };
 }
 
+function geminiToolsPayload(): unknown {
+  return [{
+    function_declarations: TOOL_DEFINITIONS.map(t => ({
+      name: t.function.name,
+      description: t.function.description,
+      parameters: t.function.parameters,
+    })),
+  }];
+}
+
 async function callGemini(messages: Message[], apiKey: string): Promise<string> {
-  const { url, body } = toGeminiPayload(messages, false);
+  const { system_instruction, contents } = toGeminiContents(messages);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body,
+    body: JSON.stringify({
+      system_instruction,
+      contents,
+      generationConfig: { maxOutputTokens: 1500, temperature: 0.6 },
+    }),
   });
 
   if (!response.ok) {
@@ -261,6 +319,60 @@ async function callGemini(messages: Message[], apiKey: string): Promise<string> 
   const data = await response.json();
   const parts = data.candidates?.[0]?.content?.parts || [];
   return parts.map((p: { text?: string }) => p.text || '').join('');
+}
+
+// Bucle agéntico para Gemini (no-streaming).
+async function callGeminiWithToolLoop(
+  messages: Message[],
+  apiKey: string,
+  userId: string,
+): Promise<string> {
+  const working = [...messages];
+  for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+    const isLast = i === MAX_TOOL_ITERATIONS - 1;
+    const { system_instruction, contents } = toGeminiContents(working);
+    const body: Record<string, unknown> = {
+      system_instruction,
+      contents,
+      generationConfig: { maxOutputTokens: 1500, temperature: 0.6 },
+    };
+    if (!isLast) body.tools = geminiToolsPayload();
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) throw new Error(`Gemini API error: ${await response.text()}`);
+
+    const data = await response.json();
+    const parts: GeminiPart[] = data.candidates?.[0]?.content?.parts ?? [];
+
+    let text = '';
+    const fnCalls: { name: string; args: Record<string, unknown> }[] = [];
+    for (const p of parts) {
+      if (typeof p.text === 'string') text += p.text;
+      if (p.functionCall) {
+        fnCalls.push({ name: p.functionCall.name, args: p.functionCall.args ?? {} });
+      }
+    }
+
+    if (fnCalls.length === 0) return text;
+
+    const toolCalls: ToolCall[] = fnCalls.map((c, idx) => ({
+      id: `gemini_${i}_${idx}`,
+      type: 'function',
+      function: { name: c.name, arguments: JSON.stringify(c.args) },
+    }));
+    working.push({ role: 'assistant', content: text, tool_calls: toolCalls });
+    for (const tc of toolCalls) {
+      const out = await executeTool(tc.function.name, tc.function.arguments, userId);
+      working.push({ role: 'tool', content: out, tool_call_id: tc.id, name: tc.function.name });
+    }
+  }
+  return '';
 }
 
 // Serializa nuestro Message extendido al formato de wire de OpenAI/Groq.
@@ -337,7 +449,7 @@ async function callGroqWithToolLoop(
       });
       for (const tc of result.tool_calls) {
         const out = await executeTool(tc.function.name, tc.function.arguments, userId);
-        working.push({ role: 'tool', content: out, tool_call_id: tc.id });
+        working.push({ role: 'tool', content: out, tool_call_id: tc.id, name: tc.function.name });
       }
       continue;
     }
@@ -349,7 +461,7 @@ async function callGroqWithToolLoop(
 
 // ── Streaming implementations ────────────────────────────────────────────────
 
-export async function* streamOpenAI(messages: Message[], apiKey: string): AsyncGenerator<string> {
+export async function* streamOpenAI(messages: Message[], apiKey: string): AsyncGenerator<StreamEvent> {
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -399,7 +511,7 @@ export async function* streamOpenAI(messages: Message[], apiKey: string): AsyncG
   }
 }
 
-export async function* streamAnthropic(messages: Message[], apiKey: string): AsyncGenerator<string> {
+export async function* streamAnthropic(messages: Message[], apiKey: string): AsyncGenerator<StreamEvent> {
   const systemMessage = messages.find(m => m.role === 'system')?.content || '';
   const chatMessages = messages.filter(m => m.role !== 'system');
 
@@ -453,12 +565,17 @@ export async function* streamAnthropic(messages: Message[], apiKey: string): Asy
   }
 }
 
-export async function* streamGemini(messages: Message[], apiKey: string): AsyncGenerator<string> {
-  const { url, body } = toGeminiPayload(messages, true);
+export async function* streamGemini(messages: Message[], apiKey: string): AsyncGenerator<StreamEvent> {
+  const { system_instruction, contents } = toGeminiContents(messages);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse`;
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body,
+    body: JSON.stringify({
+      system_instruction,
+      contents,
+      generationConfig: { maxOutputTokens: 1500, temperature: 0.6 },
+    }),
   });
 
   if (!response.ok) {
@@ -498,7 +615,89 @@ export async function* streamGemini(messages: Message[], apiKey: string): AsyncG
   }
 }
 
-export async function* streamGroq(messages: Message[], apiKey: string): AsyncGenerator<string> {
+// Variante streaming agéntica para Gemini.
+export async function* streamGeminiWithTools(
+  messages: Message[],
+  apiKey: string,
+  userId: string,
+): AsyncGenerator<StreamEvent> {
+  const working = [...messages];
+
+  for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
+    const isLast = iter === MAX_TOOL_ITERATIONS - 1;
+    const { system_instruction, contents } = toGeminiContents(working);
+    const body: Record<string, unknown> = {
+      system_instruction,
+      contents,
+      generationConfig: { maxOutputTokens: 1500, temperature: 0.6 },
+    };
+    if (!isLast) body.tools = geminiToolsPayload();
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) throw new Error(`Gemini API error: ${await response.text()}`);
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let assistantText = '';
+    const fnCalls: { name: string; args: Record<string, unknown> }[] = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data: ')) continue;
+        const data = trimmed.slice(6);
+
+        try {
+          const parsed = JSON.parse(data);
+          const parts: GeminiPart[] | undefined = parsed.candidates?.[0]?.content?.parts;
+          if (!Array.isArray(parts)) continue;
+          for (const p of parts) {
+            if (typeof p?.text === 'string' && p.text) {
+              assistantText += p.text;
+              yield p.text;
+            }
+            if (p?.functionCall) {
+              fnCalls.push({ name: p.functionCall.name, args: p.functionCall.args ?? {} });
+            }
+          }
+        } catch { /* skip malformed chunks */ }
+      }
+    }
+
+    if (fnCalls.length === 0) return;
+
+    const toolCalls: ToolCall[] = fnCalls.map((c, idx) => ({
+      id: `gemini_${iter}_${idx}`,
+      type: 'function',
+      function: { name: c.name, arguments: JSON.stringify(c.args) },
+    }));
+    working.push({ role: 'assistant', content: assistantText, tool_calls: toolCalls });
+    for (const tc of toolCalls) {
+      yield { type: 'tool_start', name: tc.function.name };
+      const out = await executeTool(tc.function.name, tc.function.arguments, userId);
+      yield { type: 'tool_end', name: tc.function.name };
+      working.push({ role: 'tool', content: out, tool_call_id: tc.id, name: tc.function.name });
+    }
+  }
+}
+
+export async function* streamGroq(messages: Message[], apiKey: string): AsyncGenerator<StreamEvent> {
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -556,7 +755,7 @@ export async function* streamGroqWithTools(
   messages: Message[],
   apiKey: string,
   userId: string,
-): AsyncGenerator<string> {
+): AsyncGenerator<StreamEvent> {
   const working = [...messages];
 
   for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
@@ -654,8 +853,10 @@ export async function* streamGroqWithTools(
 
     working.push({ role: 'assistant', content: assistantText, tool_calls: calls });
     for (const tc of calls) {
+      yield { type: 'tool_start', name: tc.function.name };
       const out = await executeTool(tc.function.name, tc.function.arguments, userId);
-      working.push({ role: 'tool', content: out, tool_call_id: tc.id });
+      yield { type: 'tool_end', name: tc.function.name };
+      working.push({ role: 'tool', content: out, tool_call_id: tc.id, name: tc.function.name });
     }
   }
 }
@@ -774,8 +975,9 @@ export async function chat(
           : (await callGroq(messages, apiKey)).content;
         break;
       case 'gemini':
-        // TODO: tool use en Gemini usa un formato distinto (function_declarations).
-        response = await callGemini(messages, apiKey);
+        response = userId
+          ? await callGeminiWithToolLoop(messages, apiKey, userId)
+          : await callGemini(messages, apiKey);
         break;
       case 'anthropic':
         response = await callAnthropic(messages, apiKey);
@@ -804,7 +1006,7 @@ export function getStreamGenerator(
   conversationHistory: Message[],
   financialContext: FinancialContext,
   userId?: string,
-): { stream: AsyncGenerator<string>; provider: string } | null {
+): { stream: AsyncGenerator<StreamEvent>; provider: string } | null {
   const provider = getProvider();
   const apiKey = getApiKeyFor(provider);
 
@@ -817,7 +1019,7 @@ export function getStreamGenerator(
     { role: 'user', content: userMessage },
   ];
 
-  let stream: AsyncGenerator<string>;
+  let stream: AsyncGenerator<StreamEvent>;
   switch (provider) {
     case 'groq':
       stream = userId
@@ -825,8 +1027,9 @@ export function getStreamGenerator(
         : streamGroq(messages, apiKey);
       break;
     case 'gemini':
-      // TODO: tool use en Gemini (formato function_declarations).
-      stream = streamGemini(messages, apiKey);
+      stream = userId
+        ? streamGeminiWithTools(messages, apiKey, userId)
+        : streamGemini(messages, apiKey);
       break;
     case 'anthropic':
       stream = streamAnthropic(messages, apiKey);
