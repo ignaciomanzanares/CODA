@@ -199,7 +199,12 @@ async function streamChat(
 function renderMarkdown(text: string): string {
   // Strip the trailing "PREGUNTAS:" suggestion line so it never appears in the bubble,
   // even while the response is still streaming and we haven't parsed it yet.
-  const cleaned = text.replace(/\n?PREGUNTAS:\s*[^\n]*$/i, "").trim();
+  let cleaned = text.replace(/\n?PREGUNTAS:\s*[^\n]*$/i, "").trim();
+  // Si el modelo solo emitió la línea PREGUNTAS (sin cuerpo), no dejamos una
+  // burbuja vacía — mostramos un fallback amable.
+  if (!cleaned && text.trim().length > 0) {
+    cleaned = "¡Hola! ¿En qué te puedo ayudar?";
+  }
   return cleaned
     .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
     .replace(/^- (.+)$/gm, "&bull; $1")
