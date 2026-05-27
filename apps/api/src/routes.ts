@@ -614,9 +614,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let fullText = '';
       try {
-        for await (const chunk of result.stream) {
-          fullText += chunk;
-          res.write(`data: ${JSON.stringify({ type: 'chunk', content: chunk })}\n\n`);
+        for await (const event of result.stream) {
+          if (typeof event === 'string') {
+            fullText += event;
+            res.write(`data: ${JSON.stringify({ type: 'chunk', content: event })}\n\n`);
+          } else {
+            // Eventos de herramientas (tool_start / tool_end) — la UI los puede
+            // usar para mostrar "Consultando tus gastos…" durante la pausa.
+            res.write(`data: ${JSON.stringify(event)}\n\n`);
+          }
         }
 
         // Parse the complete response for structured data (suggestions, actionItems)
