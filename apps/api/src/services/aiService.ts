@@ -37,6 +37,8 @@ export interface FinancialContext {
   financialGoals?: { name: string; progress: number }[];
   debts?: { type: string; balance: number; rate?: number }[];
   accountSummary?: { checking: number; savings: number; credit: number; investment: number };
+  /** Resumen rolling de conversaciones pasadas con este usuario (memoria persistente). */
+  userSummary?: string;
 }
 
 export interface ActionItem {
@@ -110,7 +112,15 @@ function fmtClp(n: number): string {
 }
 
 export function buildContextPrompt(context: FinancialContext): string {
-  const parts: string[] = ['## Datos financieros del usuario (últimos ~30 días)'];
+  const parts: string[] = [];
+
+  if (context.userSummary && context.userSummary.trim().length > 0) {
+    parts.push('## Lo que recuerdas del usuario (conversaciones pasadas)');
+    parts.push(context.userSummary.trim());
+    parts.push('');
+  }
+
+  parts.push('## Datos financieros del usuario (últimos ~30 días)');
 
   if (context.accountSummary) {
     const s = context.accountSummary;
@@ -1015,6 +1025,31 @@ export function getStreamGenerator(
 }
 
 export { parseStructuredResponse };
+
+// Llamada plana sin el SYSTEM_PROMPT del asistente — útil para tareas
+// internas (resumen de memoria, clasificadores, etc.) que necesitan un LLM
+// pero NO la personalidad de CODA AI. Usa el mismo orden free-first de
+// proveedores que el resto del servicio.
+export async function simpleChat(
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<string> {
+  const provider = getProvider();
+  const apiKey = getApiKeyFor(provider);
+  if (!apiKey) throw new Error('No AI provider configured');
+
+  const messages: Message[] = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt },
+  ];
+
+  switch (provider) {
+    case 'groq': return (await callGroq(messages, apiKey)).content;
+    case 'gemini': return await callGemini(messages, apiKey);
+    case 'anthropic': return await callAnthropic(messages, apiKey);
+    case 'openai': return await callOpenAI(messages, apiKey);
+  }
+}
 
 // ── Quick insights (template-based, no AI call) ──────────────────────────────
 

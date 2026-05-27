@@ -677,6 +677,14 @@ export const userAssets = table('user_assets', {
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+/** Memoria del asistente IA por usuario: resumen rolling de conversaciones pasadas. */
+export const assistantSummaries = table('assistant_summaries', {
+  userId: text('user_id').primaryKey().references(() => users.id),
+  summary: text('summary').notNull(),
+  exchangeCount: integer('exchange_count').notNull().default(0),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 /** Feedback del usuario sobre respuestas del asistente IA (thumbs up/down). */
 export const assistantFeedback = table('assistant_feedback', {
   id: text('id').primaryKey(),
