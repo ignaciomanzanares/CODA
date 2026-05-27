@@ -49,6 +49,18 @@ interface ChatMessage {
   actionItems?: ActionItem[];
   timestamp: Date;
   isStreaming?: boolean;
+  // Etiqueta visible cuando el modelo está corriendo una tool call.
+  toolStatus?: string | null;
+}
+
+// Etiquetas amigables (es-CL) para cada herramienta del backend.
+const TOOL_LABELS: Record<string, string> = {
+  query_transactions: "Consultando tus transacciones…",
+  simulate_loan: "Simulando el crédito…",
+};
+
+function toolLabelFor(name: string): string {
+  return TOOL_LABELS[name] ?? "Ejecutando herramienta…";
 }
 
 interface FinancialAssistantProps {
@@ -83,6 +95,8 @@ function getApiBase(): string {
 
 interface StreamCallbacks {
   onChunk: (text: string) => void;
+  onToolStart: (name: string) => void;
+  onToolEnd: (name: string) => void;
   onDone: (data: {
     suggestions?: string[];
     actionItems?: ActionItem[];
@@ -146,6 +160,10 @@ async function streamChat(
           const parsed = JSON.parse(data);
           if (parsed.type === "chunk" && parsed.content) {
             callbacks.onChunk(parsed.content);
+          } else if (parsed.type === "tool_start" && parsed.name) {
+            callbacks.onToolStart(parsed.name);
+          } else if (parsed.type === "tool_end" && parsed.name) {
+            callbacks.onToolEnd(parsed.name);
           } else if (parsed.type === "done") {
             callbacks.onDone({
               suggestions: parsed.suggestions,
@@ -298,10 +316,30 @@ export default function FinancialAssistant({
                 updated[updated.length - 1] = {
                   ...last,
                   content: last.content + text,
+                  // Una vez llega texto, ocultar el indicador de tool — el
+                  // modelo ya terminó esa fase y está componiendo respuesta.
+                  toolStatus: null,
                 };
               }
               return updated;
             });
+          },
+          onToolStart: (name) => {
+            setMessages((prev) => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last && last.role === "assistant" && last.isStreaming) {
+                updated[updated.length - 1] = {
+                  ...last,
+                  toolStatus: toolLabelFor(name),
+                };
+              }
+              return updated;
+            });
+          },
+          onToolEnd: () => {
+            // No limpiamos aquí — dejamos el indicador visible hasta que
+            // empiece a llegar texto (que es cuando el modelo retoma).
           },
           onDone: (data) => {
             setMessages((prev) => {
@@ -315,6 +353,7 @@ export default function FinancialAssistant({
                   suggestions: data.suggestions,
                   actionItems: data.actionItems,
                   isStreaming: false,
+                  toolStatus: null,
                 };
               }
               return updated;
@@ -330,6 +369,7 @@ export default function FinancialAssistant({
                   ...last,
                   content: last.content || msg,
                   isStreaming: false,
+                  toolStatus: null,
                   suggestions: [
                     "Intenta de nuevo",
                     "¿Cómo puedo ahorrar?",
@@ -570,8 +610,15 @@ export default function FinancialAssistant({
                           __html: renderMarkdown(message.content),
                         }}
                       />
+                      {/* Tool status chip — visible mientras corre una tool call */}
+                      {message.isStreaming && message.toolStatus && (
+                        <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>{message.toolStatus}</span>
+                        </div>
+                      )}
                       {/* Streaming cursor */}
-                      {message.isStreaming && (
+                      {message.isStreaming && !message.toolStatus && (
                         <span className="inline-block w-1.5 h-4 bg-primary/60 animate-pulse ml-0.5 align-text-bottom rounded-sm" />
                       )}
                     </div>
