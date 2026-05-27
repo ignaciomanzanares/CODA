@@ -10,7 +10,12 @@
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["sin costo", "cuenta vista", "sin renta mínima", "transferencias"],
+    "tags": [
+      "sin costo",
+      "cuenta vista",
+      "sin renta mínima",
+      "transferencias"
+    ],
     "source_url": "https://www.bancoestado.cl/content/bancoestado-public/cl/es/home/personas/cuentas/cuentarut.html",
     "last_verified": "2026-04-01",
     "disclosure": "BancoEstado es una empresa del Estado de Chile."
@@ -26,7 +31,11 @@
     "monthly_cost_clp": 5990,
     "min_income_clp": 300000,
     "min_credit_score": null,
-    "tags": ["cuenta corriente", "chequera", "línea de crédito"],
+    "tags": [
+      "cuenta corriente",
+      "chequera",
+      "línea de crédito"
+    ],
     "source_url": "https://www.bancoestado.cl/content/bancoestado-public/cl/es/home/personas/cuentas/cuenta-corriente.html",
     "last_verified": "2026-04-01",
     "disclosure": "BancoEstado es una empresa del Estado de Chile. Tasa línea de crédito referencial."
@@ -42,7 +51,12 @@
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["sin costo", "digital", "cuenta corriente", "sin comisiones"],
+    "tags": [
+      "sin costo",
+      "digital",
+      "cuenta corriente",
+      "sin comisiones"
+    ],
     "source_url": "https://portales.bancochile.cl/personas/cuenta-corriente/fan-cuenta",
     "last_verified": "2026-04-01",
     "disclosure": "Banco de Chile. Sujeto a aprobación crediticia."
@@ -58,7 +72,11 @@
     "monthly_cost_clp": 7990,
     "min_income_clp": 400000,
     "min_credit_score": null,
-    "tags": ["cuenta corriente", "visa débito", "digital"],
+    "tags": [
+      "cuenta corriente",
+      "visa débito",
+      "digital"
+    ],
     "source_url": "https://www.bci.cl/personas/cuentas/cuenta-corriente",
     "last_verified": "2026-04-01",
     "disclosure": "BCI. Mantención sujeta a condiciones de uso. Sujeto a aprobación."
@@ -74,7 +92,12 @@
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["sin costo", "digital", "cuenta corriente", "app"],
+    "tags": [
+      "sin costo",
+      "digital",
+      "cuenta corriente",
+      "app"
+    ],
     "source_url": "https://www.santander.cl/personas/cuentas/cuenta-life",
     "last_verified": "2026-04-01",
     "disclosure": "Banco Santander-Chile. Sujeto a aprobación."
@@ -90,7 +113,11 @@
     "monthly_cost_clp": 6990,
     "min_income_clp": 350000,
     "min_credit_score": null,
-    "tags": ["cuenta corriente", "mastercard débito", "cajeros"],
+    "tags": [
+      "cuenta corriente",
+      "mastercard débito",
+      "cajeros"
+    ],
     "source_url": "https://www.itau.cl/personas/cuentas/cuenta-corriente",
     "last_verified": "2026-04-01",
     "disclosure": "Itaú CorpBanca. Sujeto a evaluación crediticia."
@@ -106,7 +133,12 @@
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["ahorro", "cooperativa", "sin costo", "reajuste UF"],
+    "tags": [
+      "ahorro",
+      "cooperativa",
+      "sin costo",
+      "reajuste UF"
+    ],
     "source_url": "https://www.coopeuch.cl/personas/cuentas-y-ahorro/cuenta-de-ahorro",
     "last_verified": "2026-04-01",
     "disclosure": "Coopeuch es una cooperativa de ahorro y crédito fiscalizada por la SBIF."
@@ -122,7 +154,12 @@
     "monthly_cost_clp": 0,
     "min_income_clp": 250000,
     "min_credit_score": null,
-    "tags": ["sin anualidad", "cashback", "supermercados", "farmacias"],
+    "tags": [
+      "sin anualidad",
+      "cashback",
+      "supermercados",
+      "farmacias"
+    ],
     "source_url": "https://portales.bancochile.cl/personas/tarjetas/tarjeta-move",
     "last_verified": "2026-04-01",
     "disclosure": "Banco de Chile. Tasa de interés máxima convencional vigente según CMF. Sujeto a aprobación."
@@ -138,7 +175,11 @@
     "monthly_cost_clp": 3990,
     "min_income_clp": 400000,
     "min_credit_score": null,
-    "tags": ["mastercard", "puntos", "beneficios"],
+    "tags": [
+      "mastercard",
+      "puntos",
+      "beneficios"
+    ],
     "source_url": "https://www.bci.cl/personas/tarjetas/tarjeta-de-credito",
     "last_verified": "2026-04-01",
     "disclosure": "BCI. Sujeto a evaluación crediticia. Tasa máxima convencional según CMF."
@@ -149,12 +190,17 @@
     "institution_logo_url": null,
     "category": "tarjetas_credito",
     "name": "Tarjeta Visa Elite Santander",
-    "short_description": "Tarjeta Visa con acceso a salones VIP, seguro de viaje y programa de puntos Santander.",
+    "short_description": "Tarjeta Visa con acceso a salones VIP, asistencia en viaje y programa de puntos Santander.",
     "annual_rate_pct": null,
     "monthly_cost_clp": 7990,
     "min_income_clp": 800000,
     "min_credit_score": null,
-    "tags": ["visa", "salones VIP", "seguro viaje", "puntos"],
+    "tags": [
+      "visa",
+      "salones VIP",
+      "viajes",
+      "puntos"
+    ],
     "source_url": "https://www.santander.cl/personas/tarjetas/visa-elite",
     "last_verified": "2026-04-01",
     "disclosure": "Banco Santander-Chile. Sujeto a evaluación crediticia. Tasa máxima convencional CMF."
@@ -170,7 +216,12 @@
     "monthly_cost_clp": 4990,
     "min_income_clp": 350000,
     "min_credit_score": null,
-    "tags": ["visa", "descuentos", "viajes", "cuotas"],
+    "tags": [
+      "visa",
+      "descuentos",
+      "viajes",
+      "cuotas"
+    ],
     "source_url": "https://www.scotiabank.cl/personas/tarjetas-de-credito.html",
     "last_verified": "2026-04-01",
     "disclosure": "Scotiabank Chile. Sujeto a evaluación crediticia. Tasa máxima convencional CMF."
@@ -186,7 +237,11 @@
     "monthly_cost_clp": 0,
     "min_income_clp": 200000,
     "min_credit_score": null,
-    "tags": ["visa", "sin anualidad", "cuotas sin interés"],
+    "tags": [
+      "visa",
+      "sin anualidad",
+      "cuotas sin interés"
+    ],
     "source_url": "https://www.bancoestado.cl/content/bancoestado-public/cl/es/home/personas/tarjetas/tarjeta-credito-visa.html",
     "last_verified": "2026-04-01",
     "disclosure": "BancoEstado. Tasa máxima convencional según CMF. Sujeto a evaluación."
@@ -202,7 +257,12 @@
     "monthly_cost_clp": 0,
     "min_income_clp": 200000,
     "min_credit_score": null,
-    "tags": ["mastercard", "cooperativa", "sin anualidad", "tasa preferencial"],
+    "tags": [
+      "mastercard",
+      "cooperativa",
+      "sin anualidad",
+      "tasa preferencial"
+    ],
     "source_url": "https://www.coopeuch.cl/personas/tarjetas/tarjeta-de-credito",
     "last_verified": "2026-04-01",
     "disclosure": "Coopeuch Cooperativa de Ahorro y Crédito. Tasa máxima convencional CMF."
@@ -218,7 +278,11 @@
     "monthly_cost_clp": null,
     "min_income_clp": 300000,
     "min_credit_score": null,
-    "tags": ["crédito consumo", "cuotas fijas", "hasta 72 meses"],
+    "tags": [
+      "crédito consumo",
+      "cuotas fijas",
+      "hasta 72 meses"
+    ],
     "source_url": "https://portales.bancochile.cl/personas/creditos/credito-consumo",
     "last_verified": "2026-04-01",
     "disclosure": "Banco de Chile. CAE referencial calculado para $5.000.000 a 48 meses. Sujeto a evaluación crediticia. Tasa máxima convencional según CMF."
@@ -234,7 +298,12 @@
     "monthly_cost_clp": null,
     "min_income_clp": 200000,
     "min_credit_score": null,
-    "tags": ["crédito consumo", "tasa fija", "sin prepago", "hasta 84 meses"],
+    "tags": [
+      "crédito consumo",
+      "tasa fija",
+      "sin prepago",
+      "hasta 84 meses"
+    ],
     "source_url": "https://www.bancoestado.cl/content/bancoestado-public/cl/es/home/personas/creditos/credito-consumo.html",
     "last_verified": "2026-04-01",
     "disclosure": "BancoEstado. CAE referencial. Sujeto a evaluación. Tasa máxima convencional CMF."
@@ -250,7 +319,12 @@
     "monthly_cost_clp": null,
     "min_income_clp": 350000,
     "min_credit_score": null,
-    "tags": ["crédito consumo", "desembolso rápido", "app", "cuotas fijas"],
+    "tags": [
+      "crédito consumo",
+      "desembolso rápido",
+      "app",
+      "cuotas fijas"
+    ],
     "source_url": "https://www.bci.cl/personas/creditos/credito-de-consumo",
     "last_verified": "2026-04-01",
     "disclosure": "BCI. CAE referencial para crédito de $5.000.000 a 48 meses. Sujeto a evaluación crediticia."
@@ -266,7 +340,11 @@
     "monthly_cost_clp": null,
     "min_income_clp": 300000,
     "min_credit_score": null,
-    "tags": ["crédito consumo", "aprobación rápida", "online"],
+    "tags": [
+      "crédito consumo",
+      "aprobación rápida",
+      "online"
+    ],
     "source_url": "https://www.santander.cl/personas/creditos/credito-de-consumo",
     "last_verified": "2026-04-01",
     "disclosure": "Banco Santander-Chile. CAE referencial. Sujeto a evaluación crediticia. Tasa máxima convencional CMF."
@@ -282,7 +360,12 @@
     "monthly_cost_clp": null,
     "min_income_clp": 200000,
     "min_credit_score": null,
-    "tags": ["crédito consumo", "tasa baja", "cooperativa", "hasta 96 meses"],
+    "tags": [
+      "crédito consumo",
+      "tasa baja",
+      "cooperativa",
+      "hasta 96 meses"
+    ],
     "source_url": "https://www.coopeuch.cl/personas/creditos/credito-de-consumo",
     "last_verified": "2026-04-01",
     "disclosure": "Coopeuch Cooperativa de Ahorro y Crédito. CAE referencial. Tasa máxima convencional CMF."
@@ -298,7 +381,11 @@
     "monthly_cost_clp": null,
     "min_income_clp": 350000,
     "min_credit_score": null,
-    "tags": ["crédito consumo", "online", "cuotas fijas"],
+    "tags": [
+      "crédito consumo",
+      "online",
+      "cuotas fijas"
+    ],
     "source_url": "https://www.itau.cl/personas/creditos/credito-de-consumo",
     "last_verified": "2026-04-01",
     "disclosure": "Itaú CorpBanca. CAE referencial. Sujeto a evaluación crediticia."
@@ -314,7 +401,11 @@
     "monthly_cost_clp": null,
     "min_income_clp": 500000,
     "min_credit_score": null,
-    "tags": ["crédito consumo", "tasa fija", "pesos"],
+    "tags": [
+      "crédito consumo",
+      "tasa fija",
+      "pesos"
+    ],
     "source_url": "https://www.security.cl/personas/creditos/credito-consumo",
     "last_verified": "2026-04-01",
     "disclosure": "Banco Security. CAE referencial. Sujeto a evaluación crediticia."
@@ -330,7 +421,12 @@
     "monthly_cost_clp": 0,
     "min_income_clp": 300000,
     "min_credit_score": null,
-    "tags": ["línea de crédito", "cuenta corriente", "rotativa", "interés sobre uso"],
+    "tags": [
+      "línea de crédito",
+      "cuenta corriente",
+      "rotativa",
+      "interés sobre uso"
+    ],
     "source_url": "https://portales.bancochile.cl/personas/creditos/linea-de-credito",
     "last_verified": "2026-04-01",
     "disclosure": "Banco de Chile. Tasa máxima convencional CMF. Sujeto a aprobación."
@@ -346,7 +442,11 @@
     "monthly_cost_clp": 0,
     "min_income_clp": 200000,
     "min_credit_score": null,
-    "tags": ["línea de crédito", "cuentarut", "emergencia"],
+    "tags": [
+      "línea de crédito",
+      "cuentarut",
+      "emergencia"
+    ],
     "source_url": "https://www.bancoestado.cl/content/bancoestado-public/cl/es/home/personas/creditos/linea-de-credito.html",
     "last_verified": "2026-04-01",
     "disclosure": "BancoEstado. Tasa máxima convencional CMF. Sujeto a evaluación."
@@ -362,7 +462,11 @@
     "monthly_cost_clp": 0,
     "min_income_clp": 350000,
     "min_credit_score": null,
-    "tags": ["línea de crédito", "libre disposición", "app"],
+    "tags": [
+      "línea de crédito",
+      "libre disposición",
+      "app"
+    ],
     "source_url": "https://www.bci.cl/personas/creditos/linea-de-credito",
     "last_verified": "2026-04-01",
     "disclosure": "BCI. Tasa máxima convencional CMF. Sujeto a evaluación crediticia."
@@ -378,7 +482,11 @@
     "monthly_cost_clp": 0,
     "min_income_clp": 300000,
     "min_credit_score": null,
-    "tags": ["línea de crédito", "online", "pago mínimo"],
+    "tags": [
+      "línea de crédito",
+      "online",
+      "pago mínimo"
+    ],
     "source_url": "https://www.scotiabank.cl/personas/linea-de-credito.html",
     "last_verified": "2026-04-01",
     "disclosure": "Scotiabank Chile. Tasa máxima convencional CMF. Sujeto a evaluación."
@@ -394,7 +502,12 @@
     "monthly_cost_clp": null,
     "min_income_clp": 600000,
     "min_credit_score": null,
-    "tags": ["hipotecario", "UF", "primera vivienda", "subsidio compatible"],
+    "tags": [
+      "hipotecario",
+      "UF",
+      "primera vivienda",
+      "subsidio compatible"
+    ],
     "source_url": "https://www.bancoestado.cl/content/bancoestado-public/cl/es/home/personas/creditos/hipotecario.html",
     "last_verified": "2026-04-01",
     "disclosure": "BancoEstado. Tasa en UF referencial para operación de 3.000 UF a 25 años, sujeto a evaluación crediticia. CAE incluye seguros de desgravamen y sismos obligatorios."
@@ -410,7 +523,12 @@
     "monthly_cost_clp": null,
     "min_income_clp": 700000,
     "min_credit_score": null,
-    "tags": ["hipotecario", "UF", "hasta 30 años", "vivienda"],
+    "tags": [
+      "hipotecario",
+      "UF",
+      "hasta 30 años",
+      "vivienda"
+    ],
     "source_url": "https://portales.bancochile.cl/personas/creditos/credito-hipotecario",
     "last_verified": "2026-04-01",
     "disclosure": "Banco de Chile. Tasa en UF referencial para operación de 3.000 UF a 25 años. Sujeto a evaluación crediticia y tasación. CAE incluye seguros obligatorios."
@@ -426,7 +544,12 @@
     "monthly_cost_clp": null,
     "min_income_clp": 700000,
     "min_credit_score": null,
-    "tags": ["hipotecario", "UF", "aprobación rápida", "hasta 30 años"],
+    "tags": [
+      "hipotecario",
+      "UF",
+      "aprobación rápida",
+      "hasta 30 años"
+    ],
     "source_url": "https://www.bci.cl/personas/creditos/credito-hipotecario",
     "last_verified": "2026-04-01",
     "disclosure": "BCI. Tasa en UF referencial. Sujeto a evaluación crediticia, tasación y seguros obligatorios."
@@ -437,12 +560,17 @@
     "institution_logo_url": null,
     "category": "creditos_hipotecarios",
     "name": "Crédito Hipotecario Santander (UF)",
-    "short_description": "Hipotecario en UF hasta 30 años con seguro de cesantía opcional y financiamiento hasta 80%.",
-    "annual_rate_pct": 5.10,
+    "short_description": "Hipotecario en UF hasta 30 años con financiamiento hasta 80% y protección de cesantía opcional.",
+    "annual_rate_pct": 5.1,
     "monthly_cost_clp": null,
     "min_income_clp": 700000,
     "min_credit_score": null,
-    "tags": ["hipotecario", "UF", "seguro cesantía", "vivienda"],
+    "tags": [
+      "hipotecario",
+      "UF",
+      "vivienda",
+      "30 años"
+    ],
     "source_url": "https://www.santander.cl/personas/creditos/credito-hipotecario",
     "last_verified": "2026-04-01",
     "disclosure": "Banco Santander-Chile. Tasa en UF referencial. Sujeto a evaluación crediticia y tasación."
@@ -454,11 +582,16 @@
     "category": "creditos_hipotecarios",
     "name": "Crédito Hipotecario Itaú (UF)",
     "short_description": "Hipotecario en UF con plazo hasta 30 años y posibilidad de portabilidad sin costo.",
-    "annual_rate_pct": 5.00,
+    "annual_rate_pct": 5.0,
     "monthly_cost_clp": null,
     "min_income_clp": 650000,
     "min_credit_score": null,
-    "tags": ["hipotecario", "UF", "portabilidad", "hasta 30 años"],
+    "tags": [
+      "hipotecario",
+      "UF",
+      "portabilidad",
+      "hasta 30 años"
+    ],
     "source_url": "https://www.itau.cl/personas/creditos/credito-hipotecario",
     "last_verified": "2026-04-01",
     "disclosure": "Itaú CorpBanca. Tasa en UF referencial. Sujeto a evaluación crediticia y tasación."
@@ -470,11 +603,15 @@
     "category": "creditos_hipotecarios",
     "name": "Crédito Hipotecario BICE (UF)",
     "short_description": "Hipotecario en UF con atención personalizada y financiamiento hasta 80% del avalúo.",
-    "annual_rate_pct": 4.90,
+    "annual_rate_pct": 4.9,
     "monthly_cost_clp": null,
     "min_income_clp": 800000,
     "min_credit_score": null,
-    "tags": ["hipotecario", "UF", "banca privada"],
+    "tags": [
+      "hipotecario",
+      "UF",
+      "banca privada"
+    ],
     "source_url": "https://www.bice.cl/personas/creditos/hipotecario",
     "last_verified": "2026-04-01",
     "disclosure": "Banco BICE. Tasa en UF referencial. Sujeto a evaluación crediticia y tasación."
@@ -486,11 +623,16 @@
     "category": "depositos_plazo",
     "name": "DAP BancoEstado 90 días",
     "short_description": "Depósito a plazo en pesos a 90 días con tasa fija garantizada. Monto mínimo $100.000.",
-    "annual_rate_pct": 5.20,
+    "annual_rate_pct": 5.2,
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["depósito a plazo", "90 días", "tasa fija", "pesos"],
+    "tags": [
+      "depósito a plazo",
+      "90 días",
+      "tasa fija",
+      "pesos"
+    ],
     "source_url": "https://www.bancoestado.cl/content/bancoestado-public/cl/es/home/personas/ahorro/deposito-a-plazo.html",
     "last_verified": "2026-04-01",
     "disclosure": "BancoEstado. Tasa referencial vigente a la fecha de emisión. Los depósitos están cubiertos por el Fondo de Garantía de Depósitos según ley 19.628."
@@ -502,11 +644,16 @@
     "category": "depositos_plazo",
     "name": "DAP BancoEstado 180 días",
     "short_description": "Depósito a plazo en pesos a 180 días con tasa fija mayor que el plazo corto.",
-    "annual_rate_pct": 5.60,
+    "annual_rate_pct": 5.6,
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["depósito a plazo", "180 días", "tasa fija", "pesos"],
+    "tags": [
+      "depósito a plazo",
+      "180 días",
+      "tasa fija",
+      "pesos"
+    ],
     "source_url": "https://www.bancoestado.cl/content/bancoestado-public/cl/es/home/personas/ahorro/deposito-a-plazo.html",
     "last_verified": "2026-04-01",
     "disclosure": "BancoEstado. Tasa referencial vigente a la fecha de emisión. Cubierto por el Fondo de Garantía de Depósitos."
@@ -518,11 +665,16 @@
     "category": "depositos_plazo",
     "name": "DAP Banco de Chile 90 días",
     "short_description": "Depósito a plazo en pesos a 90 días contratado en línea, monto mínimo $500.000.",
-    "annual_rate_pct": 5.10,
+    "annual_rate_pct": 5.1,
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["depósito a plazo", "90 días", "online", "pesos"],
+    "tags": [
+      "depósito a plazo",
+      "90 días",
+      "online",
+      "pesos"
+    ],
     "source_url": "https://portales.bancochile.cl/personas/ahorro/deposito-a-plazo",
     "last_verified": "2026-04-01",
     "disclosure": "Banco de Chile. Tasa referencial. Cubierto por el Fondo de Garantía de Depósitos."
@@ -534,11 +686,16 @@
     "category": "depositos_plazo",
     "name": "DAP BCI 365 días",
     "short_description": "Depósito a plazo en pesos a 1 año con tasa fija atractiva. Disponible en app y sucursales.",
-    "annual_rate_pct": 6.00,
+    "annual_rate_pct": 6.0,
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["depósito a plazo", "365 días", "tasa fija", "app"],
+    "tags": [
+      "depósito a plazo",
+      "365 días",
+      "tasa fija",
+      "app"
+    ],
     "source_url": "https://www.bci.cl/personas/ahorro/deposito-a-plazo",
     "last_verified": "2026-04-01",
     "disclosure": "BCI. Tasa referencial. Cubierto por el Fondo de Garantía de Depósitos."
@@ -550,11 +707,15 @@
     "category": "depositos_plazo",
     "name": "DAP Coopeuch",
     "short_description": "Depósito a plazo en pesos para socios Coopeuch con tasas competitivas desde 30 hasta 365 días.",
-    "annual_rate_pct": 5.80,
+    "annual_rate_pct": 5.8,
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["depósito a plazo", "cooperativa", "tasa competitiva"],
+    "tags": [
+      "depósito a plazo",
+      "cooperativa",
+      "tasa competitiva"
+    ],
     "source_url": "https://www.coopeuch.cl/personas/cuentas-y-ahorro/deposito-a-plazo",
     "last_verified": "2026-04-01",
     "disclosure": "Coopeuch Cooperativa de Ahorro y Crédito. Tasa referencial para socio activo."
@@ -566,11 +727,16 @@
     "category": "depositos_plazo",
     "name": "DAP Banco Security",
     "short_description": "Depósito a plazo en pesos con tasas premium para inversionistas con montos desde $5.000.000.",
-    "annual_rate_pct": 6.20,
+    "annual_rate_pct": 6.2,
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["depósito a plazo", "tasa alta", "inversión", "premium"],
+    "tags": [
+      "depósito a plazo",
+      "tasa alta",
+      "inversión",
+      "premium"
+    ],
     "source_url": "https://www.security.cl/personas/inversiones/deposito-a-plazo",
     "last_verified": "2026-04-01",
     "disclosure": "Banco Security. Tasa referencial para DAP de $5.000.000 a 180 días. Cubierto por el Fondo de Garantía de Depósitos."
@@ -586,7 +752,13 @@
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["fondo mutuo", "deuda", "renta fija", "pesos", "liquidez"],
+    "tags": [
+      "fondo mutuo",
+      "deuda",
+      "renta fija",
+      "pesos",
+      "liquidez"
+    ],
     "source_url": "https://www.larrainvial.com/fondos-mutuos",
     "last_verified": "2026-04-01",
     "disclosure": "LarrainVial Asset Management S.A. Administradora de Fondos Mutuos fiscalizada por la CMF. La rentabilidad pasada no garantiza rentabilidad futura. Inversión sujeta a riesgo de mercado."
@@ -602,7 +774,13 @@
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["fondo mutuo", "acciones", "IPSA", "renta variable", "alto riesgo"],
+    "tags": [
+      "fondo mutuo",
+      "acciones",
+      "IPSA",
+      "renta variable",
+      "alto riesgo"
+    ],
     "source_url": "https://www.larrainvial.com/fondos-mutuos",
     "last_verified": "2026-04-01",
     "disclosure": "LarrainVial Asset Management S.A. Fiscalizada por CMF. Rentabilidad pasada no garantiza futura. Sujeto a riesgo de mercado y pérdida de capital."
@@ -618,7 +796,12 @@
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["fondo mutuo", "conservador", "renta fija", "capital protegido"],
+    "tags": [
+      "fondo mutuo",
+      "conservador",
+      "renta fija",
+      "capital protegido"
+    ],
     "source_url": "https://portales.bancochile.cl/personas/inversiones/fondos-mutuos",
     "last_verified": "2026-04-01",
     "disclosure": "Banchile Administradora General de Fondos S.A. Fiscalizada por CMF. Rentabilidad pasada no garantiza futura."
@@ -634,7 +817,12 @@
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["fondo mutuo", "mixto", "moderado", "balanceado"],
+    "tags": [
+      "fondo mutuo",
+      "mixto",
+      "moderado",
+      "balanceado"
+    ],
     "source_url": "https://www.bci.cl/personas/inversiones/fondos-mutuos",
     "last_verified": "2026-04-01",
     "disclosure": "BCI Asset Management Administradora General de Fondos S.A. Fiscalizada por CMF. Rentabilidad pasada no garantiza futura."
@@ -650,154 +838,15 @@
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["fondo mutuo", "internacional", "diversificado", "moneda extranjera"],
+    "tags": [
+      "fondo mutuo",
+      "internacional",
+      "diversificado",
+      "moneda extranjera"
+    ],
     "source_url": "https://www.consorcio.cl/inversiones/fondos-mutuos",
     "last_verified": "2026-04-01",
     "disclosure": "Consorcio Administradora General de Fondos S.A. Fiscalizada por CMF. Rentabilidad pasada no garantiza futura. Sujeto a riesgo de tipo de cambio."
-  },
-  {
-    "id": "consorcio-seguro-vida",
-    "institution": "Consorcio",
-    "institution_logo_url": null,
-    "category": "seguros",
-    "name": "Seguro de Vida Temporal Consorcio",
-    "short_description": "Seguro de vida temporal con cobertura por fallecimiento desde UF 500. Prima mensual desde $8.000.",
-    "annual_rate_pct": null,
-    "monthly_cost_clp": 8000,
-    "min_income_clp": null,
-    "min_credit_score": null,
-    "tags": ["seguro de vida", "temporal", "fallecimiento", "protección familiar"],
-    "source_url": "https://www.consorcio.cl/seguros/seguro-de-vida",
-    "last_verified": "2026-04-01",
-    "disclosure": "Consorcio Nacional de Seguros de Vida S.A. Fiscalizada por CMF. Póliza sujeta a condiciones particulares."
-  },
-  {
-    "id": "metlife-seguro-vida",
-    "institution": "MetLife",
-    "institution_logo_url": null,
-    "category": "seguros",
-    "name": "Seguro de Vida MetLife Básico",
-    "short_description": "Seguro de vida individual con cobertura de fallecimiento e invalidez. Contratación online.",
-    "annual_rate_pct": null,
-    "monthly_cost_clp": 9500,
-    "min_income_clp": null,
-    "min_credit_score": null,
-    "tags": ["seguro de vida", "invalidez", "fallecimiento", "online"],
-    "source_url": "https://www.metlife.cl/personas/seguros/seguro-de-vida",
-    "last_verified": "2026-04-01",
-    "disclosure": "MetLife Chile Seguros de Vida S.A. Fiscalizada por CMF."
-  },
-  {
-    "id": "bancoe-seguro-desempleo",
-    "institution": "BancoEstado",
-    "institution_logo_url": null,
-    "category": "seguros",
-    "name": "Seguro de Cesantía BancoEstado",
-    "short_description": "Seguro complementario que cubre hasta 3 cuotas del crédito en caso de pérdida involuntaria de empleo.",
-    "annual_rate_pct": null,
-    "monthly_cost_clp": 4990,
-    "min_income_clp": null,
-    "min_credit_score": null,
-    "tags": ["seguro", "cesantía", "complementario", "protección crédito"],
-    "source_url": "https://www.bancoestado.cl/content/bancoestado-public/cl/es/home/personas/seguros.html",
-    "last_verified": "2026-04-01",
-    "disclosure": "BancoEstado Corredores de Seguros. Prima mensual referencial. Sujeto a condiciones de póliza."
-  },
-  {
-    "id": "mapfre-seguro-hogar",
-    "institution": "MAPFRE",
-    "institution_logo_url": null,
-    "category": "seguros",
-    "name": "Seguro de Hogar MAPFRE",
-    "short_description": "Seguro de vivienda con cobertura incendio, robo y daños por agua. Incluye asistencia en el hogar 24/7.",
-    "annual_rate_pct": null,
-    "monthly_cost_clp": 12000,
-    "min_income_clp": null,
-    "min_credit_score": null,
-    "tags": ["seguro hogar", "incendio", "robo", "asistencia 24/7"],
-    "source_url": "https://www.mapfre.cl/seguros/seguros-hogar",
-    "last_verified": "2026-04-01",
-    "disclosure": "MAPFRE Compañía de Seguros Generales Chile S.A. Fiscalizada por CMF. Prima mensual referencial para vivienda de 80 m²."
-  },
-  {
-    "id": "larrainvial-apv-a",
-    "institution": "LarrainVial",
-    "institution_logo_url": null,
-    "category": "apv",
-    "name": "APV LarrainVial — Régimen A",
-    "short_description": "APV régimen A: bonificación fiscal del 15% sobre aportes, hasta 6 UTM anuales. Amplia gama de fondos.",
-    "annual_rate_pct": null,
-    "monthly_cost_clp": 0,
-    "min_income_clp": null,
-    "min_credit_score": null,
-    "tags": ["APV", "régimen A", "beneficio tributario", "pensión"],
-    "source_url": "https://www.larrainvial.com/apv",
-    "last_verified": "2026-04-01",
-    "disclosure": "LarrainVial Asset Management. Régimen tributario A: bonificación del 15% sobre aportes (máx. 6 UTM/año). Rentabilidad sujeta a riesgo de mercado. Retiros sujetos a impuesto único."
-  },
-  {
-    "id": "larrainvial-apv-b",
-    "institution": "LarrainVial",
-    "institution_logo_url": null,
-    "category": "apv",
-    "name": "APV LarrainVial — Régimen B",
-    "short_description": "APV régimen B: deduce de la base imponible hasta 600 UF anuales. Ideal para rentas altas.",
-    "annual_rate_pct": null,
-    "monthly_cost_clp": 0,
-    "min_income_clp": null,
-    "min_credit_score": null,
-    "tags": ["APV", "régimen B", "rebaja tributaria", "rentas altas", "pensión"],
-    "source_url": "https://www.larrainvial.com/apv",
-    "last_verified": "2026-04-01",
-    "disclosure": "LarrainVial Asset Management. Régimen B: exención de renta hasta 600 UF anuales. Retiros sujetos a impuesto. Rentabilidad sujeta a riesgo de mercado."
-  },
-  {
-    "id": "banchile-apv-a",
-    "institution": "Banco de Chile",
-    "institution_logo_url": null,
-    "category": "apv",
-    "name": "APV Banchile — Régimen A",
-    "short_description": "APV régimen A gestionado por Banchile con acceso digital, aportes desde $5.000 mensuales.",
-    "annual_rate_pct": null,
-    "monthly_cost_clp": 0,
-    "min_income_clp": null,
-    "min_credit_score": null,
-    "tags": ["APV", "régimen A", "digital", "aporte mínimo bajo", "pensión"],
-    "source_url": "https://portales.bancochile.cl/personas/inversiones/apv",
-    "last_verified": "2026-04-01",
-    "disclosure": "Banchile Administradora General de Fondos S.A. Régimen A: bonificación 15% sobre aportes (máx. 6 UTM/año). Rentabilidad sujeta a riesgo."
-  },
-  {
-    "id": "consorcio-apv-b",
-    "institution": "Consorcio",
-    "institution_logo_url": null,
-    "category": "apv",
-    "name": "APV Consorcio — Régimen B",
-    "short_description": "APV régimen B en seguros con rentabilidad mínima garantizada y cobertura de vida incluida.",
-    "annual_rate_pct": null,
-    "monthly_cost_clp": 0,
-    "min_income_clp": null,
-    "min_credit_score": null,
-    "tags": ["APV", "régimen B", "seguro de vida", "rentabilidad garantizada", "pensión"],
-    "source_url": "https://www.consorcio.cl/inversiones/apv",
-    "last_verified": "2026-04-01",
-    "disclosure": "Consorcio Nacional de Seguros de Vida S.A. APV en modalidad seguro. Rentabilidad mínima sujeta a condiciones de póliza. Retiros sujetos a impuesto."
-  },
-  {
-    "id": "bancoe-apv-a",
-    "institution": "BancoEstado",
-    "institution_logo_url": null,
-    "category": "apv",
-    "name": "APV BancoEstado — Régimen A",
-    "short_description": "APV régimen A de BancoEstado, sin comisión de administración y depósito desde $1.000.",
-    "annual_rate_pct": null,
-    "monthly_cost_clp": 0,
-    "min_income_clp": null,
-    "min_credit_score": null,
-    "tags": ["APV", "régimen A", "sin comisión", "aporte mínimo bajo", "pensión"],
-    "source_url": "https://www.bancoestado.cl/content/bancoestado-public/cl/es/home/personas/ahorro/apv.html",
-    "last_verified": "2026-04-01",
-    "disclosure": "BancoEstado. Régimen A: bonificación 15% sobre aportes (máx. 6 UTM/año). Rentabilidad sujeta a mercado."
   },
   {
     "id": "chile-portabilidad",
@@ -810,7 +859,12 @@
     "monthly_cost_clp": 0,
     "min_income_clp": 300000,
     "min_credit_score": null,
-    "tags": ["portabilidad", "traslado crédito", "sin costo", "tasa preferencial"],
+    "tags": [
+      "portabilidad",
+      "traslado crédito",
+      "sin costo",
+      "tasa preferencial"
+    ],
     "source_url": "https://portales.bancochile.cl/personas/portabilidad",
     "last_verified": "2026-04-01",
     "disclosure": "Banco de Chile. Portabilidad regulada por Ley 21.236. Proceso gratuito para el deudor. Tasa sujeta a evaluación crediticia."
@@ -826,7 +880,12 @@
     "monthly_cost_clp": 0,
     "min_income_clp": 350000,
     "min_credit_score": null,
-    "tags": ["portabilidad", "traslado crédito", "digital", "tasa mejor"],
+    "tags": [
+      "portabilidad",
+      "traslado crédito",
+      "digital",
+      "tasa mejor"
+    ],
     "source_url": "https://www.bci.cl/personas/portabilidad",
     "last_verified": "2026-04-01",
     "disclosure": "BCI. Portabilidad regulada por Ley 21.236. Proceso sin costo para el deudor. Tasa sujeta a evaluación."
@@ -842,7 +901,11 @@
     "monthly_cost_clp": 0,
     "min_income_clp": 300000,
     "min_credit_score": null,
-    "tags": ["portabilidad", "unificación deudas", "tasa preferencial"],
+    "tags": [
+      "portabilidad",
+      "unificación deudas",
+      "tasa preferencial"
+    ],
     "source_url": "https://www.santander.cl/personas/portabilidad",
     "last_verified": "2026-04-01",
     "disclosure": "Banco Santander-Chile. Portabilidad regulada por Ley 21.236. Tasa sujeta a evaluación crediticia."
@@ -858,7 +921,12 @@
     "monthly_cost_clp": 0,
     "min_income_clp": 200000,
     "min_credit_score": null,
-    "tags": ["portabilidad", "traslado crédito", "hipotecario", "sin tramitación"],
+    "tags": [
+      "portabilidad",
+      "traslado crédito",
+      "hipotecario",
+      "sin tramitación"
+    ],
     "source_url": "https://www.bancoestado.cl/content/bancoestado-public/cl/es/home/personas/portabilidad.html",
     "last_verified": "2026-04-01",
     "disclosure": "BancoEstado. Portabilidad regulada por Ley 21.236. Proceso gratuito para el deudor."
@@ -874,7 +942,11 @@
     "monthly_cost_clp": 0,
     "min_income_clp": 350000,
     "min_credit_score": null,
-    "tags": ["portabilidad", "traslado crédito", "condiciones especiales"],
+    "tags": [
+      "portabilidad",
+      "traslado crédito",
+      "condiciones especiales"
+    ],
     "source_url": "https://www.itau.cl/personas/portabilidad",
     "last_verified": "2026-04-01",
     "disclosure": "Itaú CorpBanca. Portabilidad regulada por Ley 21.236. Tasa sujeta a evaluación crediticia."
@@ -890,7 +962,11 @@
     "monthly_cost_clp": null,
     "min_income_clp": 300000,
     "min_credit_score": null,
-    "tags": ["crédito consumo", "online", "hasta 72 meses"],
+    "tags": [
+      "crédito consumo",
+      "online",
+      "hasta 72 meses"
+    ],
     "source_url": "https://www.scotiabank.cl/personas/creditos-de-consumo.html",
     "last_verified": "2026-04-01",
     "disclosure": "Scotiabank Chile. CAE referencial. Sujeto a evaluación crediticia. Tasa máxima convencional CMF."
@@ -906,7 +982,12 @@
     "monthly_cost_clp": null,
     "min_income_clp": 650000,
     "min_credit_score": null,
-    "tags": ["hipotecario", "UF", "primera vivienda", "segunda vivienda"],
+    "tags": [
+      "hipotecario",
+      "UF",
+      "primera vivienda",
+      "segunda vivienda"
+    ],
     "source_url": "https://www.scotiabank.cl/personas/credito-hipotecario.html",
     "last_verified": "2026-04-01",
     "disclosure": "Scotiabank Chile. Tasa en UF referencial. Sujeto a evaluación crediticia y tasación. CAE incluye seguros obligatorios."
@@ -922,7 +1003,13 @@
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["fondo mutuo", "deuda", "corto plazo", "liquidez", "conservador"],
+    "tags": [
+      "fondo mutuo",
+      "deuda",
+      "corto plazo",
+      "liquidez",
+      "conservador"
+    ],
     "source_url": "https://www.bancoestado.cl/content/bancoestado-public/cl/es/home/personas/inversiones/fondos-mutuos.html",
     "last_verified": "2026-04-01",
     "disclosure": "BancoEstado S.A. Administradora General de Fondos. Fiscalizada por CMF. Rentabilidad pasada no garantiza futura."
@@ -938,7 +1025,12 @@
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["fondo mutuo", "internacional", "dólares", "acciones globales"],
+    "tags": [
+      "fondo mutuo",
+      "internacional",
+      "dólares",
+      "acciones globales"
+    ],
     "source_url": "https://www.bice.cl/personas/inversiones/fondos-mutuos",
     "last_verified": "2026-04-01",
     "disclosure": "BICE Inversiones Administradora General de Fondos S.A. Fiscalizada por CMF. Rentabilidad pasada no garantiza futura. Riesgo cambiario."
@@ -950,11 +1042,16 @@
     "category": "depositos_plazo",
     "name": "DAP Itaú",
     "short_description": "Depósito a plazo en pesos con tasas negociables para montos superiores a $5.000.000.",
-    "annual_rate_pct": 5.50,
+    "annual_rate_pct": 5.5,
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["depósito a plazo", "pesos", "negociable", "inversión"],
+    "tags": [
+      "depósito a plazo",
+      "pesos",
+      "negociable",
+      "inversión"
+    ],
     "source_url": "https://www.itau.cl/personas/inversiones/deposito-a-plazo",
     "last_verified": "2026-04-01",
     "disclosure": "Itaú CorpBanca. Tasa referencial. Cubierto por el Fondo de Garantía de Depósitos."
@@ -966,29 +1063,18 @@
     "category": "depositos_plazo",
     "name": "DAP Santander",
     "short_description": "Depósito a plazo en pesos con plazo desde 7 hasta 365 días contratado 100% online.",
-    "annual_rate_pct": 5.30,
+    "annual_rate_pct": 5.3,
     "monthly_cost_clp": 0,
     "min_income_clp": null,
     "min_credit_score": null,
-    "tags": ["depósito a plazo", "pesos", "online", "flexible"],
+    "tags": [
+      "depósito a plazo",
+      "pesos",
+      "online",
+      "flexible"
+    ],
     "source_url": "https://www.santander.cl/personas/inversiones/deposito-a-plazo",
     "last_verified": "2026-04-01",
     "disclosure": "Banco Santander-Chile. Tasa referencial. Cubierto por el Fondo de Garantía de Depósitos."
-  },
-  {
-    "id": "chile-apv-b",
-    "institution": "Banco de Chile",
-    "institution_logo_url": null,
-    "category": "apv",
-    "name": "APV Banchile — Régimen B",
-    "short_description": "APV régimen B gestionado por Banchile, ideal para tramos altos de renta con deducción hasta 600 UF.",
-    "annual_rate_pct": null,
-    "monthly_cost_clp": 0,
-    "min_income_clp": null,
-    "min_credit_score": null,
-    "tags": ["APV", "régimen B", "deducción renta", "pensión", "rentas altas"],
-    "source_url": "https://portales.bancochile.cl/personas/inversiones/apv",
-    "last_verified": "2026-04-01",
-    "disclosure": "Banchile Administradora General de Fondos S.A. Régimen B: exención de renta hasta 600 UF anuales. Retiros sujetos a impuesto."
   }
 ]
