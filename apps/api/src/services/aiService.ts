@@ -1,6 +1,7 @@
 /**
  * Asistente financiero IA de CODA.
- * Soporta OpenAI, Anthropic y Groq con streaming SSE y respuestas estructuradas.
+ * Soporta Groq, Gemini, Anthropic y OpenAI con streaming SSE y respuestas estructuradas.
+ * Prioriza proveedores gratuitos (Groq → Gemini) sobre pagos (Anthropic → OpenAI).
  */
 import { logger } from '../logger.js';
 
@@ -40,68 +41,54 @@ export interface AIResponse {
 
 // ── Provider configuration ───────────────────────────────────────────────────
 
-type AIProvider = 'openai' | 'anthropic' | 'groq';
+type AIProvider = 'groq' | 'gemini' | 'anthropic' | 'openai';
 
+// Preferimos proveedores con tier gratuito (Groq, Gemini) antes que pagos.
 const getProvider = (): AIProvider => {
-  if (process.env.OPENAI_API_KEY) return 'openai';
-  if (process.env.ANTHROPIC_API_KEY) return 'anthropic';
   if (process.env.GROQ_API_KEY) return 'groq';
-  return 'openai';
+  if (process.env.GEMINI_API_KEY) return 'gemini';
+  if (process.env.ANTHROPIC_API_KEY) return 'anthropic';
+  if (process.env.OPENAI_API_KEY) return 'openai';
+  return 'groq';
 };
+
+const getApiKeyFor = (provider: AIProvider): string | undefined => {
+  switch (provider) {
+    case 'groq': return process.env.GROQ_API_KEY;
+    case 'gemini': return process.env.GEMINI_API_KEY;
+    case 'anthropic': return process.env.ANTHROPIC_API_KEY;
+    case 'openai': return process.env.OPENAI_API_KEY;
+  }
+};
+
+const GEMINI_MODEL = 'gemini-2.0-flash';
 
 // ── System prompt ────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `Eres el **Asistente Financiero de CODA**, una plataforma chilena de finanzas personales. Tu nombre es CODA AI. Eres experto en finanzas personales en Chile y conoces a fondo el sistema financiero local.
+const SYSTEM_PROMPT = `Eres **CODA AI**, asistente financiero de CODA (app chilena de finanzas personales). Experto en el sistema financiero chileno: AFP y multifondos, CAE, UF, CMF (tasa máxima convencional ~36% anual en consumo), impuestos (renta, boletas con retención 13.75%, PPM), productos (cuentas vista tipo Cuenta RUT/MACH/Tenpo, créditos consumo e hipotecarios, fondos mutuos, depósitos a plazo), bancos locales (BancoEstado, Chile, Santander, BCI, Scotiabank, Itaú, Falabella) y subsidios (DS1/DS49, IFE, bono marzo).
 
-## Tu personalidad
-- Cercano, empático y directo — como un amigo que sabe de plata
-- Usas español chileno natural (puedes usar "cachai", "lucas", etc. si el usuario es informal)
-- Siempre positivo pero honesto — no endulzas malas noticias
-- Das consejos concretos con números, no generalidades
+## Personalidad
+Cercano, directo y empático — como un amigo que sabe de plata. Español chileno natural ("cachai", "lucas" si el usuario es informal). Honesto, no endulzas malas noticias. Siempre con números concretos, no generalidades.
 
-## Conocimiento financiero chileno
-- **AFP**: conoces las 7 AFP (Capital, Cuprum, Habitat, Modelo, Planvital, ProVida, Uno), multifondos A-E, comisiones, APV régimen A y B
-- **CAE / Créditos universitarios**: cómo funciona el CAE, beneficios de prepago
-- **CMF**: regulador financiero, tasas máximas convencionales (tasa de usura ~36% anual para créditos de consumo)
-- **UF**: unidad de fomento, su uso en créditos hipotecarios y arriendos
-- **Impuestos**: Renta (tramos, devolución), boletas de honorarios (retención 13.75%), PPM
-- **Productos**: cuentas corrientes, cuentas vista (Cuenta RUT, MACH, Tenpo), tarjetas de crédito, créditos de consumo, hipotecarios, fondos mutuos, depósitos a plazo, seguros
-- **Instituciones**: bancos (BancoEstado, Banco de Chile, Santander, BCI, Scotiabank, Itaú, Falabella, etc.), cooperativas, cajas de compensación, fintechs
-- **Subsidios**: subsidio habitacional DS1/DS49, bono marzo, IFE, AUF
+## Rutas de CODA (recomiéndalas cuando aporten)
+- /panel → score crediticio, patrimonio neto, resumen
+- /gastos → registro y análisis por categoría
+- /movimientos → transacciones bancarias sincronizadas
+- /metas → metas de ahorro con seguimiento
+- /productos → marketplace con productos financieros comparados
+- /plan → plan financiero personalizado
+- /dividir-cuenta → gastos compartidos
+- /conexiones → sincronizar cuentas vía Open Finance
 
-## Conocimiento de CODA (la app)
-Cuando sea relevante, recomienda funciones específicas de CODA:
-- **/panel** → Dashboard con score crediticio dual, patrimonio neto, resumen financiero
-- **/gastos** → Registro y categorización de gastos, análisis por categoría
-- **/movimientos** → Historial de transacciones bancarias sincronizadas
-- **/metas** → Metas de ahorro con seguimiento de progreso
-- **/productos** → Marketplace con 50+ productos financieros comparados (cuentas, tarjetas, créditos, seguros)
-- **/plan** → Plan financiero personalizado con recomendaciones
-- **/dividir-cuenta** → Dividir gastos compartidos (arriendo, cenas, viajes)
-- **/perfil** → Configuración, cartolas subidas, conexiones bancarias
-- **/conexiones** → Sincronizar cuentas bancarias vía Open Finance
+## Formato
+Markdown plano (sin JSON, sin bloques de código). **Negritas** para montos/%/plazos. 2-4 párrafos cortos. Viñetas con \`-\` (máx 5). Montos en CLP formato $XXX.XXX. NO empieces con "Claro" o saludos vacíos — directo al punto.
 
-## Formato de respuesta
-Responde en **texto plano con markdown**, sin JSON, sin bloques de código, sin envolturas.
-
-- Usa **negritas** para datos clave (montos, porcentajes, plazos).
-- Separa párrafos con doble salto de línea.
-- Usa viñetas con \`-\` cuando corresponda (máximo 5).
-- Mantén la respuesta a 2-4 párrafos cortos. Sé concreto y usa los números del usuario cuando estén disponibles.
-- Montos en pesos chilenos con formato $XXX.XXX (punto como separador de miles).
-- NO empieces la respuesta con "Claro", "Por supuesto" ni saludos vacíos — entra directo al punto.
-
-Al final de tu respuesta, en una línea nueva separada por una línea en blanco, agrega exactamente este formato con 3 preguntas de seguimiento relevantes (cada una máximo 60 caracteres):
-
+Última línea, separada por línea en blanco, formato exacto:
 PREGUNTAS: pregunta uno | pregunta dos | pregunta tres
+(3 preguntas, máx 60 caracteres c/u, nada después)
 
-Esa línea es la última del mensaje. No agregues nada después.
-
-## Reglas de seguridad
-- Nunca compartas números de cuenta, RUT completo ni datos sensibles
-- No inventes datos — si no tienes info, dilo claramente
-- No des asesoría tributaria específica — recomienda consultar con un contador
-- Si detectas una situación de deuda crítica, sé empático y sugiere buscar ayuda profesional`;
+## Seguridad
+No compartas RUT completo ni datos sensibles. Si no tienes el dato, dilo. No des asesoría tributaria específica (recomienda contador). Ante deuda crítica, sé empático y sugiere ayuda profesional.`;
 
 // ── Context builder (Spanish) ────────────────────────────────────────────────
 
@@ -230,6 +217,45 @@ async function callAnthropic(messages: Message[], apiKey: string): Promise<strin
   return data.content[0]?.text || '';
 }
 
+// Gemini usa un esquema distinto: system_instruction separado y role "model" en vez de "assistant".
+function toGeminiPayload(messages: Message[], stream: boolean): { url: string; body: string } {
+  const systemMessage = messages.find(m => m.role === 'system')?.content || '';
+  const contents = messages
+    .filter(m => m.role !== 'system')
+    .map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
+
+  const action = stream ? 'streamGenerateContent?alt=sse' : 'generateContent';
+  return {
+    url: `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:${action}`,
+    body: JSON.stringify({
+      system_instruction: systemMessage ? { parts: [{ text: systemMessage }] } : undefined,
+      contents,
+      generationConfig: { maxOutputTokens: 1500, temperature: 0.6 },
+    }),
+  };
+}
+
+async function callGemini(messages: Message[], apiKey: string): Promise<string> {
+  const { url, body } = toGeminiPayload(messages, false);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    body,
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Gemini API error: ${error}`);
+  }
+
+  const data = await response.json();
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  return parts.map((p: { text?: string }) => p.text || '').join('');
+}
+
 async function callGroq(messages: Message[], apiKey: string): Promise<string> {
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
@@ -356,6 +382,51 @@ export async function* streamAnthropic(messages: Message[], apiKey: string): Asy
           yield parsed.delta.text;
         }
       } catch { /* skip */ }
+    }
+  }
+}
+
+export async function* streamGemini(messages: Message[], apiKey: string): AsyncGenerator<string> {
+  const { url, body } = toGeminiPayload(messages, true);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    body,
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Gemini API error: ${error}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('No response body');
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith('data: ')) continue;
+      const data = trimmed.slice(6);
+
+      try {
+        const parsed = JSON.parse(data);
+        const parts = parsed.candidates?.[0]?.content?.parts;
+        if (Array.isArray(parts)) {
+          for (const p of parts) {
+            if (typeof p?.text === 'string' && p.text) yield p.text;
+          }
+        }
+      } catch { /* skip malformed chunks */ }
     }
   }
 }
@@ -499,11 +570,7 @@ export async function chat(
   financialContext: FinancialContext
 ): Promise<AIResponse> {
   const provider = getProvider();
-  const apiKey = {
-    openai: process.env.OPENAI_API_KEY,
-    anthropic: process.env.ANTHROPIC_API_KEY,
-    groq: process.env.GROQ_API_KEY,
-  }[provider];
+  const apiKey = getApiKeyFor(provider);
 
   if (!apiKey) {
     logger.warn("Asistente IA: ninguna clave de API configurada");
@@ -520,17 +587,18 @@ export async function chat(
 
     let response: string;
     switch (provider) {
-      case 'openai':
-        response = await callOpenAI(messages, apiKey);
+      case 'groq':
+        response = await callGroq(messages, apiKey);
+        break;
+      case 'gemini':
+        response = await callGemini(messages, apiKey);
         break;
       case 'anthropic':
         response = await callAnthropic(messages, apiKey);
         break;
-      case 'groq':
-        response = await callGroq(messages, apiKey);
-        break;
-      default:
+      case 'openai':
         response = await callOpenAI(messages, apiKey);
+        break;
     }
 
     logger.info({ provider }, 'AI Service: Response generated');
@@ -553,11 +621,7 @@ export function getStreamGenerator(
   financialContext: FinancialContext
 ): { stream: AsyncGenerator<string>; provider: string } | null {
   const provider = getProvider();
-  const apiKey = {
-    openai: process.env.OPENAI_API_KEY,
-    anthropic: process.env.ANTHROPIC_API_KEY,
-    groq: process.env.GROQ_API_KEY,
-  }[provider];
+  const apiKey = getApiKeyFor(provider);
 
   if (!apiKey) return null;
 
@@ -570,17 +634,18 @@ export function getStreamGenerator(
 
   let stream: AsyncGenerator<string>;
   switch (provider) {
-    case 'openai':
-      stream = streamOpenAI(messages, apiKey);
+    case 'groq':
+      stream = streamGroq(messages, apiKey);
+      break;
+    case 'gemini':
+      stream = streamGemini(messages, apiKey);
       break;
     case 'anthropic':
       stream = streamAnthropic(messages, apiKey);
       break;
-    case 'groq':
-      stream = streamGroq(messages, apiKey);
-      break;
-    default:
+    case 'openai':
       stream = streamOpenAI(messages, apiKey);
+      break;
   }
 
   return { stream, provider };
