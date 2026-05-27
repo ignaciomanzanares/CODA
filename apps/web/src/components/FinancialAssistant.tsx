@@ -788,7 +788,7 @@ export default function FinancialAssistant({
             </div>
           </ScrollArea>
 
-          {/* Quick Insights */}
+          {/* Quick Insights — datos del usuario (calculados, no IA) */}
           {isAuthenticated &&
             insightsData?.insights?.length > 0 &&
             messages.length === 1 && (
@@ -796,23 +796,16 @@ export default function FinancialAssistant({
                 <p className="text-xs text-muted-foreground mb-2">
                   Insights rápidos:
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-1.5">
                   {insightsData.insights
                     .slice(0, 3)
                     .map((insight: string, i: number) => (
-                      <Badge
+                      <div
                         key={i}
-                        variant="secondary"
-                        className="text-xs cursor-pointer hover:bg-secondary/80 max-w-[220px] truncate"
-                        onClick={() =>
-                          handleSuggestionClick(`Amplía: ${insight}`)
-                        }
-                        title={insight}
+                        className="text-xs text-foreground/80 bg-muted/50 rounded-md px-3 py-1.5 leading-relaxed"
                       >
-                        {insight.length > 70
-                          ? `${insight.slice(0, 70)}…`
-                          : insight}
-                      </Badge>
+                        {insight}
+                      </div>
                     ))}
                 </div>
               </div>
