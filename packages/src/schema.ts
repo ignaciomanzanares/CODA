@@ -677,6 +677,18 @@ export const userAssets = table('user_assets', {
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+/** Feedback del usuario sobre respuestas del asistente IA (thumbs up/down). */
+export const assistantFeedback = table('assistant_feedback', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  rating: text('rating').notNull(), // 'up' | 'down'
+  userMessage: text('user_message').notNull(),
+  assistantMessage: text('assistant_message').notNull(),
+  provider: text('provider'),
+  comment: text('comment'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 /** Diagnósticos de detección de banco (metadata de parseo — sin contenido del PDF ni transacciones). */
 export const parserDiagnostics = table("parser_diagnostics", {
   id: text("id").primaryKey(),

@@ -631,6 +631,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: 'done',
           suggestions: parsed.suggestions,
           actionItems: parsed.actionItems,
+          provider: result.provider,
           // If model returned JSON, send the clean message (without JSON wrapper)
           message: parsed.message !== fullText ? parsed.message : undefined,
         })}\n\n`);
@@ -666,6 +667,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error({ err: error }, 'AI insights error');
       res.status(500).json({ error: 'Failed to get insights' });
+    }
+  });
+
+  /**
+   * POST /api/assistant/feedback
+   * Thumbs up/down sobre una respuesta del asistente. Guardamos el par
+   * usuario/asistente + proveedor para evaluar cambios futuros.
+   */
+  app.post("/api/assistant/feedback", authenticate, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { rating, userMessage, assistantMessage, provider, comment } = req.body ?? {};
+
+      if (rating !== 'up' && rating !== 'down') {
+        return res.status(400).json({ error: 'rating debe ser "up" o "down"' });
+      }
+      if (typeof userMessage !== 'string' || typeof assistantMessage !== 'string') {
+        return res.status(400).json({ error: 'userMessage y assistantMessage son requeridos' });
+      }
+      // Truncamos para evitar payloads abusivos en la BD.
+      const trim = (s: string, n: number) => (s.length > n ? s.slice(0, n) : s);
+
+      await storage.createAssistantFeedback({
+        userId,
+        rating,
+        userMessage: trim(userMessage, 2000),
+        assistantMessage: trim(assistantMessage, 8000),
+        provider: typeof provider === 'string' ? provider : undefined,
+        comment: typeof comment === 'string' ? trim(comment, 1000) : undefined,
+      });
+
+      res.json({ ok: true });
+    } catch (error) {
+      logger.error({ err: error }, 'Assistant feedback error');
+      res.status(500).json({ error: 'Failed to save feedback' });
     }
   });
 
