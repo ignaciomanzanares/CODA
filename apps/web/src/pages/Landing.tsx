@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Helmet } from "react-helmet-async";
 import ScoreExpressWidget from "@/components/ScoreExpressWidget";
+import HealthScaleHero from "@/components/HealthScaleHero";
 import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
@@ -273,65 +274,9 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Right: Mock dashboard card */}
-            <div className="hidden lg:flex items-center justify-center">
-              <div className="relative w-full max-w-sm">
-                {/* Main card */}
-                <div className="bg-slate-800/80 backdrop-blur border border-slate-700/50 rounded-2xl p-6 shadow-2xl">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <p className="text-xs text-slate-400 uppercase tracking-wider">Patrimonio neto</p>
-                      <p className="text-3xl font-bold text-white mt-1">$4.820.000</p>
-                    </div>
-                    <div className="bg-green-500/10 border border-green-500/20 rounded-full px-3 py-1 text-green-400 text-sm font-medium">
-                      +12.4%
-                    </div>
-                  </div>
-
-                  {/* Score ring mock */}
-                  <div className="flex items-center gap-4 mb-6 p-4 bg-slate-900/50 rounded-xl border border-slate-700/30">
-                    <div className="relative w-16 h-16 shrink-0">
-                      <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
-                        <circle cx="32" cy="32" r="26" fill="none" stroke="#1e293b" strokeWidth="6"/>
-                        <circle cx="32" cy="32" r="26" fill="none" stroke="#3b82f6" strokeWidth="6"
-                          strokeDasharray="163.4" strokeDashoffset="49" strokeLinecap="round"/>
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-sm font-bold text-white">680</span>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400">Score crediticio</p>
-                      <p className="text-white font-semibold">Muy bueno</p>
-                      <p className="text-xs text-slate-500 mt-0.5">0–850</p>
-                    </div>
-                  </div>
-
-                  {/* KPI row */}
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { label: "Ingresos", val: "$1.250.000", color: "text-green-400" },
-                      { label: "Gastos", val: "$890.000", color: "text-red-400" },
-                      { label: "Ahorro", val: "28.8%", color: "text-blue-400" },
-                    ].map(({ label, val, color }) => (
-                      <div key={label} className="bg-slate-900/40 rounded-lg p-2.5 text-center">
-                        <p className="text-[10px] text-slate-500 uppercase tracking-wide">{label}</p>
-                        <p className={`text-sm font-bold mt-0.5 ${color}`}>{val}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Floating badge */}
-                <div className="absolute -top-4 -right-4 bg-blue-600 text-white text-xs font-semibold rounded-full px-3 py-1.5 shadow-lg shadow-blue-600/40">
-                  Score dual ✓
-                </div>
-                <div className="absolute -bottom-4 -left-4 bg-slate-800 border border-slate-600 text-white text-xs rounded-xl px-3 py-2 shadow-lg">
-                  <p className="text-slate-400 text-[10px]">Recomendación</p>
-                  <p className="font-medium">Portabilidad hipotecaria</p>
-                  <p className="text-green-400 text-[10px]">Ahorro estimado: $45.000/mes</p>
-                </div>
-              </div>
+            {/* Right: Interactive financial-health scale (CODA's signature) */}
+            <div className="flex items-center justify-center">
+              <HealthScaleHero />
             </div>
           </div>
         </div>
