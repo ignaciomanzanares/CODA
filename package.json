@@ -11,7 +11,7 @@
     "dev:web": "npm run dev -w @coda/web",
     "build": "npm run build -ws",
     "test": "npm run test -w @coda/api",
-    "check": "tsc",
+    "check": "npm run check --workspaces --if-present",
     "db:push": "drizzle-kit push --config=./drizzle.config.ts",
     "seed:demo": "npm run seed:demo -w @coda/api",
     "db:migrate": "node scripts/run-migrations.mjs",
