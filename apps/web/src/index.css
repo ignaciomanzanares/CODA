@@ -67,10 +67,12 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    /* Safe area: el contenido no queda bajo notch / home indicator (PWA iOS/Android) */
-    padding-top: env(safe-area-inset-top, 0px);
+    /* Safe area: solo insets horizontales en el body (notch en landscape).
+       Los insets verticales (notch arriba / home indicator abajo) se aplican
+       por-componente — el header rellena arriba, el footer y los elementos
+       fijos rellenan abajo. Así evitamos el doble/triple conteo con el header
+       sticky y con layouts de altura completa (100dvh). */
     padding-right: env(safe-area-inset-right, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
     padding-left: env(safe-area-inset-left, 0px);
   }
 }
@@ -162,9 +164,11 @@
 .safe-y      { padding-top: var(--sat); padding-bottom: var(--sab); }
 .safe-all    { padding: var(--sat) var(--sar) var(--sab) var(--sal); }
 
-/* Sticky header: account for safe area on top */
+/* Sticky header sticks to the true top edge; its own padding-top
+   (see .app-header) keeps content clear of the notch while the header
+   background bleeds under the iOS status bar. */
 .sticky-safe-top {
-  top: var(--sat);
+  top: 0;
 }
 
 /* Fixed bottom nav / FAB: account for home indicator */
@@ -253,11 +257,15 @@ button,
   }
 }
 
-/* PWA instalada (standalone): refuerzo de cabecera bajo la barra de estado iOS */
-@media all and (display-mode: standalone) {
-  header,
-  nav[role="banner"],
-  .app-header {
-    padding-top: max(env(safe-area-inset-top, 0px), 16px);
-  }
+/* Header: rellena hacia arriba por el inset del notch SIEMPRE.
+   En navegador el inset es 0 (sin cambio); en PWA standalone empuja el
+   contenido bajo la barra de estado mientras el fondo del header llega
+   hasta el borde superior. Una sola fuente de inset = sin doble conteo. */
+.app-header {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Footer: el contenido inferior no queda bajo el home indicator. */
+.app-footer {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }

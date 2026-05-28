@@ -4,7 +4,7 @@ import { ROUTES } from "@/lib/routes";
 
 export default function Footer() {
   return (
-    <footer className="bg-neutral-900 py-8 safe-x">
+    <footer className="app-footer bg-neutral-900 py-8 safe-x">
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
