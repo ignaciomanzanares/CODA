@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#3b82f6" />
+    <!-- Adaptive status/address-bar color (Android & Chromium PWA) — matches the active theme -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f172a" />
     <title>CODA</title>
 
     <!-- Google Search Console: replace content value with your verification code -->
