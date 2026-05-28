@@ -58,15 +58,6 @@ export interface AIResponse {
 
 type AIProvider = 'groq' | 'gemini' | 'anthropic' | 'openai';
 
-// Preferimos proveedores con tier gratuito (Groq, Gemini) antes que pagos.
-const getProvider = (): AIProvider => {
-  if (process.env.GROQ_API_KEY) return 'groq';
-  if (process.env.GEMINI_API_KEY) return 'gemini';
-  if (process.env.ANTHROPIC_API_KEY) return 'anthropic';
-  if (process.env.OPENAI_API_KEY) return 'openai';
-  return 'groq';
-};
-
 const getApiKeyFor = (provider: AIProvider): string | undefined => {
   switch (provider) {
     case 'groq': return process.env.GROQ_API_KEY;
@@ -74,6 +65,14 @@ const getApiKeyFor = (provider: AIProvider): string | undefined => {
     case 'anthropic': return process.env.ANTHROPIC_API_KEY;
     case 'openai': return process.env.OPENAI_API_KEY;
   }
+};
+
+// Cadena ordenada de proveedores que tienen clave configurada (gratis primero).
+// Permite tolerancia a fallos: si Groq rate-limitea (común en su tier gratis),
+// caemos a Gemini, luego Anthropic, luego OpenAI antes de fallar.
+const getProviderChain = (): AIProvider[] => {
+  const order: AIProvider[] = ['groq', 'gemini', 'anthropic', 'openai'];
+  return order.filter((p) => !!getApiKeyFor(p));
 };
 
 const GEMINI_MODEL = 'gemini-2.0-flash';
@@ -107,6 +106,12 @@ Las 3 preguntas son lo que **el usuario podría querer preguntarte a continuaci�
 
 ## Herramientas
 Las herramientas (query_transactions, simulate_loan) solo cuando el usuario pide datos específicos o cálculos numéricos concretos. NO las uses para saludos, definiciones, ni preguntas generales — responde directo con tu conocimiento y el contexto financiero ya cargado.
+
+## Reglas de CODA (obligatorias — cumplimiento CMF)
+- **Regla anti-predatoria:** si el usuario está sobreendeudado (cuotas > 50% del ingreso mensual, o deuda mayor que su patrimonio), NUNCA recomiendes tomar crédito nuevo. Orienta a reestructuración, reducción de gastos o, si hay insolvencia, a mecanismos legales de alivio de deuda (Ley de Reorganización y Liquidación). Esto está por sobre cualquier otra recomendación.
+- **Neutralidad:** ordena y recomienda productos por el beneficio neto para el usuario, JAMÁS por lo que le conviene a CODA. CODA gana solo cuando el usuario contrata algo que realmente le sirve.
+- **No inventes:** no inventes tasas, montos, plazos ni productos. Usa el contexto financiero cargado y las herramientas para datos reales. Si no tienes el dato, dilo claramente.
+- **Escala de salud (−2 a +5):** ubica al usuario en su nivel real y adapta el consejo: a quien está en −2/−1 lo ayudas a salir de la deuda; a quien está en 0/+1 lo ayudas a estabilizar y ahorrar; a +2 o más, a invertir y optimizar.
 
 ## Seguridad
 No compartas RUT completo ni datos sensibles. Si no tienes el dato, dilo. No des asesoría tributaria específica (recomienda contador). Ante deuda crítica, sé empático y sugiere ayuda profesional.`;
@@ -938,67 +943,12 @@ export async function chat(
   financialContext: FinancialContext,
   userId?: string,
 ): Promise<AIResponse> {
-  const provider = getProvider();
-  const apiKey = getApiKeyFor(provider);
+  const chain = getProviderChain();
 
-  if (!apiKey) {
+  if (chain.length === 0) {
     logger.warn("Asistente IA: ninguna clave de API configurada");
     return serviceUnavailableResponse();
   }
-
-  try {
-    const contextPrompt = buildContextPrompt(financialContext);
-    const messages: Message[] = [
-      { role: 'system', content: `${SYSTEM_PROMPT}\n\n${contextPrompt}` },
-      ...conversationHistory,
-      { role: 'user', content: userMessage },
-    ];
-
-    let response: string;
-    switch (provider) {
-      case 'groq':
-        // Si tenemos userId, habilitamos tool use (query_transactions, simulate_loan).
-        response = userId
-          ? await callGroqWithToolLoop(messages, apiKey, userId)
-          : (await callGroq(messages, apiKey)).content;
-        break;
-      case 'gemini':
-        response = userId
-          ? await callGeminiWithToolLoop(messages, apiKey, userId)
-          : await callGemini(messages, apiKey);
-        break;
-      case 'anthropic':
-        response = await callAnthropic(messages, apiKey);
-        break;
-      case 'openai':
-        response = await callOpenAI(messages, apiKey);
-        break;
-    }
-
-    logger.info({ provider }, 'AI Service: Response generated');
-    return parseStructuredResponse(response);
-  } catch (error) {
-    logger.error({ err: error, provider }, "Asistente IA: error del proveedor");
-    return {
-      message:
-        "No pudimos obtener respuesta del modelo de IA. Intenta de nuevo en unos segundos.",
-      suggestions: ['Intenta de nuevo', '¿Cómo puedo ahorrar?', 'Analiza mis gastos'],
-    };
-  }
-}
-
-// ── Streaming chat function ──────────────────────────────────────────────────
-
-export function getStreamGenerator(
-  userMessage: string,
-  conversationHistory: Message[],
-  financialContext: FinancialContext,
-  userId?: string,
-): { stream: AsyncGenerator<StreamEvent>; provider: string } | null {
-  const provider = getProvider();
-  const apiKey = getApiKeyFor(provider);
-
-  if (!apiKey) return null;
 
   const contextPrompt = buildContextPrompt(financialContext);
   const messages: Message[] = [
@@ -1007,27 +957,115 @@ export function getStreamGenerator(
     { role: 'user', content: userMessage },
   ];
 
-  let stream: AsyncGenerator<StreamEvent>;
-  switch (provider) {
-    case 'groq':
-      stream = userId
-        ? streamGroqWithTools(messages, apiKey, userId)
-        : streamGroq(messages, apiKey);
-      break;
-    case 'gemini':
-      stream = userId
-        ? streamGeminiWithTools(messages, apiKey, userId)
-        : streamGemini(messages, apiKey);
-      break;
-    case 'anthropic':
-      stream = streamAnthropic(messages, apiKey);
-      break;
-    case 'openai':
-      stream = streamOpenAI(messages, apiKey);
-      break;
+  // Intenta cada proveedor en orden; cae al siguiente si uno falla
+  // (rate limit, timeout, error de red). Solo falla si TODOS fallan.
+  let lastError: unknown;
+  for (const provider of chain) {
+    const apiKey = getApiKeyFor(provider)!;
+    try {
+      let response: string;
+      switch (provider) {
+        case 'groq':
+          // Si tenemos userId, habilitamos tool use (query_transactions, simulate_loan).
+          response = userId
+            ? await callGroqWithToolLoop(messages, apiKey, userId)
+            : (await callGroq(messages, apiKey)).content;
+          break;
+        case 'gemini':
+          response = userId
+            ? await callGeminiWithToolLoop(messages, apiKey, userId)
+            : await callGemini(messages, apiKey);
+          break;
+        case 'anthropic':
+          response = await callAnthropic(messages, apiKey);
+          break;
+        case 'openai':
+          response = await callOpenAI(messages, apiKey);
+          break;
+      }
+
+      logger.info({ provider }, 'AI Service: Response generated');
+      return parseStructuredResponse(response);
+    } catch (error) {
+      lastError = error;
+      logger.warn({ err: error, provider }, "Asistente IA: proveedor falló, intentando el siguiente");
+    }
   }
 
-  return { stream, provider };
+  logger.error({ err: lastError }, "Asistente IA: todos los proveedores fallaron");
+  return {
+    message:
+      "No pudimos obtener respuesta del modelo de IA. Intenta de nuevo en unos segundos.",
+    suggestions: ['Intenta de nuevo', '¿Cómo puedo ahorrar?', 'Analiza mis gastos'],
+  };
+}
+
+// ── Streaming chat function ──────────────────────────────────────────────────
+
+function buildStreamFor(
+  provider: AIProvider,
+  apiKey: string,
+  messages: Message[],
+  userId?: string,
+): AsyncGenerator<StreamEvent> {
+  switch (provider) {
+    case 'groq':
+      return userId ? streamGroqWithTools(messages, apiKey, userId) : streamGroq(messages, apiKey);
+    case 'gemini':
+      return userId ? streamGeminiWithTools(messages, apiKey, userId) : streamGemini(messages, apiKey);
+    case 'anthropic':
+      return streamAnthropic(messages, apiKey);
+    case 'openai':
+      return streamOpenAI(messages, apiKey);
+  }
+}
+
+// Generador con tolerancia a fallos: prueba cada proveedor en orden. Si uno
+// falla ANTES de emitir contenido (rate limit, auth, red) cae al siguiente.
+// Si falla a media respuesta (ya emitió texto) re-lanza, porque no se puede
+// reiniciar el stream sin confundir la UI — la ruta ya maneja ese caso.
+async function* streamWithFallback(
+  chain: AIProvider[],
+  messages: Message[],
+  userId?: string,
+): AsyncGenerator<StreamEvent> {
+  let lastError: unknown;
+  for (const provider of chain) {
+    const apiKey = getApiKeyFor(provider)!;
+    let yieldedAny = false;
+    try {
+      for await (const ev of buildStreamFor(provider, apiKey, messages, userId)) {
+        yieldedAny = true;
+        yield ev;
+      }
+      return; // completó sin error
+    } catch (err) {
+      lastError = err;
+      logger.warn({ err, provider }, "Asistente IA (stream): proveedor falló");
+      if (yieldedAny) throw err; // a media respuesta: no se puede reintentar limpio
+      // si no emitió nada todavía, probamos el siguiente proveedor
+    }
+  }
+  if (lastError) throw lastError;
+}
+
+export function getStreamGenerator(
+  userMessage: string,
+  conversationHistory: Message[],
+  financialContext: FinancialContext,
+  userId?: string,
+): { stream: AsyncGenerator<StreamEvent>; provider: string } | null {
+  const chain = getProviderChain();
+  if (chain.length === 0) return null;
+
+  const contextPrompt = buildContextPrompt(financialContext);
+  const messages: Message[] = [
+    { role: 'system', content: `${SYSTEM_PROMPT}\n\n${contextPrompt}` },
+    ...conversationHistory,
+    { role: 'user', content: userMessage },
+  ];
+
+  return { stream: streamWithFallback(chain, messages, userId), provider: chain[0] };
 }
 
 export { parseStructuredResponse };
@@ -1040,21 +1078,29 @@ export async function simpleChat(
   systemPrompt: string,
   userPrompt: string,
 ): Promise<string> {
-  const provider = getProvider();
-  const apiKey = getApiKeyFor(provider);
-  if (!apiKey) throw new Error('No AI provider configured');
+  const chain = getProviderChain();
+  if (chain.length === 0) throw new Error('No AI provider configured');
 
   const messages: Message[] = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt },
   ];
 
-  switch (provider) {
-    case 'groq': return (await callGroq(messages, apiKey)).content;
-    case 'gemini': return await callGemini(messages, apiKey);
-    case 'anthropic': return await callAnthropic(messages, apiKey);
-    case 'openai': return await callOpenAI(messages, apiKey);
+  let lastError: unknown;
+  for (const provider of chain) {
+    const apiKey = getApiKeyFor(provider)!;
+    try {
+      switch (provider) {
+        case 'groq': return (await callGroq(messages, apiKey)).content;
+        case 'gemini': return await callGemini(messages, apiKey);
+        case 'anthropic': return await callAnthropic(messages, apiKey);
+        case 'openai': return await callOpenAI(messages, apiKey);
+      }
+    } catch (err) {
+      lastError = err;
+    }
   }
+  throw lastError ?? new Error('All AI providers failed');
 }
 
 // ── Quick insights (template-based, no AI call) ──────────────────────────────
