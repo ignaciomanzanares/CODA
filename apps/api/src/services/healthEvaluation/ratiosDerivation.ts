@@ -1,5 +1,6 @@
 import type { RatioDerivationInput, HealthEvaluationInput } from './types.js';
 import { effectiveAssetValueClp } from '../assets/types.js';
+import { logger } from '../../logger.js';
 
 /**
  * Deriva los 8 inputs del motor v2 a partir de los outputs de scoring existentes.
@@ -22,6 +23,8 @@ export function deriveHealthInput(input: RatioDerivationInput): HealthEvaluation
   const liquidosClp = sfaProductBalancesClp
     ?? (sfaAvgMonthlyBalanceClp != null ? sfaAvgMonthlyBalanceClp * 12 : ingresoMensualClp * 3);
 
+  // Valor canónico por activo: estimatedValue ?? acquisitionCost. NUNCA se suman
+  // ambas columnas del mismo activo (eso duplicaba la base y mostraba la mitad del ratio).
   const declaradosClp = userAssets.reduce(
     (sum, a) => sum + effectiveAssetValueClp(a),
     0,
@@ -34,6 +37,20 @@ export function deriveHealthInput(input: RatioDerivationInput): HealthEvaluation
   const deudaFlujo = deudaMensualClp / safeIngreso;
   const deudaActivos = deudaTotalClp / activosClp;
   const ahorroIngreso = ahorroMensualClp / safeIngreso;
+
+  // Debug verificable de Deuda/Activos: la deuda es el total CMF (sin sumar la
+  // garantía); los activos son cada activo contado una sola vez + líquidos.
+  logger.info(
+    {
+      total_debt: deudaTotalClp,
+      total_assets: activosClp,
+      liquidos_clp: liquidosClp,
+      declarados_clp: declaradosClp,
+      asset_count: userAssets.length,
+      ratio_deuda_activos: Number(deudaActivos.toFixed(4)),
+    },
+    'health-evaluation: Deuda/Activos breakdown',
+  );
 
   // ── Mora activa ──────────────────────────────────────────────────────────
   let diasMora = 0;

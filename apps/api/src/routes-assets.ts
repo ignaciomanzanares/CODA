@@ -7,13 +7,67 @@ import { db, userAssets } from './db/index.js';
 import { logger } from './logger.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 
+// Tope de la columna PostgreSQL `integer` (int4). Validar aquí da un mensaje
+// claro en vez de un 500 opaco por overflow en la BD.
+const INT4_MAX = 2_147_483_647;
+
+/**
+ * Normaliza un monto CLP ANTES de validar. Acepta number o string.
+ * Los puntos/espacios/símbolos son SIEMPRE separadores de miles (nunca decimal):
+ * se eliminan para obtener un entero plano. Ej: "104.313.182" → 104313182,
+ * "86527994" → 86527994. String vacío → null (campo limpiado); ausente → undefined.
+ */
+function normalizeClpAmount(value: unknown): unknown {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed === '') return null;
+    const digits = trimmed.replace(/[^\d]/g, '');
+    return digits === '' ? value : Number.parseInt(digits, 10);
+  }
+  return value;
+}
+
+function clpAmountSchema(opts: { nullable: boolean }) {
+  const base = z
+    .number({ invalid_type_error: 'debe ser un monto numérico' })
+    .int('debe ser un monto entero (sin decimales)')
+    .positive('debe ser mayor a 0')
+    .max(INT4_MAX, 'excede el monto máximo permitido');
+  // El preprocess normaliza ANTES de validar; para campos opcionales el monto
+  // normalizado puede ser null (campo vacío/limpiado), así que el inner debe aceptarlo.
+  return z.preprocess(normalizeClpAmount, opts.nullable ? base.nullable() : base);
+}
+
+const clpAmount = clpAmountSchema({ nullable: false });
+const clpAmountOptional = clpAmountSchema({ nullable: true }).optional();
+
+const FIELD_LABELS: Record<string, string> = {
+  type: 'Tipo de activo',
+  name: 'Descripción',
+  acquisitionCostClp: 'Costo de adquisición',
+  estimatedValueClp: 'Valor estimado actual',
+  lienAmountClp: 'Monto de la garantía',
+  hasLien: 'Garantía',
+  notes: 'Notas',
+};
+
+/** Construye un mensaje legible (qué campo, por qué) a partir del primer issue de Zod. */
+function firstValidationError(error: z.ZodError): { message: string; field: string } {
+  const issue = error.issues[0];
+  const field = String(issue?.path?.[0] ?? '');
+  const label = FIELD_LABELS[field] ?? field ?? 'dato';
+  return { message: `Revisa "${label}": ${issue?.message ?? 'valor inválido'}.`, field };
+}
+
 const createAssetSchema = z.object({
-  type: z.enum(['property', 'vehicle', 'crypto', 'investment', 'other']),
-  name: z.string().min(1).max(200),
-  acquisitionCostClp: z.number().int().positive(),
-  estimatedValueClp: z.number().int().positive().optional().nullable(),
+  type: z.enum(['property', 'vehicle', 'crypto', 'investment', 'other'], {
+    errorMap: () => ({ message: 'tipo de activo inválido' }),
+  }),
+  name: z.string().min(1, 'la descripción es obligatoria').max(200),
+  acquisitionCostClp: clpAmount,
+  estimatedValueClp: clpAmountOptional,
   hasLien: z.boolean().default(false),
-  lienAmountClp: z.number().int().positive().optional().nullable(),
+  lienAmountClp: clpAmountOptional,
   currency: z.string().default('CLP'),
   documentId: z.string().optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
@@ -72,7 +126,8 @@ export function registerAssetsRoutes(app: Express): void {
       const userId = authReq.user!.userId;
       const parsed = createAssetSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: 'Datos inválidos.', errors: parsed.error.issues });
+        const { message, field } = firstValidationError(parsed.error);
+        return res.status(400).json({ message, field, errors: parsed.error.issues });
       }
 
       const data = parsed.data;
@@ -112,7 +167,8 @@ export function registerAssetsRoutes(app: Express): void {
 
       const parsed = updateAssetSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: 'Datos inválidos.', errors: parsed.error.issues });
+        const { message, field } = firstValidationError(parsed.error);
+        return res.status(400).json({ message, field, errors: parsed.error.issues });
       }
 
       const existing = await db
