@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api";
+import { useApi } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,20 +38,19 @@ function clpFormat(n: number): string {
 
 export default function AssetList({ assets }: AssetListProps) {
   const queryClient = useQueryClient();
+  const { apiRequest } = useApi();
   const [editingAsset, setEditingAsset] = useState<UserAsset | null>(null);
 
+  // Editar/eliminar requieren sesión: usar apiRequest (adjunta el Bearer token).
+  // apiFetch es para rutas sin sesión y devolvía 401 aquí ("no se puede editar").
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiFetch(`/api/assets/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => apiRequest('DELETE', `/api/assets/${id}`),
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['assets'] }); },
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: object }) =>
-      apiFetch(`/api/assets/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      }),
+      apiRequest('PUT', `/api/assets/${id}`, data),
     onSuccess: () => {
       setEditingAsset(null);
       void queryClient.invalidateQueries({ queryKey: ['assets'] });

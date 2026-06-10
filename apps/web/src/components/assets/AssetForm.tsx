@@ -85,8 +85,9 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
         currency: 'CLP',
         notes: notes.trim() || null,
       });
-    } catch {
-      setError('Error al guardar el activo. Inténtalo de nuevo.');
+    } catch (err) {
+      // Mostrar el mensaje específico del backend (qué campo, por qué) en vez de uno genérico.
+      setError(err instanceof Error && err.message ? err.message : 'No se pudo guardar el activo. Inténtalo de nuevo.');
     }
   }
 
