@@ -250,3 +250,235 @@ function matchAfterLabel(text: string, re: RegExp): string | null {
   const m = text.match(re);
   return m ? m[1]!.trim().replace(/\s{2,}.*$/, '').trim() : null;
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Parser: TC Internacional (USD)
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Parsea un monto con formato chileno PRESERVANDO decimales (a diferencia de
+ * parseCLP que redondea a entero). "2.276,25" → 2276.25, "88,57" → 88.57,
+ * "-1.804,21" → -1804.21. Punto = miles, coma = decimal.
+ */
+export function parseDecimalCl(input: string | number | null | undefined): number {
+  if (input === null || input === undefined) return 0;
+  if (typeof input === 'number') return Number.isFinite(input) ? input : 0;
+  const s = String(input).replace(/US\$|\$/g, '').replace(/\s/g, '').trim();
+  if (!s) return 0;
+  const normalized = s.replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(normalized);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Redondeo a centavos para comparaciones de punto flotante. */
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+export type TarjetaIntlKind = 'purchase' | 'payment' | 'transfer';
+
+export interface TarjetaIntlMovimiento {
+  fecha: Date;
+  descripcion: string;
+  ciudad: string;
+  pais: string;
+  /** MONTO MONEDA ORIGEN — metadata ruidosa/multi-moneda; NO autoritativa. */
+  montoOrigen: number | null;
+  /** MONTO US$ — autoritativa. Negativa para pagos (MONTO CANCELADO). */
+  montoUsd: number;
+  /** Convertido a CLP vía getUsd(fecha estado); null si FX no disponible. */
+  montoClp: number | null;
+  kind: TarjetaIntlKind;
+  confidence: TransactionConfidence;
+}
+
+export interface TarjetaInternacionalResult {
+  banco: typeof BANCO;
+  tipoDocumento: 'tc_internacional';
+  titular: string;
+  tarjetaMascara: string;
+  periodo: { desde: Date; hasta: Date; dias: number };
+  fechaEstado: Date | null;
+  /** Fecha usada para la conversión USD→CLP (cierre del período). */
+  statementDate: Date;
+  saldoAnteriorUsd: number;
+  abonoRealizadoUsd: number;
+  totalComprasYCargosUsd: number;
+  traspasoDeudaNacionalUsd: number;
+  deudaTotalUsd: number;
+  totalOperacionesUsd: number;
+  movimientos: TarjetaIntlMovimiento[];
+  /** Suma de compras reales (montoUsd > 0, kind=purchase). */
+  totalComprasUsd: number;
+  /** Suma del valor absoluto de pagos/transferencias internas. */
+  totalPagosUsd: number;
+  /** Tipo de cambio USD→CLP aplicado (CLP por 1 USD), o null si no disponible. */
+  fxRate: number | null;
+  /** true si no se pudo convertir (el caller guarda nativo y reintenta luego). */
+  fxPending: boolean;
+  /** totalComprasUsd convertido a CLP, o null si fxPending. */
+  totalComprasClp: number | null;
+  reconciliation: ReconciliationResult;
+  parse_confidence: number;
+  warnings: string[];
+}
+
+const US_NUM_RE = /-?\d{1,3}(?:\.\d{3})*,\d{2}/g; // número con coma decimal (miles con punto)
+const US_NUM_TEST = /-?\d{1,3}(?:\.\d{3})*,\d{2}/; // misma forma, sin flag global (para .test)
+
+/** Detecta si el texto corresponde a un estado de TC internacional. */
+export function isTarjetaInternacional(text: string): boolean {
+  return text.toUpperCase().includes(TC_INTERNACIONAL_DISCRIMINATOR.toUpperCase());
+}
+
+function usdLabel(text: string, label: RegExp): number {
+  const m = text.match(label);
+  return m ? parseDecimalCl(m[1]!) : 0;
+}
+
+export function parseTarjetaInternacional(text: string): TarjetaInternacionalResult {
+  const warnings: string[] = [];
+  const lines = text.split(/\r?\n/);
+
+  const titular = matchAfterLabel(text, /NOMBRE DEL TITULAR\s+(.+)/i) ?? '';
+  const tarjetaMascara = (text.match(/N[º°]\s*DE TARJETA DE CR[ÉE]DITO\s+[\dX\s]*?(\d{4})\b/i)?.[1])
+    ?? (text.match(/MOVIMIENTOS TARJETA\s+[X\d-]*?(\d{4})\b/i)?.[1])
+    ?? '';
+
+  const fechaEstadoM = text.match(/FECHA ESTADO DE CUENTA\s+(\d{2})\/(\d{2})\/(\d{4})/i);
+  const fechaEstado = fechaEstadoM ? parseFullDate(fechaEstadoM[1]!, fechaEstadoM[2]!, fechaEstadoM[3]!) : null;
+  const desdeM = text.match(/PER[ÍI]ODO FACTURADO DESDE\s+(\d{2})\/(\d{2})\/(\d{4})/i);
+  const hastaM = text.match(/PER[ÍI]ODO FACTURADO HASTA\s+(\d{2})\/(\d{2})\/(\d{4})/i);
+  const desde = desdeM ? parseFullDate(desdeM[1]!, desdeM[2]!, desdeM[3]!) : (fechaEstado ?? new Date());
+  const hasta = hastaM ? parseFullDate(hastaM[1]!, hastaM[2]!, hastaM[3]!) : (fechaEstado ?? new Date());
+  const statementDate = hasta ?? fechaEstado ?? new Date();
+
+  const saldoAnteriorUsd = usdLabel(text, /SALDO ANTERIOR FACTURADO[^\n]*?US\$\s*(-?[\d.,]+)/i);
+  const abonoRealizadoUsd = usdLabel(text, /ABONO REALIZADO[^\n]*?US\$\s*(-?[\d.,]+)/i);
+  const totalComprasYCargosUsd = usdLabel(text, /TOTAL DE COMPRAS Y CARGOS[^\n]*?US\$\s*(-?[\d.,]+)/i);
+  const traspasoDeudaNacionalUsd = usdLabel(text, /TRASPASO DEUDA NACIONAL[^\n]*?US\$\s*(-?[\d.,]+)/i);
+  const deudaTotalUsd = usdLabel(text, /DEUDA TOTAL[^\n]*?US\$\s*(-?[\d.,]+)/i);
+  const totalOperacionesUsd = parseDecimalCl(
+    text.match(/1\.\s*TOTAL OPERACIONES[^\n]*?(-?\d[\d.,]*,\d{2})/i)?.[1] ?? '0',
+  );
+
+  const movimientos: TarjetaIntlMovimiento[] = [];
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/g, '');
+    if (!line.trim()) continue;
+    if (isSectionRow(line)) continue;
+
+    const dateM = line.match(MOV_DATE_RE);
+    if (!dateM || dateM.index === undefined || dateM.index > 4) continue; // la fecha abre la fila
+    const rest = line.slice(dateM.index + dateM[0].length);
+    const numeric = [...rest.matchAll(US_NUM_RE)].map((m) => m[0]);
+    if (numeric.length === 0) continue;
+
+    const montoUsd = parseDecimalCl(numeric[numeric.length - 1]!);
+    const montoOrigen = numeric.length >= 2 ? parseDecimalCl(numeric[numeric.length - 2]!) : null;
+
+    // Columnas (split por 2+ espacios del layout) sin los números → desc/ciudad/país.
+    const cols = rest.split(/\s{2,}/).map((c) => c.trim()).filter(Boolean).filter((c) => !US_NUM_TEST.test(c));
+    const descripcion = cols[0] ?? '';
+    let pais = '';
+    let ciudad = '';
+    if (cols.length >= 2 && /^[A-Z]{2}$/.test(cols[cols.length - 1]!)) {
+      pais = cols[cols.length - 1]!;
+      ciudad = cols.slice(1, cols.length - 1).join(' ');
+    } else {
+      ciudad = cols.slice(1).join(' ');
+    }
+
+    let kind: TarjetaIntlKind;
+    if (/MONTO CANCELADO|ABONO DE DIVISAS/i.test(descripcion)) kind = 'payment';
+    else if (/TRASPASO|EGRESO DE DIVISAS|COMPRA DE DIVISAS/i.test(descripcion)) kind = 'transfer';
+    else if (montoUsd < 0) kind = 'payment';
+    else kind = 'purchase';
+
+    const fecha = parseShortDate(dateM[1]!, dateM[2]!, dateM[3]!);
+    movimientos.push({
+      fecha,
+      descripcion,
+      ciudad,
+      pais,
+      montoOrigen,
+      montoUsd,
+      montoClp: null,
+      kind,
+      confidence: buildTransactionConfidence({
+        dateIsInferred: false,
+        amountFromColumn: true,
+        monto: Math.abs(montoUsd),
+        typeFromColumn: true,
+        typeFromSection: false,
+        descripcion,
+      }),
+    });
+  }
+
+  const totalComprasUsd = round2(
+    movimientos.filter((m) => m.kind === 'purchase').reduce((a, m) => a + m.montoUsd, 0),
+  );
+  const totalPagosUsd = round2(
+    movimientos.filter((m) => m.kind !== 'purchase').reduce((a, m) => a + Math.abs(m.montoUsd), 0),
+  );
+
+  const expected = round2(totalComprasYCargosUsd || totalOperacionesUsd);
+  const reconciliation = reconcileTotals(expected, totalComprasUsd);
+  if (!reconciliation.passed && !reconciliation.skipped) {
+    warnings.push(
+      `Compras USD suman ${totalComprasUsd} vs TOTAL DE COMPRAS Y CARGOS ${expected} (delta ${reconciliation.delta_pct}%).`,
+    );
+  }
+  if (movimientos.length === 0) warnings.push('No se detectaron movimientos.');
+
+  return {
+    banco: BANCO,
+    tipoDocumento: 'tc_internacional',
+    titular,
+    tarjetaMascara,
+    periodo: { desde, hasta, dias: diasEntre(desde, hasta) },
+    fechaEstado,
+    statementDate,
+    saldoAnteriorUsd,
+    abonoRealizadoUsd,
+    totalComprasYCargosUsd,
+    traspasoDeudaNacionalUsd,
+    deudaTotalUsd,
+    totalOperacionesUsd,
+    movimientos,
+    totalComprasUsd,
+    totalPagosUsd,
+    fxRate: null,
+    fxPending: true,
+    totalComprasClp: null,
+    reconciliation,
+    parse_confidence: averageConfidence(movimientos),
+    warnings,
+  };
+}
+
+/**
+ * Aplica la conversión USD→CLP a un resultado internacional usando una tasa
+ * (CLP por 1 USD). Con `rate=null` deja `fxPending=true` y los CLP en null para
+ * que la ingesta guarde el monto nativo y reintente — nunca bloquea.
+ */
+export function applyUsdConversion(
+  result: TarjetaInternacionalResult,
+  rate: number | null,
+): TarjetaInternacionalResult {
+  if (rate == null || !Number.isFinite(rate) || rate <= 0) {
+    return { ...result, fxRate: null, fxPending: true, totalComprasClp: null };
+  }
+  const movimientos = result.movimientos.map((m) => ({
+    ...m,
+    montoClp: Math.round(m.montoUsd * rate),
+  }));
+  return {
+    ...result,
+    movimientos,
+    fxRate: rate,
+    fxPending: false,
+    totalComprasClp: Math.round(result.totalComprasUsd * rate),
+  };
+}
