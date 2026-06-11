@@ -19,6 +19,8 @@ import {
   extractInscripcion,
   buildAssetPrefill,
   resolveInscripcionPrefill,
+  extractInscripcionFromBuffer,
+  MANUAL_FALLBACK_MSG,
   parseUf,
 } from '../../src/parsers/inscripcionExtractor.js';
 
@@ -135,5 +137,49 @@ describe('CBR inscription extractor — hipoteca path (synthetic CBR-shaped snip
     expect(prefill.acquisitionCostClp).toBe(Math.round(2559 * UF_ESCRITURA_2024));
     expect(prefill.lienAmountClp).toBe(Math.round(2236.82 * UF_ESCRITURA_2024));
     expect(prefill.source.hipotecaUf).toBe(2236.82);
+  });
+});
+
+describe('extractInscripcionFromBuffer — OCR fallback (injected deps, no real OCR)', () => {
+  const e102Text = existsSync(fxFile) ? readFileSync(fxFile, 'utf8') : '';
+  const buf = Buffer.from('%PDF-fake');
+
+  (e102Text ? it : it.skip)('uses the text layer when present (no OCR)', async () => {
+    const out = await extractInscripcionFromBuffer(buf, {
+      extractText: async () => e102Text,
+      ocr: async () => { throw new Error('OCR should not run'); },
+    });
+    expect(out.ok).toBe(true);
+    expect(out.usedOcr).toBe(false);
+    expect(out.result?.compraventaUf).toBe(2975);
+  });
+
+  (e102Text ? it : it.skip)('falls back to OCR when the text layer is empty (scanned bundle)', async () => {
+    const out = await extractInscripcionFromBuffer(buf, {
+      extractText: async () => '',          // image-only PDF, no text layer
+      ocr: async () => e102Text,            // OCR recovers the text
+    });
+    expect(out.ok).toBe(true);
+    expect(out.usedOcr).toBe(true);
+    expect(out.result?.dominio.referencia).toBe('Fs 3675 Nº 3171-2024');
+  });
+
+  it('graceful manual fallback when OCR is unavailable (never a 500)', async () => {
+    const out = await extractInscripcionFromBuffer(buf, {
+      extractText: async () => '',
+      ocr: async () => { throw new Error('tesseract not installed'); },
+    });
+    expect(out.ok).toBe(false);
+    expect(out.manualFallback).toBe(true);
+    expect(out.message).toBe(MANUAL_FALLBACK_MSG);
+  });
+
+  it('graceful manual fallback when OCR yields garbage', async () => {
+    const out = await extractInscripcionFromBuffer(buf, {
+      extractText: async () => '',
+      ocr: async () => 'zzz qqq garbage with no inscription fields whatsoever '.repeat(10),
+    });
+    expect(out.ok).toBe(false);
+    expect(out.manualFallback).toBe(true);
   });
 });
