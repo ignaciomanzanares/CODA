@@ -20,10 +20,26 @@ function txAmount(t: { amount?: unknown }): number {
 // sumamos sin filtrar, inflan tanto "ingreso mensual" como "gasto mensual".
 // Estos patrones cubren la mayoría de casos en bancos chilenos sin causar
 // falsos positivos (transferencias a terceros tienen otra descripción).
-function isInternalTransfer(t: { description?: string; category?: string }): boolean {
+//
+// Consolidación entrada/salida (flujo único = entradas/salidas reales de la
+// cuenta corriente + COMPRAS de tarjeta como salida, una sola vez):
+//   - Fondeo de tarjeta desde la cuenta corriente es interno y se NETEA contra
+//     el pago de la tarjeta. Pares de ejemplo (misma plata, dos filas):
+//       CC "Traspaso Internet a T. Crédito"  ↔  TC "MONTO CANCELADO"
+//       CC "Egreso por Compra de Divisas"    ↔  TC USD "ABONO DE DIVISAS"
+//   - El consumo real PERMANECE: las compras de tarjeta (comercios) son gasto
+//     real y el cargo recurrente "PAGO COOPEUCH" (dividendo hipotecario) es
+//     gasto real → NO se netean (no calzan ninguno de los patrones de abajo).
+export function isInternalTransfer(t: { description?: string; category?: string }): boolean {
   const desc = (t.description ?? '').toLowerCase();
   const cat = (t.category ?? '').toLowerCase();
   if (cat.includes('transfer') || cat.includes('traspaso')) return true;
+  // Fondeo/pago de tarjeta de crédito propia (ambos lados del par interno).
+  if (/\ba\s+t\.?\s*cr[ée]dito\b/.test(desc)) return true;       // CC: "Traspaso ... a T. Crédito"
+  if (desc.includes('monto cancelado')) return true;             // TC: pago de la tarjeta
+  if (/pago\s+(de\s+)?t\.?\s*cr[ée]dito|pago\s+tarjeta\s+de\s+cr[ée]dito/.test(desc)) return true;
+  // Plomería de divisas entre la cuenta corriente y la tarjeta USD.
+  if (desc.includes('divisas') && /(compra|egreso|abono|ingreso|traspaso)/.test(desc)) return true;
   return (
     desc.includes('transferencia a cuenta propia') ||
     desc.includes('traspaso entre cuentas') ||
