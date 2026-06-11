@@ -211,6 +211,11 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
           const fecha = typeof t.fecha === "string" ? t.fecha.slice(0, 7) : "";
           if (fecha) months.add(fecha);
 
+          // Netear plomería entre productos propios (fondeo cuenta→tarjeta, pago
+          // de tarjeta, divisas) también en cartolas: la tarjeta viaja por este
+          // mismo path, así sus pagos no inflan el flujo vs las compras. Ver Task 4.
+          if (isInternalTransfer({ description: t.descripcion, category: t.categoria })) continue;
+
           let monto = 0;
           let esAbono = false;
           let cat = "otro";

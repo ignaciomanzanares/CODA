@@ -67,6 +67,13 @@ export async function parseCartolaBuffer(buffer: Buffer): Promise<ParseResult> {
     );
   }
 
+  // 1b. Tarjeta de crédito Santander (nacional/internacional): mismo pipeline de
+  // Movimientos, pero su layout no es de cuenta corriente — se detecta por el
+  // discriminador del encabezado y se adapta a ParseResult antes de detectFormat.
+  const { parseCardStatementText } = await import("./cardStatementAdapter.js");
+  const card = await parseCardStatementText(text);
+  if (card) return card;
+
   // Detect scanned/image PDFs or long legal documents with very little extractable text
   if (numPages > 3 && text.length / numPages < 100) {
     throw new ParseError(
