@@ -71,18 +71,24 @@ export interface InscripcionResult {
 export interface AssetPrefill {
   type: 'property';
   name: string;
+  /** Costo de adquisición = compraventa UF × UF a la fecha de escritura (Dominio). */
   acquisitionCostClp: number | null;
-  estimatedValueClp: null;
+  /** Valor estimado actual = compraventa UF × UF de HOY (opcional). */
+  estimatedValueClp: number | null;
   hasLien: boolean;
   lienAmountClp: number | null;
   notes: string;
-  /** true si no se pudo convertir UF→CLP (faltó la tasa) — guarda nativo, reintenta. */
+  /** true si no se pudo convertir el costo UF→CLP (faltó la tasa de escritura). */
   fxPending: boolean;
-  /** Trazabilidad: valores nativos en UF + tasa aplicada. */
+  /** Trazabilidad: valores nativos en UF + tasas aplicadas. */
   source: {
     compraventaUf: number;
     hipotecaUf: number | null;
-    ufRate: number | null;
+    /** UF a la fecha de escritura (Dominio) usada para el costo y la hipoteca. */
+    escrituraUfRate: number | null;
+    /** UF actual usada para el valor estimado (si se calculó). */
+    currentUfRate: number | null;
+    escrituraDate: string | null;
     dominio: string;
     rolAvaluo: string;
   };
@@ -196,17 +202,32 @@ export function extractInscripcion(text: string): InscripcionResult {
   };
 }
 
+function validRate(r: number | null | undefined): r is number {
+  return r != null && Number.isFinite(r) && r > 0;
+}
+
 /**
- * Construye el prefill del formulario de activos. `ufRate` = CLP por 1 UF
- * (de indicators.getUf(fechaInscripcion)); null → fxPending y montos CLP en null
- * para que el formulario muestre UF y reintente. NO crea el activo: el usuario
- * revisa y guarda.
+ * Construye el prefill del formulario de activos.
+ *  - `escrituraUfRate` = CLP por 1 UF a la FECHA DE ESCRITURA (Dominio). Es la
+ *    tasa correcta para el COSTO DE ADQUISICIÓN y la hipoteca — NO la de hoy.
+ *  - `currentUfRate` (opcional) = UF de hoy, para el VALOR ESTIMADO actual.
+ * Tasa de escritura null → fxPending y costo CLP null (muestra UF, reintenta).
+ * NO crea el activo: el usuario revisa y guarda.
  */
-export function buildAssetPrefill(result: InscripcionResult, ufRate: number | null): AssetPrefill {
-  const haveRate = ufRate != null && Number.isFinite(ufRate) && ufRate > 0;
+export function buildAssetPrefill(
+  result: InscripcionResult,
+  escrituraUfRate: number | null,
+  currentUfRate?: number | null,
+): AssetPrefill {
+  const haveEscritura = validRate(escrituraUfRate);
+  const haveCurrent = validRate(currentUfRate);
   const hipotecaUf = result.hipoteca?.montoUf ?? null;
-  const acquisitionCostClp = haveRate ? Math.round(result.compraventaUf * ufRate!) : null;
-  const lienAmountClp = haveRate && hipotecaUf != null ? Math.round(hipotecaUf * ufRate!) : null;
+
+  // Costo de adquisición e hipoteca → UF a la fecha de escritura.
+  const acquisitionCostClp = haveEscritura ? Math.round(result.compraventaUf * escrituraUfRate) : null;
+  const lienAmountClp = haveEscritura && hipotecaUf != null ? Math.round(hipotecaUf * escrituraUfRate) : null;
+  // Valor estimado actual (opcional) → UF de hoy.
+  const estimatedValueClp = haveCurrent ? Math.round(result.compraventaUf * currentUfRate) : null;
 
   const notesParts: string[] = [];
   if (result.dominio.referencia) notesParts.push(`Dominio ${result.dominio.referencia}`);
@@ -219,18 +240,38 @@ export function buildAssetPrefill(result: InscripcionResult, ufRate: number | nu
     type: 'property',
     name: result.descripcion || 'Propiedad',
     acquisitionCostClp,
-    estimatedValueClp: null,
+    estimatedValueClp,
     // tiene_garantia = true SÓLO si hay documento de hipoteca en el bundle.
     hasLien: result.hipoteca != null,
     lienAmountClp,
     notes: notesParts.join(' · '),
-    fxPending: !haveRate,
+    fxPending: !haveEscritura,
     source: {
       compraventaUf: result.compraventaUf,
       hipotecaUf,
-      ufRate: haveRate ? ufRate! : null,
+      escrituraUfRate: haveEscritura ? escrituraUfRate : null,
+      currentUfRate: haveCurrent ? currentUfRate : null,
+      escrituraDate: result.fechaInscripcion ? result.fechaInscripcion.toISOString().slice(0, 10) : null,
       dominio: result.dominio.referencia,
       rolAvaluo: result.rolAvaluo,
     },
   };
+}
+
+/**
+ * Orquesta el prefill resolviendo las tasas UF correctas:
+ *  - costo/hipoteca → getUf(fecha de escritura del Dominio);
+ *  - valor estimado → getUf(hoy).
+ * `getUf` es inyectable para tests; por defecto indicators.getUf. Nunca lanza:
+ * si una tasa no está, ese monto queda null (fxPending para el costo).
+ */
+export async function resolveInscripcionPrefill(
+  result: InscripcionResult,
+  getUf?: (date: Date) => Promise<number | null>,
+): Promise<AssetPrefill> {
+  const ufFn = getUf ?? (await import('../services/indicators.js')).getUf;
+  // Costo a la fecha de escritura (NO hoy). Sin fecha → no se puede fechar el costo.
+  const escrituraUfRate = result.fechaInscripcion ? await ufFn(result.fechaInscripcion) : null;
+  const currentUfRate = await ufFn(new Date());
+  return buildAssetPrefill(result, escrituraUfRate, currentUfRate);
 }
