@@ -354,10 +354,16 @@ export async function extractInscripcionFromBuffer(
     return { ok: false, usedOcr, manualFallback: true, message: MANUAL_FALLBACK_MSG };
   }
 
-  const result = extractInscripcion(text);
-  // Si no hay ni Dominio ni precio, el OCR produjo basura → ingreso manual.
-  if (result.dominio.fojas == null && result.compraventaUf === 0) {
+  // Red de seguridad: NUNCA propagar (el endpoint /extract-inscripcion no debe 500).
+  try {
+    const result = extractInscripcion(text);
+    // Si no hay ni Dominio ni precio, el OCR produjo basura → ingreso manual.
+    if (result.dominio.fojas == null && result.compraventaUf === 0) {
+      return { ok: false, usedOcr, manualFallback: true, message: MANUAL_FALLBACK_MSG };
+    }
+    return { ok: true, result, usedOcr, manualFallback: false };
+  } catch (e) {
+    logger.warn({ err: e }, 'inscripcion: extraction failed on extracted text');
     return { ok: false, usedOcr, manualFallback: true, message: MANUAL_FALLBACK_MSG };
   }
-  return { ok: true, result, usedOcr, manualFallback: false };
 }

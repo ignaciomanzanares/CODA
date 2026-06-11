@@ -71,10 +71,11 @@ export async function performOcrOnPdfPage(
   pageNumber: number = 1
 ): Promise<OcrResult> {
   try {
-    // Load PDF
-    const loadingTask = pdfjs.getDocument({ data: pdfBuffer });
+    // Load PDF — pdfjs-dist requires a Uint8Array (not a Node Buffer). Copy into a
+    // fresh Uint8Array so pdfjs can't detach the shared Buffer pool.
+    const loadingTask = pdfjs.getDocument({ data: new Uint8Array(pdfBuffer) });
     const pdf = await loadingTask.promise;
-    
+
     if (pageNumber > pdf.numPages) {
       throw new Error(`El PDF solo tiene ${pdf.numPages} página(s)`);
     }
@@ -113,22 +114,31 @@ export async function performOcrOnFullPdf(
   const startTime = Date.now();
   
   try {
-    const loadingTask = pdfjs.getDocument({ data: pdfBuffer });
+    // pdfjs-dist requires a Uint8Array (not a Node Buffer); copy to be safe.
+    const loadingTask = pdfjs.getDocument({ data: new Uint8Array(pdfBuffer) });
     const pdf = await loadingTask.promise;
-    
+
     const pagesToProcess = Math.min(pdf.numPages, maxPages);
     const texts: string[] = [];
     const confidences: number[] = [];
     
+    // Resiliente por página: una página que no renderiza (incompatibilidad
+    // pdfjs/canvas con ciertas imágenes) no debe abortar el OCR completo.
     for (let pageNum = 1; pageNum <= pagesToProcess; pageNum++) {
-      const pageResult = await performOcrOnPdfPage(pdfBuffer, pageNum);
-      texts.push(pageResult.text);
-      confidences.push(pageResult.confidence);
+      try {
+        const pageResult = await performOcrOnPdfPage(pdfBuffer, pageNum);
+        texts.push(pageResult.text);
+        confidences.push(pageResult.confidence);
+      } catch (e) {
+        console.error(`[OCR] page ${pageNum} failed, skipping:`, e);
+      }
     }
-    
+
     const combinedText = texts.join('\n\n');
-    const avgConfidence = confidences.reduce((sum, c) => sum + c, 0) / confidences.length;
-    
+    const avgConfidence = confidences.length
+      ? confidences.reduce((sum, c) => sum + c, 0) / confidences.length
+      : 0;
+
     return {
       text: combinedText,
       confidence: avgConfidence,
