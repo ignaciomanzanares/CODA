@@ -697,6 +697,19 @@ export const assistantFeedback = table('assistant_feedback', {
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+/**
+ * Caché de indicadores económicos (UF, dólar) por fecha, en CLP.
+ * Fuente: mindicador.cl. `id` = `${kind}:${date}` (date = ISO yyyy-mm-dd) para
+ * evitar refetch. valueClp = valor en pesos de 1 unidad del indicador ese día.
+ */
+export const indicatorValues = table('indicator_values', {
+  id: text('id').primaryKey(),
+  kind: text('kind').notNull(), // 'uf' | 'usd'
+  date: text('date').notNull(), // ISO yyyy-mm-dd
+  valueClp: real('value_clp').notNull(),
+  fetchedAt: text('fetched_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 /** Diagnósticos de detección de banco (metadata de parseo — sin contenido del PDF ni transacciones). */
 export const parserDiagnostics = table("parser_diagnostics", {
   id: text("id").primaryKey(),

@@ -57,6 +57,7 @@ export const {
   userAssets,
   assistantFeedback,
   assistantSummaries,
+  indicatorValues,
 } = schema as any;
 import postgres from 'postgres';
 import { ensurePostgresSslMode } from './postgresUrl.js';
