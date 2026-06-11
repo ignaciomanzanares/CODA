@@ -20,6 +20,8 @@
  * indicators.getUf(date) (Task 1), con fxPending si no hay tasa.
  */
 
+import { logger } from '../logger.js';
+
 const MESES: Record<string, number> = {
   enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6,
   julio: 7, agosto: 8, septiembre: 9, setiembre: 9, octubre: 10, noviembre: 11, diciembre: 12,
@@ -274,4 +276,88 @@ export async function resolveInscripcionPrefill(
   const escrituraUfRate = result.fechaInscripcion ? await ufFn(result.fechaInscripcion) : null;
   const currentUfRate = await ufFn(new Date());
   return buildAssetPrefill(result, escrituraUfRate, currentUfRate);
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Extracción desde buffer con fallback OCR (copias autorizadas escaneadas)
+// ──────────────────────────────────────────────────────────────────────────────
+
+/** Mínimo de texto útil para considerar legible una inscripción. */
+const MIN_TEXT_LEN = 200;
+
+export const MANUAL_FALLBACK_MSG =
+  'No pudimos leer el PDF escaneado. Ingresa los datos de la propiedad manualmente.';
+
+export interface InscripcionExtractionOutcome {
+  ok: boolean;
+  result?: InscripcionResult;
+  usedOcr: boolean;
+  /** true si no se pudo leer → el formulario debe pedir ingreso manual. */
+  manualFallback: boolean;
+  message?: string;
+}
+
+/**
+ * Extrae una inscripción desde el BUFFER del PDF, con fallback a OCR cuando la
+ * capa de texto está vacía/escasa (copias autorizadas del CBR suelen ser
+ * imágenes). Nunca lanza: si OCR no está disponible o el texto es ilegible,
+ * devuelve manualFallback=true con un mensaje claro (no un 500).
+ *
+ * `deps` inyectable para tests (sin red, sin OCR real).
+ */
+export async function extractInscripcionFromBuffer(
+  buffer: Buffer,
+  deps?: {
+    extractText?: (b: Buffer) => Promise<string>;
+    ocr?: (b: Buffer) => Promise<string>;
+  },
+): Promise<InscripcionExtractionOutcome> {
+  const extractText =
+    deps?.extractText ??
+    (async (b: Buffer) => {
+      const { extractPdfText } = await import('../services/documents/pdfAnalysis.js');
+      const r = await extractPdfText(b);
+      return r.text ?? '';
+    });
+
+  let text = '';
+  try {
+    text = await extractText(buffer);
+  } catch (e) {
+    logger.warn({ err: e }, 'inscripcion: text-layer extraction failed');
+    text = '';
+  }
+
+  let usedOcr = false;
+  if (text.trim().length < MIN_TEXT_LEN) {
+    // Capa de texto insuficiente → PDF escaneado: intentar OCR (best-effort).
+    try {
+      const ocr =
+        deps?.ocr ??
+        (async (b: Buffer) => {
+          const { performOcrOnFullPdf } = await import('../services/documents/ocrService.js');
+          const r = await performOcrOnFullPdf(b);
+          return r.text ?? '';
+        });
+      const ocrText = await ocr(buffer);
+      if (ocrText.trim().length > text.trim().length) {
+        text = ocrText;
+        usedOcr = true;
+      }
+    } catch (e) {
+      // OCR no instalado/fallido → fallback manual, sin romper el flujo del activo.
+      logger.warn({ err: e }, 'inscripcion: OCR fallback unavailable/failed');
+    }
+  }
+
+  if (text.trim().length < MIN_TEXT_LEN) {
+    return { ok: false, usedOcr, manualFallback: true, message: MANUAL_FALLBACK_MSG };
+  }
+
+  const result = extractInscripcion(text);
+  // Si no hay ni Dominio ni precio, el OCR produjo basura → ingreso manual.
+  if (result.dominio.fojas == null && result.compraventaUf === 0) {
+    return { ok: false, usedOcr, manualFallback: true, message: MANUAL_FALLBACK_MSG };
+  }
+  return { ok: true, result, usedOcr, manualFallback: false };
 }
