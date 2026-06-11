@@ -324,7 +324,7 @@ export interface TarjetaInternacionalResult {
 }
 
 const US_NUM_RE = /-?\d{1,3}(?:\.\d{3})*,\d{2}/g; // número con coma decimal (miles con punto)
-const US_NUM_TEST = /-?\d{1,3}(?:\.\d{3})*,\d{2}/; // misma forma, sin flag global (para .test)
+const MOV_DATE_AT_START = /^(\d{2})\/(\d{2})\/(\d{2})/; // dd/mm/yy al inicio (permite año pegado al monto)
 
 /** Detecta si el texto corresponde a un estado de TC internacional. */
 export function isTarjetaInternacional(text: string): boolean {
@@ -368,30 +368,39 @@ export function parseTarjetaInternacional(text: string): TarjetaInternacionalRes
     if (!line.trim()) continue;
     if (isSectionRow(line)) continue;
 
-    const dateM = line.match(MOV_DATE_RE);
-    if (!dateM || dateM.index === undefined || dateM.index > 4) continue; // la fecha abre la fila
-    const rest = line.slice(dateM.index + dateM[0].length);
+    // Las filas de movimiento NO llevan el prefijo "US$" (sólo los montos del
+    // encabezado/comprobante lo llevan) y usan año de 2 dígitos. Esto descarta
+    // líneas de período/comprobante (dd/mm/yyyy + US$) en ambos extractores.
+    if (/US\$/i.test(line)) continue;
+    const dateM = line.match(MOV_DATE_AT_START);
+    if (!dateM) continue; // la fecha abre la fila
+    const rest = line.slice(dateM[0].length);
     const numeric = [...rest.matchAll(US_NUM_RE)].map((m) => m[0]);
     if (numeric.length === 0) continue;
 
-    const montoUsd = parseDecimalCl(numeric[numeric.length - 1]!);
-    const montoOrigen = numeric.length >= 2 ? parseDecimalCl(numeric[numeric.length - 2]!) : null;
+    // El texto del PDF llega en DOS órdenes de columnas según el extractor:
+    //  - pdfjs (producción):  DATE DESC CIUDAD PAÍS ORIGEN US$  → US$ es el ÚLTIMO número.
+    //  - pdf-parse (fallback): DATE US$ CIUDAD ORIGEN DESC PAÍS → US$ es el PRIMER número,
+    //    pegado a la fecha. Detectamos el layout pegado y elegimos la posición correcta.
+    const glued = /^-?\d/.test(rest);
+    const usdStr = glued ? numeric[0]! : numeric[numeric.length - 1]!;
+    const origenStr = glued
+      ? (numeric[1] ?? null)
+      : (numeric.length >= 2 ? numeric[numeric.length - 2]! : null);
+    const montoUsd = parseDecimalCl(usdStr);
+    const montoOrigen = origenStr != null ? parseDecimalCl(origenStr) : null;
 
-    // Columnas (split por 2+ espacios del layout) sin los números → desc/ciudad/país.
-    const cols = rest.split(/\s{2,}/).map((c) => c.trim()).filter(Boolean).filter((c) => !US_NUM_TEST.test(c));
-    const descripcion = cols[0] ?? '';
-    let pais = '';
-    let ciudad = '';
-    if (cols.length >= 2 && /^[A-Z]{2}$/.test(cols[cols.length - 1]!)) {
-      pais = cols[cols.length - 1]!;
-      ciudad = cols.slice(1, cols.length - 1).join(' ');
-    } else {
-      ciudad = cols.slice(1).join(' ');
-    }
+    // Glosa = resto sin los números (sirve para clasificar pago/transfer); el país
+    // son 2 letras al final (pegadas en pdf-parse, token suelto en pdfjs).
+    let descPart = rest;
+    for (const n of numeric) descPart = descPart.replace(n, ' ');
+    const paisM = descPart.match(/([A-Z]{2})\s*$/);
+    const pais = paisM ? paisM[1]! : '';
+    const descripcion = descPart.replace(/[A-Z]{2}\s*$/, '').replace(/\s+/g, ' ').trim();
 
     let kind: TarjetaIntlKind;
-    if (/MONTO CANCELADO|ABONO DE DIVISAS/i.test(descripcion)) kind = 'payment';
-    else if (/TRASPASO|EGRESO DE DIVISAS|COMPRA DE DIVISAS/i.test(descripcion)) kind = 'transfer';
+    if (/MONTO\s*CANCELADO|ABONO\s*DE\s*DIVISAS/i.test(descripcion)) kind = 'payment';
+    else if (/TRASPASO|EGRESO\s*DE\s*DIVISAS|COMPRA\s*DE\s*DIVISAS/i.test(descripcion)) kind = 'transfer';
     else if (montoUsd < 0) kind = 'payment';
     else kind = 'purchase';
 
@@ -399,7 +408,7 @@ export function parseTarjetaInternacional(text: string): TarjetaInternacionalRes
     movimientos.push({
       fecha,
       descripcion,
-      ciudad,
+      ciudad: '',
       pais,
       montoOrigen,
       montoUsd,
