@@ -11,6 +11,15 @@ text layer) — the typical depto-306-with-hipoteca case.
   `canvas@3` ships prebuilt binaries for common Linux/Node targets, so a normal
   `npm install` works on Render's native Node runtime.
 
+## Known limitation (covered by the fallback)
+`pdfjs-dist` (legacy) rendering full-page scanned images onto `node-canvas` can
+throw `Image or Canvas expected` in some environments (a pdfjs↔canvas interop
+issue, independent of native libs). `performOcrOnFullPdf` is now per-page
+resilient and `getDocument` receives a `Uint8Array` (not a Buffer), but if no page
+renders, extraction returns the clean **manual-entry fallback** — it never throws,
+so `/extract-inscripcion` never 500s. Verified locally on the real depto-306 scan:
+`manualFallback:true`, no crash.
+
 ## How it's wired (safe by construction)
 - OCR is **lazy-loaded** (`await import(...)`) only when a scanned inscription is
   uploaded via `POST /api/assets/extract-inscripcion`. It never runs on startup,
