@@ -226,6 +226,51 @@ export function registerAssetsRoutes(app: Express): void {
     }
   });
 
+  // POST /api/assets/extract-inscripcion — prefill desde una inscripción CBR (PDF).
+  // Tercer camino, aislado de los uploaders de cartola. NO crea el activo: sólo
+  // devuelve el prefill para que el usuario revise y guarde por el path normal.
+  app.post('/api/assets/extract-inscripcion', apiLimiter, authenticate, async (req: Request, res: Response) => {
+    const { documentUpload } = await import('./middleware/uploadMiddleware.js');
+    documentUpload.single('file')(req, res, async (uploadErr: unknown) => {
+      if (uploadErr) {
+        const msg = uploadErr instanceof Error ? uploadErr.message : 'Archivo inválido.';
+        return res.status(400).json({ message: msg });
+      }
+      const file = (req as Request & { file?: { buffer: Buffer } }).file;
+      if (!file) {
+        return res.status(400).json({ message: 'Se requiere un archivo PDF de la inscripción.' });
+      }
+      try {
+        const { extractInscripcionFromBuffer, resolveInscripcionPrefill } = await import(
+          './parsers/inscripcionExtractor.js'
+        );
+        const outcome = await extractInscripcionFromBuffer(file.buffer);
+        if (!outcome.ok || !outcome.result) {
+          // Escaneo ilegible / OCR no disponible → ingreso manual (no es error).
+          return res.json({ ok: false, manualFallback: true, message: outcome.message });
+        }
+        // Costo a la fecha de escritura (Dominio); valor estimado a UF de hoy.
+        const prefill = await resolveInscripcionPrefill(outcome.result);
+        return res.json({
+          ok: true,
+          usedOcr: outcome.usedOcr,
+          prefill,
+          extracted: {
+            dominio: outcome.result.dominio,
+            rolAvaluo: outcome.result.rolAvaluo,
+            comuna: outcome.result.comuna,
+            compraventaUf: outcome.result.compraventaUf,
+            hipoteca: outcome.result.hipoteca,
+            fechaInscripcion: outcome.result.fechaInscripcion,
+          },
+        });
+      } catch (e) {
+        logger.error({ err: e }, 'POST /api/assets/extract-inscripcion failed');
+        return res.status(500).json({ message: 'Error al procesar la inscripción.' });
+      }
+    });
+  });
+
   logger.info('💰 Assets routes registered');
 }
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { FileUp, Loader2 } from "lucide-react";
+import { useApi } from "@/lib/api";
 
 type AssetType = 'property' | 'vehicle' | 'crypto' | 'investment' | 'other';
 
@@ -60,6 +62,45 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
   const [notes, setNotes] = useState(initialData?.notes ?? '');
   const [error, setError] = useState<string | null>(null);
 
+  const { extractInscripcion } = useApi();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadNotice, setUploadNotice] = useState<string | null>(null);
+
+  async function handleInscripcionFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permite re-subir el mismo archivo
+    if (!file) return;
+    setError(null);
+    setUploadNotice(null);
+    setUploading(true);
+    try {
+      const res = await extractInscripcion(file);
+      if (!res.ok || !res.prefill) {
+        // Escaneo ilegible / OCR no disponible → ingreso manual.
+        setUploadNotice(res.message ?? 'No pudimos leer el PDF. Ingresa los datos manualmente.');
+        return;
+      }
+      const p = res.prefill;
+      setType(p.type ?? 'property');
+      if (p.name) setName(p.name);
+      setAcquisitionRaw(formatMonto(p.acquisitionCostClp));
+      setEstimatedRaw(formatMonto(p.estimatedValueClp));
+      setHasLien(p.hasLien);
+      setLienRaw(formatMonto(p.lienAmountClp));
+      if (p.notes) setNotes(p.notes);
+      setUploadNotice(
+        p.fxPending
+          ? 'Inscripción leída. No pudimos resolver el valor de la UF — revisa e ingresa los montos en CLP antes de guardar.'
+          : `Inscripción leída${res.usedOcr ? ' (vía OCR)' : ''}. Revisa los datos y guarda.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : 'No se pudo procesar la inscripción.');
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -93,6 +134,35 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Atajo: prefill desde una inscripción CBR (PDF). El usuario revisa y edita antes de guardar. */}
+      <div className="rounded-md border border-dashed border-blue-200 bg-blue-50/60 p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-sm text-blue-800">
+            <span className="font-medium">¿Tienes la inscripción de la propiedad?</span>{' '}
+            Súbela y completamos los datos por ti.
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5 flex-shrink-0"
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+            {uploading ? 'Leyendo…' : 'Subir inscripción (PDF)'}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            className="hidden"
+            onChange={handleInscripcionFile}
+          />
+        </div>
+        {uploadNotice && <p className="text-xs text-blue-700">{uploadNotice}</p>}
+      </div>
+
       <div className="space-y-1.5">
         <Label>Tipo de activo</Label>
         <Select value={type} onValueChange={(v) => setType(v as AssetType)}>

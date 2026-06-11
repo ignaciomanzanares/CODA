@@ -15,8 +15,28 @@ import type {
   ProfileData
 } from "@/types";
 
+/** Prefill devuelto por POST /api/assets/extract-inscripcion. */
+export interface AssetInscripcionPrefill {
+  type: "property";
+  name: string;
+  acquisitionCostClp: number | null;
+  estimatedValueClp: number | null;
+  hasLien: boolean;
+  lienAmountClp: number | null;
+  notes: string;
+  fxPending: boolean;
+}
+export interface ExtractInscripcionResponse {
+  ok: boolean;
+  usedOcr?: boolean;
+  manualFallback?: boolean;
+  message?: string;
+  prefill?: AssetInscripcionPrefill;
+}
+
 export type ApiClient = {
   apiRequest: <T = unknown>(method: string, url: string, data?: unknown, options?: RequestInit) => Promise<T>;
+  extractInscripcion: (file: File) => Promise<ExtractInscripcionResponse>;
   getBankConnections: () => Promise<import("@/types").BankConnection[]>;
   connectBank: (bankData: import("@/types").CreateBankConnectionData) => Promise<import("@/types").BankConnection>;
   getFinancialGoals: () => Promise<any[]>;
@@ -470,6 +490,24 @@ export function useApi(): ApiClient {
     return json as import("@/types").DocumentUploadResult;
   };
 
+  const extractInscripcion = async (file: File): Promise<ExtractInscripcionResponse> => {
+    if (!token) throw new Error("User not authenticated");
+    const formData = new FormData();
+    formData.append("file", file);
+    const fullUrl = `${API_BASE_URL}/assets/extract-inscripcion`;
+    const res = await fetch(fullUrl, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 401) dispatchSessionExpired(fullUrl);
+      throw new Error((json as { message?: string }).message || "Error al procesar la inscripción");
+    }
+    return json as ExtractInscripcionResponse;
+  };
+
   const getTransactionalScore = async () => {
     return await apiRequest<{
       transactionalScore: number | null;
@@ -551,6 +589,7 @@ export function useApi(): ApiClient {
     revokePrivacyPurpose,
     simulateBankFlow,
     uploadDocument,
+    extractInscripcion,
     getTransactionalScore,
     parseNotifications,
   };
