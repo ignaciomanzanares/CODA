@@ -18,8 +18,14 @@ import { fileURLToPath } from 'url';
 import {
   extractInscripcion,
   buildAssetPrefill,
+  resolveInscripcionPrefill,
   parseUf,
 } from '../../src/parsers/inscripcionExtractor.js';
+
+// UF aprox. a la fecha de escritura (junio 2024) y de hoy (2026). El costo debe
+// usar la de escritura (~37k → ~110M), NO la de hoy (~39k → 116M).
+const UF_ESCRITURA_2024 = 37_116;
+const UF_HOY = 39_000;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fxFile = join(__dirname, '../fixtures/inscripciones/inscripcion-dominio-e102.txt');
@@ -56,22 +62,48 @@ describe('CBR inscription extractor — depto E102 (Dominio only)', () => {
     expect(r.hipoteca).toBeNull();
     expect(r.warnings).not.toContain('Documento de Hipoteca presente pero no se pudo leer el monto UF.');
 
-    // Prefill: no lien, UF→CLP applied when a rate is given.
-    const prefill = buildAssetPrefill(r, 39000);
+    // Prefill: no lien; COST uses the escritura-date UF (~37k → ~110M, NOT 116M).
+    const prefill = buildAssetPrefill(r, UF_ESCRITURA_2024, UF_HOY);
     // eslint-disable-next-line no-console
     console.log(`[E102] prefill=${JSON.stringify(prefill)}`);
     expect(prefill.type).toBe('property');
     expect(prefill.hasLien).toBe(false);
     expect(prefill.lienAmountClp).toBeNull();
-    expect(prefill.acquisitionCostClp).toBe(2975 * 39000);
+    expect(prefill.acquisitionCostClp).toBe(2975 * UF_ESCRITURA_2024);
+    expect(prefill.acquisitionCostClp!).toBeGreaterThanOrEqual(110_000_000);
+    expect(prefill.acquisitionCostClp!).toBeLessThan(111_000_000);
+    expect(prefill.acquisitionCostClp).not.toBe(2975 * UF_HOY); // not today's UF
+    // estimatedValue (optional) uses today's UF.
+    expect(prefill.estimatedValueClp).toBe(2975 * UF_HOY);
     expect(prefill.fxPending).toBe(false);
     expect(prefill.name).toContain('MIRADOR DEL BIOBIO');
 
-    // No FX rate → never throws, stays UF-native with fxPending.
+    // No escritura rate → never throws, stays UF-native with fxPending.
     const noFx = buildAssetPrefill(r, null);
     expect(noFx.fxPending).toBe(true);
     expect(noFx.acquisitionCostClp).toBeNull();
     expect(noFx.source.compraventaUf).toBe(2975);
+  });
+
+  (present ? it : it.skip)('resolveInscripcionPrefill fetches UF at the escritura (Dominio) date', async () => {
+    const r = extractInscripcion(readFileSync(fxFile, 'utf8'));
+    const calls: string[] = [];
+    const getUf = async (d: Date): Promise<number | null> => {
+      const iso = d.toISOString().slice(0, 10);
+      calls.push(iso);
+      return iso.startsWith('2024') ? UF_ESCRITURA_2024 : UF_HOY; // escritura vs hoy
+    };
+    const prefill = await resolveInscripcionPrefill(r, getUf);
+    // eslint-disable-next-line no-console
+    console.log(`[E102] resolved acquisitionCostClp=${prefill.acquisitionCostClp} (escrituraDate=${prefill.source.escrituraDate})`);
+
+    // getUf was called with the parsed Dominio date (05/06/2024), not just today.
+    expect(calls).toContain('2024-06-05');
+    expect(prefill.source.escrituraDate).toBe('2024-06-05');
+    expect(prefill.source.escrituraUfRate).toBe(UF_ESCRITURA_2024);
+    // Cost from escritura-date UF (~110M); estimated from today's UF.
+    expect(prefill.acquisitionCostClp).toBe(2975 * UF_ESCRITURA_2024);
+    expect(prefill.estimatedValueClp).toBe(2975 * UF_HOY);
   });
 });
 
@@ -98,10 +130,10 @@ describe('CBR inscription extractor — hipoteca path (synthetic CBR-shaped snip
     expect(r.hipoteca?.acreedor).toBe('COOPEUCH');
     expect(r.hipoteca?.montoUf).toBe(2236.82);
 
-    const prefill = buildAssetPrefill(r, 39000);
+    const prefill = buildAssetPrefill(r, UF_ESCRITURA_2024);
     expect(prefill.hasLien).toBe(true);
-    expect(prefill.acquisitionCostClp).toBe(Math.round(2559 * 39000));
-    expect(prefill.lienAmountClp).toBe(Math.round(2236.82 * 39000));
+    expect(prefill.acquisitionCostClp).toBe(Math.round(2559 * UF_ESCRITURA_2024));
+    expect(prefill.lienAmountClp).toBe(Math.round(2236.82 * UF_ESCRITURA_2024));
     expect(prefill.source.hipotecaUf).toBe(2236.82);
   });
 });
