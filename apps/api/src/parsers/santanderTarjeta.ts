@@ -113,7 +113,7 @@ function reconcileTotals(expected: number, actual: number): ReconciliationResult
   };
 }
 
-function averageConfidence(movs: TarjetaMovimiento[]): number {
+function averageConfidence(movs: Array<{ confidence: TransactionConfidence }>): number {
   if (movs.length === 0) return 0;
   const sum = movs.reduce((a, m) => a + m.confidence.overall, 0);
   return Math.round((sum / movs.length) * 1000) / 1000;
