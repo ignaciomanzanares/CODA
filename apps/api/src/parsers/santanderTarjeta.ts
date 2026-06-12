@@ -143,21 +143,7 @@ export function parseTarjetaNacional(text: string): TarjetaNacionalResult {
   const lines = text.split(/\r?\n/);
 
   // ── Cabecera ──────────────────────────────────────────────────────────────
-  const titular = matchAfterLabel(text, /NOMBRE DEL TITULAR\s+(.+)/i) ?? '';
-  const tarjetaMascara = (text.match(/N[º°]\s*DE TARJETA DE CR[ÉE]DITO\s+[\dX\s]*?(\d{4})\b/i)?.[1])
-    ?? (text.match(/MOVIMIENTOS TARJETA\s+[X\d-]*?(\d{4})\b/i)?.[1])
-    ?? '';
-
-  const fechaEstadoM = text.match(/FECHA ESTADO DE CUENTA\s+(\d{2})\/(\d{2})\/(\d{4})/i);
-  const fechaEstado = fechaEstadoM ? parseFullDate(fechaEstadoM[1]!, fechaEstadoM[2]!, fechaEstadoM[3]!) : null;
-
-  const periodoM = text.match(/PER[ÍI]ODO FACTURADO\s+(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2})\/(\d{2})\/(\d{4})/i);
-  const desde = periodoM
-    ? parseFullDate(periodoM[1]!, periodoM[2]!, periodoM[3]!)
-    : (fechaEstado ?? new Date());
-  const hasta = periodoM
-    ? parseFullDate(periodoM[4]!, periodoM[5]!, periodoM[6]!)
-    : (fechaEstado ?? new Date());
+  const { titular, tarjetaMascara, fechaEstado, desde, hasta } = parseCardHeader(text);
 
   // Anclar al MISMO renglón (con `$`): el `\s` cruza saltos de línea y, en el
   // comprobante de pago, el label queda sobre una línea y el monto en la siguiente
@@ -246,9 +232,61 @@ export function parseTarjetaNacional(text: string): TarjetaNacionalResult {
   };
 }
 
-function matchAfterLabel(text: string, re: RegExp): string | null {
-  const m = text.match(re);
-  return m ? m[1]!.trim().replace(/\s{2,}.*$/, '').trim() : null;
+interface CardHeader {
+  titular: string;
+  tarjetaMascara: string;
+  fechaEstado: Date | null;
+  desde: Date;
+  hasta: Date;
+}
+
+/**
+ * Cabecera común a ambos estados de TC. Robusta a los dos extractores de texto:
+ *  - pdfjs (producción): "NOMBRE DEL TITULAR X", "FECHA ESTADO DE CUENTA dd/mm/yyyy",
+ *    "PERÍODO FACTURADO DESDE/HASTA dd/mm/yyyy" (valor en la misma línea).
+ *  - pdf-parse (fallback): la fecha queda PEGADA antes del label
+ *    ("dd/mm/yyyyFECHA ESTADO DE CUENTA") y el nombre/períodos quedan dispersos.
+ */
+function parseCardHeader(text: string): CardHeader {
+  // Titular SÓLO en la misma línea del label ([ \t], no \s que cruza saltos) —
+  // así no captura el disclaimer "Consideramos aprobado…" de la línea siguiente.
+  const tM = text.match(/NOMBRE DEL TITULAR[ \t]+([^\n]+)/i);
+  const titular = tM ? tM[1]!.replace(/\s{2,}.*$/, '').trim().slice(0, 120) : '';
+
+  const tarjetaMascara =
+    (text.match(/N[º°]\s*DE TARJETA DE CR[ÉE]DITO[ \t]*[\dX\s]*?(\d{4})\b/i)?.[1]) ??
+    (text.match(/MOVIMIENTOS TARJETA\s*[X\d-]*?(\d{4})\b/i)?.[1]) ??
+    '';
+
+  // FECHA ESTADO DE CUENTA: fecha DESPUÉS (pdfjs) o ANTES pegada (pdf-parse).
+  const feM =
+    text.match(/FECHA ESTADO DE CUENTA[ \t]*(\d{2})\/(\d{2})\/(\d{4})/i) ??
+    text.match(/(\d{2})\/(\d{2})\/(\d{4})\s*FECHA ESTADO DE CUENTA/i);
+  const fechaEstado = feM ? parseFullDate(feM[1]!, feM[2]!, feM[3]!) : null;
+
+  // Período: DESDE/HASTA explícitos (USD pdfjs) o dos fechas en una línea (CLP pdfjs).
+  const dM = text.match(/PER[ÍI]ODO FACTURADO DESDE[ \t]*(\d{2})\/(\d{2})\/(\d{4})/i);
+  const hM = text.match(/PER[ÍI]ODO FACTURADO HASTA[ \t]*(\d{2})\/(\d{2})\/(\d{4})/i);
+  const bothM = text.match(
+    /PER[ÍI]ODO FACTURADO[ \t]+(\d{2})\/(\d{2})\/(\d{4})[ \t]+(\d{2})\/(\d{2})\/(\d{4})/i,
+  );
+
+  let desde: Date | null = dM
+    ? parseFullDate(dM[1]!, dM[2]!, dM[3]!)
+    : bothM ? parseFullDate(bothM[1]!, bothM[2]!, bothM[3]!) : null;
+  let hasta: Date | null = hM
+    ? parseFullDate(hM[1]!, hM[2]!, hM[3]!)
+    : bothM ? parseFullDate(bothM[4]!, bothM[5]!, bothM[6]!) : null;
+
+  // Fallbacks deterministas (alimentan dedup por período): FECHA ESTADO como cierre,
+  // inicio un mes antes cuando el layout esconde las fechas del período.
+  if (!hasta) hasta = fechaEstado ?? new Date();
+  if (!desde) {
+    desde = new Date(hasta);
+    desde.setMonth(desde.getMonth() - 1);
+  }
+
+  return { titular, tarjetaMascara, fechaEstado, desde, hasta };
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -340,17 +378,7 @@ export function parseTarjetaInternacional(text: string): TarjetaInternacionalRes
   const warnings: string[] = [];
   const lines = text.split(/\r?\n/);
 
-  const titular = matchAfterLabel(text, /NOMBRE DEL TITULAR\s+(.+)/i) ?? '';
-  const tarjetaMascara = (text.match(/N[º°]\s*DE TARJETA DE CR[ÉE]DITO\s+[\dX\s]*?(\d{4})\b/i)?.[1])
-    ?? (text.match(/MOVIMIENTOS TARJETA\s+[X\d-]*?(\d{4})\b/i)?.[1])
-    ?? '';
-
-  const fechaEstadoM = text.match(/FECHA ESTADO DE CUENTA\s+(\d{2})\/(\d{2})\/(\d{4})/i);
-  const fechaEstado = fechaEstadoM ? parseFullDate(fechaEstadoM[1]!, fechaEstadoM[2]!, fechaEstadoM[3]!) : null;
-  const desdeM = text.match(/PER[ÍI]ODO FACTURADO DESDE\s+(\d{2})\/(\d{2})\/(\d{4})/i);
-  const hastaM = text.match(/PER[ÍI]ODO FACTURADO HASTA\s+(\d{2})\/(\d{2})\/(\d{4})/i);
-  const desde = desdeM ? parseFullDate(desdeM[1]!, desdeM[2]!, desdeM[3]!) : (fechaEstado ?? new Date());
-  const hasta = hastaM ? parseFullDate(hastaM[1]!, hastaM[2]!, hastaM[3]!) : (fechaEstado ?? new Date());
+  const { titular, tarjetaMascara, fechaEstado, desde, hasta } = parseCardHeader(text);
   const statementDate = hasta ?? fechaEstado ?? new Date();
 
   const saldoAnteriorUsd = usdLabel(text, /SALDO ANTERIOR FACTURADO[^\n]*?US\$\s*(-?[\d.,]+)/i);
