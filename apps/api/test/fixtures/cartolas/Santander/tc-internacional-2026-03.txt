@@ -1,119 +1,131 @@
-# REDACTED FIXTURE — real Santander TC internacional (USD) statement. PII scrubbed; amounts/merchants kept.
-# Source PDF NOT committed (feedback_no_real_pii_fixtures).
-
-                                                                       1   DE 3
-
+# REDACTED FIXTURE — REAL pdf-parse output of a Santander TC statement.
+# This is the actual extractor layout (columns glued, scrambled), NOT pdftotext -layout.
+# PII scrubbed: holder name/email, RUT, card last-4. Source PDF NOT committed.
 
 
-                                     ESTADO DE CUENTA INTERNACIONAL DE TARJETA DE CRÉDITO
- NOMBRE DEL TITULAR                 TITULAR REDACTED
- Nº DE TARJETA DE CRÉDITO           XXXX XXXX XXXX 0000                           WORLDMEMBER VISA
- FECHA ESTADO DE CUENTA             24/03/2026
+
+
+CUPO TOTALCUPO UTILIZADOCUPO DISPONIBLE
+redacted@example.com
+XXXX XXXX XXXX 0000
+ESTADO DE CUENTA INTERNACIONAL DE TARJETA DE CRÉDITO
+TITULAR REDACTED
+Nº DE TARJETA DE CRÉDITO
+24/03/2026FECHA ESTADO DE CUENTA
+NOMBRE DEL TITULAR
 Consideramos aprobado este estado de cuenta si dentro de 45 días siguientes al
 vencimiento no hemos recibido aviso por escrito en contrario
-
-
-
-                                                                                               TITULAR REDACTED
-                                                                                               redacted@example.com
-
-
-
-  I.   INFORMACIÓN GENERAL
-
-                                    CUPO TOTAL             CUPO UTILIZADO            CUPO DISPONIBLE
-CUPO TOTAL                     US$ 4.226,00            US$ 486,97             US$ 3.739,03
-
- II.   DETALLE
-
- 1.    INFORMACIÓN DEL PERÍODO
-
-
- SALDO ANTERIOR FACTURADO                                       US$ 14,93                       PERÍODO FACTURADO DESDE                       23/02/2026
- ABONO REALIZADO                                             US$ -1.804,21                      PERÍODO FACTURADO HASTA                       24/03/2026
- TOTAL DE COMPRAS Y CARGOS                                   US$ 2.276,25                                                                     09/04/2026
-                                                                                                PAGAR HASTA
- TRASPASO DEUDA NACIONAL                                         US$ 0,00
- DEUDA TOTAL                                                   US$ 486,97
+TRASPASO DEUDA NACIONAL
+ABONO REALIZADO
+US$ 3.739,03US$ 486,97
+US$ 486,97
+US$ -1.804,21
+PERÍODO FACTURADO HASTA
+TITULAR REDACTED
+24/03/2026
+US$ 14,93
+PERÍODO FACTURADO DESDE
+SALDO ANTERIOR FACTURADO
+US$ 4.226,00
+DEUDA TOTAL
+US$ 0,00
+I.     INFORMACIÓN GENERAL
+II.     DETALLE
+23/02/2026
+CUPO TOTAL
+DE13
+1.    INFORMACIÓN DEL PERÍODO
+PAGAR HASTA
+09/04/2026
 De no recibir pago antes de las 14:00 Hrs. de la fecha de vencimiento, la deuda se
 trasladará a la linea nacional. En caso de extravío, robo o hurto de su tarjeta, llame al 800
 20 7000
-
- 2.PERÍODO ACTUAL
-FECHA DE         DESCRIPCIÓN OPERACIÓN O COBRO                                                  CIUDAD            PAÍS       MONTO MONEDA MONTO US$
-OPERACIÓN                                                                                                                    ORIGEN
-
-
-
-                1. TOTAL OPERACIONES                                                                                                            2.276,25
-                MOVIMIENTOS TARJETA XXXX-0000                                                                                                   2.276,25
-23/02/26          OPENAI *CHATGPT SUBSCR                                                        DUBLIN            IR                 19,33          22,83
-27/02/26          LA CEVI                                                                       FRANKFURT         DE                110,00         130,14
-
-
-
-
-EMISOR                                                                         CLIENTE
-                       COMPROBANTE DE PAGO                                                               COMPROBANTE DE PAGO
-NOMBRE                            NÚMERO DE TARJETA                               NOMBRE                               NÚMERO DE TARJETA
-
-TITULAR REDACTED                               XXXX XXXX XXXX 0000             TITULAR REDACTED                               XXXX XXXX XXXX 0000
-PAGAR HASTA                       MONTO TOTAL FACTURADO A PAGAR                   PAGAR HASTA            Timbre        MONTO TOTAL FACTURADO A PAGAR
-                                                                                                         Banco
-09/04/2026                        US$ 486,97                                      09/04/2026                           US$ 486,97
-MONTO CANCELADO                   Cheque                                          MONTO CANCELADO                      Cheque
-US$                               Efectivo                                        US$                                  Efectivo
-
-
-
-
-   Infórmese sobre las entidades autorizadas para emitir Tarjetas de Pago en el país, quienes se encuentran inscritas en los Registros de Emisores de
-                                                    Tarjetas que lleva la CMF, en www.cmfchile.cl
-                                       2   DE 3
-
-
-03/03/26   LATAM.COM EUR LA                       MADRID          ES   936,84   1.105,10
-05/03/26   Amazon.ca Prime Member                 amazon.ca/pri   CA    11,49       8,44
-05/03/26   UBER *TRIP HELP.UBER.COM               Amsterdam       DE    34,97      40,77
-07/03/26   MONTO CANCELADO                                        CH     0,00     -14,93
-07/03/26   MONTO CANCELADO                                        CH     0,00   -1.307,28
-07/03/26   UBER *TRIP                             HELP.UBER.      NL     8,75      10,17
-07/03/26   GULA                                   VALENCIA        ES    52,20      60,67
-09/03/26   EL CORTE INGLES AV DE FRA              VALENCIA        ES    39,00      45,33
-09/03/26   FGV VALENCIA 11                        VALENCIA        ES     5,00       5,81
-09/03/26   MAQUINAS VENDING AEROPUER              REAL DE         ES     1,80       2,09
-09/03/26   MI DULCE VIDA                          VALENCIA        ES    11,00      12,79
-09/03/26   KIOSKO MIRADOR                         VALENCIA        ES     5,00       5,81
-10/03/26   TUSSAM EMV                             SEVILLA         ES     6,00       7,00
-13/03/26   LATAM.COM EUR LA                       MADRID          ES    95,00     109,98
-15/03/26   ARROCERIA EL REK                       VALENCIA        ES    80,00      92,26
-15/03/26   Cars on Booking                        London          GB   113,16     130,50
-16/03/26   MONTO CANCELADO                                        CH     0,00    -482,00
-16/03/26   TREBOL                                 VALENCIA AL     ES    15,20      17,53
-17/03/26   BODEGA LA PASCUALA                     VALENCIA        ES    22,85      26,34
-17/03/26   Hispalense de Catering y               SEVILLA         ES     4,00       4,61
-17/03/26   P AMURI                                VALENCIA        ES     6,50       7,49
-17/03/26   CRISTIANE RUFINO                       CASTELLAR       ES     7,00       8,07
-17/03/26   LA OTRA BODEGA                         VALENCIA        ES    56,50      65,13
-18/03/26   PLAYSTATION                                            US     9,51       9,51
-18/03/26   STAROIL SAELICES                       SAELICES        ES    45,00      51,97
-18/03/26   BAR EL PILAR                           SAELICES        ES    27,00      31,18
-18/03/26   GRAN JARDIN                            VALENCIA        ES     5,50       6,35
-18/03/26   SEITT R3 R5                            CONCEJAL        ES     2,45       2,83
-18/03/26   KESTE BAR Y TAPAS                      VALENCIA        ES     7,40       8,55
-18/03/26   EL BACALAO DE LA REVUELTA              MADRID          ES    28,80      33,26
-18/03/26   METRO DE MADRID S.A.                   MADRID          ES     7,30       8,43
-18/03/26   SEITT R3 R5                            CONCEJAL        ES     0,95       1,10
-19/03/26   Taberna del Taco                       Madrid          ES    26,20      30,28
-19/03/26   AEROP. ADOLFO SUAREZ MADR              MADRID          ES     4,25       4,91
-19/03/26   UBER *TRIP                             HELP.UBER.      NL    17,95      20,74
-19/03/26   NOODLE SHOP                            MADRID          ES    41,05      47,44
-                                               3   DE 3
+WORLDMEMBER VISA
+TOTAL DE COMPRAS Y CARGOSUS$ 2.276,25
+MONTO MONEDA
+ORIGEN
+FECHA DE
+OPERACIÓN
+MONTO US$
+2.PERÍODO ACTUAL
+DESCRIPCIÓN OPERACIÓN O COBRO
+CIUDADPAÍS
+1. TOTAL OPERACIONES2.276,25
+MOVIMIENTOS TARJETA XXXX-00002.276,25
+23/02/2622,83DUBLIN19,33OPENAI *CHATGPT SUBSCRIR
+27/02/26130,14FRANKFURT110,00LA CEVIDE
+COMPROBANTE DE PAGO
+TITULAR REDACTED
+MONTO TOTAL FACTURADO A PAGAR
+NÚMERO DE TARJETA
+COMPROBANTE DE PAGO
+Timbre
+Banco
+NOMBRE
+TITULAR REDACTED
+CLIENTEEMISOR
+NOMBRE
+PAGAR HASTA
+PAGAR HASTA
+NÚMERO DE TARJETA
+09/04/2026US$ 486,9709/04/2026
+MONTO TOTAL FACTURADO A PAGAR
+US$ 486,97
+XXXX XXXX XXXX 0000
+XXXX XXXX XXXX 0000
+MONTO CANCELADO
+Efectivo
+US$
+Cheque
+US$
+Efectivo
+MONTO CANCELADO
+Cheque
+Infórmese sobre las entidades autorizadas para emitir Tarjetas de Pago en el país, quienes se encuentran inscritas en los Registros de Emisores de
+Tarjetas que lleva la CMF, en www.cmfchile.cl
 
 
-19/03/26   TORRONS VICENS P.PRADO C2                      PRADO    ES   59,85   69,17
-19/03/26   MOLOTOV                                        MADRID   ES    8,00    9,25
-23/03/26   OPENAI *CHATGPT SUBSCR                         DUBLIN   IR   19,33   22,42
+DE23
+03/03/261.105,10MADRID936,84LATAM.COM EUR LAES
+05/03/268,44amazon.ca/pri11,49Amazon.ca Prime MemberCA
+05/03/2640,77Amsterdam34,97UBER *TRIP HELP.UBER.COMDE
+07/03/26-14,930,00MONTO CANCELADOCH
+07/03/26-1.307,280,00MONTO CANCELADOCH
+07/03/2610,17HELP.UBER.8,75UBER   *TRIPNL
+07/03/2660,67VALENCIA52,20GULAES
+09/03/2645,33VALENCIA39,00EL CORTE INGLES AV DE FRAES
+09/03/265,81VALENCIA5,00FGV VALENCIA 11ES
+09/03/262,09REAL DE1,80MAQUINAS VENDING AEROPUERES
+09/03/2612,79VALENCIA11,00MI DULCE VIDAES
+09/03/265,81VALENCIA5,00KIOSKO MIRADORES
+10/03/267,00SEVILLA6,00TUSSAM EMVES
+13/03/26109,98MADRID95,00LATAM.COM EUR LAES
+15/03/2692,26VALENCIA80,00ARROCERIA EL REKES
+15/03/26130,50London113,16Cars on BookingGB
+16/03/26-482,000,00MONTO CANCELADOCH
+16/03/2617,53VALENCIA AL15,20TREBOLES
+17/03/2626,34VALENCIA22,85BODEGA LA PASCUALAES
+17/03/264,61SEVILLA4,00Hispalense de Catering yES
+17/03/267,49VALENCIA6,50P AMURIES
+17/03/268,07CASTELLAR7,00CRISTIANE RUFINOES
+17/03/2665,13VALENCIA56,50LA OTRA BODEGAES
+18/03/269,519,51PLAYSTATIONUS
+18/03/2651,97SAELICES45,00STAROIL SAELICESES
+18/03/2631,18SAELICES27,00BAR EL PILARES
+18/03/266,35VALENCIA5,50GRAN JARDINES
+18/03/262,83CONCEJAL2,45SEITT R3 R5ES
+18/03/268,55VALENCIA7,40KESTE BAR Y TAPASES
+18/03/2633,26MADRID28,80EL BACALAO DE LA REVUELTAES
+18/03/268,43MADRID7,30METRO DE MADRID S.A.ES
+18/03/261,10CONCEJAL0,95SEITT R3 R5ES
+19/03/2630,28Madrid26,20Taberna del TacoES
+19/03/264,91MADRID4,25AEROP. ADOLFO SUAREZ MADRES
+19/03/2620,74HELP.UBER.17,95UBER   *TRIPNL
+19/03/2647,44MADRID41,05NOODLE SHOPES
 
-           3. CARGOS, COMISIONES, IMPUESTOS Y ABONOS                            0,00
-
+
+DE33
+19/03/2669,17PRADO59,85TORRONS VICENS P.PRADO C2ES
+19/03/269,25MADRID8,00MOLOTOVES
+23/03/2622,42DUBLIN19,33OPENAI *CHATGPT SUBSCRIR
+3. CARGOS, COMISIONES, IMPUESTOS Y ABONOS0,00
