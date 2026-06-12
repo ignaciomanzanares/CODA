@@ -1,134 +1,194 @@
-# REDACTED FIXTURE — derived from a real Santander TC (moneda nacional) statement.
-# PII scrubbed: holder name/email, RUT, card last-4. Amounts & corporate merchant glosas kept for parser tests.
-# Source PDF NOT committed (see feedback_no_real_pii_fixtures).
-
-                                                                 1   DE 3
+# REDACTED FIXTURE — REAL pdf-parse output of a Santander TC statement.
+# This is the actual extractor layout (columns glued, scrambled), NOT pdftotext -layout.
+# PII scrubbed: holder name/email, RUT, card last-4. Source PDF NOT committed.
 
 
 
 
-                                        ESTADO DE CUENTA EN MONEDA NACIONAL DE TARJETA DE CRÉDITO
-
-NOMBRE DEL TITULAR               TITULAR REDACTED
-Nº DE TARJETA DE CRÉDITO         XXXX XXXX XXXX 0000                    WORLDMEMBER VISA
-FECHA ESTADO DE CUENTA           24/11/2025
+AVANCES EN CUOTASCOMPRAS EN CUOTASROTATIVO
+CUPO TOTALCUPO UTILIZADOCUPO DISPONIBLE
+1.PERÍODO ANTERIOR
+redacted@example.com
+XXXX XXXX XXXX 0000
+ESTADO DE CUENTA EN MONEDA NACIONAL DE TARJETA DE CRÉDITO
+TITULAR REDACTED
+Nº DE TARJETA DE CRÉDITO
+24/11/2025FECHA ESTADO DE CUENTA
+NOMBRE DEL TITULAR
 Consideramos aprobado este estado de cuenta si dentro de 45 días siguientes al
 vencimiento no hemos recibido aviso por escrito en contrario
-
-
-
-                                                                                         TITULAR REDACTED
-                                                                                         redacted@example.com
-
-
-
-  I.   INFORMACIÓN GENERAL
-
-                                         CUPO TOTAL        CUPO UTILIZADO        CUPO DISPONIBLE                                 CAE PREPAGO
-CUPO TOTAL                                   $ 6.704.896                    $0            $ 6.704.896
-CUPO TOTAL AVANCE EN EFECTIVO                         $0                    $0                     $0
-                                                                                                                                         0,00 %
-                                     ROTATIVO        COMPRAS EN CUOTAS      AVANCES EN CUOTAS
-TASA INTERÉS VIGENTE                        2,09 %                2,74 %                   2,09 %
-CAE                                        29,84 %               33,60 %                  26,40 %
-                                                                                                                        DESDE       HASTA
-CAE se calcula sobre un supuesto de gasto mensual de UF 20 y pagadero en 12 cuotas                  PERÍODO FACTURADO 22/10/2025 24/11/2025
-                                                                                                    PAGAR HASTA              10/12/2025
-
- II.   DETALLE
-
-1.PERÍODO ANTERIOR                                          DESDE                 HASTA
-PERÍODO DE FACTURACIÓN ANTERIOR                            23/09/2025            22/10/2025
-SALDO ADEUDADO INICIO PERÍODO ANTERIOR                                 $0
-MONTO FACTURADO A PAGAR (PERÍODO ANTERIOR)                      $ 596.864
-MONTO PAGADO PERÍODO ANTERIOR                                $ -1.080.833
-SALDO ADEUDADO FINAL PERÍODO ANTERIOR                          $ -483.969
- 2.PERÍODO ACTUAL
-LUGAR DE        FECHA DE  DESCRIPCIÓN OPERACIÓN O COBRO                                       MONTO              MONTO                CARGO DEL MES
-OPERACIÓN       OPERACIÓN                                                                     ORIGEN             TOTAL A
-                                                                                                                               NºCUOTA      VALOR CUOTA
-                                                                                              OPERACIÓN          PAGAR
-                                                                                                                                              MENSUAL
-                                                                                              O COBRO
-                           1. TOTAL OPERACIONES                                                                                               $ 483.969
-                           MOVIMIENTOS TARJETA XXXX-0000                                                                                      $ 483.969
-                    27/10/25 MONTO CANCELADO                                                        $ -596.864
-SANTIAGO            09/11/25 PAGO COOPEUCH                                                                                                       $483.969
-                    13/11/25 MONTO CANCELADO                                                        $ -483.969
-
-                           2. PRODUCTOS O SERVICIOS VOLUNTARIAMENTE CONTRATADOS                                                                       $0
-                           3. CARGOS, COMISIONES, IMPUESTOS Y ABONOS                                                                                  $0
-
-
-
-
-EMISOR                                                                      CLIENTE
-                       COMPROBANTE DE PAGO                                                          COMPROBANTE DE PAGO
-NOMBRE                          NÚMERO DE TARJETA                           NOMBRE                               NÚMERO DE TARJETA
-TITULAR REDACTED                             XXXX XXXX XXXX 0000         TITULAR REDACTED                                XXXX XXXX XXXX 0000
-PAGAR HASTA                     MONTO TOTAL FACTURADO A PAGAR               PAGAR HASTA             Timbre       MONTO TOTAL FACTURADO A PAGAR
-10/12/2025                      $0                                          10/12/2025              Banco        $0
-MONTO MÍNIMO A PAGAR            MONTO CANCELADO                             MONTO MÍNIMO A PAGAR                 MONTO CANCELADO
-$0                                                                          $0
-
-       Cheque                             Efectivo                               Cheque                                    Efectivo
-                                                      2   DE 3
-
-
-
+WORLDMEMBER VISA
+2,74 %
+33,60 %
+MONTO PAGADO PERÍODO ANTERIOR
+SALDO ADEUDADO INICIO PERÍODO ANTERIOR
+22/10/2025
+$ 6.704.896
+$ 0
+$ 0
+26,40 %
+$ -483.969
+HASTA
+HASTA
+$ 0
+CUPO TOTAL AVANCE EN EFECTIVO
+CAE PREPAGO
+DESDE
+TASA INTERÉS VIGENTE
+CAE se calcula sobre un supuesto de gasto mensual de UF  20 y pagadero en 12 cuotas
+PAGAR HASTA
+TITULAR REDACTED
+10/12/2025
+0,00 %
+$ 0
+CAE
+2,09 %
+23/09/2025
+DESDE
+2,09 %
+29,84 %
+PERÍODO FACTURADO
+PERÍODO DE FACTURACIÓN ANTERIOR
+$ 596.864
+$ 6.704.896
+MONTO FACTURADO A PAGAR (PERÍODO ANTERIOR)
+SALDO ADEUDADO FINAL PERÍODO ANTERIOR
+24/11/2025
+$ 0
+$ -1.080.833
+I.     INFORMACIÓN GENERAL
+II.     DETALLE
+22/10/2025
+CUPO TOTAL
+DE13
+MONTO
+ORIGEN
+OPERACIÓN
+O COBRO
+FECHA DE
+OPERACIÓN
+LUGAR DE
+OPERACIÓN
+MONTO
+TOTAL A
+PAGAR
+NºCUOTA
 2.PERÍODO ACTUAL
-LUGAR DE    FECHA DE  DESCRIPCIÓN OPERACIÓN O COBRO               MONTO       MONTO       CARGO DEL MES
-OPERACIÓN   OPERACIÓN                                             ORIGEN      TOTAL A
-                                                                                        NºCUOTA   VALOR CUOTA
-                                                                  OPERACIÓN   PAGAR
-                                                                                                    MENSUAL
-                                                                  O COBRO
-                     4. INFORMACION COMPRAS EN CUOTAS EN EL PERIODO                                       $0
-                                                                                                 3    DE 3
+DESCRIPCIÓN OPERACIÓN O COBRO
+VALOR CUOTA
+MENSUAL
+CARGO DEL MES
+1. TOTAL OPERACIONES$ 483.969
+MOVIMIENTOS TARJETA XXXX-0000
+$ 483.969
+27/10/25$ -596.864MONTO CANCELADO
+09/11/25SANTIAGO$483.969PAGO COOPEUCH
+13/11/25$ -483.969MONTO CANCELADO
+2. PRODUCTOS O SERVICIOS VOLUNTARIAMENTE CONTRATADOS$ 0
+3. CARGOS, COMISIONES, IMPUESTOS Y ABONOS$ 0
+COMPROBANTE DE PAGO
+MONTO MÍNIMO A PAGAR
+Cheque
+TITULAR REDACTED
+MONTO MÍNIMO A PAGAR
+MONTO TOTAL FACTURADO A PAGAR
+NÚMERO DE TARJETA
+COMPROBANTE DE PAGO
+Efectivo
+Timbre
+Banco
+$ 0
+NOMBRE
+TITULAR REDACTED
+CLIENTEEMISOR
+NOMBRE
+PAGAR HASTAPAGAR HASTA
+NÚMERO DE TARJETA
+$ 0
+10/12/2025
+MONTO CANCELADO
+$ 0
+XXXX XXXX XXXX 0000
+MONTO CANCELADO
+10/12/2025
+XXXX XXXX XXXX 0000
+Efectivo
+Cheque
+MONTO TOTAL FACTURADO A PAGAR
+$ 0
 
 
+DE23
+MONTO
+ORIGEN
+OPERACIÓN
+O COBRO
+FECHA DE
+OPERACIÓN
+LUGAR DE
+OPERACIÓN
+MONTO
+TOTAL A
+PAGAR
+NºCUOTA
+2.PERÍODO ACTUAL
+DESCRIPCIÓN OPERACIÓN O COBRO
+VALOR CUOTA
+MENSUAL
+CARGO DEL MES
+4. INFORMACION COMPRAS EN CUOTAS EN EL PERIODO$ 0
 
-   III.    INFORMACIÓN DE PAGO
 
-  MONTO TOTAL FACTURADO A PAGAR                                                                            $0        EVOLUCIÓN MONTOS FACTURADOS Y PAGADOS
-  MONTO MÍNIMO A PAGAR                                                                                     $0
-  COSTO MONETARIO PREPAGO                                                                                  $0
+LOS PAGOS CON RETRASO GENERARAN UN RECARGO
+POR CONCEPTO DE LOS GASTOS DE COBRANZA EN QUE
+SE INCURRA, DE ACUERDO A LO DISPUESTO EN LA LEY
+N° 19.496.
+HASTADESDE
+MONTO MÍNIMO A PAGAR
+PRÓXIMO PERÍODO DE FACTURACIÓN
+CARGO DE COBRANZA
+DICIEMBREENERO
+COSTO MONETARIO PREPAGO
+FEBRERO
+$ 0
+EXCEDAN 10 UF Y HASTA 50 UF
+SUPER DESCUENTOS.
+$ 0
+III.     INFORMACIÓN DE PAGO
+EN CASO DE EXTRAVIO,ROBO O HURTO DE SU
+WWW.SANTANDER.CL
+ESTADO DE CUENTATARJETA SANTANDER
+6 %
+DESCUENTOS EN
+O EN SANTANDER.CL.
+SU ESTADO DE CUENTA SERA CARGADO EN SU CUENTA CORRIENTE : PAGO MINIMO $
+$ 0
+$ 0
+EXCEDAN 50 UF
+600 320 3000
+22/12/2025
+$ 0$ 0
+3 %
+IV.     COSTOS POR ATRASO
+SI TIENE SU CLAVE PINPASS, USELA. SI NO LA TIENE ACTIVELA EN CUALQUIER CAJERO AUTOMATICO
+MARZO
+$ 0
+$ 0
+SALDO CAPITAL
+CUOTAS
+VENCIMIENTO PRÓXIMOS 4 MESES
+MONTO DEUDA UF
+TARJETA DE CREDITO, LLAME AL
 * La liberación de Monto Mínimo a Pagar no impide que se devenguen intereses por el saldo insoluto.
-
-
-                           VENCIMIENTO PRÓXIMOS 4 MESES
-  SALDO CAPITAL
-     CUOTAS                 DICIEMBRE              ENERO               FEBRERO                 MARZO
-
-                    $0                   $0                   $0                     $0                    $0
-
-                                                                DESDE                 HASTA
-  PRÓXIMO PERÍODO DE FACTURACIÓN                               24/11/2025           22/12/2025
-
-   IV. COSTOS POR ATRASO
-  INTERÉS MORATORIO 00.00%
-
-  CARGO DE COBRANZA                           MONTO DEUDA UF                                          %
-                                          HASTA 10 UF                                                 9%
-                                          EXCEDAN 10 UF Y HASTA 50 UF                                 6%
-                                          EXCEDAN 50 UF                                               3%
-                 SI TIENE SU CLAVE PINPASS, USELA. SI NO LA TIENE ACTIVELA EN CUALQUIER CAJERO AUTOMATICO
-                                                      O EN SANTANDER.CL.
-
-                             SU ESTADO DE CUENTA SERA CARGADO EN SU CUENTA CORRIENTE : PAGO MINIMO $
-
- TARJETA SANTANDER                                                                                              ESTADO DE CUENTA
- REVISE BENEFICIOS Y
- DESCUENTOS EN
- WWW.SANTANDER.CL
- SECCION
- SUPER DESCUENTOS.
-          EN CASO DE EXTRAVIO,ROBO O HURTO DE SU                                                              LOS PAGOS CON RETRASO GENERARAN UN RECARGO
-                                                                                                             POR CONCEPTO DE LOS GASTOS DE COBRANZA EN QUE
-               TARJETA DE CREDITO, LLAME AL
-                        600 320 3000                                                                          SE INCURRA, DE ACUERDO A LO DISPUESTO EN LA LEY
-                                                                                                                                 N° 19.496.
-
-                         Infórmese sobre las entidades autorizadas para emitir Tarjetas de Pago en el país, quienes se encuentran inscritas en los
-                                                 Registros de Emisores de Tarjetas que lleva la CMF, en www.cmfchile.cl
-
+MONTO TOTAL FACTURADO A PAGAR
+HASTA 10 UF
+24/11/2025
+%
+REVISE BENEFICIOS Y
+00.00%INTERÉS MORATORIO
+9 %
+SECCION
+EVOLUCIÓN MONTOS FACTURADOS Y PAGADOS
+DE33
+Infórmese sobre las entidades autorizadas para emitir Tarjetas de Pago en el país, quienes se encuentran inscritas en los
+Registros de Emisores de Tarjetas que lleva la CMF, en www.cmfchile.cl

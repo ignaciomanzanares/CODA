@@ -1,84 +1,96 @@
-# REDACTED FIXTURE — real Santander TC internacional (USD) statement. PII scrubbed; amounts/merchants kept.
-# Source PDF NOT committed (feedback_no_real_pii_fixtures).
-
-                                                                       1   DE 2
-
+# REDACTED FIXTURE — REAL pdf-parse output of a Santander TC statement.
+# This is the actual extractor layout (columns glued, scrambled), NOT pdftotext -layout.
+# PII scrubbed: holder name/email, RUT, card last-4. Source PDF NOT committed.
 
 
-                                     ESTADO DE CUENTA INTERNACIONAL DE TARJETA DE CRÉDITO
- NOMBRE DEL TITULAR                 TITULAR REDACTED
- Nº DE TARJETA DE CRÉDITO           XXXX XXXX XXXX 0000                           WORLDMEMBER VISA
- FECHA ESTADO DE CUENTA             25/05/2026
+
+
+CUPO TOTALCUPO UTILIZADOCUPO DISPONIBLE
+redacted@example.com
+XXXX XXXX XXXX 0000
+ESTADO DE CUENTA INTERNACIONAL DE TARJETA DE CRÉDITO
+TITULAR REDACTED
+Nº DE TARJETA DE CRÉDITO
+25/05/2026FECHA ESTADO DE CUENTA
+NOMBRE DEL TITULAR
 Consideramos aprobado este estado de cuenta si dentro de 45 días siguientes al
 vencimiento no hemos recibido aviso por escrito en contrario
-
-
-
-                                                                                               TITULAR REDACTED
-                                                                                               redacted@example.com
-
-
-
-  I.   INFORMACIÓN GENERAL
-
-                                    CUPO TOTAL             CUPO UTILIZADO            CUPO DISPONIBLE
-CUPO TOTAL                     US$ 4.226,00            US$ 88,57              US$ 4.137,43
-
- II.   DETALLE
-
- 1.    INFORMACIÓN DEL PERÍODO
-
-
- SALDO ANTERIOR FACTURADO                                        US$ 43,71                      PERÍODO FACTURADO DESDE                       22/04/2026
- ABONO REALIZADO                                                  US$ 0,00                      PERÍODO FACTURADO HASTA                       25/05/2026
- TOTAL DE COMPRAS Y CARGOS                                       US$ 88,57                                                                    09/06/2026
-                                                                                                PAGAR HASTA
- TRASPASO DEUDA NACIONAL                                         US$ -43,71
- DEUDA TOTAL                                                     US$ 88,57
+TRASPASO DEUDA NACIONAL
+ABONO REALIZADO
+US$ 4.137,43US$ 88,57
+US$ 88,57
+US$ 0,00
+PERÍODO FACTURADO HASTA
+TITULAR REDACTED
+25/05/2026
+US$ 43,71
+PERÍODO FACTURADO DESDE
+SALDO ANTERIOR FACTURADO
+US$ 4.226,00
+DEUDA TOTAL
+US$ -43,71
+I.     INFORMACIÓN GENERAL
+II.     DETALLE
+22/04/2026
+CUPO TOTAL
+DE12
+1.    INFORMACIÓN DEL PERÍODO
+PAGAR HASTA
+09/06/2026
 De no recibir pago antes de las 14:00 Hrs. de la fecha de vencimiento, la deuda se
 trasladará a la linea nacional. En caso de extravío, robo o hurto de su tarjeta, llame al 800
 20 7000
+WORLDMEMBER VISA
+TOTAL DE COMPRAS Y CARGOSUS$ 88,57
+MONTO MONEDA
+ORIGEN
+FECHA DE
+OPERACIÓN
+MONTO US$
+2.PERÍODO ACTUAL
+DESCRIPCIÓN OPERACIÓN O COBRO
+CIUDADPAÍS
+1. TOTAL OPERACIONES88,57
+MOVIMIENTOS TARJETA XXXX-000088,57
+01/05/266,545.903,00Google Workspace_codafinaUS
+05/05/268,45amazon.ca/pri11,49Amazon.ca Prime MemberCA
+COMPROBANTE DE PAGO
+TITULAR REDACTED
+MONTO TOTAL FACTURADO A PAGAR
+NÚMERO DE TARJETA
+COMPROBANTE DE PAGO
+Timbre
+Banco
+NOMBRE
+TITULAR REDACTED
+CLIENTEEMISOR
+NOMBRE
+PAGAR HASTA
+PAGAR HASTA
+NÚMERO DE TARJETA
+09/06/2026US$ 88,5709/06/2026
+MONTO TOTAL FACTURADO A PAGAR
+US$ 88,57
+XXXX XXXX XXXX 0000
+XXXX XXXX XXXX 0000
+MONTO CANCELADO
+Efectivo
+US$
+Cheque
+US$
+Efectivo
+MONTO CANCELADO
+Cheque
+Infórmese sobre las entidades autorizadas para emitir Tarjetas de Pago en el país, quienes se encuentran inscritas en los Registros de Emisores de
+Tarjetas que lleva la CMF, en www.cmfchile.cl
 
- 2.PERÍODO ACTUAL
-FECHA DE         DESCRIPCIÓN OPERACIÓN O COBRO                                                  CIUDAD            PAÍS     MONTO MONEDA MONTO US$
-OPERACIÓN                                                                                                                  ORIGEN
 
-
-
-                1. TOTAL OPERACIONES                                                                                                                88,57
-                MOVIMIENTOS TARJETA XXXX-0000                                                                                                       88,57
-01/05/26          Google Workspace_codafina                                                                       US             5.903,00               6,54
-05/05/26          Amazon.ca Prime Member                                                        amazon.ca/pri     CA               11,49                8,45
-
-
-
-
-EMISOR                                                                         CLIENTE
-                       COMPROBANTE DE PAGO                                                               COMPROBANTE DE PAGO
-NOMBRE                            NÚMERO DE TARJETA                               NOMBRE                             NÚMERO DE TARJETA
-
-TITULAR REDACTED                               XXXX XXXX XXXX 0000             TITULAR REDACTED                             XXXX XXXX XXXX 0000
-PAGAR HASTA                       MONTO TOTAL FACTURADO A PAGAR                   PAGAR HASTA            Timbre      MONTO TOTAL FACTURADO A PAGAR
-                                                                                                         Banco
-09/06/2026                        US$ 88,57                                       09/06/2026                         US$ 88,57
-MONTO CANCELADO                   Cheque                                          MONTO CANCELADO                    Cheque
-US$                               Efectivo                                        US$                                Efectivo
-
-
-
-
-   Infórmese sobre las entidades autorizadas para emitir Tarjetas de Pago en el país, quienes se encuentran inscritas en los Registros de Emisores de
-                                                    Tarjetas que lleva la CMF, en www.cmfchile.cl
-                                               2   DE 2
-
-
-07/05/26   CLAUDE.AI SUBSCRIPTION                         ANTHROPIC.   US     23,80     23,80
-14/05/26   NETFLIX.COM                                                 US   9.990,00    11,26
-15/05/26   LIME*RIDE XH5Z                                 WWW.LI.ME    US   2.075,00     2,34
-18/05/26   ANTHROPIC                                      ANTHROPIC.   US     23,80     23,80
-18/05/26   PLAYSTATION                                                 US       9,51     9,51
-20/05/26   LIME*RIDE XH5Z                                 WWW.LI.ME    US   2.600,00     2,87
-
-           3. CARGOS, COMISIONES, IMPUESTOS Y ABONOS                                   -43,71
-08/05/26   TRASPASO DE DEUDA INTERNACIO                                CH       0,00   -43,71
-
+DE22
+07/05/2623,80ANTHROPIC.23,80CLAUDE.AI SUBSCRIPTIONUS
+14/05/2611,269.990,00NETFLIX.COMUS
+15/05/262,34WWW.LI.ME2.075,00LIME*RIDE XH5ZUS
+18/05/2623,80ANTHROPIC.23,80ANTHROPICUS
+18/05/269,519,51PLAYSTATIONUS
+20/05/262,87WWW.LI.ME2.600,00LIME*RIDE XH5ZUS
+3. CARGOS, COMISIONES, IMPUESTOS Y ABONOS-43,71
+08/05/26-43,710,00TRASPASO DE DEUDA INTERNACIOCH
