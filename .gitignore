@@ -58,3 +58,6 @@ npm-debug.log*
 *.tar.gz
 *.tmp
 tmp-*
+
+# tesseract.js language models (downloaded at runtime, cached)
+*.traineddata

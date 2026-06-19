@@ -13,7 +13,7 @@
  */
 
 import { createWorker } from 'tesseract.js';
-import type { Buffer } from 'buffer';
+import { Buffer } from 'buffer';
 import { createCanvas, loadImage } from 'canvas';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 
@@ -63,6 +63,92 @@ export async function performOcrOnImage(
   }
 }
 
+// ============================================================================
+// RASTERIZACIÓN PDF → PNG (Render-safe, sin paquetes de sistema)
+// ============================================================================
+//
+// El path viejo (pdfjs renderizando sobre `node-canvas`) lanza
+// "Image or Canvas expected" en el runtime de Render (escaneos como el depto-306),
+// por lo que el OCR no obtenía nada. Reemplazamos SÓLO la rasterización con una
+// cadena npm-only (sin apt/poppler/ghostscript), perezosa para no penalizar el
+// cold start.
+//
+// ORDEN (verificado empíricamente con un PDF SÓLO-IMAGEN, que es justo el caso
+// de un escaneo):
+//   1) mupdf (WASM) → pixmap → PNG. No usa canvas ni pdfjs, así que es inmune al
+//      problema de interop y rasteriza bien las imágenes embebidas. Es el camino
+//      determinista para escaneos.
+//   2) Fallback: pdfjs con backend @napi-rs/canvas (prebuilt nativo). OJO: para
+//      PDFs sólo-imagen pdfjs+canvas NO lanza, sino que produce una página EN
+//      BLANCO (de ahí que mupdf vaya primero); este fallback sólo aporta para PDFs
+//      raros que mupdf no logre abrir.
+// Si ambas fallan, se propaga el error y el llamador cae al fallback manual.
+
+/** (1) pdfjs sobre @napi-rs/canvas. Lazy: el backend nativo se carga al usarse. */
+async function rasterizeWithNapiCanvas(
+  pdfBuffer: Buffer,
+  pageNumber: number,
+  scale: number,
+): Promise<Buffer> {
+  const { createCanvas: createNapiCanvas } = await import('@napi-rs/canvas');
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(pdfBuffer) }).promise;
+  if (pageNumber > pdf.numPages) {
+    throw new Error(`El PDF solo tiene ${pdf.numPages} página(s)`);
+  }
+  const page = await pdf.getPage(pageNumber);
+  const viewport = page.getViewport({ scale });
+  const canvas = createNapiCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+  const context = canvas.getContext('2d');
+  await page.render({ canvasContext: context as unknown as object, viewport } as any).promise;
+  const png = canvas.toBuffer('image/png');
+  if (!png || png.length === 0) throw new Error('@napi-rs/canvas devolvió un PNG vacío');
+  return png;
+}
+
+/** (2) Fallback mupdf (WASM): página → pixmap → PNG. Sin canvas ni pdfjs. */
+async function rasterizeWithMupdf(
+  pdfBuffer: Buffer,
+  pageNumber: number,
+  scale: number,
+): Promise<Buffer> {
+  // Specifier indirecto: mupdf trae sus tipos pero no resuelven bajo el
+  // moduleResolution actual del proyecto. En runtime sí resuelve (lo cubre el
+  // test). Evita tocar tsconfig globalmente.
+  const mupdfSpecifier = 'mupdf';
+  const mupdfMod = await import(mupdfSpecifier);
+  const mupdf: any = (mupdfMod as any).default ?? mupdfMod;
+  const doc = mupdf.Document.openDocument(new Uint8Array(pdfBuffer), 'application/pdf');
+  const pageCount = doc.countPages();
+  if (pageNumber > pageCount) {
+    throw new Error(`El PDF solo tiene ${pageCount} página(s)`);
+  }
+  const page = doc.loadPage(pageNumber - 1); // mupdf es 0-indexed
+  const pixmap = page.toPixmap(mupdf.Matrix.scale(scale, scale), mupdf.ColorSpace.DeviceRGB, false);
+  const png = Buffer.from(pixmap.asPNG());
+  if (!png || png.length === 0) throw new Error('mupdf devolvió un PNG vacío');
+  return png;
+}
+
+/**
+ * Rasteriza una página de un PDF a un buffer PNG. Usa mupdf (WASM) y, si falla,
+ * pdfjs+@napi-rs/canvas. Lanza si ambas fallan (→ fallback manual aguas arriba).
+ */
+export async function rasterizePdfPageToPng(
+  pdfBuffer: Buffer,
+  pageNumber: number = 1,
+  scale: number = 2.0, // 2x para mejor calidad de OCR
+): Promise<Buffer> {
+  try {
+    return await rasterizeWithMupdf(pdfBuffer, pageNumber, scale);
+  } catch (mupdfErr) {
+    console.warn(
+      '[OCR] mupdf falló, reintentando con pdfjs+@napi-rs/canvas:',
+      mupdfErr instanceof Error ? mupdfErr.message : mupdfErr,
+    );
+    return await rasterizeWithNapiCanvas(pdfBuffer, pageNumber, scale);
+  }
+}
+
 /**
  * Convert PDF page to image and perform OCR
  */
@@ -71,32 +157,8 @@ export async function performOcrOnPdfPage(
   pageNumber: number = 1
 ): Promise<OcrResult> {
   try {
-    // Load PDF — pdfjs-dist requires a Uint8Array (not a Node Buffer). Copy into a
-    // fresh Uint8Array so pdfjs can't detach the shared Buffer pool.
-    const loadingTask = pdfjs.getDocument({ data: new Uint8Array(pdfBuffer) });
-    const pdf = await loadingTask.promise;
-
-    if (pageNumber > pdf.numPages) {
-      throw new Error(`El PDF solo tiene ${pdf.numPages} página(s)`);
-    }
-    
-    // Get page
-    const page = await pdf.getPage(pageNumber);
-    const viewport = page.getViewport({ scale: 2.0 }); // 2x for better OCR quality
-    
-    // Render to canvas
-    const canvas = createCanvas(viewport.width, viewport.height);
-    const context = canvas.getContext('2d');
-    
-    await page.render({
-      canvasContext: context,
-      viewport,
-    } as any).promise;
-    
-    // Convert canvas to buffer
-    const imageBuffer = canvas.toBuffer('image/png');
-    
-    // Perform OCR on image
+    const imageBuffer = await rasterizePdfPageToPng(pdfBuffer, pageNumber);
+    // Perform OCR on the rasterized page
     return await performOcrOnImage(imageBuffer);
   } catch (error) {
     console.error('[OCR] Error processing PDF page:', error);
