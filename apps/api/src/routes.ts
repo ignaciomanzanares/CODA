@@ -303,11 +303,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const transactions = await storage.getTransactionsForAccounts(accountIds, { from: ninetyDaysAgo });
 
+      // Flujo consolidado: descarta transferencias entre productos propios para
+      // que ingreso/gasto/categorías no se cuenten doble (mismo predicado que
+      // monthly-flow / insights). Las transferencias a terceros se conservan.
+      const { isInternalTransferTx } = await import('./services/assistantContext.js');
+
       // Calculate monthly income and expenses (last 30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const recentTransactions = transactions.filter(
-        (t: any) => t != null && t.postedAt && new Date(t.postedAt) >= thirtyDaysAgo
+        (t: any) => t != null && t.postedAt && new Date(t.postedAt) >= thirtyDaysAgo && !isInternalTransferTx(t)
       );
       
       const txAmount = (t: any) => parseFloat(String(t?.amount ?? 0));
@@ -347,7 +352,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             t != null &&
             t.postedAt &&
             new Date(t.postedAt) >= monthStart &&
-            new Date(t.postedAt) <= monthEnd
+            new Date(t.postedAt) <= monthEnd &&
+            !isInternalTransferTx(t)
         );
         const inc = inMonth
           .filter((t: any) => txAmount(t) > 0)
@@ -1813,12 +1819,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
 
+      const { isInternalTransferTx } = await import('./services/assistantContext.js');
       const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
       const byMonth: Record<string, { ingresos: number; egresos: number }> = {};
 
       for (const c of cartolas) {
         const pd = c.parsedData as { transacciones?: any[] } | null;
         for (const t of pd?.transacciones ?? []) {
+          // Flujo consolidado: excluye movimientos entre productos propios para
+          // no contar doble (fondeo/pago de tarjeta, divisas). Terceros se mantienen.
+          if (isInternalTransferTx(t)) continue;
+
           let fecha: string;
           if (typeof t.fecha === "string") {
             fecha = t.fecha.includes("/")
@@ -1869,6 +1880,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
 
+      const { isInternalTransferTx } = await import('./services/assistantContext.js');
       const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
       interface NewFmtTx { fecha: string; tipo: 'cargo'|'abono'; monto: number; categoria?: string; descripcion: string }
       interface OldFmtTx { fecha: string; cargo: number; abono: number; descripcion: string }
@@ -1881,6 +1893,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const c of cartolas) {
         const pd = c.parsedData as { transacciones?: AnyTx[] } | null;
         for (const t of pd?.transacciones ?? []) {
+          // Excluye movimientos internos propios para no inflar el gasto (mismo
+          // predicado que monthly-flow / dashboard). Terceros se mantienen.
+          if (isInternalTransferTx(t as any)) continue;
           let monto: number; let cat: string;
           if ('tipo' in t && typeof (t as NewFmtTx).monto === 'number') {
             const nt = t as NewFmtTx;
@@ -1949,6 +1964,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ingresos = cartolas.reduce((s, c) => {
         const pd = c.parsedData as { transacciones?: AnyTx[] } | null;
         for (const t of pd?.transacciones ?? []) {
+          if (isInternalTransferTx(t as any)) continue; // mismo predicado consolidado
           if ('tipo' in t && (t as NewFmtTx).tipo === 'abono') s += (t as NewFmtTx).monto;
           else if ('abono' in t) s += (t as OldFmtTx).abono ?? 0;
         }

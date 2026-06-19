@@ -50,6 +50,48 @@ export function isInternalTransfer(t: { description?: string; category?: string 
   );
 }
 
+// Patrón de transferencia dirigida a un TERCERO ("Transf a Juan", "Transf. de
+// María", "Transferencia para ..."). Son movimientos reales y NUNCA se netean.
+const THIRD_PARTY_TRANSFER_RE = /\btransf\w*\.?\s+(?:a|de|para)\s+\S/i;
+
+// Predicado único de "transferencia interna" para transacciones PERSISTIDAS
+// (cartola JSON y tabla `transactions`). Lo consumen todas las superficies que
+// agregan flujo (monthly-flow, dashboard, insights) para mostrar SIEMPRE las
+// mismas cifras consolidadas. Excluye SÓLO movimientos entre productos propios
+// —fondeo/pago de tarjeta, "MONTO CANCELADO", compra/abono de divisas— que de
+// otro modo se contarían dos veces. NO excluye transferencias a terceros
+// ("Transf a <persona>"): ésas son ingresos/egresos reales.
+//
+// Tres señales (OR), todas conservadoras:
+//   1. category === 'Transferencia interna' — etiqueta EXACTA de la taxonomía
+//      nueva (jamás 'Transferencias', que es a terceros).
+//   2. isInternalTransfer por glosa — patrones precisos. Se pasa SÓLO la
+//      descripción (no la categoría) para no disparar el match laxo de categoría
+//      de isInternalTransfer, que atraparía 'Transferencias' (terceros).
+//   3. es_transferencia === true — lo marca el adaptador de tarjeta para
+//      pago/fondeo/divisas (interno). OJO: el parser de la cuenta corriente
+//      también marca es_transferencia en "Transf a <persona>" (terceros); por
+//      eso esta señal se descarta cuando la categoría es 'Transferencias' o la
+//      glosa es una transferencia dirigida a un tercero.
+export function isInternalTransferTx(t: {
+  description?: string;
+  descripcion?: string;
+  category?: string;
+  es_transferencia?: boolean;
+}): boolean {
+  const description = t.descripcion ?? t.description ?? '';
+  if (t.category === 'Transferencia interna') return true;
+  if (isInternalTransfer({ description })) return true;
+  if (
+    t.es_transferencia === true &&
+    t.category !== 'Transferencias' &&
+    !THIRD_PARTY_TRANSFER_RE.test(description)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 // Cache en memoria para evitar repetir N+1 queries por cada turno del chat.
 const CONTEXT_TTL_MS = 5 * 60 * 1000;
 const contextCache = new Map<string, { value: FinancialContext; expiresAt: number }>();
