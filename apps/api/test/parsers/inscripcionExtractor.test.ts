@@ -22,6 +22,7 @@ import {
   extractInscripcionFromBuffer,
   MANUAL_FALLBACK_MSG,
   parseUf,
+  parseSpanishCardinal,
 } from '../../src/parsers/inscripcionExtractor.js';
 
 // UF aprox. a la fecha de escritura (junio 2024) y de hoy (2026). El costo debe
@@ -137,6 +138,90 @@ describe('CBR inscription extractor — hipoteca path (synthetic CBR-shaped snip
     expect(prefill.acquisitionCostClp).toBe(Math.round(2559 * UF_ESCRITURA_2024));
     expect(prefill.lienAmountClp).toBe(Math.round(2236.82 * UF_ESCRITURA_2024));
     expect(prefill.source.hipotecaUf).toBe(2236.82);
+  });
+});
+
+describe('parseSpanishCardinal (rescate de montos deletreados por OCR)', () => {
+  it('parsea cardinales en palabras', () => {
+    expect(parseSpanishCardinal('DOS MIL QUINIENTAS CINCUENTA Y NUEVE')).toBe(2559);
+    expect(parseSpanishCardinal('dos mil')).toBe(2000);
+    expect(parseSpanishCardinal('ciento veinte')).toBe(120);
+    expect(parseSpanishCardinal('de dos mil quinientas cincuenta y nueve unidades')).toBe(2559); // ignora relleno
+  });
+  it('devuelve null si no es un número en palabras', () => {
+    expect(parseSpanishCardinal('zzz qqq basura')).toBeNull();
+    expect(parseSpanishCardinal('')).toBeNull();
+    expect(parseSpanishCardinal(null)).toBeNull();
+  });
+});
+
+describe('compraventa deletreada cuando el OCR mutila los dígitos', () => {
+  it('rescata la compraventa desde la forma en palabras anclada a "precio"', () => {
+    const snippet = 'En el precio de DOS MIL QUINIENTAS CINCUENTA Y NUEVE Unidades de Fomento, pagado al contado.';
+    const r = extractInscripcion(snippet);
+    expect(r.compraventaUf).toBe(2559);
+  });
+});
+
+// ACEPTACIÓN — texto estilo OCR del escaneo REAL del depto-306 (snippets ground
+// truth del enunciado). La compraventa quedó SÓLO deletreada sin ancla "precio"
+// legible → null tolerado; la hipoteca + rol + dominio SÍ se extraen.
+describe('depto-306 — texto OCR real (campos extraídos + prefill sin throw)', () => {
+  const OCR_306 = `
+    PRIMERA INSCRIPCION. SCHMIDT PUGA THOMAS inscrito a fojas 3748 número 3244 del
+    Registro de Propiedad del año 2024 del Conservador de Bienes Raices de Concepcion.
+    La propiedad rol de avalúo número 681-307, no registra deuda de contribuciones a la fecha.
+    Por la presente se constituyó HIPOTECA por la suma de DOSCIENTOS TREINTA Y SEIS CO
+    MA OCHENTA Y DOS (2.236,82) Unidades de Fomento; para asegurar el cumplimiento de las obligaciones.
+    5.- HIPOTECA : A fojas 2894 número 2352 del año 2024 en favor de COOPERATIVA DE AHORRO Y CREDITO COOPEUCH.
+    DOS MIL QUINIENTAS CINCUENTA Y NUEVE Unidades de Fomento.
+  `;
+  const UF_ESCRITURA = 38_000;
+
+  it('extrae hipoteca/lender/rol/dominio y arma el prefill (compraventa null tolerada)', () => {
+    const r = extractInscripcion(OCR_306);
+
+    expect(r.hipoteca?.montoUf).toBeCloseTo(2236.82, 2);
+    expect(r.hipoteca?.acreedor).toContain('COOPEUCH');
+    expect(r.rolAvaluo).toBe('681-307');
+    expect(r.dominio).toMatchObject({ fojas: 3748, numero: 3244, anio: 2024 });
+    expect(r.dominio.referencia).toBe('Fs 3748 Nº 3244-2024');
+    // El dominio NO se confunde con el fojas/número de la HIPOTECA (2894/2352).
+    expect(r.dominio.fojas).not.toBe(2894);
+    // Compraventa OCR-mutilada: sin ancla legible queda 0/null (no debe botar todo).
+    expect(r.compraventaUf).toBe(0);
+
+    // El prefill se arma igual: hasLien=true + lien calculado, acquisitionCost null.
+    const prefill = buildAssetPrefill(r, UF_ESCRITURA);
+    // eslint-disable-next-line no-console
+    console.log(`[306-OCR] prefill=${JSON.stringify(prefill)}`);
+    expect(prefill.hasLien).toBe(true);
+    expect(prefill.lienAmountClp).toBe(Math.round(2236.82 * UF_ESCRITURA));
+    expect(prefill.acquisitionCostClp).toBeNull(); // compraventa ilegible
+    expect(prefill.estimatedValueClp).toBeNull();
+    expect(prefill.source.hipotecaUf).toBeCloseTo(2236.82, 2);
+  });
+
+  it('extractInscripcionFromBuffer devuelve un resultado parcial usable (no manualFallback)', async () => {
+    const out = await extractInscripcionFromBuffer(Buffer.from('%PDF'), {
+      extractText: async () => '',     // escaneo: sin capa de texto
+      ocr: async () => OCR_306,        // OCR recupera el texto
+    });
+    expect(out.ok).toBe(true);
+    expect(out.usedOcr).toBe(true);
+    expect(out.result?.hipoteca?.acreedor).toContain('COOPEUCH');
+  });
+});
+
+describe('buildAssetPrefill — null-safe, nunca lanza (fix "referencia")', () => {
+  it('no lanza con un result hueco/parcial (dominio undefined)', () => {
+    // Antes esto crasheaba: "Cannot read properties of undefined (reading 'referencia')".
+    expect(() => buildAssetPrefill({} as any, 38_000)).not.toThrow();
+    const p = buildAssetPrefill({ hipoteca: { acreedor: 'COOPEUCH', montoUf: 100 } } as any, 38_000);
+    expect(p.hasLien).toBe(true);
+    expect(p.lienAmountClp).toBe(Math.round(100 * 38_000));
+    expect(p.acquisitionCostClp).toBeNull();
+    expect(p.source.dominio).toBe('');
   });
 });
 

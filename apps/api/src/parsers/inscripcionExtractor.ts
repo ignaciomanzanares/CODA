@@ -36,6 +36,50 @@ export function parseUf(input: string | number | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+// Números cardinales en palabras (es-CL) para rescatar montos cuando el OCR
+// mutila los dígitos (p. ej. la compraventa quedó deletreada, no en cifras).
+const CARDINAL_UNIDADES: Record<string, number> = {
+  cero: 0, un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7,
+  ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15,
+  dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19, veinte: 20, veintiun: 21,
+  veintiuno: 21, veintiuna: 21, veintidos: 22, veintitres: 23, veinticuatro: 24, veinticinco: 25,
+  veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29, treinta: 30, cuarenta: 40,
+  cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90,
+};
+const CARDINAL_CIENTOS: Record<string, number> = {
+  cien: 100, ciento: 100, doscientos: 200, doscientas: 200, trescientos: 300, trescientas: 300,
+  cuatrocientos: 400, cuatrocientas: 400, quinientos: 500, quinientas: 500, seiscientos: 600,
+  seiscientas: 600, setecientos: 700, setecientas: 700, ochocientos: 800, ochocientas: 800,
+  novecientos: 900, novecientas: 900,
+};
+
+/**
+ * Convierte un cardinal en palabras (es) a entero, o null si no es parseable.
+ * Conservador: ignora palabras de relleno al inicio/fin pero, una vez empezado el
+ * número, corta al toparse con una palabra desconocida (evita inventar montos).
+ * Ej.: "DOS MIL QUINIENTAS CINCUENTA Y NUEVE" → 2559.
+ */
+export function parseSpanishCardinal(phrase: string | null | undefined): number | null {
+  if (!phrase) return null;
+  const norm = String(phrase)
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // sin acentos
+    .replace(/[^a-z\s]/g, ' ')
+    .trim();
+  const tokens = norm.split(/\s+/).filter((t) => t && t !== 'y');
+  let total = 0, current = 0, started = false;
+  for (const w of tokens) {
+    if (CARDINAL_UNIDADES[w] != null) { current += CARDINAL_UNIDADES[w]; started = true; }
+    else if (CARDINAL_CIENTOS[w] != null) { current += CARDINAL_CIENTOS[w]; started = true; }
+    else if (w === 'mil') { current = (current === 0 ? 1 : current) * 1000; total += current; current = 0; started = true; }
+    else if (w === 'millon' || w === 'millones') { current = (current === 0 ? 1 : current) * 1_000_000; total += current; current = 0; started = true; }
+    else if (started) break; // ya venía un número y apareció ruido → cortar
+    // si aún no empezó, se ignora la palabra de relleno
+  }
+  total += current;
+  return started && total > 0 ? total : null;
+}
+
 export interface InscripcionHipoteca {
   acreedor: string;
   montoUf: number;
@@ -110,8 +154,11 @@ export function extractInscripcion(text: string): InscripcionResult {
 
   // ── Dominio: fojas / número / año ───────────────────────────────────────────
   let fojas: number | null = null, numero: number | null = null, anio: number | null = null;
+  // OCR-tolerante: espacios flexibles y "correspondiente al" | "del". El ancla
+  // "Registro de Propiedad" entre número y año evita confundirlo con el fojas/
+  // número de la HIPOTECA ("...del año 2024" SIN "Registro de Propiedad").
   const fsM = firstMatch(text, /Registro de Propiedad\s+Fs\s+(\d+)\s+Nro\s+(\d+)\s*-\s*(\d{4})/i)
-    ?? firstMatch(text, /fojas\s+(\d+)\s+n[uú]mero\s+(\d+)\s+correspondiente al Registro de Propiedad del a[ñn]o\s+(\d{4})/i);
+    ?? firstMatch(text, /fojas\s+(\d+)\s+n[uú]mero\s+(\d+)\s+(?:correspondiente\s+al|del)\s+Registro\s+de\s+Propiedad\s+del\s+a[ñn]o\s+(\d{4})/i);
   if (fsM) {
     fojas = parseInt(fsM[1]!, 10);
     numero = parseInt(fsM[2]!, 10);
@@ -147,25 +194,47 @@ export function extractInscripcion(text: string): InscripcionResult {
   const descripcion = descParts.join(', ');
 
   // ── Precio de compraventa (UF) ──────────────────────────────────────────────
+  // 1) Forma dígitos "(2.559) Unidades de Fomento" cerca de "precio".
   const precioM = firstMatch(text, /precio[\s\S]{0,120}?\(([\d.,]+)\)\s*unidades?\s+de\s+fomento/i);
-  const compraventaUf = precioM ? parseUf(precioM[1]!) : 0;
+  let compraventaUf = precioM ? parseUf(precioM[1]!) : 0;
+  // 2) Si el OCR mutiló los dígitos, intentar la forma DELETREADA antes de
+  //    "Unidades de Fomento" (anclada a "precio"/"compraventa"). Si no, queda 0.
+  if (compraventaUf === 0) {
+    const spelledM = firstMatch(
+      text,
+      /(?:precio|compra\s*venta)[\s\S]{0,160}?([a-zñáéíóú][a-zñáéíóú\s]+?)\s+unidades?\s+de\s+fomento/i,
+    );
+    const spelled = spelledM ? parseSpanishCardinal(spelledM[1]!) : null;
+    if (spelled != null) compraventaUf = spelled;
+  }
   if (compraventaUf === 0) warnings.push('No se pudo leer el precio de compraventa en UF.');
 
   // ── Rol de avalúo ───────────────────────────────────────────────────────────
   const rolM = firstMatch(text, /rol\s+de\s+aval[uú]o\s+n[uú]mero\s+([\d]+\s*-\s*[\d]+)/i);
   const rolAvaluo = rolM ? rolM[1]!.replace(/\s+/g, '') : '';
 
-  // ── Hipoteca (sólo si hay documento "Registro de Hipotecas") ────────────────
+  // ── Hipoteca ────────────────────────────────────────────────────────────────
+  // Capa de texto: encabezado "Registro de Hipotecas". OCR (sin encabezado):
+  // contexto "HIPOTECA" + acreedor "en favor de <X>". Exigir "en favor de" evita
+  // el falso positivo de una anotación marginal suelta ("HIPOTECA.") en un bundle
+  // sólo-Dominio: ésa no trae acreedor.
   let hipoteca: InscripcionHipoteca | null = null;
-  if (tieneHipoteca) {
-    const seg = text.slice(text.search(/Registro de Hipotecas/i));
-    const montoM = firstMatch(seg, /\(([\d.,]+)\)\s*unidades?\s+de\s+fomento/i);
-    const acreedorM = firstMatch(seg, /(COOPEUCH|BANCO\s+[A-ZÑÁÉÍÓÚ ]+?|CAJA\s+[A-ZÑÁÉÍÓÚ ]+?|MUTUARIA\s+[A-ZÑÁÉÍÓÚ ]+?)(?:,|\.|\bpor\b)/i);
+  const favorM = firstMatch(text, /en\s+favor\s+de\s+([A-Za-zÑÁÉÍÓÚñáéíóú0-9.&\s]+?)(?:[.;,]|\s+por\b|\n|$)/i);
+  if (tieneHipoteca || (/\bHIPOTECA\b/i.test(text) && favorM)) {
+    // Acota a partir de la primera mención de HIPOTECA (donde está el monto).
+    const hipIdx = text.search(/Registro de Hipotecas|\bHIPOTECA\b/i);
+    const seg = hipIdx >= 0 ? text.slice(hipIdx) : text;
+    const montoM = firstMatch(seg, /\(([\d.,]+)\)\s*unidades?\s+de\s+fomento/i)
+      ?? firstMatch(seg, /([\d.,]+)\s*unidades?\s+de\s+fomento/i);
+    const acreedorFallbackM = firstMatch(seg, /(COOPEUCH|BANCO\s+[A-ZÑÁÉÍÓÚ ]+?|CAJA\s+[A-ZÑÁÉÍÓÚ ]+?|MUTUARIA\s+[A-ZÑÁÉÍÓÚ ]+?)(?:,|\.|\bpor\b)/i);
+    const acreedor = (favorM ? favorM[1]! : acreedorFallbackM ? acreedorFallbackM[1]! : '')
+      .replace(/\s+/g, ' ')
+      .trim();
     hipoteca = {
-      acreedor: acreedorM ? acreedorM[1]!.replace(/\s+/g, ' ').trim() : '',
+      acreedor,
       montoUf: montoM ? parseUf(montoM[1]!) : 0,
     };
-    if (hipoteca.montoUf === 0) warnings.push('Documento de Hipoteca presente pero no se pudo leer el monto UF.');
+    if (hipoteca.montoUf === 0) warnings.push('Hipoteca presente pero no se pudo leer el monto UF.');
   }
 
   // ── Prohibiciones ───────────────────────────────────────────────────────────
@@ -199,7 +268,7 @@ export function extractInscripcion(text: string): InscripcionResult {
     hipoteca,
     prohibiciones,
     fechaInscripcion,
-    documentos: { dominio: tieneDominio, hipoteca: tieneHipoteca, prohibicion: tieneProhibicion },
+    documentos: { dominio: tieneDominio, hipoteca: hipoteca != null, prohibicion: tieneProhibicion },
     warnings,
   };
 }
@@ -223,19 +292,26 @@ export function buildAssetPrefill(
 ): AssetPrefill {
   const haveEscritura = validRate(escrituraUfRate);
   const haveCurrent = validRate(currentUfRate);
+  // Null-safe ante un result parcial/hueco (OCR ruidoso): nunca debe lanzar
+  // (este era el crash "reading 'referencia'" cuando dominio venía undefined).
+  const compraventaUf = result.compraventaUf ?? 0;
   const hipotecaUf = result.hipoteca?.montoUf ?? null;
+  const referencia = result.dominio?.referencia ?? '';
+  const rolAvaluo = result.rolAvaluo ?? '';
 
-  // Costo de adquisición e hipoteca → UF a la fecha de escritura.
-  const acquisitionCostClp = haveEscritura ? Math.round(result.compraventaUf * escrituraUfRate) : null;
-  const lienAmountClp = haveEscritura && hipotecaUf != null ? Math.round(hipotecaUf * escrituraUfRate) : null;
+  // Costo de adquisición → sólo si hay compraventa legible (>0); si el OCR no la
+  // rescató, queda null (NO 0) y aun así se arma el prefill con la hipoteca.
+  const acquisitionCostClp = haveEscritura && compraventaUf > 0 ? Math.round(compraventaUf * escrituraUfRate) : null;
+  // Hipoteca → UF a la fecha de escritura. Independiente de la compraventa.
+  const lienAmountClp = haveEscritura && hipotecaUf != null && hipotecaUf > 0 ? Math.round(hipotecaUf * escrituraUfRate) : null;
   // Valor estimado actual (opcional) → UF de hoy.
-  const estimatedValueClp = haveCurrent ? Math.round(result.compraventaUf * currentUfRate) : null;
+  const estimatedValueClp = haveCurrent && compraventaUf > 0 ? Math.round(compraventaUf * currentUfRate) : null;
 
   const notesParts: string[] = [];
-  if (result.dominio.referencia) notesParts.push(`Dominio ${result.dominio.referencia}`);
-  if (result.rolAvaluo) notesParts.push(`Rol ${result.rolAvaluo}`);
+  if (referencia) notesParts.push(`Dominio ${referencia}`);
+  if (rolAvaluo) notesParts.push(`Rol ${rolAvaluo}`);
   if (result.comuna) notesParts.push(`Comuna ${result.comuna}`);
-  notesParts.push(`Compraventa ${result.compraventaUf} UF`);
+  if (compraventaUf > 0) notesParts.push(`Compraventa ${compraventaUf} UF`);
   if (result.hipoteca) notesParts.push(`Hipoteca ${result.hipoteca.acreedor} ${result.hipoteca.montoUf} UF`);
 
   return {
@@ -243,19 +319,19 @@ export function buildAssetPrefill(
     name: result.descripcion || 'Propiedad',
     acquisitionCostClp,
     estimatedValueClp,
-    // tiene_garantia = true SÓLO si hay documento de hipoteca en el bundle.
+    // tiene_garantia = true si se detectó una hipoteca (header o "en favor de").
     hasLien: result.hipoteca != null,
     lienAmountClp,
     notes: notesParts.join(' · '),
     fxPending: !haveEscritura,
     source: {
-      compraventaUf: result.compraventaUf,
+      compraventaUf,
       hipotecaUf,
       escrituraUfRate: haveEscritura ? escrituraUfRate : null,
       currentUfRate: haveCurrent ? currentUfRate : null,
       escrituraDate: result.fechaInscripcion ? result.fechaInscripcion.toISOString().slice(0, 10) : null,
-      dominio: result.dominio.referencia,
-      rolAvaluo: result.rolAvaluo,
+      dominio: referencia,
+      rolAvaluo,
     },
   };
 }
@@ -357,8 +433,15 @@ export async function extractInscripcionFromBuffer(
   // Red de seguridad: NUNCA propagar (el endpoint /extract-inscripcion no debe 500).
   try {
     const result = extractInscripcion(text);
-    // Si no hay ni Dominio ni precio, el OCR produjo basura → ingreso manual.
-    if (result.dominio.fojas == null && result.compraventaUf === 0) {
+    // Manual sólo si NO hay NINGÚN campo útil (OCR basura). Si hay hipoteca o rol
+    // aunque falte la compraventa, se devuelve el resultado PARCIAL (el prefill se
+    // arma igual; la compraventa mutilada no debe botar toda la extracción).
+    const hasUsableField =
+      result.dominio.fojas != null ||
+      result.compraventaUf > 0 ||
+      result.hipoteca != null ||
+      result.rolAvaluo !== '';
+    if (!hasUsableField) {
       return { ok: false, usedOcr, manualFallback: true, message: MANUAL_FALLBACK_MSG };
     }
     return { ok: true, result, usedOcr, manualFallback: false };
