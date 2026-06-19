@@ -1421,6 +1421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         saldo: number | null; banco: string | null;
         periodoDesde: string | null; periodoHasta: string | null;
         categoria: string;
+        category_confidence: number | null;
       }
 
       const allTxs: ParsedTxOut[] = [];
@@ -1458,6 +1459,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             saldo    = ot.saldo ?? null;
           }
           categoria = (t as any).categoria ?? 'otro';
+          const category_confidence =
+            typeof (t as any).category_confidence === 'number'
+              ? (t as any).category_confidence
+              : null;
 
           if (monto === 0) continue;
 
@@ -1514,6 +1519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             periodoDesde: c.periodoDesde ?? null,
             periodoHasta: c.periodoHasta ?? null,
             categoria,
+            category_confidence,
           });
         }
       }

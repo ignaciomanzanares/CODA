@@ -229,7 +229,11 @@ function buildInsights(
     );
   }
 
-  const edu = cartola.transacciones.filter((t) => t.categoria === "educacion" && t.tipo === "cargo");
+  // Bucketing por categoría: consume la nueva taxonomía (Batch 10) con respaldo
+  // al slug heredado para cartolas almacenadas antes del nuevo motor.
+  const edu = cartola.transacciones.filter(
+    (t) => t.tipo === "cargo" && (t.category === "Educación" || t.categoria === "educacion")
+  );
   const gastoEdu = edu.reduce((s, t) => s + t.monto, 0);
   if (gastoEdu > 0 && ctx.ingresosTotales > 0) {
     const pct = Math.round((gastoEdu / ctx.ingresosTotales) * 100);
@@ -245,11 +249,27 @@ function buildInsights(
     );
   }
 
-  const alim = cartola.transacciones.filter((t) => t.categoria === "alimentacion" && t.tipo === "cargo");
+  const alim = cartola.transacciones.filter(
+    (t) => t.tipo === "cargo" && (t.category === "Supermercado y almacén" || t.categoria === "alimentacion")
+  );
   const gastoAlim = alim.reduce((s, t) => s + t.monto, 0);
   if (gastoAlim > 0 && ctx.ingresosTotales > 0) {
     const pct = Math.round((gastoAlim / ctx.ingresosTotales) * 100);
     out.push(`Tus gastos en alimentación fueron $${fmtMoney(gastoAlim)} (${pct}% de tus ingresos). Planificar comidas semanalmente puede reducir este gasto un 20-30%.`);
+  }
+
+  // Esencial vs. discrecional (nueva señal `essential`; excluye transferencias/
+  // ingresos). No altera el cálculo del score — sólo enriquece las recomendaciones.
+  const cargos = cartola.transacciones.filter((t) => t.tipo === "cargo" && t.excluded !== true);
+  const totalCargosCat = cargos.reduce((s, t) => s + t.monto, 0);
+  const gastoDiscrecional = cargos.filter((t) => t.essential === false).reduce((s, t) => s + t.monto, 0);
+  if (totalCargosCat > 0) {
+    const pctDisc = Math.round((gastoDiscrecional / totalCargosCat) * 100);
+    if (pctDisc >= 40) {
+      out.push(
+        `El ${pctDisc}% de tus gastos fue discrecional (restaurantes, suscripciones, entretenimiento, retail). Recortar aquí es la vía más rápida para ahorrar sin afectar lo esencial.`
+      );
+    }
   }
 
   if (out.length === 0) {
