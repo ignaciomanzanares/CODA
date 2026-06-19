@@ -12,6 +12,11 @@ import {
   type PdfLine,
 } from "../services/documents/pdfAnalysis.js";
 import { parseCLP } from "../utils/clp.js";
+import {
+  categorize,
+  TAXONOMY,
+  type CategoryLabel,
+} from "./merchantCategorizer.js";
 
 export type TransactionCategory =
   | "vivienda"
@@ -61,7 +66,20 @@ export interface CartolaParseResult {
     tipo: "cargo" | "abono";
     monto: number;
     saldo_despues: number;
+    /** Slug heredado (retro-compat con el score). Derivado de `category`. */
     categoria: TransactionCategory;
+    /** Etiqueta de la nueva taxonomía (Batch 10). */
+    category: CategoryLabel;
+    subcategory?: string;
+    /** Confianza 0..1 — lo desconocido queda "Otro" con baja confianza. */
+    category_confidence: number;
+    /** Regla que decidió la categoría (auditable, NCG 502). */
+    category_rule_id: string;
+    categorizer_version: string;
+    essential: boolean;
+    recurring: boolean;
+    /** Excluido del gasto (transferencia interna / ingreso). */
+    excluded: boolean;
     es_transferencia: boolean;
     es_compra: boolean;
     es_pago_recurrente: boolean;
@@ -639,10 +657,19 @@ function enrichCartola(
 
   for (const row of base) {
     running += row.abono - row.cargo;
-    const cat = categorizeTransaction(row.descripcion, row.monto, row.tipo);
     const { es_transferencia, es_compra } = flagsForDescription(row.descripcion);
     const k = normalizeDescKey(row.descripcion);
-    const es_pago_recurrente = k.length >= 4 && (descCounts.get(k) ?? 0) > 1;
+    const repetida = k.length >= 4 && (descCounts.get(k) ?? 0) > 1;
+
+    // Categorización transparente (Batch 10): registra qué regla decidió y la
+    // versión del motor. El slug `categoria` se deriva para retro-compat.
+    const result = categorize({
+      descripcion: row.descripcion,
+      monto: row.monto,
+      tipo: row.tipo,
+    });
+    // legacy es un slug TransactionCategory válido para toda la taxonomía.
+    const categoria = TAXONOMY[result.category].legacy as TransactionCategory;
 
     transacciones.push({
       fecha: row.fecha,
@@ -650,10 +677,19 @@ function enrichCartola(
       tipo: row.tipo,
       monto: row.monto,
       saldo_despues: running,
-      categoria: cat,
+      categoria,
+      category: result.category,
+      subcategory: result.subcategory,
+      category_confidence: result.confidence,
+      category_rule_id: result.ruleId,
+      categorizer_version: result.version,
+      essential: result.essential,
+      // Recurrente si la regla lo marca o si la glosa se repite en el período.
+      recurring: result.recurring || repetida,
+      excluded: result.excluded,
       es_transferencia,
       es_compra,
-      es_pago_recurrente,
+      es_pago_recurrente: repetida,
     });
   }
 

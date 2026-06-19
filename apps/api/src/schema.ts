@@ -160,6 +160,11 @@ export const transactions = pgTable("transactions", {
   currency: text("currency"),
   category: text("category"),
   subcategory: text("subcategory"),
+  // Trazabilidad de categorización (Batch 10, CMF NCG 502): qué regla decidió,
+  // con qué confianza y con qué versión del motor.
+  categoryConfidence: real("category_confidence"),
+  categoryRuleId: text("category_rule_id"),
+  categorizerVersion: text("categorizer_version"),
   pending: integer("pending").default(0),
   raw: text("raw"), // JSON string
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),

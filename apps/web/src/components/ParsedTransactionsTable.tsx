@@ -25,6 +25,8 @@ interface ParsedTransaction {
   periodoDesde: string | null;
   periodoHasta: string | null;
   categoria: string;
+  /** Confianza 0..1 del motor de categorización (Batch 10). */
+  category_confidence?: number;
 }
 
 type SortField = "fecha" | "descripcion" | "monto";
@@ -433,9 +435,20 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                           <span className="block truncate text-sm" title={tx.descripcion}>
                             {tx.descripcion || "—"}
                           </span>
-                          {tx.banco && (
-                            <span className="text-[10px] text-muted-foreground">{tx.banco}</span>
-                          )}
+                          <span className="flex items-center gap-1.5">
+                            {tx.banco && (
+                              <span className="text-[10px] text-muted-foreground">{tx.banco}</span>
+                            )}
+                            {(tx.categoria === "otro" ||
+                              (tx.category_confidence != null && tx.category_confidence < 0.5)) && (
+                              <span
+                                className="text-[10px] font-medium text-amber-600 dark:text-amber-400"
+                                title="Categoría incierta — revísala para mejorar el diccionario"
+                              >
+                                · revisar
+                              </span>
+                            )}
+                          </span>
                         </td>
                         <td className="px-3 py-2 text-center hidden sm:table-cell">
                           <Select
