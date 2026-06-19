@@ -6,6 +6,7 @@ import { authenticate, type AuthenticatedRequest } from './middleware/auth.js';
 import { db, userAssets } from './db/index.js';
 import { logger } from './logger.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
+import { assetSignature } from './services/assets/types.js';
 
 // Tope de la columna PostgreSQL `integer` (int4). Validar aquí da un mensaje
 // claro en vez de un 500 opaco por overflow en la BD.
@@ -131,6 +132,37 @@ export function registerAssetsRoutes(app: Express): void {
       }
 
       const data = parsed.data;
+
+      // Idempotencia: si ya existe un activo IDÉNTICO (misma firma) para el
+      // usuario, devolver ese en vez de insertar un duplicado. Evita los
+      // huérfanos que generaba el viejo flujo de edición roto (borrar + re-crear).
+      // Sólo coincidencia exacta; activos legítimamente parecidos sí se insertan.
+      const existingOfType = await db
+        .select()
+        .from(userAssets)
+        .where(and(eq(userAssets.userId, userId), eq(userAssets.type, data.type)));
+      const newSig = assetSignature({
+        userId,
+        type: data.type,
+        name: data.name,
+        acquisitionCostClp: data.acquisitionCostClp,
+        lienAmountClp: data.lienAmountClp ?? null,
+      });
+      const duplicate = existingOfType.find(
+        (row: any) =>
+          assetSignature({
+            userId: row.userId,
+            type: row.type,
+            name: row.name,
+            acquisitionCostClp: row.acquisitionCostClp,
+            lienAmountClp: row.lienAmountClp ?? null,
+          }) === newSig,
+      );
+      if (duplicate) {
+        // 200 (no 201): no se creó nada nuevo; se devuelve el existente.
+        return res.status(200).json(mapRow(duplicate));
+      }
+
       const now = new Date().toISOString();
       const id = randomUUID();
 
