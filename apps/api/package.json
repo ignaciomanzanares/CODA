@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@coda/db": "*",
+    "@napi-rs/canvas": "^0.1.94",
     "@types/cors": "^2.8.19",
     "canvas": "^3.2.1",
     "cors": "^2.8.6",
@@ -34,6 +35,7 @@
     "express-rate-limit": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
+    "mupdf": "^1.27.0",
     "nodemailer": "^7.0.5",
     "onnxruntime-node": "1.19.2",
     "openai": "^5.7.0",
@@ -60,6 +62,7 @@
     "@vitest/coverage-v8": "^4.0.16",
     "@vitest/ui": "^4.0.5",
     "esbuild": "^0.25.0",
+    "pdf-lib": "^1.17.1",
     "tsx": "^4.19.1",
     "typescript": "5.6.3",
     "vitest": "^4.0.5"
