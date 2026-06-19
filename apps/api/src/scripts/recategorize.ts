@@ -15,9 +15,11 @@ import { config } from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import { eq } from "drizzle-orm";
-import { db, documentUploads } from "../db/index.js";
 import { categorize, TAXONOMY, CATEGORIZER_VERSION } from "../parsers/merchantCategorizer.js";
 
+// El módulo db/index lee DATABASE_URL al importarse, así que el .env debe
+// cargarse ANTES. Por el hoisting de imports ESM, db se importa de forma
+// dinámica dentro de main() (tras este config), no como import estático.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 config({ path: path.join(__dirname, "../../.env") });
 
@@ -54,6 +56,10 @@ function printDist(label: string, dist: Map<string, number>, total: number) {
 
 async function main() {
   console.log(`🔁 Recategorización — motor ${CATEGORIZER_VERSION}`);
+
+  // Import dinámico: garantiza que DATABASE_URL ya esté en el entorno cuando
+  // db/index inicializa su conexión (evita el fallback a SQLite).
+  const { db, documentUploads } = await import("../db/index.js");
 
   const docs = await db
     .select()
