@@ -163,32 +163,31 @@ describe('compraventa deletreada cuando el OCR mutila los dígitos', () => {
   });
 });
 
-// ACEPTACIÓN — texto estilo OCR del escaneo REAL del depto-306 (snippets ground
-// truth del enunciado). La compraventa quedó SÓLO deletreada sin ancla "precio"
-// legible → null tolerado; la hipoteca + rol + dominio SÍ se extraen.
-describe('depto-306 — texto OCR real (campos extraídos + prefill sin throw)', () => {
-  const OCR_306 = `
-    PRIMERA INSCRIPCION. SCHMIDT PUGA THOMAS inscrito a fojas 3748 número 3244 del
-    Registro de Propiedad del año 2024 del Conservador de Bienes Raices de Concepcion.
-    La propiedad rol de avalúo número 681-307, no registra deuda de contribuciones a la fecha.
-    Por la presente se constituyó HIPOTECA por la suma de DOSCIENTOS TREINTA Y SEIS CO
-    MA OCHENTA Y DOS (2.236,82) Unidades de Fomento; para asegurar el cumplimiento de las obligaciones.
-    5.- HIPOTECA : A fojas 2894 número 2352 del año 2024 en favor de COOPERATIVA DE AHORRO Y CREDITO COOPEUCH.
-    DOS MIL QUINIENTAS CINCUENTA Y NUEVE Unidades de Fomento.
-  `;
+// ACEPTACIÓN — texto OCR REAL del escaneo del depto-306 (fixture redactada con los
+// strings A–D verbatim del enunciado: el monto, la palabra HIPOTECA y el acreedor
+// quedan REPARTIDOS, no en una línea ideal). Prueba la estructura real, no snippets.
+describe('depto-306 — texto OCR real (estructura repartida; campos + prefill sin throw)', () => {
+  const ocr306File = join(__dirname, '../fixtures/inscripciones/inscripcion-306-ocr.txt');
+  const OCR_306 = existsSync(ocr306File) ? readFileSync(ocr306File, 'utf8') : '';
   const UF_ESCRITURA = 38_000;
 
-  it('extrae hipoteca/lender/rol/dominio y arma el prefill (compraventa null tolerada)', () => {
+  (OCR_306 ? it : it.skip)('extrae hipoteca/lender/registro/rol/dominio y arma el prefill (compraventa null tolerada)', () => {
     const r = extractInscripcion(OCR_306);
 
     expect(r.hipoteca?.montoUf).toBeCloseTo(2236.82, 2);
     expect(r.hipoteca?.acreedor).toContain('COOPEUCH');
+    // Inscripción de la hipoteca (línea de gravámenes) — NO la del dominio.
+    expect(r.hipoteca?.fojas).toBe(2894);
+    expect(r.hipoteca?.numero).toBe(2352);
+    expect(r.hipoteca?.anio).toBe(2024);
     expect(r.rolAvaluo).toBe('681-307');
     expect(r.dominio).toMatchObject({ fojas: 3748, numero: 3244, anio: 2024 });
     expect(r.dominio.referencia).toBe('Fs 3748 Nº 3244-2024');
     // El dominio NO se confunde con el fojas/número de la HIPOTECA (2894/2352).
     expect(r.dominio.fojas).not.toBe(2894);
-    // Compraventa OCR-mutilada: sin ancla legible queda 0/null (no debe botar todo).
+    // El acreedor real (gravámenes), NO el anafórico "dicha institución" de la escritura.
+    expect(r.hipoteca?.acreedor.toLowerCase()).not.toContain('dicha instituc');
+    // Compraventa ausente en el escaneo → 0/null (no debe botar toda la extracción).
     expect(r.compraventaUf).toBe(0);
 
     // El prefill se arma igual: hasLien=true + lien calculado, acquisitionCost null.
@@ -202,7 +201,7 @@ describe('depto-306 — texto OCR real (campos extraídos + prefill sin throw)',
     expect(prefill.source.hipotecaUf).toBeCloseTo(2236.82, 2);
   });
 
-  it('extractInscripcionFromBuffer devuelve un resultado parcial usable (no manualFallback)', async () => {
+  (OCR_306 ? it : it.skip)('extractInscripcionFromBuffer devuelve un resultado parcial usable (no manualFallback)', async () => {
     const out = await extractInscripcionFromBuffer(Buffer.from('%PDF'), {
       extractText: async () => '',     // escaneo: sin capa de texto
       ocr: async () => OCR_306,        // OCR recupera el texto
