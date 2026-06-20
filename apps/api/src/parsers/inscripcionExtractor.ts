@@ -83,6 +83,10 @@ export function parseSpanishCardinal(phrase: string | null | undefined): number 
 export interface InscripcionHipoteca {
   acreedor: string;
   montoUf: number;
+  /** Inscripción de la hipoteca en el Registro de Hipotecas (línea de gravámenes). */
+  fojas: number | null;
+  numero: number | null;
+  anio: number | null;
 }
 
 export interface InscripcionDominio {
@@ -214,27 +218,56 @@ export function extractInscripcion(text: string): InscripcionResult {
   const rolAvaluo = rolM ? rolM[1]!.replace(/\s+/g, '') : '';
 
   // ── Hipoteca ────────────────────────────────────────────────────────────────
-  // Capa de texto: encabezado "Registro de Hipotecas". OCR (sin encabezado):
-  // contexto "HIPOTECA" + acreedor "en favor de <X>". Exigir "en favor de" evita
-  // el falso positivo de una anotación marginal suelta ("HIPOTECA.") en un bundle
-  // sólo-Dominio: ésa no trae acreedor.
+  // En la inscripción REAL, los datos de la hipoteca están REPARTIDOS:
+  //   (A) línea de gravámenes → acreedor real + inscripción (fojas/número/año):
+  //       "5.- HIPOTECA : A fojas 2894 número 2352 del año 2024 en favor de <acreedor>."
+  //   (B) párrafo de la escritura → el MONTO, que ANTECEDE a "constituyó HIPOTECA"
+  //       y cuyo acreedor es anafórico ("en favor de dicha institución").
+  //   (C) capa de texto antigua → encabezado "Registro de Hipotecas".
+  // Detección por (A) | (B) | (C) — señales fuertes de hipoteca real. La anotación
+  // marginal suelta ("HIPOTECA.") de un bundle sólo-Dominio NO califica.
   let hipoteca: InscripcionHipoteca | null = null;
-  const favorM = firstMatch(text, /en\s+favor\s+de\s+([A-Za-zÑÁÉÍÓÚñáéíóú0-9.&\s]+?)(?:[.;,]|\s+por\b|\n|$)/i);
-  if (tieneHipoteca || (/\bHIPOTECA\b/i.test(text) && favorM)) {
-    // Acota a partir de la primera mención de HIPOTECA (donde está el monto).
-    const hipIdx = text.search(/Registro de Hipotecas|\bHIPOTECA\b/i);
-    const seg = hipIdx >= 0 ? text.slice(hipIdx) : text;
-    const montoM = firstMatch(seg, /\(([\d.,]+)\)\s*unidades?\s+de\s+fomento/i)
-      ?? firstMatch(seg, /([\d.,]+)\s*unidades?\s+de\s+fomento/i);
-    const acreedorFallbackM = firstMatch(seg, /(COOPEUCH|BANCO\s+[A-ZÑÁÉÍÓÚ ]+?|CAJA\s+[A-ZÑÁÉÍÓÚ ]+?|MUTUARIA\s+[A-ZÑÁÉÍÓÚ ]+?)(?:,|\.|\bpor\b)/i);
-    const acreedor = (favorM ? favorM[1]! : acreedorFallbackM ? acreedorFallbackM[1]! : '')
-      .replace(/\s+/g, ' ')
-      .trim();
+  const gravamenM = firstMatch(
+    text,
+    /\d+\s*\.?\-?\s*HIPOTECA\s*:?\s*A\s+fojas\s+(\d+)\s+n[uú]mero\s+(\d+)\s+del\s+a[ñn]o\s+(\d{4})\s+en\s+favor\s+de\s+([A-Za-zÑÁÉÍÓÚñáéíóú0-9.&\s]+?)\s*\./i,
+  );
+  const constIdx = text.search(/constituy[oó]\s+HIPOTECA/i);
+  const tieneHeaderHip = tieneHipoteca; // "Registro de Hipotecas"
+
+  if (gravamenM || constIdx >= 0 || tieneHeaderHip) {
+    // Monto: del párrafo de la escritura (ventana alrededor de "constituyó
+    // HIPOTECA", el monto puede ir ANTES o después). Forma con centavos
+    // "(2.236,82)" → nunca toma la compraventa (cifra entera "(2.559)").
+    let montoUf = 0;
+    if (constIdx >= 0) {
+      const deed = text.slice(Math.max(0, constIdx - 600), constIdx + 200);
+      const m = firstMatch(deed, /\(([\d.]+,\d+)\)\s*unidades?\s+de\s+fomento/i);
+      if (m) montoUf = parseUf(m[1]!);
+    }
+    // Camino capa-de-texto (header): acota al segmento del header.
+    if (montoUf === 0 && tieneHeaderHip) {
+      const seg = text.slice(text.search(/Registro de Hipotecas/i));
+      const m = firstMatch(seg, /\(([\d.,]+)\)\s*unidades?\s+de\s+fomento/i);
+      if (m) montoUf = parseUf(m[1]!);
+    }
+
+    // Acreedor: el de la línea de gravámenes (institución real). El "en favor de
+    // dicha institución" de la escritura es anafórico → se descarta.
+    let acreedor = gravamenM ? gravamenM[4]!.replace(/\s+/g, ' ').trim() : '';
+    if (!acreedor || /dicha\s+instituci/i.test(acreedor)) {
+      const segForLender = tieneHeaderHip ? text.slice(text.search(/Registro de Hipotecas/i)) : text;
+      const fb = firstMatch(segForLender, /(COOPEUCH|BANCO\s+[A-ZÑÁÉÍÓÚ ]+?|CAJA\s+[A-ZÑÁÉÍÓÚ ]+?|MUTUARIA\s+[A-ZÑÁÉÍÓÚ ]+?)(?:,|\.|\bpor\b)/i);
+      acreedor = fb ? fb[1]!.replace(/\s+/g, ' ').trim() : acreedor;
+    }
+
     hipoteca = {
       acreedor,
-      montoUf: montoM ? parseUf(montoM[1]!) : 0,
+      montoUf,
+      fojas: gravamenM ? parseInt(gravamenM[1]!, 10) : null,
+      numero: gravamenM ? parseInt(gravamenM[2]!, 10) : null,
+      anio: gravamenM ? parseInt(gravamenM[3]!, 10) : null,
     };
-    if (hipoteca.montoUf === 0) warnings.push('Hipoteca presente pero no se pudo leer el monto UF.');
+    if (montoUf === 0) warnings.push('Hipoteca presente pero no se pudo leer el monto UF.');
   }
 
   // ── Prohibiciones ───────────────────────────────────────────────────────────
