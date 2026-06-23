@@ -4,6 +4,7 @@
  */
 import { storage } from "../storage.js";
 import type { FinancialContext } from "./aiService.js";
+import { isInternalTransferDesc } from "../parsers/merchantCategorizer.js";
 
 type AccountWithBalance = {
   id: number;
@@ -34,12 +35,10 @@ export function isInternalTransfer(t: { description?: string; category?: string 
   const desc = (t.description ?? '').toLowerCase();
   const cat = (t.category ?? '').toLowerCase();
   if (cat.includes('transfer') || cat.includes('traspaso')) return true;
-  // Fondeo/pago de tarjeta de crédito propia (ambos lados del par interno).
-  if (/\ba\s+t\.?\s*cr[ée]dito\b/.test(desc)) return true;       // CC: "Traspaso ... a T. Crédito"
-  if (desc.includes('monto cancelado')) return true;             // TC: pago de la tarjeta
-  if (/pago\s+(de\s+)?t\.?\s*cr[ée]dito|pago\s+tarjeta\s+de\s+cr[ée]dito/.test(desc)) return true;
-  // Plomería de divisas entre la cuenta corriente y la tarjeta USD.
-  if (desc.includes('divisas') && /(compra|egreso|abono|ingreso|traspaso)/.test(desc)) return true;
+  // Detección por glosa: fuente ÚNICA con el categorizador (pago de tarjeta /
+  // MONTO CANCELADO, divisas, fondeo/pago "a T. Crédito", TRASPASO DEUDA, …),
+  // para que ingesta, backfill y exclusión usen exactamente los mismos patrones.
+  if (isInternalTransferDesc(t.description ?? '')) return true;
   return (
     desc.includes('transferencia a cuenta propia') ||
     desc.includes('traspaso entre cuentas') ||
@@ -77,10 +76,13 @@ export function isInternalTransferTx(t: {
   description?: string;
   descripcion?: string;
   category?: string;
+  categoria?: string;
   es_transferencia?: boolean;
 }): boolean {
   const description = t.descripcion ?? t.description ?? '';
-  if (t.category === 'Transferencia interna') return true;
+  // Etiqueta exacta de la taxonomía: `category` (motor nuevo) o `categoria`
+  // (slug persistido en la cartola). La ingesta persiste 'Transferencia interna'.
+  if (t.category === 'Transferencia interna' || t.categoria === 'Transferencia interna') return true;
   if (isInternalTransfer({ description })) return true;
   if (
     t.es_transferencia === true &&

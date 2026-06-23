@@ -2109,12 +2109,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ hasData: false, healthLevel: null, programs: [], savingsTips: [] });
       }
 
+      // Excluir transferencias internas (pago de tarjeta, divisas) para que NO
+      // inflen el ingreso ni la tasa de ahorro — mismo predicado que el resto.
+      const { isInternalTransferTx } = await import('./services/assistantContext.js');
       interface RawTx { fecha: string; cargo: number; abono: number; descripcion?: string; categoria?: string }
       let totalIncome = 0, totalExpenses = 0, hasEduExpenses = false, eduTotal = 0;
 
       for (const c of cartolas) {
-        const pd = c.parsedData as { transacciones?: (RawTx & { tipo?: string; monto?: number })[] } | null;
+        const pd = c.parsedData as { transacciones?: (RawTx & { tipo?: string; monto?: number; es_transferencia?: boolean })[] } | null;
         for (const t of pd?.transacciones ?? []) {
+          if (isInternalTransferTx(t as any)) continue;
           if ('tipo' in t && t.tipo === 'abono' && typeof t.monto === 'number') {
             totalIncome += t.monto;
           } else if ('tipo' in t && t.tipo === 'cargo' && typeof t.monto === 'number') {
@@ -3886,12 +3890,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
         if (cartolas.length > 0) {
+          // Excluir transferencias internas para no inflar el ingreso del match.
+          const { isInternalTransferTx } = await import('./services/assistantContext.js');
           let totalIncome = 0;
           let totalExpenses = 0;
           let months = new Set<string>();
           for (const c of cartolas) {
             const pd = c.parsedData as { transacciones?: any[] } | null;
             for (const t of pd?.transacciones ?? []) {
+              if (isInternalTransferTx(t)) continue;
               const fecha = typeof t.fecha === "string" ? t.fecha.slice(0, 7) : "";
               if (fecha) months.add(fecha);
               if ("tipo" in t && typeof t.monto === "number") {
