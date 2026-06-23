@@ -677,6 +677,22 @@ export const userAssets = table('user_assets', {
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+// Jobs de OCR de inscripción (CBR escaneada). El OCR mupdf+tesseract tarda
+// demasiado para correr sincrónico (~200s en Render free → timeout del request);
+// solo las inscripciones SIN capa de texto lo disparan. El endpoint encola un job
+// y responde 202; el worker en proceso lo completa fuera del ciclo del request.
+// `result` guarda el payload del prefill como JSON en text — el esquema es dual
+// SQLite/Postgres (no hay helper jsonb) y todo el JSON del proyecto se persiste así.
+export const inscripcionJobs = table('inscripcion_jobs', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  status: text('status').notNull().default('processing'), // processing | done | error
+  result: text('result'),  // JSON (payload del prefill) cuando status=done
+  message: text('message'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 /** Memoria del asistente IA por usuario: resumen rolling de conversaciones pasadas. */
 export const assistantSummaries = table('assistant_summaries', {
   userId: text('user_id').primaryKey().references(() => users.id),

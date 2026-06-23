@@ -32,11 +32,21 @@ export interface ExtractInscripcionResponse {
   manualFallback?: boolean;
   message?: string;
   prefill?: AssetInscripcionPrefill;
+  /** Presente cuando el OCR corre async (escaneado): hay que hacer polling al job. */
+  jobId?: string;
+  status?: 'processing' | 'done' | 'error';
+}
+/** Respuesta del polling GET /api/assets/extract-inscripcion/:jobId. */
+export interface InscripcionJobResponse {
+  status: 'processing' | 'done' | 'error';
+  result?: ExtractInscripcionResponse;
+  message?: string;
 }
 
 export type ApiClient = {
   apiRequest: <T = unknown>(method: string, url: string, data?: unknown, options?: RequestInit) => Promise<T>;
   extractInscripcion: (file: File) => Promise<ExtractInscripcionResponse>;
+  getInscripcionJob: (jobId: string) => Promise<InscripcionJobResponse>;
   getBankConnections: () => Promise<import("@/types").BankConnection[]>;
   connectBank: (bankData: import("@/types").CreateBankConnectionData) => Promise<import("@/types").BankConnection>;
   getFinancialGoals: () => Promise<any[]>;
@@ -505,7 +515,16 @@ export function useApi(): ApiClient {
       if (res.status === 401) dispatchSessionExpired(fullUrl);
       throw new Error((json as { message?: string }).message || "Error al procesar la inscripción");
     }
+    // 200 → prefill listo (capa de texto). 202 → { jobId, status:'processing' }:
+    // el OCR corre async y el caller hace polling con getInscripcionJob.
     return json as ExtractInscripcionResponse;
+  };
+
+  const getInscripcionJob = async (jobId: string): Promise<InscripcionJobResponse> => {
+    return await apiRequest<InscripcionJobResponse>(
+      "GET",
+      `/api/assets/extract-inscripcion/${encodeURIComponent(jobId)}`,
+    );
   };
 
   const getTransactionalScore = async () => {
@@ -590,6 +609,7 @@ export function useApi(): ApiClient {
     simulateBankFlow,
     uploadDocument,
     extractInscripcion,
+    getInscripcionJob,
     getTransactionalScore,
     parseNotifications,
   };

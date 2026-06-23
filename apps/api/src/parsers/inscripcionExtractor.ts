@@ -403,6 +403,11 @@ export interface InscripcionExtractionOutcome {
   usedOcr: boolean;
   /** true si no se pudo leer → el formulario debe pedir ingreso manual. */
   manualFallback: boolean;
+  /**
+   * true SÓLO con `skipOcr`: la capa de texto no alcanzó y se necesita OCR (lento).
+   * El endpoint lo usa para encolar un job async en vez de correr OCR en el request.
+   */
+  needsOcr?: boolean;
   message?: string;
 }
 
@@ -419,6 +424,12 @@ export async function extractInscripcionFromBuffer(
   deps?: {
     extractText?: (b: Buffer) => Promise<string>;
     ocr?: (b: Buffer) => Promise<string>;
+    /**
+     * No correr OCR (fast-path sincrónico). Si la capa de texto no alcanza,
+     * devuelve { needsOcr: true } para que el caller encole un job async.
+     * NO cambia la lógica de OCR — sólo decide CUÁNDO se ejecuta.
+     */
+    skipOcr?: boolean;
   },
 ): Promise<InscripcionExtractionOutcome> {
   const extractText =
@@ -439,6 +450,11 @@ export async function extractInscripcionFromBuffer(
 
   let usedOcr = false;
   if (text.trim().length < MIN_TEXT_LEN) {
+    // Fast-path: si nos pidieron NO correr OCR, señalar que se necesita (el caller
+    // encola un job async). No tocamos la capa de OCR; sólo no la disparamos aquí.
+    if (deps?.skipOcr) {
+      return { ok: false, usedOcr: false, manualFallback: false, needsOcr: true };
+    }
     // Capa de texto insuficiente → PDF escaneado: intentar OCR (best-effort).
     try {
       const ocr =
