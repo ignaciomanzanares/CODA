@@ -28,6 +28,8 @@ export interface CartolaExtraida {
     abono: number;
     saldo?: number;
     categoria?: string;
+    /** Traspaso entre productos propios (pago de tarjeta, divisas). No es ingreso/gasto. */
+    es_transferencia?: boolean;
   }>;
   saldoInicial?: number;
   saldoFinal?: number;

@@ -73,6 +73,8 @@ async function main() {
   let totalTx = 0;
   let changedTx = 0;
   let changedDocs = 0;
+  // Conteo específico del fix: ingreso mal categorizado → 'Transferencia interna'.
+  let ingresoToInterna = 0;
 
   for (const doc of docs) {
     let pd: { transacciones?: StoredTx[] } | null;
@@ -95,8 +97,12 @@ async function main() {
       const monto =
         tx.monto ?? ((tx.abono ?? 0) > 0 ? tx.abono ?? 0 : tx.cargo ?? 0);
 
-      const r = categorize({ descripcion: tx.descripcion, monto, tipo });
-      const legacy = TAXONOMY[r.category].legacy;
+      // Honra la señal del adaptador de tarjeta (es_transferencia) además de la glosa.
+      const r = categorize({ descripcion: tx.descripcion, monto, tipo, internalTransfer: tx.es_transferencia === true });
+      // Las internas se PERSISTEN como 'Transferencia interna' (no el slug legacy
+      // 'otro') para que isInternalTransferTx las excluya por `categoria`.
+      const newCategoria =
+        r.category === 'Transferencia interna' ? 'Transferencia interna' : TAXONOMY[r.category].legacy;
 
       bump(after, r.category);
 
@@ -104,9 +110,11 @@ async function main() {
         tx.category !== r.category ||
         tx.category_rule_id !== r.ruleId ||
         tx.categorizer_version !== r.version ||
-        tx.categoria !== legacy
+        tx.categoria !== newCategoria ||
+        (r.category === 'Transferencia interna' && tx.es_transferencia !== true)
       ) {
-        tx.categoria = legacy;
+        const prevCategoria = tx.categoria;
+        tx.categoria = newCategoria;
         tx.category = r.category;
         tx.subcategory = r.subcategory;
         tx.category_confidence = r.confidence;
@@ -115,6 +123,8 @@ async function main() {
         tx.essential = r.essential;
         tx.recurring = r.recurring || tx.recurring === true;
         tx.excluded = r.excluded;
+        if (r.category === 'Transferencia interna') tx.es_transferencia = true;
+        if (prevCategoria === 'ingreso_principal' && newCategoria === 'Transferencia interna') ingresoToInterna++;
         docChanged = true;
         changedTx++;
       }
@@ -131,6 +141,11 @@ async function main() {
 
   printDist("ANTES", before, totalTx);
   printDist("DESPUÉS", after, totalTx);
+
+  console.log(
+    `\n🔄 ${ingresoToInterna} tx reclasificadas de 'ingreso_principal' → 'Transferencia interna'` +
+      ` (pago de tarjeta / divisas / fondeo a T. Crédito).`,
+  );
 
   const known = totalTx - (after.get("Otro") ?? 0);
   const coverage = totalTx > 0 ? ((known / totalTx) * 100).toFixed(1) : "0.0";

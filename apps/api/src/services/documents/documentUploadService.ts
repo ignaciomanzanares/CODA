@@ -16,6 +16,7 @@ import {
 import { parseCmfPdfBuffer, type CMFParseResult } from '../../parsers/cmf-parser.js';
 import { parseCartolaBuffer, ParseError } from '../../parsers/index.js';
 import { categorizeTransaction } from '../../parsers/cartola-parser.js';
+import { isInternalTransferTx } from '../assistantContext.js';
 import { type DetectionTier } from '../../parsers/base.js';
 import { logCreditScorePrediction } from '../audit/algorithmicTraceability.js';
 
@@ -94,14 +95,27 @@ export async function processDocumentUpload(
     // Convert ParseResult → CartolaExtraida for SFA scoring aggregation with previous uploads
     const cartolaExtraida: CartolaExtraida = {
       tipo: 'cartola',
-      transacciones: parsed.transacciones.map((tx) => ({
-        fecha: tx.fecha instanceof Date ? tx.fecha.toISOString().slice(0, 10) : String(tx.fecha),
-        descripcion: tx.descripcion,
-        cargo: tx.tipo === 'cargo' ? tx.monto : 0,
-        abono: tx.tipo === 'abono' ? tx.monto : 0,
-        saldo: tx.saldo_despues,
-        categoria: categorizeTransaction(tx.descripcion, tx.monto, tx.tipo),
-      })),
+      transacciones: parsed.transacciones.map((tx) => {
+        // Transferencia interna (pago de tarjeta / divisas / fondeo a T. Crédito):
+        // se PERSISTE como tal — y se conserva el flag es_transferencia que ya
+        // marcó el adaptador de tarjeta — para que NO se cuente como ingreso ni
+        // gasto (antes el categorizador legacy la marcaba 'ingreso_principal').
+        // Terceros ("Transf a <persona>") NO entran aquí: se siguen contando.
+        const interna = isInternalTransferTx({
+          descripcion: tx.descripcion,
+          categoria: tx.categoria,
+          es_transferencia: tx.es_transferencia,
+        });
+        return {
+          fecha: tx.fecha instanceof Date ? tx.fecha.toISOString().slice(0, 10) : String(tx.fecha),
+          descripcion: tx.descripcion,
+          cargo: tx.tipo === 'cargo' ? tx.monto : 0,
+          abono: tx.tipo === 'abono' ? tx.monto : 0,
+          saldo: tx.saldo_despues,
+          categoria: interna ? 'Transferencia interna' : categorizeTransaction(tx.descripcion, tx.monto, tx.tipo),
+          es_transferencia: interna || tx.es_transferencia === true,
+        };
+      }),
       saldoInicial: parsed.saldo_inicial,
       saldoFinal: parsed.saldo_final,
       rutDocumento: undefined,

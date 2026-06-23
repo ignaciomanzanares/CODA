@@ -273,9 +273,28 @@ const RULES: Rule[] = [
   { id: "transfer.tercero", category: "Transferencias", re: /\bTRANSF(?:ERENCIA)?\.?\s+A\b|\bTRANSF(?:ERENCIA)?\.?\s+DE\b|\bTEF\b|\bTRASPASO\s+A\b|\bGIRO\s+A\b/, confidence: 0.78 },
 ];
 
-/** Detecta traspasos a producto propio (excluidos del gasto). */
+/**
+ * Traspasos/pagos entre PRODUCTOS PROPIOS (excluidos del gasto Y del ingreso):
+ *  - MONTO CANCELADO                → pago de la tarjeta (estado de cuenta TC).
+ *  - (ABONO|COMPRA|EGRESO|…) DE DIVISAS → plomería de divisas de la TC USD.
+ *  - … A T. CRÉDITO / PAGO … T. CRÉDITO → fondeo/pago de TC propia desde la CC.
+ *  - TRASPASO DEUDA NACIONAL/INTERNACIONAL → consolidación de deuda TC USD.
+ *  - TRASPASO … (T. crédito|cta cte|cuenta vista|línea de crédito|ahorro).
+ * Se evalúa con MÁXIMA prioridad en categorize() (antes que ingreso/gasto). NO
+ * incluye transferencias a TERCEROS ("Transf a <persona>"): esos patrones son
+ * específicos y nunca calzan el de tercero, que se mantiene como gasto/ingreso.
+ */
 const INTERNAL_TRANSFER_RE =
-  /\bTRASPASO\b.*\b(T\.?\s*CREDITO|TARJETA\s+CREDITO|CUENTA\s+CORRIENTE|CTA\.?\s*CTE|CUENTA\s+VISTA|LINEA\s+(DE\s+)?CREDITO|AHORRO)\b/;
+  /\bMONTO\s+CANCELADO\b|(?:ABONO|INGRESO|EGRESO|COMPRA|TRASPASO)\s+(?:POR\s+\w+\s+)?DE\s+DIVISAS\b|\bA\s+T\.?\s*CREDITO\b|\bPAGO\s+(?:DE\s+)?(?:TARJETA\s+(?:DE\s+)?)?T\.?\s*CREDITO\b|\bTRASPASO\s+DEUDA\s+(?:NACIONAL|INTERNACIONAL)\b|\bTRASPASO\b.*\b(T\.?\s*CREDITO|TARJETA\s+CREDITO|CUENTA\s+CORRIENTE|CTA\.?\s*CTE|CUENTA\s+VISTA|LINEA\s+(DE\s+)?CREDITO|AHORRO)\b/;
+
+/**
+ * ¿La glosa es un traspaso entre productos propios (transferencia interna)?
+ * Fuente única de la detección por glosa — la reusan la ingesta (persistencia),
+ * el backfill y el predicado consolidado de exclusión (assistantContext).
+ */
+export function isInternalTransferDesc(descripcion: string): boolean {
+  return INTERNAL_TRANSFER_RE.test(normalizeMerchant(descripcion));
+}
 
 /** Detecta ingresos (sólo abonos con glosa de remuneración). */
 const INCOME_RE =
