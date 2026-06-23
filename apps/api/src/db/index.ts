@@ -55,6 +55,7 @@ export const {
   empresasRiskScores,
   empresasRiskFactors,
   userAssets,
+  inscripcionJobs,
   auditLogs,
   assistantFeedback,
   assistantSummaries,

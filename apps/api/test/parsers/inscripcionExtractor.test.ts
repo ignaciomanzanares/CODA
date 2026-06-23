@@ -267,3 +267,35 @@ describe('extractInscripcionFromBuffer — OCR fallback (injected deps, no real 
     expect(out.manualFallback).toBe(true);
   });
 });
+
+// Fast-path sincrónico vs job async: con skipOcr el extractor NO corre OCR; si la
+// capa de texto alcanza responde al toque (200), y si no, señala needsOcr para que
+// el endpoint encole un job (202) en vez de colgar el request con el OCR lento.
+describe('extractInscripcionFromBuffer — skipOcr (fast-path vs job)', () => {
+  const e102Text = existsSync(fxFile) ? readFileSync(fxFile, 'utf8') : '';
+  const buf = Buffer.from('%PDF-fake');
+
+  (e102Text ? it : it.skip)('capa de texto suficiente → ok, sin needsOcr, sin correr OCR', async () => {
+    const out = await extractInscripcionFromBuffer(buf, {
+      extractText: async () => e102Text,
+      ocr: async () => { throw new Error('OCR no debe correr en el fast-path'); },
+      skipOcr: true,
+    });
+    expect(out.ok).toBe(true);
+    expect(out.needsOcr).toBeFalsy();
+    expect(out.usedOcr).toBe(false);
+  });
+
+  it('capa de texto vacía/escasa → needsOcr=true y NO corre OCR (se encola job)', async () => {
+    let ocrRan = false;
+    const out = await extractInscripcionFromBuffer(buf, {
+      extractText: async () => '',
+      ocr: async () => { ocrRan = true; return 'x'.repeat(500); },
+      skipOcr: true,
+    });
+    expect(out.needsOcr).toBe(true);
+    expect(out.ok).toBe(false);
+    expect(out.manualFallback).toBe(false); // no es manual: es "necesita OCR async"
+    expect(ocrRan).toBe(false);             // el OCR lento NO se ejecutó en el request
+  });
+});

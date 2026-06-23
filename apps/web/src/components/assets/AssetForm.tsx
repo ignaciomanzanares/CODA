@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,10 +62,68 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
   const [notes, setNotes] = useState(initialData?.notes ?? '');
   const [error, setError] = useState<string | null>(null);
 
-  const { extractInscripcion } = useApi();
+  const { extractInscripcion, getInscripcionJob } = useApi();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [processing, setProcessing] = useState(false); // OCR async (escaneado) en curso
   const [uploadNotice, setUploadNotice] = useState<string | null>(null);
+  // Cancelación del polling (cancelar manualmente o al desmontar el form).
+  const pollCancelledRef = useRef(false);
+  useEffect(() => () => { pollCancelledRef.current = true; }, []);
+
+  /** Aplica un prefill leído (capa de texto o OCR) a los campos del form. */
+  function applyResult(res: import("@/lib/api").ExtractInscripcionResponse) {
+    if (!res.ok || !res.prefill) {
+      // Escaneo ilegible / OCR no disponible → ingreso manual.
+      setUploadNotice(res.message ?? 'No pudimos leer el PDF. Ingresa los datos manualmente.');
+      return;
+    }
+    const p = res.prefill;
+    setType(p.type ?? 'property');
+    if (p.name) setName(p.name);
+    setAcquisitionRaw(formatMonto(p.acquisitionCostClp));
+    setEstimatedRaw(formatMonto(p.estimatedValueClp));
+    setHasLien(p.hasLien);
+    setLienRaw(formatMonto(p.lienAmountClp));
+    if (p.notes) setNotes(p.notes);
+    setUploadNotice(
+      p.fxPending
+        ? 'Inscripción leída. No pudimos resolver el valor de la UF — revisa e ingresa los montos en CLP antes de guardar.'
+        : `Inscripción leída${res.usedOcr ? ' (vía OCR)' : ''}. Revisa los datos y guarda.`,
+    );
+  }
+
+  /** Polling del job de OCR async: cada 3s, hasta ~5 min. */
+  async function pollInscripcionJob(jobId: string) {
+    const INTERVAL_MS = 3000;
+    const MAX_ATTEMPTS = 100; // ~5 min
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      await new Promise((r) => setTimeout(r, INTERVAL_MS));
+      if (pollCancelledRef.current) return;
+      let job;
+      try {
+        job = await getInscripcionJob(jobId);
+      } catch {
+        continue; // error transitorio de red → reintentar en el próximo tick
+      }
+      if (pollCancelledRef.current) return;
+      if (job.status === 'done') {
+        setProcessing(false);
+        if (job.result) applyResult(job.result);
+        else setUploadNotice('No pudimos leer el PDF. Ingresa los datos manualmente.');
+        return;
+      }
+      if (job.status === 'error') {
+        setProcessing(false);
+        setUploadNotice(job.message ?? 'No pudimos procesar la inscripción. Ingresa los datos manualmente.');
+        return;
+      }
+      // status 'processing' → seguir esperando
+    }
+    // Se agotó el tiempo: dejar continuar a mano.
+    setProcessing(false);
+    setUploadNotice('El procesamiento está tardando más de lo normal. Puedes ingresar los datos manualmente.');
+  }
 
   async function handleInscripcionFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -73,32 +131,30 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
     if (!file) return;
     setError(null);
     setUploadNotice(null);
+    pollCancelledRef.current = false;
     setUploading(true);
     try {
       const res = await extractInscripcion(file);
-      if (!res.ok || !res.prefill) {
-        // Escaneo ilegible / OCR no disponible → ingreso manual.
-        setUploadNotice(res.message ?? 'No pudimos leer el PDF. Ingresa los datos manualmente.');
+      // 202 → escaneado: el OCR corre async. Mostrar "Procesando…" y hacer polling.
+      if (res.jobId) {
+        setProcessing(true);
+        setUploadNotice('Procesando inscripción… Esto puede tardar un par de minutos. Puedes cancelar y cargar a mano.');
+        void pollInscripcionJob(res.jobId);
         return;
       }
-      const p = res.prefill;
-      setType(p.type ?? 'property');
-      if (p.name) setName(p.name);
-      setAcquisitionRaw(formatMonto(p.acquisitionCostClp));
-      setEstimatedRaw(formatMonto(p.estimatedValueClp));
-      setHasLien(p.hasLien);
-      setLienRaw(formatMonto(p.lienAmountClp));
-      if (p.notes) setNotes(p.notes);
-      setUploadNotice(
-        p.fxPending
-          ? 'Inscripción leída. No pudimos resolver el valor de la UF — revisa e ingresa los montos en CLP antes de guardar.'
-          : `Inscripción leída${res.usedOcr ? ' (vía OCR)' : ''}. Revisa los datos y guarda.`,
-      );
+      // 200 → capa de texto: prefill inmediato (como hoy).
+      applyResult(res);
     } catch (err) {
       setError(err instanceof Error && err.message ? err.message : 'No se pudo procesar la inscripción.');
     } finally {
       setUploading(false);
     }
+  }
+
+  function cancelProcessing() {
+    pollCancelledRef.current = true;
+    setProcessing(false);
+    setUploadNotice('Procesamiento cancelado. Ingresa los datos de la propiedad manualmente.');
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -141,17 +197,30 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
             <span className="font-medium">¿Tienes la inscripción de la propiedad?</span>{' '}
             Súbela y completamos los datos por ti.
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1.5 flex-shrink-0"
-            disabled={uploading}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
-            {uploading ? 'Leyendo…' : 'Subir inscripción (PDF)'}
-          </Button>
+          {processing ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 flex-shrink-0 text-blue-700"
+              onClick={cancelProcessing}
+            >
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Procesando… Cancelar
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5 flex-shrink-0"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+              {uploading ? 'Leyendo…' : 'Subir inscripción (PDF)'}
+            </Button>
+          )}
           <input
             ref={fileInputRef}
             type="file"

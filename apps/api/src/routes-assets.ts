@@ -273,35 +273,53 @@ export function registerAssetsRoutes(app: Express): void {
         return res.status(400).json({ message: 'Se requiere un archivo PDF de la inscripción.' });
       }
       try {
-        const { extractInscripcionFromBuffer, resolveInscripcionPrefill } = await import(
-          './parsers/inscripcionExtractor.js'
-        );
-        const outcome = await extractInscripcionFromBuffer(file.buffer);
-        if (!outcome.ok || !outcome.result) {
-          // Escaneo ilegible / OCR no disponible → ingreso manual (no es error).
-          return res.json({ ok: false, manualFallback: true, message: outcome.message });
+        const { extractInscripcionFromBuffer } = await import('./parsers/inscripcionExtractor.js');
+        const { buildInscripcionResponse, createInscripcionJob, enqueueInscripcionOcr } =
+          await import('./services/assets/inscripcionJobs.js');
+
+        // Fast-path: intentar SÓLO la capa de texto (sin OCR). E102 (con texto)
+        // responde 200 al toque, como hoy.
+        const outcome = await extractInscripcionFromBuffer(file.buffer, { skipOcr: true });
+
+        // Escaneado (texto vacío/escaso) → el OCR es lento (~200s, timeout). No
+        // correrlo en el request: crear job, encolar el OCR y responder 202.
+        if (outcome.needsOcr) {
+          const userId = (req as AuthenticatedRequest).user!.userId;
+          const jobId = await createInscripcionJob(userId);
+          enqueueInscripcionOcr(jobId, file.buffer);
+          return res.status(202).json({ jobId, status: 'processing' });
         }
-        // Costo a la fecha de escritura (Dominio); valor estimado a UF de hoy.
-        const prefill = await resolveInscripcionPrefill(outcome.result);
-        return res.json({
-          ok: true,
-          usedOcr: outcome.usedOcr,
-          prefill,
-          extracted: {
-            dominio: outcome.result.dominio,
-            rolAvaluo: outcome.result.rolAvaluo,
-            comuna: outcome.result.comuna,
-            compraventaUf: outcome.result.compraventaUf,
-            hipoteca: outcome.result.hipoteca,
-            fechaInscripcion: outcome.result.fechaInscripcion,
-          },
-        });
+
+        // Capa de texto suficiente (o sin campos útiles) → prefill / manual, como hoy.
+        return res.json(await buildInscripcionResponse(outcome));
       } catch (e) {
         logger.error({ err: e }, 'POST /api/assets/extract-inscripcion failed');
         return res.status(500).json({ message: 'Error al procesar la inscripción.' });
       }
     });
   });
+
+  // GET /api/assets/extract-inscripcion/:jobId — polling del job de OCR async.
+  // Sólo el dueño (otro usuario → 404, sin filtrar existencia).
+  app.get(
+    '/api/assets/extract-inscripcion/:jobId',
+    apiLimiter,
+    authenticate,
+    async (req: Request, res: Response) => {
+      const authReq = req as AuthenticatedRequest;
+      try {
+        const userId = authReq.user!.userId;
+        const { jobId } = req.params;
+        const { getInscripcionJob } = await import('./services/assets/inscripcionJobs.js');
+        const job = await getInscripcionJob(jobId, userId);
+        if (!job) return res.status(404).json({ message: 'Procesamiento no encontrado.' });
+        return res.json({ status: job.status, result: job.result, message: job.message });
+      } catch (e) {
+        logger.error({ err: e }, 'GET /api/assets/extract-inscripcion/:jobId failed');
+        return res.status(500).json({ message: 'Error al consultar el procesamiento.' });
+      }
+    },
+  );
 
   logger.info('💰 Assets routes registered');
 }
