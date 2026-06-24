@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { registerEmpresasRoutes } from "./routes-empresas.js";
 import { registerConsentRoutes } from "./routes-consent.js";
 import { registerPrivacyConsentRoutes } from "./routes-privacy-consent.js";
+import { registerOnboardingRoutes, requireTwoFactorForBankLink } from "./routes-onboarding.js";
 import { registerTestRoutes } from "./routes-test.js";
 import { registerDocumentParsingAndScoringRoutes } from "./routes-scoring-documents.js";
 import { registerDashboardRoutes } from "./routes-dashboard.js";
@@ -244,6 +245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Panel de Control de Consentimientos (RAR + Grant Management)
   registerConsentRoutes(app);
   registerPrivacyConsentRoutes(app);
+  registerOnboardingRoutes(app);
 
   // Simulación de flujo bancario (consent + webhook + mock SFA + score)
   registerTestRoutes(app);
@@ -918,6 +920,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/bank-connections", authenticate, validateBody(createBankConnectionSchema), async (req, res) => {
     const userId = getUserIdFromAuth(req);
+    // Onboarding: el 2FA es obligatorio antes de vincular un banco (no-op si el
+    // flag ENABLE_ONBOARDING está apagado → no cambia el flujo actual).
+    const guard = await requireTwoFactorForBankLink(userId);
+    if (!guard.ok) return res.status(409).json({ message: guard.message, requires2FA: true });
     const connectionData = insertBankConnectionSchema.parse({
       ...req.body,
       userId

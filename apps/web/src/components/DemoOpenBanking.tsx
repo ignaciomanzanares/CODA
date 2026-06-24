@@ -3,6 +3,9 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { FEATURES } from "@/config/features";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { ShieldAlert } from "lucide-react";
 
 interface ObAccount {
   id: number;
@@ -40,7 +43,15 @@ export default function DemoOpenBanking({ onConnected }: DemoOpenBankingProps) {
   const [txs, setTxs] = useState<ObTransaction[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // 2FA obligatorio antes de vincular un banco (sólo con el onboarding activo).
+  const { status } = useOnboardingStatus();
+  const blockedBy2FA = FEATURES.onboarding && status != null && !status.twoFactorEnabled;
+
   async function runIngestion() {
+    if (blockedBy2FA) {
+      setError("Activa la verificación en dos pasos (2FA) antes de vincular una cuenta bancaria.");
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -80,10 +91,17 @@ export default function DemoOpenBanking({ onConnected }: DemoOpenBankingProps) {
       <CardContent className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold">Open Banking</h3>
-          <Button onClick={runIngestion} disabled={loading}>
+          <Button onClick={runIngestion} disabled={loading || blockedBy2FA}>
             {loading ? "Sincronizando…" : "Sincronizar cuentas"}
           </Button>
         </div>
+
+        {blockedBy2FA && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
+            <ShieldAlert className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <span>Activa la <b>verificación en dos pasos (2FA)</b> antes de vincular una cuenta bancaria.</span>
+          </div>
+        )}
 
         <div className="text-sm text-muted-foreground">
           Trae cuentas y movimientos de los últimos 90 días según la conexión configurada en el servidor.

@@ -46,6 +46,10 @@ export const users = table("users", {
   backupCodes: text("backup_codes"),
   /** Set on logout — any token with iat < this value is rejected (cross-device logout). */
   tokenInvalidatedAt: text("token_invalidated_at"),
+  /** Onboarding KYC (mock por ahora): null | 'mock_completed'. Se pide una sola vez. */
+  kycStatus: text("kyc_status"),
+  /** 0/1 — flujo de primer ingreso (consentimiento + KYC + 2FA) finalizado. */
+  onboardingCompleted: integer("onboarding_completed").notNull().default(0),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

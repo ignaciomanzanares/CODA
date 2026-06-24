@@ -13,4 +13,12 @@
 
 export const FEATURES = {
   codaEmpresas: import.meta.env.VITE_ENABLE_CODA_EMPRESAS === "true",
+  /**
+   * Onboarding de primer ingreso (consentimiento + KYC mock + 2FA). Apagado por
+   * defecto: con el flag OFF, signup/login no cambian. Encendido, tras crear
+   * cuenta / primer login se muestra el flujo de 3 pasos y el 2FA pasa a ser
+   * obligatorio antes de vincular un banco (requiere también ENABLE_ONBOARDING=true
+   * en la API para el bloqueo de vinculación bancaria).
+   */
+  onboarding: import.meta.env.VITE_ENABLE_ONBOARDING === "true",
 } as const;

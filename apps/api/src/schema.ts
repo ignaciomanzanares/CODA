@@ -114,6 +114,10 @@ export const users = pgTable("users", {
   totpSecret: text("totp_secret"),
   /** Códigos de respaldo (JSON o lista serializada); en PG puede ser TEXT */
   backupCodes: text("backup_codes"),
+  /** Onboarding KYC (mock por ahora): null | 'mock_completed'. Se pide una sola vez. */
+  kycStatus: text("kyc_status"),
+  /** 0/1 — flujo de primer ingreso (consentimiento + KYC + 2FA) finalizado. */
+  onboardingCompleted: integer("onboarding_completed").notNull().default(0),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

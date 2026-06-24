@@ -20,6 +20,8 @@ export const ROUTES = {
   acerca: "/acerca",
   invitacion: "/invitacion",
   bienvenida: "/bienvenida",
+  /** Onboarding de primer ingreso: consentimiento + KYC + 2FA (detrás del flag). */
+  verificacion: "/verificacion",
   auditoria: "/auditoria",
   infoScoreCredito: "/info/score-credito",
   infoMetasFinancieras: "/info/metas-financieras",

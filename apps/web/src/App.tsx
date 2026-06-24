@@ -60,6 +60,7 @@ const EmpresasProducts = lazy(() => import("@/pages/empresas/EmpresasProducts"))
 const EmpresasPurchaseOrders = lazy(() => import("@/pages/empresas/EmpresasPurchaseOrders"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
+const OnboardingFlow = lazy(() => import("@/pages/OnboardingFlow"));
 const Products = lazy(() => import("@/pages/Products"));
 const Goals = lazy(() => import("@/pages/Goals"));
 const Plan = lazy(() => import("@/pages/Plan"));
@@ -166,7 +167,20 @@ function App() {
             </div>
           )}
         </Route>
-        
+
+        {/* Onboarding de primer ingreso (flag): full-screen, sin header/footer.
+            skipOnboardingGate evita que el propio flujo se redirija a sí mismo. */}
+        {FEATURES.onboarding && (
+          <Route path={ROUTES.verificacion}>
+            <ProtectedRoute skipOnboardingGate>
+              <div className="min-h-screen">
+                <OnboardingFlow />
+                <Toaster />
+              </div>
+            </ProtectedRoute>
+          </Route>
+        )}
+
         {/* All other routes with header/footer and protection */}
         <Route>
           <div className="relative flex min-h-screen flex-col">
