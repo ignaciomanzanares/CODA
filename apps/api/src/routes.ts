@@ -2193,6 +2193,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DELETE /api/user/documents/:id — elimina UN documento (cartola/CMF) del usuario,
+  // para poder borrar y re-subir. Dueño-único (otro usuario → 404).
+  app.delete("/api/user/documents/:id", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+      const deleted = await storage.deleteDocumentUploadById(req.params.id, userId);
+      if (!deleted) return res.status(404).json({ message: "Documento no encontrado." });
+      logger.info({ userId, docId: req.params.id }, "Document deleted by user");
+      res.json({ success: true });
+    } catch (e) {
+      logger.error({ err: e }, "Failed to delete user document");
+      res.status(500).json({ message: "Error al eliminar el documento." });
+    }
+  });
+
   // GET /api/score-history — line chart data for score evolution
   app.get("/api/score-history", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
