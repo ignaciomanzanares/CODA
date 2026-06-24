@@ -265,6 +265,18 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
   const HEADER_RE = /^(?:CARTOLA|DESDE|HASTA|P[AÁ]GINA|MENSAJES|INF[ÓO]RMESE|CUENTA\s+VISTA|CUENTA\s+CORRIENTE|ESTADO\s+DE\s+CUENTA|RESUMEN|N[°º]\s*DOC|SUCURSAL|DESCRIPCI[ÓO]N|FECHA|CHEQUES\s+O\s+CARGOS|DEP[ÓO]SITOS\s+O\s+ABONOS|DETALLE\s+DE\s+MOVIMIENTOS|MOVIMIENTOS\s+DEL\s+PER[IÍ]ODO|BANCO\s+|WWW\.|FOLIO|COMPROBANTE|RUT\s|NOMBRE|PRODUCTO|MONEDA|TIPO\s+CUENTA)\b/i;
   const SALDO_DIA_RE = /---\s*Saldo\s+Dia|Saldo\s+al\s+d[ií]a|SUBTOTAL|TOTAL\s+CARGOS|TOTAL\s+ABONOS|TOTAL\s+DEP[OÓ]SITOS|TOTAL\s+CHEQUES/i;
 
+  // Secciones de resumen/pie de página de Santander que NO son movimientos pero
+  // traen fecha+monto y se colaban como filas falsas (un COM.MANT duplicado en
+  // "Resumen de Comisiones", la fila de totales del cuadro "INFORMACION DE …
+  // CUENTA …", y el cupo "31/03/2026" de "INFORMACION DE LINEA DE CREDITO"),
+  // rompiendo la conciliación ~1-2%. OJO: en cartolas multipágina estos pies se
+  // repiten por página y los movimientos CONTINÚAN en la página siguiente, así
+  // que NO se puede cortar de golpe: se marca "estoy en el pie" (saltar filas) y
+  // se REANUDA al reaparecer el encabezado de la tabla ("DETALLE DE MOVIMIENTOS"
+  // / "FECHA … DESCRIPCION").
+  const FOOTER_START_RE = /^(?:RESUMEN\s+DE\s+COMISIONES|INFORMACI[OÓ]N\s+DE\s+(?:SUPER\s+)?(?:CUENTA|L[IÍ]NEA))/i;
+  const MOVEMENTS_RESUME_RE = /DETALLE\s+DE\s+MOVIMIENTOS|^FECHA\b.*DESCRIPCI[OÓ]N|CHEQUES\s+Y\s+OTROS/i;
+
   // Detectores de sección (multi-banco) - más flexibles para variaciones de formato
   const SECTION_CARGO_RE = /CHEQUES?\s+(?:Y|O)\s+CARGOS?|CARGOS?\s+(?:Y|O)\s+CHEQUES?|CHEQUES\s+Y\s+CARGOS\s+DEL\s+PER[IÍ]ODO|CARGOS\s+DEL\s+PER[IÍ]ODO|EGRESOS|MOVIMIENTOS\s+DE\s+(?:D[EÉ]BITO|CARGO)|CHEQUES\s+O\s+CARGOS/i;
   const SECTION_ABONO_RE = /DEP[ÓO]SITOS?\s+(?:Y|O)\s+ABONOS?|ABONOS?\s+(?:Y|O)\s+DEP[ÓO]SITOS?|DEP[ÓO]SITOS\s+Y\s+ABONOS\s+DEL\s+PER[IÍ]ODO|ABONOS\s+DEL\s+PER[IÍ]ODO|INGRESOS|MOVIMIENTOS\s+DE\s+(?:CR[EÉ]DITO|ABONO)|DEP[ÓO]SITOS\s+O\s+ABONOS/i;
@@ -441,9 +453,16 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
   // Otherwise fall back to text-based parsing
   if (hasColumnLayout && pdfLines && pdfLines.length > 0) {
     // ── Column-based parsing (Santander-style) ──
+    // `inFooter`: estamos dentro de una sección de resumen/pie (saltar filas).
+    // Se reanuda al reaparecer el encabezado de la tabla en la página siguiente.
+    let inFooter = false;
     for (const pdfLine of pdfLines) {
       const line = pdfLine.text.trim();
       if (!line) continue;
+
+      if (MOVEMENTS_RESUME_RE.test(line)) { inFooter = false; continue; }
+      if (FOOTER_START_RE.test(line)) { inFooter = true; continue; }
+      if (inFooter) continue; // saltar resumen de comisiones / cuadro de totales / línea de crédito
 
       if (HEADER_RE.test(line) || SALDO_DIA_RE.test(line)) continue;
 
