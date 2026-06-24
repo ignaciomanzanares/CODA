@@ -120,6 +120,11 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   try {
     logger.info("🚀 Starting CODA application...");
 
+    // Aplica migraciones pendientes ANTES de todo (no depende de render.yaml ni
+    // del dashboard). Si falla, el arranque aborta (fail-fast) y Render reinicia.
+    const { runPendingMigrations } = await import("./db/migrate.js");
+    await runPendingMigrations();
+
     // Initialize algorithmic traceability system (CMF compliance)
     initializeTraceabilitySystem();
     try {
