@@ -13,7 +13,10 @@ services:
     region: virginia
     plan: free  # Change to 'starter' or higher for production
     buildCommand: npm install --include=dev && npm run build
-    startCommand: npm run start -w @coda/api
+    # Aplica las migraciones versionadas (migrations/*.sql, idempotentes vía la
+    # tabla _migrations) ANTES de arrancar, para no crear tablas/columnas a mano
+    # en Neon. run-migrations.mjs no hace nada si DATABASE_URL no es Postgres.
+    startCommand: npm run db:migrate && npm run start -w @coda/api
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
@@ -28,6 +31,10 @@ services:
         value: false
       - key: DEMO_MODE
         value: true  # Set to false for real production deployment
+      # Onboarding (consentimiento + KYC mock + 2FA). OFF por defecto. En "true"
+      # exige 2FA antes de vincular un banco. Debe ir junto con VITE_ENABLE_ONBOARDING.
+      - key: ENABLE_ONBOARDING
+        value: false
       # DATABASE_URL must be set manually in Render Dashboard (Neon pooled URL)
       - key: DATABASE_URL
         sync: false
