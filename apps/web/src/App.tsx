@@ -115,8 +115,10 @@ function App() {
         <Route path="/login" component={Login} />
         {FEATURES.codaEmpresas && <Route path="/empresas/login" component={Login} />}
         <Route path={ROUTES.restablecerContrasena} component={ResetPassword} />
-        <Route path={ROUTES.registro} component={SignUp} />
-        <Route path="/signup" component={SignUp} />
+        {/* Con el flag de onboarding, el registro es el wizard paso-a-paso
+            (Términos → Identidad → 2FA → Crear cuenta). Sin flag, el signup normal. */}
+        <Route path={ROUTES.registro} component={FEATURES.onboarding ? OnboardingFlow : SignUp} />
+        <Route path="/signup" component={FEATURES.onboarding ? OnboardingFlow : SignUp} />
         <Route path={ROUTES.acerca} component={About} />
         <Route path="/about">
           <Redirect to={ROUTES.acerca} />
