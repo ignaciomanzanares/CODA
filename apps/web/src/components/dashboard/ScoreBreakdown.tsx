@@ -281,23 +281,23 @@ export default function ScoreBreakdown({
                           <ArrowRight className="h-3 w-3" />
                         </button>
                       )}
-	            </div>
-
-	            {scoreConfidence && (
-	              <div className="rounded-xl border border-border bg-background/60 p-3">
-	                <p className="text-xs font-semibold text-foreground">
-	                  Confianza {scoreConfidence}
-	                </p>
-	                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-	                  {scoreObservedMonths != null
-	                    ? `El score usa ${scoreObservedMonths} mes(es) con movimientos cargados. Mas historial mejora la precision sin castigar meses que aun no has subido.`
-	                    : "Mas historial de cartolas mejora la precision del score transaccional."}
-	                </p>
-	              </div>
-	            )}
+                    </div>
                   </div>
                 );
               })}
+
+              {scoreConfidence && (
+                <div className="rounded-xl border border-border bg-background/60 p-3">
+                  <p className="text-xs font-semibold text-foreground">
+                    Confianza {scoreConfidence}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                    {scoreObservedMonths != null
+                      ? `El score usa ${scoreObservedMonths} mes(es) con movimientos cargados. Más historial mejora la precisión sin castigar meses que aún no has subido.`
+                      : "Más historial de cartolas mejora la precisión del score transaccional."}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* AI insights from backend */}
