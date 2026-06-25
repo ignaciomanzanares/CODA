@@ -1,14 +1,16 @@
 /**
  * Onboarding de primer ingreso como WIZARD a pantalla completa (no tarjeta de
- * teléfono). Paso a paso, con "Crear cuenta" como paso FINAL.
+ * teléfono). Orden lógico: la cuenta se crea PRIMERO y luego se verifica/asegura,
+ * porque el KYC y el 2FA operan sobre una cuenta que ya existe.
  *
  * Dos modos (el mismo componente):
- *  - Usuario NUEVO (no autenticado, ruta /registro con el flag on): pasos
- *    Términos → Identidad → Seguridad → Crear cuenta. La cuenta se crea en el
- *    último paso, con el consentimiento del paso 1 (data_processing). Luego se
- *    aplican KYC mock + 2FA + complete.
- *  - Usuario EXISTENTE (autenticado, gate → /verificacion): mismos 3 pasos y un
- *    "Finalizar" (sin crear cuenta): registra el consentimiento, KYC y 2FA.
+ *  - Usuario NUEVO (no autenticado, /registro con el flag on):
+ *      ① Crear cuenta (nombre/email/contraseña + "acepto Términos y Privacidad")
+ *      ② Identidad (KYC mock)   ③ Seguridad (2FA)
+ *    La cuenta se crea al avanzar del paso ①, con el consentimiento del checkbox.
+ *  - Usuario EXISTENTE (autenticado, gate → /verificacion):
+ *      ① Términos + consentimiento  ② Identidad  ③ Seguridad
+ *    (no se crea cuenta; sólo se registra el consentimiento y se completa).
  *
  * KYC y biometría son MOCK de UI (no se suben imágenes). El consentimiento es real.
  */
@@ -40,21 +42,21 @@ const BRAND_FEATURES = [
   { Icon: ShieldCheck, text: "Diseñado bajo la normativa CMF y Ley Fintec" },
 ];
 
+type StepKey = "account" | "terms" | "kyc" | "2fa";
+
 export default function OnboardingFlow() {
   const [, navigate] = useLocation();
   const { register, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
 
-  // El paso "Crear cuenta" sólo existe para usuarios nuevos (no autenticados).
-  const stepKeys = isAuthenticated
-    ? (["terms", "kyc", "2fa"] as const)
-    : (["terms", "kyc", "2fa", "account"] as const);
-  const STEP_META = [
-    { key: "terms", label: "Términos", Icon: FileText },
-    { key: "kyc", label: "Identidad", Icon: ScanLine },
-    { key: "2fa", label: "Seguridad", Icon: ShieldCheck },
-    { key: "account", label: "Cuenta", Icon: UserIcon },
-  ].filter((s) => (stepKeys as readonly string[]).includes(s.key));
+  // Cuenta PRIMERO para el usuario nuevo; el existente arranca en Términos.
+  const stepKeys: StepKey[] = isAuthenticated ? ["terms", "kyc", "2fa"] : ["account", "kyc", "2fa"];
+  const LABELS: Record<StepKey, { label: string; Icon: typeof FileText }> = {
+    account: { label: "Cuenta", Icon: UserIcon },
+    terms: { label: "Términos", Icon: FileText },
+    kyc: { label: "Identidad", Icon: ScanLine },
+    "2fa": { label: "Seguridad", Icon: ShieldCheck },
+  };
 
   const [step, setStep] = useState(0);
   const [consent, setConsent] = useState(false);
@@ -78,28 +80,35 @@ export default function OnboardingFlow() {
   const pwdMatch = password.length > 0 && password === confirm;
 
   const current = stepKeys[step];
-  const canAdvance =
-    current === "terms" ? consent
-    : current === "kyc" ? (front && back && bio)
-    : current === "2fa" ? (twoFA !== null && (twoFA !== "now" || totpDone))
-    : current === "account" ? (name.trim().length > 1 && /\S+@\S+\.\S+/.test(email) && pwdValid && pwdMatch)
-    : false;
-
   const isLastStep = step === stepKeys.length - 1;
 
-  async function next() {
-    if (!isLastStep) { setStep((s) => s + 1); return; }
-    // Último paso → finalizar (crear cuenta si es nuevo).
-    setBusy(true); setError("");
+  const canAdvance =
+    current === "account" ? (name.trim().length > 1 && /\S+@\S+\.\S+/.test(email) && pwdValid && pwdMatch && consent)
+    : current === "terms" ? consent
+    : current === "kyc" ? (front && back && bio)
+    : current === "2fa" ? (twoFA !== null && (twoFA !== "now" || totpDone))
+    : false;
+
+  async function advance() {
+    setError("");
+    // Acción del paso 1: crear cuenta (nuevo) o registrar consentimiento (existente).
+    setBusy(true);
     try {
-      if (!isAuthenticated) {
+      if (current === "account") {
         await register(name.trim(), email.trim(), password, {
           consents: { data_processing: consent, scoring: true, recommendations: true, marketing: false },
           policyVersion: "1.0",
         });
-      } else if (consent) {
+      } else if (current === "terms") {
         await post("/api/privacy-consents/accept", { purpose: "data_processing" });
       }
+
+      if (!isLastStep) {
+        setStep((s) => s + 1);
+        return;
+      }
+
+      // Último paso (2FA) → aplicar KYC mock + 2FA + completar.
       await post("/api/onboarding/kyc");
       if (twoFA === "now") await post("/api/auth/2fa/enable");
       await post("/api/onboarding/complete");
@@ -118,7 +127,7 @@ export default function OnboardingFlow() {
     }
   }
 
-  const finalLabel = isAuthenticated ? "Finalizar" : "Crear cuenta gratis";
+  const buttonLabel = current === "account" ? "Crear cuenta" : isLastStep ? "Finalizar" : "Continuar";
 
   return (
     <div className="min-h-screen flex">
@@ -167,18 +176,19 @@ export default function OnboardingFlow() {
         <div className="w-full max-w-md mx-auto">
           {/* Stepper */}
           <div className="flex gap-2 mb-8">
-            {STEP_META.map((s, i) => {
+            {stepKeys.map((key, i) => {
+              const meta = LABELS[key];
               const done = i < step, active = i === step;
               return (
-                <div key={s.key} className="flex-1">
+                <div key={key} className="flex-1">
                   <div className="flex items-center gap-1.5">
                     <div className={cn(
                       "w-6 h-6 rounded-full grid place-items-center border-2 shrink-0 text-white",
                       done ? "bg-green-500 border-green-500" : active ? "bg-blue-600 border-blue-600" : "bg-transparent border-border text-muted-foreground",
                     )}>
-                      {done ? <Check size={13} /> : <s.Icon size={13} className={active ? "text-white" : "text-muted-foreground"} />}
+                      {done ? <Check size={13} /> : <meta.Icon size={13} className={active ? "text-white" : "text-muted-foreground"} />}
                     </div>
-                    <span className={cn("text-xs hidden sm:block", active ? "font-semibold text-foreground" : "text-muted-foreground")}>{s.label}</span>
+                    <span className={cn("text-xs hidden sm:block", active ? "font-semibold text-foreground" : "text-muted-foreground")}>{meta.label}</span>
                   </div>
                   <div className={cn("h-1 rounded mt-2", done ? "bg-green-500" : active ? "bg-blue-600" : "bg-border")} />
                 </div>
@@ -192,16 +202,16 @@ export default function OnboardingFlow() {
             </div>
           )}
 
-          {current === "terms" && <TermsStep consent={consent} setConsent={setConsent} />}
-          {current === "kyc" && <KycStep front={front} back={back} bio={bio} setFront={setFront} setBack={setBack} setBio={setBio} />}
-          {current === "2fa" && <TwoFAStep twoFA={twoFA} setTwoFA={setTwoFA} totpDone={totpDone} setTotpDone={setTotpDone} />}
           {current === "account" && (
             <AccountStep
-              name={name} email={email} password={password} confirm={confirm}
-              setName={setName} setEmail={setEmail} setPassword={setPassword} setConfirm={setConfirm}
+              name={name} email={email} password={password} confirm={confirm} consent={consent}
+              setName={setName} setEmail={setEmail} setPassword={setPassword} setConfirm={setConfirm} setConsent={setConsent}
               showPwd={showPwd} setShowPwd={setShowPwd} pwdIssues={pwdIssues} pwdMatch={pwdMatch}
             />
           )}
+          {current === "terms" && <TermsStep consent={consent} setConsent={setConsent} />}
+          {current === "kyc" && <KycStep front={front} back={back} bio={bio} setFront={setFront} setBack={setBack} setBio={setBio} />}
+          {current === "2fa" && <TwoFAStep twoFA={twoFA} setTwoFA={setTwoFA} totpDone={totpDone} setTotpDone={setTotpDone} />}
 
           {/* Nav */}
           <div className="flex gap-3 mt-8">
@@ -211,9 +221,9 @@ export default function OnboardingFlow() {
                 <ArrowLeft size={16} /> Atrás
               </button>
             )}
-            <button type="button" onClick={next} disabled={!canAdvance || busy}
+            <button type="button" onClick={advance} disabled={!canAdvance || busy}
               className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-              {busy ? <Loader2 size={17} className="animate-spin" /> : <>{isLastStep ? finalLabel : "Continuar"} <ChevronRight size={17} /></>}
+              {busy ? <Loader2 size={17} className="animate-spin" /> : <>{buttonLabel} <ChevronRight size={17} /></>}
             </button>
           </div>
 
@@ -238,6 +248,70 @@ function StepHeading({ title, sub }: { title: string; sub: string }) {
   );
 }
 
+function ConsentCheckbox({ consent, setConsent }: { consent: boolean; setConsent: (v: boolean) => void }) {
+  return (
+    <label className={cn("flex gap-3 items-start p-3.5 rounded-xl cursor-pointer border", consent ? "border-blue-500 bg-blue-50 dark:bg-blue-500/10" : "border-border")}>
+      <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-blue-600" />
+      <span className="text-[13px] text-foreground/80 leading-relaxed">
+        He leído y acepto los{" "}
+        <a href={ROUTES.terminos} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Términos y Condiciones</a>{" "}
+        y la{" "}
+        <a href={ROUTES.privacidad} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Política de Privacidad</a>{" "}
+        de CODA, y autorizo el tratamiento de mis datos personales para prestar el servicio.
+      </span>
+    </label>
+  );
+}
+
+function AccountStep({ name, email, password, confirm, consent, setName, setEmail, setPassword, setConfirm, setConsent, showPwd, setShowPwd, pwdIssues, pwdMatch }: {
+  name: string; email: string; password: string; confirm: string; consent: boolean;
+  setName: (v: string) => void; setEmail: (v: string) => void; setPassword: (v: string) => void; setConfirm: (v: string) => void; setConsent: (v: boolean) => void;
+  showPwd: boolean; setShowPwd: (v: boolean) => void; pwdIssues: boolean[]; pwdMatch: boolean;
+}) {
+  const inputCls = "flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
+  return (
+    <>
+      <StepHeading title="Crea tu cuenta" sub="Empieza gratis. Luego verificamos tu identidad y aseguramos tu cuenta." />
+      <div className="space-y-4">
+        <div className="relative">
+          <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre y apellido" autoComplete="name" className={inputCls} />
+        </div>
+        <div className="relative">
+          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="tu@correo.cl" autoComplete="email" className={inputCls} />
+        </div>
+        <div className="relative">
+          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input value={password} onChange={(e) => setPassword(e.target.value)} type={showPwd ? "text" : "password"} placeholder="Contraseña" autoComplete="new-password" className={inputCls + " pr-11"} />
+          <button type="button" onClick={() => setShowPwd(!showPwd)} tabIndex={-1} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-foreground">
+            {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+        <div className="relative">
+          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input value={confirm} onChange={(e) => setConfirm(e.target.value)} type={showPwd ? "text" : "password"} placeholder="Confirmar contraseña" autoComplete="new-password" className={inputCls} />
+        </div>
+        {password.length > 0 && (
+          <div className="grid grid-cols-2 gap-1">
+            {[["8 caracteres", pwdIssues[0]], ["Una mayúscula", pwdIssues[1]], ["Una minúscula", pwdIssues[2]], ["Un número", pwdIssues[3]]].map(([t, ok]) => (
+              <div key={t as string} className={cn("flex items-center gap-1.5 text-xs", ok ? "text-green-600" : "text-muted-foreground")}>
+                <CheckCircle2 className={cn("h-3 w-3 shrink-0", ok ? "text-green-500" : "text-muted-foreground/50")} /> {t as string}
+              </div>
+            ))}
+            {confirm.length > 0 && (
+              <div className={cn("flex items-center gap-1.5 text-xs col-span-2", pwdMatch ? "text-green-600" : "text-red-500")}>
+                <CheckCircle2 className={cn("h-3 w-3 shrink-0", pwdMatch ? "text-green-500" : "text-red-400")} /> {pwdMatch ? "Las contraseñas coinciden" : "Las contraseñas no coinciden"}
+              </div>
+            )}
+          </div>
+        )}
+        <ConsentCheckbox consent={consent} setConsent={setConsent} />
+      </div>
+    </>
+  );
+}
+
 function TermsStep({ consent, setConsent }: { consent: boolean; setConsent: (v: boolean) => void }) {
   return (
     <>
@@ -247,34 +321,11 @@ function TermsStep({ consent, setConsent }: { consent: boolean; setConsent: (v: 
         <p><b className="text-foreground/80">2. Datos.</b> Tratamos tus datos personales solo en la medida necesaria para prestar el servicio, conforme a la normativa vigente.</p>
         <p><b className="text-foreground/80">3. Tus derechos.</b> Puedes revocar tu autorización y solicitar la eliminación de tus datos en cualquier momento.</p>
       </div>
-      <div className="grid gap-2 mt-3">
-        <LinkRow Icon={FileText} path={ROUTES.terminos}>Términos y Condiciones de uso</LinkRow>
-        <LinkRow Icon={Lock} path={ROUTES.privacidad}>Política de Privacidad y Tratamiento de Datos</LinkRow>
-        <LinkRow Icon={ShieldCheck} tbd>Seguridad · Reportar un problema</LinkRow>
+      <div className="mt-4">
+        <ConsentCheckbox consent={consent} setConsent={setConsent} />
       </div>
-      <label className={cn("flex gap-3 items-start mt-5 p-4 rounded-xl cursor-pointer border", consent ? "border-blue-500 bg-blue-50 dark:bg-blue-500/10" : "border-border")}>
-        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-blue-600" />
-        <span className="text-[13px] text-foreground/80 leading-relaxed">
-          Autorizo a <b>Chile Open-Data Analytics SpA (CODA)</b> el tratamiento de mis datos personales para las finalidades descritas en la <b className="text-blue-600">Política de Privacidad</b>, en la medida necesaria para prestar el servicio.
-        </span>
-      </label>
     </>
   );
-}
-
-function LinkRow({ Icon, children, path, tbd }: { Icon: typeof FileText; children: React.ReactNode; path?: string; tbd?: boolean }) {
-  const inner = (
-    <span className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-border">
-      <Icon size={16} className="text-blue-600 flex-shrink-0" />
-      <span className="min-w-0">
-        <span className="block text-[13px] text-foreground/80 font-medium">{children}</span>
-        {tbd && <span className="text-[11px] text-amber-500">próximamente · no existe aún</span>}
-      </span>
-      <ChevronRight size={15} className="text-muted-foreground ml-auto flex-shrink-0" />
-    </span>
-  );
-  if (tbd || !path) return <div className="opacity-70">{inner}</div>;
-  return <a href={path} target="_blank" rel="noopener noreferrer" className="block hover:opacity-90">{inner}</a>;
 }
 
 function KycStep({ front, back, bio, setFront, setBack, setBio }: {
@@ -364,53 +415,5 @@ function ChoiceCard({ Icon, title, hint, active, onClick }: { Icon: typeof KeyRo
         {active && <Check size={12} className="text-white" />}
       </span>
     </button>
-  );
-}
-
-function AccountStep({ name, email, password, confirm, setName, setEmail, setPassword, setConfirm, showPwd, setShowPwd, pwdIssues, pwdMatch }: {
-  name: string; email: string; password: string; confirm: string;
-  setName: (v: string) => void; setEmail: (v: string) => void; setPassword: (v: string) => void; setConfirm: (v: string) => void;
-  showPwd: boolean; setShowPwd: (v: boolean) => void; pwdIssues: boolean[]; pwdMatch: boolean;
-}) {
-  const inputCls = "flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
-  return (
-    <>
-      <StepHeading title="Crea tu cuenta" sub="Último paso. Con esto guardamos tu consentimiento, identidad y configuración de seguridad." />
-      <div className="space-y-4">
-        <div className="relative">
-          <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre y apellido" autoComplete="name" className={inputCls} />
-        </div>
-        <div className="relative">
-          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="tu@correo.cl" autoComplete="email" className={inputCls} />
-        </div>
-        <div className="relative">
-          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input value={password} onChange={(e) => setPassword(e.target.value)} type={showPwd ? "text" : "password"} placeholder="Contraseña" autoComplete="new-password" className={inputCls + " pr-11"} />
-          <button type="button" onClick={() => setShowPwd(!showPwd)} tabIndex={-1} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-foreground">
-            {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-        <div className="relative">
-          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input value={confirm} onChange={(e) => setConfirm(e.target.value)} type={showPwd ? "text" : "password"} placeholder="Confirmar contraseña" autoComplete="new-password" className={inputCls} />
-        </div>
-        {password.length > 0 && (
-          <div className="grid grid-cols-2 gap-1">
-            {[["8 caracteres", pwdIssues[0]], ["Una mayúscula", pwdIssues[1]], ["Una minúscula", pwdIssues[2]], ["Un número", pwdIssues[3]]].map(([t, ok]) => (
-              <div key={t as string} className={cn("flex items-center gap-1.5 text-xs", ok ? "text-green-600" : "text-muted-foreground")}>
-                <CheckCircle2 className={cn("h-3 w-3 shrink-0", ok ? "text-green-500" : "text-muted-foreground/50")} /> {t as string}
-              </div>
-            ))}
-            {confirm.length > 0 && (
-              <div className={cn("flex items-center gap-1.5 text-xs col-span-2", pwdMatch ? "text-green-600" : "text-red-500")}>
-                <CheckCircle2 className={cn("h-3 w-3 shrink-0", pwdMatch ? "text-green-500" : "text-red-400")} /> {pwdMatch ? "Las contraseñas coinciden" : "Las contraseñas no coinciden"}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </>
   );
 }
