@@ -18,7 +18,7 @@ export default function ProductComparisonInfo() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 text-white py-20">
+      <section className="bg-gradient-to-br from-orange-600 via-orange-700 to-purple-800 text-white py-20">
         <div className="container mx-auto px-4">
           <Link href="/">
             <Button variant="ghost" className="text-white hover:bg-white/10 mb-8">
@@ -30,7 +30,7 @@ export default function ProductComparisonInfo() {
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
               Comparación de Productos Financieros
             </h1>
-            <p className="text-xl text-blue-100 leading-relaxed mb-8">
+            <p className="text-xl text-orange-100 leading-relaxed mb-8">
               Encuentra los mejores productos financieros para tu perfil. Créditos,
               tarjetas, cuentas, depósitos y fondos mutuos personalizados según tu situación.
             </p>
@@ -39,7 +39,7 @@ export default function ProductComparisonInfo() {
             {!isLoading && isAuthenticated && (
               <Button 
                 size="lg" 
-                className="bg-white text-blue-700 hover:bg-blue-50"
+                className="bg-white text-orange-700 hover:bg-orange-50"
                 onClick={() => navigate(ROUTES.productos)}
               >
                 Ver Productos Recomendados
@@ -50,7 +50,7 @@ export default function ProductComparisonInfo() {
             {!isLoading && !isAuthenticated && (
               <Button 
                 size="lg" 
-                className="bg-white text-blue-700 hover:bg-blue-50"
+                className="bg-white text-orange-700 hover:bg-orange-50"
                 onClick={() => navigate(ROUTES.registro)}
               >
                 Crear Cuenta Gratis
@@ -88,7 +88,7 @@ export default function ProductComparisonInfo() {
               
               <Card>
                 <CardContent className="p-6">
-                  <Shield className="h-10 w-10 text-blue-500 mb-4" />
+                  <Shield className="h-10 w-10 text-orange-500 mb-4" />
                   <h3 className="text-xl font-semibold mb-3">Pre-calificación Automática</h3>
                   <p className="text-gray-600">
                     Verificamos que cumplas los requisitos mínimos (score, ingresos, DTI) antes de 
@@ -109,11 +109,11 @@ export default function ProductComparisonInfo() {
               Productos Disponibles
             </h2>
             <div className="grid md:grid-cols-2 gap-6">
-              <Card className="border-2 hover:border-blue-500 transition-colors">
+              <Card className="border-2 hover:border-orange-500 transition-colors">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 rounded-lg bg-blue-100">
-                      <DollarSign className="h-6 w-6 text-blue-600" />
+                    <div className="p-3 rounded-lg bg-orange-100">
+                      <DollarSign className="h-6 w-6 text-orange-600" />
                     </div>
                     <h3 className="text-xl font-semibold">Créditos</h3>
                   </div>
@@ -190,8 +190,8 @@ export default function ProductComparisonInfo() {
               </div>
               
               <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <DollarSign className="h-8 w-8 text-blue-600" />
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <DollarSign className="h-8 w-8 text-orange-600" />
                 </div>
                 <h3 className="font-semibold mb-2">Mejores Condiciones</h3>
                 <p className="text-sm text-gray-600">
@@ -214,12 +214,12 @@ export default function ProductComparisonInfo() {
       </section>
 
       {/* Final CTA */}
-      <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+      <section className="py-20 bg-gradient-to-r from-orange-600 to-purple-600 text-white">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-4">
             {isAuthenticated ? "Explora los Productos" : "¿Listo para Encontrar tu Producto Ideal?"}
           </h2>
-          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-orange-100 mb-8 max-w-2xl mx-auto">
             {isAuthenticated 
               ? "Ve tus recomendaciones personalizadas y encuentra el producto perfecto para ti."
               : "Crea tu cuenta gratis y descubre productos financieros diseñados para tu perfil."}
@@ -228,7 +228,7 @@ export default function ProductComparisonInfo() {
           {!isLoading && isAuthenticated && (
             <Button 
               size="lg" 
-              className="bg-white text-blue-700 hover:bg-blue-50"
+              className="bg-white text-orange-700 hover:bg-orange-50"
               onClick={() => navigate(ROUTES.productos)}
             >
               Ver Productos Recomendados
@@ -239,7 +239,7 @@ export default function ProductComparisonInfo() {
           {!isLoading && !isAuthenticated && (
             <Button 
               size="lg" 
-              className="bg-white text-blue-700 hover:bg-blue-50"
+              className="bg-white text-orange-700 hover:bg-orange-50"
               onClick={() => navigate(ROUTES.registro)}
             >
               Crear Cuenta Gratis

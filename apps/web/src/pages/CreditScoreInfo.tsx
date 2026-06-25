@@ -33,7 +33,7 @@ export default function CreditScoreInfo() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero */}
-      <section className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white py-20">
+      <section className="bg-gradient-to-br from-orange-600 via-orange-700 to-orange-800 text-white py-20">
         <div className="container mx-auto px-4">
           <Link href="/">
             <Button variant="ghost" className="text-white hover:bg-white/10 mb-8">
@@ -45,7 +45,7 @@ export default function CreditScoreInfo() {
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
               Score crediticio CODA: dos perspectivas sobre tu salud financiera
             </h1>
-            <p className="text-xl text-blue-100 leading-relaxed">
+            <p className="text-xl text-orange-100 leading-relaxed">
               CODA calcula dos scores complementarios para darte una imagen completa de tu
               situación financiera.
             </p>
@@ -181,16 +181,16 @@ export default function CreditScoreInfo() {
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-blue-600 text-white">
+      <section className="py-20 bg-orange-600 text-white">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
             Conoce tu score real
           </h2>
-          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-orange-100 mb-8 max-w-2xl mx-auto">
             Sube tus documentos financieros y recibe tu diagnóstico completo en minutos.
           </p>
           <Link href={ROUTES.registro}>
-            <Button size="lg" className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg">
+            <Button size="lg" className="bg-white text-orange-700 hover:bg-orange-50 font-semibold px-8 py-6 text-lg">
               Crear cuenta gratis
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
@@ -204,8 +204,8 @@ export default function CreditScoreInfo() {
 function FactorRow({ weight, title, desc }: { weight: string; title: string; desc: string }) {
   return (
     <div className="flex items-start gap-4 p-4 bg-white rounded-lg border">
-      <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-        <span className="text-blue-600 font-bold text-sm">{weight}</span>
+      <div className="flex-shrink-0 w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+        <span className="text-orange-600 font-bold text-sm">{weight}</span>
       </div>
       <div>
         <h4 className="font-semibold text-gray-900 mb-1">{title}</h4>

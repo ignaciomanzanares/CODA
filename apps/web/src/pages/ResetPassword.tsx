@@ -52,7 +52,7 @@ export default function ResetPassword() {
       <div className="w-full max-w-sm space-y-6">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30">
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
             <Wallet className="h-5 w-5 text-white" />
           </div>
           <span className="text-xl font-bold tracking-tight">CODA</span>
@@ -126,7 +126,7 @@ export default function ResetPassword() {
               <p className="text-center text-xs text-muted-foreground">
                 <button
                   type="button"
-                  className="text-blue-600 hover:underline"
+                  className="text-primary hover:underline"
                   onClick={() => navigate(ROUTES.iniciarSesion)}
                 >
                   Volver al inicio de sesión
