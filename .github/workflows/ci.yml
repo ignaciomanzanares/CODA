@@ -31,3 +31,8 @@ jobs:
       - name: Test (@coda/api)
         working-directory: apps/api
         run: npx vitest run
+
+      # El build del front (Vite puro, sin dependencias nativas) valida que los
+      # cambios no rompan la compilación de la web.
+      - name: Build (@coda/web)
+        run: npm run build -w @coda/web
