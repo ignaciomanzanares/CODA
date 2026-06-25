@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { mlLogger as logger } from "../logger.js";
+import { XgbTreeModel } from "./treeExplain.js";
 
 // ESM equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -29,6 +30,7 @@ export class PDModelRegistry {
   private manifest: ModelManifest | null = null;
   private session: any = null; // onnxruntime.InferenceSession
   private featureMeta: { features: string[] } | null = null;
+  private treeModel: XgbTreeModel | null = null;
 
   private constructor() {
     // ML artifacts are located in apps/api/src/ml/artifacts/current
@@ -71,6 +73,27 @@ export class PDModelRegistry {
     const raw = Array.isArray(out.data) ? out.data[0] : out.data[0];
     const p = Number(raw);
     return this.applyCalibration(p);
+  }
+
+  /**
+   * Razones de la decisión para *esta* instancia (no el ranking global de `getTopFeatures`):
+   * requiere `xgb_json_path` en el manifest (dump nativo del booster, distinto del ONNX).
+   * Si no está disponible (modelos más viejos sin ese campo), cae a `getTopFeatures` —
+   * mismo ranking para todo usuario, mejor que nada pero no es explicación por instancia.
+   */
+  explainInstance(
+    featureMap: Record<string, number>,
+    limit = 5
+  ): Array<{ feature: string; contribution: number; direction: "increases_risk" | "decreases_risk" }> {
+    if (this.treeModel && this.featureMeta) {
+      const feats = this.featureMeta.features.map((k) => Number(featureMap[k] ?? 0));
+      return this.treeModel.topReasons(feats, this.featureMeta.features, limit);
+    }
+    return this.getTopFeatures(limit).map((feature) => ({
+      feature,
+      contribution: 0,
+      direction: "increases_risk" as const,
+    }));
   }
 
   getTopFeatures(limit = 5): string[] {
@@ -158,6 +181,19 @@ export class PDModelRegistry {
       if (!fs.existsSync(onnxPath) || !fs.existsSync(featureMetaPath)) return;
       this.featureMeta = JSON.parse(fs.readFileSync(featureMetaPath, "utf-8"));
 
+      const xgbJsonRel = (manifest as { xgb_json_path?: string }).xgb_json_path;
+      if (xgbJsonRel) {
+        const xgbJsonPath = path.join(this.baseDir, xgbJsonRel);
+        if (fs.existsSync(xgbJsonPath)) {
+          try {
+            this.treeModel = XgbTreeModel.loadFromFile(xgbJsonPath);
+          } catch (e) {
+            logger.warn({ err: e }, "Failed to load xgb.json for per-instance explanations; falling back to global SHAP ranking");
+            this.treeModel = null;
+          }
+        }
+      }
+
       // Create session (async)
       ort.InferenceSession.create(onnxPath, { executionProviders: ["cpu"] })
         .then((sess: any) => {
@@ -171,12 +207,14 @@ export class PDModelRegistry {
       this.manifest = null;
       this.session = null;
       this.featureMeta = null;
+      this.treeModel = null;
     }
   }
 
   // Public method to force reload of model artifacts
   async reload() {
     this.session = null;
+    this.treeModel = null;
     await this.tryLoad();
   }
 }
