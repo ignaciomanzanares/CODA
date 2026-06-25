@@ -1687,46 +1687,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/transactions/monthly-flow — income vs expenses by month (last 12 months)
+  // GET /api/transactions/monthly-flow — income vs expenses by data month
   app.get("/api/transactions/monthly-flow", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
     try {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
 
-      // Flujo consolidado desde la tabla `transactions` (fuente de verdad): excluye
-      // movimientos entre productos propios para no contar doble (fondeo/pago de
-      // tarjeta, divisas). Terceros se mantienen.
-      const { isInternalTransferTx } = await import('./services/assistantContext.js');
       const { getUserNormalizedTransactions } = await import("./services/normalizedTransactions.js");
+      const { buildMonthlyFlow } = await import("./services/monthlyFlow.js");
       const { transactions: txs } = await getUserNormalizedTransactions(userId);
-      const byMonth: Record<string, { ingresos: number; egresos: number }> = {};
-
-      for (const t of txs) {
-        if (isInternalTransferTx(t)) continue;
-        if (!byMonth[t.month]) byMonth[t.month] = { ingresos: 0, egresos: 0 };
-        byMonth[t.month].ingresos += t.abono;
-        byMonth[t.month].egresos += t.cargo;
-      }
-
-      const MONTH_LABELS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-      const now = new Date();
-      const result = [];
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        const entry = byMonth[key];
-        if (!entry) continue;
-        result.push({
-          month: key,
-          label: `${MONTH_LABELS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`,
-          ingresos: Math.round(entry.ingresos),
-          egresos: Math.round(entry.egresos),
-          balance: Math.round(entry.ingresos - entry.egresos),
-        });
-      }
-
-      res.json({ months: result });
+      const view = req.query.view === "raw" ? "raw" : "real";
+      const product = typeof req.query.product === "string" && req.query.product !== "all"
+        ? req.query.product
+        : null;
+      res.json({ months: buildMonthlyFlow(txs, { view, product }), view });
     } catch (e) {
       logger.error({ err: e }, "Failed to get monthly flow");
       res.status(500).json({ message: "Error al obtener flujo mensual." });

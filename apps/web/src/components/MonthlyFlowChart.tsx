@@ -23,6 +23,7 @@ interface MonthEntry {
   ingresos: number;
   egresos: number;
   balance: number;
+  balanceReal?: number;
 }
 
 const CLP = new Intl.NumberFormat("es-CL", {
@@ -37,6 +38,7 @@ function CustomTooltip({ active, payload, label }: any) {
   const ingresos = payload.find((p: any) => p.dataKey === "ingresos")?.value ?? 0;
   const egresos = payload.find((p: any) => p.dataKey === "egresos")?.value ?? 0;
   const balance = ingresos - egresos;
+  const balanceReal = payload[0]?.payload?.balanceReal;
   return (
     <div className="rounded-xl border border-border bg-popover px-3 py-2.5 shadow-lg text-xs space-y-1.5 min-w-[160px]">
       <p className="font-semibold text-foreground mb-1">{label}</p>
@@ -54,6 +56,14 @@ function CustomTooltip({ active, payload, label }: any) {
           {balance >= 0 ? "+" : ""}{CLP.format(balance)}
         </span>
       </div>
+      {typeof balanceReal === "number" && balanceReal !== balance && (
+        <div className="flex justify-between gap-4">
+          <span className="text-muted-foreground">Balance real</span>
+          <span className={`font-semibold ${balanceReal >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
+            {balanceReal >= 0 ? "+" : ""}{CLP.format(balanceReal)}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -63,8 +73,8 @@ export default function MonthlyFlowChart() {
   const { currency } = useCurrency();
 
   const { data, isLoading } = useQuery<{ months: MonthEntry[] }>({
-    queryKey: ["monthly-flow"],
-    queryFn: () => apiRequest("GET", "/api/transactions/monthly-flow"),
+    queryKey: ["monthly-flow", "raw"],
+    queryFn: () => apiRequest("GET", "/api/transactions/monthly-flow?view=raw"),
     staleTime: 60_000,
   });
 
@@ -89,6 +99,10 @@ export default function MonthlyFlowChart() {
   const totalIngresos = months.reduce((s, m) => s + m.ingresos, 0);
   const totalEgresos = months.reduce((s, m) => s + m.egresos, 0);
   const avgBalance = months.length ? Math.round((totalIngresos - totalEgresos) / months.length) : 0;
+  const avgRealBalance = months.length
+    ? Math.round(months.reduce((s, m) => s + (m.balanceReal ?? m.balance), 0) / months.length)
+    : 0;
+  const showRealBalance = avgRealBalance !== avgBalance;
 
   return (
     <Card className="rounded-2xl">
@@ -105,9 +119,17 @@ export default function MonthlyFlowChart() {
                 {avgBalance >= 0 ? "+" : ""}{CLP.format(avgBalance)}
               </span>
             </span>
+            {showRealBalance && (
+              <span className="hidden sm:inline">
+                Real:{" "}
+                <span className={`font-semibold ${avgRealBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
+                  {avgRealBalance >= 0 ? "+" : ""}{CLP.format(avgRealBalance)}
+                </span>
+              </span>
+            )}
           </div>
         </div>
-        <CardDescription>Ingresos y egresos de los últimos {months.length} meses</CardDescription>
+        <CardDescription>Ingresos y egresos según cartolas cargadas</CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
         <ResponsiveContainer width="100%" height={220}>
