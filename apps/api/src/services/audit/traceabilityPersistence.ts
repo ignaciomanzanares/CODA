@@ -8,6 +8,7 @@ import { randomUUID } from 'crypto';
 import { eq, desc } from 'drizzle-orm';
 import { db, algorithmModelVersions, algorithmPredictionLogs } from '../../db/index.js';
 import { logger } from '../../logger.js';
+import { encryptField, decryptField, looksEncrypted } from '../crypto/fieldEncryption.js';
 
 /** Evita import circular con algorithmicTraceability.ts */
 export interface PersistableCreditPredictionLog {
@@ -61,14 +62,16 @@ export const TRACEABILITY_SEED_MODELS = {
 
 const MAX_JSON = 400_000;
 
+/** Serializa y cifra (pseudonimización de columna — `algorithm_prediction_logs` guarda PII/datos financieros). */
 function safeJson(value: unknown): string {
+  let s: string;
   try {
-    const s = JSON.stringify(value);
-    if (s.length > MAX_JSON) return `${s.slice(0, MAX_JSON)}…[truncated]`;
-    return s;
+    s = JSON.stringify(value);
+    if (s.length > MAX_JSON) s = `${s.slice(0, MAX_JSON)}…[truncated]`;
   } catch {
-    return '{"error":"serialization_failed"}';
+    s = '{"error":"serialization_failed"}';
   }
+  return encryptField(s);
 }
 
 async function ensureModelVersionRow(row: {
@@ -210,15 +213,6 @@ export async function logTransactionalScoreComputation(params: {
   });
 }
 
-/** No bloquea el flujo principal; errores solo en log. */
-export function logTransactionalScoreComputationFireAndForget(
-  params: Parameters<typeof logTransactionalScoreComputation>[0]
-): void {
-  void logTransactionalScoreComputation(params).catch((err) => {
-    logger.error({ err, userId: params.userId }, 'traceability: transactional_sfa log failed');
-  });
-}
-
 export async function logProductRecommendationRun(params: {
   userId: string;
   requestId: string;
@@ -262,14 +256,6 @@ export async function logProductRecommendationRun(params: {
     processingTimeMs: null,
     ipAddress: params.ipAddress ?? null,
     userAgent: params.userAgent ?? null,
-  });
-}
-
-export function logProductRecommendationRunFireAndForget(
-  params: Parameters<typeof logProductRecommendationRun>[0]
-): void {
-  void logProductRecommendationRun(params).catch((err) => {
-    logger.error({ err, userId: params.userId }, 'traceability: product_recommendation log failed');
   });
 }
 
@@ -322,14 +308,6 @@ export async function logProductInteractionTrace(params: {
   });
 }
 
-export function logProductInteractionTraceFireAndForget(
-  params: Parameters<typeof logProductInteractionTrace>[0]
-): void {
-  void logProductInteractionTrace(params).catch((err) => {
-    logger.error({ err, userId: params.userId }, 'traceability: product_interaction log failed');
-  });
-}
-
 /** Solicitud formal de producto (post-recomendación). */
 export async function logProductApplicationTrace(params: {
   userId: string;
@@ -371,23 +349,11 @@ export async function logProductApplicationTrace(params: {
   });
 }
 
-export function logProductApplicationTraceFireAndForget(
-  params: Parameters<typeof logProductApplicationTrace>[0]
-): void {
-  void logProductApplicationTrace(params).catch((err) => {
-    logger.error({ err, userId: params.userId }, 'traceability: product_application log failed');
-  });
-}
-
-export function persistCreditPredictionAsync(log: PersistableCreditPredictionLog): void {
-  void persistCreditPredictionFromLog(log).catch((err) => {
-    logger.error({ err, predictionId: log.id }, 'traceability: persist credit prediction failed');
-  });
-}
-
+/** Descifra (si corresponde) y parsea el JSON guardado vía `safeJson`. */
 function safeParseJsonRecord(s: string): Record<string, unknown> | null {
   try {
-    const v = JSON.parse(s) as unknown;
+    const decrypted = looksEncrypted(s) ? decryptField(s) : s;
+    const v = JSON.parse(decrypted) as unknown;
     return v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
   } catch {
     return null;
@@ -446,13 +412,6 @@ export async function logFinancialHealthV2(params: {
   });
 }
 
-export function logFinancialHealthV2FireAndForget(
-  params: Parameters<typeof logFinancialHealthV2>[0]
-): void {
-  void logFinancialHealthV2(params).catch((err) => {
-    logger.error({ err, userId: params.userId }, 'traceability: financial_health_v2 log failed');
-  });
-}
 
 /** Entrada legible para el usuario (sin PII extra); el JSON completo sigue en BD. */
 export interface AlgorithmPredictionLogRow {

@@ -29,7 +29,13 @@ import {
   desc,
 } from "./db/index.js";
 import { logger } from "./logger.js";
-import { logTransactionalScoreComputationFireAndForget } from "./services/audit/traceabilityPersistence.js";
+import { logTransactionalScoreComputation } from "./services/audit/traceabilityPersistence.js";
+import { encryptField, encryptFieldOrNull, decryptField, decryptFieldOrNull, looksEncrypted } from "./services/crypto/fieldEncryption.js";
+
+/** Tolera filas pre-existentes guardadas antes de activar cifrado de columna (ver scripts/encrypt-existing-data.ts). */
+function decryptStoredJson(value: string): string {
+  return looksEncrypted(value) ? decryptField(value) : value;
+}
 import type {
   User,
   InsertUser,
@@ -252,18 +258,41 @@ export class DatabaseStorage implements IStorage {
   private currentBillSplitParticipantId = 1;
 
   // User operations
+  // `email`/`username` se usan en WHERE (login, unicidad) y quedan en texto plano — AES-GCM con IV
+  // aleatorio no soporta búsqueda por igualdad. `firstName`/`lastName`/`totpSecret`/`backupCodes`
+  // nunca se consultan por valor, así que se cifran en reposo (pseudonimización de columna).
+  private encryptUserPII<T extends Partial<InsertUser>>(data: T): T {
+    const out: any = { ...data };
+    if ('firstName' in out) out.firstName = encryptFieldOrNull(out.firstName);
+    if ('lastName' in out) out.lastName = encryptFieldOrNull(out.lastName);
+    if ('totpSecret' in out) out.totpSecret = encryptFieldOrNull(out.totpSecret);
+    if ('backupCodes' in out) out.backupCodes = encryptFieldOrNull(out.backupCodes);
+    return out;
+  }
+
+  private decryptUserPII<T extends { firstName?: string | null; lastName?: string | null; totpSecret?: string | null; backupCodes?: string | null } | undefined>(user: T): T {
+    if (!user) return user;
+    return {
+      ...user,
+      firstName: decryptFieldOrNull(user.firstName),
+      lastName: decryptFieldOrNull(user.lastName),
+      totpSecret: decryptFieldOrNull(user.totpSecret),
+      backupCodes: decryptFieldOrNull(user.backupCodes),
+    };
+  }
+
   async getUser(id: string): Promise<User | undefined> {
     if (!db) return undefined;
     const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
+    return this.decryptUserPII(user) || undefined;
   }
-  
+
   async getUserByUsername(username: string): Promise<User | undefined> {
     if (!db) return undefined;
     const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
+    return this.decryptUserPII(user) || undefined;
   }
-  
+
   async getUserByEmail(email: string): Promise<User | undefined> {
     if (!db) return undefined;
     const normalized = String(email).trim().toLowerCase();
@@ -271,20 +300,20 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(users)
       .where(sql`lower(${users.email}) = ${normalized}`);
-    return user || undefined;
+    return this.decryptUserPII(user) || undefined;
   }
-  
+
   async createUser(insertUser: InsertUser & { id?: string }): Promise<User> {
     if (!db) throw new Error("Database not available");
     // Use provided ID or generate a unique ID for the user if not provided
     const userWithId = {
-      ...insertUser,
+      ...this.encryptUserPII(insertUser),
       id: insertUser.id || Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9)
     };
 
     try {
       const [user] = await db.insert(users).values(userWithId).returning();
-      return user;
+      return this.decryptUserPII(user);
     } catch (err: any) {
       // Handle concurrent insert race: Postgres unique_violation code is '23505'
       // SQLite unique constraint uses 'SQLITE_CONSTRAINT_UNIQUE' and message contains 'UNIQUE constraint failed'
@@ -300,7 +329,7 @@ export class DatabaseStorage implements IStorage {
           const rows = await db.select().from(users).where(eq(users.email, userWithId.email));
           existing = rows && rows.length ? rows[0] : null;
         }
-        if (existing) return existing;
+        if (existing) return this.decryptUserPII(existing);
       }
       throw err;
     }
@@ -310,16 +339,16 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       return undefined;
     }
-    
+
     const [updatedUser] = await db
       .update(users)
       .set({
-        ...updateData,
+        ...this.encryptUserPII(updateData),
         updatedAt: new Date().toISOString()
       })
       .where(eq(users.id, id))
       .returning();
-    return updatedUser || undefined;
+    return this.decryptUserPII(updatedUser) || undefined;
   }
   
   // Bank connection methods
@@ -638,7 +667,7 @@ export class DatabaseStorage implements IStorage {
       row = inserted;
     }
 
-    logTransactionalScoreComputationFireAndForget({
+    await logTransactionalScoreComputation({
       userId,
       requestId: randomUUID(),
       input: {
@@ -1341,7 +1370,7 @@ export class DatabaseStorage implements IStorage {
         banco: row.banco ?? null,
         periodoDesde: row.periodoDesde ?? null,
         periodoHasta: row.periodoHasta ?? null,
-        parsedData: JSON.stringify(row.parsedData),
+        parsedData: encryptField(JSON.stringify(row.parsedData)),
         parseStatus: row.parseStatus ?? "success",
         uploadedAt: new Date().toISOString(),
       })
@@ -1358,7 +1387,7 @@ export class DatabaseStorage implements IStorage {
     if (!row) return undefined;
     return {
       ...row,
-      parsedData: row.parsedData ? JSON.parse(row.parsedData) : null,
+      parsedData: row.parsedData ? JSON.parse(decryptStoredJson(row.parsedData)) : null,
     };
   }
 
@@ -1366,7 +1395,7 @@ export class DatabaseStorage implements IStorage {
     if (!db) return;
     await db
       .update(documentUploads)
-      .set({ parsedData: JSON.stringify(parsedData) })
+      .set({ parsedData: encryptField(JSON.stringify(parsedData)) })
       .where(eq(documentUploads.id, id));
   }
 
@@ -1379,7 +1408,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(documentUploads.uploadedAt));
     return rows.map((row: any) => ({
       ...row,
-      parsedData: row.parsedData ? JSON.parse(row.parsedData) : null,
+      parsedData: row.parsedData ? JSON.parse(decryptStoredJson(row.parsedData)) : null,
     }));
   }
 
@@ -1435,16 +1464,20 @@ export class DatabaseStorage implements IStorage {
     const serialized = typeof row.parsedData === 'string' ? row.parsedData : JSON.stringify(row.parsedData);
     const [inserted] = await db
       .insert(scoreDocumentUploads)
-      .values({ ...row, parsedData: serialized, parseStatus: row.parseStatus ?? 'success' })
+      .values({ ...row, parsedData: encryptField(serialized), parseStatus: row.parseStatus ?? 'success' })
       .returning();
     return inserted;
   }
 
   async listScoreDocumentUploads(userId: string): Promise<any[]> {
     if (!db) return [];
-    return db.select().from(scoreDocumentUploads)
+    const rows = await db.select().from(scoreDocumentUploads)
       .where(eq(scoreDocumentUploads.userId, userId))
       .orderBy(desc(scoreDocumentUploads.uploadedAt));
+    return rows.map((r: any) => ({
+      ...r,
+      parsedData: r.parsedData ? decryptStoredJson(r.parsedData) : r.parsedData,
+    }));
   }
 
   async listScoreDocumentUploadsByType(userId: string, tipo: string): Promise<any[]> {
@@ -1454,7 +1487,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(scoreDocumentUploads.uploadedAt));
     return rows.map((r: any) => ({
       ...r,
-      parsedData: typeof r.parsedData === 'string' ? JSON.parse(r.parsedData) : r.parsedData,
+      parsedData: typeof r.parsedData === 'string' ? JSON.parse(decryptStoredJson(r.parsedData)) : r.parsedData,
     }));
   }
 

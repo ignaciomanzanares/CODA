@@ -175,7 +175,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   server.listen({
     port,
     host: "0.0.0.0",
-    reusePort: true,
   }, () => {
     logger.info(`🌐 API Server listening on port ${port}`);
     logger.info(`📊 Environment: ${process.env.NODE_ENV}`);
