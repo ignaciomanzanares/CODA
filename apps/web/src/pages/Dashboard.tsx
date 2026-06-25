@@ -61,19 +61,24 @@ export default function Dashboard() {
   const handleRecategorizeAll = async () => {
     setIsRecategorizing(true);
     setShowAdminMenu(false);
+    toast({
+      title: "Recategorizando transacciones",
+      description: "Estamos actualizando las categorías con el motor más reciente.",
+    });
     try {
       const token = getPersonalToken();
       const result = await apiFetch("/api/admin/recategorize", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-      }) as { updated: number };
+      }) as { updated: number; scanned?: number; version?: string };
       await queryClient.invalidateQueries();
       const updated = result?.updated ?? 0;
+      const scanned = result?.scanned ?? 0;
       toast({
         title: "Categorías actualizadas",
         description: updated > 0
-          ? `Se recategorizaron ${updated} transacciones.`
-          : "Todas las transacciones ya tenían la categoría correcta.",
+          ? `Se recategorizaron ${updated} de ${scanned} transacciones.`
+          : `Todas las ${scanned} transacciones ya tenían la categoría correcta.`,
       });
     } catch {
       toast({

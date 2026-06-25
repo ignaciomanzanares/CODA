@@ -4340,24 +4340,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/recategorize", authenticate, async (req: Request, res: Response) => {
     try {
       const userId = getUserIdFromAuth(req);
-      const { categorizeTransaction } = await import("./parsers/cartola-parser.js");
-      const { getUserNormalizedTransactions } = await import("./services/normalizedTransactions.js");
-
-      // Re-categoriza la FUENTE DE VERDAD (tabla `transactions`), no parsed_data.
-      const { transactions: txs } = await getUserNormalizedTransactions(userId);
-      let updated = 0;
-      for (const t of txs) {
-        if (!t.descripcion) continue;
-        const tipo: "cargo" | "abono" = t.tipo === "ingreso" ? "abono" : "cargo";
-        const monto = t.tipo === "ingreso" ? t.abono : t.cargo;
-        const newCat = categorizeTransaction(t.descripcion, monto, tipo);
-        if (t.categoria !== newCat) {
-          const ok = await storage.updateTransactionCategory(Number(t.id), userId, newCat).catch(() => false);
-          if (ok) updated++;
-        }
-      }
-
-      res.json({ updated });
+      const { recategorizeUserTransactions } = await import("./services/recategorizeTransactions.js");
+      const result = await recategorizeUserTransactions(userId);
+      res.json(result);
     } catch (e) {
       logger.error({ err: e }, "admin/recategorize");
       res.status(500).json({ message: e instanceof Error ? e.message : "Error" });
