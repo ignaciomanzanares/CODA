@@ -69,6 +69,11 @@ function internacionalToParsed(m: TarjetaIntlMovimiento, warnings: string[]): Pa
     monto = 0;
     descripcion = `${m.descripcion} (USD ${m.montoUsd}, FX pendiente)`;
   }
+  // Metadata USD nativa (para no mezclar USD/CLP sin contexto al normalizar).
+  const montoUsd = m.montoUsd != null ? Math.abs(m.montoUsd) : undefined;
+  const fxRate = m.montoUsd != null && m.montoClp != null && m.montoUsd !== 0
+    ? Math.abs(m.montoClp / m.montoUsd)
+    : undefined;
   return {
     fecha: m.fecha,
     descripcion,
@@ -80,6 +85,8 @@ function internacionalToParsed(m: TarjetaIntlMovimiento, warnings: string[]): Pa
     es_compra: !esInterno,
     es_pago_recurrente: false,
     confidence: m.confidence,
+    montoUsd,
+    fxRate,
   };
 }
 

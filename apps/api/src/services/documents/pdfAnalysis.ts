@@ -30,6 +30,9 @@ export interface CartolaExtraida {
     categoria?: string;
     /** Traspaso entre productos propios (pago de tarjeta, divisas). No es ingreso/gasto. */
     es_transferencia?: boolean;
+    /** TC internacional: metadata USD nativa (para la normalización a transactions). */
+    montoUsd?: number;
+    fxRate?: number;
   }>;
   saldoInicial?: number;
   saldoFinal?: number;

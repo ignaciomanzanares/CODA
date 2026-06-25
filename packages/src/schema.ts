@@ -135,6 +135,20 @@ export const transactions = table('transactions', {
   subcategory: text('subcategory'),
   pending: integer('pending'),
   raw: text('raw'),
+  // Trazabilidad de categorización (migración 022).
+  categoryConfidence: real('category_confidence'),
+  categoryRuleId: text('category_rule_id'),
+  categorizerVersion: text('categorizer_version'),
+  // Normalización de cartolas (migración 025).
+  /** 1 = traspaso entre productos propios (pago de tarjeta, divisas). No es ingreso/gasto real. */
+  isInternalTransfer: integer('is_internal_transfer').notNull().default(0),
+  /** id del score_document_uploads que originó esta transacción (borrado en cascada). */
+  sourceDocumentId: text('source_document_id'),
+  /** Metadata moneda original (TC internacional USD): monto/moneda nativos + tasa + CLP. */
+  originalAmount: real('original_amount'),
+  originalCurrency: text('original_currency'),
+  amountClp: real('amount_clp'),
+  fxRate: real('fx_rate'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 

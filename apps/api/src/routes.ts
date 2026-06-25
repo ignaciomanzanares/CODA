@@ -1370,6 +1370,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+      // Cascada: borrar las transacciones normalizadas de todas las cartolas.
+      const { deleteTransactionsForDocument } = await import("./services/documents/normalizeCartola.js");
+      const scoreDocs = await storage.listScoreDocumentUploadsByType(userId, "cartola");
+      for (const s of scoreDocs) await deleteTransactionsForDocument(userId, s.id).catch(() => {});
+      await storage.deleteAllScoreDocumentUploads(userId).catch(() => {});
       await storage.deleteAllDocumentUploads(userId);
       res.json({ success: true, message: "Movimientos y gastos eliminados." });
     } catch (e) {
@@ -2206,10 +2211,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
-      const deleted = await storage.deleteDocumentUploadById(req.params.id, userId);
-      if (!deleted) return res.status(404).json({ message: "Documento no encontrado." });
-      logger.info({ userId, docId: req.params.id }, "Document deleted by user");
-      res.json({ success: true });
+      const docId = req.params.id;
+      const docs = await storage.listAllDocumentUploads(userId);
+      const doc = docs.find((d: { id: string }) => d.id === docId);
+      if (!doc) return res.status(404).json({ message: "Documento no encontrado." });
+
+      // Cascada: borrar el score doc equivalente (mismo banco+período) y SUS
+      // transacciones normalizadas. La cuenta sin movimientos queda inactiva.
+      const { deleteTransactionsForDocument } = await import("./services/documents/normalizeCartola.js");
+      const scoreDocs = await storage.listScoreDocumentUploadsByType(userId, "cartola");
+      const scoreDoc = scoreDocs.find(
+        (s: { banco: string | null; periodoDesde: string | null; periodoHasta: string | null }) =>
+          s.banco === doc.banco && s.periodoDesde === doc.periodoDesde && s.periodoHasta === doc.periodoHasta,
+      );
+      let removedTx = 0;
+      if (scoreDoc) {
+        removedTx = await deleteTransactionsForDocument(userId, scoreDoc.id).catch(() => 0);
+        await storage.deleteScoreDocumentUploadById(scoreDoc.id, userId).catch(() => {});
+      }
+      await storage.deleteDocumentUploadById(docId, userId);
+      logger.info({ userId, docId, removedTx }, "Document + derived transactions deleted");
+      res.json({ success: true, removedTransactions: removedTx });
     } catch (e) {
       logger.error({ err: e }, "Failed to delete user document");
       res.status(500).json({ message: "Error al eliminar el documento." });

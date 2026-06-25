@@ -114,6 +114,8 @@ export async function processDocumentUpload(
           saldo: tx.saldo_despues,
           categoria: interna ? 'Transferencia interna' : categorizeTransaction(tx.descripcion, tx.monto, tx.tipo),
           es_transferencia: interna || tx.es_transferencia === true,
+          ...(tx.montoUsd != null ? { montoUsd: tx.montoUsd } : {}),
+          ...(tx.fxRate != null ? { fxRate: tx.fxRate } : {}),
         };
       }),
       saldoInicial: parsed.saldo_inicial,
@@ -143,6 +145,10 @@ export async function processDocumentUpload(
         (r) => r.banco === banco && r.periodoDesde === periodoDesde && r.periodoHasta === periodoHasta
       );
       if (dupScore) {
+        // Borrar también las transacciones normalizadas del doc reemplazado
+        // (evita movimientos huérfanos al re-subir la misma cartola).
+        const { deleteTransactionsForDocument } = await import('./normalizeCartola.js');
+        await deleteTransactionsForDocument(userId, dupScore.id).catch(() => {});
         await storage.deleteScoreDocumentUploadById(dupScore.id, userId);
         logger.info({ userId, banco, periodoDesde, periodoHasta }, '[documentUploadService] Cartola duplicada reemplazada en scoreDocumentUploads');
       }
@@ -158,11 +164,28 @@ export async function processDocumentUpload(
       parseStatus: "success" as const,
     };
 
-    // Write to BOTH tables
+    // Write to BOTH tables (el id del score doc ancla las transacciones normalizadas).
+    const scoreDocId = randomUUID();
     await Promise.all([
       storage.createDocumentUpload({ ...baseRow, id: randomUUID() }),
-      storage.createScoreDocumentUpload({ ...baseRow, id: randomUUID() }),
+      storage.createScoreDocumentUpload({ ...baseRow, id: scoreDocId }),
     ]);
+
+    // Normalizar a accounts/transactions (fuente de verdad para Movimientos y el
+    // split bruto/real). No bloquea la respuesta si falla.
+    try {
+      const { normalizeCartolaDoc } = await import('./normalizeCartola.js');
+      await normalizeCartolaDoc({
+        userId,
+        documentId: scoreDocId,
+        banco,
+        periodoDesde,
+        periodoHasta,
+        transacciones: (cartolaExtraida.transacciones ?? []) as never,
+      });
+    } catch (e) {
+      logger.warn({ err: e }, '[documentUploadService] normalizeCartola falló (no bloquea la subida)');
+    }
 
     // ── Compute transactional score from ALL score cartolas ──
     const rut = cartolaExtraida.rutDocumento ?? '00.000.000-0';
