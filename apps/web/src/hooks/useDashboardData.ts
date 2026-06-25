@@ -89,11 +89,19 @@ interface RawScoreHistoryEntry {
 }
 
 interface RawCreditScore {
+  available: boolean;
+  reason: string | null;
   score: number | null;
   maxScore: number;
   paymentHistory: string;
   utilization: string;
   ageOfCredit: string;
+  lastUpdated?: string | null;
+  message?: string;
+  source?: {
+    label: string;
+    uploadedAt: string | null;
+  } | null;
 }
 
 interface RawFinancialSummary {
@@ -342,6 +350,10 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
         scoreMaxHistory: [],
         scoreInsights: [],
         creditScore: null,
+        creditScoreAvailable: false,
+        creditScoreUnavailableReason: "missing_cmf_report",
+        creditScoreMessage: "Sube tu Informe de Deudas CMF para calcular tu score crediticio.",
+        creditScoreSource: null,
         creditScoreDelta: null,
         creditScoreDate: null,
         availableUntilEndOfMonth: null,
@@ -415,10 +427,20 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
   }));
 
   // ── Credit score (CMF, from /api/credit-score, separate table) ──────
-  const creditScore = creditScoreQuery.data?.score ?? null;
+  const rawCreditScore = creditScoreQuery.data;
+  const creditScoreAvailable = rawCreditScore?.available === true && typeof rawCreditScore.score === "number";
+  const creditScore = creditScoreAvailable ? rawCreditScore.score : null;
+  const creditScoreSource = rawCreditScore?.source
+    ? {
+        label: rawCreditScore.source.label,
+        uploadedAt: rawCreditScore.source.uploadedAt ?? null,
+      }
+    : null;
   // No delta available from this endpoint (single row per user, no history)
   const creditScoreDelta: number | null = null;
-  const creditScoreDate: string | null = null;
+  const creditScoreDate: string | null = creditScoreAvailable
+    ? (rawCreditScore?.lastUpdated ?? creditScoreSource?.uploadedAt ?? null)
+    : null;
 
   // ── Insight ────────────────────────────────────────────────────────────
   const allInsights = insights.data?.insights ?? [];
@@ -566,6 +588,12 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
       scoreMaxHistory,
       scoreInsights: score.data?.mainInsights ?? [],
       creditScore,
+      creditScoreAvailable,
+      creditScoreUnavailableReason: creditScoreAvailable ? null : (rawCreditScore?.reason ?? "missing_cmf_report"),
+      creditScoreMessage: creditScoreAvailable
+        ? null
+        : (rawCreditScore?.message ?? "Sube tu Informe de Deudas CMF para calcular tu score crediticio."),
+      creditScoreSource,
       creditScoreDelta,
       creditScoreDate,
       availableUntilEndOfMonth,

@@ -2114,27 +2114,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.warn({ path: "/api/credit-score" }, "Credit score: usuario no encontrado para token");
         return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
       }
-      const userIdStr = String(userId);
-      logger.info({ userId: userIdStr, userIdType: typeof userId, path: "/api/credit-score" }, "Credit score: consultando storage (SELECT WHERE user_id = ...)");
-      const existing = await storage.getCreditScore(userIdStr);
-      if (!existing) {
-        logger.info({ userId, path: "/api/credit-score" }, "Credit score: sin registro para userId, devolviendo score null");
-        return res.json({
-          score: null,
-          maxScore: 850,
-          paymentHistory: "",
-          utilization: "",
-          ageOfCredit: "",
-        });
-      }
-      logger.info({ userId, score: existing.score, path: "/api/credit-score" }, "Credit score: registro encontrado");
-      res.json({
-        score: existing.score,
-        maxScore: existing.maxScore ?? 850,
-        paymentHistory: existing.paymentHistory ?? "Unknown",
-        utilization: existing.utilization ?? "Unknown",
-        ageOfCredit: existing.ageOfCredit ?? "Unknown",
-      });
+      const { getCreditScoreAvailability } = await import("./services/creditScoreAvailability.js");
+      const result = await getCreditScoreAvailability(String(userId), storage);
+      logger.info(
+        {
+          userId,
+          available: result.available,
+          reason: result.available ? null : result.reason,
+          path: "/api/credit-score",
+        },
+        "Credit score: estado CMF resuelto",
+      );
+      res.json(result);
     } catch (e) {
       logger.error({ err: e, userId, path: "/api/credit-score" }, "Get credit score failed (posible error SQL o columna)");
       res.status(500).json({ message: "Error al obtener el score crediticio." });

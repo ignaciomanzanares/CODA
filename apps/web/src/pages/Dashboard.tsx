@@ -263,14 +263,17 @@ export default function Dashboard() {
                 <ScoreHero score={data.score} delta={data.scoreDelta} />
               )}
 
-              {/* Credit Score (compact, only when available) */}
-              {data.creditScore !== null && (
-                <CreditScoreCard
-                  score={data.creditScore}
-                  delta={data.creditScoreDelta}
-                  lastUpdated={data.creditScoreDate}
-                />
-              )}
+              {/* Credit Score (CMF, separate from transactional score) */}
+              <CreditScoreCard
+                score={data.creditScore}
+                available={data.creditScoreAvailable}
+                unavailableReason={data.creditScoreUnavailableReason}
+                message={data.creditScoreMessage}
+                sourceLabel={data.creditScoreSource?.label ?? null}
+                sourceUploadedAt={data.creditScoreSource?.uploadedAt ?? null}
+                delta={data.creditScoreDelta}
+                lastUpdated={data.creditScoreDate}
+              />
 
               {/* Score Breakdown — how to improve */}
               {data.score !== null && (
