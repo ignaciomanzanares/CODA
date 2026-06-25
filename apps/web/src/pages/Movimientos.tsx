@@ -15,7 +15,14 @@ import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
 import BillSplit from "@/pages/BillSplit";
 import MonthlyFlowChart from "@/components/MonthlyFlowChart";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
+import { useUserDocuments } from "@/hooks/useUserDocuments";
 import SignInBanner from "@/components/SignInBanner";
+
+/** "2025-06-30" → "30-06-2025" (para etiquetar el saldo al cierre de cartola). */
+function fmtCartolaDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : iso;
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -95,6 +102,7 @@ function AccountChip({
 export default function Movimientos() {
   const { isAuthenticated } = useAuth();
   const { openWithFilePicker } = useUploadDrawer();
+  const { documents } = useUserDocuments();
   const searchString = useSearch();
 
   const params = useMemo(() => new URLSearchParams(searchString), [searchString]);
@@ -164,6 +172,17 @@ export default function Movimientos() {
   const s = txSummary?.summary;
   const f = financial?.summary;
 
+  // El "saldo actual" del backend es en realidad el saldo al CIERRE de la última
+  // cartola subida (getReportedBalance, ordenado por fecha de subida desc). Tomamos
+  // esa misma cartola para fechar la etiqueta y no inducir a error con datos viejos.
+  const latestCartola = [...documents]
+    .filter((d) => d.tipo === "cartola")
+    .sort((a, b) => String(b.uploadedAt).localeCompare(String(a.uploadedAt)))[0];
+  const balanceAsOf = latestCartola?.periodoHasta ?? latestCartola?.periodoDesde ?? null;
+  const balanceLabel = balanceAsOf
+    ? `Saldo al cierre · ${fmtCartolaDate(balanceAsOf)}`
+    : "Saldo al cierre de cartola";
+
   // Account chips: pull from financial-summary if available, fall back to tx summary
   const hasAccounts = f && (f.checkingTotal || f.savingsTotal || f.creditCardDebt || f.investmentsTotal);
 
@@ -212,7 +231,7 @@ export default function Movimientos() {
                 <AccountChip label="Egresos" amount={s.totalExpenses} icon={TrendingDown} color="text-red-500 dark:text-red-400" negative />
                 {s.currentBalance !== null && (
                   <AccountChip
-                    label="Saldo actual"
+                    label={balanceLabel}
                     amount={s.currentBalance}
                     icon={Wallet}
                     color={s.currentBalance >= 0 ? "text-blue-600 dark:text-blue-400" : "text-orange-500"}

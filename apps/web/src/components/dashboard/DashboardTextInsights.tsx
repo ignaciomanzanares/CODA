@@ -33,17 +33,22 @@ function buildInsights(data: DashboardData): Insight[] {
     if (diff >= 0) {
       out.push({
         type: "positive",
-        text: `Ahorraste el ${savingsRate}% de tus ingresos — ${diff > 0 ? diff + " puntos sobre" : "exactamente en"} tu meta del ${SAVINGS_GOAL}%.`,
+        text: `Tu tasa de ahorro fue ${savingsRate}% — ${diff > 0 ? diff + " puntos sobre" : "justo en"} tu meta del ${SAVINGS_GOAL}%.`,
+      });
+    } else if (savingsRate < 0) {
+      out.push({
+        type: "alert",
+        text: `Tu tasa de ahorro fue ${savingsRate}% en el período. Prioriza reducir el déficit antes de invertir o tomar productos de ahorro.`,
       });
     } else if (diff >= -10) {
       out.push({
         type: "warning",
-        text: `Ahorraste el ${savingsRate}%, a ${Math.abs(diff)} puntos de tu meta del ${SAVINGS_GOAL}%.`,
+        text: `Tu tasa de ahorro fue ${savingsRate}%, a ${Math.abs(diff)} puntos de tu meta del ${SAVINGS_GOAL}%.`,
       });
     } else {
       out.push({
         type: "alert",
-        text: `Ahorraste sólo el ${savingsRate}% (meta: ${SAVINGS_GOAL}%). Reducir gastos variables puede ayudar.`,
+        text: `Tu tasa de ahorro fue ${savingsRate}% (meta: ${SAVINGS_GOAL}%). Reducir gastos variables puede ayudar.`,
       });
     }
   }
@@ -57,25 +62,25 @@ function buildInsights(data: DashboardData): Insight[] {
     const top = expenseGroups[0];
     const pct = Math.round((top.total / totalExpenses) * 100);
     const prev = top.prevMonthTotal;
+    // "Gastos Financieros" puede incluir transferencias/pagos entre cuentas propias
+    // pendientes de reclasificar → suavizar el copy y pedir revisión, sin afirmar de más.
+    const isFinanciero = top.key === "financieros";
+    const concentraText = isFinanciero
+      ? `Revisa la categoría ${top.label}: concentra cerca del ${pct}% de tus egresos (${CLP.format(top.total)}). Verifica que no incluya pagos o transferencias entre tus propias cuentas.`
+      : `${top.label} concentra el ${pct}% de tus egresos (${CLP.format(top.total)}).`;
 
     if (prev !== null && prev > 0) {
       const change = Math.round(((top.total - prev) / prev) * 100);
-      if (Math.abs(change) >= 10) {
+      if (Math.abs(change) >= 10 && !isFinanciero) {
         out.push({
           type: change > 0 ? "warning" : "positive",
           text: `${top.label}: ${CLP.format(top.total)} — ${change > 0 ? "+" : ""}${change}% versus el mes anterior.`,
         });
       } else {
-        out.push({
-          type: "info",
-          text: `${top.label} concentra el ${pct}% de tus egresos (${CLP.format(top.total)}).`,
-        });
+        out.push({ type: "info", text: concentraText });
       }
     } else {
-      out.push({
-        type: "info",
-        text: `${top.label} concentra el ${pct}% de tus egresos (${CLP.format(top.total)}).`,
-      });
+      out.push({ type: "info", text: concentraText });
     }
   }
 
