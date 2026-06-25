@@ -647,6 +647,7 @@ export const documentUploads = table('document_uploads', {
   periodoHasta: text('periodo_hasta'),
   parsedData: text('parsed_data').notNull(),
   parseStatus: text('parse_status').default('success'),
+  normalizationStatus: text('normalization_status'),
   uploadedAt: text('uploaded_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 

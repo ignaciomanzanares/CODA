@@ -92,6 +92,7 @@ export interface IStorage {
   createTransactionsBulk(transactions: any[]): Promise<any[]>;
   getTransactions(accountId: number, options?: { from?: Date; to?: Date; limit?: number; offset?: number }): Promise<any[]>;
   getTransactionsForAccounts(accountIds: number[], options?: { from?: Date }): Promise<any[]>;
+  updateTransactionCategory(id: number, userId: string, category: string): Promise<boolean>;
   // Credit score operations
   getCreditScore(userId: string): Promise<any>;
   createCreditScore(creditScore: any): Promise<any>;
@@ -185,10 +186,12 @@ export interface IStorage {
     periodoHasta?: string | null;
     parsedData: unknown;
     parseStatus?: string;
+    normalizationStatus?: string | null;
   }): Promise<any>;
 
   getDocumentUploadById(id: string, userId: string): Promise<any | undefined>;
   updateDocumentUploadParsedData(id: string, parsedData: unknown): Promise<void>;
+  updateDocumentUploadNormalizationStatus(id: string, userId: string, normalizationStatus: string): Promise<void>;
   listDocumentUploadsByType(userId: string, tipo: string): Promise<any[]>;
   listAllDocumentUploads(userId: string): Promise<any[]>;
   deleteDocumentUploadById(id: string, userId: string): Promise<boolean>;
@@ -450,6 +453,23 @@ export class DatabaseStorage implements IStorage {
       result = result.filter((tx: any) => new Date(tx.postedAt) >= options.from!);
     }
     return result;
+  }
+
+  /**
+   * Actualiza la categoría de UNA transacción normalizada, verificando que su
+   * cuenta pertenezca al usuario (fuente de verdad = tabla `transactions`).
+   */
+  async updateTransactionCategory(id: number, userId: string, category: string): Promise<boolean> {
+    if (!db) return false;
+    const [row] = await db.select({ accountId: transactions.accountId }).from(transactions).where(eq(transactions.id, id));
+    if (!row) return false;
+    const [acc] = await db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(and(eq(accounts.id, row.accountId as number), eq(accounts.userId, String(userId))));
+    if (!acc) return false;
+    await db.update(transactions).set({ category }).where(eq(transactions.id, id));
+    return true;
   }
 
   // Credit score operations
@@ -1330,6 +1350,7 @@ export class DatabaseStorage implements IStorage {
     periodoHasta?: string | null;
     parsedData: unknown;
     parseStatus?: string;
+    normalizationStatus?: string | null;
   }): Promise<any> {
     if (!db) throw new Error("Database not available");
     const [inserted] = await db
@@ -1343,6 +1364,7 @@ export class DatabaseStorage implements IStorage {
         periodoHasta: row.periodoHasta ?? null,
         parsedData: JSON.stringify(row.parsedData),
         parseStatus: row.parseStatus ?? "success",
+        normalizationStatus: row.normalizationStatus ?? null,
         uploadedAt: new Date().toISOString(),
       })
       .returning();
@@ -1368,6 +1390,14 @@ export class DatabaseStorage implements IStorage {
       .update(documentUploads)
       .set({ parsedData: JSON.stringify(parsedData) })
       .where(eq(documentUploads.id, id));
+  }
+
+  async updateDocumentUploadNormalizationStatus(id: string, userId: string, normalizationStatus: string): Promise<void> {
+    if (!db) return;
+    await db
+      .update(documentUploads)
+      .set({ normalizationStatus })
+      .where(and(eq(documentUploads.id, id), eq(documentUploads.userId, userId)));
   }
 
   async listDocumentUploadsByType(userId: string, tipo: string): Promise<any[]> {
@@ -1397,6 +1427,7 @@ export class DatabaseStorage implements IStorage {
       periodoDesde: row.periodoDesde,
       periodoHasta: row.periodoHasta,
       parseStatus: row.parseStatus,
+      normalizationStatus: row.normalizationStatus,
       uploadedAt: row.uploadedAt,
     }));
   }

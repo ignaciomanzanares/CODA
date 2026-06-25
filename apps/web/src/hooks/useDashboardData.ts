@@ -44,6 +44,7 @@ interface RawParsedTx {
   saldo: number | null;
   banco: string | null;
   categoria: string;
+  isInternalTransfer?: boolean;
 }
 
 interface RawParsedResponse {
@@ -129,6 +130,7 @@ function toDisplayTx(raw: RawParsedTx): DashboardTransaction {
     monto: Math.abs(raw.monto), // Always positive — tipo indicates direction
     tipo: raw.tipo,
     categoria: raw.categoria || "otro",
+    isInternalTransfer: raw.isInternalTransfer === true,
   };
 }
 
@@ -366,7 +368,10 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
   // ── Parse transactions ─────────────────────────────────────────────────
   const rawTxList = parsedTx.data?.transactions ?? [];
   const allTx = rawTxList.map(toDisplayTx);
-  const { filtered: periodTx, label: periodLabel, totalMonths } = filterByPeriod(allTx, period, monthOffset);
+  // Movimientos muestra la vista bruta; el Panel usa flujo REAL, excluyendo
+  // traspasos internos entre productos propios para no inflar ingresos/gastos.
+  const realTx = allTx.filter((t) => !t.isInternalTransfer);
+  const { filtered: periodTx, label: periodLabel, totalMonths } = filterByPeriod(realTx, period, monthOffset);
 
   // ── Capa 1: Hero ──────────────────────────────────────────────────────
 
@@ -462,7 +467,7 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
 
   // Previous month data for month-over-month comparison
   const prevMonthResult = period === "month" && totalMonths > 1
-    ? filterByPeriod(allTx, "month", monthOffset - 1)
+    ? filterByPeriod(realTx, "month", monthOffset - 1)
     : null;
   const prevMonthTx = prevMonthResult?.filtered ?? [];
 
@@ -513,8 +518,8 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
     // Sparkline from ALL transactions (not just period-filtered)
     const allGroupTx =
       key === "ingresos"
-        ? allTx.filter((t) => t.tipo === "ingreso")
-        : allTx.filter(
+        ? realTx.filter((t) => t.tipo === "ingreso")
+        : realTx.filter(
             (t) => t.tipo === "egreso" && resolveGroupKey(t.categoria) === key,
           );
     const sparklineData = buildSparkline(allGroupTx);

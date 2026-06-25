@@ -148,7 +148,7 @@ describe('SfaScoringEngine', () => {
     const products = [cuentaVigente(0, 0, 0)];
     const result = engine.run({ transactions, products }, refDate);
     expect(result.metrics?.monthsWithGap).toBeGreaterThan(0);
-    expect(result.mainInsights.some((i) => i.includes('último saldo conocido') || i.includes('no hubo movimientos'))).toBe(true);
+    expect(result.mainInsights.some((i) => i.includes('No tenemos datos') && i.includes('ventana de análisis'))).toBe(true);
   });
 
   it('no incluye datos sensibles en insights ni metrics', () => {
