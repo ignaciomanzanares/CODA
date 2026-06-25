@@ -120,7 +120,7 @@ describe("recategorizeUserTransactions", () => {
     const before = inserted[0];
     const result = await recategorizeUserTransactions(userId);
 
-    expect(result).toEqual({ scanned: 3, updated: 3, version: CATEGORIZER_VERSION });
+    expect(result).toEqual({ scanned: 3, updated: 3, skippedManual: 0, version: CATEGORIZER_VERSION });
 
     const [tgr] = await db.select().from(transactions).where(eq(transactions.id, inserted[0].id));
     expect(tgr.category).toBe("servicios");

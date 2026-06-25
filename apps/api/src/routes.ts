@@ -1484,10 +1484,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return null;
       }
 
+      // Flag de revisión manual de categoría (fuente única: reviewStatus).
+      const { requiresReview, isManualCategory } = await import("./services/transactions/reviewStatus.js");
+
       const transactions = (rows as Array<Record<string, unknown>>).map((t) => {
         const acc = accById.get(t.accountId as number);
         const monto = Number(t.amount);
         const prod = productOf(acc);
+        const reviewTx = {
+          category: (t.category as string) ?? null,
+          categoryConfidence: typeof t.categoryConfidence === "number" ? t.categoryConfidence : null,
+          categoryRuleId: (t.categoryRuleId as string) ?? null,
+          categorizerVersion: (t.categorizerVersion as string) ?? null,
+        };
         return {
           id: String(t.id),
           fecha: String(t.postedAt).slice(0, 10),
@@ -1503,7 +1512,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           product: prod.key,
           productLabel: prod.label,
           categoria: (t.category as string) ?? "otro",
-          category_confidence: typeof t.categoryConfidence === "number" ? t.categoryConfidence : null,
+          category_confidence: reviewTx.categoryConfidence,
+          requiresReview: requiresReview(reviewTx),
+          isManual: isManualCategory(reviewTx),
           isInternalTransfer: Number(t.isInternalTransfer ?? 0) === 1,
           periodoDesde: null,
           periodoHasta: null,
@@ -1535,22 +1546,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
 
-      const { category } = req.body as { category?: string };
+      const { category, subcategory } = req.body as { category?: string; subcategory?: string | null };
       if (!category || !VALID_CATEGORIES.has(category)) {
         return res.status(400).json({ message: `Categoría inválida. Opciones: ${[...VALID_CATEGORIES].join(", ")}` });
       }
+      const sub = typeof subcategory === "string" ? subcategory.trim() || null : null;
 
       // El id es el de la fila en la tabla `transactions` (fuente de verdad), igual
       // que el que devuelve GET /api/transactions/parsed. Se actualiza ahí (no en
-      // parsed_data) verificando que la cuenta sea del usuario.
+      // parsed_data) verificando que la cuenta sea del usuario. La corrección queda
+      // marcada como MANUAL (rule_id=manual:user) para que el recategorizador no la pise.
       const txId = req.params.id;
       const idNum = parseInt(txId, 10);
       if (isNaN(idNum)) return res.status(400).json({ message: "ID de transacción inválido." });
 
-      const ok = await storage.updateTransactionCategory(idNum, userId, category);
+      const ok = await storage.updateTransactionCategory(idNum, userId, category, { subcategory: sub });
       if (!ok) return res.status(404).json({ message: "Transacción no encontrada." });
 
-      res.json({ id: txId, category });
+      res.json({ id: txId, category, subcategory: sub, manual: true });
     } catch (e) {
       logger.error({ err: e }, "Failed to update transaction category");
       res.status(500).json({ message: "Error al actualizar categoría." });
@@ -4325,7 +4338,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserIdFromAuth(req);
       const { recategorizeUserTransactions } = await import("./services/recategorizeTransactions.js");
-      const result = await recategorizeUserTransactions(userId);
+      // force solo si se pide explícitamente (no lo envía el botón normal): NO pisa
+      // correcciones manuales por defecto.
+      const force = (req.body as { force?: boolean } | undefined)?.force === true;
+      const result = await recategorizeUserTransactions(userId, { force });
       res.json(result);
     } catch (e) {
       logger.error({ err: e }, "admin/recategorize");

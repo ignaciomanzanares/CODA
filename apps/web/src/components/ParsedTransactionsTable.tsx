@@ -38,6 +38,10 @@ interface ParsedTransaction {
   categoria: string;
   /** Confianza 0..1 del motor de categorización (Batch 10). */
   category_confidence?: number;
+  /** Requiere revisión manual de categoría (fuente única: backend reviewStatus). */
+  requiresReview?: boolean;
+  /** La categoría fue corregida manualmente por el usuario. */
+  isManual?: boolean;
   /** Cuenta/producto de origen (tabla normalizada). */
   accountName?: string | null;
   accountType?: string | null;
@@ -143,9 +147,11 @@ interface ParsedTransactionsTableProps {
   subtitle?: string;
   /** Pre-select a category filter (e.g. from pie chart drill-down) */
   initialCategory?: string;
+  /** Abrir directamente con el filtro "Por revisar" activo (CTA del Panel). */
+  initialReviewOnly?: boolean;
 }
 
-export default function ParsedTransactionsTable({ mode = "movimientos", title, subtitle, initialCategory }: ParsedTransactionsTableProps) {
+export default function ParsedTransactionsTable({ mode = "movimientos", title, subtitle, initialCategory, initialReviewOnly }: ParsedTransactionsTableProps) {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -157,6 +163,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
   const [typeFilter, setTypeFilter] = useState<"all" | "ingreso" | "egreso">(isGastos ? "egreso" : "all");
   const [catFilter, setCatFilter]   = useState<string>(initialCategory ?? "all");
   const [productFilter, setProductFilter] = useState<string>("all");
+  const [reviewOnly, setReviewOnly] = useState(initialReviewOnly ?? false);
   const [dateFrom, setDateFrom]     = useState("");
   const [dateTo, setDateTo]         = useState("");
   const [sortField, setSortField]   = useState<SortField>("fecha");
@@ -191,6 +198,12 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
     return Array.from(set).sort();
   }, [allTxs]);
 
+  // Pendientes por revisar (misma lógica que el badge: flag del backend).
+  const pendingReviewCount = useMemo(
+    () => allTxs.filter(t => t.requiresReview).length,
+    [allTxs],
+  );
+
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortField(field); setSortDir("desc"); }
@@ -199,6 +212,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
 
   const filtered = useMemo(() => {
     let txs = allTxs;
+    if (reviewOnly) txs = txs.filter(t => t.requiresReview);
     if (typeFilter !== "all") txs = txs.filter(t => t.tipo === typeFilter);
     if (catFilter !== "all")  txs = txs.filter(t => t.categoria === catFilter);
     if (productFilter !== "all") txs = txs.filter(t => t.product === productFilter);
@@ -216,7 +230,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
       else if (sortField === "monto") cmp = Math.abs(a.monto) - Math.abs(b.monto);
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [allTxs, typeFilter, catFilter, productFilter, search, dateFrom, dateTo, sortField, sortDir]);
+  }, [allTxs, reviewOnly, typeFilter, catFilter, productFilter, search, dateFrom, dateTo, sortField, sortDir]);
 
   // ── Infinite scroll sentinel ─────────────────────────────────────────────
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -238,9 +252,9 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
   }, [onIntersect]);
 
   // Reset page when filters change
-  useEffect(() => { setPage(1); }, [search, typeFilter, catFilter, productFilter, dateFrom, dateTo, sortField, sortDir]);
+  useEffect(() => { setPage(1); }, [search, typeFilter, catFilter, productFilter, reviewOnly, dateFrom, dateTo, sortField, sortDir]);
 
-  const hasActiveFilter = search || typeFilter !== "all" || catFilter !== "all" || productFilter !== "all" || dateFrom || dateTo;
+  const hasActiveFilter = search || typeFilter !== "all" || catFilter !== "all" || productFilter !== "all" || reviewOnly || dateFrom || dateTo;
 
   // ── Category inline edit ────────────────────────────────────────────────
   const updateCategory = useCallback(async (txId: string, newCategory: string, oldCategory: string) => {
@@ -252,7 +266,9 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
         return {
           ...prev,
           transactions: prev.transactions.map((t) =>
-            t.id === txId ? { ...t, categoria: newCategory } : t
+            t.id === txId
+              ? { ...t, categoria: newCategory, requiresReview: false, isManual: true }
+              : t
           ),
         };
       }
@@ -401,6 +417,27 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                 className="max-w-[200px] h-8 text-sm"
               />
 
+              {/* Filtro rápido "Por revisar": misma lógica que el badge (flag del backend). */}
+              {(pendingReviewCount > 0 || reviewOnly) && (
+                <Button
+                  variant={reviewOnly ? "default" : "outline"}
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={() => setReviewOnly(v => !v)}
+                  title="Mostrar solo movimientos con categoría por revisar"
+                >
+                  Por revisar
+                  <span className={cn(
+                    "rounded-full px-1.5 text-[10px] leading-5 font-semibold",
+                    reviewOnly
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+                  )}>
+                    {pendingReviewCount}
+                  </span>
+                </Button>
+              )}
+
               {!isGastos && (
                 <Select value={typeFilter} onValueChange={v => setTypeFilter(v as any)}>
                   <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -446,7 +483,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
 
               {hasActiveFilter && (
                 <Button variant="ghost" size="sm" className="h-8 text-xs"
-                  onClick={() => { setSearch(""); setTypeFilter("all"); setCatFilter("all"); setProductFilter("all"); setDateFrom(""); setDateTo(""); }}>
+                  onClick={() => { setSearch(""); setTypeFilter("all"); setCatFilter("all"); setProductFilter("all"); setReviewOnly(false); setDateFrom(""); setDateTo(""); }}>
                   Limpiar filtros
                 </Button>
               )}
@@ -476,7 +513,9 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                   {visibleItems.length === 0 ? (
                     <tr>
                       <td colSpan={isGastos ? 4 : 5} className="px-3 py-8 text-center text-muted-foreground text-sm">
-                        Sin resultados para los filtros aplicados.
+                        {reviewOnly
+                          ? "Todo al día. No tienes movimientos pendientes por revisar."
+                          : "Sin resultados para los filtros aplicados."}
                       </td>
                     </tr>
                   ) : (
@@ -500,7 +539,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                                 interna
                               </span>
                             )}
-                            {(tx.categoria === "otro" || (tx.category_confidence != null && tx.category_confidence < 0.5)) && (
+                            {tx.requiresReview && (
                               <Badge
                                 variant="outline"
                                 className="h-5 rounded-full border-amber-200 bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"

@@ -92,7 +92,7 @@ export interface IStorage {
   createTransactionsBulk(transactions: any[]): Promise<any[]>;
   getTransactions(accountId: number, options?: { from?: Date; to?: Date; limit?: number; offset?: number }): Promise<any[]>;
   getTransactionsForAccounts(accountIds: number[], options?: { from?: Date }): Promise<any[]>;
-  updateTransactionCategory(id: number, userId: string, category: string): Promise<boolean>;
+  updateTransactionCategory(id: number, userId: string, category: string, opts?: { subcategory?: string | null }): Promise<boolean>;
   // Credit score operations
   getCreditScore(userId: string): Promise<any>;
   createCreditScore(creditScore: any): Promise<any>;
@@ -459,7 +459,12 @@ export class DatabaseStorage implements IStorage {
    * Actualiza la categoría de UNA transacción normalizada, verificando que su
    * cuenta pertenezca al usuario (fuente de verdad = tabla `transactions`).
    */
-  async updateTransactionCategory(id: number, userId: string, category: string): Promise<boolean> {
+  async updateTransactionCategory(
+    id: number,
+    userId: string,
+    category: string,
+    opts?: { subcategory?: string | null },
+  ): Promise<boolean> {
     if (!db) return false;
     const [row] = await db.select({ accountId: transactions.accountId }).from(transactions).where(eq(transactions.id, id));
     if (!row) return false;
@@ -468,7 +473,21 @@ export class DatabaseStorage implements IStorage {
       .from(accounts)
       .where(and(eq(accounts.id, row.accountId as number), eq(accounts.userId, String(userId))));
     if (!acc) return false;
-    await db.update(transactions).set({ category }).where(eq(transactions.id, id));
+    // Corrección MANUAL: marca la fila para distinguir auto vs manual y para que el
+    // recategorizador automático NO la pise (ver reviewStatus / recategorizeUserTransactions).
+    const { MANUAL_RULE_ID, MANUAL_CATEGORIZER_VERSION, MANUAL_CONFIDENCE } = await import(
+      "./services/transactions/reviewStatus.js"
+    );
+    await db
+      .update(transactions)
+      .set({
+        category,
+        ...(opts && "subcategory" in opts ? { subcategory: opts.subcategory ?? null } : {}),
+        categoryRuleId: MANUAL_RULE_ID,
+        categoryConfidence: MANUAL_CONFIDENCE,
+        categorizerVersion: MANUAL_CATEGORIZER_VERSION,
+      })
+      .where(eq(transactions.id, id));
     return true;
   }
 

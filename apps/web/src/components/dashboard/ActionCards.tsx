@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Wallet,
   Repeat2,
+  ListChecks,
 } from "lucide-react";
 import type { DashboardData, CategoryGroup } from "@/types/dashboard";
 
@@ -101,7 +102,23 @@ function generateRecommendations(data: DashboardData): ActionRecommendation[] {
     score,
     creditScore,
     categoryGroups,
+    pendingReviewCount,
   } = data;
+
+  // Tarea pendiente (no crítica): revisar categorías ambiguas. Prioridad media-baja
+  // para que NUNCA tape alertas críticas (déficit, deuda alta) en el top-3.
+  if (pendingReviewCount > 0) {
+    recs.push({
+      id: "pending-review",
+      icon: ListChecks,
+      color: "amber",
+      title: `Tienes ${pendingReviewCount} movimiento${pendingReviewCount === 1 ? "" : "s"} por categorizar`,
+      body: "Revisa y corrige las categorías marcadas para afinar tu diagnóstico y tu score.",
+      cta: "Revisar movimientos",
+      href: "/movimientos?revisar=1",
+      priority: 58,
+    });
+  }
 
   if (totalIncome === 0) return recs;
 

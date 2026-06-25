@@ -45,6 +45,7 @@ interface RawParsedTx {
   banco: string | null;
   categoria: string;
   isInternalTransfer?: boolean;
+  requiresReview?: boolean;
 }
 
 interface RawParsedResponse {
@@ -372,6 +373,7 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
         savingsGoalPct: 0,
         categoryGroups: [],
         patrimonio: null,
+        pendingReviewCount: 0,
       },
       isLoading: false,
       error: null,
@@ -381,6 +383,8 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
 
   // ── Parse transactions ─────────────────────────────────────────────────
   const rawTxList = parsedTx.data?.transactions ?? [];
+  // Pendientes por revisar (mismo flag del backend que usa el badge/filtro de Movimientos).
+  const pendingReviewCount = rawTxList.filter((t) => t.requiresReview).length;
   const allTx = rawTxList.map(toDisplayTx);
   // Movimientos muestra la vista bruta; el Panel usa flujo REAL, excluyendo
   // traspasos internos entre productos propios para no inflar ingresos/gastos.
@@ -621,6 +625,7 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
       savingsGoalPct: savingsGoalProgress,
       categoryGroups,
       patrimonio,
+      pendingReviewCount,
     },
     isLoading: false,
     error: error as Error | null,
