@@ -46,11 +46,48 @@ npm run ml:setup   # crea .venv con las deps de requirements.txt
 .venv/bin/python train_xgb_benchmark.py --in out/kaggle_benchmark_features.csv --out artifacts/benchmark --label label
 ```
 
-## Próximos pasos (no implementados en este benchmark)
+## Fix aplicado: heterogeneidad real + etiqueta calibrada a Chile (`artifacts/synthetic_chile_v2`)
 
-1. Reemplazar la etiqueta `Math.random()` en `make_synth_training.ts` por una relación
-   determinística entre features y default (o, mejor, datos reales).
-2. Calibrar las distribuciones sintéticas contra la Encuesta Financiera de Hogares del
-   Banco Central de Chile para que los rangos de deuda/ingreso sean plausibles para Chile.
-3. Evaluar la compra de un piloto de datos chilenos reales (Equifax/DICOM) — validar antes
+Implementado: `apps/api/src/ml/syntheticChileanProvider.ts` reemplaza `MockProvider` para la
+generación de entrenamiento. Causa raíz más profunda que la etiqueta `Math.random()`:
+`MockProvider` generaba transacciones **casi idénticas para los 200 usuarios sintéticos**
+(mismo saldo, mismo patrón de gasto, solo ruido menor en montos/fechas) — sin heterogeneidad
+real entre usuarios no había señal real para que el modelo aprendiera, independientemente de
+cómo se sorteara la etiqueta.
+
+`SyntheticChileanProvider` introduce un perfil latente por usuario (`ChileanProfile`: ingreso
+mensual lognormal, carga financiera, volatilidad de ingreso) calibrado contra estadísticas
+públicas de Chile (BCCh, Encuesta Financiera de Hogares 2024; CMF, morosidad de cartera —
+ver docstring del módulo para las cifras exactas y sus caveats de cobertura), y deriva tanto
+las transacciones como la etiqueta de default (`sampleLabel`) de ese mismo perfil latente —
+ya no de `pdScoring.ts` (el scorer heurístico de producción, que además asigna peso cero a
+varias de las features nuevas de DTI/volatilidad) ni de `Math.random()` puro.
+
+`make_synth_training.ts` ahora usa este provider (y crea la fila de usuario en la BD local
+antes de ingestar — `accounts.userId` es FK a `users.id`, paso que faltaba y causaba
+`SQLITE_CONSTRAINT_FOREIGNKEY` con 0 filas generadas en SQLite local).
+
+**Resultado** (`train_xgb_benchmark.py`, mismo pipeline sin modificar, 2000 usuarios
+sintéticos, `artifacts/synthetic_chile_v2/manifest.json`): **AUC 0.6147 (gini 0.2293)**,
+frente al 0.4172 (peor que azar) de `artifacts/current`. Confirma que el problema era la
+falta de heterogeneidad/señal en los datos generadores, no un bug de `train_xgb.py`.
+
+**Pendiente para producción — bloqueador separado, no relacionado a los datos**: el export a
+ONNX (`train_xgb.py`, no `train_xgb_benchmark.py`) sigue fallando con el mismo dataset nuevo
+(`onnx.helper.make_attribute`: `TypeError: Field onnx.AttributeProto.ints: Expected an int,
+got a boolean`), por la incompatibilidad de versiones entre `onnxmltools==1.14.0` y
+`onnx==1.19.0`/`xgboost==3.0.5` ya documentada arriba. `modelRegistry.ts` requiere un
+`xgb_pd.onnx` válido para servir el modelo en producción, así que **no promover este
+artefacto a `artifacts/current` hasta resolver el export ONNX por separado** (downgrade de
+versiones o reemplazo de la librería de conversión).
+
+## Próximos pasos
+
+1. ~~Reemplazar la etiqueta `Math.random()` en `make_synth_training.ts` por una relación
+   determinística entre features y default~~ — hecho, ver sección anterior.
+2. ~~Calibrar las distribuciones sintéticas contra la Encuesta Financiera de Hogares del
+   Banco Central de Chile~~ — hecho (`syntheticChileanProvider.ts`).
+3. Resolver la incompatibilidad de versiones ONNX (`onnxmltools`/`onnx`/`xgboost`) para poder
+   exportar y promover un artefacto entrenado con datos reales/calibrados a `artifacts/current`.
+4. Evaluar la compra de un piloto de datos chilenos reales (Equifax/DICOM) — validar antes
    con legal el contrato de tratamiento de datos.
