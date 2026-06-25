@@ -2,9 +2,12 @@ import { and, eq, isNull, type SQL } from "drizzle-orm";
 import { config } from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
-import { db, documentUploads, scoreDocumentUploads } from "../db/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Cargar .env ANTES de importar ../db/index.js (que lee DATABASE_URL al cargarse,
+// con fallback a SQLite local si falta). Por eso el import de db es dinámico y va
+// dentro de main(); con un import estático arriba, ESM lo ejecutaría antes de este
+// config() y el script correría contra una SQLite vacía (scanned=0). Ver normalize-cartolas.ts.
 config({ path: path.join(__dirname, "../../.env") });
 
 interface ScoreDocRow {
@@ -31,6 +34,7 @@ function nullableEq(column: any, value: string | null): SQL {
 }
 
 async function main() {
+  const { db, documentUploads, scoreDocumentUploads } = await import("../db/index.js");
   const dryRun = process.argv.includes("--dry-run") || process.env.DRY_RUN === "true";
   const scores = (await db
     .select()
