@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # apps/api resuelve @coda/db a packages/dist (ver apps/api/tsconfig.json
+      # "paths") — sin este build, tsc --noEmit y los tests fallan por módulo
+      # no encontrado.
+      - name: Build packages (@coda/db)
+        run: npm run build -w packages
+
+      - name: Typecheck
+        run: npm run check --workspaces --if-present
+
+      - name: Test (@coda/api)
+        working-directory: apps/api
+        run: npx vitest run
