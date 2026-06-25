@@ -91,6 +91,9 @@ export interface ParsedTransaction {
   es_compra: boolean;
   es_pago_recurrente: boolean;
   confidence: TransactionConfidence;
+  /** TC internacional: monto USD nativo + tasa, para conservar metadata al normalizar. */
+  montoUsd?: number;
+  fxRate?: number;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

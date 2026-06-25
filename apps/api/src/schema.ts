@@ -171,6 +171,13 @@ export const transactions = pgTable("transactions", {
   categorizerVersion: text("categorizer_version"),
   pending: integer("pending").default(0),
   raw: text("raw"), // JSON string
+  // Normalización de cartolas (migración 025).
+  isInternalTransfer: integer("is_internal_transfer").notNull().default(0),
+  sourceDocumentId: text("source_document_id"),
+  originalAmount: real("original_amount"),
+  originalCurrency: text("original_currency"),
+  amountClp: real("amount_clp"),
+  fxRate: real("fx_rate"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
