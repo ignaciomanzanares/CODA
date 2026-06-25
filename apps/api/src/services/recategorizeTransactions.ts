@@ -1,11 +1,19 @@
 import { inArray } from "drizzle-orm";
 import { accounts, db, eq, transactions } from "../db/index.js";
 import { categorize, TAXONOMY, CATEGORIZER_VERSION } from "../parsers/merchantCategorizer.js";
+import { isManualCategory } from "./transactions/reviewStatus.js";
 
 export interface RecategorizeResult {
   scanned: number;
   updated: number;
+  skippedManual: number;
   version: string;
+}
+
+export interface RecategorizeOptions {
+  /** Si es true, también re-categoriza las correcciones manuales del usuario.
+   *  Por defecto NO: el botón normal nunca pisa lo que el usuario corrigió a mano. */
+  force?: boolean;
 }
 
 function legacyCategory(result: ReturnType<typeof categorize>): string {
@@ -18,8 +26,11 @@ function changed(a: unknown, b: unknown): boolean {
   return (a ?? null) !== (b ?? null);
 }
 
-export async function recategorizeUserTransactions(userId: string): Promise<RecategorizeResult> {
-  if (!db) return { scanned: 0, updated: 0, version: CATEGORIZER_VERSION };
+export async function recategorizeUserTransactions(
+  userId: string,
+  options: RecategorizeOptions = {},
+): Promise<RecategorizeResult> {
+  if (!db) return { scanned: 0, updated: 0, skippedManual: 0, version: CATEGORIZER_VERSION };
 
   const userAccounts = await db
     .select({ id: accounts.id })
@@ -28,7 +39,7 @@ export async function recategorizeUserTransactions(userId: string): Promise<Reca
 
   const accountIds = userAccounts.map((account: { id: number }) => account.id);
   if (accountIds.length === 0) {
-    return { scanned: 0, updated: 0, version: CATEGORIZER_VERSION };
+    return { scanned: 0, updated: 0, skippedManual: 0, version: CATEGORIZER_VERSION };
   }
 
   const rows = await db
@@ -38,10 +49,20 @@ export async function recategorizeUserTransactions(userId: string): Promise<Reca
 
   let scanned = 0;
   let updated = 0;
+  let skippedManual = 0;
 
   for (const row of rows as Array<Record<string, unknown>>) {
     const description = String(row.description ?? "").trim();
     if (!description) continue;
+
+    // No pisar correcciones manuales del usuario (salvo force explícito).
+    if (!options.force && isManualCategory({
+      categoryRuleId: (row.categoryRuleId as string) ?? null,
+      categorizerVersion: (row.categorizerVersion as string) ?? null,
+    })) {
+      skippedManual++;
+      continue;
+    }
 
     scanned++;
     const amount = Number(row.amount ?? 0);
@@ -74,5 +95,5 @@ export async function recategorizeUserTransactions(userId: string): Promise<Reca
     }
   }
 
-  return { scanned, updated, version: CATEGORIZER_VERSION };
+  return { scanned, updated, skippedManual, version: CATEGORIZER_VERSION };
 }

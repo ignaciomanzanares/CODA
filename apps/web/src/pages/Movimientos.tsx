@@ -107,6 +107,7 @@ export default function Movimientos() {
 
   const params = useMemo(() => new URLSearchParams(searchString), [searchString]);
   const initialCategory = params.get("categoria") ?? undefined;
+  const initialReviewOnly = params.get("revisar") === "1";
   const initialTab = (params.get("tab") as TabId | null) ?? "transacciones";
 
   const [activeTab, setActiveTab] = useState<TabId>(
@@ -272,7 +273,7 @@ export default function Movimientos() {
 
         {/* Tab content */}
         {activeTab === "transacciones" && (
-          <ParsedTransactionsTable mode="movimientos" initialCategory={initialCategory} />
+          <ParsedTransactionsTable mode="movimientos" initialCategory={initialCategory} initialReviewOnly={initialReviewOnly} />
         )}
 
         {activeTab === "dividir" && (

@@ -115,4 +115,8 @@ export interface DashboardData {
     cuentasVista: number;
     totalPatrimonioNeto: number;
   } | null;
+
+  // ── Cola de revisión de categorías ──
+  /** Movimientos con categoría por revisar (mismo flag que el badge de Movimientos). */
+  pendingReviewCount: number;
 }
