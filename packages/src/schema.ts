@@ -654,6 +654,7 @@ export const documentUploads = table('document_uploads', {
 export const scoreDocumentUploads = table('score_document_uploads', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull().references(() => users.id),
+  sourceDocumentUploadId: text('source_document_upload_id').references(() => documentUploads.id),
   tipo: text('tipo').notNull(),
   banco: text('banco'),
   periodoDesde: text('periodo_desde'),

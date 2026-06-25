@@ -326,9 +326,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .filter((t: any) => txAmount(t) < 0)
         .reduce((sum: number, t: any) => sum + txAmount(t), 0));
 
-      const savingsRate = monthlyIncome > 0 
-        ? Math.round(((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100) 
+      const savingsRate = monthlyIncome > 0
+        ? Math.round(((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100)
         : 0;
+
+      // Vista BRUTA (últimos 30 días): TODO lo que aparece en cartolas, incluidas las
+      // transferencias internas (pagos de tarjeta, divisas). La vista REAL de arriba
+      // (monthlyIncome/Expenses) las excluye para no inflar ingresos/gastos del score.
+      const windowTx = transactions.filter(
+        (t: any) => t != null && t.postedAt && new Date(t.postedAt) >= thirtyDaysAgo
+      );
+      const grossIncome = windowTx.filter((t: any) => txAmount(t) > 0).reduce((s: number, t: any) => s + txAmount(t), 0);
+      const grossExpenses = Math.abs(windowTx.filter((t: any) => txAmount(t) < 0).reduce((s: number, t: any) => s + txAmount(t), 0));
+      const gross = { income: Math.round(grossIncome), expenses: Math.round(grossExpenses), balance: Math.round(grossIncome - grossExpenses) };
 
       // Spending by category (last 30 days)
       const spendingByCategory: Record<string, number> = {};
@@ -480,6 +490,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           monthlyExpenses: finalMonthlyExpenses,
           savingsRate: finalSavingsRate,
           accountCount: docAccountCount,
+          // Vista bruta (incluye transferencias internas) vs real (las excluye, arriba).
+          gross,
         },
         accountsByType: {
           checking: {
@@ -1423,126 +1435,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
 
-      const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
+      // Lee de la tabla normalizada `transactions` (fuente de verdad) + `accounts`,
+      // para mostrar cuenta/producto y filtrar por él. Antes leía parsed_data (JSON).
+      const userAccounts = await storage.getAccounts(userId);
+      const accById = new Map<number, { id: number; name?: string | null; type?: string | null; subtype?: string | null }>(
+        userAccounts.map((a: { id: number }) => [a.id as number, a as never]),
+      );
+      const accIds = userAccounts.map((a: { id: number }) => a.id as number);
+      const rows = accIds.length ? await storage.getTransactionsForAccounts(accIds) : [];
 
-      // Supports both storage formats:
-      //   • CartolaParseResult (new): { tipo, monto, saldo_despues, categoria, ... }
-      //   • CartolaExtraida   (old):  { cargo, abono, saldo, ... }
-      interface NewFmtTx { fecha: string; descripcion: string; tipo: 'cargo'|'abono'; monto: number; saldo_despues?: number; categoria?: string }
-      interface OldFmtTx { fecha: string; descripcion: string; cargo: number; abono: number; saldo?: number }
-      type AnyTx = NewFmtTx | OldFmtTx;
-
-      interface ParsedTxOut {
-        id: string; fecha: string; descripcion: string;
-        monto: number; tipo: 'ingreso'|'egreso';
-        saldo: number | null; banco: string | null;
-        periodoDesde: string | null; periodoHasta: string | null;
-        categoria: string;
-        category_confidence: number | null;
-      }
-
-      const allTxs: ParsedTxOut[] = [];
-      // Dedup across documents: tracks how many times a content key has been seen
-      // globally and per-document. Two identical rows in the SAME document (genuine
-      // duplicates in the bank statement) are kept; the same row in two different
-      // documents (re-upload / overlapping periods) is deduped.
-      const globalContentCount = new Map<string, number>();
-
-      for (const c of cartolas) {
-        const pd = c.parsedData as { transacciones?: AnyTx[] } | null;
-        const txs = pd?.transacciones ?? [];
-        // Track occurrence count of each content key within this document
-        const docLocalCount = new Map<string, number>();
-
-        for (let i = 0; i < txs.length; i++) {
-          const t = txs[i] as AnyTx;
-
-          // Normalise to signed monto
-          let monto: number;
-          let saldo: number | null;
-          let categoria: string;
-
-          if ('tipo' in t && typeof (t as NewFmtTx).monto === 'number') {
-            // New CartolaParseResult format
-            const nt = t as NewFmtTx;
-            monto    = nt.tipo === 'abono' ? nt.monto : -nt.monto;
-            saldo    = nt.saldo_despues ?? null;
-          } else {
-            // Old CartolaExtraida format
-            const ot = t as OldFmtTx;
-            const abono = ot.abono ?? 0;
-            const cargo = ot.cargo ?? 0;
-            monto    = abono > 0 ? abono : -cargo;
-            saldo    = ot.saldo ?? null;
-          }
-          categoria = (t as any).categoria ?? 'otro';
-          const category_confidence =
-            typeof (t as any).category_confidence === 'number'
-              ? (t as any).category_confidence
-              : null;
-
-          if (monto === 0) continue;
-
-          // Normalise fecha: handle both Date objects and ISO strings
-          let fechaStr: string;
-          const fechaVal = t.fecha as unknown;
-          if (fechaVal instanceof Date) {
-            fechaStr = fechaVal.toISOString().slice(0, 10);
-          } else if (typeof fechaVal === 'string') {
-            // Handle both ISO (YYYY-MM-DD) and Chilean formats (DD/MM/YYYY)
-            if (fechaVal.includes('/')) {
-              const parts = fechaVal.split('/');
-              if (parts.length === 3) {
-                if (parts[2].length === 2) {
-                  // DD/MM/YY format
-                  fechaStr = `20${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                } else {
-                  // DD/MM/YYYY format
-                  fechaStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                }
-              } else {
-                fechaStr = fechaVal.slice(0, 10);
-              }
-            } else {
-              fechaStr = fechaVal.slice(0, 10);
-            }
-          } else {
-            fechaStr = new Date().toISOString().slice(0, 10);
-          }
-
-          // Build a content key for this transaction
-          const contentKey = `${fechaStr}|${(t.descripcion ?? '').trim().toLowerCase()}|${monto}`;
-          // Track how many times this content appears in the current document
-          const localOcc = (docLocalCount.get(contentKey) ?? 0) + 1;
-          docLocalCount.set(contentKey, localOcc);
-          // The global dedup key slots by occurrence number:
-          // - 1st identical row in any doc uses slot "…|#1"
-          // - 2nd identical row in any doc uses slot "…|#2", etc.
-          // Two docs each having the same row once → both use slot #1 → second deduped ✓
-          // One doc with the same row twice → uses slots #1 and #2 → both kept ✓
-          const dedupeKey = `${contentKey}|#${localOcc}`;
-          const globalOcc = (globalContentCount.get(dedupeKey) ?? 0) + 1;
-          globalContentCount.set(dedupeKey, globalOcc);
-          if (globalOcc > 1) continue; // already seen this slot from another document
-
-          allTxs.push({
-            id: `${c.id}-${i}`,
-            fecha: fechaStr,
-            descripcion: t.descripcion ?? '',
-            monto,
-            tipo: monto >= 0 ? 'ingreso' : 'egreso',
-            saldo,
-            banco: c.banco ?? null,
-            periodoDesde: c.periodoDesde ?? null,
-            periodoHasta: c.periodoHasta ?? null,
-            categoria,
-            category_confidence,
-          });
+      // Producto legible + clave de filtro (Cuenta corriente / TC Nacional / TC Internacional).
+      function productOf(a: { name?: string | null; subtype?: string | null } | undefined): { key: string; label: string } {
+        const name = a?.name ?? "Cuenta";
+        if (a?.subtype === "credit_card") {
+          if (/internacional/i.test(name)) return { key: "tc_internacional", label: `${name} \u00b7 Tarjeta cr\u00e9dito` };
+          if (/nacional/i.test(name)) return { key: "tc_nacional", label: `${name} \u00b7 Tarjeta cr\u00e9dito` };
+          return { key: "tc", label: `${name} \u00b7 Tarjeta cr\u00e9dito` };
         }
+        return { key: "checking", label: `${name} \u00b7 Cuenta corriente` };
       }
 
-      allTxs.sort((a, b) => (b.fecha > a.fecha ? 1 : b.fecha < a.fecha ? -1 : 0));
-      res.json({ transactions: allTxs, count: allTxs.length });
+      const transactions = (rows as Array<Record<string, unknown>>).map((t) => {
+        const acc = accById.get(t.accountId as number);
+        const monto = Number(t.amount);
+        const prod = productOf(acc);
+        return {
+          id: String(t.id),
+          fecha: String(t.postedAt).slice(0, 10),
+          descripcion: (t.description as string) ?? "",
+          monto,
+          tipo: monto >= 0 ? "ingreso" : "egreso",
+          saldo: null,
+          banco: acc?.name ?? null,
+          accountId: t.accountId as number,
+          accountName: acc?.name ?? null,
+          accountType: acc?.type ?? null,
+          accountSubtype: acc?.subtype ?? null,
+          product: prod.key,
+          productLabel: prod.label,
+          categoria: (t.category as string) ?? "otro",
+          category_confidence: typeof t.categoryConfidence === "number" ? t.categoryConfidence : null,
+          isInternalTransfer: Number(t.isInternalTransfer ?? 0) === 1,
+          periodoDesde: null,
+          periodoHasta: null,
+        };
+      });
+
+      transactions.sort((a, b) => (b.fecha > a.fecha ? 1 : b.fecha < a.fecha ? -1 : 0));
+      res.json({ transactions, count: transactions.length });
     } catch (e) {
       logger.error({ err: e }, "Failed to get parsed transactions");
       res.status(500).json({ message: "Error al obtener transacciones." });
@@ -2216,22 +2156,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const doc = docs.find((d: { id: string }) => d.id === docId);
       if (!doc) return res.status(404).json({ message: "Documento no encontrado." });
 
-      // Cascada: borrar el score doc equivalente (mismo banco+período) y SUS
-      // transacciones normalizadas. La cuenta sin movimientos queda inactiva.
-      const { deleteTransactionsForDocument } = await import("./services/documents/normalizeCartola.js");
-      const scoreDocs = await storage.listScoreDocumentUploadsByType(userId, "cartola");
-      const scoreDoc = scoreDocs.find(
-        (s: { banco: string | null; periodoDesde: string | null; periodoHasta: string | null }) =>
-          s.banco === doc.banco && s.periodoDesde === doc.periodoDesde && s.periodoHasta === doc.periodoHasta,
-      );
-      let removedTx = 0;
-      if (scoreDoc) {
-        removedTx = await deleteTransactionsForDocument(userId, scoreDoc.id).catch(() => 0);
-        await storage.deleteScoreDocumentUploadById(scoreDoc.id, userId).catch(() => {});
-      }
+      // Cascada vía el link explícito source_document_upload_id (con fallback legacy
+      // por banco+período): borra el/los score doc(s) y SUS transacciones normalizadas.
+      const { deleteRelatedScoreDocsForDocumentUpload } = await import("./services/documents/documentUploadLinks.js");
+      const cascade = await deleteRelatedScoreDocsForDocumentUpload(userId, doc);
       await storage.deleteDocumentUploadById(docId, userId);
-      logger.info({ userId, docId, removedTx }, "Document + derived transactions deleted");
-      res.json({ success: true, removedTransactions: removedTx });
+      logger.info({ userId, docId, ...cascade }, "Document + derived transactions deleted");
+      res.json({ success: true, removedTransactions: cascade.removedTransactions });
     } catch (e) {
       logger.error({ err: e }, "Failed to delete user document");
       res.status(500).json({ message: "Error al eliminar el documento." });
