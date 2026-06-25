@@ -2362,6 +2362,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  /**
+   * Traza la predicción XGB en `algorithmPredictionLogs` con razones por instancia (no el
+   * ranking SHAP global de `getTopFeatures`) — antes este path de scoring no se registraba
+   * en absoluto en la trazabilidad algorítmica (NCG 502).
+   */
+  async function tracePdXgbPrediction(
+    userId: string,
+    pd: number,
+    reasons: Array<{ feature: string; contribution: number; direction: "increases_risk" | "decreases_risk" }>,
+    features: Record<string, unknown>,
+    startedAt: number
+  ) {
+    try {
+      const { logCreditScorePrediction } = await import("./services/audit/algorithmicTraceability.js");
+      const { randomUUID } = await import("node:crypto");
+      const creditScore = Math.round(850 - pd * 550);
+      const riskCategory = creditScore >= 750 ? "EXCELLENT" : creditScore >= 680 ? "GOOD" : creditScore >= 620 ? "AVERAGE" : creditScore >= 550 ? "POOR" : "VERY_POOR";
+      await logCreditScorePrediction(
+        userId,
+        randomUUID(),
+        {
+          creditScore,
+          probabilityDefault: pd,
+          riskCategory,
+          confidence: 0.8,
+          shapValues: reasons,
+          topFactors: reasons,
+        },
+        { features },
+        { processingTimeMs: Date.now() - startedAt }
+      );
+    } catch (err) {
+      logger.warn({ err }, "Failed to persist XGB prediction trace");
+    }
+  }
+
   // PD Scoring (protected) - Expensive operation
   app.post("/api/scoring/application", authenticate, expensiveLimiter, validateBody(scoringApplicationSchema), async (req, res) => {
     try {
@@ -2373,6 +2409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (modelParam === "xgb") {
         try {
+          const startedAt = Date.now();
           const { PDModelRegistry } = await import("./services/modelRegistry.js");
           const reg = PDModelRegistry.instance();
           if (!reg.isReady) {
@@ -2380,8 +2417,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           if (reg.isReady) {
             const pd = await reg.scoreXGB(fv as any);
-            const reasons = ["model:xgb", ...reg.getTopFeatures(5)];
-            return res.json({ pd, reasons, features: fv, model: reg.getManifest() });
+            const instanceReasons = reg.explainInstance(fv as any, 5);
+            const reasons = ["model:xgb", ...instanceReasons.map((r) => r.feature)];
+            await tracePdXgbPrediction(userId, pd, instanceReasons, fv as Record<string, unknown>, startedAt);
+            return res.json({ pd, reasons, reasonDetail: instanceReasons, features: fv, model: reg.getManifest() });
           }
 
           // Fallback: one-off ONNX scoring if registry not yet ready
@@ -2439,6 +2478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const modelParam = String(req.query.model || "baseline");
       if (modelParam.toLowerCase() === "xgb") {
         try {
+          const startedAt = Date.now();
           const reg = PDModelRegistry.instance();
           // Allow a short warm-up window for lazy model load
           if (!reg.isReady) {
@@ -2446,8 +2486,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           if (reg.isReady) {
             const pd = await reg.scoreXGB(fv as any);
-            const reasons = ["model:xgb", ...reg.getTopFeatures(5)];
-            return res.json({ pd, reasons, features: fv, model: reg.getManifest() });
+            const instanceReasons = reg.explainInstance(fv as any, 5);
+            const reasons = ["model:xgb", ...instanceReasons.map((r) => r.feature)];
+            await tracePdXgbPrediction(userId, pd, instanceReasons, fv as Record<string, unknown>, startedAt);
+            return res.json({ pd, reasons, reasonDetail: instanceReasons, features: fv, model: reg.getManifest() });
           }
 
           // Fallback: score directly via ONNXRuntime (one-off session) if registry not ready
