@@ -2137,7 +2137,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Usuario no encontrado." });
       }
       const docs = await storage.listAllDocumentUploads(userId);
-      res.json({ documents: docs, count: docs.length });
+      // Enriquecer cada cartola con la cantidad de movimientos derivados, resolviendo
+      // el score_document_upload por el link explícito (con fallback legacy).
+      const { findRelatedScoreDocsForDocumentUpload } = await import("./services/documents/documentUploadLinks.js");
+      const { countTransactionsForDocument } = await import("./services/documents/normalizeCartola.js");
+      const scoreDocs = await storage.listScoreDocumentUploadsByType(userId, "cartola");
+      const enriched = await Promise.all(
+        docs.map(async (doc: { id: string }) => {
+          const related = findRelatedScoreDocsForDocumentUpload(doc, scoreDocs);
+          const counts = await Promise.all(related.docs.map((s: { id: string }) => countTransactionsForDocument(s.id)));
+          return { ...doc, movementCount: counts.reduce((a, b) => a + b, 0) };
+        }),
+      );
+      res.json({ documents: enriched, count: enriched.length });
     } catch (e) {
       logger.error({ err: e }, "Failed to list user documents");
       res.status(500).json({ message: "Error al obtener documentos." });

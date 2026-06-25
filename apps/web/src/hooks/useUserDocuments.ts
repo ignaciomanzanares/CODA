@@ -10,6 +10,7 @@ interface UserDocument {
   periodoHasta: string | null;
   parseStatus: string;
   uploadedAt: string;
+  movementCount?: number;
 }
 
 interface UserDocumentsResponse {

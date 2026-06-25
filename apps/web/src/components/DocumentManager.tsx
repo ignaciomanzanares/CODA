@@ -113,12 +113,18 @@ export default function DocumentManager({ className }: { className?: string }) {
             ? `${doc.periodoDesde}${doc.periodoHasta ? ` → ${doc.periodoHasta}` : ""}`
             : new Date(doc.uploadedAt).toLocaleDateString("es-CL");
           const label = doc.tipo === "cartola" ? (doc.banco ?? "Cartola") : "Informe CMF";
+          const subida = new Date(doc.uploadedAt).toLocaleDateString("es-CL");
+          const movimientos =
+            typeof doc.movementCount === "number"
+              ? `${doc.movementCount} movimiento${doc.movementCount === 1 ? "" : "s"}`
+              : null;
+          const meta = [periodo, movimientos, `subida ${subida}`].filter(Boolean).join(" · ");
           return (
             <div key={doc.id} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm">
               <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="flex-1 min-w-0">
                 <p className="truncate text-xs font-medium">{label}</p>
-                <p className="truncate text-[11px] text-muted-foreground">{periodo}</p>
+                <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
               </div>
               <button
                 onClick={() => deleteOne(doc.id)}

@@ -192,6 +192,16 @@ export async function normalizeCartolaDoc(input: NormalizeCartolaInput): Promise
 }
 
 /** Borra las transacciones derivadas de un documento y marca cuentas vacías como inactivas. */
+/** Cuenta las transacciones normalizadas derivadas de un score_document_upload. */
+export async function countTransactionsForDocument(documentId: string): Promise<number> {
+  if (!db) return 0;
+  const rows = await db
+    .select({ id: transactions.id })
+    .from(transactions)
+    .where(like(transactions.externalId, `score_upload:${documentId}:%`));
+  return rows.length;
+}
+
 export async function deleteTransactionsForDocument(userId: string, documentId: string): Promise<number> {
   if (!db) return 0;
   // Cuentas afectadas (para revisar si quedan vacías).
