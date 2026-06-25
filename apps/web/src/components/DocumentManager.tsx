@@ -14,6 +14,7 @@ import { getPersonalToken } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { FileText, Trash2, Loader2 } from "lucide-react";
 import {
   AlertDialog,
@@ -27,8 +28,45 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 
-export default function DocumentManager({ className }: { className?: string }) {
-  const { documents } = useUserDocuments();
+type DocumentManagerProps = {
+  className?: string;
+  documentType?: "all" | "cartola";
+  showDeleteAll?: boolean;
+  showEmptyState?: boolean;
+};
+
+function productLabel(doc: { tipo: string; banco: string | null }) {
+  if (doc.tipo !== "cartola") return "Informe CMF";
+  const banco = doc.banco ?? "Cartola";
+  if (/tarjeta\s+(nacional|internacional)/i.test(banco)) return `${banco} · Tarjeta crédito`;
+  return `${banco} · Cuenta corriente`;
+}
+
+function statusLabel(status?: string | null) {
+  if (!status) return "legacy";
+  if (status === "success") return "normalizada";
+  if (status === "failed") return "fallida";
+  if (status === "pending") return "pendiente";
+  return status;
+}
+
+function statusClass(status?: string | null) {
+  if (status === "success") return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300";
+  if (status === "failed") return "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300";
+  if (status === "pending") return "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300";
+  return "border-border bg-muted text-muted-foreground";
+}
+
+export default function DocumentManager({
+  className,
+  documentType = "all",
+  showDeleteAll = true,
+  showEmptyState = false,
+}: DocumentManagerProps) {
+  const { documents: allDocuments, isLoading } = useUserDocuments();
+  const documents = documentType === "cartola"
+    ? allDocuments.filter((doc) => doc.tipo === "cartola")
+    : allDocuments;
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -74,15 +112,34 @@ export default function DocumentManager({ className }: { className?: string }) {
     }
   }, [apiBase, queryClient, toast]);
 
-  if (documents.length === 0) return null;
+  if (isLoading) {
+    return (
+      <div className={cn("flex items-center gap-2 text-sm text-muted-foreground", className)}>
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Cargando documentos...
+      </div>
+    );
+  }
+
+  if (documents.length === 0) {
+    if (!showEmptyState) return null;
+    return (
+      <div className={cn("rounded-lg border border-dashed border-border p-6 text-center", className)}>
+        <FileText className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
+        <p className="text-sm font-medium">No hay cartolas para borrar</p>
+        <p className="text-xs text-muted-foreground">Sube una cartola y aparecerá en esta lista.</p>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("space-y-2", className)}>
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-muted-foreground">
-          Documentos subidos ({documents.length})
+          {documentType === "cartola" ? "Cartolas subidas" : "Documentos subidos"} ({documents.length})
         </p>
-        <AlertDialog>
+        {showDeleteAll && (
+          <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-red-600 hover:text-red-700" disabled={deletingAll}>
               {deletingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
@@ -104,15 +161,16 @@ export default function DocumentManager({ className }: { className?: string }) {
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
-        </AlertDialog>
+          </AlertDialog>
+        )}
       </div>
 
-      <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+      <div className="space-y-1.5 max-h-[60vh] overflow-y-auto pr-1">
         {documents.map((doc) => {
           const periodo = doc.periodoDesde
             ? `${doc.periodoDesde}${doc.periodoHasta ? ` → ${doc.periodoHasta}` : ""}`
             : new Date(doc.uploadedAt).toLocaleDateString("es-CL");
-          const label = doc.tipo === "cartola" ? (doc.banco ?? "Cartola") : "Informe CMF";
+          const label = productLabel(doc);
           const subida = new Date(doc.uploadedAt).toLocaleDateString("es-CL");
           const movimientos =
             typeof doc.movementCount === "number"
@@ -123,7 +181,14 @@ export default function DocumentManager({ className }: { className?: string }) {
             <div key={doc.id} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm">
               <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="flex-1 min-w-0">
-                <p className="truncate text-xs font-medium">{label}</p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <p className="truncate text-xs font-medium">{label}</p>
+                  {doc.tipo === "cartola" && (
+                    <Badge variant="outline" className={cn("h-5 px-1.5 text-[10px] font-medium", statusClass(doc.normalizationStatus))}>
+                      {statusLabel(doc.normalizationStatus)}
+                    </Badge>
+                  )}
+                </div>
                 <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
               </div>
               <button

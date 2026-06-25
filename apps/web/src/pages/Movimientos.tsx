@@ -14,7 +14,6 @@ import { apiFetch } from "@/lib/api";
 import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
 import BillSplit from "@/pages/BillSplit";
 import MonthlyFlowChart from "@/components/MonthlyFlowChart";
-import DocumentManager from "@/components/DocumentManager";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import SignInBanner from "@/components/SignInBanner";
 
@@ -255,11 +254,6 @@ export default function Movimientos() {
         {/* Tab content */}
         {activeTab === "transacciones" && (
           <ParsedTransactionsTable mode="movimientos" initialCategory={initialCategory} />
-        )}
-
-        {/* Gestión de documentos subidos: borrar uno (re-subir) o borrar todo (con confirmación) */}
-        {activeTab === "transacciones" && (
-          <DocumentManager className="rounded-xl border border-border bg-card p-4" />
         )}
 
         {activeTab === "dividir" && (
