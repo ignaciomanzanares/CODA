@@ -67,7 +67,14 @@ describe("categorize — real cartola corpus", () => {
     ["ANTHROPIC", "Suscripciones y software"],
     ["Google Workspace_codafina", "Suscripciones y software"],
     ["LIME*RIDE", "Transporte"],
-    ["LATAM.COM EUR LA", "Viajes"],
+    ["UBER", "Transporte"],
+    ["LATAM.COM EUR LA", "Transporte"],
+    ["MERPAGO*LATAM", "Transporte"],
+    ["Prime Video", "Suscripciones y software"],
+    ["Amazon", "Suscripciones y software"],
+    ["amzn", "Suscripciones y software"],
+    ["CAFE HAITI", "Restaurantes y delivery"],
+    ["VIPs", "Restaurantes y delivery"],
     ["PLAYSTATION", "Entretenimiento"],
     ["PAGO EN LINEA T.G.R.", "Impuestos y servicios públicos"],
     ["COM.MANT.PROD.OPC.CTA.CTE.", "Comisiones bancarias"],
@@ -99,6 +106,15 @@ describe("categorize — real cartola corpus", () => {
     const r = categorize({ descripcion: "Transf a Maria Gonzalez", tipo: "cargo" });
     expect(r.category).toBe("Transferencias");
     expect(r.ruleId).toBe("transfer.tercero");
+    expect(r.confidence).toBeGreaterThan(0.5);
+  });
+
+  it("frequent Santander rules map to informative legacy categories for Movimientos", () => {
+    expect(categorize({ descripcion: "PAGO EN LINEA T.G.R.", tipo: "cargo" }).category).toBe("Impuestos y servicios públicos");
+    expect(categorize({ descripcion: "PAGO EN LINEA T.G.R.", tipo: "cargo" }).confidence).toBeGreaterThan(0.5);
+    expect(categorize({ descripcion: "COM.MANT.PROD.OPC.CTA.CTE.", tipo: "cargo" }).category).toBe("Comisiones bancarias");
+    expect(categorize({ descripcion: "MERPAGO*LATAM", tipo: "cargo" }).category).toBe("Transporte");
+    expect(categorize({ descripcion: "Amazon", tipo: "cargo" }).category).toBe("Suscripciones y software");
   });
 });
 
