@@ -227,12 +227,16 @@ function filterByPeriod(
 /** Build sparkline: daily totals for last 30 days (or last 30 days of data) */
 function buildSparkline(txs: DashboardTransaction[]): number[] {
   if (txs.length === 0) return [];
-  const now = new Date();
+  // Anclar la ventana de 30 días a la ÚLTIMA fecha con datos, no a hoy: así las
+  // cartolas históricas (p. ej. jun 2025) muestran tendencia en vez de salir planas.
+  let latest = txs[0].fecha;
+  for (const tx of txs) if (tx.fecha > latest) latest = tx.fecha;
+  const anchor = new Date(latest + "T12:00:00");
   const days = new Array<number>(30).fill(0);
   for (const tx of txs) {
     if (tx.tipo !== "egreso") continue;
     const txDate = new Date(tx.fecha + "T12:00:00");
-    const daysAgo = Math.floor((now.getTime() - txDate.getTime()) / 86400000);
+    const daysAgo = Math.floor((anchor.getTime() - txDate.getTime()) / 86400000);
     if (daysAgo >= 0 && daysAgo < 30) {
       days[29 - daysAgo] += tx.monto;
     }

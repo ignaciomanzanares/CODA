@@ -299,20 +299,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalLiabilities = creditCardDebt + loansTotal;
       const netWorth = totalAssets - totalLiabilities;
 
-      // Bulk-fetch transactions for the last 90 days (single query)
-      const ninetyDaysAgo = new Date();
-      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      // ANCLAJE TEMPORAL: las ventanas de "últimos N días/meses" se anclan a la
+      // ÚLTIMA fecha con datos del usuario, NO a hoy. Así una cartola histórica
+      // (p. ej. may/jun 2025) sigue mostrando ingresos/gastos/tendencias en lugar de
+      // devolver 0 sólo porque hoy es 2026. Sin transacciones → anchor = hoy (estado vacío).
+      const allUserTx = await storage.getTransactionsForAccounts(accountIds);
+      const { latestPostedAt } = await import('./services/dashboard/anchorDate.js');
+      const anchorDate = latestPostedAt(allUserTx) ?? new Date();
 
-      const transactions = await storage.getTransactionsForAccounts(accountIds, { from: ninetyDaysAgo });
+      // Transacciones de los últimos 90 días CON DATOS (relativo al anchor).
+      const ninetyDaysAgo = new Date(anchorDate);
+      ninetyDaysAgo.setDate(anchorDate.getDate() - 90);
+      const transactions = allUserTx.filter(
+        (t: { postedAt?: string | null }) => t?.postedAt != null && new Date(t.postedAt) >= ninetyDaysAgo,
+      );
 
       // Flujo consolidado: descarta transferencias entre productos propios para
       // que ingreso/gasto/categorías no se cuenten doble (mismo predicado que
       // monthly-flow / insights). Las transferencias a terceros se conservan.
       const { isInternalTransferTx } = await import('./services/assistantContext.js');
 
-      // Calculate monthly income and expenses (last 30 days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      // Ingreso/gasto del último mes CON DATOS (30 días relativos al anchor, no a hoy).
+      const thirtyDaysAgo = new Date(anchorDate);
+      thirtyDaysAgo.setDate(anchorDate.getDate() - 30);
       const recentTransactions = transactions.filter(
         (t: any) => t != null && t.postedAt && new Date(t.postedAt) >= thirtyDaysAgo && !isInternalTransferTx(t)
       );
@@ -349,11 +358,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           spendingByCategory[category] = (spendingByCategory[category] || 0) + Math.abs(txAmount(t));
         });
 
-      // Últimos 6 meses calendario: ingresos y egresos reales por mes (sin ruido artificial).
+      // Últimos 6 meses calendario TERMINANDO en el mes de la última cartola (anchor),
+      // no en el mes actual: así no se inventan meses vacíos entre la última cartola y hoy.
       // Patrimonio: mismo valor actual por mes (no hay series históricas de saldos en BD).
       const netWorthTrend: { month: string; netWorth: number; assets: number; liabilities: number }[] = [];
       const cashFlowTrend: { month: string; income: number; expenses: number }[] = [];
-      const now = new Date();
+      const now = anchorDate;
       for (let i = 5; i >= 0; i--) {
         const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
