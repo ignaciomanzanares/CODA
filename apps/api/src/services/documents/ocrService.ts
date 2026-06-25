@@ -14,7 +14,15 @@
 
 import { createWorker } from 'tesseract.js';
 import { Buffer } from 'buffer';
-import { createCanvas, loadImage } from 'canvas';
+// Carga diferida del módulo nativo `canvas`: solo se importa al usarse (preprocesamiento de
+// imagen para OCR), no al importar este archivo. Así tests/CI sin el binario nativo compilado
+// (build/Release/canvas.node) pueden importar este módulo sin romperse. La rasterización de
+// PDF usa @napi-rs/canvas (prebuilt) por separado.
+let _canvasMod: typeof import('canvas') | null = null;
+async function getCanvas(): Promise<typeof import('canvas')> {
+  if (!_canvasMod) _canvasMod = await import('canvas');
+  return _canvasMod;
+}
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 // ============================================================================
@@ -267,8 +275,9 @@ export async function smartOcr(
  */
 export async function enhanceImageForOcr(imageBuffer: Buffer): Promise<Buffer> {
   try {
+    const { createCanvas, loadImage } = await getCanvas();
     const img = await loadImage(imageBuffer);
-    
+
     // Create canvas with higher resolution
     const canvas = createCanvas(img.width * 1.5, img.height * 1.5);
     const ctx = canvas.getContext('2d');
