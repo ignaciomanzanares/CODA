@@ -17,6 +17,7 @@ import {
 import { recordBatchAccept } from '../services/privacyConsent/privacyConsentService.js';
 import { isMissingPrivacyTableError } from '../services/privacyConsent/privacyConsentErrors.js';
 import { db, users } from '../db/index.js';
+import { redis } from '../redis.js';
 import { eq } from 'drizzle-orm';
 import { REGISTRATION_REQUIRED_PURPOSES, PRIVACY_POLICY_VERSION } from '../services/privacyConsent/privacyConsentTypes.js';
 
@@ -40,11 +41,19 @@ export interface AuthenticatedRequest extends Request {
 // Token blacklist for logout — in-memory fast path (backs up DB check below)
 const tokenBlacklist = new Set<string>();
 
-// 2FA OTP storage — in-memory with TTL enforced on access
+// 2FA OTP storage.
+// Primary store is Redis (TTL nativo) para que un código generado en una instancia se valide
+// en cualquier otra — el `Map` en memoria es solo un fallback para dev/single-process sin REDIS_URL.
+const OTP_TTL_SECONDS = 10 * 60; // 10 minutes
+const OTP_MAX_ATTEMPTS = 3;
+const otpKey = (email: string) => `otp:2fa:${normalizeEmail(email)}`;
+
 const otpStorage = new Map<string, { code: string; expiresAt: number; attempts: number }>();
 
-// Periodic cleanup: remove expired OTP entries every 15 minutes to prevent memory growth
+// Periodic cleanup del fallback en memoria: remove expired OTP entries every 15 minutes.
+// (Redis expira solo vía TTL; este interval solo aplica cuando no hay Redis.)
 setInterval(() => {
+  if (redis) return;
   const now = Date.now();
   for (const [email, entry] of otpStorage.entries()) {
     if (entry.expiresAt < now) otpStorage.delete(email);
@@ -185,40 +194,95 @@ export function generateOTP(): string {
 }
 
 /**
- * Store OTP for a user (expires in 10 minutes)
+ * Store OTP for a user (expires in 10 minutes).
+ * Redis primario (TTL nativo) con fallback a memoria si no hay REDIS_URL.
  */
-export function storeOTP(email: string, code: string): void {
-  const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
-  otpStorage.set(email, { code, expiresAt, attempts: 0 });
+export async function storeOTP(email: string, code: string): Promise<void> {
+  if (redis) {
+    await redis.set(
+      otpKey(email),
+      JSON.stringify({ code, attempts: 0 }),
+      'EX',
+      OTP_TTL_SECONDS,
+    );
+    return;
+  }
+  const expiresAt = Date.now() + OTP_TTL_SECONDS * 1000;
+  otpStorage.set(normalizeEmail(email), { code, expiresAt, attempts: 0 });
 }
 
 /**
- * Verify OTP for a user
+ * Delete a stored OTP (logout/cleanup tras envío fallido).
  */
-export function verifyOTP(email: string, code: string): { valid: boolean; error?: string } {
-  const stored = otpStorage.get(email);
-  
+export async function deleteOTP(email: string): Promise<void> {
+  if (redis) {
+    await redis.del(otpKey(email));
+    return;
+  }
+  otpStorage.delete(normalizeEmail(email));
+}
+
+/**
+ * Verify OTP for a user.
+ * Cuenta intentos en el mismo store (Redis o memoria) preservando el TTL restante.
+ */
+export async function verifyOTP(email: string, code: string): Promise<{ valid: boolean; error?: string }> {
+  if (redis) {
+    const key = otpKey(email);
+    const raw = await redis.get(key);
+    if (!raw) {
+      return { valid: false, error: 'No verification code found. Please request a new one.' };
+    }
+    let entry: { code: string; attempts: number };
+    try {
+      entry = JSON.parse(raw) as { code: string; attempts: number };
+    } catch {
+      await redis.del(key);
+      return { valid: false, error: 'No verification code found. Please request a new one.' };
+    }
+
+    if (entry.attempts >= OTP_MAX_ATTEMPTS) {
+      await redis.del(key);
+      return { valid: false, error: 'Too many attempts. Please request a new code.' };
+    }
+
+    if (entry.code !== code) {
+      entry.attempts++;
+      const ttl = await redis.ttl(key);
+      await redis.set(key, JSON.stringify(entry), 'EX', ttl > 0 ? ttl : OTP_TTL_SECONDS);
+      return { valid: false, error: 'Invalid verification code.' };
+    }
+
+    // Valid - remove the OTP
+    await redis.del(key);
+    return { valid: true };
+  }
+
+  // Fallback en memoria (dev/single-process sin Redis)
+  const key = normalizeEmail(email);
+  const stored = otpStorage.get(key);
+
   if (!stored) {
     return { valid: false, error: 'No verification code found. Please request a new one.' };
   }
-  
+
   if (Date.now() > stored.expiresAt) {
-    otpStorage.delete(email);
+    otpStorage.delete(key);
     return { valid: false, error: 'Verification code expired. Please request a new one.' };
   }
-  
-  if (stored.attempts >= 3) {
-    otpStorage.delete(email);
+
+  if (stored.attempts >= OTP_MAX_ATTEMPTS) {
+    otpStorage.delete(key);
     return { valid: false, error: 'Too many attempts. Please request a new code.' };
   }
-  
+
   if (stored.code !== code) {
     stored.attempts++;
     return { valid: false, error: 'Invalid verification code.' };
   }
-  
+
   // Valid - remove the OTP
-  otpStorage.delete(email);
+  otpStorage.delete(key);
   return { valid: true };
 }
 
@@ -836,25 +900,35 @@ export async function handleLoginWithDB(req: Request, res: Response) {
           !!(process.env.SMTP_HOST && process.env.SMTP_USER);
 
         if (!hasEmailConfig) {
-          // No email service configured — skip 2FA and log in directly
+          // 2FA está habilitado para la cuenta pero el servidor no tiene servicio de email.
+          // En producción esto es una mala configuración: NO podemos degradar silenciosamente
+          // la segunda capa de autenticación (fail-closed). En dev sí permitimos el atajo.
           logAuthSecurityEvent('twofa_email_failed', req, {
             email: redactEmail(email),
             reason: 'no_email_config',
           });
-          logger.warn({ email: redactEmail(email) }, '2FA skipped: no email service configured. Set GMAIL_USER + GMAIL_APP_PASSWORD in environment.');
+          if (process.env.NODE_ENV === 'production') {
+            logger.error({ email: redactEmail(email) }, '2FA enabled but no email service configured — failing closed. Set GMAIL_USER + GMAIL_APP_PASSWORD.');
+            return res.status(503).json({
+              error: 'Service Unavailable',
+              code: 'twofa_unavailable',
+              message: 'La verificación en dos pasos no está disponible temporalmente. Intenta más tarde o contacta a soporte.',
+            });
+          }
+          logger.warn({ email: redactEmail(email) }, '[DEV] 2FA skipped: no email service configured.');
         } else {
           // Generate and send OTP
           const otpCode = generateOTP();
-          storeOTP(email, otpCode);
+          await storeOTP(email, otpCode);
 
-          // Send 2FA email with a 12s timeout — if SMTP is slow, fall through to normal login
+          // Send 2FA email with a 12s timeout — un SMTP lento no debe colgar el request.
           let sent = false;
           try {
             const sendPromise = emailService.send2FACode(email, otpCode);
             const timeoutPromise = new Promise<false>((resolve) => setTimeout(() => resolve(false), 12_000));
             sent = await Promise.race([sendPromise, timeoutPromise]);
           } catch (emailErr) {
-            logger.warn({ err: emailErr, email: redactEmail(email) }, '2FA email threw — falling through to normal login');
+            logger.warn({ err: emailErr, email: redactEmail(email) }, '2FA email threw');
             sent = false;
           }
 
@@ -864,15 +938,26 @@ export async function handleLoginWithDB(req: Request, res: Response) {
           });
 
           if (!sent) {
-            otpStorage.delete(email);
-            if (process.env.NODE_ENV === 'production') {
-              logAuthSecurityEvent('twofa_email_failed', req, { email: redactEmail(email) });
-              // Fall through to normal login instead of blocking the user
-              logger.warn({ email: redactEmail(email) }, '2FA email failed/timed out — proceeding without 2FA');
-            }
+            // No se pudo entregar el código. Fail-closed: nunca emitir una sesión sin el
+            // segundo factor para una cuenta con 2FA activo. (Mismo criterio que el handler
+            // de reenvío de 2FA más abajo.)
+            logAuthSecurityEvent('twofa_email_failed', req, { email: redactEmail(email) });
             if (isDevelopment()) {
+              // Dev: mostramos el código en consola y mantenemos el OTP para poder probar el flujo.
               console.log(`[DEV] 2FA code for ${email}: ${otpCode}`);
+              return res.json({
+                success: true,
+                requires2FA: true,
+                message: '[DEV] Verification code generated — check server logs',
+              });
             }
+            await deleteOTP(email);
+            logger.error({ email: redactEmail(email) }, '2FA email failed/timed out — denying login (fail-closed)');
+            return res.status(503).json({
+              error: 'Service Unavailable',
+              code: 'twofa_email_failed',
+              message: 'No pudimos enviar tu código de verificación. Intenta nuevamente en unos minutos.',
+            });
           } else {
             return res.json({
               success: true,
@@ -964,8 +1049,8 @@ export async function handleVerify2FA(req: Request, res: Response) {
 
   const email = normalizeEmail(rawEmail);
 
-  const result = verifyOTP(email, code);
-  
+  const result = await verifyOTP(email, code);
+
   if (!result.valid) {
     logAuthSecurityEvent('twofa_failed', req, {
       email: redactEmail(email),
@@ -1126,7 +1211,7 @@ export async function handleResend2FA(req: Request, res: Response) {
 
     // Generate and store new OTP
     const otpCode = generateOTP();
-    storeOTP(email, otpCode);
+    await storeOTP(email, otpCode);
 
     const sent = await emailService.send2FACode(email, otpCode);
     logAuthSecurityEvent('resend_2fa', req, {
@@ -1135,7 +1220,7 @@ export async function handleResend2FA(req: Request, res: Response) {
     });
     if (!sent) {
       if (process.env.NODE_ENV === 'production') {
-        otpStorage.delete(email);
+        await deleteOTP(email);
         logAuthSecurityEvent('twofa_email_failed', req, { email: redactEmail(email) });
         return res.status(503).json({
           error: 'Service Unavailable',

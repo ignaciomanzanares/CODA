@@ -178,7 +178,11 @@ export function evaluateHealthV2(
     : nivelBruto;
 
   let salida: HealthSalida;
-  if (nivel >= 1) {
+  // Nivel 1 ("Fondo básico") aún corresponde a ordenar/refinanciar deuda antes de invertir:
+  // un buen historial CMF puede empujar el score compuesto a nivel 1 pese a ratios de deuda
+  // mediocres (deudaFlujo alto + ahorro bajo), así que ahorro_inversión se reserva para
+  // nivel ≥ 2 ("Fondo consolidado" en adelante), donde los ratios ya son sanos.
+  if (nivel >= 2) {
     salida = 'ahorro_inversion';
   } else if (nivel >= -1) {
     salida = 'refinanciamiento';

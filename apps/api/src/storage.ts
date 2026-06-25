@@ -605,7 +605,6 @@ export class DatabaseStorage implements IStorage {
     data: { score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string; lastUpdated: string }
   ): Promise<any> {
     if (!db) return undefined;
-    const existing = await db.select().from(creditScores).where(eq(creditScores.userId, userId));
     const payload = {
       userId,
       score: data.score,
@@ -615,16 +614,15 @@ export class DatabaseStorage implements IStorage {
       ageOfCredit: data.ageOfCredit,
       lastUpdated: data.lastUpdated,
     };
-    if (existing.length > 0) {
-      const [updated] = await db
-        .update(creditScores)
-        .set(payload)
-        .where(eq(creditScores.userId, userId))
-        .returning();
-      return updated;
-    }
-    const [inserted] = await db.insert(creditScores).values(payload).returning();
-    return inserted;
+    // INSERT ... ON CONFLICT (user_id) DO UPDATE — atómico, sin el SELECT-then-write previo
+    // que abría una race condition (TOCTOU) bajo requests concurrentes para el mismo usuario.
+    const { userId: _omitOnUpdate, ...updateSet } = payload;
+    const [row] = await db
+      .insert(creditScores)
+      .values(payload)
+      .onConflictDoUpdate({ target: creditScores.userId, set: updateSet })
+      .returning();
+    return row;
   }
 
   async getTransactionalScore(userId: string): Promise<any> {
@@ -654,7 +652,6 @@ export class DatabaseStorage implements IStorage {
     }
   ): Promise<any> {
     if (!db) return undefined;
-    const existing = await db.select().from(transactionalScores).where(eq(transactionalScores.userId, userId));
     const payload = {
       userId,
       transactionalScore: data.transactionalScore,
@@ -664,18 +661,13 @@ export class DatabaseStorage implements IStorage {
       lastUpdated: new Date().toISOString(),
     };
     const t0 = Date.now();
-    let row: unknown;
-    if (existing.length > 0) {
-      const [updated] = await db
-        .update(transactionalScores)
-        .set(payload)
-        .where(eq(transactionalScores.userId, userId))
-        .returning();
-      row = updated;
-    } else {
-      const [inserted] = await db.insert(transactionalScores).values(payload).returning();
-      row = inserted;
-    }
+    // INSERT ... ON CONFLICT (user_id) DO UPDATE — atómico, elimina el TOCTOU del SELECT-then-write.
+    const { userId: _omitOnUpdate, ...updateSet } = payload;
+    const [row] = await db
+      .insert(transactionalScores)
+      .values(payload)
+      .onConflictDoUpdate({ target: transactionalScores.userId, set: updateSet })
+      .returning();
 
     logTransactionalScoreComputationFireAndForget({
       userId,
@@ -1631,23 +1623,19 @@ export class DatabaseStorage implements IStorage {
   ): Promise<void> {
     if (!db) return; // mem-storage dev: skip persistencia
     const now = new Date().toISOString();
-    const [existing] = await db
-      .select()
-      .from(assistantSummaries)
-      .where(eq(assistantSummaries.userId, userId));
-    if (existing) {
-      await db
-        .update(assistantSummaries)
-        .set({ summary: data.summary, exchangeCount: data.exchangeCount, updatedAt: now })
-        .where(eq(assistantSummaries.userId, userId));
-    } else {
-      await db.insert(assistantSummaries).values({
+    // INSERT ... ON CONFLICT (user_id) DO UPDATE — atómico (user_id es PK), sin SELECT-then-write.
+    await db
+      .insert(assistantSummaries)
+      .values({
         userId,
         summary: data.summary,
         exchangeCount: data.exchangeCount,
         updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: assistantSummaries.userId,
+        set: { summary: data.summary, exchangeCount: data.exchangeCount, updatedAt: now },
       });
-    }
   }
 
   async deleteUserData(userId: string): Promise<boolean> {
