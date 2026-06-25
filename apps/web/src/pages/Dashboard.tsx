@@ -277,11 +277,17 @@ export default function Dashboard() {
 
               {/* Score Breakdown — how to improve */}
               {data.score !== null && (
-                <ScoreBreakdown
-                  score={data.score}
-                  insights={data.scoreInsights}
-                  creditScore={data.creditScore}
-                />
+	                <ScoreBreakdown
+	                  score={data.score}
+	                  insights={data.scoreInsights}
+	                  creditScore={data.creditScore}
+	                  totalIncome={data.totalIncome}
+	                  totalExpenses={data.totalExpenses}
+	                  savingsNet={data.savingsNet}
+	                  savingsRate={data.savingsRate}
+	                  scoreConfidence={data.scoreConfidence}
+	                  scoreObservedMonths={data.scoreObservedMonths}
+	                />
               )}
 
               {/* Balance del período */}
