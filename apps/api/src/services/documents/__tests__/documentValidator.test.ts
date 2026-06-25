@@ -193,7 +193,11 @@ describe('Document Validator', () => {
         buffer: Buffer.from('%PDF-1.4\nrandom content\n%%EOF'),
       };
       
-      const text = 'This is just random text without any CMF or bank indicators.';
+      const text = [
+        'This is just random text without recognizable financial document markers.',
+        'It has enough extracted text to avoid the scanned-PDF short-text warning path.',
+        'The validator should still warn that no expected document indicators were found.',
+      ].join(' ');
       
       const result = await validateDocumentWithContent(file, text);
       

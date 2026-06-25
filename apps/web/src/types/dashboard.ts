@@ -15,6 +15,7 @@ export interface DashboardTransaction {
   monto: number;          // CLP, always positive
   tipo: "ingreso" | "egreso";
   categoria: string;      // raw category from parser (alimentacion, transporte, etc.)
+  isInternalTransfer?: boolean;
 }
 
 /** Subcategory within a CategoryGroup */

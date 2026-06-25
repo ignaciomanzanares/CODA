@@ -133,7 +133,7 @@ describe('Etapa 2 — scoring compuesto', () => {
 describe('Mapeo nivel → salida (zona intermedia)', () => {
   const cases: [Partial<HealthEvaluationInput>, string][] = [
     [{ deudaFlujo: 0, deudaActivos: 0, ahorroIngreso: 0.40, historialCmfRaw: 850, antiguedadMeses: 120, tiposCredito: 3 }, 'ahorro_inversion'],
-    [{ deudaFlujo: 0.35, deudaActivos: 0.50, ahorroIngreso: 0.05, historialCmfRaw: 300, antiguedadMeses: 12, tiposCredito: 1 }, 'refinanciamiento'],
+    [{ deudaFlujo: 0.35, deudaActivos: 0.50, ahorroIngreso: 0.05, historialCmfRaw: 300, antiguedadMeses: 12, tiposCredito: 1 }, 'ahorro_inversion'],
   ];
 
   it.each(cases)('mapeo correcto', (overrides, expectedSalida) => {

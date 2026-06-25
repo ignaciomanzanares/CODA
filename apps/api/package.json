@@ -9,6 +9,7 @@
     "seed:products": "tsx src/scripts/seedProducts.ts",
     "db:recategorize": "tsx src/scripts/recategorize.ts",
     "db:normalize-cartolas": "tsx src/scripts/normalize-cartolas.ts",
+    "db:backfill-source-links": "tsx src/scripts/backfill-source-document-upload-links.ts",
     "db:dedupe-assets": "tsx src/scripts/dedupeAssets.ts",
     "prebuild": "npm --prefix ../../packages run build",
     "build": "tsc",

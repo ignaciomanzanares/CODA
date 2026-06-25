@@ -19,6 +19,7 @@ import { and, eq, like } from 'drizzle-orm';
 import { db, transactions, accounts } from '../../db/index.js';
 import { storage } from '../../storage.js';
 import { logger } from '../../logger.js';
+import { isInternalTransferDesc } from '../../parsers/merchantCategorizer.js';
 
 export interface NormalizeTx {
   fecha?: string;
@@ -44,14 +45,13 @@ export interface NormalizeCartolaInput {
   transacciones: NormalizeTx[];
 }
 
-// Sólo estos patrones marcan transferencia interna (pago de tarjeta / divisas /
-// fondeo). NO se marca por categoría genérica: hay transferencias que son ingresos
-// reales de terceros y no deben excluirse.
-const INTERNAL_TRANSFER_RE =
-  /traspaso\s+internet\s+a\s+t\.?\s*cr[ée]dito|monto\s+cancelado|pago\s+coopeuch|abono\s+de\s+divisas|egreso\s+por\s+compra\s+de\s+divisas/i;
-
+// Fuente ÚNICA de la detección de transferencias internas por glosa:
+// `isInternalTransferDesc` (merchantCategorizer), la misma que usan el categorizador
+// y el predicado consolidado de exclusión (assistantContext). Marca sólo traspasos
+// entre productos propios / pago de tarjeta / divisas; NO marca "PAGO COOPEUCH"
+// (dividendo hipotecario = gasto real) ni transferencias a terceros.
 export function isInternalByDescription(desc: string): boolean {
-  return INTERNAL_TRANSFER_RE.test(desc ?? '');
+  return isInternalTransferDesc(desc ?? '');
 }
 
 /** Tipo/subtipo de cuenta a partir del nombre del banco. */

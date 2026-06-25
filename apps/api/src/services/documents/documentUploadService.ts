@@ -172,15 +172,16 @@ export async function processDocumentUpload(
     const documentUploadId = randomUUID();
     const scoreDocId = randomUUID();
     await Promise.all([
-      storage.createDocumentUpload({ ...baseRow, id: documentUploadId }),
+      storage.createDocumentUpload({ ...baseRow, id: documentUploadId, normalizationStatus: "pending" }),
       storage.createScoreDocumentUpload({ ...baseRow, id: scoreDocId, sourceDocumentUploadId: documentUploadId }),
     ]);
 
     // Normalizar a accounts/transactions (fuente de verdad para Movimientos y el
-    // split bruto/real). No bloquea la respuesta si falla.
+    // split bruto/real). Si falla, NO dejamos un upload "success" con Movimientos
+    // vacío: el documento queda marcado failed y el score doc se elimina.
     try {
       const { normalizeCartolaDoc } = await import('./normalizeCartola.js');
-      await normalizeCartolaDoc({
+      const normalized = await normalizeCartolaDoc({
         userId,
         documentId: scoreDocId,
         banco,
@@ -188,8 +189,22 @@ export async function processDocumentUpload(
         periodoHasta,
         transacciones: (cartolaExtraida.transacciones ?? []) as never,
       });
+      if (!normalized || normalized.inserted === 0) {
+        throw new Error('No se insertaron transacciones normalizadas para la cartola.');
+      }
+      await storage.updateDocumentUploadNormalizationStatus(documentUploadId, userId, "success");
     } catch (e) {
-      logger.warn({ err: e }, '[documentUploadService] normalizeCartola falló (no bloquea la subida)');
+      await storage.updateDocumentUploadNormalizationStatus(documentUploadId, userId, "failed").catch(() => {});
+      await storage.deleteScoreDocumentUploadById(scoreDocId, userId).catch(() => {});
+      logger.warn({ err: e, userId, documentUploadId, scoreDocId }, '[documentUploadService] normalizeCartola falló');
+      return {
+        step: 'done',
+        documentType: 'cartola',
+        error: 'La cartola se leyó, pero no pudimos normalizar sus movimientos. El documento quedó marcado para revisión; elimínalo y vuelve a subirlo.',
+        detection_tier: parsed.detection_tier,
+        banco_confidence: parsed.banco_confidence,
+        detected_banco: parsed.banco,
+      };
     }
 
     // ── Compute transactional score from ALL score cartolas ──
