@@ -1,0 +1,38 @@
+{
+  "model_id": "xgb_synthetic_chile_v2_1782361740",
+  "trained_at": "2026-06-25T04:29:00Z",
+  "algo": "xgb",
+  "source": "Datos sint\u00e9ticos calibrados con SyntheticChileanProvider (BCCh EFH 2024 / CMF) \u2014 ver syntheticChileanProvider.ts y make_synth_training.ts",
+  "feature_cols": [
+    "windowDays",
+    "txCount",
+    "debitCount",
+    "creditCount",
+    "totalDebits",
+    "totalCredits",
+    "avgAmount",
+    "stdAmount",
+    "activeDays",
+    "debitCreditRatio",
+    "incomeRegularity",
+    "topCategoryShare",
+    "monthlyIncome",
+    "monthlyDebits",
+    "dti",
+    "dtiCapped",
+    "incomeTrend30_90",
+    "netCashflowVolatility",
+    "recurringExpenseShare"
+  ],
+  "metrics": {
+    "auc_per_fold": [
+      0.6097594501718213,
+      0.6687370600414078,
+      0.5654609669954939
+    ],
+    "auc": 0.6146524924029076,
+    "gini": 0.2293049848058153,
+    "brier": 0.034278670246388816
+  },
+  "note": "No apto para producci\u00f3n todav\u00eda (no incluye export a ONNX \u2014 bloqueado por incompatibilidad onnxmltools/onnx/xgboost, ver README.md). Generado con make_synth_training.ts usando SyntheticChileanProvider (heterogeneidad real por usuario: ingreso lognormal, carga financiera, volatilidad de ingreso, calibrados contra BCCh EFH 2024 y morosidad CMF) en vez de MockProvider (que produc\u00eda datos casi id\u00e9nticos para todo usuario) + Math.random() para la etiqueta. AUC sube de 0.4172 (peor que azar, artifacts/current) a 0.6147 con el mismo pipeline de entrenamiento sin modificar \u2014 confirma que el problema era la falta de heterogeneidad/se\u00f1al en los datos generadores, no un bug de train_xgb.py."
+}
