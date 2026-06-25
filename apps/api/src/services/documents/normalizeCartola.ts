@@ -131,22 +131,18 @@ export interface NormalizeResult {
 }
 
 /**
- * Normaliza un documento de cartola a accounts/transactions. Idempotente: borra
- * las transacciones previas de este documentId antes de reinsertar.
+ * Construye las filas de `transactions` a partir de un documento de cartola.
+ * Pura (sin DB) para poder testear fechas, signo del monto, external_id
+ * determinístico, flag interna y metadata USD. `accountId` y `isCredit` los
+ * resuelve el caller (normalizeCartolaDoc) desde el banco.
  */
-export async function normalizeCartolaDoc(input: NormalizeCartolaInput): Promise<NormalizeResult | null> {
-  if (!db) return null;
-  const banco = (input.banco ?? '').trim();
-  if (!banco || !Array.isArray(input.transacciones) || input.transacciones.length === 0) return null;
-
-  const accountId = await getOrCreateAccount(input.userId, banco);
+export function buildCartolaTransactionRows(
+  input: NormalizeCartolaInput,
+  accountId: number,
+  banco: string,
+): Record<string, unknown>[] {
   const isCredit = accountKindForBanco(banco).subtype === 'credit_card';
-
-  // Idempotencia: borrar lo derivado de este documento por external_id determinístico
-  // (cubre tanto runs previos como el backfill manual, que no llenó source_document_id).
-  await db.delete(transactions).where(like(transactions.externalId, `score_upload:${input.documentId}:%`));
-
-  const items = input.transacciones.map((t, idx) => {
+  return input.transacciones.map((t, idx) => {
     const dm = dayMonth(t.fecha);
     const postedAt = dm
       ? resolveDateFromPeriod(dm.day, dm.month, input.periodoDesde, input.periodoHasta)
@@ -185,6 +181,24 @@ export async function normalizeCartolaDoc(input: NormalizeCartolaInput): Promise
     }
     return base;
   });
+}
+
+/**
+ * Normaliza un documento de cartola a accounts/transactions. Idempotente: borra
+ * las transacciones previas de este documentId antes de reinsertar.
+ */
+export async function normalizeCartolaDoc(input: NormalizeCartolaInput): Promise<NormalizeResult | null> {
+  if (!db) return null;
+  const banco = (input.banco ?? '').trim();
+  if (!banco || !Array.isArray(input.transacciones) || input.transacciones.length === 0) return null;
+
+  const accountId = await getOrCreateAccount(input.userId, banco);
+
+  // Idempotencia: borrar lo derivado de este documento por external_id determinístico
+  // (cubre tanto runs previos como el backfill manual, que no llenó source_document_id).
+  await db.delete(transactions).where(like(transactions.externalId, `score_upload:${input.documentId}:%`));
+
+  const items = buildCartolaTransactionRows(input, accountId, banco);
 
   await storage.createTransactionsBulk(items as never);
   logger.info({ userId: input.userId, documentId: input.documentId, banco, count: items.length }, '[normalizeCartola] normalizado');
