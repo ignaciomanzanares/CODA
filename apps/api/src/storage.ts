@@ -198,6 +198,7 @@ export interface IStorage {
   // Score-isolated document uploads
   createScoreDocumentUpload(row: {
     id: string; userId: string; tipo: string;
+    sourceDocumentUploadId?: string | null;
     banco?: string | null; periodoDesde?: string | null; periodoHasta?: string | null;
     parsedData: unknown; parseStatus?: string;
   }): Promise<any>;
@@ -1426,6 +1427,7 @@ export class DatabaseStorage implements IStorage {
   // ── Score-isolated document uploads ────────────────────────────────────
   async createScoreDocumentUpload(row: {
     id: string; userId: string; tipo: string;
+    sourceDocumentUploadId?: string | null;
     banco?: string | null; periodoDesde?: string | null; periodoHasta?: string | null;
     parsedData: unknown; parseStatus?: string;
   }): Promise<any> {

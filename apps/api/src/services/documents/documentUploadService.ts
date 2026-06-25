@@ -19,6 +19,7 @@ import { categorizeTransaction } from '../../parsers/cartola-parser.js';
 import { isInternalTransferTx } from '../assistantContext.js';
 import { type DetectionTier } from '../../parsers/base.js';
 import { logCreditScorePrediction } from '../audit/algorithmicTraceability.js';
+import { deleteRelatedScoreDocsForDocumentUpload } from './documentUploadLinks.js';
 
 export const CREDIT_SCORE_EXCELLENT = 680;
 export const CREDIT_SCORE_MAX = 850;
@@ -135,22 +136,25 @@ export async function processDocumentUpload(
         (r) => r.banco === banco && r.periodoDesde === periodoDesde && r.periodoHasta === periodoHasta
       );
       if (dup) {
+        await deleteRelatedScoreDocsForDocumentUpload(userId, dup);
         await storage.deleteDocumentUploadById(dup.id, userId);
         duplicateReplaced = true;
         logger.info({ userId, banco, periodoDesde, periodoHasta }, '[documentUploadService] Cartola duplicada reemplazada en documentUploads');
       }
 
-      const existingScore = await storage.listScoreDocumentUploadsByType(userId, "cartola");
-      const dupScore = existingScore.find(
-        (r) => r.banco === banco && r.periodoDesde === periodoDesde && r.periodoHasta === periodoHasta
-      );
-      if (dupScore) {
-        // Borrar también las transacciones normalizadas del doc reemplazado
-        // (evita movimientos huérfanos al re-subir la misma cartola).
-        const { deleteTransactionsForDocument } = await import('./normalizeCartola.js');
-        await deleteTransactionsForDocument(userId, dupScore.id).catch(() => {});
-        await storage.deleteScoreDocumentUploadById(dupScore.id, userId);
-        logger.info({ userId, banco, periodoDesde, periodoHasta }, '[documentUploadService] Cartola duplicada reemplazada en scoreDocumentUploads');
+      if (!dup) {
+        const existingScore = await storage.listScoreDocumentUploadsByType(userId, "cartola");
+        const legacyMatches = existingScore.filter(
+          (r) => !r.sourceDocumentUploadId && r.banco === banco && r.periodoDesde === periodoDesde && r.periodoHasta === periodoHasta
+        );
+        if (legacyMatches.length === 1) {
+          const { deleteTransactionsForDocument } = await import('./normalizeCartola.js');
+          await deleteTransactionsForDocument(userId, legacyMatches[0].id).catch(() => {});
+          await storage.deleteScoreDocumentUploadById(legacyMatches[0].id, userId);
+          logger.info({ userId, banco, periodoDesde, periodoHasta }, '[documentUploadService] Cartola legacy duplicada reemplazada en scoreDocumentUploads');
+        } else if (legacyMatches.length > 1) {
+          logger.warn({ userId, banco, periodoDesde, periodoHasta, count: legacyMatches.length }, '[documentUploadService] scoreDocumentUploads legacy ambiguos; no se borran por heurística');
+        }
       }
     }
 
@@ -164,11 +168,12 @@ export async function processDocumentUpload(
       parseStatus: "success" as const,
     };
 
-    // Write to BOTH tables (el id del score doc ancla las transacciones normalizadas).
+    // Write to BOTH tables (el score doc referencia explicitamente al document upload).
+    const documentUploadId = randomUUID();
     const scoreDocId = randomUUID();
     await Promise.all([
-      storage.createDocumentUpload({ ...baseRow, id: randomUUID() }),
-      storage.createScoreDocumentUpload({ ...baseRow, id: scoreDocId }),
+      storage.createDocumentUpload({ ...baseRow, id: documentUploadId }),
+      storage.createScoreDocumentUpload({ ...baseRow, id: scoreDocId, sourceDocumentUploadId: documentUploadId }),
     ]);
 
     // Normalizar a accounts/transactions (fuente de verdad para Movimientos y el

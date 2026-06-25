@@ -78,7 +78,13 @@ export function isInternalTransferTx(t: {
   category?: string;
   categoria?: string;
   es_transferencia?: boolean;
+  /** Flag autoritativo de la tabla normalizada `transactions` (snake o camel). */
+  is_internal_transfer?: number | boolean;
+  isInternalTransfer?: number | boolean;
 }): boolean {
+  // Señal autoritativa de la tabla normalizada (la marca normalizeCartola por glosa).
+  if (t.is_internal_transfer === 1 || t.is_internal_transfer === true) return true;
+  if (t.isInternalTransfer === 1 || t.isInternalTransfer === true) return true;
   const description = t.descripcion ?? t.description ?? '';
   // Etiqueta exacta de la taxonomía: `category` (motor nuevo) o `categoria`
   // (slug persistido en la cartola). La ingesta persiste 'Transferencia interna'.

@@ -27,7 +27,23 @@ interface ParsedTransaction {
   categoria: string;
   /** Confianza 0..1 del motor de categorización (Batch 10). */
   category_confidence?: number;
+  /** Cuenta/producto de origen (tabla normalizada). */
+  accountName?: string | null;
+  accountType?: string | null;
+  accountSubtype?: string | null;
+  /** Clave de filtro: checking | tc_nacional | tc_internacional | tc. */
+  product?: string;
+  /** Etiqueta legible: "Santander · Cuenta corriente". */
+  productLabel?: string;
+  isInternalTransfer?: boolean;
 }
+
+const PRODUCT_FILTERS: { value: string; label: string }[] = [
+  { value: "all", label: "Producto: todos" },
+  { value: "checking", label: "Cuenta corriente" },
+  { value: "tc_nacional", label: "TC Nacional" },
+  { value: "tc_internacional", label: "TC Internacional" },
+];
 
 type SortField = "fecha" | "descripcion" | "monto";
 type SortDir = "asc" | "desc";
@@ -127,7 +143,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
   const [search, setSearch]         = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "ingreso" | "egreso">(isGastos ? "egreso" : "all");
   const [catFilter, setCatFilter]   = useState<string>(initialCategory ?? "all");
-  const [bancoFilter, setBancoFilter] = useState<string>("all");
+  const [productFilter, setProductFilter] = useState<string>("all");
   const [dateFrom, setDateFrom]     = useState("");
   const [dateTo, setDateTo]         = useState("");
   const [sortField, setSortField]   = useState<SortField>("fecha");
@@ -149,11 +165,11 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
   const rawTxs = data?.transactions ?? [];
   const allTxs = isGastos ? rawTxs.filter(t => t.tipo === "egreso") : rawTxs;
 
-  // Derived filter options
-  const banks = useMemo(() => {
+  // Productos presentes (para mostrar sólo los filtros relevantes).
+  const presentProducts = useMemo(() => {
     const set = new Set<string>();
-    allTxs.forEach(t => { if (t.banco) set.add(t.banco); });
-    return Array.from(set).sort();
+    allTxs.forEach(t => { if (t.product) set.add(t.product); });
+    return set;
   }, [allTxs]);
 
   const categories = useMemo(() => {
@@ -172,7 +188,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
     let txs = allTxs;
     if (typeFilter !== "all") txs = txs.filter(t => t.tipo === typeFilter);
     if (catFilter !== "all")  txs = txs.filter(t => t.categoria === catFilter);
-    if (bancoFilter !== "all") txs = txs.filter(t => t.banco === bancoFilter);
+    if (productFilter !== "all") txs = txs.filter(t => t.product === productFilter);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       txs = txs.filter(t => t.descripcion.toLowerCase().includes(q));
@@ -187,7 +203,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
       else if (sortField === "monto") cmp = Math.abs(a.monto) - Math.abs(b.monto);
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [allTxs, typeFilter, catFilter, bancoFilter, search, dateFrom, dateTo, sortField, sortDir]);
+  }, [allTxs, typeFilter, catFilter, productFilter, search, dateFrom, dateTo, sortField, sortDir]);
 
   // ── Infinite scroll sentinel ─────────────────────────────────────────────
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -209,9 +225,9 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
   }, [onIntersect]);
 
   // Reset page when filters change
-  useEffect(() => { setPage(1); }, [search, typeFilter, catFilter, bancoFilter, dateFrom, dateTo, sortField, sortDir]);
+  useEffect(() => { setPage(1); }, [search, typeFilter, catFilter, productFilter, dateFrom, dateTo, sortField, sortDir]);
 
-  const hasActiveFilter = search || typeFilter !== "all" || catFilter !== "all" || bancoFilter !== "all" || dateFrom || dateTo;
+  const hasActiveFilter = search || typeFilter !== "all" || catFilter !== "all" || productFilter !== "all" || dateFrom || dateTo;
 
   // ── Category inline edit ────────────────────────────────────────────────
   const updateCategory = useCallback(async (txId: string, newCategory: string, oldCategory: string) => {
@@ -371,12 +387,13 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                 </Select>
               )}
 
-              {banks.length > 1 && (
-                <Select value={bancoFilter} onValueChange={setBancoFilter}>
-                  <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
+              {presentProducts.size > 1 && (
+                <Select value={productFilter} onValueChange={setProductFilter}>
+                  <SelectTrigger className="w-40 h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Banco: todos</SelectItem>
-                    {banks.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                    {PRODUCT_FILTERS.filter(p => p.value === "all" || presentProducts.has(p.value)).map(p => (
+                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )}
@@ -392,7 +409,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
 
               {hasActiveFilter && (
                 <Button variant="ghost" size="sm" className="h-8 text-xs"
-                  onClick={() => { setSearch(""); setTypeFilter("all"); setCatFilter("all"); setBancoFilter("all"); setDateFrom(""); setDateTo(""); }}>
+                  onClick={() => { setSearch(""); setTypeFilter("all"); setCatFilter("all"); setProductFilter("all"); setDateFrom(""); setDateTo(""); }}>
                   Limpiar filtros
                 </Button>
               )}
@@ -435,9 +452,16 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                           <span className="block truncate text-sm" title={tx.descripcion}>
                             {tx.descripcion || "—"}
                           </span>
-                          <span className="flex items-center gap-1.5">
-                            {tx.banco && (
-                              <span className="text-[10px] text-muted-foreground">{tx.banco}</span>
+                          <span className="flex items-center gap-1.5 flex-wrap">
+                            {(tx.productLabel || tx.banco) && (
+                              <span className="text-[10px] font-medium text-muted-foreground bg-muted/60 rounded px-1.5 py-0.5">
+                                {tx.productLabel || tx.banco}
+                              </span>
+                            )}
+                            {tx.isInternalTransfer && (
+                              <span className="text-[10px] font-medium text-sky-600 dark:text-sky-400" title="Transferencia entre productos propios — se excluye de ingresos/gastos reales">
+                                interna
+                              </span>
                             )}
                             {(tx.categoria === "otro" ||
                               (tx.category_confidence != null && tx.category_confidence < 0.5)) && (
