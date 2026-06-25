@@ -3,6 +3,7 @@ import "./env.js";
 
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import { registerRoutes } from "./routes.js";
 import { registerAuditRoutes } from "./routes-audit.js";
 import { registerHealthEvaluationRoutes } from "./routes-health-evaluation.js";
@@ -62,21 +63,24 @@ const corsOptions: cors.CorsOptions = {
 
 app.use(cors(corsOptions));
 
-// Security headers — applied to every response
+// Security headers — API JSON-only (no HTML/estáticos servidos desde aquí), así
+// que el CSP por defecto de helmet ('self') no rompe nada y agrega defensa extra.
+app.use(
+  helmet({
+    frameguard: { action: "deny" },
+    // El front (Vercel, otro origen) consume esta API solo vía fetch/JSON — no
+    // hay <img>/<script> cross-origin que dependan de CORP/COEP relajado.
+  })
+);
 app.use((_req: Request, res: Response, next: NextFunction) => {
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
-  res.setHeader("X-XSS-Protection", "1; mode=block");
-  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-  if (process.env.NODE_ENV === "production") {
-    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-  }
   next();
 });
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Los uploads de archivos van por multer (multipart/form-data), no por aquí —
+// este límite solo acota el JSON/urlencoded de rutas normales contra abuso.
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: false, limit: "1mb" }));
 
 app.use((req, res, next) => {
   const start = Date.now();

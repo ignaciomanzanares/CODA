@@ -121,13 +121,12 @@ export async function buildFinancialContextForAssistant(userId: string): Promise
 
 async function buildFinancialContextUncached(userId: string): Promise<FinancialContext> {
   const userAccounts = await storage.getAccounts(userId);
-  const accountsWithBalances: AccountWithBalance[] = await Promise.all(
-    userAccounts.map(async (account) => {
-      const balances = await storage.getBalances(account.id);
-      const balance = balances.length > 0 ? balances[balances.length - 1] : null;
-      return { ...account, balance } as AccountWithBalance;
-    })
-  );
+  const accountIds = userAccounts.map((account) => account.id);
+  const latestBalanceByAccount = await storage.getLatestBalancesForAccounts(accountIds);
+  const accountsWithBalances: AccountWithBalance[] = userAccounts.map((account) => ({
+    ...account,
+    balance: latestBalanceByAccount[account.id] ?? null,
+  } as AccountWithBalance));
 
   const totalBalance = accountsWithBalances.reduce(
     (sum, a) => sum + parseFloat(a.balance?.current || "0"),
@@ -139,12 +138,7 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-  const allTransactions = await Promise.all(
-    userAccounts.map((account: { id: number }) =>
-      storage.getTransactions(account.id, { from: ninetyDaysAgo })
-    )
-  );
-  const transactions = allTransactions.flat().filter(
+  const transactions = (await storage.getTransactionsForAccounts(accountIds, { from: ninetyDaysAgo })).filter(
     (t) => t != null && t.postedAt && new Date(t.postedAt) >= ninetyDaysAgo
   );
 
