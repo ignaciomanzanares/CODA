@@ -1,15 +1,40 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { buildUserFeatureVector } from "../ml/features.js";
 import { storage } from "../storage.js";
+import { db, users, accounts, transactions, eq, inArray } from "../db/index.js";
 import type { InsertAccount, InsertTransaction } from "../schema.js";
+
+/**
+ * Aislamiento de test: la BD SQLite de dev/test es un archivo persistente (packages/data/coda.db),
+ * así que filas de corridas anteriores quedan. Borramos por email (en orden de FK:
+ * transactions → accounts → users) para empezar limpio en cada test, evitando que cuentas exactas
+ * (txCount, totalCredits, etc.) se inflen al acumular datos entre corridas.
+ */
+async function cleanupTestUserByEmail(email: string): Promise<void> {
+  if (!db) return;
+  const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
+  const ids = existing.map((u: { id: string }) => u.id);
+  if (ids.length === 0) return;
+  const accs = await db.select({ id: accounts.id }).from(accounts).where(inArray(accounts.userId, ids));
+  const accIds = accs.map((a: { id: number }) => a.id);
+  if (accIds.length > 0) {
+    await db.delete(transactions).where(inArray(transactions.accountId, accIds));
+    await db.delete(accounts).where(inArray(accounts.id, accIds));
+  }
+  await db.delete(users).where(inArray(users.id, ids));
+}
 
 describe("Feature Engineering", () => {
   const TEST_USER_ID = "test-user-features";
 
   beforeEach(async () => {
+    // Limpiar datos de corridas previas (incluye filas legacy con otro id pero mismo email).
+    await cleanupTestUserByEmail("test@example.com");
+    await cleanupTestUserByEmail("empty@example.com");
+
     // Create test user
     await storage.createUser({
-      id: "test-user-id",
+      id: TEST_USER_ID,
       username: "testuser",
       email: "test@example.com",
       passwordHash: "testhash",

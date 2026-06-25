@@ -154,7 +154,10 @@ export const transactions = table('transactions', {
 
 export const creditScores = table('credit_scores', {
   id: serialPk("id"),
-  userId: text('user_id').notNull().references(() => users.id),
+  // .unique(): una fila por usuario. Requerido para INSERT ... ON CONFLICT (user_id) en upsertCreditScore.
+  // En Postgres el constraint ya existe vía migrations/0002_credit_scores_user_id_unique.sql;
+  // declararlo aquí lo hace existir también en la BD SQLite de tests/dev (construida desde este schema).
+  userId: text('user_id').notNull().references(() => users.id).unique(),
   score: integer('score').notNull(),
   maxScore: integer('max_score').notNull().default(850),
   paymentHistory: text('payment_history').notNull(),

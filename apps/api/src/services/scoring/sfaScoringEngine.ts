@@ -263,7 +263,7 @@ function buildExplainableInsights(
 
   if (liquidity.monthsWithGap > 0) {
     insights.push(
-      `No tenemos datos de ${liquidity.monthsWithGap} de los ${total} meses de la ventana de análisis. Sube más cartolas para cubrir la ventana completa y obtener un score más preciso.`
+      `No hubo movimientos registrados en ${liquidity.monthsWithGap} de los ${total} meses de la ventana de análisis; para esos meses se mantuvo el último saldo conocido. Sube más cartolas para cubrir la ventana completa y obtener un score más preciso.`
     );
   }
 

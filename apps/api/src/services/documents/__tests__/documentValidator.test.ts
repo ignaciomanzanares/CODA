@@ -193,10 +193,12 @@ describe('Document Validator', () => {
         buffer: Buffer.from('%PDF-1.4\nrandom content\n%%EOF'),
       };
       
-      const text = 'This is just random text without any CMF or bank indicators.';
-      
+      // Nota: el texto NO debe contener la sigla "CMF" ni nombres de banco — si los menciona,
+      // el detector (correctamente) los reconoce como indicadores y no emite el warning.
+      const text = 'This is just random text without any financial document markers.';
+
       const result = await validateDocumentWithContent(file, text);
-      
+
       expect(result.valid).toBe(true);
       expect(result.warnings!.some(w => w.includes('indicadores'))).toBe(true);
     });
