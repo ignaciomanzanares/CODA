@@ -111,22 +111,23 @@ export default function SignUp() {
   return (
     <div className="min-h-screen flex">
       {/* Left brand panel */}
-      <div className="hidden lg:flex flex-col justify-between bg-[#0a0f1e] text-white p-12 w-1/2 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-[500px] h-[500px] rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-[300px] h-[300px] rounded-full bg-indigo-600/10 blur-[80px] pointer-events-none" />
+      <div className="hidden lg:flex flex-col justify-between bg-[#0c0a09] text-white p-12 w-1/2 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-[500px] h-[500px] rounded-full bg-primary/15 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-[300px] h-[300px] rounded-full bg-orange-500/10 blur-[80px] pointer-events-none" />
 
-        <div className="relative flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30">
+        {/* Logo — siempre lleva al inicio */}
+        <Link href="/" className="relative flex items-center gap-3 w-fit group" aria-label="Ir al inicio">
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
             <Wallet className="h-5 w-5 text-white" />
           </div>
-          <span className="text-xl font-bold tracking-tight">CODA</span>
-        </div>
+          <span className="text-xl font-bold tracking-tight group-hover:text-primary transition-colors">CODA</span>
+        </Link>
 
         <div className="relative space-y-8">
           <div>
             <h2 className="text-4xl font-bold leading-tight mb-4">
               Empieza a conocer{" "}
-              <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">
                 tu salud financiera
               </span>
             </h2>
@@ -138,8 +139,8 @@ export default function SignUp() {
           <ul className="space-y-4">
             {brandFeatures.map(({ icon: Icon, text }) => (
               <li key={text} className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-blue-600/10 border border-blue-600/20 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                  <Icon className="h-4 w-4 text-blue-400" />
+                <div className="w-8 h-8 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                  <Icon className="h-4 w-4 text-primary" />
                 </div>
                 <span className="text-sm text-slate-300 leading-relaxed">{text}</span>
               </li>
@@ -155,20 +156,20 @@ export default function SignUp() {
 
       {/* Right: Form */}
       <div className="flex-1 lg:w-1/2 flex flex-col justify-center bg-background px-6 py-12 sm:px-12 lg:px-16 overflow-y-auto">
-        {/* Mobile logo */}
-        <div className="lg:hidden flex items-center gap-2 mb-10">
-          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
+        {/* Mobile logo — siempre lleva al inicio */}
+        <Link href="/" className="lg:hidden flex items-center gap-2 mb-10 w-fit" aria-label="Ir al inicio">
+          <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center">
             <Wallet className="h-5 w-5 text-white" />
           </div>
           <span className="text-lg font-bold text-foreground">CODA</span>
-        </div>
+        </Link>
 
         <div className="w-full max-w-md mx-auto space-y-7">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Crear cuenta</h1>
             <p className="mt-2 text-muted-foreground">
               ¿Ya tienes cuenta?{" "}
-              <Link href={ROUTES.iniciarSesion} className="text-blue-600 hover:underline font-medium">
+              <Link href={ROUTES.iniciarSesion} className="text-primary hover:underline font-medium">
                 Iniciar sesión
               </Link>
             </p>
@@ -198,7 +199,7 @@ export default function SignUp() {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Nombre y apellido"
                   disabled={isLoading}
-                  className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                  className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
                 />
               </div>
             </div>
@@ -220,7 +221,7 @@ export default function SignUp() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="tu@correo.cl"
                   disabled={isLoading}
-                  className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                  className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
                 />
               </div>
             </div>
@@ -242,7 +243,7 @@ export default function SignUp() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   disabled={isLoading}
-                  className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-11 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                  className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-11 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
                 />
                 <button
                   type="button"
@@ -281,7 +282,7 @@ export default function SignUp() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   disabled={isLoading}
-                  className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-11 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                  className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-11 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
                 />
                 <button
                   type="button"
@@ -308,15 +309,15 @@ export default function SignUp() {
                 checked={acceptedLegal}
                 onChange={(e) => { setAcceptedLegal(e.target.checked); if (e.target.checked) setError(""); }}
                 disabled={isLoading}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-blue-600 accent-blue-600"
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-primary accent-[#FF5C35]"
               />
               <span className="text-xs text-muted-foreground leading-relaxed">
                 He leído y acepto los{" "}
-                <a href={ROUTES.terminos} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:no-underline">
+                <a href={ROUTES.terminos} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:no-underline">
                   Términos y Condiciones
                 </a>{" "}
                 y la{" "}
-                <a href={ROUTES.privacidad} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:no-underline">
+                <a href={ROUTES.privacidad} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:no-underline">
                   Política de Privacidad
                 </a>{" "}
                 de CODA.
@@ -325,7 +326,7 @@ export default function SignUp() {
 
             <Button
               type="submit"
-              className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold text-sm"
+              className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-semibold text-sm"
               disabled={isLoading || !isPasswordValid || !passwordsMatch || !acceptedLegal}
             >
               {isLoading ? (
