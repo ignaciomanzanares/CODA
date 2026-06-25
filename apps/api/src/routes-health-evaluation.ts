@@ -92,14 +92,20 @@ async function handleHealthEvaluationMe(req: Request, res: Response): Promise<an
         });
       }
 
-      // Calcular ingresos y gastos desde cartola más reciente
-      const latestCartola = cartolas[0] as any;
-      const pd = latestCartola?.parsedData as { transacciones?: Array<{ tipo?: string; monto?: number; abono?: number; cargo?: number }> } | null;
+      // Ingresos y gastos del último mes con datos, desde la tabla `transactions`
+      // (fuente de verdad, no parsed_data). Se excluyen las transferencias internas
+      // (pago de tarjeta/divisas) para no inflar ingreso ni ahorro — mismo predicado
+      // consolidado que el resto de las métricas (Salud usa la vista REAL).
+      const { getUserNormalizedTransactions } = await import('./services/normalizedTransactions.js');
+      const { isInternalTransferTx } = await import('./services/assistantContext.js');
+      const { transactions: normTxs } = await getUserNormalizedTransactions(userId);
+      const latestMonth = normTxs.reduce((m, t) => (t.month > m ? t.month : m), '');
       let totalIngresos = 0, totalGastos = 0;
-      for (const t of pd?.transacciones ?? []) {
-        if (t.tipo === 'abono' && typeof t.monto === 'number') totalIngresos += t.monto;
-        else if (t.tipo === 'cargo' && typeof t.monto === 'number') totalGastos += t.monto;
-        else { totalIngresos += t.abono ?? 0; totalGastos += t.cargo ?? 0; }
+      for (const t of normTxs) {
+        if (t.month !== latestMonth) continue;
+        if (isInternalTransferTx(t)) continue;
+        totalIngresos += t.abono;
+        totalGastos += t.cargo;
       }
 
       // CMF más reciente — normaliza ambos formatos posibles
