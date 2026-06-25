@@ -6,13 +6,24 @@ import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ArrowUpDown, ArrowUp, ArrowDown, Upload, Download } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ArrowUpDown, ArrowUp, ArrowDown, Upload, Download, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { CATEGORY_TAXONOMY, categoryLabel } from "@/lib/categoryTaxonomy";
+import { useUserDocuments } from "@/hooks/useUserDocuments";
+import DocumentManager from "@/components/DocumentManager";
 
 interface ParsedTransaction {
   id: string;
@@ -138,7 +149,9 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { documents } = useUserDocuments();
   const isGastos = mode === "gastos";
+  const cartolaCount = documents.filter((doc) => doc.tipo === "cartola").length;
 
   const [search, setSearch]         = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "ingreso" | "egreso">(isGastos ? "egreso" : "all");
@@ -356,6 +369,30 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                 <Upload className="h-4 w-4" />
                 Subir documento
               </Button>
+              {!isGastos && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                      <Trash2 className="h-4 w-4" />
+                      Borrar cartolas
+                      {cartolaCount > 0 && (
+                        <span className="rounded-full bg-muted px-1.5 text-[10px] leading-5 text-muted-foreground">
+                          {cartolaCount}
+                        </span>
+                      )}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="w-[calc(100vw-2rem)] max-w-3xl">
+                    <DialogHeader>
+                      <DialogTitle>Borrar cartolas</DialogTitle>
+                      <DialogDescription>
+                        Elimina una cartola específica y sus movimientos derivados.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DocumentManager documentType="cartola" showDeleteAll={false} showEmptyState />
+                  </DialogContent>
+                </Dialog>
+              )}
 
               <Input
                 placeholder="Buscar descripción..."
@@ -463,14 +500,14 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                                 interna
                               </span>
                             )}
-                            {(tx.categoria === "otro" ||
-                              (tx.category_confidence != null && tx.category_confidence < 0.5)) && (
-                              <span
-                                className="text-[10px] font-medium text-amber-600 dark:text-amber-400"
+                            {(tx.categoria === "otro" || (tx.category_confidence != null && tx.category_confidence < 0.5)) && (
+                              <Badge
+                                variant="outline"
+                                className="h-5 rounded-full border-amber-200 bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
                                 title="Categoría incierta — revísala para mejorar el diccionario"
                               >
-                                · revisar
-                              </span>
+                                Revisar categoría
+                              </Badge>
                             )}
                           </span>
                         </td>

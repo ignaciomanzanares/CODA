@@ -1463,6 +1463,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return { key: "checking", label: `${name} \u00b7 Cuenta corriente` };
       }
 
+      function parseNumberLike(value: unknown): number | null {
+        if (typeof value === "number" && Number.isFinite(value)) return value;
+        if (typeof value !== "string") return null;
+        const normalized = value.replace(/\./g, "").replace(",", ".").replace(/[^\d.-]/g, "");
+        const n = Number(normalized);
+        return Number.isFinite(n) ? n : null;
+      }
+
+      function rawBalance(raw: unknown, subtype?: string | null): number | null {
+        if (subtype === "credit_card") return null;
+        const data = typeof raw === "string" ? (() => {
+          try { return JSON.parse(raw) as Record<string, unknown>; } catch { return null; }
+        })() : raw && typeof raw === "object" ? raw as Record<string, unknown> : null;
+        if (!data) return null;
+        for (const key of ["saldo", "balance", "saldoFinal", "saldo_final", "saldoDisponible", "saldo_disponible", "saldoContable", "saldo_contable"]) {
+          const value = parseNumberLike(data[key]);
+          if (value != null) return value;
+        }
+        return null;
+      }
+
       const transactions = (rows as Array<Record<string, unknown>>).map((t) => {
         const acc = accById.get(t.accountId as number);
         const monto = Number(t.amount);
@@ -1473,7 +1494,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           descripcion: (t.description as string) ?? "",
           monto,
           tipo: monto >= 0 ? "ingreso" : "egreso",
-          saldo: null,
+          saldo: rawBalance(t.raw, acc?.subtype ?? null),
           banco: acc?.name ?? null,
           accountId: t.accountId as number,
           accountName: acc?.name ?? null,

@@ -9,6 +9,7 @@ interface UserDocument {
   periodoDesde: string | null;
   periodoHasta: string | null;
   parseStatus: string;
+  normalizationStatus?: string | null;
   uploadedAt: string;
   movementCount?: number;
 }
