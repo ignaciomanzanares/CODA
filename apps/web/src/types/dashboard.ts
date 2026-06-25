@@ -81,6 +81,10 @@ export interface DashboardData {
 
   // ── Credit score (CMF, 0-850) ──
   creditScore: number | null;
+  creditScoreAvailable: boolean;
+  creditScoreUnavailableReason: string | null;
+  creditScoreMessage: string | null;
+  creditScoreSource: { label: string; uploadedAt: string | null } | null;
   creditScoreDelta: number | null;
   creditScoreDate: string | null;         // ISO date of last calculation
 

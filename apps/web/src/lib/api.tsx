@@ -53,7 +53,17 @@ export type ApiClient = {
   createFinancialGoal: (goalData: import("@/types").CreateGoalData) => Promise<import("@/types").Goal>;
   updateFinancialGoal: (goalId: string, goalData: import("@/types").UpdateGoalData) => Promise<import("@/types").Goal>;
   deleteFinancialGoal: (goalId: string) => Promise<import("@/types").ApiResponse>;
-  getCreditScore: () => Promise<{ score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string }>;
+  getCreditScore: () => Promise<{
+    available?: boolean;
+    reason?: string | null;
+    score: number | null;
+    maxScore: number;
+    paymentHistory: string;
+    utilization: string;
+    ageOfCredit: string;
+    lastUpdated?: string | null;
+    message?: string;
+  }>;
   getFinancialProducts: (category?: string) => Promise<import("@/types").FinancialProduct[]>;
   getProductRecommendations: (category?: string, limit?: number) => Promise<any[]>;
   trackProductEvent: (productId: number, eventType: 'view' | 'click' | 'application', matchScore?: number, metadata?: Record<string, unknown>) => Promise<{ success: boolean }>;
@@ -108,11 +118,15 @@ export function useApi(): ApiClient {
 
   // Local response shapes used by the UI components
   type CreditScore = {
-    score: number;
+    available?: boolean;
+    reason?: string | null;
+    score: number | null;
     maxScore: number;
     paymentHistory: string;
     utilization: string;
     ageOfCredit: string;
+    lastUpdated?: string | null;
+    message?: string;
   };
 
   type Notification = {

@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, ShieldCheck, Info } from "lucide-react";
+import { TrendingUp, TrendingDown, ShieldCheck, Info, Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import {
   Tooltip,
   TooltipContent,
@@ -8,7 +10,12 @@ import {
 } from "@/components/ui/tooltip";
 
 interface CreditScoreCardProps {
-  score: number;             // 0-850
+  score: number | null;      // 0-850
+  available: boolean;
+  unavailableReason?: string | null;
+  message?: string | null;
+  sourceLabel?: string | null;
+  sourceUploadedAt?: string | null;
   delta: number | null;
   lastUpdated: string | null; // ISO date
 }
@@ -40,9 +47,64 @@ function barColor(score: number): string {
  */
 export default function CreditScoreCard({
   score,
+  available,
+  unavailableReason,
+  message,
+  sourceLabel,
+  sourceUploadedAt,
   delta,
   lastUpdated,
 }: CreditScoreCardProps) {
+  const { setOpen: openUploadDrawer } = useUploadDrawer();
+  const hasScore = available && typeof score === "number";
+  const displayedDate = sourceUploadedAt ?? lastUpdated;
+  const sourceDateLabel = displayedDate
+    ? new Date(displayedDate).toLocaleDateString("es-CL", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : null;
+
+  if (!hasScore) {
+    const isPending = unavailableReason === "cmf_score_pending";
+    return (
+      <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <ShieldCheck className="h-4 w-4 text-muted-foreground shrink-0" />
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Score Crediticio
+            </p>
+          </div>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+            {isPending ? "Pendiente" : "No disponible"}
+          </span>
+        </div>
+
+        <p className="text-sm font-medium text-foreground">
+          {isPending ? "Score CMF en proceso" : "Score CMF pendiente"}
+        </p>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {message ?? "Sube tu Informe de Deudas CMF para calcular tu score crediticio."}
+        </p>
+
+        {!isPending && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={() => openUploadDrawer(true)}
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Subir Informe CMF
+          </Button>
+        )}
+      </div>
+    );
+  }
+
   const pct = Math.min(100, Math.round((score / 850) * 100));
 
   const updatedLabel = lastUpdated
@@ -116,6 +178,11 @@ export default function CreditScoreCard({
       {updatedLabel && (
         <p className="text-[11px] text-muted-foreground">
           Última actualización: {updatedLabel}
+        </p>
+      )}
+      {sourceLabel && (
+        <p className="text-[11px] text-muted-foreground">
+          Fuente: {sourceLabel}{sourceDateLabel ? ` · ${sourceDateLabel}` : ""}
         </p>
       )}
     </div>
