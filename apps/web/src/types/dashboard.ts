@@ -74,10 +74,12 @@ export interface DashboardData {
   periodLabel: string;
 
   // ── Capa 1: Hero ──
-  score: number | null;                   // 0-100 transactional score
-  scoreDelta: number | null;              // vs previous period
-  scoreMaxHistory: { date: string; score: number }[];
-  scoreInsights: string[];                // text insights from scoring engine
+	  score: number | null;                   // 0-100 transactional score
+	  scoreDelta: number | null;              // vs previous period
+	  scoreMaxHistory: { date: string; score: number }[];
+	  scoreInsights: string[];                // text insights from scoring engine
+	  scoreConfidence: "baja" | "media" | "alta" | null;
+	  scoreObservedMonths: number | null;
 
   // ── Credit score (CMF, 0-850) ──
   creditScore: number | null;

@@ -140,16 +140,18 @@ describe('SfaScoringEngine', () => {
     expect(result.transactionalScore).toBeGreaterThan(0);
   });
 
-  it('marca meses con gap cuando no hay movimientos en algunos meses', () => {
-    const transactions: SfaTransaccionCuenta[] = [];
-    const d = new Date(refDate);
-    d.setMonth(d.getMonth() - 11);
-    transactions.push(txCuenta(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`, 'abono', 500000));
-    const products = [cuentaVigente(0, 0, 0)];
-    const result = engine.run({ transactions, products }, refDate);
-    expect(result.metrics?.monthsWithGap).toBeGreaterThan(0);
-    expect(result.mainInsights.some((i) => i.includes('No tenemos datos') && i.includes('ventana de análisis'))).toBe(true);
-  });
+	  it('marca meses con gap cuando no hay movimientos en algunos meses', () => {
+	    const transactions: SfaTransaccionCuenta[] = [];
+	    const d = new Date(refDate);
+	    d.setMonth(d.getMonth() - 11);
+	    transactions.push(txCuenta(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`, 'abono', 500000));
+	    const products = [cuentaVigente(0, 0, 0)];
+	    const result = engine.run({ transactions, products }, refDate);
+	    expect(result.metrics?.monthsWithGap).toBeGreaterThan(0);
+	    expect(result.metrics?.scoreConfidence).toBe('baja');
+	    expect(result.mainInsights.some((i) => i.includes('Confianza baja'))).toBe(true);
+	    expect(result.mainInsights.some((i) => i.includes('No interpretamos los meses sin cartola como meses sin ingresos'))).toBe(true);
+	  });
 
   it('no incluye datos sensibles en insights ni metrics', () => {
     const transactions = [

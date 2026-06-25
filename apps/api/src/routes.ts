@@ -2060,12 +2060,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const authReq = req as AuthenticatedRequest;
     try {
       const userId = await ensureUserForToken(authReq.user!);
-      if (!userId) {
-        return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
-      }
-      const data = await storage.getTransactionalScore(userId);
-      if (!data) {
-        return res.json({ transactionalScore: null, mainInsights: [], metrics: undefined, recommendedProducts: [] });
+	      if (!userId) {
+	        return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
+	      }
+	      const { getNormalizedTransactionalScoreForUser } = await import("./services/normalizedTransactionalScore.js");
+	      const normalizedScore = await getNormalizedTransactionalScoreForUser(userId);
+	      if (normalizedScore) {
+	        storage.addScoreHistoryEntry(
+	          userId,
+	          normalizedScore.transactionalScore,
+	          100,
+	          JSON.stringify(normalizedScore.metrics ?? {}),
+	        ).catch(() => {});
+	        return res.json({
+	          transactionalScore: normalizedScore.transactionalScore,
+	          mainInsights: normalizedScore.mainInsights ?? [],
+	          metrics: normalizedScore.metrics,
+	          recommendedProducts: normalizedScore.recommendedProducts ?? [],
+	          lastUpdated: new Date().toISOString(),
+	          source: normalizedScore.source,
+	        });
+	      }
+	      const data = await storage.getTransactionalScore(userId);
+	      if (!data) {
+	        return res.json({ transactionalScore: null, mainInsights: [], metrics: undefined, recommendedProducts: [] });
       }
       // Save to score history (fire-and-forget)
       if (data.transactionalScore != null) {

@@ -23,7 +23,21 @@ const fmtCLP = (n: number) =>
     style: "currency",
     currency: "CLP",
     maximumFractionDigits: 0,
-  }).format(n);
+	  }).format(n);
+
+const TRANSFER_SUBCATEGORIES = new Set([
+  "transferencia_enviada",
+  "transferencias_enviadas",
+  "Transferencias enviadas",
+]);
+
+function transferShare(group: CategoryGroup): number {
+  if (group.total <= 0) return 0;
+  const transferTotal = group.subcategories
+    .filter((subcategory) => TRANSFER_SUBCATEGORIES.has(subcategory.key) || /transferencia/i.test(subcategory.label))
+    .reduce((sum, subcategory) => sum + subcategory.total, 0);
+  return transferTotal / group.total;
+}
 
 // ── Recommendation types ──────────────────────────────────────────────────────
 
@@ -94,11 +108,22 @@ function generateRecommendations(data: DashboardData): ActionRecommendation[] {
   const expenseRatio = totalIncome > 0 ? totalExpenses / totalIncome : 0;
   const findGroup = (key: string) => categoryGroups.find((g) => g.key === key);
 
-  // 1. Low savings rate → suggest savings accounts or depósitos a plazo
-  if (savingsRate < 10 && totalIncome > 0) {
-    const potential = Math.round(totalIncome * 0.10);
-    recs.push({
-      id: "low-savings",
+	  // 1. Low savings rate or deficit.
+	  if (savingsNet < 0 && totalIncome > 0) {
+	    recs.push({
+	      id: "period-deficit",
+	      icon: TrendingDown,
+	      color: "red",
+	      title: `Tus egresos superan ingresos por ${fmtCLP(Math.abs(savingsNet))}`,
+	      body: `Este periodo gastaste ${Math.round(expenseRatio * 100)}% de tus ingresos. Prioriza reducir la brecha antes de invertir o tomar productos de ahorro.`,
+	      cta: "Revisar movimientos",
+	      href: "/movimientos",
+	      priority: 95,
+	    });
+	  } else if (savingsRate < 10 && totalIncome > 0) {
+	    const potential = Math.round(totalIncome * 0.10);
+	    recs.push({
+	      id: "low-savings",
       icon: PiggyBank,
       color: "amber",
       title: "Tu ahorro está por debajo del 10%",
@@ -121,20 +146,33 @@ function generateRecommendations(data: DashboardData): ActionRecommendation[] {
     });
   }
 
-  // 2. High financial expenses (deudas) → suggest portabilidad or consolidation
-  const financieros = findGroup("financieros");
-  if (financieros && financieros.total > 0 && financieros.pctOfIncome > 25) {
-    recs.push({
-      id: "high-debt",
-      icon: Repeat2,
-      color: "red",
-      title: `${financieros.pctOfIncome}% de tu ingreso va a gastos financieros`,
-      body: "Podrías reducir tu carga financiera consolidando deudas o haciendo portabilidad a una tasa menor.",
-      cta: "Ver opciones de portabilidad",
-      href: "/productos?tab=portabilidad",
-      priority: 90,
-    });
-  }
+	  // 2. High financial expenses (deudas) → suggest portabilidad or consolidation
+	  const financieros = findGroup("financieros");
+	  if (financieros && financieros.total > 0 && financieros.pctOfIncome > 25) {
+	    if (transferShare(financieros) >= 0.5) {
+	      recs.push({
+	        id: "high-transfers",
+	        icon: Repeat2,
+	        color: "amber",
+	        title: `${financieros.pctOfIncome}% de tu ingreso va a transferencias y pagos`,
+	        body: "Revisa si corresponden a compromisos recurrentes, pagos de tarjeta o gastos que conviene reclasificar.",
+	        cta: "Ver detalle",
+	        href: "/movimientos?categoria=transferencia_enviada",
+	        priority: 86,
+	      });
+	    } else {
+	      recs.push({
+	        id: "high-debt",
+	        icon: Repeat2,
+	        color: "red",
+	        title: `${financieros.pctOfIncome}% de tu ingreso va a gastos financieros`,
+	        body: "Podrías reducir tu carga financiera consolidando deudas o haciendo portabilidad a una tasa menor.",
+	        cta: "Ver opciones de portabilidad",
+	        href: "/productos?tab=portabilidad",
+	        priority: 90,
+	      });
+	    }
+	  }
 
   // 3. High essential expenses → suggest switching accounts to lower costs
   const esenciales = findGroup("esenciales");

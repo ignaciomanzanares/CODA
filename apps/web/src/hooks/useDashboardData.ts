@@ -77,7 +77,7 @@ interface RawInsights {
 interface RawScoreResult {
   transactionalScore: number | null;
   mainInsights?: string[];
-  metrics?: Record<string, number | boolean | undefined>;
+  metrics?: Record<string, number | boolean | string | undefined>;
   lastUpdated?: string;
 }
 
@@ -345,10 +345,12 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
       data: {
         hasData: false,
         periodLabel: "",
-        score: null,
-        scoreDelta: null,
-        scoreMaxHistory: [],
-        scoreInsights: [],
+	        score: null,
+	        scoreDelta: null,
+	        scoreMaxHistory: [],
+	        scoreInsights: [],
+	        scoreConfidence: null,
+	        scoreObservedMonths: null,
         creditScore: null,
         creditScoreAvailable: false,
         creditScoreUnavailableReason: "missing_cmf_report",
@@ -404,7 +406,14 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
   const availableUntilEndOfMonth = Math.max(0, availableRaw);
 
   // ── Score (transactional only, 0-100) ──────────────────────────────────
-  const currentScore = score.data?.transactionalScore ?? null;
+	  const currentScore = score.data?.transactionalScore ?? null;
+	  const scoreConfidenceValue = score.data?.metrics?.scoreConfidence;
+	  const scoreConfidence =
+	    scoreConfidenceValue === "baja" || scoreConfidenceValue === "media" || scoreConfidenceValue === "alta"
+	      ? scoreConfidenceValue
+	      : null;
+	  const observedMonthsValue = score.data?.metrics?.observedMonths;
+	  const scoreObservedMonths = typeof observedMonthsValue === "number" ? observedMonthsValue : null;
 
   // Delta: only compare against OTHER transactional score entries (maxScore=100).
   // The credit_score_history table mixes both transactional (max=100) and
@@ -584,9 +593,11 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
       hasData: true,
       periodLabel,
       score: currentScore,
-      scoreDelta,
-      scoreMaxHistory,
-      scoreInsights: score.data?.mainInsights ?? [],
+	      scoreDelta,
+	      scoreMaxHistory,
+	      scoreInsights: score.data?.mainInsights ?? [],
+	      scoreConfidence,
+	      scoreObservedMonths,
       creditScore,
       creditScoreAvailable,
       creditScoreUnavailableReason: creditScoreAvailable ? null : (rawCreditScore?.reason ?? "missing_cmf_report"),
