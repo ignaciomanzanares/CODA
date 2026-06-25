@@ -1,6 +1,6 @@
 {
-  "model_id": "xgb_kaggle_benchmark_1782359638",
-  "trained_at": "2026-06-25T03:53:58Z",
+  "model_id": "xgb_kaggle_benchmark_1782360586",
+  "trained_at": "2026-06-25T04:09:46Z",
   "algo": "xgb",
   "source": "Give Me Some Credit (Kaggle, 2011) \u2014 ver prepare_kaggle_benchmark.py",
   "feature_cols": [
