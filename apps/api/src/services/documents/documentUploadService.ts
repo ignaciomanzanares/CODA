@@ -303,7 +303,7 @@ async function processCmfUpload(userId: string, doc: CMFParseResult): Promise<Up
       : 'VERY_POOR';
     const pd = Math.max(0, Math.min(1, (850 - scoreNum) / 550));
 
-    const predictionLogId = logCreditScorePrediction(
+    const predictionLogId = await logCreditScorePrediction(
       userId,
       requestId,
       {

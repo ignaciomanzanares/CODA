@@ -6,12 +6,21 @@
 # ============================================
 
 services:
+  # Redis (Render Key Value) — rate limiting distribuido y colas de trabajo (BullMQ).
+  # Si no se provisiona, la API cae a rate limiting en memoria de un solo proceso (ver
+  # src/middleware/rateLimiter.ts) — funciona en dev, no escala a múltiples instancias.
+  - type: keyvalue
+    name: coda-redis
+    region: virginia
+    plan: starter  # free tier no persiste de forma confiable entre restarts — ver docs/DISASTER_RECOVERY.md
+    ipAllowList: []
+
   # CODA API Backend
   - type: web
     name: coda-api
     runtime: node
     region: virginia
-    plan: free  # Change to 'starter' or higher for production
+    plan: starter  # free tier sleeps on inactivity — incompatible with an RTO target (ver docs/DISASTER_RECOVERY.md)
     buildCommand: npm install --include=dev && npm run build
     # Aplica las migraciones versionadas (migrations/*.sql, idempotentes vía la
     # tabla _migrations) ANTES de arrancar, para no crear tablas/columnas a mano
@@ -41,3 +50,35 @@ services:
       # JWT Secret - set manually in Render Dashboard for security
       - key: JWT_SECRET
         sync: false  # Must be set manually in dashboard
+      # Field-level encryption key (pseudonimización de columna, ver services/crypto/fieldEncryption.ts).
+      # Generar con: openssl rand -base64 32. Requerida en producción (env.ts lanza si falta).
+      - key: FIELD_ENCRYPTION_KEY
+        sync: false  # Must be set manually in dashboard
+      - key: REDIS_URL
+        fromService:
+          name: coda-redis
+          type: keyvalue
+          property: connectionString
+
+  # Worker: procesa OCR/parseo PDF + scoring SFA encolado por POST /api/documents/upload
+  # (ver src/queues/documentQueue.ts), separado del proceso web para que un pico de uploads
+  # no compita por CPU con las requests HTTP normales.
+  - type: worker
+    name: coda-document-worker
+    runtime: node
+    region: virginia
+    plan: starter  # free tier suspende el proceso por inactividad — los uploads encolados no se procesarían
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm run worker:start -w @coda/api
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: FIELD_ENCRYPTION_KEY
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          name: coda-redis
+          type: keyvalue
+          property: connectionString

@@ -19,6 +19,9 @@ if (isProd) {
   if (process.env.JWT_SECRET.length < 32) {
     throw new Error('JWT_SECRET must be at least 32 characters in production');
   }
+  if (!process.env.FIELD_ENCRYPTION_KEY) {
+    throw new Error('FIELD_ENCRYPTION_KEY is required in production. Generate with: openssl rand -base64 32');
+  }
 }
 
 // Only allow SQLite/memory fallback in development
@@ -37,6 +40,10 @@ export const env = {
   jwtSecret,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '30d',
   clientUrl: process.env.CLIENT_URL || (isProd ? '' : 'http://localhost:5173'),
+  // Validado arriba en prod; en dev usamos una llave fija no secreta (igual que jwtSecret).
+  fieldEncryptionKey: process.env.FIELD_ENCRYPTION_KEY || 'coda-dev-field-encryption-key-do-not-use-in-prod',
+  // Opcional: si no está definida, rate limiting/colas caen a memoria local (un solo proceso).
+  redisUrl: process.env.REDIS_URL,
 };
 
 /**

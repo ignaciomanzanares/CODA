@@ -8,6 +8,7 @@ import { registerTestRoutes } from "./routes-test.js";
 import { registerDocumentParsingAndScoringRoutes } from "./routes-scoring-documents.js";
 import { registerDashboardRoutes } from "./routes-dashboard.js";
 import { storage } from "./storage.js";
+import { anonymizeUser } from "./services/privacy/accountAnonymization.js";
 import { db, dialect, users, bankConnections, accounts, balances, transactions, creditScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc, insertAccountSchema, insertBankConnectionSchema } from "./db/index.js";
 import { ZodError, z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -36,9 +37,9 @@ import { apiLimiter, expensiveLimiter, authLimiter, uploadLimiter } from "./midd
 import multer from "multer";
 import { logger } from "./logger.js";
 import {
-  logProductRecommendationRunFireAndForget,
-  logProductInteractionTraceFireAndForget,
-  logProductApplicationTraceFireAndForget,
+  logProductRecommendationRun,
+  logProductInteractionTrace,
+  logProductApplicationTrace,
 } from "./services/audit/traceabilityPersistence.js";
 import {
   validateBody,
@@ -1321,22 +1322,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
         }
         
-        // 4. Process document
+        // 4. Process document — en cola (BullMQ) si hay Redis configurado, para no bloquear el
+        // request HTTP con OCR/parseo PDF + scoring; si no, igual que antes (síncrono).
+        const { documentQueue } = await import("./queues/documentQueue.js");
+        if (documentQueue) {
+          const job = await documentQueue.add("upload", {
+            userId,
+            fileBase64: file.buffer.toString("base64"),
+          });
+          return res.status(202).json({
+            step: "queued",
+            jobId: job.id,
+            metadata: {
+              originalName: file.originalname,
+              size: file.size,
+              uploadedAt: new Date().toISOString(),
+            },
+            warnings: validation.warnings,
+          });
+        }
+
         const { processDocumentUpload } = await import("./services/documents/index.js");
         const result = await processDocumentUpload(userId, file.buffer);
-        
+
         if (result.error) {
           logger.warn(
             { userId, error: result.error, step: result.step },
             '[Upload] Document processing failed'
           );
-          return res.status(400).json({ 
-            message: result.error, 
+          return res.status(400).json({
+            message: result.error,
             step: result.step,
             warnings: validation.warnings
           });
         }
-        
+
         // 5. Success response with warnings
         res.json({
           ...result,
@@ -1347,7 +1367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             uploadedAt: new Date().toISOString(),
           },
         });
-        
+
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Error procesando documento";
         
@@ -1375,6 +1395,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
+
+  // GET /api/documents/upload/:jobId — polling de estado para uploads encolados (ver POST arriba).
+  // Solo aplica cuando hay Redis configurado; sin Redis el POST ya responde con el resultado final.
+  app.get("/api/documents/upload/:jobId", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+
+      const { documentQueue } = await import("./queues/documentQueue.js");
+      if (!documentQueue) {
+        return res.status(404).json({ message: "No hay cola de procesamiento configurada." });
+      }
+
+      const job = await documentQueue.getJob(req.params.jobId);
+      if (!job || job.data.userId !== userId) {
+        return res.status(404).json({ message: "Job no encontrado." });
+      }
+
+      const state = await job.getState();
+      if (state === "completed") {
+        return res.json({ step: "done", state, result: job.returnvalue });
+      }
+      if (state === "failed") {
+        return res.status(500).json({ step: "processing", state, message: job.failedReason });
+      }
+      return res.json({ step: "queued", state });
+    } catch (e) {
+      logger.error({ err: e, userId: authReq.user?.userId }, "Document upload job status check failed");
+      res.status(500).json({ message: "Error al consultar el estado del documento." });
+    }
+  });
 
   // DELETE /api/documents — clear all movement documents (documentUploads table only)
   app.delete("/api/documents", authenticate, async (req: Request, res: Response) => {
@@ -3781,11 +3833,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = getUserIdFromAuth(req);
       logger.info({ userId }, 'Received request to delete account');
 
-      // First, delete user data from our application's database
-      await storage.deleteUserData(userId);
-      logger.info({ userId }, 'Database cleanup complete');
+      // Anonimización irreversible (Ley 19.628/21.719) — ver services/privacy/accountAnonymization.ts.
+      await anonymizeUser(userId);
+      logger.info({ userId }, 'Account anonymization complete');
 
-      // Account deleted successfully from local database
       res.json({ message: "Account deleted successfully" });
     } catch (error) {
       // Let the central error handler deal with it
@@ -3942,7 +3993,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requestId =
         typeof reqIdHeader === "string" && reqIdHeader.length > 0 ? reqIdHeader : crypto.randomUUID();
 
-      logProductRecommendationRunFireAndForget({
+      await logProductRecommendationRun({
         userId,
         requestId,
         userProfile: {
@@ -4021,7 +4072,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? reqIdTrackHeader
           : crypto.randomUUID();
 
-      logProductInteractionTraceFireAndForget({
+      await logProductInteractionTrace({
         userId,
         requestId: requestIdTrack,
         productId: Number(productId),
@@ -4085,7 +4136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? reqIdApplyHeader
           : crypto.randomUUID();
 
-      logProductApplicationTraceFireAndForget({
+      await logProductApplicationTrace({
         userId,
         requestId: requestIdApply,
         productId: Number(productId),

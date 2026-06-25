@@ -7,7 +7,7 @@ import { storage } from './storage.js';
 import { db, userAssets } from './db/index.js';
 import { logger } from './logger.js';
 import { evaluateHealthV2, deriveHealthInput, HEALTH_EVALUATION_ENGINE_VERSION } from './services/healthEvaluation/index.js';
-import { logFinancialHealthV2FireAndForget } from './services/audit/traceabilityPersistence.js';
+import { logFinancialHealthV2 } from './services/audit/traceabilityPersistence.js';
 import type { UserAsset } from './services/assets/types.js';
 import type { CMFParseResult } from './parsers/cmf-parser.js';
 
@@ -142,8 +142,8 @@ async function handleHealthEvaluationMe(req: Request, res: Response): Promise<an
         monthlyDebt: deudaMensualClp,
       });
 
-      // Trazabilidad NCG 502 (fire-and-forget, no bloquea respuesta)
-      logFinancialHealthV2FireAndForget({
+      // Trazabilidad NCG 502 — persistida antes de responder (ver algorithmicTraceability.ts)
+      await logFinancialHealthV2({
         userId,
         requestId,
         input: {

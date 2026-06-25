@@ -46,6 +46,9 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Dataset de terceros (Kaggle) descargado por prepare_kaggle_benchmark.py — no redistribuir.
+apps/api/src/ml/out/kaggle_benchmark_features.csv
+
 # Cache directories
 .cache/
 .turbo/

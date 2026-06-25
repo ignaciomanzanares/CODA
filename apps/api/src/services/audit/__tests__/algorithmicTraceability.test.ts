@@ -11,7 +11,7 @@
  * @date 2026-03-02
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import {
   logCreditScorePrediction,
   registerModelVersion,
@@ -23,8 +23,34 @@ import {
   getAuditStats,
   exportAuditTrail,
 } from '../algorithmicTraceability';
+import { db, users } from '../../../db/index';
+
+/** `algorithm_prediction_logs.user_id` tiene FK a `users.id` — logCreditScorePrediction ya
+ * persiste de forma síncrona, así que la fila debe existir antes del insert. */
+const TEST_USER_IDS = [
+  'user-123',
+  'user-789',
+  'user-limit-test',
+  'user-stats-1',
+  'user-stats-2',
+  'user-export-test',
+];
 
 describe('Algorithmic Traceability', () => {
+  beforeAll(async () => {
+    for (const id of TEST_USER_IDS) {
+      await db
+        .insert(users)
+        .values({
+          id,
+          username: id,
+          email: `${id}@test.local`,
+          passwordHash: 'test-hash',
+        })
+        .onConflictDoNothing();
+    }
+  });
+
   describe('Model Version Management', () => {
     it('should register a new model version', () => {
       const versionId = registerModelVersion({
@@ -88,8 +114,8 @@ describe('Algorithmic Traceability', () => {
   });
   
   describe('Prediction Logging', () => {
-    it('should log a credit score prediction', () => {
-      const predictionId = logCreditScorePrediction(
+    it('should log a credit score prediction', async () => {
+      const predictionId = await logCreditScorePrediction(
         'user-123',
         'request-456',
         {
@@ -137,17 +163,20 @@ describe('Algorithmic Traceability', () => {
       expect(prediction?.topFactors).toHaveLength(1);
     });
     
-    it('should retrieve user prediction history', () => {
+    it('should retrieve user prediction history', async () => {
       const userId = 'user-789';
-      
-      logCreditScorePrediction(
+
+      await logCreditScorePrediction(
         userId,
         'req-1',
         { creditScore: 680, probabilityDefault: 0.12, riskCategory: 'GOOD', confidence: 0.8 },
         { features: {} }
       );
-      
-      logCreditScorePrediction(
+
+      // Garantiza decisionTimestamp distinto entre ambas predicciones (ms de resolución de Date).
+      await new Promise((r) => setTimeout(r, 2));
+
+      await logCreditScorePrediction(
         userId,
         'req-2',
         { creditScore: 720, probabilityDefault: 0.08, riskCategory: 'GOOD', confidence: 0.85 },
@@ -161,11 +190,11 @@ describe('Algorithmic Traceability', () => {
       expect(history[1].creditScore).toBe(680);
     });
     
-    it('should limit prediction history results', () => {
+    it('should limit prediction history results', async () => {
       const userId = 'user-limit-test';
-      
+
       for (let i = 0; i < 150; i++) {
-        logCreditScorePrediction(
+        await logCreditScorePrediction(
           userId,
           `req-${i}`,
           { creditScore: 700 + i, probabilityDefault: 0.1, riskCategory: 'GOOD', confidence: 0.8 },
@@ -202,15 +231,15 @@ describe('Algorithmic Traceability', () => {
   });
   
   describe('Audit Statistics', () => {
-    it('should compute audit statistics', () => {
-      logCreditScorePrediction(
+    it('should compute audit statistics', async () => {
+      await logCreditScorePrediction(
         'user-stats-1',
         'req-stats-1',
         { creditScore: 720, probabilityDefault: 0.08, riskCategory: 'GOOD', confidence: 0.9 },
         { features: {} }
       );
-      
-      logCreditScorePrediction(
+
+      await logCreditScorePrediction(
         'user-stats-2',
         'req-stats-2',
         { creditScore: 650, probabilityDefault: 0.18, riskCategory: 'AVERAGE', confidence: 0.75 },
@@ -226,12 +255,12 @@ describe('Algorithmic Traceability', () => {
   });
   
   describe('Audit Trail Export', () => {
-    it('should export audit trail for date range', () => {
+    it('should export audit trail for date range', async () => {
       const now = new Date();
       const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-      
-      logCreditScorePrediction(
+
+      await logCreditScorePrediction(
         'user-export-test',
         'req-export',
         { creditScore: 700, probabilityDefault: 0.1, riskCategory: 'GOOD', confidence: 0.8 },
