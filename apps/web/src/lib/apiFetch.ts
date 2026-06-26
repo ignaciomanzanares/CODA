@@ -14,6 +14,7 @@ export class ApiError extends Error {
 }
 
 import { dispatchSessionExpired } from './authEvents';
+import { withCsrfHeader } from './csrf';
 
 function messageFromErrorBody(text: string, status: number): string {
   const trimmed = text?.trim() ?? "";
@@ -73,6 +74,12 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
   let controller: AbortController | undefined;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const fetchInit = { ...init };
+  // Cookie de sesión httpOnly (#10, modo híbrido): siempre la mandamos, además
+  // del header Authorization que algunos callers ya adjuntan.
+  if (fetchInit.credentials === undefined) {
+    fetchInit.credentials = "include";
+  }
+  fetchInit.headers = withCsrfHeader(fetchInit.method, { ...(fetchInit.headers as Record<string, string> | undefined) });
   if (!fetchInit.signal) {
     controller = new AbortController();
     fetchInit.signal = controller.signal;

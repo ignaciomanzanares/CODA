@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/apiBase";
 import { dispatchSessionExpired } from "@/lib/authEvents";
 import { USER_FACING_CONNECTION_ERROR, extractApiErrorMessage } from "@/lib/userFacingErrors";
+import { withCsrfHeader } from "@/lib/csrf";
 import type {
   CreateBankConnectionData,
   CreateGoalData,
@@ -149,11 +150,11 @@ export function useApi(): ApiClient {
       extraHeaders = optsHeaders as Record<string, string>;
     }
 
-    const headers: Record<string, string> = {
+    const headers: Record<string, string> = withCsrfHeader(method, {
       ...(data !== undefined ? { "Content-Type": "application/json" } : {}),
       ...extraHeaders,
       Authorization: `Bearer ${token}`,
-    };
+    });
 
     // Prepend API_BASE_URL if url starts with '/api'
     const fullUrl = url.startsWith("/api") ? `${API_BASE_URL}${url.replace(/^\/api/, "")}` : url;
@@ -164,6 +165,7 @@ export function useApi(): ApiClient {
         ...restOptions,
         method,
         headers,
+        credentials: "include",
         body: data !== undefined ? JSON.stringify(data) : optsBody,
         // Evita caché HTTP/304 en listas (p. ej. metas con ETag): sin cuerpo JSON el refetch no actualiza React Query.
         cache: method === "GET" ? "no-store" : restOptions?.cache,
@@ -350,7 +352,8 @@ export function useApi(): ApiClient {
     const fullUrl = `${API_BASE_URL}/expenses/scan`;
     const res = await fetch(fullUrl, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: withCsrfHeader("POST", { Authorization: `Bearer ${token}` }),
+      credentials: "include",
       body: formData,
     });
     const json = await res.json().catch(() => ({}));
@@ -489,7 +492,8 @@ export function useApi(): ApiClient {
     const fullUrl = `${API_BASE_URL}/documents/upload`;
     const res = await fetch(fullUrl, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: withCsrfHeader("POST", { Authorization: `Bearer ${token}` }),
+      credentials: "include",
       body: formData,
     });
     const json = await res.json().catch(() => ({}));
@@ -507,7 +511,8 @@ export function useApi(): ApiClient {
     const fullUrl = `${API_BASE_URL}/assets/extract-inscripcion`;
     const res = await fetch(fullUrl, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: withCsrfHeader("POST", { Authorization: `Bearer ${token}` }),
+      credentials: "include",
       body: formData,
     });
     const json = await res.json().catch(() => ({}));

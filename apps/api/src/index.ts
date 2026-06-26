@@ -58,6 +58,7 @@ const corsOptions: cors.CorsOptions = {
     "X-Requested-With",
     "Accept",
     "X-Request-Id",
+    "X-CSRF-Token",
   ],
   optionsSuccessStatus: 200,
 };
