@@ -31,6 +31,11 @@ services:
         value: false
       - key: DEMO_MODE
         value: true  # Set to false for real production deployment
+      # Con DEMO_MODE=true, la contraseña demo (demo123) SOLO inicia sesión para
+      # estos emails (lista separada por comas) — nunca para cuentas reales.
+      # Alternativa: DEMO_EMAIL (uno solo). Default si no se define: demo@example.com.
+      - key: DEMO_ALLOWED_EMAILS
+        value: demo@example.com
       # Onboarding (consentimiento + KYC mock + 2FA). OFF por defecto. En "true"
       # exige 2FA antes de vincular un banco. Debe ir junto con VITE_ENABLE_ONBOARDING.
       - key: ENABLE_ONBOARDING
