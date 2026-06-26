@@ -15,7 +15,6 @@ import { fromZodError } from "zod-validation-error";
 import {
   authenticate,
   ensureUserForToken,
-  handleLogin,
   handleLoginWithDB,
   handleLogout,
   handleMe,

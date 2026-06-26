@@ -297,6 +297,126 @@ export function generateToken(payload: TokenPayload): string {
   return jwt.sign(payload, env.jwtSecret, { expiresIn: env.jwtExpiresIn } as jwt.SignOptions);
 }
 
+// =============================================================================
+// SESIÓN HÍBRIDA: cookie httpOnly + header Authorization (transición, #10)
+// =============================================================================
+// El token viaja en una cookie httpOnly (no accesible por JS → inmune a robo por
+// XSS) y, a la vez, se sigue devolviendo en el body para clientes que aún usan el
+// header `Authorization: Bearer`. `authenticate()` acepta cualquiera de los dos.
+// No usamos `cookie-parser`: `res.cookie/clearCookie` son nativos de Express y la
+// lectura se hace parseando `req.headers.cookie` a mano (una sola cookie).
+
+export const AUTH_COOKIE_NAME = 'coda_session';
+
+function authCookieOptions() {
+  const isProduction = process.env.NODE_ENV === 'production';
+  // En prod la API y el front están en orígenes distintos (Vercel ↔ Render), así que
+  // la cookie debe ser SameSite=None+Secure para viajar cross-site; en dev, Lax basta.
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
+  };
+}
+
+export function setAuthCookie(res: Response, token: string): void {
+  res.cookie(AUTH_COOKIE_NAME, token, authCookieOptions());
+}
+
+export function clearAuthCookie(res: Response): void {
+  const { maxAge: _drop, ...opts } = authCookieOptions();
+  res.clearCookie(AUTH_COOKIE_NAME, opts);
+}
+
+/** Lee una cookie por nombre desde el header `Cookie` sin depender de cookie-parser. */
+function readCookie(req: Request, name: string): string | null {
+  const raw = req.headers.cookie;
+  if (!raw) return null;
+  for (const part of raw.split(';')) {
+    const idx = part.indexOf('=');
+    if (idx === -1) continue;
+    if (part.slice(0, idx).trim() === name) {
+      return decodeURIComponent(part.slice(idx + 1).trim());
+    }
+  }
+  return null;
+}
+
+function readAuthCookie(req: Request): string | null {
+  return readCookie(req, AUTH_COOKIE_NAME);
+}
+
+/** Token de la request: header `Authorization: Bearer` primero, luego cookie httpOnly. */
+export function readTokenFromRequest(req: Request): string | null {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) return authHeader.substring(7);
+  return readAuthCookie(req);
+}
+
+// =============================================================================
+// CSRF (double-submit cookie) — solo aplica cuando la sesión viaja por cookie.
+// =============================================================================
+// Un cliente con `Authorization: Bearer` no es vulnerable a CSRF (el navegador no
+// adjunta headers custom automáticamente en requests cross-site), así que el
+// chequeo solo se exige cuando `authenticate()` resolvió el token desde la cookie.
+// Patrón doble-submit: cookie NO httpOnly (el front la lee) + header `X-CSRF-Token`
+// que debe coincidir.
+
+export const CSRF_COOKIE_NAME = 'coda_csrf';
+const CSRF_HEADER_NAME = 'x-csrf-token';
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+function csrfCookieOptions() {
+  const isProduction = process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: false,
+    secure: isProduction,
+    sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  };
+}
+
+export function setCsrfCookie(res: Response): string {
+  const token = crypto.randomBytes(32).toString('hex');
+  res.cookie(CSRF_COOKIE_NAME, token, csrfCookieOptions());
+  return token;
+}
+
+export function clearCsrfCookie(res: Response): void {
+  const { maxAge: _drop, ...opts } = csrfCookieOptions();
+  res.clearCookie(CSRF_COOKIE_NAME, opts);
+}
+
+function isCsrfTokenValid(req: Request): boolean {
+  const cookieToken = readCookie(req, CSRF_COOKIE_NAME);
+  const headerToken = req.headers[CSRF_HEADER_NAME];
+  return (
+    !!cookieToken &&
+    typeof headerToken === 'string' &&
+    headerToken.length > 0 &&
+    headerToken === cookieToken
+  );
+}
+
+/**
+ * Emite la sesión: genera el token, lo setea en la cookie httpOnly + cookie CSRF, y
+ * devuelve el payload para incluirlo también en el body (modo híbrido). Centraliza
+ * los ~4 puntos que antes hacían `res.json({ success, token, user })` a mano.
+ */
+export function issueSession(
+  res: Response,
+  payload: TokenPayload,
+  extra: Record<string, unknown> = {},
+): void {
+  const token = generateToken(payload);
+  setAuthCookie(res, token);
+  setCsrfCookie(res);
+  res.json({ success: true, token, user: payload, ...extra });
+}
+
 /**
  * Verify and decode a JWT token
  */
@@ -339,15 +459,25 @@ export function invalidateToken(token: string, userId?: string): void {
 export async function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;
+    const fromHeader = !!authHeader?.startsWith('Bearer ');
+    const token = fromHeader ? authHeader!.substring(7) : readAuthCookie(req);
 
-    if (!authHeader?.startsWith('Bearer ')) {
+    if (!token) {
       return res.status(401).json({
         error: 'Unauthorized',
         message: 'Missing or invalid authorization header',
       });
     }
 
-    const token = authHeader.substring(7);
+    // La sesión llegó solo por cookie (sin header explícito) y la request muta
+    // estado: exigir el token CSRF de doble-submit.
+    if (!fromHeader && MUTATING_METHODS.has(req.method) && !isCsrfTokenValid(req)) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'CSRF token missing or invalid',
+      });
+    }
+
     const payload = verifyToken(token);
 
     if (!payload) {
@@ -387,11 +517,9 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
 /**
  * Optional authentication - doesn't fail if no token
  */
-export function optionalAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
+export function optionalAuth(req: AuthenticatedRequest, _res: Response, next: NextFunction) {
+  const token = readTokenFromRequest(req);
+  if (token) {
     const payload = verifyToken(token);
     if (payload) {
       req.user = payload;
@@ -406,67 +534,12 @@ export function optionalAuth(req: AuthenticatedRequest, res: Response, next: Nex
 // =============================================================================
 
 /**
- * Login handler
- * In development: accepts demo password for testing
- * In production: requires DEMO_MODE=true env var to enable demo auth
- */
-export async function handleLogin(req: Request, res: Response) {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ 
-      error: 'Bad Request', 
-      message: 'Email and password are required' 
-    });
-  }
-
-  // Demo authentication - only allowed in development or when explicitly enabled
-  const isProduction = process.env.NODE_ENV === 'production';
-  const demoModeEnabled = process.env.DEMO_MODE === 'true';
-  const demoPassword = process.env.DEMO_PASSWORD || 'demo123';
-  
-  if (isProduction && !demoModeEnabled) {
-    // In production without demo mode, reject all login attempts
-    // Real authentication should use Auth0 or another provider
-    return res.status(401).json({ 
-      error: 'Unauthorized', 
-      message: 'Demo authentication is disabled in production' 
-    });
-  }
-
-  // Validate demo password
-  if (password !== demoPassword) {
-    return res.status(401).json({ 
-      error: 'Unauthorized', 
-      message: 'Invalid email or password' 
-    });
-  }
-
-  // Generate token
-  const tokenPayload: TokenPayload = {
-    userId: email.split('@')[0],
-    email: email,
-    name: email.split('@')[0],
-    role: 'persona',
-  };
-
-  const token = generateToken(tokenPayload);
-
-  res.json({
-    success: true,
-    token,
-    user: tokenPayload,
-  });
-}
-
-/**
- * Logout handler - invalidates the current token
+ * Logout handler - invalidates the current token y limpia las cookies de sesión/CSRF.
  */
 export async function handleLogout(req: AuthenticatedRequest, res: Response) {
-  const authHeader = req.headers.authorization;
+  const token = readTokenFromRequest(req);
 
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
+  if (token) {
     invalidateToken(token, req.user?.userId);
   }
 
@@ -477,6 +550,8 @@ export async function handleLogout(req: AuthenticatedRequest, res: Response) {
     });
   }
 
+  clearAuthCookie(res);
+  clearCsrfCookie(res);
   res.json({ success: true, message: 'Logged out successfully' });
 }
 
@@ -625,18 +700,13 @@ export async function handleRegister(req: Request, res: Response) {
       displayName: newUser.displayName ?? name,
     });
 
-    const token = generateToken(tokenPayload);
-
     logAuthSecurityEvent('register_success', req, {
       userId: newUser.id,
       email: redactEmail(newUser.email),
     });
 
-    res.status(201).json({
-      success: true,
-      token,
-      user: tokenPayload,
-    });
+    res.status(201);
+    issueSession(res, tokenPayload);
   } catch (error) {
     logger.error({ err: error }, 'Registration error');
     res.status(500).json({
@@ -850,18 +920,12 @@ export async function handleLoginWithDB(req: Request, res: Response) {
     const user = await getOrCreateDemoUser(email);
     const tokenPayload: TokenPayload = buildAuthTokenPayload(user);
 
-    const token = generateToken(tokenPayload);
-
     logAuthSecurityEvent('login_demo', req, {
       userId: user.id,
       email: redactEmail(user.email),
     });
 
-    return res.json({
-      success: true,
-      token,
-      user: tokenPayload,
-    });
+    return issueSession(res, tokenPayload);
   }
 
   try {
@@ -970,9 +1034,13 @@ export async function handleLoginWithDB(req: Request, res: Response) {
 
       const tokenPayload: TokenPayload = buildAuthTokenPayload(user);
 
-      let token: string;
+      logAuthSecurityEvent('login_success', req, {
+        userId: user.id,
+        email: redactEmail(user.email),
+      });
+
       try {
-        token = generateToken(tokenPayload);
+        return issueSession(res, tokenPayload);
       } catch (tokenErr) {
         logger.error({ err: tokenErr }, 'login: generateToken failed');
         return res.status(500).json({
@@ -980,17 +1048,6 @@ export async function handleLoginWithDB(req: Request, res: Response) {
           message: 'No se pudo crear la sesión. Revisa la configuración del servidor (JWT).',
         });
       }
-
-      logAuthSecurityEvent('login_success', req, {
-        userId: user.id,
-        email: redactEmail(user.email),
-      });
-
-      return res.json({
-        success: true,
-        token,
-        user: tokenPayload,
-      });
     }
 
     if (user && !user.passwordHash) {
@@ -1079,18 +1136,12 @@ export async function handleVerify2FA(req: Request, res: Response) {
 
     const tokenPayload: TokenPayload = buildAuthTokenPayload(user);
 
-    const token = generateToken(tokenPayload);
-
     logAuthSecurityEvent('twofa_verified', req, {
       userId: user.id,
       email: redactEmail(user.email),
     });
 
-    res.json({
-      success: true,
-      token,
-      user: tokenPayload,
-    });
+    issueSession(res, tokenPayload);
   } catch (error) {
     logger.error({ err: error }, '2FA verification error');
     res.status(500).json({
