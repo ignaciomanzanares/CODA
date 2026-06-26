@@ -188,6 +188,7 @@ export default function UniversalUploadDrawer({
         const apiBase = (API_URL || "").replace(/\/$/, "");
         const res = await fetch(`${apiBase}/api/documents/upload`, {
           method: "POST",
+          credentials: "include",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });

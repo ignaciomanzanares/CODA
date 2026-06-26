@@ -278,6 +278,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
       const apiBase = (API_URL || "").replace(/\/$/, "");
       const res = await fetch(`${apiBase}/api/transactions/${txId}/category`, {
         method: "PATCH",
+        credentials: "include",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ category: newCategory }),
       });

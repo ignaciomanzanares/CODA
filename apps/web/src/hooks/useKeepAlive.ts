@@ -11,7 +11,8 @@
 import { useEffect } from "react";
 
 const PING_INTERVAL_MS = 14 * 60 * 1000; // 14 minutes
-const PING_URL = "/health"; // public endpoint — no auth needed, no 401 noise in logs
+const API_ORIGIN = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+const PING_URL = `${API_ORIGIN}/health`; // public endpoint — no auth needed, no 401 noise in logs
 
 export function useKeepAlive() {
   useEffect(() => {
@@ -19,7 +20,7 @@ export function useKeepAlive() {
 
     const ping = () => {
       if (document.hidden) return;
-      fetch(PING_URL, { method: "HEAD" }).catch(() => {
+      fetch(PING_URL, { method: "HEAD", credentials: "include" }).catch(() => {
         // Silently ignore — purpose is just to keep Render awake
       });
     };

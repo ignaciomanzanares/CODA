@@ -72,7 +72,11 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
   // Timeout via AbortController (skip if caller already provides a signal)
   let controller: AbortController | undefined;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const fetchInit = { ...init };
+  // credentials: "include" envía la cookie de sesión httpOnly cuando exista
+  // (Fase B futura). Hoy no hay cookie y el Bearer sigue siendo el transporte real;
+  // el CORS del API ya responde Access-Control-Allow-Credentials: true. El caller
+  // puede sobreescribirlo vía `init.credentials`.
+  const fetchInit: RequestInit = { credentials: "include", ...init };
   if (!fetchInit.signal) {
     controller = new AbortController();
     fetchInit.signal = controller.signal;

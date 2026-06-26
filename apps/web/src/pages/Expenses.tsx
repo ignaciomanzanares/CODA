@@ -45,6 +45,7 @@ export default function Expenses() {
       const token = localStorage.getItem("jwt_token") ?? "";
       const res = await fetch(apiUrl("/api/user/cartolas"), {
         method: "DELETE",
+        credentials: "include",
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);

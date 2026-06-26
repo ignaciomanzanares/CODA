@@ -26,7 +26,7 @@ export function getPushPermission(): NotificationPermission {
 
 export async function getVapidPublicKey(): Promise<string | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/push/vapid-key`);
+    const res = await fetch(`${API_BASE_URL}/push/vapid-key`, { credentials: "include" });
     if (!res.ok) return null;
     const data = await res.json();
     return data.publicKey || null;
@@ -56,6 +56,7 @@ export async function subscribeToPush(token: string): Promise<boolean> {
 
     const res = await fetch(`${API_BASE_URL}/push/subscribe`, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
@@ -80,6 +81,7 @@ export async function unsubscribeFromPush(token: string): Promise<boolean> {
 
     await fetch(`${API_BASE_URL}/push/unsubscribe`, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
@@ -110,6 +112,7 @@ export async function sendTestPush(token: string): Promise<boolean> {
   try {
     const res = await fetch(`${API_BASE_URL}/push/test`, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
