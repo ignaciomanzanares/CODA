@@ -8,10 +8,6 @@ import { XgbTreeModel } from "./treeExplain.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Lazy optional import to avoid crashing when dependency is missing
-let ort: any = null;
-// Do not attempt sync require in ESM; will dynamically import in tryLoad()
-
 export type ModelManifest = {
   model_id: string;
   trained_at?: string;
@@ -19,16 +15,29 @@ export type ModelManifest = {
   metrics?: { auc?: number; gini?: number; ks?: number; brier?: number };
   feature_meta_path?: string;
   calibration?: { type: "platt" | "isotonic"; params: any } | null;
-  onnx_path?: string;
+  onnx_path?: string | null;
+  xgb_json_path?: string;
+  dataset_hash?: string;
   shap_top?: string[];
   shap_summary_path?: string | null;
 };
 
+/**
+ * Sirve el modelo PD (XGBoost) evaluando el dump nativo `xgb.json` directamente en
+ * TypeScript (`XgbTreeModel.predictProba` = `sigmoid(margin)`), sin onnxruntime.
+ *
+ * Por qué no ONNX: (1) la salida ONNX exporta dos tensores (`label` int64 + `probabilities`)
+ * y el código previo leía `outputs[Object.keys(outputs)[0]]` = `label` (la clase 0/1), no la
+ * probabilidad — un bug real que devolvía un PD binarizado; (2) el export a ONNX está
+ * bloqueado por incompatibilidad de versiones onnxmltools/onnx/xgboost (ver ml/README.md),
+ * lo que impedía promover modelos nuevos. Evaluar el árbol en TS resuelve ambos: el margin
+ * reconstruido coincide con `probabilities[1]` de ONNX a ~1e-7 (test de paridad) y el modelo
+ * ya no depende de un artefacto ONNX que no podíamos generar.
+ */
 export class PDModelRegistry {
   private static _instance: PDModelRegistry;
   private baseDir: string;
   private manifest: ModelManifest | null = null;
-  private session: any = null; // onnxruntime.InferenceSession
   private featureMeta: { features: string[] } | null = null;
   private treeModel: XgbTreeModel | null = null;
 
@@ -40,8 +49,8 @@ export class PDModelRegistry {
       path.join(process.cwd(), "src", "ml", "artifacts", "current"),
       path.join(__dirname, "..", "ml", "artifacts", "current"),
     ];
-    
-    this.baseDir = possiblePaths.find(p => fs.existsSync(p)) || possiblePaths[0];
+
+    this.baseDir = possiblePaths.find((p) => fs.existsSync(p)) || possiblePaths[0];
     this.tryLoad();
   }
 
@@ -51,39 +60,48 @@ export class PDModelRegistry {
   }
 
   get isReady() {
-    // Opportunistically attempt to (re)load if session is not ready
-    if (!this.session) {
-      // fire-and-forget
-      void this.tryLoad();
+    if (!this.treeModel || !this.featureMeta) {
+      // El árbol se carga de forma síncrona; reintentar es barato si aún no estaba.
+      this.tryLoad();
     }
-    return Boolean(this.session && this.featureMeta);
+    return Boolean(this.treeModel && this.featureMeta);
   }
 
   getManifest(): ModelManifest | null {
     return this.manifest;
   }
 
+  /**
+   * Probabilidad de default calibrada. Valida que **todas** las features esperadas estén
+   * presentes y sean finitas — no rellena ausentes con 0 en silencio (#23): un feature vector
+   * incompleto es un bug aguas arriba que debe explotar ruidosamente, no degradar el score.
+   */
   async scoreXGB(featureMap: Record<string, number>): Promise<number> {
-    if (!this.isReady || !ort) throw new Error("XGB model not available");
-    const feats = this.featureMeta!.features.map((k) => Number(featureMap[k] ?? 0));
-    const input = new Float32Array(feats);
-    const tensor = new ort.Tensor("float32", input, [1, feats.length]);
-    const outputs = await this.session.run({ input: tensor });
-    const out = outputs[Object.keys(outputs)[0]];
-    const raw = Array.isArray(out.data) ? out.data[0] : out.data[0];
-    const p = Number(raw);
+    if (!this.isReady || !this.treeModel || !this.featureMeta) {
+      throw new Error("XGB model not available");
+    }
+    const expected = this.featureMeta.features;
+    const feats = expected.map((k) => {
+      const v = featureMap[k];
+      if (v == null || typeof v !== "number" || !Number.isFinite(v)) {
+        throw new Error(
+          `scoreXGB: feature '${k}' ausente o no finita (${String(v)}); no se rellena con 0 silenciosamente`,
+        );
+      }
+      return v;
+    });
+    const p = this.treeModel.predictProba(feats);
     return this.applyCalibration(p);
   }
 
   /**
    * Razones de la decisión para *esta* instancia (no el ranking global de `getTopFeatures`):
-   * requiere `xgb_json_path` en el manifest (dump nativo del booster, distinto del ONNX).
-   * Si no está disponible (modelos más viejos sin ese campo), cae a `getTopFeatures` —
-   * mismo ranking para todo usuario, mejor que nada pero no es explicación por instancia.
+   * usa el mismo `xgb.json` (dump nativo del booster). Si no está disponible (modelos más
+   * viejos sin ese campo), cae a `getTopFeatures` — mismo ranking para todo usuario.
    */
   explainInstance(
     featureMap: Record<string, number>,
-    limit = 5
+    limit = 5,
   ): Array<{ feature: string; contribution: number; direction: "increases_risk" | "decreases_risk" }> {
     if (this.treeModel && this.featureMeta) {
       const feats = this.featureMeta.features.map((k) => Number(featureMap[k] ?? 0));
@@ -157,55 +175,30 @@ export class PDModelRegistry {
     return p;
   }
 
-  private async tryLoad() {
+  private tryLoad() {
     try {
       const manifestPath = path.join(this.baseDir, "manifest.json");
       if (!fs.existsSync(manifestPath)) return;
       const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
       this.manifest = manifest;
 
-      // Dynamically import onnxruntime-node in ESM-safe way
-      if (!ort) {
-        try {
-          const mod = await import("onnxruntime-node");
-          // CJS exports land on default in ESM import
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ort = (mod as any)?.default ?? mod;
-        } catch {
-          return; // dependency not installed or unsupported platform
-        }
-      }
-
-      const onnxPath = path.join(this.baseDir, manifest.onnx_path || "xgb_pd.onnx");
       const featureMetaPath = path.join(this.baseDir, manifest.feature_meta_path || "feature_meta.json");
-      if (!fs.existsSync(onnxPath) || !fs.existsSync(featureMetaPath)) return;
+      if (!fs.existsSync(featureMetaPath)) return;
       this.featureMeta = JSON.parse(fs.readFileSync(featureMetaPath, "utf-8"));
 
-      const xgbJsonRel = (manifest as { xgb_json_path?: string }).xgb_json_path;
-      if (xgbJsonRel) {
-        const xgbJsonPath = path.join(this.baseDir, xgbJsonRel);
-        if (fs.existsSync(xgbJsonPath)) {
-          try {
-            this.treeModel = XgbTreeModel.loadFromFile(xgbJsonPath);
-          } catch (e) {
-            logger.warn({ err: e }, "Failed to load xgb.json for per-instance explanations; falling back to global SHAP ranking");
-            this.treeModel = null;
-          }
+      const xgbJsonRel = (manifest as { xgb_json_path?: string }).xgb_json_path || "xgb.json";
+      const xgbJsonPath = path.join(this.baseDir, xgbJsonRel);
+      if (fs.existsSync(xgbJsonPath)) {
+        try {
+          this.treeModel = XgbTreeModel.loadFromFile(xgbJsonPath);
+        } catch (e) {
+          logger.error({ err: e }, "Failed to load xgb.json; PD model unavailable");
+          this.treeModel = null;
         }
       }
-
-      // Create session (async)
-      ort.InferenceSession.create(onnxPath, { executionProviders: ["cpu"] })
-        .then((sess: any) => {
-          this.session = sess;
-        })
-        .catch(() => {
-          // ignore
-        });
     } catch (e) {
       logger.error({ err: e }, "PDModelRegistry load failed");
       this.manifest = null;
-      this.session = null;
       this.featureMeta = null;
       this.treeModel = null;
     }
@@ -213,8 +206,8 @@ export class PDModelRegistry {
 
   // Public method to force reload of model artifacts
   async reload() {
-    this.session = null;
     this.treeModel = null;
-    await this.tryLoad();
+    this.featureMeta = null;
+    this.tryLoad();
   }
 }

@@ -2481,42 +2481,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const startedAt = Date.now();
           const { PDModelRegistry } = await import("./services/modelRegistry.js");
           const reg = PDModelRegistry.instance();
-          if (!reg.isReady) {
-            await new Promise((r) => setTimeout(r, 150));
-          }
+          // El modelo se evalúa desde xgb.json en TS (carga síncrona), así que isReady es
+          // confiable de inmediato — ya no hace falta el sleep ni el fallback ONNX one-off
+          // (que además leía el tensor `label` en vez de `probabilities`). Si no está listo,
+          // cae a baseline.
           if (reg.isReady) {
-            const pd = await reg.scoreXGB(fv as any);
-            const instanceReasons = reg.explainInstance(fv as any, 5);
+            const pd = await reg.scoreXGB(fv);
+            const instanceReasons = reg.explainInstance(fv, 5);
             const reasons = ["model:xgb", ...instanceReasons.map((r) => r.feature)];
-            await tracePdXgbPrediction(userId, pd, instanceReasons, fv as Record<string, unknown>, startedAt);
+            await tracePdXgbPrediction(userId, pd, instanceReasons, fv, startedAt);
             return res.json({ pd, reasons, reasonDetail: instanceReasons, features: fv, model: reg.getManifest() });
           }
-
-          // Fallback: one-off ONNX scoring if registry not yet ready
-          const pathMod = await import("node:path");
-          const fsMod = await import("node:fs");
-          const baseDir = await getMLArtifactsDir();
-          const manifest = JSON.parse(fsMod.readFileSync(pathMod.join(baseDir, "manifest.json"), "utf-8"));
-          const featureMeta = JSON.parse(
-            fsMod.readFileSync(pathMod.join(baseDir, manifest.feature_meta_path || "feature_meta.json"), "utf-8")
-          );
-          const onnxPath = pathMod.join(baseDir, manifest.onnx_path || "xgb_pd.onnx");
-          const ortMod: any = await import("onnxruntime-node");
-          const ortAny: any = (ortMod as any)?.default ?? ortMod;
-          const feats = featureMeta.features.map((k: string) => Number((fv as any)[k] ?? 0));
-          const input = new Float32Array(feats);
-          const tensor = new ortAny.Tensor("float32", input, [1, feats.length]);
-          const session = await ortAny.InferenceSession.create(onnxPath, { executionProviders: ["cpu"] });
-          const outputs = await session.run({ input: tensor });
-          const out = (outputs as any)[Object.keys(outputs)[0]];
-          let p = Number(Array.isArray(out.data) ? out.data[0] : out.data[0]);
-          const cal = manifest?.calibration;
-          if (cal?.type === "platt" && typeof cal.params?.a === "number" && typeof cal.params?.b === "number") {
-            const z = cal.params.a * p + cal.params.b;
-            p = 1 / (1 + Math.exp(-z));
-          }
-          const reasons = ["model:xgb", ...((manifest?.shap_top || []) as string[]).slice(0, 5)];
-          return res.json({ pd: p, reasons, features: fv, model: manifest });
+          logger.warn("XGB model not ready, falling back to baseline");
         } catch (err) {
           logger.warn({ err }, 'XGB scoring failed, falling back to baseline');
         }

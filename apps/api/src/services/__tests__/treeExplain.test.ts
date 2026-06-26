@@ -23,8 +23,23 @@ describe("XgbTreeModel.explain", () => {
     for (let i = 0; i < fixture.vectors.length; i++) {
       const explanation = model.explain(fixture.vectors[i], fixture.features);
       // Generado con xgboost==3.0.5 (booster.predict(dm, output_margin=True)) sobre el mismo
-      // xgb.json — ver scratchpad de la sesión. Tolerancia float32.
+      // xgb.json — ver scripts/gen del scratchpad. Tolerancia float32.
       expect(explanation.marginTotal).toBeCloseTo(fixture.margins[i], 4);
+      // margin() (ruta caliente de scoring, sin contribuciones) debe coincidir con explain().
+      expect(model.margin(fixture.vectors[i])).toBeCloseTo(explanation.marginTotal, 10);
+    }
+  });
+
+  it("predictProba matches the booster's predict_proba (paridad de scoring, #9)", () => {
+    if (!fs.existsSync(xgbJsonPath)) return;
+    const fixture: { features: string[]; vectors: number[][]; probs?: number[] } = JSON.parse(
+      fs.readFileSync(fixturePath, "utf-8")
+    );
+    if (!fixture.probs) return; // fixtures antiguos sin columna de probabilidades
+    const model = XgbTreeModel.loadFromFile(xgbJsonPath);
+    for (let i = 0; i < fixture.vectors.length; i++) {
+      // sigmoid(margin) == booster.predict() (clase positiva), tolerancia float32.
+      expect(model.predictProba(fixture.vectors[i])).toBeCloseTo(fixture.probs[i], 4);
     }
   });
 

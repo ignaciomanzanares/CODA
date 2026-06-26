@@ -72,14 +72,27 @@ sintéticos, `artifacts/synthetic_chile_v2/manifest.json`): **AUC 0.6147 (gini 0
 frente al 0.4172 (peor que azar) de `artifacts/current`. Confirma que el problema era la
 falta de heterogeneidad/señal en los datos generadores, no un bug de `train_xgb.py`.
 
-**Pendiente para producción — bloqueador separado, no relacionado a los datos**: el export a
-ONNX (`train_xgb.py`, no `train_xgb_benchmark.py`) sigue fallando con el mismo dataset nuevo
-(`onnx.helper.make_attribute`: `TypeError: Field onnx.AttributeProto.ints: Expected an int,
-got a boolean`), por la incompatibilidad de versiones entre `onnxmltools==1.14.0` y
-`onnx==1.19.0`/`xgboost==3.0.5` ya documentada arriba. `modelRegistry.ts` requiere un
-`xgb_pd.onnx` válido para servir el modelo en producción, así que **no promover este
-artefacto a `artifacts/current` hasta resolver el export ONNX por separado** (downgrade de
-versiones o reemplazo de la librería de conversión).
+**Resuelto — el modelo chileno (AUC 0.6147) ya está promovido a `artifacts/current`.** El
+bloqueador del export ONNX se eliminó **dejando de depender de ONNX para servir**:
+`modelRegistry.ts` ahora evalúa el dump nativo `xgb.json` directamente en TypeScript
+(`XgbTreeModel.predictProba` = `sigmoid(margin)`), no `onnxruntime`. Esto cierra dos problemas
+a la vez:
+
+1. **El export ONNX seguía fallando** (`onnx.helper.make_attribute: TypeError: Field
+   onnx.AttributeProto.ints: Expected an int, got a boolean`, incompatibilidad
+   `onnxmltools==1.14.0`/`onnx==1.19.0`/`xgboost==3.0.5`). `train_xgb.py` ahora trata el export
+   ONNX como **opcional** (lo intenta, y si falla registra `onnx_path=null` y continúa) — ya no
+   aborta el pipeline ni bloquea la promoción.
+2. **Bug de serving real**: el código previo leía `outputs[Object.keys(outputs)[0]]` de la
+   sesión ONNX, que es el tensor `label` (clase 0/1 int64), **no** `probabilities` — devolvía
+   un PD binarizado, no una probabilidad. La evaluación en TS lo elimina.
+
+La paridad `XgbTreeModel` ↔ booster está verificada a tolerancia float32 en
+`services/__tests__/treeExplain.test.ts` (margin y `predictProba` contra
+`booster.predict(output_margin=True)`/`predict()`), reproduciendo el camino de decisión float32
+de XGBoost vía `Math.fround` sobre features y umbrales de split. El manifest de `current`
+reporta `auc: 0.6147` (≥ 0.60), `dataset_hash` (sha256 del CSV de entrenamiento, #39),
+`n_rows`/`n_features`.
 
 ## Próximos pasos
 
@@ -87,7 +100,8 @@ versiones o reemplazo de la librería de conversión).
    determinística entre features y default~~ — hecho, ver sección anterior.
 2. ~~Calibrar las distribuciones sintéticas contra la Encuesta Financiera de Hogares del
    Banco Central de Chile~~ — hecho (`syntheticChileanProvider.ts`).
-3. Resolver la incompatibilidad de versiones ONNX (`onnxmltools`/`onnx`/`xgboost`) para poder
-   exportar y promover un artefacto entrenado con datos reales/calibrados a `artifacts/current`.
+3. ~~Resolver la incompatibilidad de versiones ONNX para poder promover un artefacto~~ — ya no
+   aplica: el serving evalúa `xgb.json` en TS (sin ONNX), así que la promoción no depende del
+   export ONNX. El artefacto chileno (AUC 0.6147) ya está en `artifacts/current`.
 4. Evaluar la compra de un piloto de datos chilenos reales (Equifax/DICOM) — validar antes
    con legal el contrato de tratamiento de datos.
