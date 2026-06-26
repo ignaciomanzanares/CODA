@@ -231,7 +231,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ message: "El enlace ha expirado o no es válido." });
     }
     try {
-      await db.update(users).set({ passwordHash: hashPassword(password) }).where(eq(users.id, entry.userId));
+      // Al cambiar la contraseña, invalida también las sesiones existentes
+      // (tokenInvalidatedAt): cualquier JWT emitido antes de este reset queda
+      // rechazado por `authenticate`, cerrando sesiones potencialmente robadas.
+      await db
+        .update(users)
+        .set({ passwordHash: hashPassword(password), tokenInvalidatedAt: new Date().toISOString() })
+        .where(eq(users.id, entry.userId));
       passwordResetTokens.delete(token);
       return res.json({ message: "Contraseña actualizada correctamente." });
     } catch (err) {

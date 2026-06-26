@@ -52,3 +52,15 @@ services:
       # código generado en una instancia no se valida en otra). Ver apps/api/src/redis.ts.
       - key: REDIS_URL
         sync: false  # Must be set manually in dashboard
+      # Email — REQUERIDO para 2FA OTP y reset de contraseña. Configura UN proveedor
+      # (Resend preferido). Sin proveedor: 2FA falla cerrado (503) y forgot-password
+      # no envía correo. Todos sync:false (set manual en el Dashboard, son secretos).
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM     # remitente verificado, p.ej. "CODA <noreply@codafinance.cl>"
+        sync: false
+      # Alternativas a Resend (configurar solo si no se usa Resend):
+      - key: GMAIL_USER
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false

@@ -8,7 +8,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { env, isDevelopment } from '../env.js';
 import { storage } from '../storage.js';
-import { emailService } from '../services/emailService.js';
+import { emailService, isEmailConfigured } from '../services/emailService.js';
 import { logger } from '../logger.js';
 import {
   logAuthSecurityEvent,
@@ -925,9 +925,10 @@ export async function handleLoginWithDB(req: Request, res: Response) {
 
       // Check if 2FA is enabled
       if (isTwoFactorEnabledFlag(user.twoFactorEnabled)) {
-        // Check if email service is actually configured before attempting 2FA
-        const hasEmailConfig = !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) ||
-          !!(process.env.SMTP_HOST && process.env.SMTP_USER);
+        // Check if email service is actually configured before attempting 2FA.
+        // Incluye Resend (proveedor preferido); antes solo miraba Gmail/SMTP, por lo
+        // que con RESEND_API_KEY el 2FA fallaba cerrado pese a tener email operativo.
+        const hasEmailConfig = isEmailConfigured();
 
         if (!hasEmailConfig) {
           // 2FA está habilitado para la cuenta pero el servidor no tiene servicio de email.
