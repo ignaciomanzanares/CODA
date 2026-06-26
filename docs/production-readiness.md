@@ -175,9 +175,16 @@ curl -i "$API_URL/metrics?token=test"
 
 ## Pendientes
 
-- [ ] Evaluar JWT en cookies `httpOnly`, `Secure` y `SameSite` con migracion
-  compatible para web/API.
-- [ ] Evaluar dominio API propio `api.codafinance.cl`.
+- [x] Fase A JWT cookie foundation (backwards-compatible) implementada tras
+  `AUTH_COOKIE_ENABLED` (default `false`): `authenticate` lee cookie httpOnly o
+  `Authorization: Bearer` (Bearer con prioridad estricta); helpers
+  `setAuthCookie`/`clearAuthCookie` en `apps/api/src/middleware/authCookie.ts`.
+  Con el flag `false`, el comportamiento de prod no cambia (solo Bearer + token
+  en JSON). NO activar hasta tener `api.codafinance.cl`.
+- [ ] Configurar dominio API propio `api.codafinance.cl` (cookie first-party
+  same-site) ANTES de activar `AUTH_COOKIE_ENABLED=true` y `AUTH_COOKIE_DOMAIN`.
+- [ ] Fase B+: `credentials: "include"` en el frontend, retirar localStorage,
+  CSRF (`COOKIE_CSRF_ENABLED`).
 - [ ] Activar metricas solo si existe consumidor, token fuerte, rotacion y
   control de acceso acordados.
 - [ ] Activar Sentry solo despues de validar redaction, muestreo, retencion y
