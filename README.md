@@ -68,6 +68,8 @@ Web Service, root `apps/api`, build `npm install --include=dev && npm run build`
 
 **Email (2FA y reset de contraseña):** en producción configura **un** proveedor de email en Render (preferido `RESEND_API_KEY` + `RESEND_FROM`; alternativas `GMAIL_USER`+`GMAIL_APP_PASSWORD` o `SMTP_HOST`+`SMTP_USER`+`SMTP_PASS`). Sin proveedor: el login con 2FA falla cerrado (503) y `POST /api/auth/forgot-password` responde igual (sin revelar si el correo existe) pero no envía el correo. El enlace de reset apunta a `CLIENT_URL/restablecer-contrasena?token=…` y expira en 1 hora; al completarse, se invalidan las sesiones previas del usuario.
 
+**Observability:** `/metrics` está desactivado por defecto (`METRICS_ENABLED=false`). Para habilitarlo en producción, configura `METRICS_ENABLED=true` y un `METRICS_TOKEN` secreto; el endpoint acepta `Authorization: Bearer <token>` o `X-Metrics-Token`, nunca query params. `SENTRY_DSN` es opcional: si no está definido, la captura Sentry queda deshabilitada sin fallar. El error capture sanitiza headers/cookies/tokens/emails/RUTs/bodies antes de reportar.
+
 **Login devuelve 500 en producción (`Login failed`):** Suele ser un desajuste de columnas en `users` (p. ej. `two_factor_enabled`, `role`) respecto al schema actual. Revisa los logs de Render: busca `[AUTH LOGIN ERROR]` y el `code` de PostgreSQL (p. ej. `42703` = columna inexistente). Alinear la BD con:
 
 ```bash
