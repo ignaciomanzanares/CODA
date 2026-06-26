@@ -175,6 +175,7 @@ export function useApi(): ApiClient {
     let res: Response;
     try {
       res = await fetch(fullUrl, {
+        credentials: "include",
         ...restOptions,
         method,
         headers,
@@ -272,6 +273,7 @@ export function useApi(): ApiClient {
     // Financial products is a public endpoint, don't require auth
     const res = await fetch(url, {
       method: "GET",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json"
       }
@@ -364,6 +366,7 @@ export function useApi(): ApiClient {
     const fullUrl = `${API_BASE_URL}/expenses/scan`;
     const res = await fetch(fullUrl, {
       method: "POST",
+      credentials: "include",
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
     });
@@ -503,6 +506,7 @@ export function useApi(): ApiClient {
     const fullUrl = `${API_BASE_URL}/documents/upload`;
     const res = await fetch(fullUrl, {
       method: "POST",
+      credentials: "include",
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
     });
@@ -521,6 +525,7 @@ export function useApi(): ApiClient {
     const fullUrl = `${API_BASE_URL}/assets/extract-inscripcion`;
     const res = await fetch(fullUrl, {
       method: "POST",
+      credentials: "include",
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
     });

@@ -36,8 +36,7 @@ export default function PWAUpdatePrompt() {
       <div className="flex items-center gap-2 shrink-0">
         <button
           type="button"
-          className="rounded-md px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-          style={{ backgroundColor: "#3b82f6", minHeight: "44px" }}
+          className="min-h-11 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-slate-800"
           onClick={() => {
             void updateServiceWorker(true);
           }}

@@ -81,6 +81,7 @@ export default function DocumentManager({
       try {
         const res = await fetch(`${apiBase}/api/user/documents/${id}`, {
           method: "DELETE",
+          credentials: "include",
           headers: authHeaders(),
         });
         if (!res.ok) throw new Error("delete failed");
@@ -100,6 +101,7 @@ export default function DocumentManager({
     try {
       const res = await fetch(`${apiBase}/api/documents`, {
         method: "DELETE",
+        credentials: "include",
         headers: authHeaders(),
       });
       if (!res.ok) throw new Error("delete all failed");
