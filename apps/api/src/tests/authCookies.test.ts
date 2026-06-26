@@ -289,6 +289,36 @@ describe("authenticate reads cookie and Bearer", () => {
     expect(res.statusCode).toBe(401);
   });
 
+  it("flag ON: non-Bearer Authorization (Basic) does NOT fall back to cookie → 401", async () => {
+    process.env.AUTH_COOKIE_ENABLED = "true";
+    const { token } = await tokenFor("basic");
+    const { res, nextCalled } = await runAuth(
+      makeReq({ headers: { authorization: "Basic dXNlcjpwYXNz" }, cookies: { [COOKIE]: token } })
+    );
+    expect(nextCalled).toBe(false);
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("flag ON: logout via cookie (no Bearer) invalidates the JWT — reuse → 401", async () => {
+    process.env.AUTH_COOKIE_ENABLED = "true";
+    const { user, token } = await tokenFor("logout-ck");
+    // Sanity: the cookie authenticates before logout.
+    expect((await runAuth(makeReq({ cookies: { [COOKIE]: token } }))).nextCalled).toBe(true);
+
+    // Logout using ONLY the cookie (no Authorization header).
+    const logoutRes = makeRes();
+    await handleLogout(
+      makeReq({ cookies: { [COOKIE]: token }, user: { userId: user.id, email: user.email } }),
+      logoutRes
+    );
+    expect(logoutRes.cleared.some((c: any) => c.name === COOKIE)).toBe(true);
+
+    // Reusing the same JWT/cookie afterwards must be rejected.
+    const after = await runAuth(makeReq({ cookies: { [COOKIE]: token } }));
+    expect(after.nextCalled).toBe(false);
+    expect(after.res.statusCode).toBe(401);
+  });
+
   it("never accepts a token via query param (flag on or off)", async () => {
     const { token } = await tokenFor("q");
     expect((await runAuth(makeReq({ query: { token } }))).nextCalled).toBe(false);
