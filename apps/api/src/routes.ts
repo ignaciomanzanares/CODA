@@ -27,6 +27,7 @@ import {
   hashPassword,
   type AuthenticatedRequest
 } from "./middleware/auth.js";
+import { clearAuthCookie } from "./middleware/authCookie.js";
 import { env } from "./env.js";
 import { evaluateGovernmentPrograms } from "./services/governmentPrograms.js";
 import { emailService } from "./services/emailService.js";
@@ -239,6 +240,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .set({ passwordHash: hashPassword(password), tokenInvalidatedAt: new Date().toISOString() })
         .where(eq(users.id, entry.userId));
       passwordResetTokens.delete(token);
+      // Limpia la cookie de sesión si el flag está activo (no-op si no).
+      clearAuthCookie(res);
       return res.json({ message: "Contraseña actualizada correctamente." });
     } catch (err) {
       logger.error({ err }, "reset-password error");
