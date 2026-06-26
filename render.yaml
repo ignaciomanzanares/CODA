@@ -30,7 +30,7 @@ services:
       - key: DEBUG_ENDPOINTS
         value: false
       - key: DEMO_MODE
-        value: true  # Set to false for real production deployment
+        value: false
       # Con DEMO_MODE=true, la contraseña demo (demo123) SOLO inicia sesión para
       # estos emails (lista separada por comas) — nunca para cuentas reales.
       # Alternativa: DEMO_EMAIL (uno solo). Default si no se define: demo@example.com.
