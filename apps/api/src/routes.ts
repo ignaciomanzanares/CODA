@@ -758,6 +758,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  /**
+   * GET /api/habits/recommendations
+   * Hábitos financieros personalizados según la salud financiera del usuario,
+   * excluyendo los que el usuario marcó como "no útil" la última vez (feedback loop).
+   */
+  app.get("/api/habits/recommendations", authenticate, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { evaluateUserHealth } = await import('./services/healthEvaluation/index.js');
+      const { generateHabitRecommendations } = await import('./services/habits/habitEngine.js');
+
+      const health = await evaluateUserHealth(userId);
+      if (!health) {
+        return res.json({ habits: [], reason: 'insufficient_data' });
+      }
+
+      const excludedKeys = await storage.getRecentlyDownvotedHabitKeys(userId);
+      const habits = generateHabitRecommendations(health, excludedKeys);
+
+      res.json({ habits });
+    } catch (error) {
+      logger.error({ err: error }, 'Habit recommendations error');
+      res.status(500).json({ error: 'Failed to get habit recommendations' });
+    }
+  });
+
+  /**
+   * POST /api/habits/feedback
+   * Thumbs up/down sobre un hábito recomendado. El rating más reciente por
+   * `habitKey` decide si ese hábito sigue mostrándose (ver storage.getRecentlyDownvotedHabitKeys).
+   */
+  app.post("/api/habits/feedback", authenticate, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { habitKey, rating } = req.body ?? {};
+      const { HABIT_KEYS } = await import('./services/habits/habitCatalog.js');
+
+      if (typeof habitKey !== 'string' || !HABIT_KEYS.has(habitKey)) {
+        return res.status(400).json({ error: 'habitKey inválido' });
+      }
+      if (rating !== 'up' && rating !== 'down') {
+        return res.status(400).json({ error: 'rating debe ser "up" o "down"' });
+      }
+
+      await storage.createHabitFeedback({ userId, habitKey, rating });
+      res.json({ ok: true });
+    } catch (error) {
+      logger.error({ err: error }, 'Habit feedback error');
+      res.status(500).json({ error: 'Failed to save habit feedback' });
+    }
+  });
+
   /** Mensaje inicial y chips del chat (datos reales, sin plantillas genéricas). */
   app.get("/api/assistant/bootstrap", authenticate, async (req, res) => {
     try {

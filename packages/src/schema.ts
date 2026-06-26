@@ -735,6 +735,15 @@ export const assistantFeedback = table('assistant_feedback', {
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+/** Feedback del usuario sobre hábitos financieros recomendados (thumbs up/down), por `habitKey` estable del catálogo en `services/habits/habitCatalog.ts`. Un "down" reciente excluye ese hábito de futuras recomendaciones (feedback loop). */
+export const habitFeedback = table('habit_feedback', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  habitKey: text('habit_key').notNull(),
+  rating: text('rating').notNull(), // 'up' | 'down'
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 /**
  * Caché de indicadores económicos (UF, dólar) por fecha, en CLP.
  * Fuente: mindicador.cl. `id` = `${kind}:${date}` (date = ISO yyyy-mm-dd) para

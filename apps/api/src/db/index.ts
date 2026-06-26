@@ -59,6 +59,7 @@ export const {
   auditLogs,
   assistantFeedback,
   assistantSummaries,
+  habitFeedback,
   indicatorValues,
 } = schema as any;
 import postgres from 'postgres';
