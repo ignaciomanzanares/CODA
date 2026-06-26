@@ -27,6 +27,62 @@ export interface UserProfile {
   hasVehicle?: boolean;
   hasProperty?: boolean;
   employmentMonths?: number;
+  /**
+   * Estado de salud financiera (-2..+5) del motor `evaluateHealthV2`. Acopla las
+   * recomendaciones a la SITUACIÓN del usuario, no solo a su score crediticio: a un
+   * usuario sobreendeudado no se le ofrece deuda revolvente nueva, a uno con excedente
+   * se le prioriza ahorro/inversión. Si es `undefined`, el motor se comporta igual que
+   * antes (solo score + ingresos) — backward-compatible.
+   */
+  financialHealthLevel?: number;
+}
+
+/**
+ * Política de productos según el nivel de salud financiera (-2..+5). Espeja el mapeo
+ * `nivel → salida` del motor de salud (`evaluationEngine.ts`): la "salida" de un nivel
+ * crítico es reestructurar/refinanciar (no tomar más deuda), y la de un nivel sano es
+ * ahorrar/proteger patrimonio. `excluded` es regla dura (producto inelegible);
+ * `preferred`/`discouraged` ajustan el match score sin bloquear.
+ */
+export interface HealthProductPolicy {
+  preferredCategories: ReadonlySet<string>;
+  discouragedCategories: ReadonlySet<string>;
+  excludedCategories: ReadonlySet<string>;
+}
+
+export function getHealthProductPolicy(level: number): HealthProductPolicy {
+  // -2 (insolvencia activa): necesita reestructuración legal, no productos de crédito.
+  // No se le ofrece NADA de deuda nueva; ahorro/seguro quedan desincentivados (no es la prioridad).
+  if (level <= -2) {
+    return {
+      preferredCategories: new Set(),
+      discouragedCategories: new Set(['savings', 'insurance']),
+      excludedCategories: new Set(['credit_cards', 'loans']),
+    };
+  }
+  // -1 (endeudado): la salida es refinanciar/consolidar. Préstamos sí (para consolidar),
+  // pero NUNCA una tarjeta de crédito nueva (deuda revolvente que agrava la carga).
+  if (level === -1) {
+    return {
+      preferredCategories: new Set(['loans']),
+      discouragedCategories: new Set(['savings']),
+      excludedCategories: new Set(['credit_cards']),
+    };
+  }
+  // 0 (sin deudas, sin excedente): refinanciamiento preventivo; sin sesgo fuerte.
+  if (level === 0) {
+    return {
+      preferredCategories: new Set(['loans']),
+      discouragedCategories: new Set(),
+      excludedCategories: new Set(),
+    };
+  }
+  // >=1 (excedente para ahorrar/proteger): priorizar ahorro/seguro; no sumar deuda revolvente.
+  return {
+    preferredCategories: new Set(['savings', 'insurance']),
+    discouragedCategories: new Set(['credit_cards']),
+    excludedCategories: new Set(),
+  };
 }
 
 export interface ProductMatch {
@@ -121,8 +177,23 @@ function evaluateProductMatch(
     }
   }
 
+  // Financial-health gate (#25): acopla la recomendación a la situación, no solo al score.
+  // Ej.: no ofrecer una tarjeta de crédito nueva a un usuario sobreendeudado (nivel ≤ -1).
+  const healthPolicy =
+    userProfile.financialHealthLevel !== undefined
+      ? getHealthProductPolicy(userProfile.financialHealthLevel)
+      : null;
+  if (healthPolicy?.excludedCategories.has(product.category)) {
+    isEligible = false;
+    ineligibilityReasons.push(
+      'No recomendado para tu situación financiera actual: prioriza ordenar tu deuda antes de tomar un nuevo crédito.'
+    );
+  } else if (healthPolicy?.preferredCategories.has(product.category)) {
+    eligibilityReasons.push('Alineado con tu objetivo financiero actual');
+  }
+
   // Calculate match score (0-100) using product-specific weights
-  const matchScore = calculateMatchScore(product, userProfile, isEligible);
+  const matchScore = calculateMatchScore(product, userProfile, isEligible, healthPolicy);
 
   // Calculate ranking score: combines match quality, priority, and approval rate
   const approvalFactor = product.approvalRate ?? 0.5;
@@ -149,7 +220,8 @@ function evaluateProductMatch(
 function calculateMatchScore(
   product: ProductCatalogItem,
   userProfile: UserProfile,
-  isEligible: boolean
+  isEligible: boolean,
+  healthPolicy: HealthProductPolicy | null = null
 ): number {
   // If not eligible, return low score
   if (!isEligible) return 0;
@@ -214,7 +286,19 @@ function calculateMatchScore(
 
   // Normalize to 0-100; return a base score of 50 when no criteria to evaluate
   // (allows eligible products with unknown profile to still be ranked)
-  return totalWeight > 0 ? totalScore / totalWeight : 50;
+  let score = totalWeight > 0 ? totalScore / totalWeight : 50;
+
+  // Ajuste por salud financiera (#25): refuerza la categoría apropiada para la
+  // situación del usuario y penaliza (sin excluir) la que no lo es.
+  if (healthPolicy) {
+    if (healthPolicy.preferredCategories.has(product.category)) {
+      score = Math.min(100, score * 1.15);
+    } else if (healthPolicy.discouragedCategories.has(product.category)) {
+      score = score * 0.8;
+    }
+  }
+
+  return score;
 }
 
 /**

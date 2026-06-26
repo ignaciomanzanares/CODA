@@ -88,7 +88,9 @@ const modelId = await deployNewModelVersion({
 | `product_interaction` | `POST /api/products/track` (view, click, …) |
 | `product_application` | `POST /api/products/apply` |
 
-Cada `upsertTransactionalScore` puede incluir `algorithmInputs` (p. ej. `pipeline`, conteos). Recomendaciones registran `matchingEngineVersion` en el snapshot de entrada. Ver `docs/TRACEABILITY_RUNTIME.md`. Endpoint: `GET /api/audit/my-algorithm-logs?limit=40` (auditoría UI aparte).
+Cada `upsertTransactionalScore` puede incluir `algorithmInputs` (p. ej. `pipeline`, conteos). Recomendaciones registran `matchingEngineVersion` **y `financialHealthLevel`** en el snapshot de entrada (la recomendación está acoplada al estado de salud financiera del usuario, no solo a su score — ver `services/products/matchingEngine.ts`). Ver `docs/TRACEABILITY_RUNTIME.md`. Endpoint: `GET /api/audit/my-algorithm-logs?limit=40` (auditoría UI aparte).
+
+**Atomicidad pendiente (deuda conocida):** en `storage.upsertTransactionalScore` la escritura del score y el `await logTransactionalScoreComputation(...)` son dos statements separados, **no** envueltos en `db.transaction()`. Un crash entre ambos dejaría el score sin su traza NCG 502. No se envolvió en transacción porque el driver de dev/test (`better-sqlite3`) exige callback **síncrono** y el de producción (`postgres-js`) exige **async** — el mismo código de transacción no corre en ambos dialectos. La solución correcta (transacción solo en Postgres, vía `dialect === 'postgres'`) queda pendiente porque su rama Postgres no es testeable en el entorno actual (sin Postgres local). Mitigación vigente: la traza es `await` (síncrona), así que la ventana de inconsistencia es mínima y solo ante caída del proceso justo entre los dos inserts.
 
 ## Explicabilidad por instancia (NCG 502: no solo trazabilidad de datos)
 

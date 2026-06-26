@@ -4017,12 +4017,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.warn({ err: e }, "Could not extract cartola data for product matching");
       }
 
+      // Salud financiera (#25): acopla las recomendaciones a la SITUACIÓN del usuario,
+      // no solo a su score. Best-effort: si faltan cartola/CMF, queda undefined y el
+      // motor se comporta como antes (solo score + ingresos).
+      let financialHealthLevel: number | undefined;
+      try {
+        const { evaluateUserHealth } = await import('./services/healthEvaluation/index.js');
+        const health = await evaluateUserHealth(userId);
+        financialHealthLevel = health?.nivel;
+      } catch (e) {
+        logger.warn({ err: e }, 'Could not evaluate financial health for product matching');
+      }
+
       const userProfile = {
         userId,
         creditScore: creditScore?.score,
         transactionalScore: transactionalScoreData?.transactionalScore ?? undefined,
         monthlyIncome,
         monthlyDebt,
+        financialHealthLevel,
       };
 
       // Get recommendations
@@ -4059,6 +4072,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userProfile: {
           creditScore: userProfile.creditScore,
           transactionalScore: userProfile.transactionalScore,
+          financialHealthLevel: userProfile.financialHealthLevel,
           matchingEngineVersion: PRODUCT_MATCHING_ENGINE_VERSION,
         },
         category,

@@ -71,6 +71,7 @@ function getProductsForSalida(
   transactionalScore: number,
   monthlyIncome: number,
   monthlyDebt: number,
+  financialHealthLevel: HealthLevel,
 ): RecommendedProduct[] {
   if (salida === 'concursal') return [];
 
@@ -89,6 +90,7 @@ function getProductsForSalida(
     transactionalScore,
     monthlyIncome,
     monthlyDebt,
+    financialHealthLevel,
   };
 
   const matches = getTopRecommendations(
@@ -145,7 +147,7 @@ export function evaluateHealthV2(
       scoreCompuesto: 0,
       nivelBruto: nivel,
       ratios,
-      productos: getProductsForSalida(salida, opts.creditScore ?? 0, opts.transactionalScore ?? 0, opts.monthlyIncome ?? 0, opts.monthlyDebt ?? 0),
+      productos: getProductsForSalida(salida, opts.creditScore ?? 0, opts.transactionalScore ?? 0, opts.monthlyIncome ?? 0, opts.monthlyDebt ?? 0, nivel),
       insights: buildInsights(input, zona, nivel),
     };
   }
@@ -200,7 +202,7 @@ export function evaluateHealthV2(
     scoreCompuesto: Math.round(scoreCompuesto * 10) / 10,
     nivelBruto,
     ratios,
-    productos: getProductsForSalida(salida, opts.creditScore ?? 0, opts.transactionalScore ?? 0, opts.monthlyIncome ?? 0, opts.monthlyDebt ?? 0),
+    productos: getProductsForSalida(salida, opts.creditScore ?? 0, opts.transactionalScore ?? 0, opts.monthlyIncome ?? 0, opts.monthlyDebt ?? 0, nivel),
     insights: buildInsights(input, zona, nivel),
   };
 }
