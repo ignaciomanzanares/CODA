@@ -22,6 +22,7 @@ import {
   creditScoreHistory,
   assistantFeedback,
   assistantSummaries,
+  habitFeedback,
   eq,
   and,
   inArray,
@@ -177,6 +178,10 @@ export interface IStorage {
   // Assistant cross-session memory (rolling summary per user)
   getAssistantSummary(userId: string): Promise<{ summary: string; exchangeCount: number } | null>;
   upsertAssistantSummary(userId: string, data: { summary: string; exchangeCount: number }): Promise<void>;
+
+  // Habit feedback (thumbs up/down sobre hábitos financieros recomendados)
+  createHabitFeedback(data: { userId: string; habitKey: string; rating: 'up' | 'down' }): Promise<void>;
+  getRecentlyDownvotedHabitKeys(userId: string): Promise<Set<string>>;
 
   // User cleanup
   deleteUserData(userId: string): Promise<boolean>;
@@ -1588,6 +1593,50 @@ export class DatabaseStorage implements IStorage {
       provider: data.provider ?? null,
       comment: data.comment ?? null,
     });
+  }
+
+  async createHabitFeedback(data: {
+    userId: string;
+    habitKey: string;
+    rating: 'up' | 'down';
+  }): Promise<void> {
+    if (!db) {
+      logger.debug({ habitKey: data.habitKey, rating: data.rating }, 'Habit feedback (mem-storage, dropped)');
+      return;
+    }
+    await db.insert(habitFeedback).values({
+      id: randomUUID(),
+      userId: data.userId,
+      habitKey: data.habitKey,
+      rating: data.rating,
+    });
+  }
+
+  /**
+   * Hábitos que el usuario marcó "no útil" la última vez que dio feedback sobre ellos.
+   * Un feedback más reciente "útil" sobre la misma key revierte la exclusión — solo
+   * importa el rating más reciente por `habitKey`, no el historial completo.
+   */
+  async getRecentlyDownvotedHabitKeys(userId: string): Promise<Set<string>> {
+    if (!db) return new Set();
+    const rows = await db
+      .select()
+      .from(habitFeedback)
+      .where(eq(habitFeedback.userId, userId))
+      .orderBy(desc(habitFeedback.createdAt));
+
+    const latestRatingByKey = new Map<string, 'up' | 'down'>();
+    for (const row of rows as Array<{ habitKey: string; rating: 'up' | 'down' }>) {
+      if (!latestRatingByKey.has(row.habitKey)) {
+        latestRatingByKey.set(row.habitKey, row.rating);
+      }
+    }
+
+    const downvoted = new Set<string>();
+    for (const [key, rating] of latestRatingByKey) {
+      if (rating === 'down') downvoted.add(key);
+    }
+    return downvoted;
   }
 
   async getAssistantSummary(userId: string): Promise<{ summary: string; exchangeCount: number } | null> {
