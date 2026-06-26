@@ -210,4 +210,53 @@ export class PDModelRegistry {
     this.featureMeta = null;
     this.tryLoad();
   }
+
+  /**
+   * Promoción sin redeploy (#5): si en `algorithm_model_versions` hay una fila
+   * `lifecycle='production'` con `artifactUri` (prefijo de key en el blob store), descarga sus
+   * artefactos (`xgb.json`/`feature_meta.json`/`manifest.json`) a un dir cache local y carga ese
+   * modelo. Cambiar la fila de producción en la DB basta para servir un modelo nuevo — no hace
+   * falta redeploy.
+   *
+   * Es **no-op seguro**: si no hay fila production, no hay `artifactUri`, el blob no responde o
+   * algo falla, se mantiene el modelo local de `artifacts/current` (fallback versionado en git).
+   * Devuelve true solo si cargó un modelo remoto.
+   */
+  async loadProductionFromRegistry(modelType = "xgb_pd"): Promise<boolean> {
+    try {
+      const { db, algorithmModelVersions, eq, and } = await import("../db/index.js");
+      const rows = await db
+        .select()
+        .from(algorithmModelVersions)
+        .where(and(eq(algorithmModelVersions.lifecycle, "production"), eq(algorithmModelVersions.modelType, modelType)))
+        .limit(1);
+      const row = rows?.[0] as { artifactUri?: string | null } | undefined;
+      if (!row?.artifactUri) return false;
+
+      const { getBlobStore } = await import("./storage/blobStore.js");
+      const store = getBlobStore();
+
+      const cacheDir = path.join(this.baseDir, "..", "_remote_production");
+      fs.mkdirSync(cacheDir, { recursive: true });
+      for (const name of ["xgb.json", "feature_meta.json", "manifest.json"]) {
+        const buf = await store.getObject(`${row.artifactUri}/${name}`);
+        if (!buf) {
+          logger.warn({ artifactUri: row.artifactUri, name }, "loadProductionFromRegistry: artefacto faltante en blob store; uso artifacts/current local");
+          return false;
+        }
+        fs.writeFileSync(path.join(cacheDir, name), buf);
+      }
+
+      this.baseDir = cacheDir;
+      this.treeModel = null;
+      this.featureMeta = null;
+      this.tryLoad();
+      const ok = Boolean(this.treeModel && this.featureMeta);
+      logger.info({ artifactUri: row.artifactUri, ok, auc: this.manifest?.metrics?.auc }, "loadProductionFromRegistry: modelo de producción cargado desde blob store");
+      return ok;
+    } catch (e) {
+      logger.warn({ err: e }, "loadProductionFromRegistry falló; usando artifacts/current local");
+      return false;
+    }
+  }
 }
