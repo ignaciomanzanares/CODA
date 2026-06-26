@@ -99,6 +99,20 @@ function redactEmail(email: string): string {
   return `${email[0] ?? '?'}***@${email.split('@')[1] ?? '?'}`;
 }
 
+/**
+ * True si hay al menos un proveedor de email configurado (Resend / Gmail / SMTP).
+ * Única fuente de verdad para decidir el fail-closed de 2FA: evita que el chequeo
+ * en el login se desincronice de la lista de proveedores de `sendEmail()`.
+ * (Ethereal de dev no cuenta: solo aplica fuera de producción.)
+ */
+export function isEmailConfigured(): boolean {
+  return (
+    !!process.env.RESEND_API_KEY ||
+    !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) ||
+    !!(process.env.SMTP_HOST && process.env.SMTP_USER)
+  );
+}
+
 // ── Nodemailer transporter (lazy singleton) ──────────────────────────────────
 
 let _transporter: nodemailer.Transporter | null | undefined; // undefined = not initialized
