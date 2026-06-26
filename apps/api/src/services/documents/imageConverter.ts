@@ -8,8 +8,15 @@
  * @date 2026-03-06
  */
 
-import { createCanvas, loadImage } from 'canvas';
 import type { Buffer } from 'buffer';
+
+// Carga diferida del módulo nativo `canvas`: solo se importa al usarse, no al importar este
+// archivo, para que tests/CI sin el binario nativo compilado puedan importar este módulo.
+let _canvasMod: typeof import('canvas') | null = null;
+async function getCanvas(): Promise<typeof import('canvas')> {
+  if (!_canvasMod) _canvasMod = await import('canvas');
+  return _canvasMod;
+}
 
 // ============================================================================
 // CONVERSION
@@ -23,9 +30,10 @@ import type { Buffer } from 'buffer';
  */
 export async function convertImageToPdf(imageBuffer: Buffer): Promise<Buffer> {
   try {
+    const { createCanvas, loadImage } = await getCanvas();
     // Load image
     const img = await loadImage(imageBuffer);
-    
+
     // Create canvas with image dimensions
     const canvas = createCanvas(img.width, img.height);
     const ctx = canvas.getContext('2d');
@@ -87,11 +95,12 @@ export function getOptimalDimensions(
  */
 export async function convertImageToPdfOptimized(imageBuffer: Buffer): Promise<Buffer> {
   try {
+    const { createCanvas, loadImage } = await getCanvas();
     const img = await loadImage(imageBuffer);
-    
+
     // Get optimal dimensions
     const { width, height } = getOptimalDimensions(img.width, img.height);
-    
+
     // Create canvas
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');

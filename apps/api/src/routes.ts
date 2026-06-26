@@ -32,7 +32,7 @@ import { evaluateGovernmentPrograms } from "./services/governmentPrograms.js";
 import { emailService } from "./services/emailService.js";
 import crypto from "crypto";
 import { notificationService, expenseCategoryLabelEs } from "./services/notificationService.js";
-import { apiLimiter, expensiveLimiter, authLimiter, uploadLimiter } from "./middleware/rateLimiter.js";
+import { apiLimiter, expensiveLimiter, authLimiter, uploadLimiter, publicLimiter } from "./middleware/rateLimiter.js";
 import multer from "multer";
 import { logger } from "./logger.js";
 import {
@@ -127,20 +127,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const dbHealthy = !!db;
       const { PDModelRegistry } = await import("./services/modelRegistry.js");
       const mlReady = PDModelRegistry.instance().isReady;
-      
+
+      // Si REDIS_URL está configurada, un Redis caído rompe en silencio el rate
+      // limiting distribuido y la cola de documentos (no hay fallback automático
+      // a memoria una vez que ya se eligió Redis) — el load balancer debe verlo.
+      const { redis } = await import("./redis.js");
+      let redisStatus: "connected" | "down" | "not-configured" = "not-configured";
+      if (redis) {
+        try {
+          await Promise.race([
+            redis.ping(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("ping timeout")), 1500)),
+          ]);
+          redisStatus = "connected";
+        } catch {
+          redisStatus = "down";
+        }
+      }
+
       const status = {
-        status: "ok",
+        status: redisStatus === "down" ? "degraded" : "ok",
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         services: {
           database: dbHealthy ? "connected" : "in-memory",
+          redis: redisStatus,
           ml_model: mlReady ? "ready" : "loading",
           auth: "jwt",
         },
         version: process.env.npm_package_version || "1.0.0",
       };
-      
-      res.status(200).json(status);
+
+      res.status(redisStatus === "down" ? 503 : 200).json(status);
     } catch (_error) {
       res.status(503).json({
         status: "degraded",
@@ -4048,25 +4066,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Utility endpoints (public)
-  app.post("/api/utils/credit-score", async (req: Request, res: Response) => {
+  // Utility endpoints (public, no auth) — sin estado de usuario, así que se acotan
+  // con publicLimiter (más estricto que apiLimiter) y se valida la forma/tamaño
+  // del body para que no sean un vector de abuso barato.
+  const utilsBankDataSchema = z.object({
+    bankData: z.array(z.record(z.unknown())).min(1).max(50),
+  });
+  const utilsInsuranceRiskSchema = z.object({
+    bankData: z.array(z.record(z.unknown())).min(1).max(50),
+    userProfile: z.record(z.unknown()),
+  });
+
+  app.post("/api/utils/credit-score", publicLimiter, validateBody(utilsBankDataSchema), async (req: Request, res: Response) => {
     const { bankData } = req.body;
-    if (!bankData || !Array.isArray(bankData) || bankData.length === 0) {
-      return res.status(400).json({ message: "Valid bank data is required" });
-    }
     const { calculateCreditScore } = await import("./utils/creditScore.js");
     const score = calculateCreditScore(bankData);
     res.json(score);
   });
 
-  app.post("/api/utils/insurance-risk", async (req: Request, res: Response) => {
+  app.post("/api/utils/insurance-risk", publicLimiter, validateBody(utilsInsuranceRiskSchema), async (req: Request, res: Response) => {
     const { bankData, userProfile } = req.body;
-    if (!bankData || !Array.isArray(bankData) || bankData.length === 0) {
-      return res.status(400).json({ message: "Valid bank data is required" });
-    }
-    if (!userProfile) {
-      return res.status(400).json({ message: "User profile is required" });
-    }
     const { calculateInsuranceRisk } = await import("./utils/insuranceRisk.js");
     const risk = calculateInsuranceRisk(bankData, userProfile);
     res.json(risk);

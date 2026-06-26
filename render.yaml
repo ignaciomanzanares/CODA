@@ -41,3 +41,9 @@ services:
       # JWT Secret - set manually in Render Dashboard for security
       - key: JWT_SECRET
         sync: false  # Must be set manually in dashboard
+      # Redis para el store de OTP 2FA (TTL nativo) y consistencia multi-instancia.
+      # Set manualmente en el Dashboard (URL del add-on/instancia Redis). Si NO se
+      # define, el OTP cae a un Map en memoria (funciona en single-process, pero un
+      # código generado en una instancia no se valida en otra). Ver apps/api/src/redis.ts.
+      - key: REDIS_URL
+        sync: false  # Must be set manually in dashboard
