@@ -74,16 +74,19 @@ function safeJson(value: unknown): string {
   return encryptField(s);
 }
 
-async function ensureModelVersionRow(row: {
-  id: string;
-  modelType: string;
-  version: string;
-  deployedBy?: string;
-  changelog?: string | null;
-}): Promise<void> {
+async function ensureModelVersionRow(
+  row: {
+    id: string;
+    modelType: string;
+    version: string;
+    deployedBy?: string;
+    changelog?: string | null;
+  },
+  exec: any = db,
+): Promise<void> {
   const now = new Date().toISOString();
   try {
-    await db
+    await exec
       .insert(algorithmModelVersions)
       .values({
         id: row.id,
@@ -140,15 +143,21 @@ export async function ensureSeedTraceabilityModels(activeCreditModel?: SeedCredi
   }
 }
 
-export async function persistCreditPredictionFromLog(log: PersistableCreditPredictionLog): Promise<void> {
-  await ensureModelVersionRow({
-    id: log.modelVersionId,
-    modelType: log.modelType,
-    version: log.modelVersion,
-    changelog: 'credit CMF from document',
-  });
+export async function persistCreditPredictionFromLog(
+  log: PersistableCreditPredictionLog,
+  exec: any = db,
+): Promise<void> {
+  await ensureModelVersionRow(
+    {
+      id: log.modelVersionId,
+      modelType: log.modelType,
+      version: log.modelVersion,
+      changelog: 'credit CMF from document',
+    },
+    exec,
+  );
 
-  await db.insert(algorithmPredictionLogs).values({
+  await exec.insert(algorithmPredictionLogs).values({
     id: log.id,
     userId: log.userId,
     requestId: log.requestId,
@@ -185,16 +194,16 @@ export async function logTransactionalScoreComputation(params: {
   processingTimeMs?: number;
   ipAddress?: string | null;
   userAgent?: string | null;
-}): Promise<void> {
+}, exec: any = db): Promise<void> {
   const m = TRACEABILITY_SEED_MODELS.transactionalSfa;
   await ensureModelVersionRow({
     id: m.id,
     modelType: m.modelType,
     version: m.version,
-  });
+  }, exec);
 
   const id = randomUUID();
-  await db.insert(algorithmPredictionLogs).values({
+  await exec.insert(algorithmPredictionLogs).values({
     id,
     userId: params.userId,
     requestId: params.requestId,

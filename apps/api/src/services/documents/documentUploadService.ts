@@ -6,6 +6,7 @@
 import { randomUUID } from 'crypto';
 import { getSfaScoringEngine } from '../scoring/index.js';
 import { storage } from '../../storage.js';
+import { withTransaction } from '../../db/index.js';
 import { logger } from '../../logger.js';
 import {
   extractPdfText,
@@ -303,7 +304,21 @@ async function processCmfUpload(userId: string, doc: CMFParseResult): Promise<Up
       : 'VERY_POOR';
     const pd = Math.max(0, Math.min(1, (850 - scoreNum) / 550));
 
-    const predictionLogId = await logCreditScorePrediction(
+    const creditPayload = {
+      score: scoreNum,
+      maxScore: CREDIT_SCORE_MAX,
+      paymentHistory: 'Excellent',
+      utilization: 'Good',
+      ageOfCredit: 'Good',
+      lastUpdated: new Date().toISOString(),
+    };
+
+    // Atomicidad (#14): la traza NCG 502 de la predicción y el upsert del credit
+    // score se confirman juntos (en Postgres). El read-back de verificación va
+    // DESPUÉS del commit para leer el valor ya confirmado.
+    let predictionLogId = '';
+    await withTransaction(async (tx) => {
+      predictionLogId = await logCreditScorePrediction(
       userId,
       requestId,
       {
@@ -348,21 +363,14 @@ async function processCmfUpload(userId: string, doc: CMFParseResult): Promise<Up
             : 0,
         },
       },
-      { processingTimeMs: Date.now() - startTime }
-    );
+      { processingTimeMs: Date.now() - startTime },
+      tx,
+      );
 
-    logger.info({ userId, requestId, predictionLogId, score: scoreNum }, '[documentUploadService] CMF: prediction logged');
+      await storage.upsertCreditScore(userId, creditPayload, tx);
+    });
 
-    const creditPayload = {
-      score: scoreNum,
-      maxScore: CREDIT_SCORE_MAX,
-      paymentHistory: 'Excellent',
-      utilization: 'Good',
-      ageOfCredit: 'Good',
-      lastUpdated: new Date().toISOString(),
-    };
-    logger.info({ userId, creditPayload }, '[documentUploadService] CMF: upsertCreditScore');
-    await storage.upsertCreditScore(userId, creditPayload);
+    logger.info({ userId, requestId, predictionLogId, score: scoreNum }, '[documentUploadService] CMF: prediction logged + score upserted (tx)');
 
     const afterSave = await storage.getCreditScore(userId);
     if (!afterSave) {

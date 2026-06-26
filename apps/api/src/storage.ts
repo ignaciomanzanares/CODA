@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import {
   db,
+  withTransaction,
   sql,
   users,
   bankConnections,
@@ -105,8 +106,8 @@ export interface IStorage {
   updateCreditScore(userId: string, creditScore: any): Promise<any>;
   /** Mismo contrato que upsertTransactionalScore: evita TS2551 y mismo "riel" de guardado. */
   upsertCreditScoreRaw(userId: string, payload: any): Promise<any>;
-  /** Misma infraestructura que cartola: select + update o insert (Drizzle). */
-  upsertCreditScore(userId: string, data: { score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string; lastUpdated: string }): Promise<any>;
+  /** Misma infraestructura que cartola: select + update o insert (Drizzle). `exec` opcional comparte la transacción del caller (#14). */
+  upsertCreditScore(userId: string, data: { score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string; lastUpdated: string }, exec?: any): Promise<any>;
   // Transactional score (cartolas)
   getTransactionalScore(userId: string): Promise<any>;
   upsertTransactionalScore(
@@ -597,7 +598,8 @@ export class DatabaseStorage implements IStorage {
    */
   async upsertCreditScore(
     userId: string,
-    data: { score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string; lastUpdated: string }
+    data: { score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string; lastUpdated: string },
+    exec: any = db,
   ): Promise<any> {
     if (!db) return undefined;
     const payload = {
@@ -611,8 +613,9 @@ export class DatabaseStorage implements IStorage {
     };
     // INSERT ... ON CONFLICT (user_id) DO UPDATE — atómico, sin el SELECT-then-write previo
     // que abría una race condition (TOCTOU) bajo requests concurrentes para el mismo usuario.
+    // `exec` (db o tx) permite compartir la transacción del caller para atomicidad score+traza (#14).
     const { userId: _omitOnUpdate, ...updateSet } = payload;
-    const [row] = await db
+    const [row] = await exec
       .insert(creditScores)
       .values(payload)
       .onConflictDoUpdate({ target: creditScores.userId, set: updateSet })
@@ -656,31 +659,42 @@ export class DatabaseStorage implements IStorage {
       lastUpdated: new Date().toISOString(),
     };
     const t0 = Date.now();
-    // INSERT ... ON CONFLICT (user_id) DO UPDATE — atómico, elimina el TOCTOU del SELECT-then-write.
     const { userId: _omitOnUpdate, ...updateSet } = payload;
-    const [row] = await db
-      .insert(transactionalScores)
-      .values(payload)
-      .onConflictDoUpdate({ target: transactionalScores.userId, set: updateSet })
-      .returning();
 
-    await logTransactionalScoreComputation({
-      userId,
-      requestId: randomUUID(),
-      input: {
-        source: "storage.upsertTransactionalScore",
-        hasMetrics: data.metrics != null,
-        mainInsightsCount: data.mainInsights?.length ?? 0,
-        recommendedProductsCount: data.recommendedProducts?.length ?? 0,
-        ...(data.algorithmInputs ?? {}),
-      },
-      output: {
-        transactionalScore: data.transactionalScore,
-        mainInsights: data.mainInsights ?? [],
-        recommendedProducts: data.recommendedProducts,
-        metrics: data.metrics,
-      },
-      processingTimeMs: Date.now() - t0,
+    // Atomicidad (#14): el upsert del score y su traza NCG 502 se confirman juntos
+    // o no se confirman (en Postgres; en SQLite corren secuenciales — ver withTransaction).
+    // Antes eran dos statements sueltos: un fallo entre ambos dejaba el score sin traza.
+    const row = await withTransaction(async (tx) => {
+      // INSERT ... ON CONFLICT (user_id) DO UPDATE — atómico, elimina el TOCTOU del SELECT-then-write.
+      const [inserted] = await tx
+        .insert(transactionalScores)
+        .values(payload)
+        .onConflictDoUpdate({ target: transactionalScores.userId, set: updateSet })
+        .returning();
+
+      await logTransactionalScoreComputation(
+        {
+          userId,
+          requestId: randomUUID(),
+          input: {
+            source: "storage.upsertTransactionalScore",
+            hasMetrics: data.metrics != null,
+            mainInsightsCount: data.mainInsights?.length ?? 0,
+            recommendedProductsCount: data.recommendedProducts?.length ?? 0,
+            ...(data.algorithmInputs ?? {}),
+          },
+          output: {
+            transactionalScore: data.transactionalScore,
+            mainInsights: data.mainInsights ?? [],
+            recommendedProducts: data.recommendedProducts,
+            metrics: data.metrics,
+          },
+          processingTimeMs: Date.now() - t0,
+        },
+        tx,
+      );
+
+      return inserted;
     });
 
     return row;
