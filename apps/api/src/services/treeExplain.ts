@@ -48,6 +48,13 @@ function parseTree(raw: RawTree): ParsedTree {
   const n = raw.left_children.length;
   const nodeValue = new Array<number>(n).fill(0);
 
+  // Los umbrales de split y pesos de hoja son float32 en XGBoost, pero el JSON los serializa
+  // con precisión insuficiente para features de gran magnitud (p.ej. totalDebits ~millones de
+  // CLP): "2802980.2" parsea a un float64 distinto del float32 real (2802980.25). Math.fround
+  // recupera el float32 correcto (el más cercano al float64 parseado), evitando que el camino
+  // de decisión diverja del booster en valores cercanos al umbral.
+  const splitConditions = raw.split_conditions.map((v) => Math.fround(v));
+
   // Bottom-up: los nodos están en orden BFS desde la raíz (índice 0), así que recorrer de
   // atrás hacia adelante garantiza que los hijos ya estén resueltos antes que el padre.
   for (let i = n - 1; i >= 0; i--) {
@@ -55,7 +62,7 @@ function parseTree(raw: RawTree): ParsedTree {
     const right = raw.right_children[i];
     if (left === -1) {
       // Hoja: split_conditions almacena el peso de la hoja en este slot.
-      nodeValue[i] = raw.split_conditions[i];
+      nodeValue[i] = splitConditions[i];
     } else {
       const hl = raw.sum_hessian[left] || 0;
       const hr = raw.sum_hessian[right] || 0;
@@ -68,7 +75,7 @@ function parseTree(raw: RawTree): ParsedTree {
     leftChildren: raw.left_children,
     rightChildren: raw.right_children,
     splitIndices: raw.split_indices,
-    splitConditions: raw.split_conditions,
+    splitConditions,
     defaultLeft: raw.default_left,
     nodeValue,
   };
@@ -91,6 +98,45 @@ export class XgbTreeModel {
     return new XgbTreeModel(rawTrees.map(parseTree), numFeatures);
   }
 
+  get featureCount(): number {
+    return this.numFeatures;
+  }
+
+  /**
+   * Margin (logit) crudo = suma de los pesos de hoja alcanzados en cada árbol. Equivale a
+   * `booster.predict(dmatrix, output_margin=True)` cuando `base_score=0.5` (logit 0, como en
+   * train_xgb.py). Es el mismo total que `explain().marginTotal`, pero sin construir el
+   * vector de contribuciones — la ruta caliente de scoring no las necesita.
+   */
+  margin(features: number[]): number {
+    let total = 0;
+    for (const tree of this.trees) {
+      let node = 0;
+      while (tree.leftChildren[node] !== -1) {
+        const fIdx = tree.splitIndices[node];
+        const x = features[fIdx];
+        // XGBoost compara en float32 (DMatrix castea a float32); igualamos con Math.fround para
+        // tomar exactamente el mismo camino cuando el valor cae justo sobre un umbral de split.
+        const goLeft =
+          x == null || Number.isNaN(x)
+            ? tree.defaultLeft[node] === 1
+            : Math.fround(x) < tree.splitConditions[node];
+        node = goLeft ? tree.leftChildren[node] : tree.rightChildren[node];
+      }
+      total += tree.nodeValue[node]; // peso de la hoja alcanzada
+    }
+    return total;
+  }
+
+  /**
+   * Probabilidad de la clase positiva (default) para `binary:logistic`: `sigmoid(margin)`.
+   * Verificado contra la salida ONNX (`probabilities[1]`) a ~1e-7 — ver test de paridad.
+   */
+  predictProba(features: number[]): number {
+    const m = this.margin(features);
+    return 1 / (1 + Math.exp(-m));
+  }
+
   /**
    * Atribución por instancia en espacio logit (margin). `features` debe estar en el mismo
    * orden que `feature_meta.json` (el mismo orden usado al entrenar, ver train_xgb.py).
@@ -106,9 +152,10 @@ export class XgbTreeModel {
         const fIdx = tree.splitIndices[node];
         const cond = tree.splitConditions[node];
         const x = features[fIdx];
+        // Mismo criterio float32 que margin() — ver nota allí.
         const goLeft = x == null || Number.isNaN(x)
           ? tree.defaultLeft[node] === 1
-          : x < cond;
+          : Math.fround(x) < cond;
         const child = goLeft ? tree.leftChildren[node] : tree.rightChildren[node];
         contributions[fIdx] += tree.nodeValue[child] - tree.nodeValue[node];
         node = child;

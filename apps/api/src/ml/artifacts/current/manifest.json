@@ -1,33 +1,36 @@
 {
-  "model_id": "xgb_1758913391",
-  "trained_at": "2025-09-26T19:03:11Z",
+  "model_id": "xgb_1782516448",
+  "trained_at": "2026-06-26T23:27:28Z",
   "algo": "xgb",
-  "onnx_path": "xgb_pd.onnx",
+  "onnx_path": null,
   "feature_meta_path": "feature_meta.json",
+  "dataset_hash": "9d538e7248c327cdd789d606227ddfd327de44782c9460bd704842d147c4a9e2",
+  "n_rows": 2000,
+  "n_features": 19,
   "metrics": {
-    "auc": 0.4172498291746189,
-    "gini": -0.16550034165076222,
-    "brier": 0.10056687483411904,
-    "ks": 1.0
+    "auc": 0.6146524924029076,
+    "gini": 0.2293049848058153,
+    "brier": 0.034278670246388816,
+    "ks": 0.9979188345473465
   },
   "calibration": {
     "type": "platt",
     "params": {
-      "a": 4.795101233986411,
-      "b": -3.3764548156916634
+      "a": 10.426151711308075,
+      "b": -4.547506906746719
     }
   },
   "shap_top": [
-    "totalDebits",
-    "topCategoryShare",
-    "activeDays",
-    "netCashflowVolatility",
-    "creditCount",
-    "incomeTrend30_90",
-    "debitCreditRatio",
     "incomeRegularity",
+    "netCashflowVolatility",
+    "recurringExpenseShare",
+    "debitCreditRatio",
+    "incomeTrend30_90",
+    "avgAmount",
     "stdAmount",
-    "avgAmount"
+    "totalDebits",
+    "totalCredits",
+    "topCategoryShare"
   ],
   "shap_summary_path": "shap_summary.json",
   "xgb_json_path": "xgb.json"
