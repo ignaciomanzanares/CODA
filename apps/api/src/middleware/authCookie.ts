@@ -81,8 +81,14 @@ export function clearAuthCookie(res: Response): void {
   });
 }
 
-/** Lee el JWT desde la cookie (requiere cookie-parser). Bearer tiene prioridad en authenticate. */
+/**
+ * Lee el JWT desde la cookie (requiere cookie-parser). Bearer tiene prioridad en
+ * authenticate. Si AUTH_COOKIE_ENABLED !== "true" devuelve undefined: con el flag
+ * apagado NO hay transporte por cookie (una cookie existente/manual no autentica),
+ * de modo que el comportamiento es idéntico a producción actual (solo Bearer).
+ */
 export function getTokenFromCookie(req: Request): string | undefined {
+  if (!isAuthCookieEnabled()) return undefined;
   const cookies = (req as Request & { cookies?: Record<string, string> }).cookies;
   const value = cookies?.[getAuthCookieName()];
   return typeof value === "string" && value.length > 0 ? value : undefined;

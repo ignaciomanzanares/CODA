@@ -231,20 +231,47 @@ describe("authenticate reads cookie and Bearer", () => {
     await authenticate(req, res, () => { nextCalled = true; });
     return { res, nextCalled, req };
   }
-
-  it("accepts a valid cookie when no Authorization header", async () => {
-    const email = uid("ck") + "@coda.test";
+  async function tokenFor(prefix: string) {
+    const email = uid(prefix) + "@coda.test";
     const user = await seedUser(email, "Pass1234!");
-    const token = generateToken({ userId: user.id, email, name: email, role: "persona" });
+    return { user, token: generateToken({ userId: user.id, email, name: email, role: "persona" }) };
+  }
+
+  // ── flag OFF: cookie transport must be inert (identical to current prod) ──
+  it("flag OFF: valid cookie WITHOUT Bearer → 401 (cookie is ignored)", async () => {
+    const { token } = await tokenFor("off-ck");
+    const { res, nextCalled } = await runAuth(makeReq({ cookies: { [COOKIE]: token } }));
+    expect(nextCalled).toBe(false);
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("flag OFF: valid Bearer (+ cookie present) → 200 via Bearer", async () => {
+    const { user, token } = await tokenFor("off-br");
+    const { nextCalled, req } = await runAuth(
+      makeReq({ headers: { authorization: `Bearer ${token}` }, cookies: { [COOKIE]: token } })
+    );
+    expect(nextCalled).toBe(true);
+    expect(req.user?.userId).toBe(user.id);
+  });
+
+  it("flag OFF: invalid cookie does not change behaviour → 401", async () => {
+    const { res, nextCalled } = await runAuth(makeReq({ cookies: { [COOKIE]: "garbage" } }));
+    expect(nextCalled).toBe(false);
+    expect(res.statusCode).toBe(401);
+  });
+
+  // ── flag ON: cookie is an accepted fallback, Bearer keeps strict priority ──
+  it("flag ON: valid cookie WITHOUT Bearer → 200", async () => {
+    process.env.AUTH_COOKIE_ENABLED = "true";
+    const { user, token } = await tokenFor("on-ck");
     const { nextCalled, req } = await runAuth(makeReq({ cookies: { [COOKIE]: token } }));
     expect(nextCalled).toBe(true);
     expect(req.user?.userId).toBe(user.id);
   });
 
-  it("still accepts a valid Bearer token", async () => {
-    const email = uid("br") + "@coda.test";
-    const user = await seedUser(email, "Pass1234!");
-    const token = generateToken({ userId: user.id, email, name: email, role: "persona" });
+  it("flag ON: valid Bearer → 200", async () => {
+    process.env.AUTH_COOKIE_ENABLED = "true";
+    const { user, token } = await tokenFor("on-br");
     const { nextCalled, req } = await runAuth(
       makeReq({ headers: { authorization: `Bearer ${token}` } })
     );
@@ -252,23 +279,20 @@ describe("authenticate reads cookie and Bearer", () => {
     expect(req.user?.userId).toBe(user.id);
   });
 
-  it("Bearer has strict priority: invalid Bearer + valid cookie → 401 (no fallback)", async () => {
-    const email = uid("pri") + "@coda.test";
-    const user = await seedUser(email, "Pass1234!");
-    const validCookie = generateToken({ userId: user.id, email, name: email, role: "persona" });
+  it("flag ON: invalid Bearer + valid cookie → 401 (Bearer strict priority, no fallback)", async () => {
+    process.env.AUTH_COOKIE_ENABLED = "true";
+    const { token } = await tokenFor("on-pri");
     const { res, nextCalled } = await runAuth(
-      makeReq({ headers: { authorization: "Bearer not.a.valid.jwt" }, cookies: { [COOKIE]: validCookie } })
+      makeReq({ headers: { authorization: "Bearer not.a.valid.jwt" }, cookies: { [COOKIE]: token } })
     );
     expect(nextCalled).toBe(false);
     expect(res.statusCode).toBe(401);
   });
 
-  it("does NOT accept a token via query param", async () => {
-    const email = uid("q") + "@coda.test";
-    const user = await seedUser(email, "Pass1234!");
-    const token = generateToken({ userId: user.id, email, name: email, role: "persona" });
-    const { res, nextCalled } = await runAuth(makeReq({ query: { token } }));
-    expect(nextCalled).toBe(false);
-    expect(res.statusCode).toBe(401);
+  it("never accepts a token via query param (flag on or off)", async () => {
+    const { token } = await tokenFor("q");
+    expect((await runAuth(makeReq({ query: { token } }))).nextCalled).toBe(false);
+    process.env.AUTH_COOKIE_ENABLED = "true";
+    expect((await runAuth(makeReq({ query: { token } }))).nextCalled).toBe(false);
   });
 });
