@@ -613,7 +613,36 @@ export const algorithmModelVersions = table('algorithm_model_versions', {
   deployedBy: text('deployed_by').notNull(),
   isActive: integer('is_active').notNull().default(0),
   changelog: text('changelog'),
+  // Ciclo de vida del registro de modelo (Frente C: promover sin redeploy).
+  // 'candidate' = entrenado/evaluado, no sirve tráfico. 'production' = el que carga
+  // modelRegistry al boot. 'archived' = histórico. `isActive` se conserva por
+  // compatibilidad; `lifecycle` es la fuente de verdad nueva.
+  lifecycle: text('lifecycle').default('candidate'),
+  /** URI del artefacto en el blob store (s3://… o pg://stored_blobs/<id>). Null = artefacto local en filesystem (legacy). */
+  artifactUri: text('artifact_uri'),
+  auc: real('auc'),
+  /** sha256 del CSV de entrenamiento (reproducibilidad, #39). */
+  datasetHash: text('dataset_hash'),
+  /** Hash del set de features para detectar skew train/serving. */
+  featureSetHash: text('feature_set_hash'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+/**
+ * Almacén de blobs en Postgres — backend de fallback de `services/storage/blobStore.ts`
+ * cuando no hay bucket S3/R2 configurado (`BLOB_BACKEND` != 's3'). Los bytes se guardan
+ * cifrados (AES-256-GCM, base64) en `data`. Pensado para artefactos ML y documentos
+ * originales con TTL; no para alto volumen. `expires_at` lo usa el job de retención (#21).
+ */
+export const storedBlobs = table('stored_blobs', {
+  key: text('key').primaryKey(),
+  contentType: text('content_type'),
+  /** Bytes cifrados en base64 (fieldEncryption). */
+  data: text('data').notNull(),
+  sizeBytes: integer('size_bytes'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  /** ISO timestamp; null = sin expiración. El job de retención borra los vencidos. */
+  expiresAt: text('expires_at'),
 });
 
 export const algorithmPredictionLogs = table('algorithm_prediction_logs', {
@@ -732,6 +761,15 @@ export const assistantFeedback = table('assistant_feedback', {
   assistantMessage: text('assistant_message').notNull(),
   provider: text('provider'),
   comment: text('comment'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+/** Feedback del usuario sobre hábitos financieros recomendados (thumbs up/down), por `habitKey` estable del catálogo en `services/habits/habitCatalog.ts`. Un "down" reciente excluye ese hábito de futuras recomendaciones (feedback loop). */
+export const habitFeedback = table('habit_feedback', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  habitKey: text('habit_key').notNull(),
+  rating: text('rating').notNull(), // 'up' | 'down'
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 

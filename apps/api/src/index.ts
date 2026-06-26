@@ -12,6 +12,7 @@ import { checkDatabaseConnection } from "./db/index.js";
 import { logger, httpLogger } from "./logger.js";
 import { initializeTraceabilitySystem } from "./services/audit/algorithmicTraceability.js";
 import { ensureSeedTraceabilityModels } from "./services/audit/traceabilityPersistence.js";
+import { initObservability, metrics, captureError } from "./services/observability/index.js";
 
 
 
@@ -96,11 +97,21 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
+      // Métricas (siempre, antes del filtro de 304): contador por método/status +
+      // última latencia. Ruta normalizada al primer segmento para acotar cardinalidad.
+      const routeLabel = "/api/" + (path.split("/")[2] ?? "");
+      metrics.incCounter("coda_http_requests_total", {
+        method: req.method,
+        route: routeLabel,
+        status: String(res.statusCode),
+      });
+      metrics.setGauge("coda_http_request_duration_ms", duration, { route: routeLabel });
+
       // Skip logging 304 Not Modified responses to reduce noise
       if (res.statusCode === 304) {
         return;
       }
-      
+
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
@@ -116,13 +127,19 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use((req: Request, res: Response, next: NextFunction) => {
-  next();
+// Endpoint de métricas (Prometheus text). Sin auth: expone solo agregados, no PII.
+// Protegerlo a nivel de red/ingress en producción (ver guía de integración).
+app.get("/metrics", (_req: Request, res: Response) => {
+  res.setHeader("Content-Type", "text/plain; version=0.0.4");
+  res.send(metrics.render());
 });
 
 (async () => {
   try {
     logger.info("🚀 Starting CODA application...");
+
+    // Observabilidad (Sentry/captura de errores) — no-op si SENTRY_DSN no está.
+    await initObservability();
 
     // Aplica migraciones pendientes ANTES de todo (no depende de render.yaml ni
     // del dashboard). Si falla, el arranque aborta (fail-fast) y Render reinicia.
@@ -159,7 +176,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
     // Log the error
     if (status >= 500) {
-      logger.error({ err, status, message }, "Server error occurred");
+      captureError(err, { kind: "express", status, path: _req.path });
     } else {
       logger.warn({ status, message }, "Client error occurred");
     }
