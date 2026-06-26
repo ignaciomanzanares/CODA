@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import { env, isDevelopment } from '../env.js';
 import { storage } from '../storage.js';
 import { emailService, isEmailConfigured } from '../services/emailService.js';
+import { setAuthCookie, clearAuthCookie, getTokenFromCookie } from './authCookie.js';
 import { logger } from '../logger.js';
 import {
   logAuthSecurityEvent,
@@ -357,14 +358,22 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
   try {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader?.startsWith('Bearer ')) {
+    // Bearer tiene prioridad estricta; la cookie httpOnly es fallback SOLO si no
+    // hay header Authorization (no caemos a cookie si el Bearer resulta inválido).
+    let token: string | undefined;
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    } else {
+      token = getTokenFromCookie(req);
+    }
+
+    if (!token) {
       return res.status(401).json({
         error: 'Unauthorized',
         message: 'Missing or invalid authorization header',
       });
     }
 
-    const token = authHeader.substring(7);
     const payload = verifyToken(token);
 
     if (!payload) {
@@ -478,6 +487,7 @@ export async function handleLogin(req: Request, res: Response) {
 
   const token = generateToken(tokenPayload);
 
+  setAuthCookie(res, token);
   res.json({
     success: true,
     token,
@@ -503,6 +513,7 @@ export async function handleLogout(req: AuthenticatedRequest, res: Response) {
     });
   }
 
+  clearAuthCookie(res);
   res.json({ success: true, message: 'Logged out successfully' });
 }
 
@@ -658,6 +669,7 @@ export async function handleRegister(req: Request, res: Response) {
       email: redactEmail(newUser.email),
     });
 
+    setAuthCookie(res, token);
     res.status(201).json({
       success: true,
       token,
@@ -887,6 +899,7 @@ export async function handleLoginWithDB(req: Request, res: Response) {
       email: redactEmail(user.email),
     });
 
+    setAuthCookie(res, token);
     return res.json({
       success: true,
       token,
@@ -1017,6 +1030,7 @@ export async function handleLoginWithDB(req: Request, res: Response) {
         email: redactEmail(user.email),
       });
 
+      setAuthCookie(res, token);
       return res.json({
         success: true,
         token,
@@ -1117,6 +1131,7 @@ export async function handleVerify2FA(req: Request, res: Response) {
       email: redactEmail(user.email),
     });
 
+    setAuthCookie(res, token);
     res.json({
       success: true,
       token,
