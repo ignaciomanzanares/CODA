@@ -17,6 +17,7 @@
 
 import { randomUUID } from 'crypto';
 import type { CmfInformeDeudas } from '../documents/pdfAnalysis.js';
+import { db } from '../../db/index.js';
 import {
   persistCreditPredictionFromLog,
   ensureSeedTraceabilityModels,
@@ -319,7 +320,8 @@ export async function logCreditScorePrediction(
     processingTimeMs?: number;
     ipAddress?: string;
     userAgent?: string;
-  }
+  },
+  exec: any = db,
 ): Promise<string> {
   const activeModel = traceabilityStore.getActiveModelVersion();
   
@@ -350,6 +352,7 @@ export async function logCreditScorePrediction(
   const predictionId = randomUUID();
   // Persistencia en Postgres ANTES de responder: un crash del proceso ya no pierde la decisión
   // (antes era fire-and-forget vía persistCreditPredictionAsync). El Map queda como cache de lectura.
+  // `exec` permite que el insert comparta la transacción del caller (atomicidad score+traza, #14).
   await persistCreditPredictionFromLog({
     id: predictionId,
     userId: log.userId,
@@ -368,7 +371,7 @@ export async function logCreditScorePrediction(
     processingTimeMs: log.processingTimeMs,
     ipAddress: log.ipAddress,
     userAgent: log.userAgent,
-  });
+  }, exec);
   traceabilityStore.cachePrediction(predictionId, log);
   return predictionId;
 }
