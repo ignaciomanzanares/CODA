@@ -156,6 +156,14 @@ app.get("/metrics", (_req: Request, res: Response) => {
       logger.warn({ err: seedErr }, "⚠️ Traceability seed failed (non-fatal, will retry on first request)");
     }
 
+    // Promoción sin redeploy (#5): si hay un modelo 'production' registrado en
+    // algorithm_model_versions con artefacto en el blob store, cárgalo. No-op seguro:
+    // si no hay fila/artefacto, se sirve artifacts/current local. Fire-and-forget para no
+    // bloquear el arranque.
+    void import("./services/modelRegistry.js")
+      .then(({ PDModelRegistry }) => PDModelRegistry.instance().loadProductionFromRegistry())
+      .catch((err) => logger.warn({ err }, "loadProductionFromRegistry (boot) falló; usando modelo local"));
+
     logger.info("✅ Application initialization completed successfully");
   } catch (error) {
     logger.error({ error }, "❌ Error during application initialization");

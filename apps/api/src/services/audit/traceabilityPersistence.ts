@@ -437,6 +437,31 @@ export interface AlgorithmPredictionLogRow {
 /**
  * Historial persistido en `algorithm_prediction_logs` (complementa la memoria de credit CMF).
  */
+/**
+ * PDs (`probabilityDefault`) de las predicciones más recientes de un `kind`, en orden
+ * descendente por fecha. Lo consume el monitor de drift (#24) para comparar la distribución
+ * reciente contra la anterior. Lee de `algorithm_prediction_logs` (persistido síncrono),
+ * desencriptando `outputSnapshot`. Cuenta-basado (no ventana temporal) para ser robusto al
+ * formato de `created_at` entre dialectos.
+ */
+export async function listRecentPredictionPds(kind: string, limit = 5000): Promise<number[]> {
+  const cap = Math.min(Math.max(limit, 1), 50000);
+  const rows = await db
+    .select({ outputSnapshot: algorithmPredictionLogs.outputSnapshot })
+    .from(algorithmPredictionLogs)
+    .where(eq(algorithmPredictionLogs.kind, kind))
+    .orderBy(desc(algorithmPredictionLogs.createdAt))
+    .limit(cap);
+
+  const pds: number[] = [];
+  for (const r of rows as Array<{ outputSnapshot: string }>) {
+    const rec = safeParseJsonRecord(r.outputSnapshot);
+    const pd = rec?.probabilityDefault;
+    if (typeof pd === 'number' && Number.isFinite(pd)) pds.push(pd);
+  }
+  return pds;
+}
+
 export async function listAlgorithmPredictionLogsForUser(
   userId: string,
   limit = 50
