@@ -60,6 +60,7 @@ export const {
   assistantFeedback,
   assistantSummaries,
   habitFeedback,
+  storedBlobs,
   indicatorValues,
 } = schema as any;
 import postgres from 'postgres';
