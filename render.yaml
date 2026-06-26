@@ -52,6 +52,17 @@ services:
       # código generado en una instancia no se valida en otra). Ver apps/api/src/redis.ts.
       - key: REDIS_URL
         sync: false  # Must be set manually in dashboard
+      # Observability core. Metrics stay OFF unless explicitly enabled. If enabled
+      # in production, METRICS_TOKEN is required and must be set manually.
+      - key: METRICS_ENABLED
+        value: false
+      - key: METRICS_TOKEN
+        sync: false
+      # Optional Sentry error capture. Empty/unset DSN keeps Sentry disabled.
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_TRACES_SAMPLE_RATE
+        value: 0
       # Email — REQUERIDO para 2FA OTP y reset de contraseña. Configura UN proveedor
       # (Resend preferido). Sin proveedor: 2FA falla cerrado (503) y forgot-password
       # no envía correo. Todos sync:false (set manual en el Dashboard, son secretos).

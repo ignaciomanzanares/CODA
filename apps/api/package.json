@@ -27,6 +27,7 @@
   "dependencies": {
     "@coda/db": "*",
     "@napi-rs/canvas": "^0.1.94",
+    "@sentry/node": "^10.62.0",
     "@types/cors": "^2.8.19",
     "canvas": "^3.2.1",
     "cors": "^2.8.6",
