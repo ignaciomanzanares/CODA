@@ -129,6 +129,7 @@ async function streamChat(
   try {
     const res = await fetch(url, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
