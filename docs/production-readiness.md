@@ -10,7 +10,7 @@ un cambio de produccion, confirmar nuevamente el estado en cada proveedor.
 | Componente | Estado |
 | --- | --- |
 | Web | `https://www.codafinance.cl` |
-| API | `https://coda-api-fplk.onrender.com` |
+| API | `https://api.codafinance.cl` (CNAME → `coda-api-fplk.onrender.com`) |
 | Health | `GET /health` responde HTTP 200 y `status: ok` |
 | Base de datos | Neon/PostgreSQL conectado |
 | Redis | Conectado |
@@ -80,7 +80,7 @@ el rate limiter y limpiar siempre la cuenta throwaway.
 Definir la URL sin credenciales:
 
 ```bash
-API_URL=https://coda-api-fplk.onrender.com
+API_URL=https://api.codafinance.cl
 ```
 
 ### 1. Health
