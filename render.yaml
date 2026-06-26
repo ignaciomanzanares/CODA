@@ -63,6 +63,22 @@ services:
         sync: false
       - key: SENTRY_TRACES_SAMPLE_RATE
         value: 0
+      # Auth cookie (Fase A — foundation). MANTENER false: con la API en
+      # onrender.com la cookie sería cross-site (third-party) y Safari/Chrome la
+      # bloquean. Activar solo tras configurar api.codafinance.cl + Domain.
+      - key: AUTH_COOKIE_ENABLED
+        value: false
+      - key: AUTH_COOKIE_NAME
+        value: coda_session
+      - key: AUTH_COOKIE_SECURE
+        value: true
+      - key: AUTH_COOKIE_SAMESITE
+        value: lax
+      # Vacío hasta tener api.codafinance.cl; entonces ".codafinance.cl".
+      - key: AUTH_COOKIE_DOMAIN
+        value: ""
+      - key: COOKIE_CSRF_ENABLED
+        value: false
       # Email — REQUERIDO para 2FA OTP y reset de contraseña. Configura UN proveedor
       # (Resend preferido). Sin proveedor: 2FA falla cerrado (503) y forgot-password
       # no envía correo. Todos sync:false (set manual en el Dashboard, son secretos).

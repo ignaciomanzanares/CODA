@@ -4,6 +4,7 @@ import "./env.js";
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes.js";
 import { registerAuditRoutes } from "./routes-audit.js";
 import { registerHealthEvaluationRoutes } from "./routes-health-evaluation.js";
@@ -88,6 +89,9 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 // este límite solo acota el JSON/urlencoded de rutas normales contra abuso.
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: false, limit: "1mb" }));
+// Parsea cookies para que `authenticate` pueda leer el JWT desde la cookie httpOnly
+// (además del Authorization: Bearer). Inerte mientras AUTH_COOKIE_ENABLED=false.
+app.use(cookieParser());
 app.use(httpMetricsMiddleware);
 
 app.use((req, res, next) => {

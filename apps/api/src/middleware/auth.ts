@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import { env, isDevelopment } from '../env.js';
 import { storage } from '../storage.js';
 import { emailService, isEmailConfigured } from '../services/emailService.js';
+import { setAuthCookie, clearAuthCookie, getTokenFromCookie } from './authCookie.js';
 import { logger } from '../logger.js';
 import {
   logAuthSecurityEvent,
@@ -357,14 +358,30 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
   try {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader?.startsWith('Bearer ')) {
+    // Prioridad estricta de Bearer. Si viene CUALQUIER header Authorization, debe
+    // ser exactamente 'Bearer <token>'; cualquier otro esquema (p.ej. Basic) →
+    // 401, SIN caer a la cookie. El fallback a cookie (si AUTH_COOKIE_ENABLED) solo
+    // ocurre cuando NO hay header Authorization. Un Bearer inválido también es 401.
+    let token: string | undefined;
+    if (typeof authHeader === 'string' && authHeader.length > 0) {
+      if (!authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Missing or invalid authorization header',
+        });
+      }
+      token = authHeader.substring(7);
+    } else {
+      token = getTokenFromCookie(req);
+    }
+
+    if (!token) {
       return res.status(401).json({
         error: 'Unauthorized',
         message: 'Missing or invalid authorization header',
       });
     }
 
-    const token = authHeader.substring(7);
     const payload = verifyToken(token);
 
     if (!payload) {
@@ -478,6 +495,7 @@ export async function handleLogin(req: Request, res: Response) {
 
   const token = generateToken(tokenPayload);
 
+  setAuthCookie(res, token);
   res.json({
     success: true,
     token,
@@ -491,8 +509,16 @@ export async function handleLogin(req: Request, res: Response) {
 export async function handleLogout(req: AuthenticatedRequest, res: Response) {
   const authHeader = req.headers.authorization;
 
+  // Obtiene el token con el que se autenticó la sesión — venga de Bearer o de la
+  // cookie httpOnly — y lo invalida (blacklist + tokenInvalidatedAt), igual que una
+  // sesión Bearer. Así el JWT dentro de la cookie no se puede reutilizar tras logout.
+  let token: string | undefined;
   if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
+    token = authHeader.substring(7);
+  } else {
+    token = getTokenFromCookie(req);
+  }
+  if (token) {
     invalidateToken(token, req.user?.userId);
   }
 
@@ -503,6 +529,7 @@ export async function handleLogout(req: AuthenticatedRequest, res: Response) {
     });
   }
 
+  clearAuthCookie(res);
   res.json({ success: true, message: 'Logged out successfully' });
 }
 
@@ -658,6 +685,7 @@ export async function handleRegister(req: Request, res: Response) {
       email: redactEmail(newUser.email),
     });
 
+    setAuthCookie(res, token);
     res.status(201).json({
       success: true,
       token,
@@ -887,6 +915,7 @@ export async function handleLoginWithDB(req: Request, res: Response) {
       email: redactEmail(user.email),
     });
 
+    setAuthCookie(res, token);
     return res.json({
       success: true,
       token,
@@ -1017,6 +1046,7 @@ export async function handleLoginWithDB(req: Request, res: Response) {
         email: redactEmail(user.email),
       });
 
+      setAuthCookie(res, token);
       return res.json({
         success: true,
         token,
@@ -1117,6 +1147,7 @@ export async function handleVerify2FA(req: Request, res: Response) {
       email: redactEmail(user.email),
     });
 
+    setAuthCookie(res, token);
     res.json({
       success: true,
       token,
