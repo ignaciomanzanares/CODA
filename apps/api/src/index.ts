@@ -12,6 +12,13 @@ import { checkDatabaseConnection } from "./db/index.js";
 import { logger, httpLogger } from "./logger.js";
 import { initializeTraceabilitySystem } from "./services/audit/algorithmicTraceability.js";
 import { ensureSeedTraceabilityModels } from "./services/audit/traceabilityPersistence.js";
+import {
+  captureError,
+  getNormalizedRoute,
+  httpMetricsMiddleware,
+  initObservability,
+  registerMetricsEndpoint,
+} from "./services/observability/index.js";
 
 
 
@@ -81,6 +88,7 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 // este límite solo acota el JSON/urlencoded de rutas normales contra abuso.
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: false, limit: "1mb" }));
+app.use(httpMetricsMiddleware);
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -116,13 +124,12 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use((req: Request, res: Response, next: NextFunction) => {
-  next();
-});
+registerMetricsEndpoint(app);
 
 (async () => {
   try {
     logger.info("🚀 Starting CODA application...");
+    initObservability();
 
     // Aplica migraciones pendientes ANTES de todo (no depende de render.yaml ni
     // del dashboard). Si falla, el arranque aborta (fail-fast) y Render reinicia.
@@ -153,13 +160,18 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   // Then register main routes
   const server = await registerRoutes(app);
 
-  app.use((err: Error & { status?: number; statusCode?: number }, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: Error & { status?: number; statusCode?: number }, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
     // Log the error
     if (status >= 500) {
-      logger.error({ err, status, message }, "Server error occurred");
+      captureError(err, {
+        environment: process.env.NODE_ENV ?? "development",
+        method: req.method,
+        route: getNormalizedRoute(req),
+        status,
+      });
     } else {
       logger.warn({ status, message }, "Client error occurred");
     }
