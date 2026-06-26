@@ -94,6 +94,23 @@ export function normalizeEmail(email: string): string {
   return String(email).trim().toLowerCase();
 }
 
+/**
+ * Allowlist de cuentas demo. Con DEMO_MODE activo, la contraseña demo (`demo123`)
+ * SOLO puede iniciar sesión para estos emails — nunca para cuentas reales.
+ *
+ * Configurable con `DEMO_ALLOWED_EMAILS` (lista separada por comas) o `DEMO_EMAIL`
+ * (un solo email). Default conservador: `demo@example.com`. Así, aunque DEMO_MODE
+ * siga en `true`, `demo123` + el email de una cuenta real NO emite token: cae al
+ * flujo real y debe coincidir con su contraseña real (o falla con 401).
+ */
+export function isDemoAllowedEmail(email: string): boolean {
+  const raw = process.env.DEMO_ALLOWED_EMAILS || process.env.DEMO_EMAIL || 'demo@example.com';
+  const allow = new Set(
+    raw.split(',').map((e) => normalizeEmail(e)).filter((e) => e.length > 0)
+  );
+  return allow.has(normalizeEmail(email));
+}
+
 /** Rol estable para JWT (columna opcional en filas antiguas). */
 export function userRoleFromRow(user: { role?: string | null } | undefined): string {
   const r = user?.role;
@@ -436,9 +453,18 @@ export async function handleLogin(req: Request, res: Response) {
 
   // Validate demo password
   if (password !== demoPassword) {
-    return res.status(401).json({ 
-      error: 'Unauthorized', 
-      message: 'Invalid email or password' 
+    return res.status(401).json({
+      error: 'Unauthorized',
+      message: 'Invalid email or password'
+    });
+  }
+
+  // Demo password SOLO para cuentas demo allowlisted — nunca cuentas reales.
+  // (Este handler legacy no está enrutado; se endurece por defensa en profundidad.)
+  if (!isDemoAllowedEmail(email)) {
+    return res.status(401).json({
+      error: 'Unauthorized',
+      message: 'Invalid email or password',
     });
   }
 
@@ -702,7 +728,8 @@ export async function ensureUserForToken(payload: TokenPayload): Promise<string 
   }
 
   const demoModeEnabled = process.env.DEMO_MODE === 'true';
-  if (demoModeEnabled && email) {
+  if (demoModeEnabled && email && isDemoAllowedEmail(email)) {
+    // Solo auto-creamos cuenta demo para emails allowlisted (no para cualquier JWT).
     const user = await getOrCreateDemoUser(email);
     return user.id;
   }
@@ -844,8 +871,11 @@ export async function handleLoginWithDB(req: Request, res: Response) {
   const demoModeEnabled = process.env.DEMO_MODE === 'true';
   const demoPassword = process.env.DEMO_PASSWORD || 'demo123';
   
-  // Allow demo login in development OR when DEMO_MODE is enabled in production
-  if ((!isProduction || demoModeEnabled) && password === demoPassword) {
+  // Allow demo login in development OR when DEMO_MODE is enabled in production,
+  // pero SOLO para emails demo allowlisted. Para cualquier otro email, `demo123`
+  // NO emite token: cae al flujo real abajo y debe coincidir con la contraseña
+  // real (o falla con 401). Esto cierra el bypass de cuentas reales con demo123.
+  if ((!isProduction || demoModeEnabled) && password === demoPassword && isDemoAllowedEmail(email)) {
     // Ensure demo user exists in DB and use real user.id in token (evita FK en consent_grants)
     const user = await getOrCreateDemoUser(email);
     const tokenPayload: TokenPayload = buildAuthTokenPayload(user);
