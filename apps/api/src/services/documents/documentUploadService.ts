@@ -17,6 +17,7 @@ import {
 import { parseCmfPdfBuffer, type CMFParseResult } from '../../parsers/cmf-parser.js';
 import { parseCartolaBuffer, ParseError } from '../../parsers/index.js';
 import { categorizeTransaction } from '../../parsers/cartola-parser.js';
+import { categoryClassifier, classifyOrRule } from './categoryClassifier.js';
 import { isInternalTransferTx } from '../assistantContext.js';
 import { type DetectionTier } from '../../parsers/base.js';
 import { logCreditScorePrediction } from '../audit/algorithmicTraceability.js';
@@ -86,13 +87,18 @@ export async function processDocumentUpload(
       return { step: 'done', error: validation.message ?? 'El documento no corresponde al usuario.' };
     }
     return processCmfUpload(userId, cmfDoc);
-  } catch {
+  } catch (cmfErr) {
     // Not a CMF document (no RUT, no dates, or can't extract text) — fall through to cartola path
+    logger.warn({ err: cmfErr }, '[processDocumentUpload] CMF parse failed, trying cartola path');
   }
 
   // 2. Cartola path: hardened pipeline (format detection + tier + reconciliation in one pass)
   try {
     const parsed = await parseCartolaBuffer(buffer);
+
+    // #31: clasificador incremental listo antes de categorizar (predicción síncrona en el map).
+    // Si no está entrenado o sin confianza, classifyOrRule cae a las reglas regex.
+    await categoryClassifier.ensureLoaded();
 
     // Convert ParseResult → CartolaExtraida for SFA scoring aggregation with previous uploads
     const cartolaExtraida: CartolaExtraida = {
@@ -114,7 +120,9 @@ export async function processDocumentUpload(
           cargo: tx.tipo === 'cargo' ? tx.monto : 0,
           abono: tx.tipo === 'abono' ? tx.monto : 0,
           saldo: tx.saldo_despues,
-          categoria: interna ? 'Transferencia interna' : categorizeTransaction(tx.descripcion, tx.monto, tx.tipo),
+          categoria: interna
+            ? 'Transferencia interna'
+            : classifyOrRule(tx.descripcion, categorizeTransaction(tx.descripcion, tx.monto, tx.tipo)),
           es_transferencia: interna || tx.es_transferencia === true,
           ...(tx.montoUsd != null ? { montoUsd: tx.montoUsd } : {}),
           ...(tx.fxRate != null ? { fxRate: tx.fxRate } : {}),
