@@ -776,10 +776,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const excludedKeys = await storage.getRecentlyDownvotedHabitKeys(userId);
       const habits = generateHabitRecommendations(health, excludedKeys);
 
+      // #34: snapshot del estado financiero al recomendar, para medir efectividad luego.
+      try {
+        const { logHabitRecommendations } = await import('./services/habits/habitRecommendationsLog.js');
+        await logHabitRecommendations(userId, habits, health);
+      } catch (logErr) {
+        logger.warn({ err: logErr, userId }, 'No se pudo registrar snapshot de hábitos (no fatal)');
+      }
+
       res.json({ habits });
     } catch (error) {
       logger.error({ err: error }, 'Habit recommendations error');
       res.status(500).json({ error: 'Failed to get habit recommendations' });
+    }
+  });
+
+  /**
+   * GET /api/habits/progress
+   * Efectividad (#34): compara el estado financiero actual contra el snapshot de cuando se
+   * recomendó cada hábito, e indica si la métrica objetivo (deuda/ahorro/mora) mejoró.
+   */
+  app.get("/api/habits/progress", authenticate, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { evaluateUserHealth } = await import('./services/healthEvaluation/index.js');
+      const { getHabitProgress } = await import('./services/habits/habitRecommendationsLog.js');
+      const health = await evaluateUserHealth(userId);
+      if (!health) return res.json({ progress: [], reason: 'insufficient_data' });
+      const progress = await getHabitProgress(userId, health);
+      res.json({ progress });
+    } catch (error) {
+      logger.error({ err: error }, 'Habit progress error');
+      res.status(500).json({ error: 'Failed to get habit progress' });
     }
   });
 
@@ -4100,9 +4128,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         financialHealthLevel,
       };
 
-      // Get recommendations
+      // Get recommendations, ponderadas por conversión real (#35; neutro si el job no corrió).
       const productsToMatch = category ? getProductsByCategory(category) : productCatalog;
-      const recommendations = getTopRecommendations(productsToMatch, userProfile, limit, category);
+      const { getLatestRankingWeights } = await import('./services/products/productRankingWeights.js');
+      const conversionWeights = await getLatestRankingWeights();
+      const recommendations = getTopRecommendations(productsToMatch, userProfile, limit, category, conversionWeights);
 
       // Format response with explanations
       const response = recommendations.map(match => {

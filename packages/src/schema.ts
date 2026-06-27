@@ -747,6 +747,41 @@ export const transactionCategoryCorrections = table('transaction_category_correc
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+/**
+ * Snapshot de cada hábito recomendado al usuario (#34): guarda los ratios de salud financiera al
+ * momento de recomendar, para luego medir efectividad comparando contra el siguiente ciclo
+ * (¿bajó la deuda?, ¿subió el ahorro?, ¿se regularizó la mora?).
+ */
+export const habitRecommendationsLog = table('habit_recommendations_log', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  habitKey: text('habit_key').notNull(),
+  nivel: integer('nivel'),
+  deudaFlujo: real('deuda_flujo'),
+  deudaActivos: real('deuda_activos'),
+  ahorroIngreso: real('ahorro_ingreso'),
+  diasMora: integer('dias_mora'),
+  moraActiva: integer('mora_activa'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+/**
+ * Pesos de ranking de productos por conversión real (#35). Cada corrida del job inserta una fila
+ * por producto (no actualiza) → historial versionado y auditable: se puede ver cómo cambió el
+ * peso de cada producto en el tiempo y con qué tasa de conversión se calculó.
+ */
+export const productRankingWeights = table('product_ranking_weights', {
+  id: text('id').primaryKey(),
+  productId: integer('product_id').notNull(),
+  /** Multiplicador del rankingScore (acotado, p.ej. 0.5–1.5). 1.0 = neutro. */
+  weight: real('weight').notNull(),
+  /** Tasa de conversión global usada para calcular el peso (snapshot). */
+  conversionRate: real('conversion_rate'),
+  /** Identificador de la corrida (batch) — agrupa los pesos calculados juntos. */
+  version: text('version').notNull(),
+  computedAt: text('computed_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 /** Historial de scores combinados (transaccional 0–100 + crediticio 0–850) por cálculo. */
 export const userScores = table('user_scores', {
   id: text('id').primaryKey(),

@@ -44,6 +44,7 @@ import {
   scoreDocumentUploads,
   userScores,
   transactionCategoryCorrections,
+  habitRecommendationsLog,
   algorithmPredictionLogs,
   consentGrants,
   privacyConsentEvents,
@@ -110,6 +111,8 @@ export async function anonymizeUser(userId: string): Promise<void> {
   await db.delete(userScores).where(eq(userScores.userId, userId));
   // Correcciones de categoría del usuario (#31): contienen texto de comercios → se borran.
   await db.delete(transactionCategoryCorrections).where(eq(transactionCategoryCorrections.userId, userId));
+  // Snapshots de recomendaciones de hábitos (#34): datos del usuario → se borran.
+  await db.delete(habitRecommendationsLog).where(eq(habitRecommendationsLog.userId, userId));
 
   // Borrado inmediato de los originales (PDF/imagen) cifrados del blob store (#21): no esperar
   // al TTL de retención cuando el usuario cierra la cuenta.

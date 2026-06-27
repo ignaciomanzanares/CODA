@@ -178,6 +178,22 @@ app.get("/metrics", (_req: Request, res: Response) => {
       void runRetention();
       const retentionTimer = setInterval(runRetention, 24 * 60 * 60 * 1000);
       retentionTimer.unref?.();
+
+      // Reponderación de productos por conversión real (#35): al boot y cada 7 días. Apagable con
+      // RANKING_WEIGHTS_JOB_ENABLED=false.
+      if (process.env.RANKING_WEIGHTS_JOB_ENABLED !== "false") {
+        const runReweight = async () => {
+          try {
+            const { recomputeProductRankingWeights } = await import("./services/products/productRankingWeights.js");
+            await recomputeProductRankingWeights();
+          } catch (err) {
+            logger.warn({ err }, "[ranking-weights] recompute falló");
+          }
+        };
+        void runReweight();
+        const reweightTimer = setInterval(runReweight, 7 * 24 * 60 * 60 * 1000);
+        reweightTimer.unref?.();
+      }
     }
 
     logger.info("✅ Application initialization completed successfully");
