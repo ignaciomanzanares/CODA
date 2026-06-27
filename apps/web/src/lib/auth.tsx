@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiFetch } from './api';
+import { setPersonalTokenMirror, setPersonalUserMirror } from './authSession';
 
 export type AuthContextType = 'personal' | 'empresas';
 
@@ -44,37 +45,10 @@ function getKeys(context: AuthContextType) {
     : { token: TOKEN_KEY, user: USER_KEY };
 }
 
-/**
- * Module-level mirror of the React auth state token.
- *
- * Query functions scattered across pages used to read localStorage directly;
- * this variable is kept in sync with the React state so they can call
- * `getPersonalToken()` instead. When the user deletes localStorage in DevTools
- * without a hard reload, this still holds the in-memory token so API calls
- * continue to work (and return a real 401 if the JWT is actually expired).
- */
-let _personalToken: string | null = localStorage.getItem(TOKEN_KEY);
-
-/** Returns the current personal JWT from React state (not directly from localStorage). */
-export function getPersonalToken(): string | null {
-  return _personalToken;
-}
-
-/**
- * Module-level mirror of the personal user, kept in sync with React state.
- * Lets module-scope query functions know there is an active personal session
- * even when there is no `jwt_token` (cookie-only, hydrated from /api/auth/me).
- */
-let _personalUser: User | null = null;
-
-/**
- * True when there is an active personal session — via a legacy token OR a
- * cookie-hydrated user. Use this (not just the token) to decide whether to fetch
- * personal data, so cookie-only sessions are not blocked.
- */
-export function hasPersonalSession(): boolean {
-  return !!_personalToken || !!_personalUser;
-}
+// Session mirrors live in a leaf module (no imports) to avoid an import cycle
+// (auth → api → apiFetch → authEvents → authSession). Re-exported here so existing
+// `@/lib/auth` consumers keep working; AuthProvider syncs them via the setters.
+export { getPersonalToken, hasPersonalSession } from './authSession';
 
 function loadStoredAuth(context: AuthContextType): { token: string | null; user: User | null } {
   const { token: tk, user: uk } = getKeys(context);
@@ -106,10 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Keep the module-level mirrors in sync so query functions outside React
   // context can call getPersonalToken() / hasPersonalSession().
   useEffect(() => {
-    _personalToken = tokenPersonal;
+    setPersonalTokenMirror(tokenPersonal);
   }, [tokenPersonal]);
   useEffect(() => {
-    _personalUser = userPersonal;
+    setPersonalUserMirror(userPersonal);
   }, [userPersonal]);
 
   // Al montar: hidrata la sesión personal desde la cookie (o el Bearer legacy si
@@ -133,13 +107,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (res.ok) {
           const data = await res.json().catch(() => null);
           if (data?.user) {
+            // C2: la sesión personal vive en la cookie + /me; no persistimos
+            // user_data nuevo como fuente de sesión (solo estado React en memoria).
             setUserPersonal(data.user);
-            // Refresca el user cacheado; la sesión ya no depende del token.
-            try {
-              localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-            } catch {
-              /* ignore quota/availability */
-            }
           }
         } else if (res.status === 401) {
           // Sin sesión válida (ni cookie ni Bearer): limpiar SOLO el contexto personal.
@@ -180,16 +150,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Invalid response from server');
     }
 
-    const { token: tk, user: uk } = getKeys(context);
-    localStorage.setItem(tk, data.token);
-    localStorage.setItem(uk, JSON.stringify(data.user));
     sessionStorage.setItem(HAD_SESSION_KEY, '1');
 
     if (context === 'empresas') {
+      // Empresas sigue token-based (Bearer/localStorage) — sin cambios.
+      const { token: tk, user: uk } = getKeys('empresas');
+      localStorage.setItem(tk, data.token);
+      localStorage.setItem(uk, JSON.stringify(data.user));
       setTokenEmpresas(data.token);
       setUserEmpresas(data.user);
     } else {
-      setTokenPersonal(data.token);
+      // Personal cookie-first (C2): la sesión vive en la cookie httpOnly + /me.
+      // NO guardamos jwt_token/user_data nuevos; solo estado React. Sin token,
+      // los requests personales van cookie-only (ver hasPersonalSession / apiFetch).
       setUserPersonal(data.user);
     }
   };
@@ -216,10 +189,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Invalid response from server');
     }
 
-    localStorage.setItem(TOKEN_KEY, data.token);
-    localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    // Personal cookie-first (C2): la sesión queda en la cookie + /me; no guardamos
+    // jwt_token/user_data nuevos, solo estado React.
     sessionStorage.setItem(HAD_SESSION_KEY, '1');
-    setTokenPersonal(data.token);
     setUserPersonal(data.user);
   };
 

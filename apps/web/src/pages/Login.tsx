@@ -202,10 +202,13 @@ export default function Login() {
         body: JSON.stringify({ email, code: otpCode }),
       });
       if (data.token && data.user) {
-        const tokenKey = isEmpresas ? "jwt_token_empresas" : "jwt_token";
-        const userKey = isEmpresas ? "user_data_empresas" : "user_data";
-        localStorage.setItem(tokenKey, data.token);
-        localStorage.setItem(userKey, JSON.stringify(data.user));
+        // Empresas sigue token-based (sin cambios). Personal cookie-first (C2): no
+        // guardamos jwt_token/user_data nuevos — la cookie httpOnly ya quedó seteada
+        // por 2fa/verify y la sesión se rehidrata desde /api/auth/me tras el reload.
+        if (isEmpresas) {
+          localStorage.setItem("jwt_token_empresas", data.token);
+          localStorage.setItem("user_data_empresas", JSON.stringify(data.user));
+        }
         toast({ title: "Sesión iniciada", description: "¡Bienvenido de nuevo!" });
         Analytics.loginSuccess(isEmpresas ? "empresa" : "persona");
         window.location.href = defaultRedirect;
