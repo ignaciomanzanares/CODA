@@ -133,13 +133,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (res.ok) {
           const data = await res.json().catch(() => null);
           if (data?.user) {
+            // C2: la sesión personal vive en la cookie + /me; no persistimos
+            // user_data nuevo como fuente de sesión (solo estado React en memoria).
             setUserPersonal(data.user);
-            // Refresca el user cacheado; la sesión ya no depende del token.
-            try {
-              localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-            } catch {
-              /* ignore quota/availability */
-            }
           }
         } else if (res.status === 401) {
           // Sin sesión válida (ni cookie ni Bearer): limpiar SOLO el contexto personal.
@@ -180,16 +176,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Invalid response from server');
     }
 
-    const { token: tk, user: uk } = getKeys(context);
-    localStorage.setItem(tk, data.token);
-    localStorage.setItem(uk, JSON.stringify(data.user));
     sessionStorage.setItem(HAD_SESSION_KEY, '1');
 
     if (context === 'empresas') {
+      // Empresas sigue token-based (Bearer/localStorage) — sin cambios.
+      const { token: tk, user: uk } = getKeys('empresas');
+      localStorage.setItem(tk, data.token);
+      localStorage.setItem(uk, JSON.stringify(data.user));
       setTokenEmpresas(data.token);
       setUserEmpresas(data.user);
     } else {
-      setTokenPersonal(data.token);
+      // Personal cookie-first (C2): la sesión vive en la cookie httpOnly + /me.
+      // NO guardamos jwt_token/user_data nuevos; solo estado React. Sin token,
+      // los requests personales van cookie-only (ver hasPersonalSession / apiFetch).
       setUserPersonal(data.user);
     }
   };
@@ -216,10 +215,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Invalid response from server');
     }
 
-    localStorage.setItem(TOKEN_KEY, data.token);
-    localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    // Personal cookie-first (C2): la sesión queda en la cookie + /me; no guardamos
+    // jwt_token/user_data nuevos, solo estado React.
     sessionStorage.setItem(HAD_SESSION_KEY, '1');
-    setTokenPersonal(data.token);
     setUserPersonal(data.user);
   };
 
