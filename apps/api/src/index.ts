@@ -196,6 +196,17 @@ app.get("/metrics", (_req: Request, res: Response) => {
       }
     }
 
+    // Monitor de profundidad de cola (#27): alerta a Ops si la cola de documentos se satura
+    // (worker caído). No-op si no hay Redis. Desactivado en test.
+    if (process.env.NODE_ENV !== "test") {
+      try {
+        const { startQueueDepthMonitor } = await import("./services/observability/queueMonitor.js");
+        startQueueDepthMonitor();
+      } catch (err) {
+        logger.warn({ err }, "[queueMonitor] no se pudo iniciar");
+      }
+    }
+
     logger.info("✅ Application initialization completed successfully");
   } catch (error) {
     logger.error({ error }, "❌ Error during application initialization");
