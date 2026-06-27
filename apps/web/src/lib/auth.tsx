@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiFetch } from './api';
+import { setPersonalTokenMirror, setPersonalUserMirror } from './authSession';
 
 export type AuthContextType = 'personal' | 'empresas';
 
@@ -44,37 +45,10 @@ function getKeys(context: AuthContextType) {
     : { token: TOKEN_KEY, user: USER_KEY };
 }
 
-/**
- * Module-level mirror of the React auth state token.
- *
- * Query functions scattered across pages used to read localStorage directly;
- * this variable is kept in sync with the React state so they can call
- * `getPersonalToken()` instead. When the user deletes localStorage in DevTools
- * without a hard reload, this still holds the in-memory token so API calls
- * continue to work (and return a real 401 if the JWT is actually expired).
- */
-let _personalToken: string | null = localStorage.getItem(TOKEN_KEY);
-
-/** Returns the current personal JWT from React state (not directly from localStorage). */
-export function getPersonalToken(): string | null {
-  return _personalToken;
-}
-
-/**
- * Module-level mirror of the personal user, kept in sync with React state.
- * Lets module-scope query functions know there is an active personal session
- * even when there is no `jwt_token` (cookie-only, hydrated from /api/auth/me).
- */
-let _personalUser: User | null = null;
-
-/**
- * True when there is an active personal session — via a legacy token OR a
- * cookie-hydrated user. Use this (not just the token) to decide whether to fetch
- * personal data, so cookie-only sessions are not blocked.
- */
-export function hasPersonalSession(): boolean {
-  return !!_personalToken || !!_personalUser;
-}
+// Session mirrors live in a leaf module (no imports) to avoid an import cycle
+// (auth → api → apiFetch → authEvents → authSession). Re-exported here so existing
+// `@/lib/auth` consumers keep working; AuthProvider syncs them via the setters.
+export { getPersonalToken, hasPersonalSession } from './authSession';
 
 function loadStoredAuth(context: AuthContextType): { token: string | null; user: User | null } {
   const { token: tk, user: uk } = getKeys(context);
@@ -106,10 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Keep the module-level mirrors in sync so query functions outside React
   // context can call getPersonalToken() / hasPersonalSession().
   useEffect(() => {
-    _personalToken = tokenPersonal;
+    setPersonalTokenMirror(tokenPersonal);
   }, [tokenPersonal]);
   useEffect(() => {
-    _personalUser = userPersonal;
+    setPersonalUserMirror(userPersonal);
   }, [userPersonal]);
 
   // Al montar: hidrata la sesión personal desde la cookie (o el Bearer legacy si

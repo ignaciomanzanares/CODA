@@ -15,7 +15,7 @@
  * session-expiry redirect is driven by the /me hydration + ProtectedRoute.
  */
 
-import { hasPersonalSession } from './auth';
+import { hasPersonalSession } from './authSession';
 
 const AUTH_ENDPOINT_RE = /\/api\/auth\/(login|2fa\/verify)/;
 const TOKEN_KEY = 'jwt_token';
