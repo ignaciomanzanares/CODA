@@ -238,6 +238,20 @@ export async function processDocumentUpload(
         parse_confidence: parsed.parse_confidence,
       },
     });
+
+    // Ingesta unificada (#18): además del score SFA (arriba, desde el blob), poblamos
+    // accounts/transactions vía el punto único OBProvider, para que las features ML y los
+    // listados lean de las mismas tablas que un futuro proveedor de open banking. Idempotente
+    // (dedup por externalId), best-effort: un fallo aquí no debe tumbar el upload del score.
+    try {
+      const { ingestFromProvider } = await import('../ingestion/ingestFromProvider.js');
+      const { CartolaUploadProvider } = await import('../ingestion/cartolaUploadProvider.js');
+      const ingestSummary = await ingestFromProvider(userId, new CartolaUploadProvider(banco, [cartolaExtraida]));
+      logger.info({ userId, ingestSummary }, '[documentUploadService] cartola ingestada a accounts/transactions (OBProvider)');
+    } catch (ingErr) {
+      logger.warn({ err: ingErr, userId }, '[documentUploadService] ingesta accounts/transactions falló (no fatal)');
+    }
+
     return {
       step: 'done',
       documentType: 'cartola',
