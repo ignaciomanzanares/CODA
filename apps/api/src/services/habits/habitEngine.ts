@@ -24,5 +24,12 @@ export function generateHabitRecommendations(
     .filter((h) => !excludedKeys.has(h.key) && h.matches(result))
     .sort((a, b) => b.priority - a.priority)
     .slice(0, limit)
-    .map(({ key, category, title, description, priority }) => ({ key, category, title, description, priority }));
+    .map((h) => ({
+      key: h.key,
+      category: h.category,
+      title: h.title,
+      // #34: descripción personalizada con los números reales del usuario; fallback al texto fijo.
+      description: h.describe ? h.describe(result) : h.description,
+      priority: h.priority,
+    }));
 }

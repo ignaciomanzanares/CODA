@@ -10,10 +10,18 @@ export interface HabitDefinition {
   /** Mayor prioridad = se muestra primero cuando varios hábitos matchean a la vez. */
   priority: number;
   matches: (result: HealthEvaluationResult) => boolean;
+  /**
+   * Descripción PERSONALIZADA (#34): interpola los números reales del usuario (su ratio actual,
+   * sus días de mora), no solo el umbral genérico. Si no se define, se usa `description` fija.
+   */
+  describe?: (result: HealthEvaluationResult) => string;
 }
 
 const nivelMin = (nivel: HealthLevel, min: number) => nivel >= min;
 const nivelMax = (nivel: HealthLevel, max: number) => nivel <= max;
+
+/** Formatea un ratio 0–1 como porcentaje entero (ej. 0.834 → "83%"). */
+const pct = (x: number): string => `${Math.round(x * 100)}%`;
 
 /**
  * Catálogo de hábitos financieros recomendables. Las `key` son estables (no UUIDs)
@@ -29,6 +37,9 @@ export const HABIT_CATALOG: HabitDefinition[] = [
     description: 'Tienes pagos en mora activa. Priorizar regularizarlos evita que la deuda siga creciendo por intereses moratorios y protege tu historial.',
     priority: 120,
     matches: (r) => r.ratios.moraActiva,
+    describe: (r) =>
+      `Tienes pagos en mora con ${r.ratios.diasMora} día(s) de atraso. Regularizarlos cuanto antes ` +
+      `evita que la deuda siga creciendo por intereses moratorios y protege tu historial.`,
   },
   {
     key: 'reducir_deuda_activos',
@@ -37,6 +48,9 @@ export const HABIT_CATALOG: HabitDefinition[] = [
     description: 'Tu deuda supera el 80% de tus activos. Evita tomar deuda nueva y enfócate en pagar la existente antes de seguir creciendo el pasivo.',
     priority: 110,
     matches: (r) => r.ratios.deudaActivos > 0.80,
+    describe: (r) =>
+      `Tu deuda equivale al ${pct(r.ratios.deudaActivos)} de tus activos (umbral de alerta: 80%). ` +
+      `Evita tomar deuda nueva y enfócate en pagar la existente antes de seguir creciendo el pasivo.`,
   },
   {
     key: 'reducir_deuda_alta',
@@ -45,6 +59,9 @@ export const HABIT_CATALOG: HabitDefinition[] = [
     description: 'Más del 50% de tu flujo mensual va a pagar deuda. Prioriza los créditos con mayor tasa de interés primero (método avalancha).',
     priority: 100,
     matches: (r) => r.ratios.deudaFlujo > 0.50,
+    describe: (r) =>
+      `El ${pct(r.ratios.deudaFlujo)} de tu flujo mensual va a pagar deuda (sobre el umbral de 50%). ` +
+      `Prioriza los créditos con mayor tasa de interés primero (método avalancha).`,
   },
   {
     key: 'reducir_deuda_moderada',
@@ -53,6 +70,9 @@ export const HABIT_CATALOG: HabitDefinition[] = [
     description: 'Tu ratio deuda/flujo está en zona de alerta (30%-50%). Evita sumar nuevos créditos hasta bajarlo.',
     priority: 70,
     matches: (r) => r.ratios.deudaFlujo > 0.30 && r.ratios.deudaFlujo <= 0.50,
+    describe: (r) =>
+      `Tu ratio deuda/flujo es ${pct(r.ratios.deudaFlujo)} (zona de alerta: 30%–50%). ` +
+      `Evita sumar nuevos créditos hasta bajarlo.`,
   },
   {
     key: 'aumentar_ahorro',
@@ -61,6 +81,12 @@ export const HABIT_CATALOG: HabitDefinition[] = [
     description: 'Estás ahorrando menos del 10% de tus ingresos. Un ajuste pequeño y sostenido en gastos fijos puede marcar la diferencia en 6 meses.',
     priority: 80,
     matches: (r) => r.ratios.ahorroIngreso < 0.10,
+    describe: (r) =>
+      r.ratios.ahorroIngreso < 0
+        ? `Este mes estás gastando más de lo que ingresas (ahorro ${pct(r.ratios.ahorroIngreso)}). ` +
+          `Recortar un gasto fijo, aunque sea pequeño, es el primer paso para revertirlo.`
+        : `Estás ahorrando el ${pct(r.ratios.ahorroIngreso)} de tus ingresos (recomendado: ≥10%). ` +
+          `Un ajuste pequeño y sostenido en gastos fijos puede marcar la diferencia en 6 meses.`,
   },
   {
     key: 'fondo_emergencia',
@@ -77,6 +103,9 @@ export const HABIT_CATALOG: HabitDefinition[] = [
     description: 'Tu tasa de ahorro es razonable pero aún tiene espacio para crecer hacia el 20% recomendado de tus ingresos.',
     priority: 40,
     matches: (r) => r.ratios.ahorroIngreso >= 0.10 && r.ratios.ahorroIngreso < 0.20,
+    describe: (r) =>
+      `Tu tasa de ahorro es ${pct(r.ratios.ahorroIngreso)}: vas bien y aún tienes espacio para crecer ` +
+      `hacia el 20% recomendado de tus ingresos.`,
   },
   {
     key: 'diversificar_inversion',

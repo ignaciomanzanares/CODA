@@ -33,6 +33,8 @@ export const {
   documentOriginals,
   documentParseOutcomes,
   transactionCategoryCorrections,
+  habitRecommendationsLog,
+  productRankingWeights,
   userScores,
   creditScoreHistory,
   insertAccountSchema,

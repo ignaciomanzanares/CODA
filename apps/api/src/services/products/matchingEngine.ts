@@ -100,7 +100,13 @@ export interface ProductMatch {
  */
 export function matchProductsToUser(
   products: ProductCatalogItem[],
-  userProfile: UserProfile
+  userProfile: UserProfile,
+  /**
+   * Pesos de conversión por producto (#35), de `product_ranking_weights`: multiplican el
+   * rankingScore para que los productos que CONVIERTEN de verdad suban en la lista. Default 1.0
+   * (sin efecto) cuando no hay dato — el sistema funciona igual sin haber corrido el job.
+   */
+  conversionWeights: Record<number, number> = {},
 ): ProductMatch[] {
   const matches: ProductMatch[] = [];
 
@@ -108,7 +114,7 @@ export function matchProductsToUser(
     // Only consider active products
     if (!product.isActive) continue;
 
-    const match = evaluateProductMatch(product, userProfile);
+    const match = evaluateProductMatch(product, userProfile, conversionWeights[product.id] ?? 1);
     matches.push(match);
   }
 
@@ -123,7 +129,8 @@ export function matchProductsToUser(
  */
 function evaluateProductMatch(
   product: ProductCatalogItem,
-  userProfile: UserProfile
+  userProfile: UserProfile,
+  conversionFactor = 1,
 ): ProductMatch {
   const eligibilityReasons: string[] = [];
   const ineligibilityReasons: string[] = [];
@@ -195,10 +202,12 @@ function evaluateProductMatch(
   // Calculate match score (0-100) using product-specific weights
   const matchScore = calculateMatchScore(product, userProfile, isEligible, healthPolicy);
 
-  // Calculate ranking score: combines match quality, priority, and approval rate
+  // Calculate ranking score: combines match quality, priority, approval rate y el peso de
+  // conversión real (#35, default 1.0). El peso de conversión está acotado en el job a un rango
+  // razonable para que no domine ni anule a los otros factores.
   const approvalFactor = product.approvalRate ?? 0.5;
   const priorityFactor = (product.priority ?? 50) / 100;
-  const rankingScore = matchScore * priorityFactor * approvalFactor * 100;
+  const rankingScore = matchScore * priorityFactor * approvalFactor * conversionFactor * 100;
 
   // Generate human-readable explanation
   const explanation = generateExplanation(product, userProfile, matchScore, isEligible);
@@ -380,7 +389,8 @@ export function getTopRecommendations(
   products: ProductCatalogItem[],
   userProfile: UserProfile,
   limit: number = 5,
-  category?: string
+  category?: string,
+  conversionWeights: Record<number, number> = {},
 ): ProductMatch[] {
   // Filter by category if specified
   let filteredProducts = products;
@@ -388,8 +398,8 @@ export function getTopRecommendations(
     filteredProducts = products.filter(p => p.category === category);
   }
 
-  // Get all matches
-  const matches = matchProductsToUser(filteredProducts, userProfile);
+  // Get all matches (#35: ponderados por conversión real cuando hay pesos)
+  const matches = matchProductsToUser(filteredProducts, userProfile, conversionWeights);
 
   // When the user's profile is sparse (no credit or transactional score), the
   // matchScore can be artificially low even for eligible products. In that case,
