@@ -114,7 +114,8 @@ export function matchProductsToUser(
     // Only consider active products
     if (!product.isActive) continue;
 
-    const match = evaluateProductMatch(product, userProfile, conversionWeights[product.id] ?? 1);
+    const conversionFactor = product.id != null ? (conversionWeights[product.id] ?? 1) : 1;
+    const match = evaluateProductMatch(product, userProfile, conversionFactor);
     matches.push(match);
   }
 
