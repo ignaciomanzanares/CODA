@@ -12,8 +12,9 @@
  * @date 2026-03-06
  */
 
-import { createWorker } from 'tesseract.js';
+import { createWorker, createScheduler } from 'tesseract.js';
 import { Buffer } from 'buffer';
+import * as os from 'node:os';
 // Carga diferida del módulo nativo `canvas`: solo se importa al usarse (preprocesamiento de
 // imagen para OCR), no al importar este archivo. Así tests/CI sin el binario nativo compilado
 // (build/Release/canvas.node) pueden importar este módulo sin romperse. La rasterización de
@@ -40,31 +41,87 @@ export interface OcrResult {
 // OCR FUNCTIONS
 // ============================================================================
 
+// ============================================================================
+// POOL DE WORKERS TESSERACT REUTILIZABLES (#19)
+// ============================================================================
+//
+// Antes se hacía createWorker()/terminate() por CADA documento: cargar el modelo de
+// idioma (~varios MB) y arrancar el worker en cada OCR es caro y serializa el trabajo.
+// Ahora mantenemos un pool de N workers (un `Scheduler` de tesseract.js) que se inicializa
+// una vez y se reutiliza; los jobs se reparten entre los workers en paralelo. N se liga a los
+// cores disponibles (cap razonable para no agotar memoria con los modelos cargados).
+
+const OCR_POOL_LANGUAGE = 'spa';
+const OCR_POOL_SIZE = Math.max(1, Math.min(Number(process.env.OCR_POOL_SIZE) || os.cpus().length, 4));
+
+let _schedulerPromise: Promise<ReturnType<typeof createScheduler>> | null = null;
+
+async function getOcrScheduler(): Promise<ReturnType<typeof createScheduler>> {
+  if (!_schedulerPromise) {
+    _schedulerPromise = (async () => {
+      const scheduler = createScheduler();
+      for (let i = 0; i < OCR_POOL_SIZE; i++) {
+        const worker = await createWorker(OCR_POOL_LANGUAGE);
+        scheduler.addWorker(worker);
+      }
+      return scheduler;
+    })().catch((err) => {
+      // Si la init falla, limpiar para permitir un reintento en la próxima llamada.
+      _schedulerPromise = null;
+      throw err;
+    });
+  }
+  return _schedulerPromise;
+}
+
+/** Cierra el pool (workers) — para apagado limpio del proceso/worker. */
+export async function shutdownOcrPool(): Promise<void> {
+  if (!_schedulerPromise) return;
+  const p = _schedulerPromise;
+  _schedulerPromise = null;
+  try {
+    const scheduler = await p;
+    await scheduler.terminate();
+  } catch {
+    /* best-effort */
+  }
+}
+
 /**
- * Perform OCR on image buffer
+ * Perform OCR on image buffer. Usa el pool de workers reutilizables para el idioma por defecto
+ * ('spa'); para otros idiomas (raro) cae a un worker one-off para no contaminar el pool.
  */
 export async function performOcrOnImage(
   imageBuffer: Buffer,
   language: string = 'spa' // Spanish
 ): Promise<OcrResult> {
   const startTime = Date.now();
-  
-  try {
-    const worker = await createWorker(language);
-    
-    const { data } = await worker.recognize(imageBuffer);
-    
-    await worker.terminate();
-    
+
+  const toResult = (data: { text: string; confidence: number }): OcrResult => {
     const confidence = data.confidence / 100; // Normalize to 0-1
-    const needsManualReview = confidence < 0.7; // Low confidence = manual review
-    
     return {
       text: data.text,
       confidence,
       processingTimeMs: Date.now() - startTime,
-      needsManualReview,
+      needsManualReview: confidence < 0.7, // Low confidence = manual review
     };
+  };
+
+  try {
+    if (language !== OCR_POOL_LANGUAGE) {
+      // Idioma no-default: worker one-off (no entra al pool 'spa').
+      const worker = await createWorker(language);
+      try {
+        const { data } = await worker.recognize(imageBuffer);
+        return toResult(data);
+      } finally {
+        await worker.terminate();
+      }
+    }
+
+    const scheduler = await getOcrScheduler();
+    const { data } = await scheduler.addJob('recognize', imageBuffer);
+    return toResult(data);
   } catch (error) {
     console.error('[OCR] Error performing OCR:', error);
     throw new Error('Error al procesar OCR. Intenta con un archivo más claro.');
