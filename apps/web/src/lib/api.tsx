@@ -145,8 +145,9 @@ export function useApi(): ApiClient {
     data?: unknown,
     options?: RequestInit
   ): Promise<T> => {
-    // If not authenticated, throw error
-    if (!isAuthenticated || !token) {
+    // Sesión personal cookie-first: basta con estar autenticado (cookie + /me);
+    // ya no exigimos el token local. El Bearer se adjunta abajo solo si existe.
+    if (!isAuthenticated) {
       throw new Error("User not authenticated");
     }
 
@@ -166,7 +167,8 @@ export function useApi(): ApiClient {
     const headers: Record<string, string> = {
       ...(data !== undefined ? { "Content-Type": "application/json" } : {}),
       ...extraHeaders,
-      Authorization: `Bearer ${token}`,
+      // Bearer solo si hay token; si no, la sesión va cookie-only (credentials:include).
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
 
     // Prepend API_BASE_URL if url starts with '/api'
@@ -360,14 +362,14 @@ export function useApi(): ApiClient {
   };
 
   const scanExpense = async (imageFile: File): Promise<{ amount: number; merchant: string; category: string; confidence: number }> => {
-    if (!token) throw new Error("User not authenticated");
+    if (!isAuthenticated) throw new Error("User not authenticated");
     const formData = new FormData();
     formData.append("image", imageFile);
     const fullUrl = `${API_BASE_URL}/expenses/scan`;
     const res = await fetch(fullUrl, {
       method: "POST",
       credentials: "include",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
     });
     const json = await res.json().catch(() => ({}));
@@ -500,14 +502,14 @@ export function useApi(): ApiClient {
   };
 
   const uploadDocument = async (file: File): Promise<import("@/types").DocumentUploadResult> => {
-    if (!token) throw new Error("User not authenticated");
+    if (!isAuthenticated) throw new Error("User not authenticated");
     const formData = new FormData();
     formData.append("document", file);
     const fullUrl = `${API_BASE_URL}/documents/upload`;
     const res = await fetch(fullUrl, {
       method: "POST",
       credentials: "include",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
     });
     const json = await res.json().catch(() => ({}));
@@ -519,14 +521,14 @@ export function useApi(): ApiClient {
   };
 
   const extractInscripcion = async (file: File): Promise<ExtractInscripcionResponse> => {
-    if (!token) throw new Error("User not authenticated");
+    if (!isAuthenticated) throw new Error("User not authenticated");
     const formData = new FormData();
     formData.append("file", file);
     const fullUrl = `${API_BASE_URL}/assets/extract-inscripcion`;
     const res = await fetch(fullUrl, {
       method: "POST",
       credentials: "include",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
     });
     const json = await res.json().catch(() => ({}));

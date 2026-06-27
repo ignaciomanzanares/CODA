@@ -31,7 +31,7 @@ import {
   ThumbsDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth, getPersonalToken } from "@/lib/auth";
+import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
 import { Link } from "wouter";
 import { ROUTES } from "@/lib/routes";
 
@@ -252,7 +252,7 @@ export default function FinancialAssistant({
     queryKey: ["assistant-insights"],
     queryFn: async () => {
       const token = getPersonalToken();
-      if (!token) return { insights: [] as string[] };
+      if (!token && !hasPersonalSession()) return { insights: [] as string[] };
       return await apiFetch("/api/assistant/insights", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -269,7 +269,7 @@ export default function FinancialAssistant({
     queryKey: ["assistant-bootstrap"],
     queryFn: async () => {
       const token = getPersonalToken();
-      if (!token) throw new Error("no token");
+      if (!token && !hasPersonalSession()) throw new Error("no token");
       return apiFetch("/api/assistant/bootstrap", {
         headers: { Authorization: `Bearer ${token}` },
       }) as Promise<{ welcome: string; chips: string[] }>;
@@ -441,7 +441,7 @@ export default function FinancialAssistant({
       });
 
       const token = getPersonalToken();
-      if (!token) return; // sin sesión no se envía; el UI ya quedó marcado
+      if (!token && !hasPersonalSession()) return; // sin sesión no se envía; el UI ya quedó marcado
 
       try {
         await apiFetch("/api/assistant/feedback", {

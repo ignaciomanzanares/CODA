@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { useAuth, getPersonalToken } from "@/lib/auth";
+import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
 
 interface UserDocument {
   id: string;
@@ -26,7 +26,7 @@ export function useUserDocuments() {
     queryKey: ["/api/user/documents"],
     queryFn: async () => {
       const token = getPersonalToken();
-      if (!token) return { documents: [], count: 0 };
+      if (!token && !hasPersonalSession()) return { documents: [], count: 0 };
       return apiFetch("/api/user/documents", {
         headers: { Authorization: `Bearer ${token}` },
       });

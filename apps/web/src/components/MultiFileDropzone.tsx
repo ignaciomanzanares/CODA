@@ -69,7 +69,7 @@ export default function MultiFileDropzone({ onDone, className }: MultiFileDropzo
         const res = await fetch(`${apiBase}/api/documents/upload`, {
           method: "POST",
           credentials: "include",
-          headers: { Authorization: `Bearer ${token}` },
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: formData,
         });
 

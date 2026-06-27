@@ -46,7 +46,7 @@ export default function Expenses() {
       const res = await fetch(apiUrl("/api/user/cartolas"), {
         method: "DELETE",
         credentials: "include",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);
       // Deleting cartolas changes all financial data globally
