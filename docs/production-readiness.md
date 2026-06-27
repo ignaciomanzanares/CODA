@@ -22,7 +22,7 @@ un cambio de produccion, confirmar nuevamente el estado en cada proveedor.
 | Metricas | Implementadas, con `METRICS_ENABLED=false` |
 | Sentry | Implementado, apagado mientras `SENTRY_DSN` no este definido |
 
-La ultima verificacion de produccion se realizo despues del merge de PR #10.
+La ultima verificacion de produccion se realizo despues del merge de PR #15.
 No asumir que este snapshot sigue vigente sin ejecutar el smoke de este
 documento.
 
@@ -37,6 +37,10 @@ documento.
 | #8 | Color de marca en emails transaccionales |
 | #9 | `DEMO_MODE=false` en produccion |
 | #10 | Observability core: metricas protegidas, Sentry opcional y redaction |
+| #12 | Foundation de auth cookie compatible con Bearer |
+| #13 | Frontend productivo usa `https://api.codafinance.cl` |
+| #14 | Requests del frontend al API incluyen credentials |
+| #15 | Auth cookie activada en produccion y validada con smoke |
 
 ## Variables criticas de Render
 
@@ -122,6 +126,13 @@ No activar `DEMO_MODE` para realizar este smoke.
 - [ ] Login/register/2FA verify siguen devolviendo el token JSON y emiten
   `coda_session` con `HttpOnly`, `Secure`, `SameSite=Lax` y sin `Domain`.
 - [ ] `GET /api/auth/me` tambien responde HTTP 200 usando solo la cookie.
+- [ ] Un Bearer invalido junto con una cookie valida responde HTTP 401, sin
+  fallback a la cookie.
+- [ ] Un header `Authorization: Basic ...` junto con una cookie valida responde
+  HTTP 401.
+- [ ] `POST /api/auth/logout` usando solo la cookie responde HTTP 200, limpia
+  `coda_session` e invalida el JWT; reutilizar la cookie/JWT anterior responde
+  HTTP 401.
 - [ ] No imprimir ni persistir el token fuera de la sesion de smoke.
 
 ### 4. Email, reset y 2FA
@@ -192,8 +203,8 @@ curl -i "$API_URL/metrics?token=test"
   token JSON siguen vigentes. Rollback: `AUTH_COOKIE_ENABLED=false` y redeploy.
 - [x] Dominio API propio `api.codafinance.cl` y `credentials: "include"` en los
   requests del frontend al API.
-- [ ] Fase siguiente: retirar localStorage/token JSON y completar proteccion
-  CSRF (`COOKIE_CSRF_ENABLED`) antes de depender solo de cookies.
+- [ ] Fase C: retirar localStorage/token JSON y completar proteccion CSRF
+  (`COOKIE_CSRF_ENABLED`) antes de depender solo de cookies. No iniciada.
 - [ ] Activar metricas solo si existe consumidor, token fuerte, rotacion y
   control de acceso acordados.
 - [ ] Activar Sentry solo despues de validar redaction, muestreo, retencion y
