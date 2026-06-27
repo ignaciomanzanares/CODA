@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApi, apiFetch } from "@/lib/api";
-import { useAuth, getPersonalToken } from "@/lib/auth";
+import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { mapUserFacingApiError } from "@/lib/userFacingErrors";
 import { Analytics } from "@/lib/analytics";
@@ -395,7 +395,7 @@ export default function Plan() {
     queryKey: ["financial-summary"],
     queryFn: async () => {
       const token = getPersonalToken();
-      if (!token) return null;
+      if (!token && !hasPersonalSession()) return null;
       return apiFetch("/api/financial-summary", { headers: { Authorization: `Bearer ${token}` } });
     },
     enabled: isAuthenticated && !authLoading,

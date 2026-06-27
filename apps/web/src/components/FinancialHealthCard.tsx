@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { useAuth, getPersonalToken } from "@/lib/auth";
+import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -65,7 +65,7 @@ export default function FinancialHealthCard() {
     queryKey: ["/api/financial-health"],
     queryFn: () => {
       const token = getPersonalToken();
-      if (!token) return Promise.resolve({ hasData: false } as FinancialHealthData);
+      if (!token && !hasPersonalSession()) return Promise.resolve({ hasData: false } as FinancialHealthData);
       return apiFetch("/api/financial-health", { headers: { Authorization: `Bearer ${token}` } });
     },
     enabled: isAuthenticated,
