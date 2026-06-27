@@ -17,6 +17,8 @@ un cambio de produccion, confirmar nuevamente el estado en cada proveedor.
 | Login demo | `DEMO_MODE=false`; `demo123` no autentica |
 | Password reset | Flujo por email validado en produccion |
 | 2FA | OTP por email validado en produccion |
+| Auth cookie | Activada en backend; host-only para `api.codafinance.cl` |
+| Auth legacy | Bearer, localStorage y token JSON se mantienen por compatibilidad |
 | Metricas | Implementadas, con `METRICS_ENABLED=false` |
 | Sentry | Implementado, apagado mientras `SENTRY_DSN` no este definido |
 
@@ -54,6 +56,10 @@ estado efectivo se confirma en Render.
 | `CLIENT_URL` | `https://www.codafinance.cl` para links de email |
 | `DEMO_MODE` | Debe permanecer en `false` |
 | `DEMO_ALLOWED_EMAILS` | No habilita nada mientras demo mode este apagado |
+| `AUTH_COOKIE_ENABLED` | `true` en produccion; `false` sigue como default local/dev |
+| `AUTH_COOKIE_SECURE` | `true` |
+| `AUTH_COOKIE_SAMESITE` | `lax` |
+| `AUTH_COOKIE_DOMAIN` | Vacio: cookie host-only en `api.codafinance.cl` |
 | `DEBUG_ENDPOINTS` | Debe permanecer en `false` |
 | `METRICS_ENABLED` | `false` hasta aprobar su activacion |
 | `METRICS_TOKEN` | Secreto fuerte obligatorio si se habilitan metricas |
@@ -113,6 +119,9 @@ No activar `DEMO_MODE` para realizar este smoke.
   201 con token.
 - [ ] `GET /api/auth/me` con `Authorization: Bearer <token>` responde HTTP 200
   para el throwaway.
+- [ ] Login/register/2FA verify siguen devolviendo el token JSON y emiten
+  `coda_session` con `HttpOnly`, `Secure`, `SameSite=Lax` y sin `Domain`.
+- [ ] `GET /api/auth/me` tambien responde HTTP 200 usando solo la cookie.
 - [ ] No imprimir ni persistir el token fuera de la sesion de smoke.
 
 ### 4. Email, reset y 2FA
@@ -176,15 +185,15 @@ curl -i "$API_URL/metrics?token=test"
 ## Pendientes
 
 - [x] Fase A JWT cookie foundation (backwards-compatible) implementada tras
-  `AUTH_COOKIE_ENABLED` (default `false`): `authenticate` lee cookie httpOnly o
+  `AUTH_COOKIE_ENABLED`: `authenticate` lee cookie httpOnly o
   `Authorization: Bearer` (Bearer con prioridad estricta); helpers
   `setAuthCookie`/`clearAuthCookie` en `apps/api/src/middleware/authCookie.ts`.
-  Con el flag `false`, el comportamiento de prod no cambia (solo Bearer + token
-  en JSON). NO activar hasta tener `api.codafinance.cl`.
-- [ ] Configurar dominio API propio `api.codafinance.cl` (cookie first-party
-  same-site) ANTES de activar `AUTH_COOKIE_ENABLED=true` y `AUTH_COOKIE_DOMAIN`.
-- [ ] Fase B+: `credentials: "include"` en el frontend, retirar localStorage,
-  CSRF (`COOKIE_CSRF_ENABLED`).
+  Produccion lo activa con una cookie host-only en `api.codafinance.cl`; Bearer y
+  token JSON siguen vigentes. Rollback: `AUTH_COOKIE_ENABLED=false` y redeploy.
+- [x] Dominio API propio `api.codafinance.cl` y `credentials: "include"` en los
+  requests del frontend al API.
+- [ ] Fase siguiente: retirar localStorage/token JSON y completar proteccion
+  CSRF (`COOKIE_CSRF_ENABLED`) antes de depender solo de cookies.
 - [ ] Activar metricas solo si existe consumidor, token fuerte, rotacion y
   control de acceso acordados.
 - [ ] Activar Sentry solo despues de validar redaction, muestreo, retencion y

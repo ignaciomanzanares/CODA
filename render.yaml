@@ -63,18 +63,17 @@ services:
         sync: false
       - key: SENTRY_TRACES_SAMPLE_RATE
         value: 0
-      # Auth cookie (Fase A — foundation). MANTENER false: con la API en
-      # onrender.com la cookie sería cross-site (third-party) y Safari/Chrome la
-      # bloquean. Activar solo tras configurar api.codafinance.cl + Domain.
+      # Auth cookie en producción. api.codafinance.cl permite una cookie
+      # first-party/same-site; Bearer y token JSON se mantienen por compatibilidad.
       - key: AUTH_COOKIE_ENABLED
-        value: false
+        value: true
       - key: AUTH_COOKIE_NAME
         value: coda_session
       - key: AUTH_COOKIE_SECURE
         value: true
       - key: AUTH_COOKIE_SAMESITE
         value: lax
-      # Vacío hasta tener api.codafinance.cl; entonces ".codafinance.cl".
+      # Vacío a propósito: cookie host-only para api.codafinance.cl, sin Domain.
       - key: AUTH_COOKIE_DOMAIN
         value: ""
       - key: COOKIE_CSRF_ENABLED
