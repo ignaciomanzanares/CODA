@@ -32,6 +32,7 @@ export const {
   scoreDocumentUploads,
   documentOriginals,
   documentParseOutcomes,
+  transactionCategoryCorrections,
   userScores,
   creditScoreHistory,
   insertAccountSchema,

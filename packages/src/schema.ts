@@ -732,6 +732,21 @@ export const documentParseOutcomes = table('document_parse_outcomes', {
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+/**
+ * Correcciones de categoría hechas por el usuario (#31): cuando reclasifica un movimiento, se
+ * guarda el texto normalizado + la categoría correcta. Alimenta el clasificador incremental
+ * (Naive Bayes sobre estas filas) que mejora la categorización por sobre las reglas regex.
+ */
+export const transactionCategoryCorrections = table('transaction_category_corrections', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  /** Descripción/merchant normalizado (uppercase, sin ruido) — la "feature" de texto. */
+  normalizedText: text('normalized_text').notNull(),
+  originalCategory: text('original_category'),
+  correctedCategory: text('corrected_category').notNull(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 /** Historial de scores combinados (transaccional 0–100 + crediticio 0–850) por cálculo. */
 export const userScores = table('user_scores', {
   id: text('id').primaryKey(),

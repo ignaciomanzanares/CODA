@@ -973,6 +973,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Hook de corrección de categoría (#31): el usuario reclasifica un movimiento → se guarda la
+  // corrección y alimenta el clasificador incremental (fallback a reglas regex).
+  app.post("/api/transactions/category-correction", authenticate, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { text, correctedCategory, originalCategory } = req.body || {};
+      if (typeof text !== "string" || !text.trim() || typeof correctedCategory !== "string" || !correctedCategory.trim()) {
+        return res.status(400).json({ message: "Se requieren 'text' y 'correctedCategory'." });
+      }
+      const { recordCategoryCorrection } = await import("./services/documents/categoryCorrections.js");
+      const result = await recordCategoryCorrection({
+        userId,
+        text,
+        correctedCategory,
+        originalCategory: typeof originalCategory === "string" ? originalCategory : null,
+      });
+      if (!result.ok) {
+        return res.status(400).json({ message: "Texto no válido para aprender (vacío tras normalizar)." });
+      }
+      return res.status(201).json({ ok: true });
+    } catch (e) {
+      logger.error({ err: e }, "Error registrando corrección de categoría");
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Bank connection routes
   app.get("/api/bank-connections", authenticate, async (req, res) => {
     try {
