@@ -1,4 +1,4 @@
-import rateLimit, { type Store } from "express-rate-limit";
+import rateLimit, { type Store, ipKeyGenerator } from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import { isProduction } from "../env.js";
 import { redis } from "../redis.js";
@@ -70,7 +70,7 @@ export const uploadLimiter = rateLimit({
   keyGenerator: (req) => {
     // Use userId from JWT payload if available, fall back to IP
     const authReq = req as { user?: { userId?: string } };
-    return authReq.user?.userId ?? req.ip ?? 'unknown';
+    return authReq.user?.userId ?? ipKeyGenerator(req.ip ?? '127.0.0.1');
   },
   message: "Límite de subida de documentos alcanzado. Intenta de nuevo en una hora.",
   standardHeaders: true,
