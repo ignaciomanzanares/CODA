@@ -77,6 +77,26 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
   // el CORS del API ya responde Access-Control-Allow-Credentials: true. El caller
   // puede sobreescribirlo vía `init.credentials`.
   const fetchInit: RequestInit = { credentials: "include", ...init };
+  // Sesión cookie-only: si un caller adjuntó un Authorization Bearer "vacío"
+  // (p. ej. `Bearer ${token}` con token null/"" cuando no hay jwt_token), lo
+  // quitamos. Así el backend autentica con la cookie httpOnly en vez de rechazar
+  // un Bearer inválido (que tiene prioridad estricta sobre la cookie).
+  if (
+    fetchInit.headers &&
+    typeof fetchInit.headers === "object" &&
+    !(fetchInit.headers instanceof Headers) &&
+    !Array.isArray(fetchInit.headers)
+  ) {
+    const h = fetchInit.headers as Record<string, string>;
+    const auth = h.Authorization ?? h.authorization;
+    if (typeof auth === "string") {
+      const tokenPart = auth.replace(/^Bearer\s*/i, "").trim();
+      if (tokenPart === "" || tokenPart === "null" || tokenPart === "undefined") {
+        delete h.Authorization;
+        delete h.authorization;
+      }
+    }
+  }
   if (!fetchInit.signal) {
     controller = new AbortController();
     fetchInit.signal = controller.signal;

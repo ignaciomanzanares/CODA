@@ -15,7 +15,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/apiFetch";
-import { getPersonalToken, useAuth } from "@/lib/auth";
+import { getPersonalToken, hasPersonalSession, useAuth } from "@/lib/auth";
 import {
   CATEGORY_TAXONOMY,
   resolveGroupKey,
@@ -122,7 +122,7 @@ interface RawFinancialSummary {
 
 async function fetchJson<T>(path: string): Promise<T | null> {
   const token = getPersonalToken();
-  if (!token) return null;
+  if (!token && !hasPersonalSession()) return null;
   try {
     return await apiFetch(path, { headers: { Authorization: `Bearer ${token}` } });
   } catch {

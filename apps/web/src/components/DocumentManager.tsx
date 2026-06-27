@@ -73,7 +73,11 @@ export default function DocumentManager({
   const [deletingAll, setDeletingAll] = useState(false);
 
   const apiBase = (API_URL || "").replace(/\/$/, "");
-  const authHeaders = () => ({ Authorization: `Bearer ${getPersonalToken()}` });
+  const authHeaders = (): Record<string, string> => {
+    // Bearer solo si hay token; si no, va cookie-only (credentials:include).
+    const t = getPersonalToken();
+    return t ? { Authorization: `Bearer ${t}` } : {};
+  };
 
   const deleteOne = useCallback(
     async (id: string) => {

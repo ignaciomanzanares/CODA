@@ -60,6 +60,22 @@ export function getPersonalToken(): string | null {
   return _personalToken;
 }
 
+/**
+ * Module-level mirror of the personal user, kept in sync with React state.
+ * Lets module-scope query functions know there is an active personal session
+ * even when there is no `jwt_token` (cookie-only, hydrated from /api/auth/me).
+ */
+let _personalUser: User | null = null;
+
+/**
+ * True when there is an active personal session — via a legacy token OR a
+ * cookie-hydrated user. Use this (not just the token) to decide whether to fetch
+ * personal data, so cookie-only sessions are not blocked.
+ */
+export function hasPersonalSession(): boolean {
+  return !!_personalToken || !!_personalUser;
+}
+
 function loadStoredAuth(context: AuthContextType): { token: string | null; user: User | null } {
   const { token: tk, user: uk } = getKeys(context);
   const storedToken = localStorage.getItem(tk);
@@ -87,11 +103,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // que ProtectedRoute redirija o parpadee antes de que /me resuelva.
   const [isHydratingPersonal, setIsHydratingPersonal] = useState(true);
 
-  // Keep the module-level mirror in sync so query functions outside React
-  // context can call getPersonalToken() rather than reading localStorage.
+  // Keep the module-level mirrors in sync so query functions outside React
+  // context can call getPersonalToken() / hasPersonalSession().
   useEffect(() => {
     _personalToken = tokenPersonal;
   }, [tokenPersonal]);
+  useEffect(() => {
+    _personalUser = userPersonal;
+  }, [userPersonal]);
 
   // Al montar: hidrata la sesión personal desde la cookie (o el Bearer legacy si
   // todavía hay token en localStorage). Usa `fetch` directo —no `apiFetch`— para

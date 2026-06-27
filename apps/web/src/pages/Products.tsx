@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch, useApi } from "@/lib/api";
-import { useAuth, getPersonalToken } from "@/lib/auth";
+import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { CurrencyCode } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
@@ -568,7 +568,7 @@ export default function Products() {
     queryKey: ["financial-summary"],
     queryFn: () => {
       const token = getPersonalToken();
-      if (!token) return null;
+      if (!token && !hasPersonalSession()) return null;
       return apiFetch("/api/financial-summary", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -581,7 +581,7 @@ export default function Products() {
     queryKey: ["/api/credit-score"],
     queryFn: () => {
       const token = getPersonalToken();
-      if (!token) return null;
+      if (!token && !hasPersonalSession()) return null;
       return apiFetch("/api/credit-score", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -594,7 +594,7 @@ export default function Products() {
     queryKey: ["/api/transactional-score"],
     queryFn: () => {
       const token = getPersonalToken();
-      if (!token) return null;
+      if (!token && !hasPersonalSession()) return null;
       return apiFetch("/api/transactional-score", {
         headers: { Authorization: `Bearer ${token}` },
       });

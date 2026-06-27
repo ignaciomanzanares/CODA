@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, API_URL } from "@/lib/api";
-import { useAuth, getPersonalToken } from "@/lib/auth";
+import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -174,7 +174,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
     queryKey: ["/api/transactions/parsed"],
     queryFn: async () => {
       const token = getPersonalToken();
-      if (!token) return { transactions: [], count: 0 };
+      if (!token && !hasPersonalSession()) return { transactions: [], count: 0 };
       return apiFetch("/api/transactions/parsed", { headers: { Authorization: `Bearer ${token}` } });
     },
     enabled: isAuthenticated,
@@ -279,7 +279,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
       const res = await fetch(`${apiBase}/api/transactions/${txId}/category`, {
         method: "PATCH",
         credentials: "include",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ category: newCategory }),
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);

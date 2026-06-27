@@ -8,7 +8,7 @@ import { PastelIcon } from "@/components/ui/pastel-icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { useAuth, getPersonalToken } from "@/lib/auth";
+import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
@@ -136,7 +136,7 @@ export default function Movimientos() {
     queryKey: ["/api/transactions/summary"],
     queryFn: async () => {
       const token = getPersonalToken();
-      if (!token) return null;
+      if (!token && !hasPersonalSession()) return null;
       return apiFetch("/api/transactions/summary", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -149,7 +149,7 @@ export default function Movimientos() {
     queryKey: ["financial-summary"],
     queryFn: async () => {
       const token = getPersonalToken();
-      if (!token) return null;
+      if (!token && !hasPersonalSession()) return null;
       return apiFetch("/api/financial-summary", {
         headers: { Authorization: `Bearer ${token}` },
       });
