@@ -696,6 +696,42 @@ export const scoreDocumentUploads = table('score_document_uploads', {
   uploadedAt: text('uploaded_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+/**
+ * Originales (PDF/imagen) subidos, cifrados en el blob store con TTL (#21). Esta tabla solo
+ * guarda la referencia (`blob_key`) y el vencimiento; los bytes viven en `stored_blobs` (o S3/R2)
+ * cifrados. El job de retención borra los vencidos; el cierre de cuenta los borra de inmediato.
+ */
+export const documentOriginals = table('document_originals', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  blobKey: text('blob_key').notNull(),
+  contentType: text('content_type'),
+  sizeBytes: integer('size_bytes'),
+  /** ISO timestamp; el job de retención borra cuando expira (TTL 30 días por defecto). */
+  expiresAt: text('expires_at'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+/**
+ * Resultado de cada intento de parseo de documento (#32): éxito/fallo, banco detectado, tier de
+ * detección, confianza, conteo de transacciones y mensaje de error. Sirve para (a) dar feedback
+ * claro al usuario y (b) detectar qué bancos/formatos fallan más y priorizar mejoras del parser.
+ */
+export const documentParseOutcomes = table('document_parse_outcomes', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  /** 'success' | 'failed' | 'partial' */
+  status: text('status').notNull(),
+  /** 'cartola' | 'cmf' | 'unknown' */
+  documentType: text('document_type'),
+  banco: text('banco'),
+  detectionTier: text('detection_tier'),
+  parseConfidence: real('parse_confidence'),
+  transactionCount: integer('transaction_count'),
+  errorMessage: text('error_message'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 /** Historial de scores combinados (transaccional 0–100 + crediticio 0–850) por cálculo. */
 export const userScores = table('user_scores', {
   id: text('id').primaryKey(),

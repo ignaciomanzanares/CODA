@@ -252,6 +252,19 @@ export async function processDocumentUpload(
       logger.warn({ err: ingErr, userId }, '[documentUploadService] ingesta accounts/transactions falló (no fatal)');
     }
 
+    // Registro de outcome (#32): éxito, con banco/tier/confianza/conteo para priorizar mejoras.
+    {
+      const { recordParseOutcome } = await import('./parseOutcomes.js');
+      await recordParseOutcome(userId, {
+        status: 'success',
+        documentType: 'cartola',
+        banco,
+        detectionTier: parsed.detection_tier ?? null,
+        parseConfidence: parsed.parse_confidence ?? null,
+        transactionCount: parsed.transacciones.length,
+      });
+    }
+
     return {
       step: 'done',
       documentType: 'cartola',
@@ -265,7 +278,14 @@ export async function processDocumentUpload(
     };
   } catch (e) {
     if (e instanceof ParseError) {
-      return { step: 'done', error: `${e.messageEs}` };
+      // Registro de outcome (#32): fallo, con mensaje accionable para el usuario.
+      const { recordParseOutcome, userFacingParseError } = await import('./parseOutcomes.js');
+      await recordParseOutcome(userId, {
+        status: 'failed',
+        documentType: 'cartola',
+        errorMessage: e.messageEs,
+      });
+      return { step: 'done', error: userFacingParseError() };
     }
     throw e;
   }

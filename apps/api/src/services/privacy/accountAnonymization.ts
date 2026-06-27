@@ -108,6 +108,16 @@ export async function anonymizeUser(userId: string): Promise<void> {
   await db.delete(scoreDocumentUploads).where(eq(scoreDocumentUploads.userId, userId));
   await db.delete(userScores).where(eq(userScores.userId, userId));
 
+  // Borrado inmediato de los originales (PDF/imagen) cifrados del blob store (#21): no esperar
+  // al TTL de retención cuando el usuario cierra la cuenta.
+  try {
+    const { deleteOriginalsForUser } = await import('../documents/originalStore.js');
+    const n = await deleteOriginalsForUser(userId);
+    if (n > 0) logger.info({ userId, count: n }, 'Originales del usuario borrados (cierre de cuenta)');
+  } catch (e) {
+    logger.warn({ err: e, userId }, 'No se pudieron borrar los originales del usuario (continúo con la anonimización)');
+  }
+
   // Trazabilidad NCG 502: se conserva la decisión (modelo/score), se desvincula y se borra la PII de entrada.
   await ensureAnonymousPlaceholderUser();
   await db

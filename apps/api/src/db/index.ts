@@ -3,7 +3,7 @@
 
 
 
-import { eq, and, inArray, isNull, desc, sql } from 'drizzle-orm';
+import { eq, and, inArray, isNull, isNotNull, lt, desc, sql } from 'drizzle-orm';
 import * as schema from '@coda/db/schema';
 // Re-export tables and helper schemas for consumption by other modules
 export const {
@@ -30,6 +30,8 @@ export const {
   algorithmPredictionLogs,
   documentUploads,
   scoreDocumentUploads,
+  documentOriginals,
+  documentParseOutcomes,
   userScores,
   creditScoreHistory,
   insertAccountSchema,
@@ -120,7 +122,7 @@ async function withTransaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
 }
 
 // Export only db, dialect, and all tables from schema
-export { db, dialect, withTransaction, eq, and, inArray, isNull, desc, sql };
+export { db, dialect, withTransaction, eq, and, inArray, isNull, isNotNull, lt, desc, sql };
 export * from '@coda/db/schema';
 
 export function checkDatabaseConnection(): boolean {
