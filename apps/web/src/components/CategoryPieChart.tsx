@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiFetch } from "@/lib/api";
-import { useAuth, getPersonalToken } from "@/lib/auth";
+import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
 import { ROUTES } from "@/lib/routes";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -73,7 +73,7 @@ export default function CategoryPieChart() {
     queryKey: ["/api/transactions/insights"],
     queryFn: () => {
       const token = getPersonalToken();
-      if (!token) return Promise.resolve({ spendingByCategory: [], totalEgresos: 0, totalIngresos: 0 });
+      if (!token && !hasPersonalSession()) return Promise.resolve({ spendingByCategory: [], totalEgresos: 0, totalIngresos: 0 });
       return apiFetch("/api/transactions/insights", { headers: { Authorization: `Bearer ${token}` } });
     },
     enabled: isAuthenticated,

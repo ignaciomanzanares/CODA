@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { useAuth, getPersonalToken } from "@/lib/auth";
+import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
@@ -49,7 +49,7 @@ export default function MonthlyComparisonCard() {
     queryKey: ["/api/transactions/monthly-comparison"],
     queryFn: () => {
       const token = getPersonalToken();
-      if (!token) return Promise.resolve({ months: [], comparison: [] });
+      if (!token && !hasPersonalSession()) return Promise.resolve({ months: [], comparison: [] });
       return apiFetch("/api/transactions/monthly-comparison", {
         headers: { Authorization: `Bearer ${token}` },
       });
