@@ -224,7 +224,10 @@ export class PDModelRegistry {
    */
   async loadProductionFromRegistry(modelType = "xgb_pd"): Promise<boolean> {
     try {
-      const { db, algorithmModelVersions, eq, and } = await import("../db/index.js");
+      const { db, dialect, algorithmModelVersions, eq, and } = await import("../db/index.js");
+      // El blob store solo existe en Postgres (producción). En SQLite (dev/test) no hay
+      // artefactos remotos — usar siempre artifacts/current local.
+      if (dialect !== 'postgres') return false;
       const rows = await db
         .select()
         .from(algorithmModelVersions)

@@ -1320,7 +1320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document upload: Import enhanced middleware with validation, OCR support
-  const { documentUpload } = await import("./middleware/uploadMiddleware.js");
+  const { documentUpload, handleMulterError } = await import("./middleware/uploadMiddleware.js");
   app.post(
     "/api/documents/upload",
     authenticate,
@@ -1328,8 +1328,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     (req: Request, res: Response, next: NextFunction) => {
       documentUpload.single("document")(req, res, (err: unknown) => {
         if (err) {
-          // Import multer error handler
-          const { handleMulterError } = require('./middleware/uploadMiddleware.js');
           const errorMessage = handleMulterError(err);
           return res.status(400).json({ 
             message: errorMessage,
