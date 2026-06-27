@@ -164,6 +164,22 @@ app.get("/metrics", (_req: Request, res: Response) => {
       .then(({ PDModelRegistry }) => PDModelRegistry.instance().loadProductionFromRegistry())
       .catch((err) => logger.warn({ err }, "loadProductionFromRegistry (boot) falló; usando modelo local"));
 
+    // Job de retención (#21): borra los originales (PDF/imagen) vencidos del blob store. Corre al
+    // boot y luego cada 24h. Desactivado en test. RETENTION_JOB_ENABLED=false para apagarlo.
+    if (process.env.NODE_ENV !== "test" && process.env.RETENTION_JOB_ENABLED !== "false") {
+      const runRetention = async () => {
+        try {
+          const { purgeExpiredOriginals } = await import("./services/documents/originalStore.js");
+          await purgeExpiredOriginals();
+        } catch (err) {
+          logger.warn({ err }, "[retention] purgeExpiredOriginals falló");
+        }
+      };
+      void runRetention();
+      const retentionTimer = setInterval(runRetention, 24 * 60 * 60 * 1000);
+      retentionTimer.unref?.();
+    }
+
     logger.info("✅ Application initialization completed successfully");
   } catch (error) {
     logger.error({ error }, "❌ Error during application initialization");

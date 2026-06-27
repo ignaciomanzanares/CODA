@@ -1389,6 +1389,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
         }
         
+        // 3.5 Persistir el ORIGINAL cifrado con TTL (#21). Best-effort: si falla, el upload sigue.
+        try {
+          const { storeOriginal } = await import("./services/documents/originalStore.js");
+          await storeOriginal(userId, file.buffer, {
+            contentType: file.mimetype,
+            filename: file.originalname,
+          });
+        } catch (origErr) {
+          logger.warn({ err: origErr, userId }, "[Upload] no se pudo persistir el original (no fatal)");
+        }
+
         // 4. Process document — en cola (BullMQ) si hay Redis configurado, para no bloquear el
         // request HTTP con OCR/parseo PDF + scoring; si no, igual que antes (síncrono).
         const { documentQueue } = await import("./queues/documentQueue.js");
