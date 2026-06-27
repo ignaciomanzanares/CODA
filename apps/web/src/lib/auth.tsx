@@ -82,13 +82,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokenPersonal, setTokenPersonal] = useState<string | null>(() => loadStoredAuth('personal').token);
   const [userEmpresas, setUserEmpresas] = useState<User | null>(() => loadStoredAuth('empresas').user);
   const [tokenEmpresas, setTokenEmpresas] = useState<string | null>(() => loadStoredAuth('empresas').token);
-  const isLoading = false;
+  // C1 cookie-primary: la sesión personal se hidrata desde /api/auth/me usando la
+  // cookie httpOnly (con Bearer legacy como fallback). `isHydratingPersonal` evita
+  // que ProtectedRoute redirija o parpadee antes de que /me resuelva.
+  const [isHydratingPersonal, setIsHydratingPersonal] = useState(true);
 
   // Keep the module-level mirror in sync so query functions outside React
   // context can call getPersonalToken() rather than reading localStorage.
   useEffect(() => {
     _personalToken = tokenPersonal;
   }, [tokenPersonal]);
+
+  // Al montar: hidrata la sesión personal desde la cookie (o el Bearer legacy si
+  // todavía hay token en localStorage). Usa `fetch` directo —no `apiFetch`— para
+  // NO disparar el evento de sesión-expirada en visitantes anónimos: un 401 aquí
+  // solo significa "no autenticado", no "tu sesión venció".
+  useEffect(() => {
+    let cancelled = false;
+    const apiBase = (
+      (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? ""
+    ).replace(/\/$/, "");
+    const legacyToken = localStorage.getItem(TOKEN_KEY);
+    (async () => {
+      try {
+        const res = await fetch(`${apiBase}/api/auth/me`, {
+          method: "GET",
+          credentials: "include",
+          headers: legacyToken ? { Authorization: `Bearer ${legacyToken}` } : undefined,
+        });
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json().catch(() => null);
+          if (data?.user) {
+            setUserPersonal(data.user);
+            // Refresca el user cacheado; la sesión ya no depende del token.
+            try {
+              localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+            } catch {
+              /* ignore quota/availability */
+            }
+          }
+        } else if (res.status === 401) {
+          // Sin sesión válida (ni cookie ni Bearer): limpiar SOLO el contexto personal.
+          // No tocar jwt_token_empresas / user_data_empresas.
+          setUserPersonal(null);
+          setTokenPersonal(null);
+          localStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem(USER_KEY);
+        }
+        // Otros estados (red/5xx): conservar el estado cacheado (no romper sesión local).
+      } catch {
+        // Error de red/transitorio: conservar cache; no desloguear agresivamente.
+      } finally {
+        if (!cancelled) setIsHydratingPersonal(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const login = async (
     context: AuthContextType,
@@ -154,10 +206,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = (context: AuthContextType) => {
     const token = context === 'empresas' ? tokenEmpresas : tokenPersonal;
-    if (token) {
+    // Personal: llamar SIEMPRE al backend para que limpie la cookie de sesión
+    // (apiFetch ya manda credentials:include); el Bearer se adjunta solo si existe.
+    // Empresas: comportamiento sin cambios (solo si hay token Bearer).
+    if (context === 'personal' || token) {
       apiFetch('/api/auth/logout', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       }).catch(() => {});
     }
 
@@ -184,7 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tokenPersonal,
         userEmpresas,
         tokenEmpresas,
-        isLoading,
+        isLoading: isHydratingPersonal,
         login,
         register,
         logout,
@@ -203,12 +258,15 @@ export function useAuth(context: AuthContextType = 'personal') {
   }
   const user = context === 'empresas' ? ctx.userEmpresas : ctx.userPersonal;
   const token = context === 'empresas' ? ctx.tokenEmpresas : ctx.tokenPersonal;
-  const isAuthenticated = !!(user && token);
+  // C1: personal es cookie-primary → basta con `user` (hidratado desde /me),
+  // ya no exige token local. Empresas queda igual (token-based) hasta su propia fase.
+  const isAuthenticated = context === 'empresas' ? !!(user && token) : !!user;
   return {
     user,
     token,
     isAuthenticated,
-    isLoading: ctx.isLoading,
+    // Solo personal espera la hidratación de /me; empresas no cambia (sin loading).
+    isLoading: context === 'empresas' ? false : ctx.isLoading,
     login: ctx.login,
     register: ctx.register,
     logout: ctx.logout,
