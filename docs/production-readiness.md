@@ -41,6 +41,53 @@ documento.
 | #13 | Frontend productivo usa `https://api.codafinance.cl` |
 | #14 | Requests del frontend al API incluyen credentials |
 | #15 | Auth cookie activada en produccion y validada con smoke |
+| #16 | Documentacion del estado de auth cookie en produccion |
+| #17 | Fase C1: frontend personal hidrata sesion desde la cookie (`/api/auth/me`) |
+
+## Auth: separacion persona / empresas
+
+Estado actual (Fase C1 validada en produccion, merge `d70cbc5`):
+- Auth dual activo: cookie httpOnly `coda_session` + `Authorization: Bearer` legacy.
+- `coda_session`: `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`, sin `Domain`
+  (host-only para `api.codafinance.cl`).
+- El frontend **personal** hidrata la sesion desde `GET /api/auth/me` (cookie-first);
+  `/me` cookie-only sin `Authorization` responde 200.
+- Bearer + `localStorage` + token JSON siguen vigentes por compatibilidad;
+  login/register siguen devolviendo `token` + `Set-Cookie`.
+
+Decision de arquitectura:
+- El flujo **personal** avanza a cookie-first (C2/C3).
+- El flujo **empresas** queda temporalmente token-based con `jwt_token_empresas`
+  (Bearer/`localStorage`). No se migra a cookie todavia.
+
+Razonamiento:
+- Hoy existe **una sola** cookie `coda_session`, host-only para `api.codafinance.cl`.
+  Una cookie unica no puede sostener dos sesiones independientes (persona y empresas)
+  a la vez; el modelo actual las separa con `jwt_token` y `jwt_token_empresas`.
+- Migrar empresas a cookie requeriria un diseno separado, por ejemplo: (a) una cookie
+  con **nombre distinto** por contexto; (b) un **contexto unico** de sesion; o
+  (c) **mantener Bearer** para empresas. Esa decision queda fuera de C2/C3 personal.
+
+Guardrails para los proximos PRs:
+- **C2 personal** puede dejar de guardar `jwt_token` (personal) en `localStorage`;
+  la sesion se hidrata desde `/me`.
+- **C2 personal NO** debe tocar `jwt_token_empresas`, `user_data_empresas` ni
+  `empresasApi`.
+- **C3 personal** puede remover los headers `Authorization: Bearer` de los requests
+  **personales** al API.
+- **C3 NO** debe tocar empresas.
+- **CSRF** debe disenarse **antes** de remover Bearer de mutaciones sensibles (el
+  header Bearer actua hoy como defensa CSRF implicita; con `SameSite=Lax` + same-site
+  el riesgo es bajo pero no nulo). Ver `COOKIE_CSRF_ENABLED`.
+- El **backend** debe seguir aceptando `Authorization: Bearer` por
+  compatibilidad/rollback (clientes externos, CLI, empresas).
+
+Rollback:
+- Cambios frontend C2/C3: revertir el PR + redeploy Vercel (vuelve a sesion
+  `localStorage`/Bearer).
+- Cookie backend global: `AUTH_COOKIE_ENABLED=false` + redeploy Render, solo como
+  rollback backend amplio. Si el frontend ya es cookie-only (post-C3), apagar la
+  cookie romperia sesiones; por eso C3 solo despues de validar C1/C2 en produccion.
 
 ## Variables criticas de Render
 
@@ -203,8 +250,12 @@ curl -i "$API_URL/metrics?token=test"
   token JSON siguen vigentes. Rollback: `AUTH_COOKIE_ENABLED=false` y redeploy.
 - [x] Dominio API propio `api.codafinance.cl` y `credentials: "include"` en los
   requests del frontend al API.
-- [ ] Fase C: retirar localStorage/token JSON y completar proteccion CSRF
-  (`COOKIE_CSRF_ENABLED`) antes de depender solo de cookies. No iniciada.
+- [x] Fase C1 (cookie-primary personal): el frontend personal hidrata la sesion
+  desde `/api/auth/me` (cookie-first) con Bearer/`localStorage` como fallback.
+  Validada en produccion (merge `d70cbc5`). Ver "Auth: separacion persona / empresas".
+- [ ] Fase C2/C3 personal: dejar de guardar/enviar el token personal. Guardrails:
+  no tocar `jwt_token_empresas`/`empresasApi`; disenar CSRF antes de remover Bearer
+  de mutaciones; el backend mantiene Bearer por compatibilidad. No iniciada.
 - [ ] Activar metricas solo si existe consumidor, token fuerte, rotacion y
   control de acceso acordados.
 - [ ] Activar Sentry solo despues de validar redaction, muestreo, retencion y
