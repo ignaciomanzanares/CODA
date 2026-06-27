@@ -70,9 +70,28 @@ const getApiKeyFor = (provider: AIProvider): string | undefined => {
 // Cadena ordenada de proveedores que tienen clave configurada (gratis primero).
 // Permite tolerancia a fallos: si Groq rate-limitea (común en su tier gratis),
 // caemos a Gemini, luego Anthropic, luego OpenAI antes de fallar.
-const getProviderChain = (): AIProvider[] => {
+/**
+ * Whitelist de proveedores autorizados a recibir datos (#6): si `AI_AUTHORIZED_PROVIDERS` está
+ * seteada (CSV, p.ej. "anthropic,openai"), solo esos proveedores entran a la cadena —los demás se
+ * excluyen aunque tengan API key. Sin la variable, no se restringe (compatibilidad). Pensado para
+ * limitar el envío de datos a proveedores con DPA firmado.
+ */
+const getAuthorizedProviders = (): Set<AIProvider> | null => {
+  const raw = process.env.AI_AUTHORIZED_PROVIDERS?.trim();
+  if (!raw) return null;
+  const allowed = raw
+    .split(',')
+    .map((p) => p.trim().toLowerCase())
+    .filter(Boolean) as AIProvider[];
+  return new Set(allowed);
+};
+
+export const getProviderChain = (): AIProvider[] => {
   const order: AIProvider[] = ['groq', 'gemini', 'anthropic', 'openai'];
-  return order.filter((p) => !!getApiKeyFor(p));
+  const authorized = getAuthorizedProviders();
+  return order
+    .filter((p) => !!getApiKeyFor(p))
+    .filter((p) => !authorized || authorized.has(p));
 };
 
 const GEMINI_MODEL = 'gemini-2.0-flash';
@@ -122,8 +141,41 @@ function fmtClp(n: number): string {
   return '$' + Math.round(n).toLocaleString('es-CL');
 }
 
-export function buildContextPrompt(context: FinancialContext): string {
+/**
+ * Anonimización de montos para la IA (#6): en vez del monto exacto, devuelve el RANGO al que
+ * pertenece. Reduce lo que se filtra a proveedores externos manteniendo señal suficiente para el
+ * consejo financiero ("estás en el rango $1M–$2M de ingresos"). Los límites son fijos y de
+ * magnitud creciente; el signo se conserva (deudas/cargos negativos).
+ */
+const CLP_BUCKETS = [
+  0, 100_000, 250_000, 500_000, 1_000_000, 2_000_000, 5_000_000,
+  10_000_000, 20_000_000, 50_000_000, 100_000_000, 200_000_000, 500_000_000,
+];
+function fmtClpRange(n: number): string {
+  const a = Math.abs(Math.round(n));
+  const sign = n < 0 ? '-' : '';
+  for (let i = 0; i < CLP_BUCKETS.length - 1; i++) {
+    if (a >= CLP_BUCKETS[i] && a < CLP_BUCKETS[i + 1]) {
+      return `${sign}${fmtClp(CLP_BUCKETS[i])}–${fmtClp(CLP_BUCKETS[i + 1])}`;
+    }
+  }
+  return `${sign}más de ${fmtClp(CLP_BUCKETS[CLP_BUCKETS.length - 1])}`;
+}
+
+/** Anonimizar el payload a la IA está activo por defecto (#6); apagar con AI_ANONYMIZE_PAYLOAD=false. */
+function aiAnonymizeEnabled(): boolean {
+  return process.env.AI_ANONYMIZE_PAYLOAD !== 'false';
+}
+
+export function buildContextPrompt(
+  context: FinancialContext,
+  opts?: { anonymize?: boolean },
+): string {
   const parts: string[] = [];
+  // #6: por defecto se anonimiza el payload antes de enviarlo a cualquier proveedor de IA —
+  // rangos en vez de montos exactos, y sin las descripciones (glosas) de las transacciones.
+  const anonymize = opts?.anonymize ?? aiAnonymizeEnabled();
+  const money = (n: number): string => (anonymize ? fmtClpRange(n) : fmtClp(n));
 
   if (context.userSummary && context.userSummary.trim().length > 0) {
     parts.push('## Lo que recuerdas del usuario (conversaciones pasadas)');
@@ -132,32 +184,35 @@ export function buildContextPrompt(context: FinancialContext): string {
   }
 
   parts.push('## Datos financieros del usuario (últimos ~30 días)');
+  if (anonymize) {
+    parts.push('_(Montos en rangos por privacidad; usa los rangos para tu consejo.)_');
+  }
 
   if (context.accountSummary) {
     const s = context.accountSummary;
     parts.push('\n### Cuentas');
-    if (s.checking) parts.push(`- Cuenta corriente/vista: ${fmtClp(s.checking)}`);
-    if (s.savings) parts.push(`- Ahorro: ${fmtClp(s.savings)}`);
-    if (s.credit) parts.push(`- Deuda tarjetas crédito: ${fmtClp(s.credit)}`);
-    if (s.investment) parts.push(`- Inversiones: ${fmtClp(s.investment)}`);
+    if (s.checking) parts.push(`- Cuenta corriente/vista: ${money(s.checking)}`);
+    if (s.savings) parts.push(`- Ahorro: ${money(s.savings)}`);
+    if (s.credit) parts.push(`- Deuda tarjetas crédito: ${money(s.credit)}`);
+    if (s.investment) parts.push(`- Inversiones: ${money(s.investment)}`);
   }
 
   if (context.totalBalance) {
-    parts.push(`- Balance total: ${fmtClp(context.totalBalance)}`);
+    parts.push(`- Balance total: ${money(context.totalBalance)}`);
   }
 
   parts.push('\n### Flujo mensual');
   if (context.monthlyIncome) {
-    parts.push(`- Ingresos mensuales: ${fmtClp(context.monthlyIncome)}`);
+    parts.push(`- Ingresos mensuales: ${money(context.monthlyIncome)}`);
   }
   if (context.monthlyExpenses) {
-    parts.push(`- Gastos mensuales: ${fmtClp(context.monthlyExpenses)}`);
+    parts.push(`- Gastos mensuales: ${money(context.monthlyExpenses)}`);
   }
   if (context.savingsRate != null) {
     parts.push(`- Tasa de ahorro: ${context.savingsRate}%`);
   }
   if (context.netWorth) {
-    parts.push(`- Patrimonio neto: ${fmtClp(context.netWorth)}`);
+    parts.push(`- Patrimonio neto: ${money(context.netWorth)}`);
   }
   if (context.creditScore) {
     parts.push(`- Score crediticio CODA: ${context.creditScore}/850`);
@@ -167,7 +222,7 @@ export function buildContextPrompt(context: FinancialContext): string {
     parts.push('\n### Principales categorías de gasto');
     for (const cat of context.topSpendingCategories.slice(0, 5)) {
       if (!cat) continue;
-      parts.push(`- ${cat.name ?? 'Otro'}: ${fmtClp(cat.amount)}/mes`);
+      parts.push(`- ${cat.name ?? 'Otro'}: ${money(cat.amount)}/mes`);
     }
   }
 
@@ -175,7 +230,7 @@ export function buildContextPrompt(context: FinancialContext): string {
     parts.push('\n### Deudas');
     for (const d of context.debts) {
       const rate = d.rate ? ` (tasa ${d.rate}%)` : '';
-      parts.push(`- ${d.type}: ${fmtClp(d.balance)}${rate}`);
+      parts.push(`- ${d.type}: ${money(d.balance)}${rate}`);
     }
   }
 
@@ -183,7 +238,9 @@ export function buildContextPrompt(context: FinancialContext): string {
     parts.push('\n### Últimas transacciones');
     for (const t of context.recentTransactions.slice(0, 8)) {
       const dateStr = t.date ? ` (${t.date})` : '';
-      parts.push(`- ${t.description}: ${fmtClp(t.amount)} [${t.category}]${dateStr}`);
+      // #6: en modo anónimo se omite la glosa (`description`) — solo categoría + rango.
+      const label = anonymize ? (t.category || 'movimiento') : t.description;
+      parts.push(`- ${label}: ${money(t.amount)}${anonymize ? '' : ` [${t.category}]`}${dateStr}`);
     }
   }
 
