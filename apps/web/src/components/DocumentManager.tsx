@@ -10,7 +10,6 @@ import { useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserDocuments } from "@/hooks/useUserDocuments";
 import { API_URL } from "@/lib/api";
-import { getPersonalToken } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -73,12 +72,6 @@ export default function DocumentManager({
   const [deletingAll, setDeletingAll] = useState(false);
 
   const apiBase = (API_URL || "").replace(/\/$/, "");
-  const authHeaders = (): Record<string, string> => {
-    // Bearer solo si hay token; si no, va cookie-only (credentials:include).
-    const t = getPersonalToken();
-    return t ? { Authorization: `Bearer ${t}` } : {};
-  };
-
   const deleteOne = useCallback(
     async (id: string) => {
       setDeletingId(id);
@@ -86,7 +79,6 @@ export default function DocumentManager({
         const res = await fetch(`${apiBase}/api/user/documents/${id}`, {
           method: "DELETE",
           credentials: "include",
-          headers: authHeaders(),
         });
         if (!res.ok) throw new Error("delete failed");
         await queryClient.invalidateQueries();
@@ -106,7 +98,6 @@ export default function DocumentManager({
       const res = await fetch(`${apiBase}/api/documents`, {
         method: "DELETE",
         credentials: "include",
-        headers: authHeaders(),
       });
       if (!res.ok) throw new Error("delete all failed");
       await queryClient.invalidateQueries();

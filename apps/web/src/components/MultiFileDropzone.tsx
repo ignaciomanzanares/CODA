@@ -8,7 +8,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL } from "@/lib/api";
-import { getPersonalToken } from "@/lib/auth";
 import { Upload, FileText, CheckCircle2, XCircle, Loader2, X } from "lucide-react";
 
 interface FileStatus {
@@ -61,7 +60,6 @@ export default function MultiFileDropzone({ onDone, className }: MultiFileDropzo
       setFiles(prev => prev.map(f => f.file === fs.file ? { ...f, status: "uploading" } : f));
 
       try {
-        const token = getPersonalToken() ?? "";
         const formData = new FormData();
         formData.append("document", fs.file);
 
@@ -69,7 +67,6 @@ export default function MultiFileDropzone({ onDone, className }: MultiFileDropzo
         const res = await fetch(`${apiBase}/api/documents/upload`, {
           method: "POST",
           credentials: "include",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: formData,
         });
 

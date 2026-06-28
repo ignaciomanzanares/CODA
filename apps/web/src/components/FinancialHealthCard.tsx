@@ -66,7 +66,7 @@ export default function FinancialHealthCard() {
     queryFn: () => {
       const token = getPersonalToken();
       if (!token && !hasPersonalSession()) return Promise.resolve({ hasData: false } as FinancialHealthData);
-      return apiFetch("/api/financial-health", { headers: { Authorization: `Bearer ${token}` } });
+      return apiFetch("/api/financial-health");
     },
     enabled: isAuthenticated,
     staleTime: 60_000,

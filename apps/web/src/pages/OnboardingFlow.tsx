@@ -18,7 +18,7 @@ import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { ROUTES } from "@/lib/routes";
-import { useAuth, getPersonalToken } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import { mapUserFacingApiError } from "@/lib/userFacingErrors";
 import { cn } from "@/lib/utils";
@@ -31,7 +31,7 @@ import {
 async function post(url: string, body?: unknown) {
   return apiFetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getPersonalToken()}` },
+    headers: { "Content-Type": "application/json" },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
 }

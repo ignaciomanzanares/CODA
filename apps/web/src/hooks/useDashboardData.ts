@@ -124,7 +124,7 @@ async function fetchJson<T>(path: string): Promise<T | null> {
   const token = getPersonalToken();
   if (!token && !hasPersonalSession()) return null;
   try {
-    return await apiFetch(path, { headers: { Authorization: `Bearer ${token}` } });
+    return await apiFetch(path);
   } catch {
     return null;
   }

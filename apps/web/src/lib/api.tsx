@@ -145,13 +145,12 @@ export function useApi(): ApiClient {
     data?: unknown,
     options?: RequestInit
   ): Promise<T> => {
-    // Sesión personal cookie-first: basta con estar autenticado (cookie + /me);
-    // ya no exigimos el token local. El Bearer se adjunta abajo solo si existe.
+    // Personal usa cookie auth. Empresas conserva su Bearer legacy.
     if (!isAuthenticated) {
       throw new Error("User not authenticated");
     }
 
-    // No propagar `headers`/`body`/`method` en el spread final: podrían pisar Authorization.
+    // No propagar `headers`/`body`/`method` en el spread final.
     const { headers: optsHeaders, body: optsBody, method: _ignoredMethod, ...restOptions } = options ?? {};
 
     let extraHeaders: Record<string, string> = {};
@@ -167,8 +166,7 @@ export function useApi(): ApiClient {
     const headers: Record<string, string> = {
       ...(data !== undefined ? { "Content-Type": "application/json" } : {}),
       ...extraHeaders,
-      // Bearer solo si hay token; si no, la sesión va cookie-only (credentials:include).
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(context === "empresas" && token ? { Authorization: `Bearer ${token}` } : {}),
     };
 
     // Prepend API_BASE_URL if url starts with '/api'
@@ -369,7 +367,7 @@ export function useApi(): ApiClient {
     const res = await fetch(fullUrl, {
       method: "POST",
       credentials: "include",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: context === "empresas" && token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
     });
     const json = await res.json().catch(() => ({}));
@@ -509,7 +507,7 @@ export function useApi(): ApiClient {
     const res = await fetch(fullUrl, {
       method: "POST",
       credentials: "include",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: context === "empresas" && token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
     });
     const json = await res.json().catch(() => ({}));
@@ -528,7 +526,7 @@ export function useApi(): ApiClient {
     const res = await fetch(fullUrl, {
       method: "POST",
       credentials: "include",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: context === "empresas" && token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
     });
     const json = await res.json().catch(() => ({}));

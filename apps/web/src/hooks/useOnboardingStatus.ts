@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { useAuth, getPersonalToken } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { FEATURES } from "@/config/features";
 
 export interface OnboardingStatus {
@@ -18,12 +18,7 @@ export function useOnboardingStatus() {
   const { isAuthenticated } = useAuth("personal");
   const { data, isLoading, refetch } = useQuery<OnboardingStatus>({
     queryKey: ["/api/onboarding/status"],
-    queryFn: async () => {
-      const token = getPersonalToken();
-      return apiFetch("/api/onboarding/status", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    },
+    queryFn: async () => apiFetch("/api/onboarding/status"),
     enabled: FEATURES.onboarding && isAuthenticated,
     staleTime: 60_000,
   });

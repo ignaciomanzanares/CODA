@@ -569,9 +569,7 @@ export default function Products() {
     queryFn: () => {
       const token = getPersonalToken();
       if (!token && !hasPersonalSession()) return null;
-      return apiFetch("/api/financial-summary", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch("/api/financial-summary");
     },
     enabled: isAuthenticated && !authLoading,
     staleTime: 30_000,
@@ -582,9 +580,7 @@ export default function Products() {
     queryFn: () => {
       const token = getPersonalToken();
       if (!token && !hasPersonalSession()) return null;
-      return apiFetch("/api/credit-score", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch("/api/credit-score");
     },
     enabled: isAuthenticated && !authLoading,
     staleTime: 60_000,
@@ -595,9 +591,7 @@ export default function Products() {
     queryFn: () => {
       const token = getPersonalToken();
       if (!token && !hasPersonalSession()) return null;
-      return apiFetch("/api/transactional-score", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch("/api/transactional-score");
     },
     enabled: isAuthenticated && !authLoading,
     staleTime: 60_000,
