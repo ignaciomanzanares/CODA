@@ -17,6 +17,7 @@ import {
   handleLogin,
   handleLoginWithDB,
   handleLogout,
+  handleDeleteAccount,
   handleMe,
   handleRegister,
   handleVerify2FA,
@@ -3696,22 +3697,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/profile/account", authenticate, authLimiter, async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const userId = getUserIdFromAuth(req);
-      logger.info({ userId }, 'Received request to delete account');
-
-      // First, delete user data from our application's database
-      await storage.deleteUserData(userId);
-      logger.info({ userId }, 'Database cleanup complete');
-
-      // Account deleted successfully from local database
-      res.json({ message: "Account deleted successfully" });
-    } catch (error) {
-      // Let the central error handler deal with it
-      next(error); 
-    }
-  });
+  app.delete("/api/profile/account", authenticate, authLimiter, handleDeleteAccount);
 
   app.get("/api/profile/mfa-status", authenticate, async (req: Request, res: Response) => {
     try {

@@ -6,6 +6,8 @@ import {
   handleRegister,
   handleVerify2FA,
   handleLogout,
+  handleDeleteAccount,
+  ensureUserForToken,
   generateToken,
   hashPassword,
   storeOTP,
@@ -279,6 +281,30 @@ describe("authenticate reads cookie and Bearer", () => {
     expect(req.user?.userId).toBe(user.id);
   });
 
+  it("valid JWT for a missing user → 401 and never recreates the account", async () => {
+    process.env.AUTH_COOKIE_ENABLED = "true";
+    const userId = uid("deleted");
+    const email = uid("deleted") + "@coda.test";
+    const token = generateToken({ userId, email, name: "Deleted User", role: "persona" });
+
+    const { res, nextCalled } = await runAuth(makeReq({ cookies: { [COOKIE]: token } }));
+
+    expect(nextCalled).toBe(false);
+    expect(res.statusCode).toBe(401);
+    expect(res.cleared.some((c: any) => c.name === COOKIE)).toBe(true);
+    expect(await storage.getUserByEmail(email)).toBeUndefined();
+  });
+
+  it("ensureUserForToken does not auto-create a generic migration user", async () => {
+    const userId = uid("missing-sync");
+    const email = uid("missing-sync") + "@coda.test";
+
+    await expect(
+      ensureUserForToken({ userId, email, name: "Missing Sync", role: "persona" })
+    ).resolves.toBeNull();
+    expect(await storage.getUserByEmail(email)).toBeUndefined();
+  });
+
   it("flag ON: invalid Bearer + valid cookie → 401 (Bearer strict priority, no fallback)", async () => {
     process.env.AUTH_COOKIE_ENABLED = "true";
     const { token } = await tokenFor("on-pri");
@@ -324,5 +350,41 @@ describe("authenticate reads cookie and Bearer", () => {
     expect((await runAuth(makeReq({ query: { token } }))).nextCalled).toBe(false);
     process.env.AUTH_COOKIE_ENABLED = "true";
     expect((await runAuth(makeReq({ query: { token } }))).nextCalled).toBe(false);
+  });
+
+  it("delete account revokes cookie, clears it, and blocks in-flight/old JWT recreation", async () => {
+    process.env.AUTH_COOKIE_ENABLED = "true";
+    const email = uid("delete-flow") + "@coda.test";
+    const user = await seedUser(email, "Pass1234!");
+    const currentToken = generateToken({ userId: user.id, email, name: "Current", role: "persona" });
+    const otherToken = generateToken({ userId: user.id, email, name: "Other device", role: "persona" });
+
+    const deleteReq = makeReq({ cookies: { [COOKIE]: currentToken } });
+    const before = await runAuth(deleteReq);
+    expect(before.nextCalled).toBe(true);
+
+    const deleteRes = makeRes();
+    let deleteError: unknown;
+    await handleDeleteAccount(before.req, deleteRes, (error?: unknown) => {
+      deleteError = error;
+    });
+
+    expect(deleteError).toBeUndefined();
+    expect(deleteRes.statusCode).toBe(200);
+    expect(deleteRes.body?.message).toBe("Account deleted successfully");
+    expect(deleteRes.cleared.some((c: any) => c.name === COOKIE)).toBe(true);
+    expect(await storage.getUser(user.id)).toBeUndefined();
+
+    const reusedCookie = await runAuth(makeReq({ cookies: { [COOKIE]: currentToken } }));
+    expect(reusedCookie.nextCalled).toBe(false);
+    expect(reusedCookie.res.statusCode).toBe(401);
+
+    // Simulates another device or a request already queued with a distinct valid JWT.
+    const backgroundRequest = await runAuth(
+      makeReq({ headers: { authorization: `Bearer ${otherToken}` } })
+    );
+    expect(backgroundRequest.nextCalled).toBe(false);
+    expect(backgroundRequest.res.statusCode).toBe(401);
+    expect(await storage.getUserByEmail(email)).toBeUndefined();
   });
 });

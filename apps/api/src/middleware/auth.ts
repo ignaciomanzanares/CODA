@@ -41,6 +41,18 @@ export interface AuthenticatedRequest extends Request {
 
 // Token blacklist for logout — in-memory fast path (backs up DB check below)
 const tokenBlacklist = new Set<string>();
+const TOKEN_BLACKLIST_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
+function scheduleBlacklistRemoval(token: string, remainingMs = TOKEN_BLACKLIST_TTL_MS): void {
+  const delay = Math.min(remainingMs, MAX_TIMEOUT_MS);
+  const timer = setTimeout(() => {
+    const nextRemaining = remainingMs - delay;
+    if (nextRemaining > 0) scheduleBlacklistRemoval(token, nextRemaining);
+    else tokenBlacklist.delete(token);
+  }, delay);
+  timer.unref?.();
+}
 
 // 2FA OTP storage.
 // Primary store is Redis (TTL nativo) para que un código generado en una instancia se valide
@@ -334,7 +346,7 @@ export function verifyToken(token: string): TokenPayload | null {
  */
 export function invalidateToken(token: string, userId?: string): void {
   tokenBlacklist.add(token);
-  setTimeout(() => tokenBlacklist.delete(token), 30 * 24 * 60 * 60 * 1000);
+  scheduleBlacklistRemoval(token);
 
   // Persist logout timestamp to DB — any token with iat < this value is rejected
   // even after a server restart, covering all devices the user is logged into.
@@ -363,6 +375,7 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
     // 401, SIN caer a la cookie. El fallback a cookie (si AUTH_COOKIE_ENABLED) solo
     // ocurre cuando NO hay header Authorization. Un Bearer inválido también es 401.
     let token: string | undefined;
+    let authenticatedWithCookie = false;
     if (typeof authHeader === 'string' && authHeader.length > 0) {
       if (!authHeader.startsWith('Bearer ')) {
         return res.status(401).json({
@@ -373,6 +386,7 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
       token = authHeader.substring(7);
     } else {
       token = getTokenFromCookie(req);
+      authenticatedWithCookie = !!token;
     }
 
     if (!token) {
@@ -398,6 +412,17 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
       .from(users)
       .where(eq(users.id, payload.userId))
       .limit(1);
+
+    // A valid JWT is not enough: the backing account must still exist. Without
+    // this check, a stale token could reach ensureUserForToken and recreate a
+    // user that had just deleted their account.
+    if (!userRow) {
+      if (authenticatedWithCookie) clearAuthCookie(res);
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Account no longer exists. Please log in again.',
+      });
+    }
 
     if (userRow?.tokenInvalidatedAt) {
       const invalidatedAtMs = new Date(userRow.tokenInvalidatedAt).getTime();
@@ -507,17 +532,10 @@ export async function handleLogin(req: Request, res: Response) {
  * Logout handler - invalidates the current token
  */
 export async function handleLogout(req: AuthenticatedRequest, res: Response) {
-  const authHeader = req.headers.authorization;
-
   // Obtiene el token con el que se autenticó la sesión — venga de Bearer o de la
   // cookie httpOnly — y lo invalida (blacklist + tokenInvalidatedAt), igual que una
   // sesión Bearer. Así el JWT dentro de la cookie no se puede reutilizar tras logout.
-  let token: string | undefined;
-  if (authHeader?.startsWith('Bearer ')) {
-    token = authHeader.substring(7);
-  } else {
-    token = getTokenFromCookie(req);
-  }
+  const token = getAuthenticatedToken(req);
   if (token) {
     invalidateToken(token, req.user?.userId);
   }
@@ -531,6 +549,43 @@ export async function handleLogout(req: AuthenticatedRequest, res: Response) {
 
   clearAuthCookie(res);
   res.json({ success: true, message: 'Logged out successfully' });
+}
+
+function getAuthenticatedToken(req: AuthenticatedRequest): string | undefined {
+  const authHeader = req.headers.authorization;
+  return authHeader?.startsWith('Bearer ')
+    ? authHeader.substring(7)
+    : getTokenFromCookie(req);
+}
+
+/**
+ * Permanently delete the authenticated account and revoke the current session
+ * before removing the user row. authenticate also rejects any other still-valid
+ * JWT once its backing user no longer exists.
+ */
+export async function handleDeleteAccount(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized', message: 'Not authenticated' });
+    }
+
+    const token = getAuthenticatedToken(req);
+    if (token) invalidateToken(token, userId);
+
+    logger.info({ userId }, 'Received request to delete account');
+    await storage.deleteUserData(userId);
+    logger.info({ userId }, 'Database cleanup complete');
+
+    clearAuthCookie(res);
+    return res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    return next(error);
+  }
 }
 
 /**
@@ -724,9 +779,10 @@ export async function getOrCreateDemoUser(email: string): Promise<{ id: string; 
 /**
  * Resuelve el `users.id` efectivo para el JWT (FK en financial_goals, trazabilidad, etc.).
  *
- * - BD nueva (p. ej. Neon vacía): el JWT sigue siendo válido pero no hay fila → **creamos** una fila mínima.
  * - Email ya existe con otro id (JWT antiguo): devolvemos el id de la fila en BD.
  * - Demo: mismo comportamiento que antes con `getOrCreateDemoUser`.
+ * - Un JWT sin fila ni email existente se rechaza: nunca recreamos cuentas desde
+ *   autenticación general. Las migraciones deben usar su flujo explícito.
  */
 export async function ensureUserForToken(payload: TokenPayload): Promise<string | null> {
   if (!payload?.userId && !payload?.email) return null;
@@ -762,35 +818,9 @@ export async function ensureUserForToken(payload: TokenPayload): Promise<string 
     return user.id;
   }
 
-  /** Migración a BD vacía: JWT verificado por `authenticate` pero `users` sin fila. */
-  if (payload.userId && email) {
-    try {
-      const [firstName, ...rest] = (payload.name ?? '').split(/\s+/).filter(Boolean);
-      const created = await storage.createUser({
-        id: payload.userId,
-        username: `u_${payload.userId.replace(/-/g, '')}`,
-        email,
-        passwordHash: hashPassword(`__jwt_sync__${payload.userId}__${email}`),
-        firstName: firstName || 'Usuario',
-        lastName: rest.length > 0 ? rest.join(' ') : null,
-        displayName: payload.name?.trim() || null,
-        /** Marca cuenta creada solo para FK: la contraseña real no está en BD hasta login o recuperación. */
-        userMetadata: JSON.stringify({ jwtSynced: true }),
-      });
-      logger.info(
-        { userId: created.id, email: redactEmail(email) },
-        'ensureUserForToken: fila users creada (JWT sin contraparte en BD)'
-      );
-      return created.id;
-    } catch (err) {
-      logger.error({ err }, 'ensureUserForToken: no se pudo crear usuario para FK');
-      return null;
-    }
-  }
-
   logger.warn(
     { hasUserId: !!payload.userId, hasEmail: !!email },
-    'ensureUserForToken: faltan datos para crear usuario'
+    'ensureUserForToken: JWT sin usuario existente; se rechaza la sesión'
   );
   return null;
 }
