@@ -5,6 +5,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
+import { csrfOriginCheck } from "./middleware/csrf.js";
 import { registerRoutes } from "./routes.js";
 import { registerAuditRoutes } from "./routes-audit.js";
 import { registerHealthEvaluationRoutes } from "./routes-health-evaluation.js";
@@ -92,6 +93,10 @@ app.use(express.urlencoded({ extended: false, limit: "1mb" }));
 // Parsea cookies para que `authenticate` pueda leer el JWT desde la cookie httpOnly
 // (además del Authorization: Bearer). Inerte mientras AUTH_COOKIE_ENABLED=false.
 app.use(cookieParser());
+// CSRF Origin/Referer allowlist para mutaciones cookie-auth. Inerte salvo
+// CSRF_ENFORCE=true (default off). Va tras cookieParser (necesita req.cookies)
+// y antes de las rutas. No toca CORS allowedHeaders ni el frontend.
+app.use(csrfOriginCheck);
 app.use(httpMetricsMiddleware);
 
 app.use((req, res, next) => {

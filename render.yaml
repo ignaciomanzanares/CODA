@@ -78,6 +78,11 @@ services:
         value: ""
       - key: COOKIE_CSRF_ENABLED
         value: false
+      # CSRF Origin/Referer check (CSRF-1). MANTENER false hasta validar; en "true"
+      # exige Origin/Referer allowlisted en mutaciones cookie-auth. Skip Bearer/
+      # empresas/auth-bootstrap/públicos/GET. Rollback: volver a false + redeploy.
+      - key: CSRF_ENFORCE
+        value: false
       # Email — REQUERIDO para 2FA OTP y reset de contraseña. Configura UN proveedor
       # (Resend preferido). Sin proveedor: 2FA falla cerrado (503) y forgot-password
       # no envía correo. Todos sync:false (set manual en el Dashboard, son secretos).

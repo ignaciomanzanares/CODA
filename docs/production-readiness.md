@@ -144,7 +144,9 @@ Diseno acordado (auditoria read-only completada; aun NO implementado).
 
 ### Roadmap
 - PR CSRF-1: middleware backend con `CSRF_ENFORCE=false` + tests. Sin frontend, sin
-  cambios en CORS `allowedHeaders`.
+  cambios en CORS `allowedHeaders`. **Implementado (flag off):**
+  `apps/api/src/middleware/csrf.ts` (`csrfOriginCheck`), montado tras `cookieParser`
+  en `index.ts`; inerte mientras `CSRF_ENFORCE=false`.
 - PR CSRF-2: activar `CSRF_ENFORCE=true` en Render + smoke de produccion + docs.
 - PR C3: remover el Bearer de los requests personales (ya casi todo va cookie-only).
 - Opcional posterior: double-submit cookie (`coda_csrf` + `X-CSRF-Token`) como
