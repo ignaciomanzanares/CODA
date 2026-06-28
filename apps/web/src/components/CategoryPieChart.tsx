@@ -74,7 +74,7 @@ export default function CategoryPieChart() {
     queryFn: () => {
       const token = getPersonalToken();
       if (!token && !hasPersonalSession()) return Promise.resolve({ spendingByCategory: [], totalEgresos: 0, totalIngresos: 0 });
-      return apiFetch("/api/transactions/insights", { headers: { Authorization: `Bearer ${token}` } });
+      return apiFetch("/api/transactions/insights");
     },
     enabled: isAuthenticated,
     staleTime: 60_000,

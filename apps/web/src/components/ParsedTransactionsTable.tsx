@@ -175,7 +175,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
     queryFn: async () => {
       const token = getPersonalToken();
       if (!token && !hasPersonalSession()) return { transactions: [], count: 0 };
-      return apiFetch("/api/transactions/parsed", { headers: { Authorization: `Bearer ${token}` } });
+      return apiFetch("/api/transactions/parsed");
     },
     enabled: isAuthenticated,
     staleTime: 30_000,
@@ -274,12 +274,11 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
       }
     );
     try {
-      const token = getPersonalToken() ?? "";
       const apiBase = (API_URL || "").replace(/\/$/, "");
       const res = await fetch(`${apiBase}/api/transactions/${txId}/category`, {
         method: "PATCH",
         credentials: "include",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ category: newCategory }),
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);

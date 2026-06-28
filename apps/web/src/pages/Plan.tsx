@@ -396,7 +396,7 @@ export default function Plan() {
     queryFn: async () => {
       const token = getPersonalToken();
       if (!token && !hasPersonalSession()) return null;
-      return apiFetch("/api/financial-summary", { headers: { Authorization: `Bearer ${token}` } });
+      return apiFetch("/api/financial-summary");
     },
     enabled: isAuthenticated && !authLoading,
     staleTime: 30_000,
@@ -410,10 +410,7 @@ export default function Plan() {
     setPlanRequested(true);
     setPlanLoading(true);
     try {
-      const token = getPersonalToken();
-      const data = await apiFetch("/api/plan/insights", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const data = await apiFetch("/api/plan/insights");
       setPlanData(data as PlanInsightsData);
     } catch {
       toast({ title: "Error", description: "No se pudo generar el plan. Intenta de nuevo.", variant: "destructive" });

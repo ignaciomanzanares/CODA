@@ -27,9 +27,7 @@ export function useUserDocuments() {
     queryFn: async () => {
       const token = getPersonalToken();
       if (!token && !hasPersonalSession()) return { documents: [], count: 0 };
-      return apiFetch("/api/user/documents", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch("/api/user/documents");
     },
     enabled: isAuthenticated,
     staleTime: 30000,

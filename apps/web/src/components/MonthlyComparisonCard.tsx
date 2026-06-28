@@ -50,9 +50,7 @@ export default function MonthlyComparisonCard() {
     queryFn: () => {
       const token = getPersonalToken();
       if (!token && !hasPersonalSession()) return Promise.resolve({ months: [], comparison: [] });
-      return apiFetch("/api/transactions/monthly-comparison", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch("/api/transactions/monthly-comparison");
     },
     enabled: isAuthenticated,
     staleTime: 60_000,

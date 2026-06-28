@@ -59,7 +59,6 @@ export async function subscribeToPush(token: string): Promise<boolean> {
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ subscription: subscription.toJSON() }),
     });
@@ -84,7 +83,6 @@ export async function unsubscribeFromPush(token: string): Promise<boolean> {
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ endpoint: subscription.endpoint }),
     });
@@ -115,7 +113,6 @@ export async function sendTestPush(token: string): Promise<boolean> {
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
     return res.ok;
