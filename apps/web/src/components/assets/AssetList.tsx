@@ -41,7 +41,7 @@ export default function AssetList({ assets }: AssetListProps) {
   const { apiRequest } = useApi();
   const [editingAsset, setEditingAsset] = useState<UserAsset | null>(null);
 
-  // Editar/eliminar requieren sesión: usar apiRequest (adjunta el Bearer token).
+  // Editar/eliminar requieren sesión: apiRequest envía la cookie personal.
   // apiFetch es para rutas sin sesión y devolvía 401 aquí ("no se puede editar").
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest('DELETE', `/api/assets/${id}`),

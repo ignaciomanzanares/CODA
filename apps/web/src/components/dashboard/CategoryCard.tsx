@@ -5,7 +5,6 @@ import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { ChevronDown, Tag, Loader2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/apiFetch";
-import { getPersonalToken } from "@/lib/auth";
 import { CATEGORY_TAXONOMY, categoryLabel } from "@/lib/categoryTaxonomy";
 import type { CategoryGroup, DashboardTransaction } from "@/types/dashboard";
 
@@ -265,11 +264,9 @@ function TransactionRow({ tx }: { tx: DashboardTransaction }) {
     }
     setSaving(true);
     try {
-      const token = getPersonalToken();
       await apiFetch(`/api/transactions/${tx.id}/category`, {
         method: "PATCH",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ category: newCategory }),

@@ -46,9 +46,7 @@ export default function ScoreHistoryChart() {
     queryFn: () => {
       const token = getPersonalToken();
       if (!token && !hasPersonalSession()) return Promise.resolve({ history: [] });
-      return apiFetch("/api/score-history", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch("/api/score-history");
     },
     enabled: isAuthenticated,
     staleTime: 60_000,

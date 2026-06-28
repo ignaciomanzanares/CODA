@@ -85,7 +85,7 @@ export default function ShareBillSplit() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { isAuthenticated, user, token } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   // Montos del backend están en CLP; en el link de pago siempre mostramos CLP (sin conversión a USD)
   const formatAmount = (amount: number) => formatCurrency(amount, 'CLP', { sourceCurrency: 'CLP' });
   
@@ -149,8 +149,7 @@ export default function ShareBillSplit() {
         return await apiFetch(`/api/share/${code}/join`, {
           method: 'POST',
           headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ participantId }),
         });

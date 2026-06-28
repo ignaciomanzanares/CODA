@@ -132,7 +132,6 @@ async function streamChat(
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
       },
       body: JSON.stringify({ message, conversationHistory }),
       signal,
@@ -253,9 +252,7 @@ export default function FinancialAssistant({
     queryFn: async () => {
       const token = getPersonalToken();
       if (!token && !hasPersonalSession()) return { insights: [] as string[] };
-      return await apiFetch("/api/assistant/insights", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return await apiFetch("/api/assistant/insights");
     },
     enabled: isOpen && isAuthenticated,
   });
@@ -270,9 +267,7 @@ export default function FinancialAssistant({
     queryFn: async () => {
       const token = getPersonalToken();
       if (!token && !hasPersonalSession()) throw new Error("no token");
-      return apiFetch("/api/assistant/bootstrap", {
-        headers: { Authorization: `Bearer ${token}` },
-      }) as Promise<{ welcome: string; chips: string[] }>;
+      return apiFetch("/api/assistant/bootstrap") as Promise<{ welcome: string; chips: string[] }>;
     },
     enabled: isOpen && isAuthenticated,
   });
@@ -448,7 +443,6 @@ export default function FinancialAssistant({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             rating,

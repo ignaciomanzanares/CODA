@@ -137,9 +137,7 @@ export default function Movimientos() {
     queryFn: async () => {
       const token = getPersonalToken();
       if (!token && !hasPersonalSession()) return null;
-      return apiFetch("/api/transactions/summary", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch("/api/transactions/summary");
     },
     enabled: isAuthenticated,
     staleTime: 30_000,
@@ -150,9 +148,7 @@ export default function Movimientos() {
     queryFn: async () => {
       const token = getPersonalToken();
       if (!token && !hasPersonalSession()) return null;
-      return apiFetch("/api/financial-summary", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      return apiFetch("/api/financial-summary");
     },
     enabled: isAuthenticated,
     staleTime: 30_000,

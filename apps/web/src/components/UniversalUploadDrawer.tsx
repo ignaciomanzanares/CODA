@@ -21,7 +21,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL } from "@/lib/api";
-import { getPersonalToken } from "@/lib/auth";
 import DocumentManager from "@/components/DocumentManager";
 import {
   Upload,
@@ -181,7 +180,6 @@ export default function UniversalUploadDrawer({
       setStatus("uploading");
       await new Promise((r) => setTimeout(r, 0));
       try {
-        const token = getPersonalToken() ?? "";
         const formData = new FormData();
         formData.append("document", fs.file);
 
@@ -189,7 +187,6 @@ export default function UniversalUploadDrawer({
         const res = await fetch(`${apiBase}/api/documents/upload`, {
           method: "POST",
           credentials: "include",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: formData,
         });
 

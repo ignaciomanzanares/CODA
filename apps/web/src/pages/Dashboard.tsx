@@ -32,7 +32,6 @@ import { RefreshCw, FileText, Upload, ChevronLeft, ChevronRight, RotateCcw, More
 import { cn } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
 import { apiFetch } from "@/lib/apiFetch";
-import { getPersonalToken } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 
 const fmtCLP = (n: number) =>
@@ -66,10 +65,8 @@ export default function Dashboard() {
       description: "Estamos actualizando las categorías con el motor más reciente.",
     });
     try {
-      const token = getPersonalToken();
       const result = await apiFetch("/api/admin/recategorize", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
       }) as { updated: number; scanned?: number; version?: string };
       await queryClient.invalidateQueries();
       const updated = result?.updated ?? 0;
