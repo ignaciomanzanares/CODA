@@ -43,6 +43,9 @@ documento.
 | #15 | Auth cookie activada en produccion y validada con smoke |
 | #16 | Documentacion del estado de auth cookie en produccion |
 | #17 | Fase C1: frontend personal hidrata sesion desde la cookie (`/api/auth/me`) |
+| #18 | Documentacion del split de auth persona/empresas y guardrails C2/C3 |
+| #19 | Fase C1.5: capa de datos personal cookie-capable (sin Authorization) |
+| #20 | Fase C2: el frontend personal deja de guardar nuevos tokens |
 
 ## Auth: separacion persona / empresas
 
@@ -88,6 +91,75 @@ Rollback:
 - Cookie backend global: `AUTH_COOKIE_ENABLED=false` + redeploy Render, solo como
   rollback backend amplio. Si el frontend ya es cookie-only (post-C3), apagar la
   cookie romperia sesiones; por eso C3 solo despues de validar C1/C2 en produccion.
+
+## Auth CSRF strategy before C3
+
+Diseno acordado (auditoria read-only completada; aun NO implementado).
+
+### Estado actual
+- Auth personal cookie-first: `coda_session` (HttpOnly, Secure, SameSite=Lax,
+  Path=/, sin Domain, host-only en `api.codafinance.cl`). C2 activo: login/
+  register/2FA personal ya no guardan `jwt_token`/`user_data` nuevos.
+- Bearer legacy sigue existiendo (fallback para tokens viejos y clientes
+  externos/CLI).
+- Empresas sigue Bearer/token-based con `jwt_token_empresas` (no se toca).
+
+### Problema
+- En C3 se remueve el Bearer de las mutaciones personales. El header `Authorization`
+  hoy es una capa anti-CSRF implicita (no se puede forjar cross-site); al quitarlo,
+  esa capa se pierde.
+- `SameSite=Lax` ya bloquea el CSRF clasico (un POST/PUT/PATCH/DELETE cross-site no
+  envia la cookie), pero no queremos depender solo de eso (queda el hueco de un
+  subdominio same-site comprometido y falta defensa en profundidad).
+
+### Decision
+- Control CSRF primario: **validacion de `Origin`/`Referer` contra allowlist** para
+  los mutating requests autenticados por cookie.
+- **No** implementar double-submit como prerequisito de C3 (implicaria tocar ~31
+  call-sites del frontend, FormData y CORS `allowedHeaders`). Queda como hardening
+  opcional posterior.
+
+### Diseno previsto
+- Middleware backend, gateado por env `CSRF_ENFORCE` (default `false`).
+- Aplica solo a metodos mutating: `POST`, `PUT`, `PATCH`, `DELETE`.
+- Aplica solo cuando la request esta autenticada por la cookie `coda_session`.
+- Exige `Origin` allowlisted (fallback `Referer` allowlisted).
+- Con el flag activo: `Origin`/`Referer` invalido o ausente en una mutacion
+  cookie-auth -> `403`. Con el flag `false`: comportamiento identico a hoy.
+
+### Skips / exclusiones
+- Requests con Bearer valido -> skip (header es CSRF-safe).
+- Empresas (Bearer / `jwt_token_empresas`) -> skip.
+- CLI / clientes externos con Bearer -> skip.
+- Auth bootstrap: `login`, `register`, `forgot-password`, `reset-password`,
+  `2fa/verify`, `2fa/resend`, `recover-migration-password` -> skip.
+- Publicos: `utils/*`, `share/*` -> skip.
+- `GET`/`HEAD`/`OPTIONS` -> skip.
+
+### Allowlist
+- `https://www.codafinance.cl`
+- `https://codafinance.cl`
+- dev local (p. ej. `http://localhost:5173`)
+- preview/staging si corresponde (o permitir cuando `NODE_ENV != production`).
+
+### Roadmap
+- PR CSRF-1: middleware backend con `CSRF_ENFORCE=false` + tests. Sin frontend, sin
+  cambios en CORS `allowedHeaders`.
+- PR CSRF-2: activar `CSRF_ENFORCE=true` en Render + smoke de produccion + docs.
+- PR C3: remover el Bearer de los requests personales (ya casi todo va cookie-only).
+- Opcional posterior: double-submit cookie (`coda_csrf` + `X-CSRF-Token`) como
+  defensa en profundidad.
+
+### Rollback
+- `CSRF_ENFORCE=false` + redeploy Render -> revierte el enforcement al instante.
+- Sin tocar frontend; el Bearer sigue funcionando.
+
+### Smoke esperado (futuro)
+- Mutating cookie-auth con `Origin` allowlisted -> 200.
+- Mutating cookie-auth sin `Origin` o con `Origin` falso -> 403.
+- Request con Bearer valido (sin cookie) -> pasa (sin Origin-check).
+- `login`/`register`/`reset-password` siguen funcionando (CLI incluido).
+- Empresas sigue funcionando.
 
 ## Variables criticas de Render
 
