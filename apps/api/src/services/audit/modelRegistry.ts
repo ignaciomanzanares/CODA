@@ -13,6 +13,7 @@
 import { randomUUID } from 'crypto';
 import type { ModelVersion } from './algorithmicTraceability.js';
 import { registerModelVersion, getActiveModelVersion } from './algorithmicTraceability.js';
+import { ensureSeedTraceabilityModels } from './traceabilityPersistence.js';
 
 // ============================================================================
 // MODEL DEPLOYMENT
@@ -43,7 +44,7 @@ export async function deployNewModelVersion(config: {
   
   // TODO: Validate model artifacts exist at modelPath
   // TODO: Run smoke tests before activation
-  
+
   const modelVersionId = registerModelVersion({
     modelType: config.modelType,
     version: config.version,
@@ -56,7 +57,15 @@ export async function deployNewModelVersion(config: {
     modelPath: config.modelPath,
     changelog: config.changelog,
   });
-  
+
+  // Persiste en DB (NCG 502: versiones de modelo deben sobrevivir reinicios)
+  await ensureSeedTraceabilityModels({
+    id: modelVersionId,
+    modelType: config.modelType,
+    version: config.version,
+    changelog: config.changelog,
+  });
+
   console.log(`✅ Model ${config.version} deployed with ID: ${modelVersionId}`);
   
   return modelVersionId;

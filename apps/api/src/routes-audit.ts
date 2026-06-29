@@ -48,17 +48,16 @@ export function registerAuditRoutes(app: Express): void {
       const userId = authReq.user.userId;
       
       try {
-        const predictions = getUserPredictionHistory(userId, 50);
-        
+        const predictions = await listAlgorithmPredictionLogsForUser(userId, 50);
+
         // Sanitize for user display (remove internal details)
         const sanitized = predictions.map(p => ({
           id: p.id,
-          timestamp: p.decisionTimestamp,
-          creditScore: p.creditScore,
-          riskCategory: p.riskCategory,
-          confidence: p.confidence,
-          topFactors: p.topFactors,
+          timestamp: p.createdAt,
+          kind: p.kind,
           modelVersion: p.modelVersion,
+          inputSummary: p.inputSummary,
+          outputSummary: p.outputSummary,
         }));
         
         res.json({
@@ -90,29 +89,22 @@ export function registerAuditRoutes(app: Express): void {
       const predictionId = req.params.id;
       
       try {
-        const prediction = getPrediction(predictionId);
-        
+        // Lee desde DB (fuente de verdad persistente, sobrevive reinicios — NCG 502)
+        const userLogs = await listAlgorithmPredictionLogsForUser(userId, 100);
+        const prediction = userLogs.find(p => p.id === predictionId);
+
         if (!prediction) {
           return res.status(404).json({ error: 'Predicción no encontrada' });
         }
-        
-        // Verify user owns this prediction
-        if (prediction.userId !== userId) {
-          return res.status(403).json({ error: 'No autorizado' });
-        }
-        
-        // Return full details for user's own prediction
+
+        // La query ya filtra por userId, así que la pertenencia está garantizada
         res.json({
           id: prediction.id,
-          timestamp: prediction.decisionTimestamp,
-          creditScore: prediction.creditScore,
-          probabilityDefault: prediction.probabilityDefault,
-          riskCategory: prediction.riskCategory,
-          confidence: prediction.confidence,
-          topFactors: prediction.topFactors,
-          shapValues: prediction.shapValues,
+          timestamp: prediction.createdAt,
+          kind: prediction.kind,
           modelVersion: prediction.modelVersion,
-          processingTimeMs: prediction.processingTimeMs,
+          inputSummary: prediction.inputSummary,
+          outputSummary: prediction.outputSummary,
         });
       } catch (error) {
         console.error('[AuditRoutes] Error fetching prediction:', error);

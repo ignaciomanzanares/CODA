@@ -128,9 +128,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// Endpoint de métricas (Prometheus text). Sin auth: expone solo agregados, no PII.
-// Protegerlo a nivel de red/ingress en producción (ver guía de integración).
-app.get("/metrics", (_req: Request, res: Response) => {
+// Endpoint de métricas (Prometheus text). Requiere token Bearer == METRICS_TOKEN en producción.
+// En dev sin METRICS_TOKEN configurado, solo accesible desde localhost.
+app.get("/metrics", (req: Request, res: Response) => {
+  const metricsToken = process.env.METRICS_TOKEN;
+  if (metricsToken) {
+    const auth = req.headers.authorization ?? '';
+    if (auth !== `Bearer ${metricsToken}`) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  } else {
+    // Sin token configurado: restringir a loopback
+    const ip = req.ip ?? '';
+    if (!['::1', '127.0.0.1', '::ffff:127.0.0.1'].includes(ip)) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
   res.setHeader("Content-Type", "text/plain; version=0.0.4");
   res.send(metrics.render());
 });
