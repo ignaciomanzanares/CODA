@@ -111,7 +111,7 @@ const NAV_ITEMS: { id: SectionId; label: string; icon: React.ElementType }[] = [
 // ──────────────────────────────────────────────────────────────
 
 export default function Profile() {
-  const { user, logout, isAuthenticated, isLoading, token } = useAuth();
+  const { user, logout, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
   const {
     updateProfile,
@@ -159,15 +159,14 @@ export default function Profile() {
   const handleTogglePush = async () => {
     setPushLoading(true);
     try {
-      const authToken = token || localStorage.getItem("jwt_token") || "";
       if (pushSubscribed) {
-        const ok = await unsubscribeFromPush(authToken);
+        const ok = await unsubscribeFromPush();
         if (ok) {
           setPushSubscribed(false);
           toast({ title: "Notificaciones push desactivadas" });
         }
       } else {
-        const ok = await subscribeToPush(authToken);
+        const ok = await subscribeToPush();
         if (ok) {
           setPushSubscribed(true);
           toast({ title: "Notificaciones push activadas", description: "Recibirás alertas incluso con la app cerrada." });
@@ -186,8 +185,7 @@ export default function Profile() {
   };
 
   const handleTestPush = async () => {
-    const authToken = token || localStorage.getItem("jwt_token") || "";
-    const ok = await sendTestPush(authToken);
+    const ok = await sendTestPush();
     if (ok) {
       toast({ title: "Push de prueba enviado", description: "Deberías recibir una notificación en breve." });
     } else {
