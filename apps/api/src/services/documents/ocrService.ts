@@ -19,9 +19,19 @@ import * as os from 'node:os';
 // imagen para OCR), no al importar este archivo. Así tests/CI sin el binario nativo compilado
 // (build/Release/canvas.node) pueden importar este módulo sin romperse. La rasterización de
 // PDF usa @napi-rs/canvas (prebuilt) por separado.
-let _canvasMod: typeof import('canvas') | null = null;
-async function getCanvas(): Promise<typeof import('canvas')> {
-  if (!_canvasMod) _canvasMod = await import('canvas');
+// #22: preferir @napi-rs/canvas (prebuilt, sin compilación nativa del paquete `canvas`). Cae al
+// `canvas` nativo solo si el prebuilt no está disponible — permite soltar la dependencia nativa
+// una vez validado en producción. Ambos exponen `createCanvas`/`loadImage` con la misma API.
+let _canvasMod: { createCanvas: any; loadImage: any } | null = null;
+async function getCanvas(): Promise<{ createCanvas: any; loadImage: any }> {
+  if (_canvasMod) return _canvasMod;
+  try {
+    const napi = await import('@napi-rs/canvas');
+    _canvasMod = { createCanvas: (napi as any).createCanvas, loadImage: (napi as any).loadImage };
+  } catch {
+    const native = await import('canvas');
+    _canvasMod = { createCanvas: (native as any).createCanvas, loadImage: (native as any).loadImage };
+  }
   return _canvasMod;
 }
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';

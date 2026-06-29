@@ -9,6 +9,7 @@
     "prebuild": "npm run generate:icons && npm run generate:sitemap",
     "build": "npx vite build && node scripts/prerender.mjs",
     "analyze": "ANALYZE=true vite build --mode production",
+    "test": "vitest run",
     "check": "tsc --noEmit",
     "preview": "vite preview",
     "translate": "node scripts/translate-auto.mjs",

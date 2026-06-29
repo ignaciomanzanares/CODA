@@ -1,5 +1,6 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { randomBytes } from 'crypto';
 
 // Handle both ESM and CommonJS
 const __filename = fileURLToPath(import.meta.url);
@@ -27,10 +28,13 @@ if (isProd) {
 // Only allow SQLite/memory fallback in development
 const useMemStorage = !isProd && (process.env.USE_MEM_STORAGE === '1' || !process.env.DATABASE_URL);
 
-// Get JWT secret - in production this is validated above, in dev use a default
-const jwtSecret = isProd 
-  ? process.env.JWT_SECRET! 
-  : (process.env.JWT_SECRET || 'coda-dev-secret-do-not-use-in-production');
+// Get JWT secret. En producción está validado arriba (lanza si falta). En dev/test, si no se
+// define, se genera uno ALEATORIO por proceso (#37): así no existe ninguna llave hardcodeada que
+// pueda filtrarse a producción por error. Costo en dev: los tokens no sobreviven a un reinicio
+// (basta re-loguear); en tests todo corre en el mismo proceso, así que no afecta.
+const jwtSecret = isProd
+  ? process.env.JWT_SECRET!
+  : (process.env.JWT_SECRET || randomBytes(32).toString('hex'));
 
 export const env = {
   port: Number(process.env.PORT) || 5000,
