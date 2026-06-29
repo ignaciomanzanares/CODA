@@ -651,6 +651,12 @@ export const documentUploads = table('document_uploads', {
   parsedData: text('parsed_data').notNull(),
   parseStatus: text('parse_status').default('success'),
   normalizationStatus: text('normalization_status'),
+  /** Estado de revisión de la importación: 'not_required' | 'required' | 'reviewed'. */
+  reviewStatus: text('review_status').notNull().default('not_required'),
+  /** Razón interna de por qué se requiere revisión (p. ej. 'generic_parser', 'low_confidence'). */
+  reviewReason: text('review_reason'),
+  /** ISO timestamp de cuando el usuario marcó la importación como revisada. */
+  reviewedAt: text('reviewed_at'),
   uploadedAt: text('uploaded_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 

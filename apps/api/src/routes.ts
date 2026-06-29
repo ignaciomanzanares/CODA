@@ -2093,6 +2093,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/user/documents/:id/review — el usuario marca una importación como revisada.
+  // Dueño-único (otro usuario → 404); idempotente (re-marcar refresca reviewed_at).
+  app.post("/api/user/documents/:id/review", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+      const updated = await storage.markDocumentReviewed(req.params.id, userId);
+      if (!updated) return res.status(404).json({ message: "Documento no encontrado." });
+      res.json({ success: true, reviewStatus: updated.reviewStatus, reviewedAt: updated.reviewedAt });
+    } catch (e) {
+      logger.error({ err: e }, "Failed to mark document reviewed");
+      res.status(500).json({ message: "Error al marcar el documento como revisado." });
+    }
+  });
+
   // GET /api/score-history — line chart data for score evolution
   app.get("/api/score-history", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
