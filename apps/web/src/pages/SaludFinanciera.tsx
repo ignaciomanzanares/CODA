@@ -5,9 +5,10 @@ import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, ArrowRight, Upload, Wallet } from "lucide-react";
+import { RefreshCw, ArrowRight, Upload, Wallet, Info, CheckCircle2 } from "lucide-react";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import { useToast } from "@/hooks/use-toast";
+import { useUserDocuments } from "@/hooks/useUserDocuments";
 import HealthLevelCard from "@/components/health/HealthLevelCard";
 import EvaluationBreakdown from "@/components/health/EvaluationBreakdown";
 
@@ -61,6 +62,7 @@ export default function SaludFinanciera() {
   const { openWithFilePicker } = useUploadDrawer();
   const { apiRequest } = useApi();
   const { toast } = useToast();
+  const { documents } = useUserDocuments();
 
   const { data, isLoading, isError, error } = useQuery<HealthResponse>({
     queryKey: ['health-evaluation'],
@@ -195,6 +197,59 @@ export default function SaludFinanciera() {
           Recalcular
         </Button>
       </div>
+
+      {/* Indicador de confianza de datos según el estado de revisión de las cartolas
+          importadas (#36/#37). No cambia el score; solo contextualiza su confiabilidad. */}
+      {documents.length > 0 && (() => {
+        const hasRequired = documents.some((d) => d.reviewStatus === "required");
+        const hasReviewed = documents.some((d) => d.reviewStatus === "reviewed");
+
+        if (hasRequired) {
+          return (
+            <div className="flex items-start gap-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20 px-4 py-3">
+              <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">Revisión recomendada</p>
+                <p className="text-xs text-muted-foreground leading-snug">
+                  Tu score usa movimientos importados que aún no marcaste como revisados.
+                  Revísalos para aumentar la confianza del análisis.
+                </p>
+                <Link
+                  href="/movimientos?review=1"
+                  className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
+                  Revisar movimientos
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+            </div>
+          );
+        }
+        if (hasReviewed) {
+          return (
+            <div className="flex items-start gap-3 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/20 px-4 py-3">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Datos revisados</p>
+                <p className="text-xs text-muted-foreground leading-snug">
+                  Tus movimientos importados fueron marcados como revisados.
+                </p>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
+            <CheckCircle2 className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Datos procesados correctamente</p>
+              <p className="text-xs text-muted-foreground leading-snug">
+                No hay revisión pendiente para tus cartolas importadas.
+              </p>
+            </div>
+          </div>
+        );
+      })()}
 
       <HealthLevelCard
         nivel={evaluation.nivel}
