@@ -88,6 +88,10 @@ export async function parseCartolaBuffer(buffer: Buffer): Promise<ParseResult> {
   const tier = getDetectionTier(detected.confidence);
 
   if (tier === "LOW") {
+    // #20: antes de rendirse, intentar el parser genérico por coordenadas (amplía cobertura a
+    // formatos no reconocidos). Solo se acepta si pasa los gates de confianza/conciliación.
+    const generic = await tryGenericParser(buffer);
+    if (generic) return generic;
     throw new ParseError(
       "FORMAT_UNKNOWN",
       "No se reconoció el banco del documento. " +
@@ -101,9 +105,12 @@ export async function parseCartolaBuffer(buffer: Buffer): Promise<ParseResult> {
     );
   }
 
-  // 3. Route to bank-specific parser
+  // 3. Route to bank-specific parser (PRIMARIO, mayor precisión cuando hay match)
   const parserFn = parsers.getParser(detected.banco);
   if (!parserFn) {
+    // #20: banco detectado pero sin parser específico → fallback al parser genérico.
+    const generic = await tryGenericParser(buffer);
+    if (generic) return generic;
     throw new ParseError(
       "FORMAT_UNSUPPORTED",
       `El banco "${detected.banco}" fue detectado pero su parser no está implementado aún. ` +
@@ -113,4 +120,18 @@ export async function parseCartolaBuffer(buffer: Buffer): Promise<ParseResult> {
   }
 
   return parserFn(buffer, detected.confidence);
+}
+
+/**
+ * Intenta el parser genérico (#20). Devuelve el ParseResult si el motor compartido logra un
+ * parseo con confianza/conciliación aceptables; `null` si lanza (formato realmente ilegible),
+ * para que el caller conserve el ParseError original más informativo.
+ */
+async function tryGenericParser(buffer: Buffer): Promise<ParseResult | null> {
+  try {
+    const { parseGeneric } = await import("./genericParser.js");
+    return await parseGeneric(buffer);
+  } catch {
+    return null;
+  }
 }
