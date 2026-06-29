@@ -49,6 +49,10 @@ interface UploadResultData {
   creditScore?: number;
   mainInsights?: string[];
   recommendedProducts?: string[];
+  /** Parser metadata (cartolas) — para guiar la revisión post-subida. */
+  detectionTier?: string;
+  detectedBanco?: string;
+  movementCount?: number;
 }
 
 /** Map SFA product codes to marketplace tab keys. */
@@ -204,15 +208,23 @@ export default function UniversalUploadDrawer({
           );
         }
 
-        // Capture scoring data from the response
+        // Capture scoring + parser metadata from the response
         const result = json as Record<string, unknown>;
-        if (result.transactionalScore || result.recommendedProducts || result.creditScore) {
+        if (
+          result.transactionalScore ||
+          result.recommendedProducts ||
+          result.creditScore ||
+          result.documentType === "cartola"
+        ) {
           lastResult = {
             documentType: result.documentType as string | undefined,
             transactionalScore: result.transactionalScore as number | undefined,
             creditScore: result.creditScore as number | undefined,
             mainInsights: result.mainInsights as string[] | undefined,
             recommendedProducts: result.recommendedProducts as string[] | undefined,
+            detectionTier: result.detection_tier as string | undefined,
+            detectedBanco: result.detected_banco as string | undefined,
+            movementCount: result.movementCount as number | undefined,
           };
         }
 
@@ -401,8 +413,48 @@ export default function UniversalUploadDrawer({
                 .filter((t): t is string => t !== null)
             )].slice(0, 3);
 
+            const movementCount = uploadResult.movementCount;
+            // Sugerir revisión cuando el banco no se reconoció directamente (parser
+            // genérico) o la detección no fue de alta confianza.
+            const reviewRecommended =
+              !isCmf &&
+              (uploadResult.detectedBanco === "Genérico" ||
+                (uploadResult.detectionTier != null &&
+                  uploadResult.detectionTier !== "HIGH"));
+
             return (
               <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 space-y-3">
+                {/* Cartola: aviso de revisión (parser genérico/confianza media) o conteo */}
+                {!isCmf && reviewRecommended && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                      <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Revisa tus movimientos</p>
+                      <p className="text-xs text-muted-foreground leading-snug">
+                        {movementCount != null
+                          ? `Leímos ${movementCount} movimiento${movementCount !== 1 ? "s" : ""} de tu cartola con una extracción general. `
+                          : "Leímos tu cartola con una extracción general. "}
+                        Revisa que los montos y las fechas estén correctos antes de confiar en tu score.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {!isCmf && !reviewRecommended && movementCount != null && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <FileText className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Cartola procesada</p>
+                      <p className="text-xs text-muted-foreground">
+                        Detectamos {movementCount} movimiento{movementCount !== 1 ? "s" : ""}.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* CMF credit score */}
                 {isCmf && uploadResult.creditScore != null && (
                   <div className="flex items-center gap-3">
@@ -516,11 +568,11 @@ export default function UniversalUploadDrawer({
                       className="w-full gap-2"
                       onClick={() => {
                         onOpenChange(false);
-                        navigate("/movimientos");
+                        navigate(reviewRecommended ? "/movimientos?review=1" : "/movimientos");
                       }}
                     >
                       <FileText className="h-3.5 w-3.5" />
-                      Ver mis movimientos
+                      {reviewRecommended ? "Revisar movimientos" : "Ver mis movimientos"}
                       <ArrowRight className="h-3.5 w-3.5" />
                     </Button>
                   </>
