@@ -185,6 +185,16 @@ export default function DocumentManager({
                       {statusLabel(doc.normalizationStatus)}
                     </Badge>
                   )}
+                  {doc.reviewStatus === "required" && (
+                    <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-medium border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                      Revisión recomendada
+                    </Badge>
+                  )}
+                  {doc.reviewStatus === "reviewed" && (
+                    <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-medium border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
+                      Revisado
+                    </Badge>
+                  )}
                 </div>
                 <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
               </div>
