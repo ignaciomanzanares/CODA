@@ -2,6 +2,10 @@
 
 Estado operativo y checklist interno de CODA. Ultima revision: 2026-06-26.
 
+El estado vigente post-PR #25 esta resumido en
+[`production-checkpoint.md`](./production-checkpoint.md). Las secciones de este
+documento que describen fases anteriores se conservan como historial y roadmap.
+
 Este documento no reemplaza los dashboards de Render, Vercel o Neon. Antes de
 un cambio de produccion, confirmar nuevamente el estado en cada proveedor.
 
