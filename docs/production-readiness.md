@@ -1,10 +1,12 @@
 # Production readiness
 
-Estado operativo y checklist interno de CODA. Ultima revision: 2026-06-26.
+Estado operativo y checklist interno de CODA. Ultima revision: 2026-06-29.
 
-El estado vigente post-PR #25 esta resumido en
-[`production-checkpoint.md`](./production-checkpoint.md). Las secciones de este
-documento que describen fases anteriores se conservan como historial y roadmap.
+**Fuente actual del estado productivo:**
+[`production-checkpoint.md`](./production-checkpoint.md) resume el estado vigente
+post-hardening (PRs #22-#29). Las secciones de este documento que describen las
+fases de la migracion auth/CSRF se conservan como **historial** (ya completadas,
+ver Roadmap mas abajo) y como referencia de diseno.
 
 Este documento no reemplaza los dashboards de Render, Vercel o Neon. Antes de
 un cambio de produccion, confirmar nuevamente el estado en cada proveedor.
@@ -21,12 +23,14 @@ un cambio de produccion, confirmar nuevamente el estado en cada proveedor.
 | Login demo | `DEMO_MODE=false`; `demo123` no autentica |
 | Password reset | Flujo por email validado en produccion |
 | 2FA | OTP por email validado en produccion |
-| Auth cookie | Activada en backend; host-only para `api.codafinance.cl` |
-| Auth legacy | Bearer, localStorage y token JSON se mantienen por compatibilidad |
-| Metricas | Implementadas, con `METRICS_ENABLED=false` |
+| Auth personal | **Cookie-only** (`coda_session`); frontend sin `Authorization: Bearer` en requests personales (C3 completado) |
+| Auth Empresas | Bearer/token-based con `jwt_token_empresas` (separado, no se toca) |
+| Auth legacy backend | Bearer y token JSON se mantienen por compatibilidad (CLI/clientes externos) |
+| CSRF | `CSRF_ENFORCE=true` activo y validado en produccion (Origin/Referer allowlist) |
+| Metricas | Implementadas, con `METRICS_ENABLED=false`; token compare timing-safe (#27) |
 | Sentry | Implementado, apagado mientras `SENTRY_DSN` no este definido |
 
-La ultima verificacion de produccion se realizo despues del merge de PR #15.
+La ultima verificacion de produccion se realizo despues del merge de PR #29.
 No asumir que este snapshot sigue vigente sin ejecutar el smoke de este
 documento.
 
@@ -50,6 +54,15 @@ documento.
 | #18 | Documentacion del split de auth persona/empresas y guardrails C2/C3 |
 | #19 | Fase C1.5: capa de datos personal cookie-capable (sin Authorization) |
 | #20 | Fase C2: el frontend personal deja de guardar nuevos tokens |
+| #21 | Documentacion de la estrategia CSRF previa a C3 |
+| #22 | CSRF-1: middleware backend Origin/Referer allowlist (`CSRF_ENFORCE=false`, inerte) |
+| #23 | Fase C3: el frontend personal deja de enviar `Authorization: Bearer` (cookie-only) |
+| #24 | Delete account no recrea usuarios via JWT/cookie viejo; blacklist TTL corregido |
+| #25 | CSP: permitir APIs de tipo de cambio (FX) en `connect-src` |
+| #26 | Checkpoint de produccion auth/CSRF (`production-checkpoint.md`) |
+| #27 | `/metrics`: comparacion del token timing-safe (`crypto.timingSafeEqual`) |
+| #28 | Cleanup: parametro `jwt_token` vestigial en push/Profile (post-C3) |
+| #29 | Remocion de componentes demo no montados (OB/PD) |
 
 ## Auth: separacion persona / empresas
 
@@ -96,9 +109,12 @@ Rollback:
   rollback backend amplio. Si el frontend ya es cookie-only (post-C3), apagar la
   cookie romperia sesiones; por eso C3 solo despues de validar C1/C2 en produccion.
 
-## Auth CSRF strategy before C3
+## Auth CSRF strategy (C3) — COMPLETADO
 
-Diseno acordado (auditoria read-only completada; aun NO implementado).
+**Estado: implementado y activo en produccion.** El diseno descrito abajo se
+ejecuto en PRs #22 (CSRF-1), CSRF-2 (activacion) y #23 (C3). Se conserva como
+referencia de diseno. Ver el Roadmap (marcado done) y
+[`production-checkpoint.md`](./production-checkpoint.md) para el estado vigente.
 
 ### Estado actual
 - Auth personal cookie-first: `coda_session` (HttpOnly, Secure, SameSite=Lax,
@@ -146,26 +162,30 @@ Diseno acordado (auditoria read-only completada; aun NO implementado).
 - dev local (p. ej. `http://localhost:5173`)
 - preview/staging si corresponde (o permitir cuando `NODE_ENV != production`).
 
-### Roadmap
-- PR CSRF-1: middleware backend con `CSRF_ENFORCE=false` + tests. Sin frontend, sin
-  cambios en CORS `allowedHeaders`. **Implementado (flag off):**
-  `apps/api/src/middleware/csrf.ts` (`csrfOriginCheck`), montado tras `cookieParser`
-  en `index.ts`; inerte mientras `CSRF_ENFORCE=false`.
-- PR CSRF-2: activar `CSRF_ENFORCE=true` en Render + smoke de produccion + docs.
-- PR C3: remover el Bearer de los requests personales (ya casi todo va cookie-only).
-- Opcional posterior: double-submit cookie (`coda_csrf` + `X-CSRF-Token`) como
-  defensa en profundidad.
+### Roadmap (completado)
+- **[x] PR CSRF-1 (#22):** middleware backend `apps/api/src/middleware/csrf.ts`
+  (`csrfOriginCheck`), montado tras `cookieParser` en `index.ts`. Mergeado con
+  `CSRF_ENFORCE=false` (inerte). Sin frontend, sin cambios en CORS `allowedHeaders`.
+- **[x] CSRF-2:** `CSRF_ENFORCE=true` activado en Render + smoke de produccion
+  validado (ver "Smoke validado" abajo).
+- **[x] PR C3 (#23):** removido el Bearer de los requests personales del frontend
+  (cookie-only). Gate central en `apps/web/src/lib/api.tsx`: Bearer solo si
+  `context === "empresas"`.
+- [ ] Opcional posterior (no iniciado): double-submit cookie (`coda_csrf` +
+  `X-CSRF-Token`) como defensa en profundidad adicional.
 
 ### Rollback
 - `CSRF_ENFORCE=false` + redeploy Render -> revierte el enforcement al instante.
 - Sin tocar frontend; el Bearer sigue funcionando.
 
-### Smoke esperado (futuro)
-- Mutating cookie-auth con `Origin` allowlisted -> 200.
-- Mutating cookie-auth sin `Origin` o con `Origin` falso -> 403.
-- Request con Bearer valido (sin cookie) -> pasa (sin Origin-check).
-- `login`/`register`/`reset-password` siguen funcionando (CLI incluido).
-- Empresas sigue funcionando.
+### Smoke validado (CSRF-2, produccion)
+- [x] Mutating cookie-auth con `Origin` allowlisted -> 200.
+- [x] Mutating cookie-auth sin `Origin` o con `Origin` falso -> 403
+  (`CSRF validation failed`).
+- [x] Request con Bearer valido (sin cookie) -> pasa (sin Origin-check).
+- [x] `login`/`register`/`reset-password` siguen funcionando (CLI incluido).
+- [x] Empresas sigue funcionando.
+- [x] `GET` no requiere CSRF.
 
 ## Variables criticas de Render
 
@@ -331,9 +351,19 @@ curl -i "$API_URL/metrics?token=test"
 - [x] Fase C1 (cookie-primary personal): el frontend personal hidrata la sesion
   desde `/api/auth/me` (cookie-first) con Bearer/`localStorage` como fallback.
   Validada en produccion (merge `d70cbc5`). Ver "Auth: separacion persona / empresas".
-- [ ] Fase C2/C3 personal: dejar de guardar/enviar el token personal. Guardrails:
-  no tocar `jwt_token_empresas`/`empresasApi`; disenar CSRF antes de remover Bearer
-  de mutaciones; el backend mantiene Bearer por compatibilidad. No iniciada.
+- [x] Fase C2 (#20) / C3 (#23) personal: el frontend dejo de guardar (C2) y de
+  enviar (C3) el token personal; sesion 100% cookie-only. Guardrails respetados:
+  `jwt_token_empresas`/`empresasApi` intactos; CSRF disenado y activado (#22 + CSRF-2)
+  antes de remover el Bearer; el backend mantiene Bearer por compatibilidad.
+- [ ] Empresas: smoke funcional E2E pendiente si se vuelve a tocar esa area
+  (quedo aislada e intacta durante la migracion auth/CSRF).
+- [ ] Posible limpieza futura del token JSON que el backend aun devuelve en
+  login/register (el frontend personal ya no lo usa; evaluar impacto en CLI/legacy).
+- [ ] Posible cleanup de helpers legacy de auth (`getPersonalToken`, fallback Bearer
+  en hidratacion/logout de `auth.tsx`) si se decide retirar el soporte a tokens viejos.
+- [ ] Componentes frontend no referenciados (~16, p. ej. `CategoryPieChart`,
+  `FinancialHealthCard`): requieren criterio de producto (pueden ser WIP por
+  cablear). NO borrar automaticamente.
 - [ ] Activar metricas solo si existe consumidor, token fuerte, rotacion y
   control de acceso acordados.
 - [ ] Activar Sentry solo despues de validar redaction, muestreo, retencion y
