@@ -1,6 +1,23 @@
 import type { Express, NextFunction, Request, Response } from "express";
+import { timingSafeEqual } from "crypto";
 import * as Sentry from "@sentry/node";
 import { logger } from "../../logger.js";
+
+/**
+ * Constant-time string comparison para el token de `/metrics`. Evita un side
+ * channel de timing al validar `METRICS_TOKEN`. timingSafeEqual exige buffers
+ * del mismo largo (de lo contrario lanza), así que comparamos el largo primero
+ * (no constant-time respecto al largo, pero el token es un secreto de longitud
+ * fija configurada por el operador, no entrada del atacante con largo elegido).
+ */
+function timingSafeStringEqual(a: string, b: string): boolean {
+  const aBuffer = Buffer.from(a);
+  const bBuffer = Buffer.from(b);
+  if (aBuffer.length !== bBuffer.length) {
+    return false;
+  }
+  return timingSafeEqual(aBuffer, bBuffer);
+}
 
 type LabelSet = Record<string, string>;
 type JsonLike =
@@ -271,7 +288,7 @@ export function metricsHandler(req: Request, res: Response): void {
 
   if (expectedToken) {
     const providedToken = readMetricsToken(req);
-    if (!providedToken || providedToken !== expectedToken) {
+    if (!providedToken || !timingSafeStringEqual(providedToken, expectedToken)) {
       res.status(401).json({ message: "Unauthorized" });
       return;
     }
