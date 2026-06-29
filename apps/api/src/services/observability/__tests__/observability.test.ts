@@ -105,17 +105,35 @@ describe("/metrics protection", () => {
     process.env.METRICS_TOKEN = "expected";
 
     const missing = await request(testApp(), "/metrics");
-    const invalid = await request(testApp(), "/metrics", {
-      headers: { authorization: "Bearer wrong" },
+    const invalidSameLength = await request(testApp(), "/metrics", {
+      headers: { authorization: "Bearer notright" }, // mismo largo (8) que "expected"
     });
     const valid = await request(testApp(), "/metrics", {
       headers: { authorization: "Bearer expected" },
     });
 
     expect(missing.status).toBe(401);
-    expect(invalid.status).toBe(401);
+    expect(invalidSameLength.status).toBe(401);
     expect(valid.status).toBe(200);
     expect(valid.text).toContain("coda_process_uptime_seconds");
+  });
+
+  it("rejects a wrong-length token without throwing (timing-safe compare)", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.METRICS_ENABLED = "true";
+    process.env.METRICS_TOKEN = "expected";
+
+    // Token de largo distinto: timingSafeEqual lanzaría si no se iguala el largo;
+    // debe responder 401 limpio, no 500.
+    const shorter = await request(testApp(), "/metrics", {
+      headers: { authorization: "Bearer no" },
+    });
+    const longer = await request(testApp(), "/metrics", {
+      headers: { "x-metrics-token": "expected-but-much-longer" },
+    });
+
+    expect(shorter.status).toBe(401);
+    expect(longer.status).toBe(401);
   });
 });
 
