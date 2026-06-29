@@ -313,7 +313,7 @@ export default function UniversalUploadDrawer({
                 <div
                   key={fs.file.name + idx}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors",
+                    "flex flex-col gap-1.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
                     fs.status === "success" &&
                       "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/20",
                     fs.status === "error" &&
@@ -323,6 +323,7 @@ export default function UniversalUploadDrawer({
                     fs.status === "pending" && "border-muted bg-muted/30"
                   )}
                 >
+                  <div className="flex items-center gap-3">
                   <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <span className="flex-1 truncate text-xs font-medium">
                     {fs.file.name}
@@ -353,11 +354,7 @@ export default function UniversalUploadDrawer({
                     {fs.status === "error" && (
                       <XCircle className="h-3.5 w-3.5" />
                     )}
-                    <span>
-                      {fs.status === "error" && fs.message
-                        ? fs.message.slice(0, 35)
-                        : LABEL[fs.status]}
-                    </span>
+                    <span>{LABEL[fs.status]}</span>
                   </span>
 
                   {fs.status === "pending" && (
@@ -371,6 +368,12 @@ export default function UniversalUploadDrawer({
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
+                  )}
+                  </div>
+                  {fs.status === "error" && fs.message && (
+                    <p className="text-xs text-red-600 dark:text-red-400 leading-snug break-words">
+                      {fs.message}
+                    </p>
                   )}
                 </div>
               ))}
@@ -492,20 +495,35 @@ export default function UniversalUploadDrawer({
                   </div>
                 )}
 
-                {/* Cartola: main CTA */}
+                {/* Cartola: main CTAs */}
                 {!isCmf && (
-                  <Button
-                    size="sm"
-                    className="w-full gap-2"
-                    onClick={() => {
-                      onOpenChange(false);
-                      navigate(tabs.length > 0 ? `/productos?tab=${tabs[0]}` : "/productos");
-                    }}
-                  >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Ver recomendaciones personalizadas
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Button>
+                  <>
+                    <Button
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={() => {
+                        onOpenChange(false);
+                        navigate(tabs.length > 0 ? `/productos?tab=${tabs[0]}` : "/productos");
+                      }}
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Ver recomendaciones personalizadas
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={() => {
+                        onOpenChange(false);
+                        navigate("/movimientos");
+                      }}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Ver mis movimientos
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
                 )}
               </div>
             );
