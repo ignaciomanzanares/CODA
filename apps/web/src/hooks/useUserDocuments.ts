@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
 
-interface UserDocument {
+export interface UserDocument {
   id: string;
   tipo: string;
   banco: string | null;
@@ -10,6 +10,9 @@ interface UserDocument {
   periodoHasta: string | null;
   parseStatus: string;
   normalizationStatus?: string | null;
+  reviewStatus?: "not_required" | "required" | "reviewed";
+  reviewReason?: string | null;
+  reviewedAt?: string | null;
   uploadedAt: string;
   movementCount?: number;
 }
