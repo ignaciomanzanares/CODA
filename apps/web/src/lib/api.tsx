@@ -211,7 +211,9 @@ export function useApi(): ApiClient {
       const msg = extractApiErrorMessage(errorBody);
       if (res.status === 401) {
         dispatchSessionExpired(fullUrl);
-        throw new Error(msg || "Sesión expirada. Inicia sesión de nuevo.");
+        // No exponer el mensaje técnico del backend ("Missing or invalid
+        // authorization header"); el usuario solo necesita saber que re-loguee.
+        throw new Error("Tu sesión expiró. Inicia sesión nuevamente.");
       }
       throw new Error(msg || `Error ${res.status}`);
     }
