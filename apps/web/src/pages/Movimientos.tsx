@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearch } from "wouter";
 import {
   ArrowLeftRight, Receipt, TrendingUp, TrendingDown,
-  Wallet, CreditCard, PiggyBank, BarChart3, Users,
+  Wallet, CreditCard, PiggyBank, BarChart3, Users, Info,
 } from "lucide-react";
 import { PastelIcon } from "@/components/ui/pastel-icon";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -108,6 +108,7 @@ export default function Movimientos() {
   const params = useMemo(() => new URLSearchParams(searchString), [searchString]);
   const initialCategory = params.get("categoria") ?? undefined;
   const initialReviewOnly = params.get("revisar") === "1";
+  const fromReview = params.get("review") === "1";
   const initialTab = (params.get("tab") as TabId | null) ?? "transacciones";
 
   const [activeTab, setActiveTab] = useState<TabId>(
@@ -197,6 +198,18 @@ export default function Movimientos() {
             </p>
           </div>
         </div>
+
+        {/* Aviso de revisión cuando se llega desde la subida de cartola */}
+        {fromReview && (
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20 px-4 py-3">
+            <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground leading-snug">
+              <span className="font-medium text-foreground">Revisa los movimientos importados.</span>{" "}
+              Confirma que las fechas, montos y descripciones estén correctos. Si algo se ve raro,
+              puedes eliminar el documento y subir una cartola digital directamente desde tu banco.
+            </p>
+          </div>
+        )}
 
         {/* Account chips */}
         {loadingTx && !s ? (
