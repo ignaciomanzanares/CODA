@@ -5,7 +5,7 @@ import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, ArrowRight, Upload, Wallet, Info, CheckCircle2 } from "lucide-react";
+import { RefreshCw, ArrowRight, Upload, Wallet, Info, CheckCircle2, Circle } from "lucide-react";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import { useToast } from "@/hooks/use-toast";
 import { useUserDocuments } from "@/hooks/useUserDocuments";
@@ -118,6 +118,23 @@ export default function SaludFinanciera() {
 
   if (!data?.hasData) {
     const missing = data?.missingData;
+    const cartolaMissing = !!missing?.cartola;
+    const cmfMissing = !!missing?.cmf;
+    const description = !missing
+      ? "Necesitamos algunos documentos adicionales para calcular tu salud financiera."
+      : cartolaMissing && cmfMissing
+        ? "Necesitamos una cartola bancaria y tu informe CMF para calcular tu salud financiera."
+        : cmfMissing
+          ? "Ya tenemos tus movimientos, pero falta tu informe CMF para completar la evaluación."
+          : cartolaMissing
+            ? "Ya tenemos tu información CMF, pero falta una cartola bancaria para analizar tus movimientos."
+            : "Necesitamos algunos documentos adicionales para calcular tu salud financiera.";
+    const ctaLabel = cmfMissing && !cartolaMissing
+      ? "Subir informe CMF"
+      : cartolaMissing && !cmfMissing
+        ? "Subir cartola bancaria"
+        : "Subir documentos";
+
     return (
       <div className="container max-w-2xl mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-6">Salud financiera</h1>
@@ -126,20 +143,35 @@ export default function SaludFinanciera() {
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
               <Upload className="w-8 h-8 text-gray-400" />
             </div>
-            <p className="text-gray-600 text-sm leading-relaxed">
-              Para calcular tu nivel de salud financiera necesitamos{' '}
-              {missing?.cartola && missing?.cmf
-                ? 'tu cartola bancaria y tu certificado de deudas CMF'
-                : missing?.cartola
-                  ? 'tu cartola bancaria'
-                  : missing?.cmf
-                    ? 'tu certificado de deudas CMF'
-                    : 'tus documentos financieros'}
-              .
-            </p>
+            <h2 className="text-lg font-semibold">Aún no podemos calcular tu salud financiera</h2>
+            <p className="text-gray-600 text-sm leading-relaxed">{description}</p>
+            {missing && (
+              <div className="mx-auto inline-flex flex-col gap-1.5 text-left text-sm">
+                <span className="flex items-center gap-2">
+                  {cartolaMissing ? (
+                    <Circle className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  )}
+                  <span className={cartolaMissing ? "text-muted-foreground" : "text-foreground"}>
+                    Cartola bancaria
+                  </span>
+                </span>
+                <span className="flex items-center gap-2">
+                  {cmfMissing ? (
+                    <Circle className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  )}
+                  <span className={cmfMissing ? "text-muted-foreground" : "text-foreground"}>
+                    Informe CMF
+                  </span>
+                </span>
+              </div>
+            )}
             <Button className="gap-2" onClick={openWithFilePicker}>
               <Upload className="w-4 h-4" />
-              Subir documentos
+              {ctaLabel}
             </Button>
           </CardContent>
         </Card>
