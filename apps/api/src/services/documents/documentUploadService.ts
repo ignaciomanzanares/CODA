@@ -48,6 +48,8 @@ export interface UploadResult {
   banco_confidence?: number;
   /** Nombre del banco detectado */
   detected_banco?: string;
+  /** Cantidad de movimientos extraídos de la cartola (para feedback de revisión en la UI) */
+  movementCount?: number;
   error?: string;
 }
 
@@ -262,6 +264,7 @@ export async function processDocumentUpload(
       detection_tier: parsed.detection_tier,
       banco_confidence: parsed.banco_confidence,
       detected_banco: parsed.banco,
+      movementCount: parsed.transacciones.length,
     };
   } catch (e) {
     if (e instanceof ParseError) {
