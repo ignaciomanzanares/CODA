@@ -1377,10 +1377,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
         
-        // 5. Success response with warnings
+        // 5. Success response with warnings (validación del archivo + best-effort del score)
         res.json({
           ...result,
-          warnings: validation.warnings,
+          warnings: [...(validation.warnings ?? []), ...(result.warnings ?? [])],
           metadata: {
             originalName: file.originalname,
             size: file.size,

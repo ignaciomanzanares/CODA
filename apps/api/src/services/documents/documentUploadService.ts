@@ -56,6 +56,8 @@ export interface UploadResult {
   reviewStatus?: string;
   /** Razón interna de revisión ('generic_parser' | 'low_confidence'), null si no aplica. */
   reviewReason?: string | null;
+  /** Avisos no fatales (p. ej. score post-parse que no se pudo calcular ahora). */
+  warnings?: string[];
   error?: string;
 }
 
@@ -241,66 +243,98 @@ export async function processDocumentUpload(
       };
     }
 
-    // ── Compute transactional score from ALL score cartolas ──
-    const rut = cartolaExtraida.rutDocumento ?? '00.000.000-0';
-    const allScoreCartolas = await storage.listScoreDocumentUploadsByType(userId, "cartola");
-    const allParsed: CartolaExtraida[] = allScoreCartolas
-      .map((r) => r?.parsedData as CartolaExtraida | null)
-      .filter((c): c is CartolaExtraida => !!c && Array.isArray(c.transacciones));
-    const transactions = allParsed.flatMap((c) => cartolaToSfaTransactions(c, c.rutDocumento ?? rut));
-    const products = allParsed.flatMap((c) => cartolaToSfaProductos(c, c.rutDocumento ?? rut));
+    // ── Compute transactional score from ALL score cartolas (best-effort) ──
+    // El documento y los movimientos YA quedaron persistidos/normalizados arriba.
+    // El score transaccional es derivado y recomputable (otros endpoints lo
+    // recalculan), así que si este paso falla (p. ej. hiccup transitorio de DB),
+    // NO tumbamos el upload: respondemos 200 degradado con un warning, en vez de
+    // un 500 confuso cuando la cartola en realidad sí se importó.
+    try {
+      const rut = cartolaExtraida.rutDocumento ?? '00.000.000-0';
+      const allScoreCartolas = await storage.listScoreDocumentUploadsByType(userId, "cartola");
+      const allParsed: CartolaExtraida[] = allScoreCartolas
+        .map((r) => r?.parsedData as CartolaExtraida | null)
+        .filter((c): c is CartolaExtraida => !!c && Array.isArray(c.transacciones));
+      const transactions = allParsed.flatMap((c) => cartolaToSfaTransactions(c, c.rutDocumento ?? rut));
+      const products = allParsed.flatMap((c) => cartolaToSfaProductos(c, c.rutDocumento ?? rut));
 
-    const engine = getSfaScoringEngine();
-    const scoreResult = engine.run({ transactions, products });
+      const engine = getSfaScoringEngine();
+      const scoreResult = engine.run({ transactions, products });
 
-    const hasInterest = parsed.transacciones.some(
-      (t) => /interés|interes|intereses|línea|linea|crédito|credito|tarjeta/i.test(t.descripcion)
-    );
-    const mainInsights = [...scoreResult.mainInsights];
-    if (hasInterest) {
-      mainInsights.push(
-        'Detectamos intereses de línea de crédito o tarjeta en tu cartola. Te recomendamos consolidar deudas y evaluar ofertas de ahorro según el Business Plan.'
+      const hasInterest = parsed.transacciones.some(
+        (t) => /interés|interes|intereses|línea|linea|crédito|credito|tarjeta/i.test(t.descripcion)
       );
-    }
-    if (parsed.warnings && parsed.warnings.length > 0) {
-      mainInsights.push(...parsed.warnings);
-    }
-    if (duplicateReplaced) {
-      mainInsights.push(
-        'Esta cartola ya había sido subida previamente (mismo banco y período). Los datos anteriores fueron reemplazados.'
-      );
-    }
+      const mainInsights = [...scoreResult.mainInsights];
+      if (hasInterest) {
+        mainInsights.push(
+          'Detectamos intereses de línea de crédito o tarjeta en tu cartola. Te recomendamos consolidar deudas y evaluar ofertas de ahorro según el Business Plan.'
+        );
+      }
+      if (parsed.warnings && parsed.warnings.length > 0) {
+        mainInsights.push(...parsed.warnings);
+      }
+      if (duplicateReplaced) {
+        mainInsights.push(
+          'Esta cartola ya había sido subida previamente (mismo banco y período). Los datos anteriores fueron reemplazados.'
+        );
+      }
 
-    await storage.upsertTransactionalScore(userId, {
-      transactionalScore: scoreResult.transactionalScore,
-      metrics: scoreResult.metrics,
-      mainInsights,
-      recommendedProducts: scoreResult.recommendedProducts,
-      algorithmInputs: {
-        pipeline: 'cartola_pdf_hardened',
-        transactionCount: transactions.length,
-        productCount: products.length,
-        cartolasCount: allParsed.length,
-        banco_confidence: parsed.banco_confidence,
+      await storage.upsertTransactionalScore(userId, {
+        transactionalScore: scoreResult.transactionalScore,
+        metrics: scoreResult.metrics,
+        mainInsights,
+        recommendedProducts: scoreResult.recommendedProducts,
+        algorithmInputs: {
+          pipeline: 'cartola_pdf_hardened',
+          transactionCount: transactions.length,
+          productCount: products.length,
+          cartolasCount: allParsed.length,
+          banco_confidence: parsed.banco_confidence,
+          detection_tier: parsed.detection_tier,
+          parse_confidence: parsed.parse_confidence,
+        },
+      });
+      return {
+        step: 'done',
+        documentType: 'cartola',
+        transactionalScore: scoreResult.transactionalScore,
+        mainInsights,
+        recommendedProducts: scoreResult.recommendedProducts,
+        metrics: scoreResult.metrics,
         detection_tier: parsed.detection_tier,
-        parse_confidence: parsed.parse_confidence,
-      },
-    });
-    return {
-      step: 'done',
-      documentType: 'cartola',
-      transactionalScore: scoreResult.transactionalScore,
-      mainInsights,
-      recommendedProducts: scoreResult.recommendedProducts,
-      metrics: scoreResult.metrics,
-      detection_tier: parsed.detection_tier,
-      banco_confidence: parsed.banco_confidence,
-      detected_banco: parsed.banco,
-      movementCount: parsed.transacciones.length,
-      documentId: documentUploadId,
-      reviewStatus: review.reviewStatus,
-      reviewReason: review.reviewReason,
-    };
+        banco_confidence: parsed.banco_confidence,
+        detected_banco: parsed.banco,
+        movementCount: parsed.transacciones.length,
+        documentId: documentUploadId,
+        reviewStatus: review.reviewStatus,
+        reviewReason: review.reviewReason,
+      };
+    } catch (scoreErr) {
+      logger.warn(
+        {
+          err: scoreErr,
+          userId,
+          documentUploadId,
+          detected_banco: parsed.banco,
+          detection_tier: parsed.detection_tier,
+        },
+        '[documentUploadService] score post-parse falló; upload degradado (movimientos importados, score recomputará)'
+      );
+      return {
+        step: 'done',
+        documentType: 'cartola',
+        detection_tier: parsed.detection_tier,
+        banco_confidence: parsed.banco_confidence,
+        detected_banco: parsed.banco,
+        movementCount: parsed.transacciones.length,
+        documentId: documentUploadId,
+        reviewStatus: review.reviewStatus,
+        reviewReason: review.reviewReason,
+        warnings: [
+          'Tus movimientos fueron importados, pero no pudimos actualizar tu score en este momento. Intenta recalcularlo más tarde.',
+        ],
+      };
+    }
   } catch (e) {
     if (e instanceof ParseError) {
       return { step: 'done', error: `${e.messageEs}` };
