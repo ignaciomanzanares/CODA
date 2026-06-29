@@ -53,6 +53,8 @@ interface UploadResultData {
   detectionTier?: string;
   detectedBanco?: string;
   movementCount?: number;
+  documentId?: string;
+  reviewStatus?: string;
 }
 
 /** Map SFA product codes to marketplace tab keys. */
@@ -225,6 +227,8 @@ export default function UniversalUploadDrawer({
             detectionTier: result.detection_tier as string | undefined,
             detectedBanco: result.detected_banco as string | undefined,
             movementCount: result.movementCount as number | undefined,
+            documentId: result.documentId as string | undefined,
+            reviewStatus: result.reviewStatus as string | undefined,
           };
         }
 
@@ -414,13 +418,21 @@ export default function UniversalUploadDrawer({
             )].slice(0, 3);
 
             const movementCount = uploadResult.movementCount;
-            // Sugerir revisión cuando el banco no se reconoció directamente (parser
-            // genérico) o la detección no fue de alta confianza.
+            // Fuente de verdad: el backend ya persiste review_status (#36). Si no viene,
+            // fallback a la heurística por parser/tier (banco genérico o detección no HIGH).
             const reviewRecommended =
               !isCmf &&
-              (uploadResult.detectedBanco === "Genérico" ||
-                (uploadResult.detectionTier != null &&
-                  uploadResult.detectionTier !== "HIGH"));
+              (uploadResult.reviewStatus != null
+                ? uploadResult.reviewStatus === "required"
+                : uploadResult.detectedBanco === "Genérico" ||
+                  (uploadResult.detectionTier != null &&
+                    uploadResult.detectionTier !== "HIGH"));
+            const reviewHref =
+              reviewRecommended && uploadResult.documentId
+                ? `/movimientos?review=1&documentId=${uploadResult.documentId}`
+                : reviewRecommended
+                  ? "/movimientos?review=1"
+                  : "/movimientos";
 
             return (
               <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 space-y-3">
@@ -568,7 +580,7 @@ export default function UniversalUploadDrawer({
                       className="w-full gap-2"
                       onClick={() => {
                         onOpenChange(false);
-                        navigate(reviewRecommended ? "/movimientos?review=1" : "/movimientos");
+                        navigate(reviewHref);
                       }}
                     >
                       <FileText className="h-3.5 w-3.5" />
