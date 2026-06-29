@@ -2,14 +2,16 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearch } from "wouter";
 import {
   ArrowLeftRight, Receipt, TrendingUp, TrendingDown,
-  Wallet, CreditCard, PiggyBank, BarChart3, Users, Info,
+  Wallet, CreditCard, PiggyBank, BarChart3, Users, Info, CheckCircle2,
 } from "lucide-react";
 import { PastelIcon } from "@/components/ui/pastel-icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/api";
 import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
 import BillSplit from "@/pages/BillSplit";
@@ -104,12 +106,32 @@ export default function Movimientos() {
   const { openWithFilePicker } = useUploadDrawer();
   const { documents } = useUserDocuments();
   const searchString = useSearch();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const params = useMemo(() => new URLSearchParams(searchString), [searchString]);
   const initialCategory = params.get("categoria") ?? undefined;
   const initialReviewOnly = params.get("revisar") === "1";
   const fromReview = params.get("review") === "1";
+  const reviewDocId = params.get("documentId") ?? undefined;
+  const reviewDoc = reviewDocId ? documents.find((d) => d.id === reviewDocId) : undefined;
   const initialTab = (params.get("tab") as TabId | null) ?? "transacciones";
+
+  const markReviewed = useMutation({
+    mutationFn: () =>
+      apiFetch(`/api/user/documents/${reviewDocId}/review`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
+      toast({ title: "Movimientos marcados como revisados" });
+    },
+    onError: () => {
+      toast({
+        title: "No pudimos marcar como revisado",
+        description: "Inténtalo nuevamente en unos segundos.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const [activeTab, setActiveTab] = useState<TabId>(
     TABS.some((t) => t.id === initialTab) ? initialTab : "transacciones",
@@ -200,16 +222,38 @@ export default function Movimientos() {
         </div>
 
         {/* Aviso de revisión cuando se llega desde la subida de cartola */}
-        {fromReview && (
-          <div className="flex items-start gap-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20 px-4 py-3">
-            <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+        {fromReview && reviewDoc?.reviewStatus === "reviewed" ? (
+          <div className="flex items-start gap-3 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/20 px-4 py-3">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground leading-snug">
-              <span className="font-medium text-foreground">Revisa los movimientos importados.</span>{" "}
-              Confirma que las fechas, montos y descripciones estén correctos. Si algo se ve raro,
-              puedes eliminar el documento y subir una cartola digital directamente desde tu banco.
+              <span className="font-medium text-foreground">Movimientos revisados.</span>{" "}
+              Esta importación ya fue marcada como revisada.
             </p>
           </div>
-        )}
+        ) : fromReview ? (
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20 px-4 py-3">
+            <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground leading-snug">
+                <span className="font-medium text-foreground">Revisa los movimientos importados.</span>{" "}
+                Confirma que las fechas, montos y descripciones estén correctos. Si algo se ve raro,
+                puedes eliminar el documento y subir una cartola digital directamente desde tu banco.
+              </p>
+              {reviewDoc?.reviewStatus === "required" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 gap-1.5"
+                  onClick={() => markReviewed.mutate()}
+                  disabled={markReviewed.isPending}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Marcar como revisado
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : null}
 
         {/* Account chips */}
         {loadingTx && !s ? (
