@@ -50,7 +50,31 @@ export interface UploadResult {
   detected_banco?: string;
   /** Cantidad de movimientos extraídos de la cartola (para feedback de revisión en la UI) */
   movementCount?: number;
+  /** Id de la importación creada (document_uploads.id), para linkear la revisión en la UI. */
+  documentId?: string;
+  /** Estado de revisión de la importación: 'not_required' | 'required' | 'reviewed'. */
+  reviewStatus?: string;
+  /** Razón interna de revisión ('generic_parser' | 'low_confidence'), null si no aplica. */
+  reviewReason?: string | null;
   error?: string;
+}
+
+/**
+ * Deriva el estado de revisión de una importación de cartola a partir de la metadata del parser.
+ * `required` cuando el banco no se reconoció directamente (parser genérico) o la detección no fue
+ * de alta confianza; si no, `not_required`. CMF no usa este flujo (queda `not_required`).
+ */
+export function deriveDocumentReviewState(opts: {
+  banco?: string | null;
+  detectionTier?: DetectionTier | string | null;
+}): { reviewStatus: 'not_required' | 'required'; reviewReason: string | null } {
+  if (opts.banco === 'Genérico') {
+    return { reviewStatus: 'required', reviewReason: 'generic_parser' };
+  }
+  if (opts.detectionTier != null && opts.detectionTier !== 'HIGH') {
+    return { reviewStatus: 'required', reviewReason: 'low_confidence' };
+  }
+  return { reviewStatus: 'not_required', reviewReason: null };
 }
 
 /**
@@ -170,11 +194,19 @@ export async function processDocumentUpload(
       parseStatus: "success" as const,
     };
 
+    const review = deriveDocumentReviewState({ banco, detectionTier: parsed.detection_tier });
+
     // Write to BOTH tables (el score doc referencia explicitamente al document upload).
     const documentUploadId = randomUUID();
     const scoreDocId = randomUUID();
     await Promise.all([
-      storage.createDocumentUpload({ ...baseRow, id: documentUploadId, normalizationStatus: "pending" }),
+      storage.createDocumentUpload({
+        ...baseRow,
+        id: documentUploadId,
+        normalizationStatus: "pending",
+        reviewStatus: review.reviewStatus,
+        reviewReason: review.reviewReason,
+      }),
       storage.createScoreDocumentUpload({ ...baseRow, id: scoreDocId, sourceDocumentUploadId: documentUploadId }),
     ]);
 
@@ -265,6 +297,9 @@ export async function processDocumentUpload(
       banco_confidence: parsed.banco_confidence,
       detected_banco: parsed.banco,
       movementCount: parsed.transacciones.length,
+      documentId: documentUploadId,
+      reviewStatus: review.reviewStatus,
+      reviewReason: review.reviewReason,
     };
   } catch (e) {
     if (e instanceof ParseError) {

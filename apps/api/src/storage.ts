@@ -202,7 +202,10 @@ export interface IStorage {
     parsedData: unknown;
     parseStatus?: string;
     normalizationStatus?: string | null;
+    reviewStatus?: string;
+    reviewReason?: string | null;
   }): Promise<any>;
+  markDocumentReviewed(documentId: string, userId: string): Promise<any | null>;
 
   getDocumentUploadById(id: string, userId: string): Promise<any | undefined>;
   updateDocumentUploadParsedData(id: string, parsedData: unknown): Promise<void>;
@@ -1377,6 +1380,8 @@ export class DatabaseStorage implements IStorage {
     parsedData: unknown;
     parseStatus?: string;
     normalizationStatus?: string | null;
+    reviewStatus?: string;
+    reviewReason?: string | null;
   }): Promise<any> {
     if (!db) throw new Error("Database not available");
     const [inserted] = await db
@@ -1391,10 +1396,27 @@ export class DatabaseStorage implements IStorage {
         parsedData: JSON.stringify(row.parsedData),
         parseStatus: row.parseStatus ?? "success",
         normalizationStatus: row.normalizationStatus ?? null,
+        reviewStatus: row.reviewStatus ?? "not_required",
+        reviewReason: row.reviewReason ?? null,
         uploadedAt: new Date().toISOString(),
       })
       .returning();
     return inserted;
+  }
+
+  /**
+   * Marca una importación como revisada por el usuario (ownership-safe + idempotente).
+   * Setea `reviewed_at` cada vez que se llama; devuelve la fila actualizada o null si el
+   * documento no existe o no pertenece al usuario.
+   */
+  async markDocumentReviewed(documentId: string, userId: string): Promise<any | null> {
+    if (!db) return null;
+    const [updated] = await db
+      .update(documentUploads)
+      .set({ reviewStatus: "reviewed", reviewedAt: new Date().toISOString() })
+      .where(and(eq(documentUploads.id, documentId), eq(documentUploads.userId, userId)))
+      .returning();
+    return updated ?? null;
   }
 
   async getDocumentUploadById(id: string, userId: string): Promise<any | undefined> {
@@ -1454,6 +1476,9 @@ export class DatabaseStorage implements IStorage {
       periodoHasta: row.periodoHasta,
       parseStatus: row.parseStatus,
       normalizationStatus: row.normalizationStatus,
+      reviewStatus: row.reviewStatus,
+      reviewReason: row.reviewReason,
+      reviewedAt: row.reviewedAt,
       uploadedAt: row.uploadedAt,
     }));
   }
