@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RefreshCw, ArrowRight, Upload, Wallet } from "lucide-react";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
+import { useToast } from "@/hooks/use-toast";
 import HealthLevelCard from "@/components/health/HealthLevelCard";
 import EvaluationBreakdown from "@/components/health/EvaluationBreakdown";
 
@@ -59,6 +60,7 @@ export default function SaludFinanciera() {
   const queryClient = useQueryClient();
   const { openWithFilePicker } = useUploadDrawer();
   const { apiRequest } = useApi();
+  const { toast } = useToast();
 
   const { data, isLoading, isError, error } = useQuery<HealthResponse>({
     queryKey: ['health-evaluation'],
@@ -70,6 +72,13 @@ export default function SaludFinanciera() {
     mutationFn: () => apiRequest<HealthResponse>('GET', '/api/health-evaluation/me'),
     onSuccess: (result) => {
       queryClient.setQueryData(['health-evaluation'], result);
+    },
+    onError: () => {
+      toast({
+        title: "No pudimos recalcular tu salud financiera",
+        description: "Inténtalo nuevamente en unos segundos. Si el problema persiste, vuelve a cargar la página.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -90,7 +99,12 @@ export default function SaludFinanciera() {
         <h1 className="text-2xl font-bold mb-6">Salud financiera</h1>
         <Card>
           <CardContent className="p-8 text-center space-y-4">
-            <p className="text-red-600 text-sm">{msg}</p>
+            <h2 className="text-lg font-semibold">No pudimos cargar tu salud financiera</h2>
+            <p className="text-gray-600 text-sm leading-relaxed">
+              Hubo un problema al obtener tu evaluación. Intenta recargar la página o recalcular
+              más tarde.
+            </p>
+            {msg && <p className="text-xs text-muted-foreground">Detalle: {msg}</p>}
             <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['health-evaluation'] })}>
               Reintentar
             </Button>
@@ -132,7 +146,39 @@ export default function SaludFinanciera() {
   }
 
   const { evaluation, descripcionNivel } = data;
-  if (!evaluation) return null;
+  if (!evaluation) {
+    return (
+      <div className="container max-w-2xl mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-6">Salud financiera</h1>
+        <Card>
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+              <RefreshCw className="w-8 h-8 text-gray-400" />
+            </div>
+            <h2 className="text-lg font-semibold">No pudimos calcular tu evaluación</h2>
+            <p className="text-gray-600 text-sm leading-relaxed">
+              Tus datos están disponibles, pero no logramos generar la evaluación de salud
+              financiera. Puedes intentar recalcular o subir una nueva cartola.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <Button
+                className="gap-2"
+                onClick={() => recalcMutation.mutate()}
+                disabled={recalcMutation.isPending}
+              >
+                <RefreshCw className={`w-4 h-4 ${recalcMutation.isPending ? 'animate-spin' : ''}`} />
+                Reintentar
+              </Button>
+              <Button variant="outline" className="gap-2" onClick={openWithFilePicker}>
+                <Upload className="w-4 h-4" />
+                Subir documentos
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-8 space-y-6">
