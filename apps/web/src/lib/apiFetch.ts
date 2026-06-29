@@ -126,7 +126,11 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
   const text = await res.text().catch(() => "");
   if (!res.ok) {
     if (res.status === 401) dispatchSessionExpired(String(url));
-    const msg = messageFromErrorBody(text, res.status);
+    // No exponer el mensaje técnico de auth del backend; mensaje amigable en 401.
+    const msg =
+      res.status === 401
+        ? "Tu sesión expiró. Inicia sesión nuevamente."
+        : messageFromErrorBody(text, res.status);
     console.error(`[apiFetch] HTTP ${res.status}:`, msg, "url:", url);
     throw new ApiError(msg, res.status);
   }

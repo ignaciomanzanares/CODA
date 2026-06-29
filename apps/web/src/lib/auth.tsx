@@ -86,22 +86,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPersonalUserMirror(userPersonal);
   }, [userPersonal]);
 
-  // Al montar: hidrata la sesión personal desde la cookie (o el Bearer legacy si
-  // todavía hay token en localStorage). Usa `fetch` directo —no `apiFetch`— para
-  // NO disparar el evento de sesión-expirada en visitantes anónimos: un 401 aquí
-  // solo significa "no autenticado", no "tu sesión venció".
+  // Al montar: hidrata la sesión personal SOLO desde la cookie httpOnly
+  // (cookie-only, consistente con la capa de datos post-C3). Un `jwt_token` legacy
+  // en localStorage ya NO autentica `/me`: mantenerlo vivo creaba sesiones "stale"
+  // (nombre visible pero los requests de datos cookie-only daban 401 y el usuario
+  // quedaba atrapado). Usa `fetch` directo —no `apiFetch`— para no disparar el
+  // evento de sesión-expirada en visitantes anónimos (un 401 aquí solo significa
+  // "no autenticado", no "tu sesión venció").
   useEffect(() => {
     let cancelled = false;
     const apiBase = (
       (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? ""
     ).replace(/\/$/, "");
-    const legacyToken = localStorage.getItem(TOKEN_KEY);
     (async () => {
       try {
         const res = await fetch(`${apiBase}/api/auth/me`, {
           method: "GET",
           credentials: "include",
-          headers: legacyToken ? { Authorization: `Bearer ${legacyToken}` } : undefined,
         });
         if (cancelled) return;
         if (res.ok) {

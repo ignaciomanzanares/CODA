@@ -18,16 +18,17 @@
 import { hasPersonalSession } from './authSession';
 
 const AUTH_ENDPOINT_RE = /\/api\/auth\/(login|2fa\/verify)/;
-const TOKEN_KEY = 'jwt_token';
 
 /** Fire the session-expired event unless the failing URL is a login endpoint
- *  or there is an active personal session (legacy token or cookie-hydrated). */
+ *  or there is an active (cookie-hydrated) personal session. */
 export function dispatchSessionExpired(requestUrl: string): void {
   if (AUTH_ENDPOINT_RE.test(requestUrl)) return;
 
-  // Sesión personal activa (token legacy o cookie-hidratada) → tratamos el 401
-  // como fallo transitorio/de fondo y no expulsamos al usuario.
-  if (localStorage.getItem(TOKEN_KEY) || hasPersonalSession()) return;
+  // Sesión personal activa cookie-hidratada → tratamos el 401 como fallo
+  // transitorio/de fondo y no expulsamos al usuario. Un `jwt_token` legacy ya NO
+  // cuenta como sesión: post-C3 los datos van cookie-only, así que un token viejo
+  // sin cookie no debe bloquear el redirect (causaba sesiones "stale").
+  if (hasPersonalSession()) return;
 
   window.dispatchEvent(new CustomEvent('coda:session:expired'));
 }
