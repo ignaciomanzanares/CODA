@@ -48,6 +48,8 @@ export const users = table("users", {
   tokenInvalidatedAt: text("token_invalidated_at"),
   /** Onboarding KYC (mock por ahora): null | 'mock_completed'. Se pide una sola vez. */
   kycStatus: text("kyc_status"),
+  /** RUT chileno del titular (XX.XXX.XXX-X). Se almacena al primer upload de Informe CMF. Binding de identidad: uploads posteriores deben coincidir. */
+  rut: text("rut"),
   /** 0/1 — flujo de primer ingreso (consentimiento + KYC + 2FA) finalizado. */
   onboardingCompleted: integer("onboarding_completed").notNull().default(0),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
