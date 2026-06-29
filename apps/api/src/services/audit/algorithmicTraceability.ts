@@ -115,8 +115,10 @@ export interface AlgorithmChange {
 }
 
 // ============================================================================
-// IN-MEMORY STORE (for development)
-// TODO: Replace with actual database persistence
+// IN-MEMORY CACHE — las escrituras críticas van a DB vía traceabilityPersistence.ts.
+// Este Map es un cache de lectura rápida (p.ej. getActiveModelVersion en hot path).
+// Prediction logs → persistCreditPredictionFromLog (DB primero, cache después).
+// Model versions → ensureSeedTraceabilityModels (DB en startup y en deployNewModelVersion).
 // ============================================================================
 
 class TraceabilityStore {
