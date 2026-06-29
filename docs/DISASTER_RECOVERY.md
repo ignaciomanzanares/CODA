@@ -52,3 +52,22 @@ Hasta que este ejercicio se ejecute y registre, el RTO de 4h es una estimación 
 ## Por qué `plan: starter` (no `free`) en `render.yaml`
 
 Los planes `free` de Render suspenden el proceso por inactividad (servicios `web`) — un RTO de 4h es incompatible con un cold-start no acotado tras cada período sin tráfico. El worker de documentos (`coda-document-worker`) tiene el mismo problema: si se suspende, los jobs encolados en Redis no se procesan hasta el próximo request entrante (que no existe, porque es un worker sin endpoint HTTP). Redis (`coda-redis`) en plan free tampoco garantiza persistencia confiable entre restarts del add-on. Los tres servicios subieron a `starter` por esto, no solo por capacidad de CPU/memoria.
+
+## Pool y restauración de Neon (#7)
+
+**Connection pooling**: usar el connection string con **`-pooler`** de Neon (PgBouncer) en
+`DATABASE_URL` — soporta más conexiones concurrentes que el endpoint directo. Dimensionar
+`PG_POOL_MAX` (default 8) por instancia de modo que `numInstances * PG_POOL_MAX` ≤ el límite de
+conexiones del tier de Neon. En el plan actual (tier free/launch), 8 por instancia con 1 instancia
+deja margen; al escalar (#38) recalcular.
+
+**Ejercicio de restauración** (RTO/RPO medibles, no estimados): Neon ofrece *point-in-time restore*
+vía branches. El script `scripts/neon-restore-drill.sh` automatiza el ensayo:
+
+```bash
+NEON_API_KEY=... NEON_PROJECT_ID=... scripts/neon-restore-drill.sh
+```
+
+Crea un branch desde un timestamp pasado, espera a que esté listo, imprime su connection string y
+mide el tiempo total — el RTO real. Correrlo trimestralmente y registrar el número aquí (hoy el RTO
+de 4h sigue siendo una estimación hasta que se ejecute).

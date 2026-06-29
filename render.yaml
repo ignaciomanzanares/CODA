@@ -21,6 +21,15 @@ services:
     runtime: node
     region: virginia
     plan: starter  # free tier sleeps on inactivity — incompatible with an RTO target (ver docs/DISASTER_RECOVERY.md)
+    # Escalado (#38): instancias fijas por defecto. Para autoscaling, subir de plan y descomentar
+    # `scaling`. Criterio sugerido: escalar OUT al 70% de CPU sostenido (los picos pesados son
+    # OCR/parseo, que ya viven en el worker aparte). El pool de Postgres por instancia es
+    # PG_POOL_MAX (default 8) → mantener numInstances * PG_POOL_MAX ≤ límite de conexiones de Neon.
+    numInstances: 1
+    # scaling:
+    #   minInstances: 1
+    #   maxInstances: 3
+    #   targetCPUPercent: 70
     buildCommand: npm install --include=dev && npm run build
     # Aplica las migraciones versionadas (migrations/*.sql, idempotentes vía la
     # tabla _migrations) ANTES de arrancar, para no crear tablas/columnas a mano
@@ -71,6 +80,10 @@ services:
     runtime: node
     region: virginia
     plan: starter  # free tier suspende el proceso por inactividad — los uploads encolados no se procesarían
+    # Escalado del worker (#38): 1 instancia procesa con concurrencia = nº de cores (ver
+    # documentWorker.ts). Si la cola se satura de forma sostenida (alerta coda_queue_waiting, #27),
+    # subir numInstances — BullMQ reparte los jobs entre todos los workers sin configuración extra.
+    numInstances: 1
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm run worker:start -w @coda/api
     envVars:
