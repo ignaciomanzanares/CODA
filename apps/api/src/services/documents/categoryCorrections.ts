@@ -27,9 +27,9 @@ export async function recordCategoryCorrection(params: {
     correctedCategory: params.correctedCategory.trim(),
   });
 
-  // Aprendizaje incremental: el modelo se actualiza sin esperar un reload completo.
+  // Aprendizaje incremental: el modelo se actualiza y se persiste en blob store (cada 10 ejemplos).
   await categoryClassifier.ensureLoaded();
-  categoryClassifier.learn(normalizedText, params.correctedCategory.trim());
+  categoryClassifier.learnAndPersist(normalizedText, params.correctedCategory.trim());
   logger.info({ userId: params.userId, correctedCategory: params.correctedCategory }, '[categoryCorrections] corrección registrada');
 
   return { ok: true };

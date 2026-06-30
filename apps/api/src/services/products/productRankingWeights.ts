@@ -11,9 +11,13 @@ import { randomUUID } from 'node:crypto';
 import { db, productRankingWeights, financialProducts, desc } from '../../db/index.js';
 import { getProductFunnelMetrics } from './leadTrackingService.js';
 import { mlLogger as logger } from '../../logger.js';
+import { sql } from 'drizzle-orm';
 
 const WEIGHT_MIN = 0.5;
 const WEIGHT_MAX = 1.5;
+/** Pesos para la función objetivo: CTR aporta 30%, tasa de conversión el 70%. */
+const ALPHA_CTR = 0.3;
+const BETA_CONVERSION = 0.7;
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
@@ -32,9 +36,41 @@ export function computeConversionWeight(productRate: number, meanRate: number): 
 
 type MetricsFetcher = (productId: number) => Promise<{ overallConversionRate: number }>;
 
+/** Lee CTR y conversion rate desde product_conversion_events para todos los productos activos. */
+async function getConversionMetricsFromEvents(productIds: string[]): Promise<Record<string, { ctr: number; conversionRate: number; hasData: boolean }>> {
+  if (productIds.length === 0) return {};
+  try {
+    const rows = (await db.execute(sql`
+      SELECT
+        product_id,
+        COUNT(*) FILTER (WHERE event_type = 'view') AS views,
+        COUNT(*) FILTER (WHERE event_type = 'click') AS clicks,
+        COUNT(*) FILTER (WHERE event_type = 'convert') AS conversions
+      FROM product_conversion_events
+      WHERE product_id IN (${sql.join(productIds.map((id) => sql`${id}`), sql`, `)})
+      GROUP BY product_id
+    `)) as Array<{ product_id: string; views: number; clicks: number; conversions: number }>;
+
+    const result: Record<string, { ctr: number; conversionRate: number; hasData: boolean }> = {};
+    for (const r of rows) {
+      const views = Number(r.views) || 0;
+      const clicks = Number(r.clicks) || 0;
+      const conversions = Number(r.conversions) || 0;
+      const ctr = views > 0 ? clicks / views : 0;
+      const conversionRate = clicks > 0 ? conversions / clicks : 0;
+      result[r.product_id] = { ctr, conversionRate, hasData: views > 0 };
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
 /**
- * Recalcula y persiste los pesos de ranking. `fetchMetrics` es inyectable para tests; por
- * defecto usa el funnel real. Devuelve el id de la corrida y cuántos productos procesó.
+ * Recalcula y persiste los pesos de ranking.
+ * Función objetivo: alpha*CTR + beta*conversionRate (desde product_conversion_events).
+ * Fallback: getProductFunnelMetrics si no hay eventos de conversión.
+ * `fetchMetrics` es inyectable para tests.
  */
 export async function recomputeProductRankingWeights(opts?: {
   fetchMetrics?: MetricsFetcher;
@@ -46,8 +82,20 @@ export async function recomputeProductRankingWeights(opts?: {
     .from(financialProducts)) as Array<{ id: number; isActive: unknown }>;
   const active = products.filter((p) => p.isActive === true || p.isActive === 1);
 
+  // Intentar usar datos de product_conversion_events (función de pérdida definida: CTR × conversión)
+  const conversionMetrics = await getConversionMetricsFromEvents(active.map((p) => String(p.id)));
+  const hasEventData = Object.values(conversionMetrics).some((m) => m.hasData);
+
   const rates = await Promise.all(
     active.map(async (p) => {
+      const key = String(p.id);
+      if (hasEventData) {
+        const m = conversionMetrics[key];
+        // Función objetivo: alpha*CTR + beta*conversionRate
+        const score = m ? ALPHA_CTR * m.ctr + BETA_CONVERSION * m.conversionRate : 0;
+        return { id: p.id, rate: score };
+      }
+      // Fallback al funnel legacy cuando no hay eventos de conversión
       try {
         const m = await fetchMetrics(p.id);
         return { id: p.id, rate: Number(m.overallConversionRate) || 0 };

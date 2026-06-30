@@ -13,11 +13,14 @@
  */
 import { db, transactionCategoryCorrections } from '../../db/index.js';
 import { mlLogger as logger } from '../../logger.js';
+import { getBlobStore } from '../storage/blobStore.js';
 
 /** Mínimo de ejemplos para que el clasificador opere (debajo de esto, siempre fallback). */
 const MIN_EXAMPLES = 5;
 /** Confianza mínima (posterior de la clase top) para usar la predicción en vez del fallback. */
 const MIN_CONFIDENCE = 0.6;
+
+const BLOB_KEY = 'category_classifier_model_v1';
 
 export function tokenize(text: string): string[] {
   return text
@@ -67,8 +70,58 @@ class CategoryClassifier {
     }
   }
 
-  /** (Re)construye el modelo desde la tabla de correcciones. */
+  /** Serializa el estado del modelo a JSON para persistencia. */
+  serialize(): string {
+    return JSON.stringify({
+      classDocs: Object.fromEntries(this.classDocs),
+      tokenCounts: Object.fromEntries(
+        Array.from(this.tokenCounts.entries()).map(([cls, m]) => [cls, Object.fromEntries(m)])
+      ),
+      classTotalTokens: Object.fromEntries(this.classTotalTokens),
+      vocab: Array.from(this.vocab),
+      totalDocs: this.totalDocs,
+    });
+  }
+
+  /** Restaura el estado del modelo desde JSON serializado. */
+  deserialize(json: string): void {
+    const s = JSON.parse(json);
+    this.classDocs = new Map(Object.entries(s.classDocs));
+    this.tokenCounts = new Map(
+      Object.entries(s.tokenCounts).map(([cls, m]) => [cls, new Map(Object.entries(m as Record<string, number>))])
+    );
+    this.classTotalTokens = new Map(Object.entries(s.classTotalTokens));
+    this.vocab = new Set(s.vocab);
+    this.totalDocs = s.totalDocs;
+    this.loaded = true;
+  }
+
+  /** Persiste el modelo en blob store (fire-and-forget, no bloquea). */
+  private async saveToBlob(): Promise<void> {
+    try {
+      const store = getBlobStore();
+      const json = this.serialize();
+      await store.putObject(BLOB_KEY, Buffer.from(json, 'utf8'), { contentType: 'application/json' });
+    } catch (e) {
+      logger.warn({ err: e }, '[categoryClassifier] no se pudo persistir el modelo en blob store');
+    }
+  }
+
+  /** (Re)construye el modelo: primero intenta blob store, luego tabla de correcciones. */
   async load(): Promise<void> {
+    // Intentar cargar desde blob store (modelo previamente serializado)
+    try {
+      const store = getBlobStore();
+      const existing = await store.getObject(BLOB_KEY);
+      if (existing) {
+        this.deserialize(existing.toString('utf8'));
+        logger.info({ examples: this.totalDocs, classes: this.classDocs.size }, '[categoryClassifier] modelo restaurado desde blob');
+        return;
+      }
+    } catch {
+      // blob store no disponible o sin modelo previo — reconstruir desde DB
+    }
+
     try {
       this.reset();
       const rows = (await db
@@ -79,7 +132,9 @@ class CategoryClassifier {
         .from(transactionCategoryCorrections)) as Array<{ normalizedText: string; correctedCategory: string }>;
       for (const r of rows) this.learn(r.normalizedText, r.correctedCategory);
       this.loaded = true;
-      logger.info({ examples: this.totalDocs, classes: this.classDocs.size }, '[categoryClassifier] modelo cargado');
+      logger.info({ examples: this.totalDocs, classes: this.classDocs.size }, '[categoryClassifier] modelo cargado desde DB');
+      // Persistir para próximos arranques
+      if (this.totalDocs >= MIN_EXAMPLES) void this.saveToBlob();
     } catch (e) {
       // Tabla ausente (migración no corrida) u otro fallo → clasificador inactivo, solo fallback.
       this.loaded = true;
@@ -89,6 +144,14 @@ class CategoryClassifier {
 
   async ensureLoaded(): Promise<void> {
     if (!this.loaded) await this.load();
+  }
+
+  /** Incorpora un ejemplo y actualiza el blob store si hay suficientes datos. */
+  learnAndPersist(text: string, category: string): void {
+    this.learn(text, category);
+    if (this.totalDocs >= MIN_EXAMPLES && this.totalDocs % 10 === 0) {
+      void this.saveToBlob();
+    }
   }
 
   /** Predicción síncrona (requiere ensureLoaded previo). null = sin confianza → usar fallback. */

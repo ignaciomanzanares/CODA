@@ -515,13 +515,29 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
 }
 
 /**
- * Optional authentication - doesn't fail if no token
+ * Optional authentication - doesn't fail if no token.
+ * Mirrors authenticate()'s tokenInvalidatedAt check so that logged-out tokens
+ * are treated as unauthenticated (not silently accepted) on optional routes.
  */
-export function optionalAuth(req: AuthenticatedRequest, _res: Response, next: NextFunction) {
+export async function optionalAuth(req: AuthenticatedRequest, _res: Response, next: NextFunction) {
   const token = readTokenFromRequest(req);
   if (token) {
     const payload = verifyToken(token);
     if (payload) {
+      const [userRow] = await db
+        .select({ tokenInvalidatedAt: users.tokenInvalidatedAt })
+        .from(users)
+        .where(eq(users.id, payload.userId))
+        .limit(1);
+
+      if (userRow?.tokenInvalidatedAt) {
+        const invalidatedAtMs = new Date(userRow.tokenInvalidatedAt).getTime();
+        const tokenIat = ((payload as unknown) as { iat?: number }).iat ?? 0;
+        if (tokenIat * 1000 < invalidatedAtMs) {
+          return next(); // token invalidado → tratar como no-autenticado
+        }
+      }
+
       req.user = payload;
     }
   }

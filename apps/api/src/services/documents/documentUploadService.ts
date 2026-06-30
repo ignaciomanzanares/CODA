@@ -22,6 +22,7 @@ import { isInternalTransferTx } from '../assistantContext.js';
 import { type DetectionTier } from '../../parsers/base.js';
 import { logCreditScorePrediction } from '../audit/algorithmicTraceability.js';
 import { deleteRelatedScoreDocsForDocumentUpload } from './documentUploadLinks.js';
+import { calculateCreditScoreCmfOnly } from '../../scoring/credit-score.js';
 
 export const CREDIT_SCORE_EXCELLENT = 680;
 export const CREDIT_SCORE_MAX = 850;
@@ -210,7 +211,8 @@ export async function processDocumentUpload(
     ]);
 
     // Normalizar a accounts/transactions (fuente de verdad para Movimientos y el
-    // split bruto/real). No bloquea la respuesta si falla.
+    // split bruto/real). No bloquea la respuesta si falla — el score ya fue calculado.
+    // Si falla, el documentUploadId queda registrado para diagnóstico y retry manual.
     try {
       const { normalizeCartolaDoc } = await import('./normalizeCartola.js');
       await normalizeCartolaDoc({
@@ -222,7 +224,11 @@ export async function processDocumentUpload(
         transacciones: (cartolaExtraida.transacciones ?? []) as never,
       });
     } catch (e) {
-      logger.warn({ err: e }, '[documentUploadService] normalizeCartola falló (no bloquea la subida)');
+      // Log con documentUploadId para retry manual desde logs de Render
+      logger.error(
+        { err: e, documentUploadId, scoreDocId, userId, banco },
+        '[documentUploadService] normalizeCartola falló — movimientos no importados. El score fue calculado correctamente.'
+      );
     }
 
     // ── Compute transactional score from ALL score cartolas ──
@@ -463,6 +469,8 @@ async function processCmfUpload(userId: string, doc: CMFParseResult): Promise<Up
  * Score crediticio a partir del Informe CMF (usa metricas.score_cmf 0-100 → escala 300-850).
  */
 function computeCreditScoreFromCmf(cmf: CMFParseResult): number {
-  const raw = Math.round(300 + cmf.metricas.score_cmf * 5.5);
-  return Math.max(300, Math.min(CREDIT_SCORE_MAX, raw));
+  // Usa calibración actuarial: historial_cmf (35%) + endeudamiento (30%) ponderados a 0–850.
+  // Reemplaza la antigua heurística (score_cmf * 5.5 + 300) que daba 768 fijo sin deudas.
+  const result = calculateCreditScoreCmfOnly(cmf);
+  return Math.max(300, Math.min(CREDIT_SCORE_MAX, result.score));
 }

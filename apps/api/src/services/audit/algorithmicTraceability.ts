@@ -22,6 +22,7 @@ import {
   persistCreditPredictionFromLog,
   ensureSeedTraceabilityModels,
   DEFAULT_CREDIT_MODEL_VERSION_ID,
+  listActiveModelVersionsByType,
 } from './traceabilityPersistence.js';
 
 // ============================================================================
@@ -325,8 +326,27 @@ export async function logCreditScorePrediction(
   },
   exec: any = db,
 ): Promise<string> {
-  const activeModel = traceabilityStore.getActiveModelVersion();
-  
+  // Selección de modelo con sampleo A/B si hay múltiples versiones activas del mismo tipo.
+  let activeModel = traceabilityStore.getActiveModelVersion();
+  try {
+    const activeVersions = await listActiveModelVersionsByType(activeModel?.modelType ?? 'simple_rules');
+    if (activeVersions.length >= 2) {
+      const totalWeight = activeVersions.reduce((s, v) => s + (v.abTrafficPct ?? 100), 0);
+      const rand = Math.random() * totalWeight;
+      let cumulative = 0;
+      for (const v of activeVersions) {
+        cumulative += v.abTrafficPct ?? 100;
+        if (rand < cumulative) {
+          const cached = traceabilityStore.getModelVersion(v.id);
+          if (cached) activeModel = cached;
+          break;
+        }
+      }
+    }
+  } catch {
+    // DB no disponible en test/dev — seguir con el modelo del cache
+  }
+
   const log: Omit<CreditScorePredictionLog, 'id'> = {
     userId,
     requestId,
