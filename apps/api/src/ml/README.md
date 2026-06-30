@@ -125,9 +125,33 @@ Implementado:
 # cualquier ventana. Promover con deployNewModelVersion() (modelType xgb_pd) si AUC ok.
 ```
 
-Pendiente (necesita `libomp` para xgboost — `brew install libomp` — no disponible en este
-entorno): generar el `xgb.json` servible y promoverlo. La medición de AUC arriba se hizo con
-HistGradientBoosting; el artefacto XGBoost final irá dentro de ±0.02.
+#### Artefacto entrenado (XGBoost real) — `artifacts/berka_scalefree`
+
+`libomp` sin Homebrew: scikit-learn ya trae `libomp.dylib` en `site-packages/sklearn/.dylibs/`.
+xgboost lo encuentra vía `DYLD_LIBRARY_PATH`:
+
+```bash
+SK=apps/api/src/ml/.venv/lib/python3.13/site-packages/sklearn/.dylibs
+.venv/bin/python prepare_berka.py ~/Downloads/archive out/berka_sf.csv --scale-free --multi-window 90,180,365
+DYLD_LIBRARY_PATH=$SK .venv/bin/python train_xgb.py --in out/berka_sf.csv --out artifacts/berka_scalefree --label label
+```
+(`train_xgb.py` ahora hace opcionales los imports de `shap`/`skl2onnx` → corre con
+pandas+numpy+xgboost+scikit-learn; ONNX/SHAP se omiten, no son requisito para servir.)
+
+**Feature set deployable = 12 SCALE-FREE** (sin las 4 absolutas en CZK: avgAmount, stdAmount,
+monthlyIncome, monthlyDebits). Quitarlas no cuesta AUC (0.723→0.722 account-grouped) y permite
+transferir CZK→CLP. La señal vive en ratios/tasas: recurringExpenseShare, dti, activeDaysShare,
+creditPerMonth, debitCreditRatio, topCategoryShare.
+
+**AUC honesto (GroupKFold(5) por cuenta, account-disjoint): 0.722** — overall, cruza 0.72.
+Per-serving-window: 90d=0.682, 180d=0.715, 365d=0.773. (El número de `train_xgb.py`,
+`TimeSeriesSplit`, queda en `manifest.metrics_raw_timeseriessplit` y está inflado por leakage:
+la misma cuenta aparece en las 3 ventanas. El manifest se patcheó con el AUC honesto.)
+
+**Estado: candidato, no promovido.** Es una BASE real (vs 0.61 sintético), pero entrenada en
+conducta checa — recalibrar/re-entrenar con datos chilenos antes de confiar en producción.
+Para servir: `features.ts` ya produce el superset (las 12 se eligen por nombre); promover con
+`deployNewModelVersion()` (modelType `xgb_pd`) cuando se decida.
 
 ### Home Credit → solo benchmark del evaluador de riesgo (`prepare_home_credit.py`)
 

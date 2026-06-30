@@ -74,6 +74,11 @@ INVARIANT_FEATURES = [
     "netCashflowVolatility", "recurringExpenseShare",
 ]
 
+# Features absolutas en moneda (CZK en Berka) → NO transfieren a CLP. Validado: quitarlas no
+# cuesta AUC (0.723 → 0.722, account-grouped). El feature set SCALE-FREE es el deployable a Chile.
+CURRENCY_ABSOLUTE = ["avgAmount", "stdAmount", "monthlyIncome", "monthlyDebits"]
+SCALE_FREE_FEATURES = [f for f in INVARIANT_FEATURES if f not in CURRENCY_ABSOLUTE]
+
 
 def add_invariant_columns(row: dict) -> dict:
     """Deriva las features invariantes desde las crudas (mismas fórmulas que features.ts)."""
@@ -212,6 +217,8 @@ def main():
     ap.add_argument("--window-days", type=int, default=90, help="Ventana antes del préstamo (def 90)")
     ap.add_argument("--invariant", action="store_true",
                     help="Emite el feature set INVARIANTE (16 features) en vez del crudo (19). Para el artefacto servible robusto a la ventana (#B).")
+    ap.add_argument("--scale-free", action="store_true",
+                    help="Emite solo las 12 features SCALE-FREE (sin las 4 absolutas en moneda). Es el set deployable a Chile (transfiere CZK→CLP). Implica --invariant.")
     ap.add_argument("--multi-window", default=None,
                     help="CSV-list de ventanas, p.ej. '90,180,365'. Concatena las filas de cada ventana (data augmentation) para un modelo robusto a cualquier ventana de serving. Implica --invariant.")
     args = ap.parse_args()
@@ -232,7 +239,7 @@ def main():
     loan["date"] = parse_berka_date(loan["date"])
 
     windows = [int(w) for w in args.multi_window.split(",")] if args.multi_window else [args.window_days]
-    invariant = args.invariant or bool(args.multi_window)
+    invariant = args.invariant or args.scale_free or bool(args.multi_window)
 
     rows = []
     for w in windows:
@@ -240,10 +247,16 @@ def main():
     if not rows:
         sys.exit("No se generaron filas. ¿Coinciden account_id entre trans y loan? ¿Ventana muy corta?")
 
-    cols = (INVARIANT_FEATURES if invariant else PRODUCTION_FEATURES) + ["label"]
+    if args.scale_free:
+        feature_cols = SCALE_FREE_FEATURES
+    elif invariant:
+        feature_cols = INVARIANT_FEATURES
+    else:
+        feature_cols = PRODUCTION_FEATURES
+    cols = feature_cols + ["label"]
     out = pd.DataFrame(rows)[cols]
     out.to_csv(args.out_csv, index=False)
-    mode = "INVARIANTE (16f)" if invariant else "crudo (19f)"
+    mode = f"{len(feature_cols)}f " + ("SCALE-FREE" if args.scale_free else "INVARIANTE" if invariant else "crudo")
     print(f"Wrote {len(out)} filas [{mode}, ventanas={windows}] -> {args.out_csv}")
     print(f"Label balance: {out['label'].value_counts(normalize=True).round(4).to_dict()}")
     print(f"Defaults: {int(out['label'].sum())} / {len(out)}")

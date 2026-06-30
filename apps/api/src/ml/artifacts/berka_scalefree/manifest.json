@@ -1,0 +1,38 @@
+{
+  "model_id": "xgb_1782788992",
+  "trained_at": "2026-06-30T03:09:52Z",
+  "algo": "xgb",
+  "onnx_path": null,
+  "feature_meta_path": "feature_meta.json",
+  "dataset_hash": "c969c08d98bf353d22a057aae658bb31f2ccd7668c014cea59928d85da45280b",
+  "n_rows": 2043,
+  "n_features": 12,
+  "metrics": {
+    "auc": 0.7221,
+    "gini": 0.4443,
+    "auc_per_serving_window": {
+      "90": 0.6817,
+      "180": 0.7145,
+      "365": 0.7731
+    }
+  },
+  "calibration": {
+    "type": "platt",
+    "params": {
+      "a": 11.375288009643555,
+      "b": -4.303375720977783
+    }
+  },
+  "shap_top": [],
+  "shap_summary_path": null,
+  "xgb_json_path": "xgb.json",
+  "metrics_raw_timeseriessplit": {
+    "auc": 0.7251532313855744,
+    "gini": 0.45030646277114883,
+    "brier": 0.10124682138363521,
+    "ks": 0.9166336633663367
+  },
+  "source": "Berka (PKDD'99) multi-ventana 90/180/365, 12 features scale-free (transfiere CZK->CLP)",
+  "validation": "AUC = GroupKFold(5) por CUENTA (account-disjoint). metrics_raw_timeseriessplit es el de train_xgb.py, INFLADO por leakage (misma cuenta en 3 ventanas).",
+  "caveats": "681 cuentas/75 defaults (alta varianza); patrones conductuales checos, no chilenos -> BASE real, recalibrar con datos CL."
+}
