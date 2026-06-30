@@ -118,6 +118,10 @@ export async function processDocumentUpload(
   }
 
   // 2. Cartola path: hardened pipeline (format detection + tier + reconciliation in one pass)
+  // `documentUploadId` se hoistea fuera del try para poder marcar el documento
+  // 'failed' en el outer catch si algo lanza DESPUÉS de crearlo (evita dejarlo
+  // 'pending' huérfano, confuso para el usuario).
+  let documentUploadId: string | undefined;
   try {
     const parsed = await parseCartolaBuffer(buffer);
 
@@ -199,7 +203,7 @@ export async function processDocumentUpload(
     const review = deriveDocumentReviewState({ banco, detectionTier: parsed.detection_tier });
 
     // Write to BOTH tables (el score doc referencia explicitamente al document upload).
-    const documentUploadId = randomUUID();
+    documentUploadId = randomUUID();
     const scoreDocId = randomUUID();
     await Promise.all([
       storage.createDocumentUpload({
@@ -338,6 +342,20 @@ export async function processDocumentUpload(
   } catch (e) {
     if (e instanceof ParseError) {
       return { step: 'done', error: `${e.messageEs}` };
+    }
+    // Si el documento ya se había creado y luego algo lanzó (fuera del try/catch
+    // de normalización, p. ej. en la escritura del score doc), no lo dejamos
+    // 'pending' huérfano: lo marcamos 'failed' (best-effort; no-op si la fila no
+    // existe, p. ej. cuando el fallo fue ANTES de crear el documento). Se mantiene
+    // el re-throw → 500, pero DocumentManager ya lo muestra como "fallida".
+    if (documentUploadId) {
+      await storage
+        .updateDocumentUploadNormalizationStatus(documentUploadId, userId, "failed")
+        .catch(() => {});
+      logger.warn(
+        { err: e, userId, documentUploadId },
+        '[documentUploadService] upload falló tras crear el documento; marcado failed'
+      );
     }
     throw e;
   }
