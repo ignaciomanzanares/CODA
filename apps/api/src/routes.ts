@@ -3978,6 +3978,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/profile/accounts/:accountId/transactions-sfa — movimientos del titular renderizados
+  // en el formato del Sistema de Finanzas Abiertas (CMF, NCG 514/569, ISO 20022). Diagnóstico/
+  // readiness: muestra cómo se ven las cartolas ya normalizadas en el schema exacto que CODA
+  // consumirá como PSBI cuando entren en vigencia las APIs. Solo datos propios del usuario.
+  app.get("/api/profile/accounts/:accountId/transactions-sfa", authenticate, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const accountId = Number(req.params.accountId);
+      const userAccounts = await storage.getAccounts(userId);
+      const owned = userAccounts.find((a: { id: number }) => a.id === accountId);
+      if (!owned) return res.status(404).json({ message: 'Cuenta no encontrada' });
+
+      const fromDate = typeof req.query.fromDate === 'string' ? req.query.fromDate : undefined;
+      const toDate = typeof req.query.toDate === 'string' ? req.query.toDate : undefined;
+      const page = Math.max(1, parseInt(String(req.query.page ?? '1'), 10) || 1);
+      const pageSize = Math.min(200, Math.max(1, parseInt(String(req.query.pageSize ?? '25'), 10) || 25));
+
+      const txs = await storage.getTransactions(accountId, {
+        from: fromDate ? new Date(fromDate) : undefined,
+        to: toDate ? new Date(toDate) : undefined,
+      });
+      const { buildSfaTransactionsResponse } = await import('./services/sfa/sfaMapper.js');
+      const baseUrl = `${req.protocol}://${req.get('host')}/api/profile/accounts/${accountId}/transactions-sfa`;
+      const resp = buildSfaTransactionsResponse(
+        txs.map((t: any) => ({ id: t.id, externalId: t.externalId, postedAt: t.postedAt, description: t.description, amount: Number(t.amount), currency: t.currency ?? 'CLP' })),
+        { baseUrl, fromDate, toDate, page, pageSize },
+      );
+      res.json(resp);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // GET /api/profile/my-data — exportación de todos los datos del titular (Ley 21.719 Art. 13).
   // Rate-limit: 1 solicitud/hora vía expensiveLimiter (ventana 60 min).
   app.get("/api/profile/my-data", authenticate, expensiveLimiter, async (req: Request, res: Response, next: NextFunction) => {
