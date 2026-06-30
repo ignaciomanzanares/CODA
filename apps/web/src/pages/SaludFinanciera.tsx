@@ -146,8 +146,8 @@ export default function SaludFinanciera() {
             <h2 className="text-lg font-semibold">Aún no podemos calcular tu salud financiera</h2>
             <p className="text-gray-600 text-sm leading-relaxed">{description}</p>
             {missing && (
-              <div className="mx-auto inline-flex flex-col gap-1.5 text-left text-sm">
-                <span className="flex items-center gap-2">
+              <div className="mx-auto w-full max-w-xs space-y-2 rounded-lg border border-border bg-muted/30 p-3 text-left text-sm">
+                <div className="flex items-center gap-2">
                   {cartolaMissing ? (
                     <Circle className="h-4 w-4 text-muted-foreground/50 shrink-0" />
                   ) : (
@@ -156,8 +156,8 @@ export default function SaludFinanciera() {
                   <span className={cartolaMissing ? "text-muted-foreground" : "text-foreground"}>
                     Cartola bancaria
                   </span>
-                </span>
-                <span className="flex items-center gap-2">
+                </div>
+                <div className="flex items-center gap-2">
                   {cmfMissing ? (
                     <Circle className="h-4 w-4 text-muted-foreground/50 shrink-0" />
                   ) : (
@@ -166,13 +166,15 @@ export default function SaludFinanciera() {
                   <span className={cmfMissing ? "text-muted-foreground" : "text-foreground"}>
                     Informe CMF
                   </span>
-                </span>
+                </div>
               </div>
             )}
-            <Button className="gap-2" onClick={openWithFilePicker}>
-              <Upload className="w-4 h-4" />
-              {ctaLabel}
-            </Button>
+            <div className="flex justify-center pt-1">
+              <Button className="gap-2" onClick={openWithFilePicker}>
+                <Upload className="w-4 h-4" />
+                {ctaLabel}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -291,10 +293,10 @@ export default function SaludFinanciera() {
         descripcionNivel={descripcionNivel}
       />
 
-      {evaluation.insights.length > 0 && (
+      {(evaluation.insights ?? []).length > 0 && (
         <Card>
           <CardContent className="p-4 space-y-2">
-            {evaluation.insights.map((insight, i) => (
+            {(evaluation.insights ?? []).map((insight, i) => (
               <p key={i} className="text-sm text-gray-700 flex gap-2">
                 <span className="text-blue-500 mt-0.5">•</span>
                 {insight}
@@ -304,9 +306,9 @@ export default function SaludFinanciera() {
         </Card>
       )}
 
-      <EvaluationBreakdown ratios={evaluation.ratios} />
+      {evaluation.ratios && <EvaluationBreakdown ratios={evaluation.ratios} />}
 
-      {evaluation.salida !== 'concursal' && evaluation.productos.length > 0 && (
+      {evaluation.salida !== 'concursal' && (evaluation.productos ?? []).length > 0 && (
         <div>
           <h2 className="text-lg font-semibold mb-3">
             Plan de acción — {SALIDA_LABEL[evaluation.salida]}
