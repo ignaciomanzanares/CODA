@@ -15,14 +15,16 @@ import { env } from '../../env.js';
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // recomendado para GCM
 
-/** Deriva una llave de 32 bytes desde `FIELD_ENCRYPTION_KEY` sin importar su longitud/encoding original. */
-function deriveKey(): Buffer {
-  return createHash('sha256').update(env.fieldEncryptionKey).digest();
+/** Deriva una llave de 32 bytes desde un secreto sin importar su longitud/encoding original. */
+function deriveKey(secret: string): Buffer {
+  return createHash('sha256').update(secret).digest();
 }
 
-const key = deriveKey();
+const key = deriveKey(env.fieldEncryptionKey);
+// Llave anterior durante una rotación (opcional). decryptField la prueba como fallback.
+const prevKey = env.fieldEncryptionKeyPrev ? deriveKey(env.fieldEncryptionKeyPrev) : null;
 
-/** Cifra un string en claro. Devuelve `iv:authTag:ciphertext` (base64). */
+/** Cifra un string en claro con la llave ACTUAL. Devuelve `iv:authTag:ciphertext` (base64). */
 export function encryptField(plaintext: string): string {
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, key, iv);
@@ -31,7 +33,18 @@ export function encryptField(plaintext: string): string {
   return [iv.toString('base64'), authTag.toString('base64'), ciphertext.toString('base64')].join(':');
 }
 
-/** Descifra un valor producido por `encryptField`. */
+function decryptWith(k: Buffer, iv: Buffer, authTag: Buffer, ciphertext: Buffer): string {
+  const decipher = createDecipheriv(ALGORITHM, k, iv);
+  decipher.setAuthTag(authTag);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+}
+
+/**
+ * Descifra un valor producido por `encryptField`. Prueba la llave actual; si la autenticación
+ * GCM falla (valor cifrado con la llave anterior durante una rotación), reintenta con
+ * `FIELD_ENCRYPTION_KEY_PREV` si está configurada. GCM detecta la llave equivocada vía el
+ * authTag, así que el fallback no es ambiguo.
+ */
 export function decryptField(value: string): string {
   const parts = value.split(':');
   if (parts.length !== 3) {
@@ -42,10 +55,29 @@ export function decryptField(value: string): string {
   const authTag = Buffer.from(authTagB64, 'base64');
   const ciphertext = Buffer.from(ciphertextB64, 'base64');
 
-  const decipher = createDecipheriv(ALGORITHM, key, iv);
-  decipher.setAuthTag(authTag);
-  const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-  return plaintext.toString('utf8');
+  try {
+    return decryptWith(key, iv, authTag, ciphertext);
+  } catch (err) {
+    if (prevKey) {
+      // La llave actual no autenticó → probablemente cifrado con la anterior (rotación en curso).
+      return decryptWith(prevKey, iv, authTag, ciphertext);
+    }
+    throw err;
+  }
+}
+
+/** True si el valor se cifró con la llave ANTERIOR (necesita re-cifrado en la rotación). */
+export function needsReencryption(value: string): boolean {
+  if (!prevKey) return false;
+  const parts = value.split(':');
+  if (parts.length !== 3) return false;
+  const [ivB64, authTagB64, ciphertextB64] = parts;
+  try {
+    decryptWith(key, Buffer.from(ivB64, 'base64'), Buffer.from(authTagB64, 'base64'), Buffer.from(ciphertextB64, 'base64'));
+    return false; // la llave actual ya lo autentica → no necesita re-cifrado
+  } catch {
+    return true; // solo descifrable con la anterior
+  }
 }
 
 /** Variantes null-safe para columnas opcionales. */

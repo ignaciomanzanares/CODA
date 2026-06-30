@@ -46,6 +46,10 @@ export const env = {
   clientUrl: process.env.CLIENT_URL || (isProd ? '' : 'http://localhost:5173'),
   // Validado arriba en prod; en dev usamos una llave fija no secreta (igual que jwtSecret).
   fieldEncryptionKey: process.env.FIELD_ENCRYPTION_KEY || 'coda-dev-field-encryption-key-do-not-use-in-prod',
+  // Llave ANTERIOR durante una rotación: decryptField la prueba como fallback si la llave
+  // actual no autentica el valor. Permite leer datos cifrados con la llave vieja mientras el
+  // job de rotación los re-cifra con la actual. Quitar tras completar la rotación.
+  fieldEncryptionKeyPrev: process.env.FIELD_ENCRYPTION_KEY_PREV || undefined,
   // Opcional: si no está definida, rate limiting/colas caen a memoria local (un solo proceso).
   redisUrl: process.env.REDIS_URL,
 };

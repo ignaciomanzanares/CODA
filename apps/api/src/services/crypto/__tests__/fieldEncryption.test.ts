@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { encryptField, decryptField, encryptFieldOrNull, decryptFieldOrNull, looksEncrypted } from '../fieldEncryption';
+import { encryptField, decryptField, encryptFieldOrNull, decryptFieldOrNull, looksEncrypted, needsReencryption } from '../fieldEncryption';
 
 describe('fieldEncryption', () => {
   it('round-trips a plaintext value', () => {
@@ -34,5 +34,12 @@ describe('fieldEncryption', () => {
   it('looksEncrypted distinguishes ciphertext from plaintext JSON', () => {
     expect(looksEncrypted(encryptField('{"a":1}'))).toBe(true);
     expect(looksEncrypted('{"a":1}')).toBe(false);
+  });
+
+  it('needsReencryption is false sin llave previa (valor autenticado por la actual)', () => {
+    // Sin FIELD_ENCRYPTION_KEY_PREV (default en test), nada necesita re-cifrado: el valor
+    // recién cifrado lo autentica la llave actual. La rotación con llave previa se ejercita
+    // vía el script db:rotate-encryption-key (requiere env seteado al cargar el módulo).
+    expect(needsReencryption(encryptField('x'))).toBe(false);
   });
 });
