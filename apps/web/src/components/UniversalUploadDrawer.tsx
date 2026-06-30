@@ -205,6 +205,14 @@ export default function UniversalUploadDrawer({
         ]);
 
         if (!res.ok) {
+          // 5xx → error transitorio del servidor (p. ej. cold-start): mensaje amigable
+          // de reintento. 4xx (validación/parse) → conservar el mensaje específico del
+          // backend ("Archivo corrupto o vacío", "No se reconoció el banco…", etc.).
+          if (res.status >= 500) {
+            throw new Error(
+              "El servidor tardó más de lo esperado. Espera unos segundos e intenta nuevamente. Si el documento aparece como fallido, puedes eliminarlo y volver a subirlo."
+            );
+          }
           throw new Error(
             (json as { message?: string }).message ?? `Error ${res.status}`
           );
