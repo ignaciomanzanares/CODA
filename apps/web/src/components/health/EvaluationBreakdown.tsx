@@ -74,6 +74,10 @@ function pct(ratio: number): string {
 }
 
 export default function EvaluationBreakdown({ ratios }: EvaluationBreakdownProps) {
+  // Defensa: aunque el tipo lo marca requerido, una evaluación del backend sin
+  // `ratios` haría crashear el destructuring (error boundary). Si falta, no se
+  // renderiza el desglose en vez de tumbar toda la página.
+  if (!ratios) return null;
   const { deudaFlujo, deudaActivos, ahorroIngreso, moraActiva, diasMora } = ratios;
 
   return (
