@@ -47,10 +47,10 @@ export const SFA_ENDPOINTS = {
     transactions: '/accounts/{creditCardAccountID}/transactions', // mismo schema de movimientos
   },
   loans: {
-    base: null, // TBD (probable /loans/v1)
+    base: '/loans/v1', // confirmado (self link de los ejemplos oficiales)
     list: '/loans',
-    detail: '/loans/{loanID}',
-    balance: '/loans/{loanID}/balance',
+    detail: '/loans/{loanID}', // schema confirmado (sfaTypes.SfaLoan)
+    balance: '/loans/{loanID}/balance', // schema confirmado (sfaTypes.SfaLoanBalance)
     currentTransactions: '/loans/{loanID}/current-transactions', // mismo schema de movimientos
   },
 } as const;

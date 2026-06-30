@@ -31,13 +31,23 @@ Por eso el trabajo es adoptar el modelo de datos del SFA internamente, de modo q
 | Mapper interno↔SFA de movimientos + envelope + paginación | ✅ `sfaMapper.ts` (+6 tests, round-trip vs ejemplo oficial) |
 | Endpoint diagnóstico `GET /api/profile/accounts/:id/transactions-sfa` | ✅ |
 | Catálogo de endpoints (cuentas/tarjetas/créditos) | ✅ `sfaEndpoints.ts` |
-| Schema de **saldos** (cuenta/crédito), **cupo** de tarjeta, **datos generales** de préstamo | ⏳ pendiente: el portal no expone el field-level por REST (macro Swagger). Falta ejemplo oficial de respuesta para `GET /loans/{id}`, `/loans/{id}/balance`, `/accounts/{ccID}/limit`. |
+| Schema de **operaciones de crédito** (datos generales + saldo, con mora) | ✅ confirmado → `sfaTypes.SfaLoan`/`SfaLoanBalance` + `fromSfaLoan`/`aggregateCreditSignals` |
+| Schema de **saldos de cuenta** y **cupo/saldo de tarjeta** | ⏳ pendiente: falta ejemplo oficial de `GET /accounts/{id}/balance`, `/accounts/{ccID}/balance`, `/limit`. |
 | Conector SFA real (`SfaProvider implements OBProvider` + OAuth2/PKCE/mTLS, JWS) | ⏳ requiere registro ante CMF + sandbox |
 
-## Próximo paso (para los schemas pendientes)
+## Operaciones de crédito → evaluador de riesgo
 
-Pegar desde el Swagger del portal (espacio OFAC) los ejemplos de respuesta de:
-- `GET /loans/{loanID}` y `GET /loans/{loanID}/balance` (clave para el evaluador de riesgo CMF).
-- `GET /accounts/{creditCardAccountID}/balance` y `/limit`.
+`fromSfaLoan(loan, balance)` produce una `CreditOperation` interna; `aggregateCreditSignals` la
+reduce a `{ deudaTotal, tieneDeuda, tieneMora, porTipo }`. **Esto es lo que estaba bloqueado**:
+el SFA entrega deuda chilena real en el feature space del CMF (tipo, monto, mora vía
+`accruedLateInterest`), así que el evaluador de riesgo podrá correr sobre datos SFA en vivo
+—no solo sobre el PDF CMF subido— cuando el conector esté operativo.
 
-Con eso se extiende `sfaTypes.ts`/`sfaMapper.ts` a esos productos sin inventar nombres de campo.
+> Nota de granularidad: el balance del SFA trae `accruedLateInterest` (señal de mora) pero NO
+> los buckets de atraso 30/60/90 del informe CMF. `tieneMora` se deriva de
+> `accruedLateInterest > 0` o `status='MOROSO'`; los buckets finos siguen viniendo solo del PDF CMF.
+
+## Próximo paso (schemas pendientes)
+
+Pegar desde el Swagger (OFAC) los ejemplos de `GET /accounts/{id}/balance` y
+`/accounts/{ccID}/balance` + `/limit`. Con eso se cierran cuentas y tarjetas sin inventar campos.

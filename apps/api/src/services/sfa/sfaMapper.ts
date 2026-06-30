@@ -12,7 +12,10 @@
  * el modelo interno usa `amount` firmado (salida negativa, entrada positiva).
  */
 import type { OBTransaction } from '../../connectors/openbanking/mockProvider.js';
-import { type SfaTransaction, type SfaTransactionsResponse, minorUnits } from './sfaTypes.js';
+import {
+  type SfaTransaction, type SfaTransactionsResponse, minorUnits,
+  type SfaLoan, type SfaLoanBalance,
+} from './sfaTypes.js';
 
 /** Redondea al número de decimales de la moneda (CLP→entero, USD→2, etc.). */
 function roundToCurrency(amount: number, currency: string): number {
@@ -110,5 +113,93 @@ export function buildSfaTransactionsResponse(txs: InternalTx[], opts: SfaRespons
     data: { transactions: slice.map(toSfaTransaction) },
     links,
     meta: { totalRecords, totalPages },
+  };
+}
+
+// ============================================================================
+// OPERACIONES DE CRÉDITO (SFA → modelo de deuda interno, para el evaluador de riesgo CMF)
+// ============================================================================
+
+/** tipo_credito del CMF a partir del loanType del SFA. */
+export function loanTypeToCmf(loanType: string): 'vivienda' | 'consumo' | 'comercial' | 'otro' {
+  switch ((loanType || '').toUpperCase()) {
+    case 'HIPOTECARIO': return 'vivienda';
+    case 'CONSUMO': return 'consumo';
+    case 'COMERCIAL': return 'comercial';
+    default: return 'otro';
+  }
+}
+
+/** Operación de crédito normalizada (interna), combinando datos generales + saldo del SFA. */
+export interface CreditOperation {
+  loanId: string;
+  institucion: string; // productName (el nombre del IPI viene por otra vía en el SFA)
+  tipoCredito: 'vivienda' | 'consumo' | 'comercial' | 'otro';
+  currency: string;
+  vigente: boolean;
+  /** Deuda total exigible = capital vigente + interés devengado + interés de mora. */
+  totalOutstanding: number;
+  outstandingPrincipal: number;
+  accruedInterest: number;
+  accruedLateInterest: number;
+  /** mora: hay interés por atraso devengado. */
+  tieneMora: boolean;
+  nextInstallment?: { amount: number; dueDate: string };
+  lastPayment?: { amount: number; date: string };
+  interestRate?: number;
+  rateType?: string;
+}
+
+/** SFA loan (+ balance opcional) → operación de crédito interna. */
+export function fromSfaLoan(loan: SfaLoan, balance?: SfaLoanBalance): CreditOperation {
+  const currency = (loan.currency || balance?.currency || 'CLP').toUpperCase();
+  const principal = balance?.outstandingPrincipal ?? 0;
+  const interest = balance?.accruedInterest ?? 0;
+  const lateInterest = balance?.accruedLateInterest ?? 0;
+  const op: CreditOperation = {
+    loanId: loan.loanID,
+    institucion: loan.productName,
+    tipoCredito: loanTypeToCmf(loan.loanType),
+    currency,
+    vigente: (loan.status || '').toUpperCase() === 'VIGENTE',
+    outstandingPrincipal: principal,
+    accruedInterest: interest,
+    accruedLateInterest: lateInterest,
+    totalOutstanding: principal + interest + lateInterest,
+    tieneMora: lateInterest > 0 || (loan.status || '').toUpperCase() === 'MOROSO',
+    interestRate: loan.interestRate,
+    rateType: loan.rateType,
+  };
+  if (balance) {
+    if (balance.nextInstallmentAmount != null) op.nextInstallment = { amount: balance.nextInstallmentAmount, dueDate: balance.nextInstallmentDueDate };
+    if (balance.lastPaymentAmount != null) op.lastPayment = { amount: balance.lastPaymentAmount, date: balance.lastPaymentDate };
+  }
+  return op;
+}
+
+/** Señales de deuda para el evaluador de riesgo, agregando operaciones SFA (reemplaza al PDF CMF). */
+export interface CreditDebtSignals {
+  deudaTotal: number;
+  tieneDeuda: boolean;
+  tieneMora: boolean;
+  numOperaciones: number;
+  porTipo: Record<string, number>;
+}
+
+export function aggregateCreditSignals(ops: CreditOperation[]): CreditDebtSignals {
+  const porTipo: Record<string, number> = {};
+  let deudaTotal = 0;
+  let tieneMora = false;
+  for (const op of ops) {
+    deudaTotal += op.totalOutstanding;
+    if (op.tieneMora) tieneMora = true;
+    porTipo[op.tipoCredito] = (porTipo[op.tipoCredito] ?? 0) + op.totalOutstanding;
+  }
+  return {
+    deudaTotal: Math.round(deudaTotal),
+    tieneDeuda: deudaTotal > 0,
+    tieneMora,
+    numOperaciones: ops.length,
+    porTipo,
   };
 }
