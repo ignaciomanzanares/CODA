@@ -627,6 +627,8 @@ export const algorithmModelVersions = table('algorithm_model_versions', {
   datasetHash: text('dataset_hash'),
   /** Hash del set de features para detectar skew train/serving. */
   featureSetHash: text('feature_set_hash'),
+  /** Porcentaje de tráfico asignado a esta versión para A/B testing (0-100). Default 100 = todo el tráfico. */
+  abTrafficPct: real('ab_traffic_pct').default(100),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -887,4 +889,14 @@ export const parserDiagnostics = table("parser_diagnostics", {
   pageCount: integer("page_count"),
   textLength: integer("text_length"),
   userAction: text("user_action"),  // accepted | rejected | pending | null
+});
+
+
+/** Eventos de conversión de productos financieros para función de pérdida CTR × tasa conversión. */
+export const productConversionEvents = table("product_conversion_events", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  productId: text("product_id").notNull(),
+  eventType: text("event_type").notNull(), // 'view' | 'click' | 'apply' | 'convert'
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

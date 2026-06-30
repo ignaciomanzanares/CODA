@@ -67,6 +67,8 @@ export const {
   habitFeedback,
   storedBlobs,
   indicatorValues,
+  productConversionEvents,
+  parserDiagnostics,
 } = schema as any;
 import postgres from 'postgres';
 import { ensurePostgresSslMode } from './postgresUrl.js';

@@ -3978,6 +3978,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/profile/my-data — exportación de todos los datos del titular (Ley 21.719 Art. 13).
+  // Rate-limit: 1 solicitud/hora vía expensiveLimiter (ventana 60 min).
+  app.get("/api/profile/my-data", authenticate, expensiveLimiter, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+
+      const [profile] = await db.select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        rut: users.rut,
+        kycStatus: users.kycStatus,
+        onboardingCompleted: users.onboardingCompleted,
+        createdAt: users.createdAt,
+      }).from(users).where(eq(users.id, userId)).limit(1);
+
+      if (!profile) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+      const cutoffDate = new Date();
+      cutoffDate.setMonth(cutoffDate.getMonth() - 24);
+      const cutoff = cutoffDate.toISOString().slice(0, 10);
+
+      const { documentUploads: docUploads, consentGrants: grants } = await import('./db/index.js');
+      const [
+        userTransactions,
+        userAccounts,
+        userCreditScores,
+        userDocuments,
+        userConsentGrants,
+      ] = await Promise.all([
+        db.select().from(transactions).where(and(eq(transactions.userId, userId), desc(transactions.date) as any)).limit(2000),
+        db.select().from(accounts).where(eq(accounts.userId, userId)),
+        db.select().from(creditScores).where(eq(creditScores.userId, userId)),
+        db.select({ id: (docUploads as any).id, tipo: (docUploads as any).tipo, banco: (docUploads as any).banco, parseStatus: (docUploads as any).parseStatus, createdAt: (docUploads as any).createdAt }).from(docUploads as any).where(eq((docUploads as any).userId, userId)),
+        db.select().from(grants as any).where(eq((grants as any).userId, userId)),
+      ]);
+
+      res.setHeader('Content-Disposition', 'attachment; filename="mis-datos-coda.json"');
+      res.json({
+        exportedAt: new Date().toISOString(),
+        dataController: 'CODA Finance SpA',
+        legalBasis: 'Ley 21.719 Art. 13 — Derecho de acceso del titular',
+        profile,
+        accounts: userAccounts,
+        transactions: userTransactions,
+        creditScores: userCreditScores,
+        documents: userDocuments,
+        consentGrants: userConsentGrants,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.delete("/api/profile/account", authenticate, authLimiter, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = getUserIdFromAuth(req);
@@ -4204,9 +4260,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'productId and eventType are required' });
       }
 
-      const validEvents = ['view', 'click', 'application', 'approval', 'rejection'];
+      const validEvents = ['view', 'click', 'apply', 'convert', 'application', 'approval', 'rejection'];
       if (!validEvents.includes(eventType)) {
         return res.status(400).json({ message: `Invalid eventType. Must be one of: ${validEvents.join(', ')}` });
+      }
+
+      // Registrar en product_conversion_events para función de pérdida CTR × conversión
+      if (['view', 'click', 'apply', 'convert'].includes(eventType)) {
+        const { productConversionEvents } = await import('./db/index.js');
+        await db.insert(productConversionEvents as any).values({
+          id: crypto.randomUUID(),
+          userId,
+          productId: String(productId),
+          eventType,
+        });
       }
 
       const { trackLeadEvent } = await import('./services/products/leadTrackingService.js');

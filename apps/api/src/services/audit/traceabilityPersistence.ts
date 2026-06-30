@@ -5,7 +5,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { db, algorithmModelVersions, algorithmPredictionLogs } from '../../db/index.js';
 import { logger } from '../../logger.js';
 import { encryptField, decryptField, looksEncrypted } from '../crypto/fieldEncryption.js';
@@ -460,6 +460,20 @@ export async function listRecentPredictionPds(kind: string, limit = 5000): Promi
     if (typeof pd === 'number' && Number.isFinite(pd)) pds.push(pd);
   }
   return pds;
+}
+
+/**
+ * Retorna todas las versiones activas de un modelType ordenadas por fecha de despliegue.
+ * Usado para sampleo A/B: si hay 2+ versiones activas, se sortea según abTrafficPct.
+ */
+export async function listActiveModelVersionsByType(modelType: string): Promise<Array<{
+  id: string; version: string; modelType: string; abTrafficPct: number | null;
+}>> {
+  return db
+    .select({ id: algorithmModelVersions.id, version: algorithmModelVersions.version, modelType: algorithmModelVersions.modelType, abTrafficPct: algorithmModelVersions.abTrafficPct })
+    .from(algorithmModelVersions)
+    .where(and(eq(algorithmModelVersions.modelType, modelType), eq(algorithmModelVersions.isActive, 1)))
+    .orderBy(desc(algorithmModelVersions.deployedAt)) as Promise<Array<{ id: string; version: string; modelType: string; abTrafficPct: number | null }>>;
 }
 
 export async function listAlgorithmPredictionLogsForUser(

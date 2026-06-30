@@ -14,10 +14,13 @@
  */
 
 import type { CreditScorePredictionLog, ModelVersion } from './algorithmicTraceability.js';
-import { getUserPredictionHistory, getActiveModelVersion } from './algorithmicTraceability.js';
+import { getUserPredictionHistory, getActiveModelVersion, registerAlgorithmChange } from './algorithmicTraceability.js';
 import { listRecentPredictionPds } from './traceabilityPersistence.js';
 import { notifyOps } from '../observability/index.js';
 import { mlLogger as logger } from '../../logger.js';
+
+/** PSI > 0.25 = drift severo → registrar AlgorithmChange como señal de reentrenamiento urgente. */
+const PSI_SEVERE_THRESHOLD = 0.25;
 
 // ============================================================================
 // TYPES
@@ -288,6 +291,23 @@ export async function runDriftMonitoringJob(opts?: {
       referenceN: reference.length,
       hint: 'Revisar si la distribución de entrada cambió o reentrenar el modelo.',
     });
+
+    // Drift severo → registrar AlgorithmChange pendiente de aprobación humana (NCG 502)
+    if (psi > PSI_SEVERE_THRESHOLD) {
+      const activeModel = getActiveModelVersion();
+      registerAlgorithmChange({
+        changeType: 'model_update',
+        component: 'credit_score',
+        title: `Drift severo detectado en '${kind}' (PSI=${psi.toFixed(3)})`,
+        description: `El PSI de la distribución de PD supera el umbral severo (${PSI_SEVERE_THRESHOLD}). Se recomienda reentrenar o revisar la distribución de datos de entrada. Ventana: ${recent.length} predicciones recientes vs ${reference.length} de referencia.`,
+        newVersion: activeModel?.version ?? 'unknown',
+        oldVersion: activeModel?.version,
+        status: 'pending',
+        requestedBy: 'drift-monitor-auto',
+        expectedImpact: `PSI=${psi.toFixed(3)} indica que la distribución de PDs cambió significativamente.`,
+      });
+      logger.warn({ kind, psi }, '[driftMonitor] drift severo — AlgorithmChange pendiente registrado');
+    }
   }
 
   return { status: 'ok', kind, recentN: recent.length, referenceN: reference.length, psi, alert };
