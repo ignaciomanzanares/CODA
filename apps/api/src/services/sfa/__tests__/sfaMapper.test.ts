@@ -60,3 +60,55 @@ describe('sfaMapper', () => {
     expect(resp.links.prev).toBeUndefined();
   });
 });
+
+import { fromSfaLoan, aggregateCreditSignals, loanTypeToCmf } from '../sfaMapper.js';
+import type { SfaLoan, SfaLoanBalance } from '../sfaTypes.js';
+
+describe('sfaMapper — operaciones de crédito', () => {
+  const loan: SfaLoan = {
+    loanID: 'LN-10001', productName: 'Crédito de Consumo', loanType: 'CONSUMO', status: 'VIGENTE',
+    approvedAmount: 5000000, currency: 'CLP', disbursementDate: '2023-01-18', maturityDate: '2027-01-15',
+    interestRate: 1.12, rateType: 'FIJA', installmentFrequency: 'MENSUAL', totalInstallments: 48,
+    gracePeriod: 0, collateralDetails: null,
+  };
+  const balance: SfaLoanBalance = {
+    outstandingPrincipal: 3150000, accruedInterest: 24000, accruedLateInterest: 0,
+    nextInstallmentAmount: 131200, nextInstallmentDueDate: '2025-03-15', currency: 'CLP',
+    lastPaymentAmount: 131200, lastPaymentDate: '2025-02-15',
+  };
+
+  it('loanType → tipo CMF', () => {
+    expect(loanTypeToCmf('CONSUMO')).toBe('consumo');
+    expect(loanTypeToCmf('HIPOTECARIO')).toBe('vivienda');
+    expect(loanTypeToCmf('COMERCIAL')).toBe('comercial');
+    expect(loanTypeToCmf('LEASING')).toBe('otro');
+  });
+
+  it('loan + balance → operación de crédito (deuda total = principal+interés+mora)', () => {
+    const op = fromSfaLoan(loan, balance);
+    expect(op.tipoCredito).toBe('consumo');
+    expect(op.vigente).toBe(true);
+    expect(op.totalOutstanding).toBe(3174000); // 3150000 + 24000 + 0
+    expect(op.tieneMora).toBe(false);
+    expect(op.nextInstallment).toEqual({ amount: 131200, dueDate: '2025-03-15' });
+  });
+
+  it('detecta mora por accruedLateInterest > 0', () => {
+    const op = fromSfaLoan(loan, { ...balance, accruedLateInterest: 5000 });
+    expect(op.tieneMora).toBe(true);
+    expect(op.totalOutstanding).toBe(3179000);
+  });
+
+  it('agrega señales de deuda para el evaluador de riesgo', () => {
+    const ops = [
+      fromSfaLoan(loan, balance),
+      fromSfaLoan({ ...loan, loanID: 'LN-2', loanType: 'HIPOTECARIO' }, { ...balance, outstandingPrincipal: 40000000, accruedLateInterest: 1000 }),
+    ];
+    const s = aggregateCreditSignals(ops);
+    expect(s.numOperaciones).toBe(2);
+    expect(s.tieneDeuda).toBe(true);
+    expect(s.tieneMora).toBe(true);
+    expect(s.porTipo.consumo).toBe(3174000);
+    expect(s.porTipo.vivienda).toBe(40025000);
+  });
+});

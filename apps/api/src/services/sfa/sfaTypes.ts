@@ -31,6 +31,56 @@ export interface SfaTransactionsResponse {
   meta: { totalRecords: number; totalPages: number };
 }
 
+/**
+ * Datos generales de una operación de crédito — GET /loans/v1/loans/{loanID}.
+ * Confirmado contra ejemplo oficial. Enums tipados con los valores observados (string abierto
+ * para tolerar valores no vistos aún). Montos enteros CLP; fechas ISO 8601 date-only.
+ */
+export interface SfaLoan {
+  loanID: string;
+  productName: string;
+  loanType: 'CONSUMO' | 'HIPOTECARIO' | 'COMERCIAL' | (string & {});
+  status: 'VIGENTE' | 'MOROSO' | 'PAGADO' | 'CASTIGADO' | (string & {});
+  approvedAmount: number;
+  currency: string; // ISO 4217
+  disbursementDate: string; // ISO 8601 date
+  maturityDate: string; // ISO 8601 date
+  interestRate: number;
+  rateType: 'FIJA' | 'VARIABLE' | (string & {});
+  installmentFrequency: 'MENSUAL' | 'TRIMESTRAL' | 'ANUAL' | (string & {});
+  totalInstallments: number;
+  gracePeriod: number;
+  collateralDetails: unknown | null;
+}
+
+export interface SfaLoanResponse {
+  data: { loan: SfaLoan };
+  links: { self: string };
+  meta: { requestDateTime: string };
+}
+
+/**
+ * Saldo de una operación de crédito — GET /loans/v1/loans/{loanID}/balance.
+ * Confirmado contra ejemplo oficial. Montos enteros en CLP (ISO 4217); fechas de cuota/pago
+ * son ISO 8601 date-only (YYYY-MM-DD); `accruedLateInterest > 0` = señal de mora.
+ */
+export interface SfaLoanBalance {
+  outstandingPrincipal: number; // capital vigente
+  accruedInterest: number; // interés devengado
+  accruedLateInterest: number; // interés por mora (atraso)
+  nextInstallmentAmount: number;
+  nextInstallmentDueDate: string; // ISO 8601 date
+  currency: string; // ISO 4217
+  lastPaymentAmount: number;
+  lastPaymentDate: string; // ISO 8601 date
+}
+
+export interface SfaLoanBalanceResponse {
+  data: { balance: SfaLoanBalance };
+  links: { self: string };
+  meta: { requestDateTime: string }; // ISO 8601 UTC
+}
+
 /** Decimales por moneda (ISO 4217 minor unit). Default 2 para monedas no listadas. */
 export const ISO4217_MINOR_UNITS: Record<string, number> = {
   CLP: 0, // peso chileno: entero
