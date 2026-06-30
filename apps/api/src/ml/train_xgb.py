@@ -4,12 +4,25 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import roc_auc_score, brier_score_loss
-import shap
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 import xgboost as xgb
-from skl2onnx import convert_sklearn
-from onnxconverter_common.data_types import FloatTensorType as OCCFloatTensorType
+
+# Imports OPCIONALES: shap (importancia global) y skl2onnx/onnxconverter-common (export ONNX).
+# Ninguno es requisito para producir un artefacto SERVIBLE (xgb.json + feature_meta + calibración):
+# el serving evalúa xgb.json en TS (sin ONNX), y shap_summary es solo diagnóstico. Se hacen
+# opcionales para no exigir el chain pesado/frágil de onnx en entornos sin esas wheels (p.ej.
+# Python nuevo). Su USO ya está envuelto en try/except más abajo.
+try:
+    import shap
+except Exception:
+    shap = None
+try:
+    from skl2onnx import convert_sklearn
+    from onnxconverter_common.data_types import FloatTensorType as OCCFloatTensorType
+except Exception:
+    convert_sklearn = None
+    OCCFloatTensorType = None
 
 
 def time_split_indices(df, n_splits=3, time_col=None):

@@ -1,0 +1,16 @@
+{
+  "features": [
+    "txPerMonth",
+    "debitPerMonth",
+    "creditPerMonth",
+    "activeDaysShare",
+    "debitCreditRatio",
+    "incomeRegularity",
+    "topCategoryShare",
+    "dti",
+    "dtiCapped",
+    "incomeTrend30_90",
+    "netCashflowVolatility",
+    "recurringExpenseShare"
+  ]
+}
