@@ -31,9 +31,17 @@ Por eso el trabajo es adoptar el modelo de datos del SFA internamente, de modo q
 | Mapper interno↔SFA de movimientos + envelope + paginación | ✅ `sfaMapper.ts` (+6 tests, round-trip vs ejemplo oficial) |
 | Endpoint diagnóstico `GET /api/profile/accounts/:id/transactions-sfa` | ✅ |
 | Catálogo de endpoints (cuentas/tarjetas/créditos) | ✅ `sfaEndpoints.ts` |
-| Schema de **operaciones de crédito** (datos generales + saldo, con mora) | ✅ confirmado → `sfaTypes.SfaLoan`/`SfaLoanBalance` + `fromSfaLoan`/`aggregateCreditSignals` |
-| Schema de **saldos de cuenta** y **cupo/saldo de tarjeta** | ⏳ pendiente: falta ejemplo oficial de `GET /accounts/{id}/balance`, `/accounts/{ccID}/balance`, `/limit`. |
+| Schema de **operaciones de crédito** (datos generales + saldo, con mora) | ✅ confirmado → `SfaLoan`/`SfaLoanBalance` + `fromSfaLoan`/`aggregateCreditSignals` |
+| Schema de **saldo de cuenta** | ✅ `SfaAccountBalance` + `fromSfaAccountBalance` (⚠️ `amount` STRING aquí) |
+| Schema de **tarjeta de crédito** (balance + cupo) | ✅ `SfaCreditCardBalance`/`SfaCreditCardLimit` + `fromSfaCreditCard` (deuda + utilización) |
+| Schema de **inversiones** → activos del usuario | ✅ `SfaInvestment`/`SfaInvestmentBalance` + `fromSfaInvestment` → `userAssets` |
 | Conector SFA real (`SfaProvider implements OBProvider` + OAuth2/PKCE/mTLS, JWS) | ⏳ requiere registro ante CMF + sandbox |
+
+### ⚠️ Inconsistencia de tipo en `amount` (confirmada)
+
+El tipo del monto **varía por endpoint**: en **saldo de cuenta** viene como **string** (`"120000"`);
+en movimientos, créditos, tarjeta e inversiones viene como **número** (`120000`). El mapper usa
+`parseAmount()` (acepta string o número) en todos los saldos para no romperse con la diferencia.
 
 ## Operaciones de crédito → evaluador de riesgo
 
@@ -47,7 +55,15 @@ el SFA entrega deuda chilena real en el feature space del CMF (tipo, monto, mora
 > los buckets de atraso 30/60/90 del informe CMF. `tieneMora` se deriva de
 > `accruedLateInterest > 0` o `status='MOROSO'`; los buckets finos siguen viniendo solo del PDF CMF.
 
-## Próximo paso (schemas pendientes)
+## Inversiones → activos (userAssets)
 
-Pegar desde el Swagger (OFAC) los ejemplos de `GET /accounts/{id}/balance` y
-`/accounts/{ccID}/balance` + `/limit`. Con eso se cierran cuentas y tarjetas sin inventar campos.
+`fromSfaInvestment(investment, balance)` produce un `AssetPosition`
+(`{ productId, type, name, estimatedValueClp, currency }`) alineado a `userAssets`, usando el
+valor actual del balance (`currentBalance.amount`) y cayendo a `instrumentData.stockInvestment`.
+Permite poblar el patrimonio del usuario desde el SFA, que alimenta el motor de salud financiera.
+
+## Estado: núcleo SFA completo
+
+Cubiertos con schema confirmado contra ejemplos oficiales: movimientos (cuentas/tarjetas/
+créditos), operaciones de crédito (loan+balance), saldo de cuenta, tarjeta (balance+cupo) e
+inversiones (detalle+balance). Pendiente solo el conector real (OAuth2/PKCE/mTLS + registro CMF).

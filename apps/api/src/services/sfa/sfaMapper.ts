@@ -15,6 +15,8 @@ import type { OBTransaction } from '../../connectors/openbanking/mockProvider.js
 import {
   type SfaTransaction, type SfaTransactionsResponse, minorUnits,
   type SfaLoan, type SfaLoanBalance,
+  type SfaAccountBalance, type SfaCreditCardBalance, type SfaCreditCardLimit,
+  type SfaInvestment, type SfaInvestmentBalance,
 } from './sfaTypes.js';
 
 /** Redondea al número de decimales de la moneda (CLP→entero, USD→2, etc.). */
@@ -201,5 +203,88 @@ export function aggregateCreditSignals(ops: CreditOperation[]): CreditDebtSignal
     tieneMora,
     numOperaciones: ops.length,
     porTipo,
+  };
+}
+
+// ============================================================================
+// SALDOS DE CUENTA, TARJETA E INVERSIONES
+// ============================================================================
+
+/**
+ * Parsea un monto que el SFA entrega como número O string según el endpoint
+ * (saldo de cuenta usa string "120000"; el resto usa número). Devuelve number.
+ */
+export function parseAmount(v: string | number | null | undefined): number {
+  if (v == null) return 0;
+  const n = typeof v === 'number' ? v : Number(String(v).replace(/[^0-9.\-]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Saldo de cuenta SFA → saldo normalizado (OBBalance-like). */
+export function fromSfaAccountBalance(b: SfaAccountBalance): {
+  current: number; available: number; locked: number; currency: string; asOf: Date; type?: string;
+} {
+  return {
+    current: parseAmount(b.amount),
+    available: parseAmount(b.available ?? b.amount),
+    locked: parseAmount(b.lockedAmount),
+    currency: (b.currency || 'CLP').toUpperCase(),
+    asOf: new Date(b.bookingDate),
+    type: b.type,
+  };
+}
+
+/**
+ * Tarjeta de crédito (balance + limit opcional) → operación de crédito interna (deuda rotativa)
+ * + utilización del cupo. La deuda facturada (endOfMonthBalance) suma a las señales de deuda.
+ */
+export function fromSfaCreditCard(balance: SfaCreditCardBalance, limit?: SfaCreditCardLimit): CreditOperation & {
+  utilization?: number; minimumPaymentDue?: number; dueDate?: string;
+} {
+  const currency = (balance.currency || limit?.currency || 'CLP').toUpperCase();
+  const debt = parseAmount(balance.endOfMonthBalance);
+  const op: CreditOperation & { utilization?: number; minimumPaymentDue?: number; dueDate?: string } = {
+    loanId: '', // la tarjeta se identifica por su accountID, no por loanID
+    institucion: 'Tarjeta de Crédito',
+    tipoCredito: 'consumo', // crédito rotativo de consumo
+    currency,
+    vigente: true,
+    outstandingPrincipal: debt,
+    accruedInterest: 0,
+    accruedLateInterest: 0,
+    totalOutstanding: debt,
+    tieneMora: false, // el balance de tarjeta no trae señal de mora explícita
+    minimumPaymentDue: parseAmount(balance.minimumPaymentDue),
+    dueDate: balance.dueDate,
+    interestRate: limit?.interestRate,
+  };
+  if (limit) {
+    const approved = parseAmount(limit.totalApproved);
+    const unused = parseAmount(limit.unusedLine);
+    op.utilization = approved > 0 ? Math.min(1, Math.max(0, (approved - unused) / approved)) : 0;
+  }
+  return op;
+}
+
+/** Posición de activo normalizada (alineada a userAssets de CODA). */
+export interface AssetPosition {
+  productId: string;
+  type: string; // investmentType (FONDOS_MUTUOS, ...)
+  name: string; // commercialCategory o productOwner
+  estimatedValueClp: number;
+  currency: string;
+  owner?: string;
+}
+
+/** Inversión SFA (+ balance opcional) → activo del usuario. Prefiere el valor actual del balance. */
+export function fromSfaInvestment(inv: SfaInvestment, balance?: SfaInvestmentBalance): AssetPosition {
+  const value = balance ? parseAmount(balance.amount) : parseAmount(inv.instrumentData?.stockInvestment);
+  return {
+    productId: inv.productId,
+    type: inv.investmentType || inv.financialProductType,
+    name: inv.commercialCategory || inv.productOwner || inv.investmentType,
+    estimatedValueClp: value,
+    currency: (balance?.currency || inv.insuredCurrency || 'CLP').toUpperCase(),
+    owner: inv.productOwner,
   };
 }
