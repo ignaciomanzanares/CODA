@@ -10,6 +10,7 @@
     "db:recategorize": "tsx src/scripts/recategorize.ts",
     "db:normalize-cartolas": "tsx src/scripts/normalize-cartolas.ts",
     "db:dedupe-assets": "tsx src/scripts/dedupeAssets.ts",
+    "db:rotate-encryption-key": "tsx src/scripts/rotate-encryption-key.ts",
     "prebuild": "npm --prefix ../../packages run build",
     "build": "tsc",
     "check": "tsc --noEmit",
