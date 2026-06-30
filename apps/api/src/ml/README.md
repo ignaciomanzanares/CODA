@@ -76,6 +76,29 @@ real no la palabra final); data checa/CZK/años 90 → las features de RATIO tra
 (scale-free), las ABSOLUTAS (totalCredits, monthlyIncome en CZK) no → de-priorizarlas o
 normalizarlas (TODO). Aun así es muchísimo mejor que el sintético actual (AUC 0.61 / 2000 filas).
 
+#### Resultados medidos (HistGradientBoosting, 5-fold StratifiedKFold)
+
+681 préstamos con historia, 75 defaults (11%). AUC sube con la historia transaccional dada:
+
+| Ventana (pre-préstamo) | AUC media | Folds |
+|---|---|---|
+| 90d (= ventana producción) | 0.678 | 0.64–0.72 |
+| 180d | 0.692 | 0.61–0.74 |
+| **365d** | **0.739** | 0.67–0.80 |
+| 730d | 0.763 | 0.68–0.82 |
+
+Baseline logístico: 0.639. Medido con `HistGradientBoostingClassifier` (xgboost no carga sin
+`libomp` en este entorno; GBDT equivalente, ±0.02 del número de XGBoost).
+
+**Driver dominante = `activeDays`** (importancia de permutación +0.106 @365d), seguido de
+`incomeTrend30_90`, `debitCount`, `creditCount`, `txCount`. La mayoría de la señal es
+"actividad de la cuenta en la ventana" → **el modelo SOLO sirve si la ventana de
+entrenamiento == ventana de serving.** A 90d (producción hoy) da 0.68 (< umbral 0.72); a 365d
+cruza a 0.74. Para deployar el modelo de 0.74 hay que **alinear la ventana**: que producción
+arme el vector sobre la historia más larga disponible (el path SFA ya agrega varias cartolas),
+o hacer window-invariantes las 6 features dependientes de ventana (txCount, *Count, totales,
+activeDays → tasas por mes). DTI NO es top driver en Berka (es transaccional, no de buró).
+
 ### Home Credit → solo benchmark del evaluador de riesgo (`prepare_home_credit.py`)
 
 **No produce un modelo servible.** El evaluador de riesgo de CODA puntúa sobre el Informe CMF:
