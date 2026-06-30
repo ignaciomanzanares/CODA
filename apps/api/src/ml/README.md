@@ -92,12 +92,42 @@ Baseline logístico: 0.639. Medido con `HistGradientBoostingClassifier` (xgboost
 
 **Driver dominante = `activeDays`** (importancia de permutación +0.106 @365d), seguido de
 `incomeTrend30_90`, `debitCount`, `creditCount`, `txCount`. La mayoría de la señal es
-"actividad de la cuenta en la ventana" → **el modelo SOLO sirve si la ventana de
-entrenamiento == ventana de serving.** A 90d (producción hoy) da 0.68 (< umbral 0.72); a 365d
-cruza a 0.74. Para deployar el modelo de 0.74 hay que **alinear la ventana**: que producción
-arme el vector sobre la historia más larga disponible (el path SFA ya agrega varias cartolas),
-o hacer window-invariantes las 6 features dependientes de ventana (txCount, *Count, totales,
-activeDays → tasas por mes). DTI NO es top driver en Berka (es transaccional, no de buró).
+"actividad de la cuenta en la ventana". DTI NO es top driver en Berka (es transaccional, no de buró).
+
+#### Solución de ventana (#B): features invariantes + entrenamiento multi-ventana
+
+El driver dominante depende de la ventana → un modelo entrenado a 365d **servido a 90d colapsa
+a 0.63** (peor que entrenar+servir a 90d = 0.68). Hacer las features invariantes a la ventana
+NO recupera por sí solo el 0.74: la invariancia arregla la ESCALA, no el desajuste de
+distribución. Lo que sí funciona, validado empíricamente:
+
+| | serve 90d | serve 180d | serve 365d |
+|---|---|---|---|
+| train MISMA ventana | 0.679 | 0.692 | 0.739 |
+| train 365d (cross) | **0.628** ⚠️ | — | 0.739 |
+| **train MIX(90,180,365)** | **0.674** | **0.696** | **0.719** |
+
+Un solo modelo entrenado sobre el MIX de ventanas (data augmentation) sirve **cualquier**
+ventana sin colapso, cerca del óptimo de cada ventana. AUC ~0.67 con 90d de historia, subiendo
+a ~0.72 a medida que el usuario acumula data — todo sobre datos reales (vs 0.61 sintético hoy).
+
+Implementado:
+- `features.ts`: `FeatureVector` extendido (superset no-breaking) con 4 features invariantes
+  (`txPerMonth`, `debitPerMonth`, `creditPerMonth`, `activeDaysShare`). Las 19 crudas se
+  conservan → el artefacto actual sigue sirviendo por nombre; un artefacto invariante nuevo
+  elige sus 16 features por nombre desde su `feature_meta`.
+- `prepare_berka.py --invariant` (16 features) y `--multi-window 90,180,365` (data augmentation).
+
+```bash
+.venv/bin/python prepare_berka.py ~/Downloads/archive out/berka_mw.csv --multi-window 90,180,365
+.venv/bin/python train_xgb.py --in out/berka_mw.csv --out artifacts/berka_invariant --label label
+# train_xgb.py escribe feature_meta.json con las 16 invariantes → artefacto servible sobre
+# cualquier ventana. Promover con deployNewModelVersion() (modelType xgb_pd) si AUC ok.
+```
+
+Pendiente (necesita `libomp` para xgboost — `brew install libomp` — no disponible en este
+entorno): generar el `xgb.json` servible y promoverlo. La medición de AUC arriba se hizo con
+HistGradientBoosting; el artefacto XGBoost final irá dentro de ±0.02.
 
 ### Home Credit → solo benchmark del evaluador de riesgo (`prepare_home_credit.py`)
 

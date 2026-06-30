@@ -63,6 +63,27 @@ PRODUCTION_FEATURES = [
     "incomeTrend30_90", "netCashflowVolatility", "recurringExpenseShare",
 ]
 
+# Feature set INVARIANTE a la ventana (#B): tasas/shares en vez de conteos/totales que escalan
+# con la ventana. Validado: misma AUC que el set crudo (mismo-ventana), y entrenando sobre un MIX
+# de ventanas el modelo sirve cualquier ventana sin colapso de escala (ver README). Debe coincidir
+# con el subset invariante de features.ts (buildUserFeatureVector).
+INVARIANT_FEATURES = [
+    "txPerMonth", "debitPerMonth", "creditPerMonth", "activeDaysShare",
+    "avgAmount", "stdAmount", "debitCreditRatio", "incomeRegularity", "topCategoryShare",
+    "monthlyIncome", "monthlyDebits", "dti", "dtiCapped", "incomeTrend30_90",
+    "netCashflowVolatility", "recurringExpenseShare",
+]
+
+
+def add_invariant_columns(row: dict) -> dict:
+    """Deriva las features invariantes desde las crudas (mismas fórmulas que features.ts)."""
+    months = max(1e-6, row["windowDays"] / 30.0)
+    row["txPerMonth"] = row["txCount"] / months
+    row["debitPerMonth"] = row["debitCount"] / months
+    row["creditPerMonth"] = row["creditCount"] / months
+    row["activeDaysShare"] = row["activeDays"] / row["windowDays"] if row["windowDays"] else 0.0
+    return row
+
 # Valores de `type` que cuentan como crédito (ingreso). El resto (withdrawal/VYDAJ/VYBER) = débito.
 CREDIT_TYPES = {"credit", "prijem", "príjem"}
 
@@ -165,11 +186,34 @@ def compute_features(txs: pd.DataFrame, window_days: int) -> dict:
     }
 
 
+def build_rows(trans, loan, window_days):
+    status_to_label = {"a": 0, "c": 0, "b": 1, "d": 1}
+    rows = []
+    window = pd.Timedelta(days=window_days)
+    for _, ln in loan.iterrows():
+        acc = ln["account_id"]
+        loan_date = ln["date"]
+        label = status_to_label.get(str(ln["status"]).strip().lower())
+        if label is None or pd.isna(loan_date):
+            continue
+        acc_txs = trans[(trans["account_id"] == acc) & (trans["date"] < loan_date) & (trans["date"] >= loan_date - window)]
+        if len(acc_txs) < 3:  # muy poca historia previa -> no aporta señal
+            continue
+        feats = add_invariant_columns(compute_features(acc_txs.copy(), window_days))
+        feats["label"] = label
+        rows.append(feats)
+    return rows
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("data_dir", help="Directorio con trans.csv y loan.csv de Berka")
     ap.add_argument("out_csv", help="CSV de salida (features + label)")
     ap.add_argument("--window-days", type=int, default=90, help="Ventana antes del préstamo (def 90)")
+    ap.add_argument("--invariant", action="store_true",
+                    help="Emite el feature set INVARIANTE (16 features) en vez del crudo (19). Para el artefacto servible robusto a la ventana (#B).")
+    ap.add_argument("--multi-window", default=None,
+                    help="CSV-list de ventanas, p.ej. '90,180,365'. Concatena las filas de cada ventana (data augmentation) para un modelo robusto a cualquier ventana de serving. Implica --invariant.")
     args = ap.parse_args()
 
     trans_path = os.path.join(args.data_dir, "trans.csv")
@@ -187,28 +231,20 @@ def main():
     trans["signed"] = trans.apply(signed_amount, axis=1)
     loan["date"] = parse_berka_date(loan["date"])
 
-    status_to_label = {"a": 0, "c": 0, "b": 1, "d": 1}
-    rows = []
-    window = pd.Timedelta(days=args.window_days)
-    for _, ln in loan.iterrows():
-        acc = ln["account_id"]
-        loan_date = ln["date"]
-        label = status_to_label.get(str(ln["status"]).strip().lower())
-        if label is None or pd.isna(loan_date):
-            continue
-        acc_txs = trans[(trans["account_id"] == acc) & (trans["date"] < loan_date) & (trans["date"] >= loan_date - window)]
-        if len(acc_txs) < 3:  # muy poca historia previa -> no aporta señal
-            continue
-        feats = compute_features(acc_txs.copy(), args.window_days)
-        feats["label"] = label
-        rows.append(feats)
+    windows = [int(w) for w in args.multi_window.split(",")] if args.multi_window else [args.window_days]
+    invariant = args.invariant or bool(args.multi_window)
 
+    rows = []
+    for w in windows:
+        rows.extend(build_rows(trans, loan, w))
     if not rows:
         sys.exit("No se generaron filas. ¿Coinciden account_id entre trans y loan? ¿Ventana muy corta?")
 
-    out = pd.DataFrame(rows)[PRODUCTION_FEATURES + ["label"]]
+    cols = (INVARIANT_FEATURES if invariant else PRODUCTION_FEATURES) + ["label"]
+    out = pd.DataFrame(rows)[cols]
     out.to_csv(args.out_csv, index=False)
-    print(f"Wrote {len(out)} loans con historia -> {args.out_csv}")
+    mode = "INVARIANTE (16f)" if invariant else "crudo (19f)"
+    print(f"Wrote {len(out)} filas [{mode}, ventanas={windows}] -> {args.out_csv}")
     print(f"Label balance: {out['label'].value_counts(normalize=True).round(4).to_dict()}")
     print(f"Defaults: {int(out['label'].sum())} / {len(out)}")
 
