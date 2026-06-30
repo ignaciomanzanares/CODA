@@ -46,6 +46,58 @@ npm run ml:setup   # crea .venv con las deps de requirements.txt
 .venv/bin/python train_xgb_benchmark.py --in out/kaggle_benchmark_features.csv --out artifacts/benchmark --label label
 ```
 
+## Arquitectura de datos: un dataset por modelo
+
+CODA tiene dos modelos en espacios de features distintos. Cada uno tiene su dataset real:
+
+| Modelo CODA | Feature space | Dataset real | Rol |
+|---|---|---|---|
+| **Transaccional** (XGB PD, `features.ts`, 19 features) | Transacciones bancarias | **Berka** | **Servible** — datos reales reemplazan al sintético |
+| **Evaluador de riesgo** (score CMF, `credit-score.ts`) | Mora + deuda/ingreso (Informe CMF) | **Home Credit** | **Solo benchmark** — ver abajo |
+
+### Berka → modelo transaccional SERVIBLE (`prepare_berka.py`)
+
+Berka (PKDD'99) es el único dataset público con **transacciones reales** (~1M en `trans`) +
+**outcome de préstamo real** (`loan.status`). `prepare_berka.py` replica la semántica exacta de
+`buildUserFeatureVector()` (features.ts) sobre las transacciones ANTERIORES a cada préstamo
+(ventana de 90d, anti-leakage), con etiqueta desde `loan.status` (B/D = default). El artefacto
+es servible tal cual sobre el vector que produce CODA en runtime.
+
+```bash
+npm run ml:setup
+python -c "import kagglehub; print(kagglehub.dataset_download('marceloventura/the-berka-dataset'))"
+.venv/bin/python prepare_berka.py <dir_con_csvs> out/berka_features.csv --window-days 90
+.venv/bin/python train_xgb.py --in out/berka_features.csv --out artifacts/berka --label label
+# Si AUC >= 0.72: promover con deployNewModelVersion() (modelType xgb_pd).
+```
+
+**Caveats:** set etiquetado chico (~682 préstamos, ~76 defaults → alta varianza, es una BASE
+real no la palabra final); data checa/CZK/años 90 → las features de RATIO transfieren
+(scale-free), las ABSOLUTAS (totalCredits, monthlyIncome en CZK) no → de-priorizarlas o
+normalizarlas (TODO). Aun así es muchísimo mejor que el sintético actual (AUC 0.61 / 2000 filas).
+
+### Home Credit → solo benchmark del evaluador de riesgo (`prepare_home_credit.py`)
+
+**No produce un modelo servible.** El evaluador de riesgo de CODA puntúa sobre el Informe CMF:
+su señal central son los **buckets de mora (30/60/90)** + deuda/ingreso. Home Credit es data de
+solicitud cuyos predictores fuertes (`EXT_SOURCE_*`, `DAYS_EMPLOYED`) **CODA no puede recolectar**,
+y **no tiene mora**. La intersección con lo que CODA sirve es demasiado fina para servir.
+
+Como **no existe dataset público con features estilo CMF (mora) + default**, el evaluador ML
+sobre features CMF no es entrenable con datos públicos → **se mantiene la heurística calibrada**
+(`credit-score.ts`) como evaluador en vivo. Home Credit valida el pipeline sobre un 2º dataset
+real grande (~307k filas) y cuantifica el techo de la señal de afordabilidad de forma aislada.
+
+```bash
+python -c "import kagglehub; print(kagglehub.competition_download('home-credit-default-risk'))"
+.venv/bin/python prepare_home_credit.py <dir>/application_train.csv out/home_credit_features.csv
+.venv/bin/python train_xgb_benchmark.py --in out/home_credit_features.csv --out artifacts/home_credit_benchmark --label label
+```
+
+**Camino a un evaluador de riesgo genuinamente mejor:** (1) datos chilenos reales con mora +
+default (DICOM/Equifax, validar contrato de datos con legal), o (2) usar Home Credit para
+calibrar la función de etiqueta del provider sintético en su componente de afordabilidad.
+
 ## Fix aplicado: heterogeneidad real + etiqueta calibrada a Chile (`artifacts/synthetic_chile_v2`)
 
 Implementado: `apps/api/src/ml/syntheticChileanProvider.ts` reemplaza `MockProvider` para la
