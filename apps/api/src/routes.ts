@@ -4017,6 +4017,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         db.select().from(grants as any).where(eq((grants as any).userId, userId)),
       ]);
 
+      // description va cifrada en reposo → descifrar para el export del titular (RTBF, en claro).
+      const { looksEncrypted, decryptField } = await import('./services/crypto/fieldEncryption.js');
+      const txsPlano = (userTransactions as Array<Record<string, unknown>>).map((t) => {
+        const d = t.description;
+        return typeof d === 'string' && looksEncrypted(d) ? { ...t, description: decryptField(d) } : t;
+      });
+
       res.setHeader('Content-Disposition', 'attachment; filename="mis-datos-coda.json"');
       res.json({
         exportedAt: new Date().toISOString(),
@@ -4024,7 +4031,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         legalBasis: 'Ley 21.719 Art. 13 — Derecho de acceso del titular',
         profile,
         accounts: userAccounts,
-        transactions: userTransactions,
+        transactions: txsPlano,
         creditScores: userCreditScores,
         documents: userDocuments,
         consentGrants: userConsentGrants,

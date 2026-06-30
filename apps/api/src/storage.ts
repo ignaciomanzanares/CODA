@@ -38,6 +38,20 @@ import { encryptField, encryptFieldOrNull, decryptField, decryptFieldOrNull, loo
 function decryptStoredJson(value: string): string {
   return looksEncrypted(value) ? decryptField(value) : value;
 }
+
+/** Descifra un campo de texto cifrado, tolerando filas legacy en claro (mixed read). */
+function maybeDecryptField(value: string | null | undefined): string | null {
+  if (value === null || value === undefined) return null;
+  return looksEncrypted(value) ? decryptField(value) : value;
+}
+
+/** Devuelve la transacción con `description` en claro (cifrada en reposo). */
+function decryptTxRow<T extends { description?: string | null }>(tx: T): T {
+  if (tx && typeof tx.description === 'string') {
+    return { ...tx, description: maybeDecryptField(tx.description) } as T;
+  }
+  return tx;
+}
 import type {
   User,
   InsertUser,
@@ -442,8 +456,16 @@ export class DatabaseStorage implements IStorage {
   async createTransactionsBulk(items: InsertTransaction[]): Promise<Transaction[]> {
     if (!db) throw new Error("Database not available");
     if (items.length === 0) return [];
-    const inserted = await db.insert(transactions).values(items).returning();
-    return inserted;
+    // Cifra `description` en reposo (PII: nombre de comercio/contraparte). El detalle ya va
+    // cifrado en parsedData; esto cierra la copia operacional en la tabla transactions.
+    const toInsert = items.map((it) =>
+      typeof (it as { description?: unknown }).description === 'string'
+        ? { ...it, description: encryptField((it as { description: string }).description) }
+        : it,
+    );
+    const inserted = await db.insert(transactions).values(toInsert).returning();
+    // Devuelve description en claro al caller (acaba de pasarla en claro).
+    return inserted.map((row: any) => decryptTxRow(row));
   }
 
   async getTransactions(accountId: number, options?: { from?: Date; to?: Date; limit?: number; offset?: number }): Promise<Transaction[]> {
@@ -461,7 +483,7 @@ export class DatabaseStorage implements IStorage {
     result.sort((a: any, b: any) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime());
     if (options?.offset) result = result.slice(options.offset);
     if (options?.limit) result = result.slice(0, options.limit);
-    return result;
+    return result.map((row: any) => decryptTxRow(row));
   }
 
   async getLatestBalancesForAccounts(accountIds: number[]): Promise<Record<number, any>> {
@@ -484,7 +506,7 @@ export class DatabaseStorage implements IStorage {
     if (options?.from) {
       result = result.filter((tx: any) => new Date(tx.postedAt) >= options.from!);
     }
-    return result;
+    return result.map((row: any) => decryptTxRow(row));
   }
 
   // Credit score operations
