@@ -456,12 +456,24 @@ async function processCmfUpload(userId: string, doc: CMFParseResult): Promise<Up
     }
     logger.info({ userId, score: scoreEnDb }, '[documentUploadService] CMF: DB confirmed OK');
 
+    // Validación cruzada con cartolas previas (#2.3): señales informativas, no bloquean.
+    const { crossValidateCmfVsCartolas } = await import('./crossValidator.js');
+    const crossWarnings = await crossValidateCmfVsCartolas(userId, doc);
+    if (crossWarnings.length > 0) {
+      const { recordParseOutcome } = await import('./parseOutcomes.js');
+      await recordParseOutcome(userId, {
+        status: 'partial',
+        documentType: 'cmf',
+        errorMessage: crossWarnings.map((w) => w.code).join('; '),
+      });
+    }
+
     return {
       step: 'done',
       documentType: 'cmf_informe_deudas',
       cmf: doc,
       creditScore: scoreNum,
-      mainInsights: [cmfInsight],
+      mainInsights: [cmfInsight, ...crossWarnings.map((w) => w.message)],
     };
 }
 
