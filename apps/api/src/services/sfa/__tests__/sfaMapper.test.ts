@@ -112,3 +112,48 @@ describe('sfaMapper — operaciones de crédito', () => {
     expect(s.porTipo.vivienda).toBe(40025000);
   });
 });
+
+import { parseAmount, fromSfaAccountBalance, fromSfaCreditCard, fromSfaInvestment } from '../sfaMapper.js';
+import type { SfaAccountBalance, SfaCreditCardBalance, SfaCreditCardLimit, SfaInvestment, SfaInvestmentBalance } from '../sfaTypes.js';
+
+describe('sfaMapper — saldos cuenta/tarjeta/inversión', () => {
+  it('parseAmount tolera string y número (inconsistencia del SFA)', () => {
+    expect(parseAmount('120000')).toBe(120000);
+    expect(parseAmount(120000)).toBe(120000);
+    expect(parseAmount(null)).toBe(0);
+  });
+
+  it('saldo de cuenta (amount STRING) → saldo normalizado', () => {
+    const b: SfaAccountBalance = { bookingDate: '2025-02-10T00:00:00Z', amount: '120000', currency: 'CLP', available: '115000', lockedAmount: '5000', type: 'ClosingBooked' };
+    const r = fromSfaAccountBalance(b);
+    expect(r.current).toBe(120000);
+    expect(r.available).toBe(115000);
+    expect(r.locked).toBe(5000);
+    expect(r.currency).toBe('CLP');
+  });
+
+  it('tarjeta de crédito: deuda facturada + utilización del cupo', () => {
+    const balance: SfaCreditCardBalance = { closingDate: '2025-02-25', currency: 'CLP', endOfMonthBalance: 1750000, minimumPaymentDue: 52000, dueDate: '2025-03-08', lastPaymentAmount: 200000, lastPaymentDate: '2025-01-10', debtType: 'REVOLVING' };
+    const limit: SfaCreditCardLimit = { totalApproved: 2500000, unusedLine: 750000, currency: 'CLP', interestRate: 2.12, limitStartDate: '2023-05-01', limitEndDate: '2026-05-01', cashAdvancePercentage: 30, temporaryIncrease: null, debtType: 'REVOLVING' };
+    const op = fromSfaCreditCard(balance, limit);
+    expect(op.totalOutstanding).toBe(1750000);
+    expect(op.tipoCredito).toBe('consumo');
+    expect(op.utilization).toBeCloseTo((2500000 - 750000) / 2500000, 5); // 0.7
+    expect(op.minimumPaymentDue).toBe(52000);
+  });
+
+  it('inversión → activo del usuario (usa valor actual del balance)', () => {
+    const inv: SfaInvestment = { investmentType: 'FONDOS_MUTUOS', rutClient: '12.345.678-9', productId: 'INV-12345', productOwner: 'Banco Ejemplo', financialProductType: 'FONDOS_MUTUOS', commercialCategory: 'Balanceado', coverageStartDate: '2023-02-01', coverageEndDate: null, insuredAmount: 0, insuredCurrency: 'CLP', instrumentData: { fundSeries: 'Clase A', mnemonic: 'BAL-A', stockInvestment: 2500000 } };
+    const bal: SfaInvestmentBalance = { amount: 2650000, currency: 'CLP', updatedDateTime: '2025-02-28T23:59:00Z', holdAmount: 0, arrearsBalance: 0 };
+    const asset = fromSfaInvestment(inv, bal);
+    expect(asset.productId).toBe('INV-12345');
+    expect(asset.type).toBe('FONDOS_MUTUOS');
+    expect(asset.name).toBe('Balanceado');
+    expect(asset.estimatedValueClp).toBe(2650000); // del balance, no del instrumentData
+  });
+
+  it('inversión sin balance usa stockInvestment del instrumentData', () => {
+    const inv: SfaInvestment = { investmentType: 'FONDOS_MUTUOS', rutClient: 'x', productId: 'INV-1', productOwner: 'B', financialProductType: 'FONDOS_MUTUOS', commercialCategory: 'Balanceado', coverageStartDate: '2023-01-01', coverageEndDate: null, insuredAmount: 0, insuredCurrency: 'CLP', instrumentData: { stockInvestment: 2500000 } };
+    expect(fromSfaInvestment(inv).estimatedValueClp).toBe(2500000);
+  });
+});

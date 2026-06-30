@@ -93,3 +93,85 @@ export const ISO4217_MINOR_UNITS: Record<string, number> = {
 export function minorUnits(currency: string): number {
   return ISO4217_MINOR_UNITS[currency?.toUpperCase?.()] ?? 2;
 }
+
+// ============================================================================
+// SALDO DE CUENTA — GET /accounts/v1/accounts/{id}/balance
+// OJO: aquí `amount`/`available`/`lockedAmount` vienen como STRING (no número),
+// a diferencia de movimientos/créditos/tarjeta/inversiones. Parsear defensivamente.
+// ============================================================================
+export interface SfaAccountBalance {
+  bookingDate: string; // ISO 8601 datetime
+  amount: string | number;
+  currency: string;
+  available?: string | number;
+  lockedAmount?: string | number;
+  type?: string; // p.ej. "ClosingBooked" (estilo Berlin Group)
+}
+export interface SfaAccountBalanceResponse {
+  data: { balances: SfaAccountBalance[] };
+  links: { self: string };
+  meta: { totalRecords: number; totalPages: number };
+}
+
+// ============================================================================
+// TARJETA DE CRÉDITO — GET /credit-card-accounts/v1/accounts/{id}/balance y /limit
+// ============================================================================
+export interface SfaCreditCardBalance {
+  closingDate: string; // ISO date
+  currency: string;
+  endOfMonthBalance: number; // deuda facturada
+  minimumPaymentDue: number;
+  dueDate: string; // ISO date
+  lastPaymentAmount: number;
+  lastPaymentDate: string; // ISO date
+  debtType: string; // p.ej. "REVOLVING"
+}
+export interface SfaCreditCardLimit {
+  totalApproved: number;
+  unusedLine: number;
+  currency: string;
+  interestRate: number;
+  limitStartDate: string;
+  limitEndDate: string;
+  cashAdvancePercentage: number;
+  temporaryIncrease: number | null;
+  debtType: string;
+}
+
+// ============================================================================
+// INVERSIONES — GET /investments/v1/investments/{id} y /balance
+// Mapean a los activos del usuario (userAssets).
+// ============================================================================
+export interface SfaInvestment {
+  investmentType: string; // p.ej. "FONDOS_MUTUOS"
+  rutClient: string;
+  productId: string;
+  productOwner: string;
+  financialProductType: string;
+  commercialCategory: string; // p.ej. "Balanceado"
+  coverageStartDate: string;
+  coverageEndDate: string | null;
+  insuredAmount: number;
+  insuredCurrency: string;
+  instrumentData?: {
+    fundSeries?: string;
+    mnemonic?: string;
+    stockInvestment?: number;
+    [k: string]: unknown;
+  };
+}
+export interface SfaInvestmentBalance {
+  amount: number; // valor actual del instrumento
+  currency: string;
+  updatedDateTime: string; // ISO 8601 UTC
+  holdAmount: number;
+  arrearsBalance: number;
+  balances?: Array<{
+    bookingDate: string;
+    amount: number;
+    currency: string;
+    averageBalance?: number;
+    lockedAmount?: number;
+    lockedCurrency?: string;
+  }>;
+}

@@ -38,13 +38,18 @@ export const SFA_ENDPOINTS = {
     transactions: '/accounts/{accountID}/transactions', // schema confirmado (sfaTypes.ts)
   },
   creditCards: {
-    base: null, // TBD (probable /credit-cards/v1)
+    base: '/credit-card-accounts/v1', // confirmado (self link de los ejemplos)
     list: '/accounts',
     detail: '/accounts/{creditCardAccountID}',
-    balance: '/accounts/{creditCardAccountID}/balance',
+    balance: '/accounts/{creditCardAccountID}/balance', // schema confirmado (SfaCreditCardBalance)
     currentBalance: '/accounts/{creditCardAccountID}/current-balance',
-    limit: '/accounts/{creditCardAccountID}/limit',
+    limit: '/accounts/{creditCardAccountID}/limit', // schema confirmado (SfaCreditCardLimit)
     transactions: '/accounts/{creditCardAccountID}/transactions', // mismo schema de movimientos
+  },
+  investments: {
+    base: '/investments/v1', // confirmado
+    detail: '/investments/{investmentID}', // schema confirmado (SfaInvestment)
+    balance: '/investments/{investmentID}/balance', // schema confirmado (SfaInvestmentBalance)
   },
   loans: {
     base: '/loans/v1', // confirmado (self link de los ejemplos oficiales)
