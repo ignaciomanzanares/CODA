@@ -174,15 +174,12 @@ export default function Landing() {
     }
   }, [isAuthenticated, isLoading, setLocation]);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0c0a09]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
-      </div>
-    );
-  }
-
-  // Fade-in refs for each section
+  // Fade-in refs for each section.
+  // IMPORTANTE: estos hooks deben declararse SIEMPRE, antes de cualquier return
+  // condicional (p. ej. el spinner de `isLoading`). Si quedan después del early
+  // return, el primer render (auth cargando) llama menos hooks que el siguiente
+  // (auth resuelta) y React lanza el error #310 "Rendered more hooks than during
+  // the previous render". Ver Rules of Hooks.
   const serviciosRef = useFadeIn<HTMLElement>();
   const featuresRef = useFadeIn<HTMLElement>();
   const scoreRef = useFadeIn<HTMLElement>();
@@ -192,6 +189,14 @@ export default function Landing() {
   const faqRef = useFadeIn<HTMLElement>();
   const expressRef = useFadeIn<HTMLDivElement>();
   const ctaRef = useFadeIn<HTMLElement>();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0c0a09]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen font-sans">
