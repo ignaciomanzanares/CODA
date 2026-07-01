@@ -4,6 +4,7 @@
 // category or action. This is the primary revenue conversion path.
 
 import { useLocation } from "wouter";
+import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import { cn } from "@/lib/utils";
 import {
   ArrowRight,
@@ -49,8 +50,14 @@ interface ActionRecommendation {
   title: string;
   body: string;
   cta: string;
-  /** Route to navigate to (usually /productos?category=X) */
-  href: string;
+  /** Route to navigate to (usually /productos?category=X). Omit for `action` cards. */
+  href?: string;
+  /**
+   * In-app action instead of navigation. "upload" opens the global upload drawer
+   * (same mechanism as CreditScoreCard) — used by the CMF card, which previously
+   * navigated to /panel (a no-op that never opened the drawer).
+   */
+  action?: "upload";
   /** Higher = shown first. Used to sort and limit to top 3 */
   priority: number;
 }
@@ -215,7 +222,7 @@ function generateRecommendations(data: DashboardData): ActionRecommendation[] {
       title: "Desbloquea tu score crediticio",
       body: "Sube tu informe de deudas CMF para obtener tu score crediticio y acceder a recomendaciones de crédito personalizadas.",
       cta: "Subir informe CMF",
-      href: "/panel", // triggers upload drawer
+      action: "upload", // opens the global upload drawer (was a no-op navigate to /panel)
       priority: 80,
     });
   }
@@ -282,7 +289,16 @@ interface ActionCardsProps {
 
 export default function ActionCards({ data }: ActionCardsProps) {
   const [, navigate] = useLocation();
+  const { setOpen: openUploadDrawer } = useUploadDrawer();
   const recommendations = generateRecommendations(data);
+
+  const handleAction = (rec: ActionRecommendation) => {
+    if (rec.action === "upload") {
+      openUploadDrawer(true);
+    } else if (rec.href) {
+      navigate(rec.href);
+    }
+  };
 
   if (recommendations.length === 0) return null;
 
@@ -297,7 +313,7 @@ export default function ActionCards({ data }: ActionCardsProps) {
         return (
           <button
             key={rec.id}
-            onClick={() => navigate(rec.href)}
+            onClick={() => handleAction(rec)}
             className={cn(
               "w-full text-left rounded-2xl border p-4 transition-all hover:shadow-md group",
               styles.card,
