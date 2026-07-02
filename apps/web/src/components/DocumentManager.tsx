@@ -197,6 +197,12 @@ export default function DocumentManager({
                   )}
                 </div>
                 <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
+                {doc.tipo === "cartola" && doc.normalizationStatus === "failed" && (
+                  <p className="mt-1 text-[11px] leading-snug text-red-600 dark:text-red-400">
+                    No pudimos extraer los movimientos de este documento. Elimínalo e intenta subir un PDF
+                    digital descargado directamente desde tu banco (evita fotos o escaneos de la cartola).
+                  </p>
+                )}
               </div>
               <button
                 onClick={() => deleteOne(doc.id)}
