@@ -6,6 +6,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import type { CurrencyCode } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
 import { useToast } from "@/hooks/use-toast";
+import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 
 // Data & ranking
 import seedProducts from "@/data/products.seed.json";
@@ -553,6 +554,7 @@ function EmptyCategory() {
 export default function Products() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { currency } = useCurrency();
+  const { setOpen: openUploadDrawer } = useUploadDrawer();
 
   // Read ?tab= param from URL (e.g. from dashboard ActionCards)
   const initialTab = (() => {
@@ -610,6 +612,9 @@ export default function Products() {
 
   const eligibleCount = rankedProducts.filter(p => p.eligibility === "eligible").length;
   const hasProfile = profile.has_real_data;
+  // Tiene perfil por cartola (ingresos) pero aún no hay score crediticio (falta CMF):
+  // el ranking de crédito se calcula sin la señal de deuda. Avisamos sin bloquear.
+  const isMissingCreditScore = isAuthenticated && hasProfile && profile.credit_score === null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -665,6 +670,26 @@ export default function Products() {
               Sube una cartola bancaria para que el motor de ranking adapte los resultados a tu
               perfil de ingresos y score.
             </p>
+          </div>
+        )}
+
+        {/* CMF-awareness: tiene perfil por cartola pero falta el informe CMF/score crediticio */}
+        {isMissingCreditScore && (
+          <div className="rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+              <p className="text-sm text-foreground">
+                Estas recomendaciones usan tus movimientos bancarios. Para recomendaciones de crédito
+                más precisas, sube tu informe CMF y calculamos tu score crediticio.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              className="shrink-0 gap-1.5"
+              onClick={() => openUploadDrawer(true)}
+            >
+              Subir informe CMF
+            </Button>
           </div>
         )}
 
