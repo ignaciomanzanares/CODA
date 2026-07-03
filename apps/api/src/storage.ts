@@ -45,12 +45,14 @@ function maybeDecryptField(value: string | null | undefined): string | null {
   return looksEncrypted(value) ? decryptField(value) : value;
 }
 
-/** Devuelve la transacción con `description` en claro (cifrada en reposo). */
-function decryptTxRow<T extends { description?: string | null }>(tx: T): T {
-  if (tx && typeof tx.description === 'string') {
-    return { ...tx, description: maybeDecryptField(tx.description) } as T;
-  }
-  return tx;
+/** Devuelve la transacción con `description`/`merchantName`/`raw` en claro (cifrados en reposo). */
+function decryptTxRow<T extends { description?: string | null; merchantName?: string | null; raw?: string | null }>(tx: T): T {
+  if (!tx) return tx;
+  const out: T = { ...tx };
+  if (typeof tx.description === 'string') out.description = maybeDecryptField(tx.description);
+  if (typeof tx.merchantName === 'string') out.merchantName = maybeDecryptField(tx.merchantName);
+  if (typeof tx.raw === 'string') out.raw = maybeDecryptField(tx.raw);
+  return out;
 }
 import type {
   User,
@@ -372,41 +374,53 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Bank connection methods
+  // `connectionData` se cifra en reposo (puede llevar tokens/datos de sesión del proveedor
+  // bancario — riesgo de account-takeover si se filtra, no solo PII).
   async getBankConnections(userId: string): Promise<BankConnection[]> {
     return Array.from(this.bankConnections.values()).filter(
       (connection) => connection.userId === userId,
     );
   }
-  
+
   async getBankConnection(id: number): Promise<BankConnection | undefined> {
     if (!db) return undefined;
     const [connection] = await db
       .select()
       .from(bankConnections)
       .where(eq(bankConnections.id, id));
-    return connection || undefined;
+    if (!connection) return undefined;
+    return { ...connection, connectionData: maybeDecryptField(connection.connectionData) };
   }
-  
+
   async createBankConnection(insertConnection: InsertBankConnection): Promise<BankConnection> {
     if (!db) throw new Error("Database not available");
+    const toInsert = {
+      ...insertConnection,
+      connectionData: encryptFieldOrNull((insertConnection as { connectionData?: string | null }).connectionData),
+    };
     const [connection] = await db
       .insert(bankConnections)
-      .values(insertConnection)
+      .values(toInsert)
       .returning();
-    return connection;
+    return { ...connection, connectionData: maybeDecryptField(connection.connectionData) };
   }
-  
+
   async updateBankConnection(id: number, connection: Partial<InsertBankConnection>): Promise<BankConnection | undefined> {
     if (!db) return undefined;
+    const updates = { ...connection } as Partial<InsertBankConnection> & Record<string, unknown>;
+    if ('connectionData' in updates) {
+      updates.connectionData = encryptFieldOrNull(updates.connectionData as string | null | undefined);
+    }
     const [updatedConnection] = await db
       .update(bankConnections)
       .set({
-        ...connection,
+        ...updates,
         lastUpdated: new Date().toISOString()
       })
       .where(eq(bankConnections.id, id))
       .returning();
-    return updatedConnection || undefined;
+    if (!updatedConnection) return undefined;
+    return { ...updatedConnection, connectionData: maybeDecryptField(updatedConnection.connectionData) };
   }
   
   async deleteBankConnection(id: number): Promise<boolean> {
@@ -456,15 +470,19 @@ export class DatabaseStorage implements IStorage {
   async createTransactionsBulk(items: InsertTransaction[]): Promise<Transaction[]> {
     if (!db) throw new Error("Database not available");
     if (items.length === 0) return [];
-    // Cifra `description` en reposo (PII: nombre de comercio/contraparte). El detalle ya va
-    // cifrado en parsedData; esto cierra la copia operacional en la tabla transactions.
-    const toInsert = items.map((it) =>
-      typeof (it as { description?: unknown }).description === 'string'
-        ? { ...it, description: encryptField((it as { description: string }).description) }
-        : it,
-    );
+    // Cifra `description`/`merchantName`/`raw` en reposo (PII: nombre de comercio/contraparte y
+    // dato crudo del banco). El detalle ya va cifrado en parsedData; esto cierra la copia
+    // operacional en la tabla transactions.
+    const toInsert = items.map((it) => {
+      const row = it as { description?: unknown; merchantName?: unknown; raw?: unknown };
+      const out = { ...it } as typeof it & Record<string, unknown>;
+      if (typeof row.description === 'string') out.description = encryptField(row.description);
+      if (typeof row.merchantName === 'string') out.merchantName = encryptField(row.merchantName);
+      if (typeof row.raw === 'string') out.raw = encryptField(row.raw);
+      return out;
+    });
     const inserted = await db.insert(transactions).values(toInsert).returning();
-    // Devuelve description en claro al caller (acaba de pasarla en claro).
+    // Devuelve los campos en claro al caller (acaba de pasarlos en claro).
     return inserted.map((row: any) => decryptTxRow(row));
   }
 

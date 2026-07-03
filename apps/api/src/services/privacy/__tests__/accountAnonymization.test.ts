@@ -1,8 +1,25 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { randomUUID } from 'crypto';
 import { eq } from 'drizzle-orm';
-import { db, users, consentGrants, privacyConsentEvents, algorithmPredictionLogs, documentUploads } from '../../../db/index';
+import {
+  db,
+  users,
+  consentGrants,
+  privacyConsentEvents,
+  algorithmPredictionLogs,
+  documentUploads,
+  userAssets,
+  inscripcionJobs,
+  assistantSummaries,
+  assistantFeedback,
+  habitFeedback,
+  documentParseOutcomes,
+  parserDiagnostics,
+  productConversionEvents,
+  auditLogs,
+} from '../../../db/index';
 import { logCreditScorePrediction } from '../../audit/algorithmicTraceability';
+import { hashRut } from '../../crypto/identifierHashing';
 import { anonymizeUser } from '../accountAnonymization';
 
 // Identificadores únicos por corrida: la SQLite local es un archivo persistente entre test runs.
@@ -22,8 +39,72 @@ describe('anonymizeUser', () => {
         lastName: 'Perez',
         totpSecret: 'totp-secret',
         backupCodes: 'codes',
+        rutHash: hashRut('12.345.678-9'),
       })
       .onConflictDoNothing();
+
+    await db.insert(userAssets).values({
+      id: `asset-anon-test-${randomUUID()}`,
+      userId: USER_ID,
+      type: 'vehicle',
+      name: 'Auto',
+      acquisitionCostClp: 5000000,
+    });
+
+    await db.insert(inscripcionJobs).values({
+      id: `inscripcion-anon-test-${randomUUID()}`,
+      userId: USER_ID,
+      status: 'done',
+      result: JSON.stringify({ rol: '123-45' }),
+    });
+
+    await db.insert(assistantSummaries).values({
+      userId: USER_ID,
+      summary: 'Resumen de conversaciones pasadas del usuario',
+    });
+
+    await db.insert(assistantFeedback).values({
+      id: `assistant-feedback-anon-test-${randomUUID()}`,
+      userId: USER_ID,
+      rating: 'up',
+      userMessage: '¿Cuánto gasté el mes pasado?',
+      assistantMessage: 'Gastaste $500.000 el mes pasado.',
+    });
+
+    await db.insert(habitFeedback).values({
+      id: `habit-feedback-anon-test-${randomUUID()}`,
+      userId: USER_ID,
+      habitKey: 'reduce-deuda',
+      rating: 'down',
+    });
+
+    await db.insert(documentParseOutcomes).values({
+      id: `parse-outcome-anon-test-${randomUUID()}`,
+      userId: USER_ID,
+      status: 'success',
+    });
+
+    await db.insert(parserDiagnostics).values({
+      id: `parser-diag-anon-test-${randomUUID()}`,
+      userId: USER_ID,
+      detectedBank: 'santander',
+      confidenceScore: 0.9,
+      signalsEvaluated: JSON.stringify(['header', 'logo']),
+      tier: 'HIGH',
+    });
+
+    await db.insert(productConversionEvents).values({
+      id: `pce-anon-test-${randomUUID()}`,
+      userId: USER_ID,
+      productId: 'product-1',
+      eventType: 'view',
+    });
+
+    await db.insert(auditLogs).values({
+      userId: USER_ID,
+      action: `login-anon-test-${USER_ID}`,
+      ip: '1.2.3.4',
+    });
 
     await db.insert(documentUploads).values({
       id: `doc-anon-test-${randomUUID()}`,
@@ -68,11 +149,29 @@ describe('anonymizeUser', () => {
     expect(user.lastName).toBeNull();
     expect(user.totpSecret).toBeNull();
     expect(user.backupCodes).toBeNull();
+    expect(user.rutHash).toBeNull();
   });
 
   it('deletes the document uploads', async () => {
     const docs = await db.select().from(documentUploads).where(eq(documentUploads.userId, USER_ID));
     expect(docs).toHaveLength(0);
+  });
+
+  it('deletes user assets, inscripcion jobs, assistant memory/feedback, habit feedback, parse diagnostics and conversion events', async () => {
+    expect(await db.select().from(userAssets).where(eq(userAssets.userId, USER_ID))).toHaveLength(0);
+    expect(await db.select().from(inscripcionJobs).where(eq(inscripcionJobs.userId, USER_ID))).toHaveLength(0);
+    expect(await db.select().from(assistantSummaries).where(eq(assistantSummaries.userId, USER_ID))).toHaveLength(0);
+    expect(await db.select().from(assistantFeedback).where(eq(assistantFeedback.userId, USER_ID))).toHaveLength(0);
+    expect(await db.select().from(habitFeedback).where(eq(habitFeedback.userId, USER_ID))).toHaveLength(0);
+    expect(await db.select().from(documentParseOutcomes).where(eq(documentParseOutcomes.userId, USER_ID))).toHaveLength(0);
+    expect(await db.select().from(parserDiagnostics).where(eq(parserDiagnostics.userId, USER_ID))).toHaveLength(0);
+    expect(await db.select().from(productConversionEvents).where(eq(productConversionEvents.userId, USER_ID))).toHaveLength(0);
+  });
+
+  it('de-links audit_logs from the user instead of deleting them', async () => {
+    const [log] = await db.select().from(auditLogs).where(eq(auditLogs.action, `login-anon-test-${USER_ID}`));
+    expect(log).toBeDefined();
+    expect(log.userId).toBeNull();
   });
 
   it('keeps the algorithm_prediction_logs row but de-links userId and strips input PII', async () => {

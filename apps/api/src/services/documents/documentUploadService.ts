@@ -23,6 +23,7 @@ import { type DetectionTier } from '../../parsers/base.js';
 import { logCreditScorePrediction } from '../audit/algorithmicTraceability.js';
 import { deleteRelatedScoreDocsForDocumentUpload } from './documentUploadLinks.js';
 import { calculateCreditScoreCmfOnly } from '../../scoring/credit-score.js';
+import { hashRut } from '../crypto/identifierHashing.js';
 
 export const CREDIT_SCORE_EXCELLENT = 680;
 export const CREDIT_SCORE_MAX = 850;
@@ -55,27 +56,28 @@ export interface UploadResult {
 }
 
 /**
- * Valida que el RUT del documento coincida con el RUT registrado del usuario.
- * Si el usuario no tiene RUT registrado aún, el primer upload lo establece (binding inicial).
- * Retorna { valid: true, storeRut } cuando hay que persistir el RUT por primera vez.
+ * Valida que el RUT del documento coincida con el hash del RUT registrado del usuario
+ * (seudonimización — nunca se guarda el RUT en texto plano, ver services/crypto/identifierHashing.ts).
+ * Si el usuario no tiene hash registrado aún, el primer upload lo establece (binding inicial).
+ * Retorna { valid: true, storeRutHash } cuando hay que persistir el hash por primera vez.
  */
 export async function validateDocumentBelongsToUser(
   userId: string,
   rutDocumento?: string | null
-): Promise<{ valid: boolean; message?: string; storeRut?: string }> {
+): Promise<{ valid: boolean; message?: string; storeRutHash?: string }> {
   if (!rutDocumento) return { valid: true };
 
-  const [userRow] = await db.select({ rut: users.rut }).from(users).where(eq(users.id, userId));
-  const rutRegistrado = userRow?.rut;
+  const [userRow] = await db.select({ rutHash: users.rutHash }).from(users).where(eq(users.id, userId));
+  const rutHashRegistrado = userRow?.rutHash;
+  const rutHashDocumento = hashRut(rutDocumento);
 
-  if (!rutRegistrado) {
-    // Primer upload con RUT — lo registraremos después del parseo exitoso
-    return { valid: true, storeRut: rutDocumento };
+  if (!rutHashRegistrado) {
+    // Primer upload con RUT — lo registraremos (como hash) después del parseo exitoso
+    return { valid: true, storeRutHash: rutHashDocumento };
   }
 
-  const normalizar = (r: string) => r.replace(/[.\s]/g, '').toUpperCase();
-  if (normalizar(rutRegistrado) !== normalizar(rutDocumento)) {
-    logger.warn({ userId, rutDocumento, rutRegistrado }, '[CMF] RUT del documento no coincide con el usuario');
+  if (rutHashRegistrado !== rutHashDocumento) {
+    logger.warn({ userId }, '[CMF] RUT del documento no coincide con el usuario');
     return {
       valid: false,
       message: 'El RUT del Informe CMF no coincide con tu perfil. Verifica que estás subiendo tu propio informe.',
@@ -106,10 +108,10 @@ export async function processDocumentUpload(
     if (!validation.valid) {
       return { step: 'done', error: validation.message ?? 'El documento no corresponde al usuario.' };
     }
-    // Primer upload exitoso con RUT — registrar en perfil del usuario (binding identidad)
-    if (validation.storeRut) {
-      await db.update(users).set({ rut: validation.storeRut }).where(eq(users.id, userId));
-      logger.info({ userId, rut: validation.storeRut }, '[CMF] RUT registrado en perfil del usuario');
+    // Primer upload exitoso con RUT — registrar hash en perfil del usuario (binding identidad)
+    if (validation.storeRutHash) {
+      await db.update(users).set({ rutHash: validation.storeRutHash }).where(eq(users.id, userId));
+      logger.info({ userId }, '[CMF] RUT registrado (hash) en perfil del usuario');
     }
     return processCmfUpload(userId, cmfDoc);
   } catch (cmfErr) {
