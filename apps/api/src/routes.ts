@@ -4023,13 +4023,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: users.email,
         firstName: users.firstName,
         lastName: users.lastName,
-        rut: users.rut,
+        rutHash: users.rutHash,
         kycStatus: users.kycStatus,
         onboardingCompleted: users.onboardingCompleted,
         createdAt: users.createdAt,
       }).from(users).where(eq(users.id, userId)).limit(1);
 
       if (!profile) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+      // El RUT se guarda seudonimizado (hash irreversible) — no hay texto plano que devolver.
+      // Se informa solo si el sistema tiene uno registrado, no su valor.
+      const { rutHash, ...profileRest } = profile;
+      const profileForExport = { ...profileRest, rutOnFile: !!rutHash };
 
       const cutoffDate = new Date();
       cutoffDate.setMonth(cutoffDate.getMonth() - 24);
@@ -4062,7 +4067,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         exportedAt: new Date().toISOString(),
         dataController: 'CODA Finance SpA',
         legalBasis: 'Ley 21.719 Art. 13 — Derecho de acceso del titular',
-        profile,
+        profile: profileForExport,
         accounts: userAccounts,
         transactions: txsPlano,
         creditScores: userCreditScores,

@@ -13,7 +13,9 @@
  * algorítmica), pero se desvincula del usuario real y se le quita la PII de entrada — solo queda
  * el snapshot de salida (score, modelo, versión). `consent_grants`/`privacy_consent_events`
  * tampoco se borran (son la prueba legal de consentimiento/revocación); solo se anonimiza
- * `ipAddress`/`userAgent`.
+ * `ipAddress`/`userAgent`. `audit_logs` tampoco se borra (rastro de seguridad), pero `userId` es
+ * nullable ahí (a diferencia de `algorithm_prediction_logs`) así que solo se desvincula, sin
+ * necesitar el usuario placeholder.
  */
 
 import { randomUUID } from 'crypto';
@@ -48,6 +50,15 @@ import {
   algorithmPredictionLogs,
   consentGrants,
   privacyConsentEvents,
+  userAssets,
+  inscripcionJobs,
+  assistantSummaries,
+  assistantFeedback,
+  habitFeedback,
+  documentParseOutcomes,
+  parserDiagnostics,
+  productConversionEvents,
+  auditLogs,
 } from '../../db/index.js';
 import { logger } from '../../logger.js';
 
@@ -114,6 +125,26 @@ export async function anonymizeUser(userId: string): Promise<void> {
   // Snapshots de recomendaciones de hábitos (#34): datos del usuario → se borran.
   await db.delete(habitRecommendationsLog).where(eq(habitRecommendationsLog.userId, userId));
 
+  // Activos declarados (propiedades, vehículos, cripto, inversiones) → datos del usuario, se borran.
+  await db.delete(userAssets).where(eq(userAssets.userId, userId));
+  // Jobs de OCR de inscripción (resultado de prefill) → datos del usuario, se borran.
+  await db.delete(inscripcionJobs).where(eq(inscripcionJobs.userId, userId));
+  // Memoria/feedback del asistente IA → contienen texto de conversación real, se borran.
+  await db.delete(assistantSummaries).where(eq(assistantSummaries.userId, userId));
+  await db.delete(assistantFeedback).where(eq(assistantFeedback.userId, userId));
+  // Feedback de hábitos financieros → datos del usuario, se borran.
+  await db.delete(habitFeedback).where(eq(habitFeedback.userId, userId));
+  // Resultados de parseo de documentos (metadata, sin contenido del PDF) → datos del usuario, se borran.
+  await db.delete(documentParseOutcomes).where(eq(documentParseOutcomes.userId, userId));
+  await db.delete(parserDiagnostics).where(eq(parserDiagnostics.userId, userId));
+  // Eventos de conversión de productos: dependen de un ON DELETE CASCADE que nunca se dispara
+  // porque la fila de `users` nunca se borra (se sobrescribe) — hay que borrarlos explícitamente.
+  await db.delete(productConversionEvents).where(eq(productConversionEvents.userId, userId));
+
+  // Rastro de seguridad (auditoría): se conserva el evento, se desvincula del usuario (userId
+  // nullable, a diferencia de algorithm_prediction_logs — no hace falta usuario placeholder).
+  await db.update(auditLogs).set({ userId: null }).where(eq(auditLogs.userId, userId));
+
   // Borrado inmediato de los originales (PDF/imagen) cifrados del blob store (#21): no esperar
   // al TTL de retención cuando el usuario cierra la cuenta.
   try {
@@ -165,6 +196,9 @@ export async function anonymizeUser(userId: string): Promise<void> {
       backupCodes: null,
       totpEnabled: 0,
       twoFactorEnabled: 0,
+      // Hash irreversible del RUT (seudónimo estable) → limpiar para no dejar ningún vínculo
+      // verificable entre la cuenta cerrada y un futuro documento con el mismo RUT.
+      rutHash: null,
     })
     .where(eq(users.id, userId));
 

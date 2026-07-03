@@ -12,8 +12,19 @@
  * Solo re-cifra valores que `needsReencryption` marca (los autenticados por la llave vieja),
  * así es idempotente y se puede reanudar si se corta.
  */
-import { db, users, documentUploads, scoreDocumentUploads, storedBlobs, algorithmPredictionLogs, eq } from '../../db/index.js';
+import {
+  db,
+  users,
+  documentUploads,
+  scoreDocumentUploads,
+  storedBlobs,
+  algorithmPredictionLogs,
+  transactions,
+  bankConnections,
+  eq,
+} from '../../db/index.js';
 import { decryptField, encryptField, needsReencryption } from './fieldEncryption.js';
+import { ENCRYPTED_COLUMNS } from './encryptedColumnsRegistry.js';
 import { logger } from '../../logger.js';
 
 interface RotationTarget {
@@ -24,14 +35,31 @@ interface RotationTarget {
   cols: string[];
 }
 
-// Columnas cifradas con encryptField en todo el código (ver storage.ts, traceabilityPersistence.ts, blobStore.ts).
-const TARGETS: RotationTarget[] = [
-  { name: 'users', table: users, idCol: 'id', cols: ['firstName', 'lastName', 'totpSecret', 'backupCodes'] },
-  { name: 'document_uploads', table: documentUploads, idCol: 'id', cols: ['parsedData'] },
-  { name: 'score_document_uploads', table: scoreDocumentUploads, idCol: 'id', cols: ['parsedData'] },
-  { name: 'stored_blobs', table: storedBlobs, idCol: 'key', cols: ['data'] },
-  { name: 'algorithm_prediction_logs', table: algorithmPredictionLogs, idCol: 'id', cols: ['inputFeatures', 'outputSnapshot', 'cmfData'] },
-];
+// Exportado para que keyRotationCoverage.test.ts pueda verificar que cada tabla del registro
+// (encryptedColumnsRegistry.ts) está realmente wireada aquí, sin duplicar el mapeo en el test.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const TABLES_BY_NAME: Record<string, any> = {
+  users,
+  document_uploads: documentUploads,
+  score_document_uploads: scoreDocumentUploads,
+  stored_blobs: storedBlobs,
+  algorithm_prediction_logs: algorithmPredictionLogs,
+  transactions,
+  bank_connections: bankConnections,
+};
+
+// PK de cada tabla — 'id' para todas salvo stored_blobs (PK 'key').
+const ID_COL_BY_NAME: Record<string, string> = { stored_blobs: 'key' };
+
+// TARGETS se construye desde ENCRYPTED_COLUMNS (registro único, compartido con storage.ts) para
+// que una columna cifrada nueva se rote automáticamente en cuanto se agrega al registro — así se
+// cierra la clase de bug que dejó `transactions` entero fuera de la rotación.
+export const TARGETS: RotationTarget[] = ENCRYPTED_COLUMNS.map(({ table, cols }) => ({
+  name: table,
+  table: TABLES_BY_NAME[table],
+  idCol: ID_COL_BY_NAME[table] ?? 'id',
+  cols: [...cols],
+}));
 
 export interface RotationResult {
   scanned: number;

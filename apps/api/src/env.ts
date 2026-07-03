@@ -23,6 +23,15 @@ if (isProd) {
   if (!process.env.FIELD_ENCRYPTION_KEY) {
     throw new Error('FIELD_ENCRYPTION_KEY is required in production. Generate with: openssl rand -base64 32');
   }
+  if (process.env.FIELD_ENCRYPTION_KEY.length < 32) {
+    throw new Error('FIELD_ENCRYPTION_KEY must be at least 32 characters in production');
+  }
+  if (!process.env.RUT_HASH_PEPPER) {
+    throw new Error('RUT_HASH_PEPPER is required in production. Generate with: openssl rand -base64 32');
+  }
+  if (process.env.RUT_HASH_PEPPER.length < 32) {
+    throw new Error('RUT_HASH_PEPPER must be at least 32 characters in production');
+  }
 }
 
 // Only allow SQLite/memory fallback in development
@@ -50,6 +59,11 @@ export const env = {
   // actual no autentica el valor. Permite leer datos cifrados con la llave vieja mientras el
   // job de rotación los re-cifra con la actual. Quitar tras completar la rotación.
   fieldEncryptionKeyPrev: process.env.FIELD_ENCRYPTION_KEY_PREV || undefined,
+  // Pepper para el hash irreversible (HMAC-SHA256) del RUT (seudonimización, no cifrado — no
+  // hay forma de recuperar el RUT desde rut_hash). Secreto DISTINTO de FIELD_ENCRYPTION_KEY:
+  // rotarlo invalida todos los hashes existentes (no es una operación de "rotación" reversible
+  // como la de fieldEncryption). Validado arriba en prod; en dev usamos una llave fija no secreta.
+  rutHashPepper: process.env.RUT_HASH_PEPPER || 'coda-dev-rut-hash-pepper-do-not-use-in-prod',
   // Opcional: si no está definida, rate limiting/colas caen a memoria local (un solo proceso).
   redisUrl: process.env.REDIS_URL,
 };
