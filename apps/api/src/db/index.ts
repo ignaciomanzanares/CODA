@@ -19,6 +19,7 @@ export const {
   financialProducts,
   leadTracking,
   productApplications,
+  institutionApiKeys,
   expenses,
   billSplits,
   billSplitParticipants,

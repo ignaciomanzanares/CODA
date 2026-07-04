@@ -4298,10 +4298,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { createProductApplication } = await import('./services/products/leadTrackingService.js');
-      const { productCatalog } = await import('./services/products/productCatalog.js');
 
-      // Find product in catalog
-      const product = productCatalog.find(p => p.provider + p.productName === productId || productCatalog.indexOf(p) === Number(productId));
+      // Lookup por PK real en financial_products (catálogo único, Fase 1b). El front envía el
+      // id numérico de la DB, no un slug — antes el match por provider+productName/indexOf era frágil.
+      const numericProductId = Number(productId);
+      if (!Number.isInteger(numericProductId) || numericProductId <= 0) {
+        return res.status(400).json({ message: 'productId inválido' });
+      }
+      const product = await storage.getFinancialProduct(numericProductId);
       if (!product) {
         return res.status(404).json({ message: 'Product not found' });
       }
@@ -4309,7 +4313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create application
       const applicationId = await createProductApplication(
         userId,
-        Number(productId),
+        numericProductId,
         { requestedAmount, term, purpose, additionalInfo },
         product
       );

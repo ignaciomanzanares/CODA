@@ -21,6 +21,24 @@ import { calculateProductRevenue } from './productCatalog.js';
 
 export type LeadEventType = 'view' | 'click' | 'application' | 'approval' | 'rejection';
 
+/**
+ * Máquina de estados de un lead (productApplications.status):
+ *   pending   → el usuario aplicó (lead creado).
+ *   delivered → la institución obtuvo el lead vía la API de instituciones.
+ *   accepted  → la institución lo aceptó (aprobado, sin desembolso aún; sin success fee).
+ *   approved  → originado/desembolsado (genera success fee). "originated" en la API externa.
+ *   rejected  → la institución lo rechazó.
+ *   expired / withdrawn → ciclo cerrado sin originación.
+ */
+export type ApplicationStatus =
+  | 'pending'
+  | 'delivered'
+  | 'accepted'
+  | 'approved'
+  | 'rejected'
+  | 'expired'
+  | 'withdrawn';
+
 export interface TrackLeadEventParams {
   userId: string;
   productId: number;
@@ -152,7 +170,7 @@ export async function createProductApplication(
  */
 export async function updateApplicationStatus(
   applicationId: number,
-  status: 'approved' | 'rejected' | 'expired' | 'withdrawn',
+  status: ApplicationStatus,
   product: ProductCatalogItem,
   loanAmount?: number,
   externalApplicationId?: string
@@ -194,13 +212,16 @@ export async function updateApplicationStatus(
       })
       .where(eq(productApplications.id, applicationId));
 
-    // Track event
-    await trackLeadEvent({
-      userId: application.userId,
-      productId: application.productId,
-      eventType: status === 'approved' ? 'approval' : 'rejection',
-      metadata: { applicationId, externalApplicationId, loanAmount, revenue: totalRevenue }
-    });
+    // Track event solo en los estados terminales que alimentan el funnel (aprobación/rechazo).
+    // 'delivered'/'accepted' son intermedios y no deben contarse como conversión ni pérdida.
+    if (status === 'approved' || status === 'rejected') {
+      await trackLeadEvent({
+        userId: application.userId,
+        productId: application.productId,
+        eventType: status === 'approved' ? 'approval' : 'rejection',
+        metadata: { applicationId, externalApplicationId, loanAmount, revenue: totalRevenue }
+      });
+    }
 
     logger.info({
       applicationId,

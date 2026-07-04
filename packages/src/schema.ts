@@ -361,7 +361,7 @@ export const productApplications = table('product_applications', {
   id: serialPk("id"),
   userId: text('user_id').notNull().references(() => users.id),
   productId: integer('product_id').notNull().references(() => financialProducts.id),
-  status: text('status').notNull().default('pending'), // 'pending' | 'approved' | 'rejected' | 'expired' | 'withdrawn'
+  status: text('status').notNull().default('pending'), // pending | delivered | accepted | approved | rejected | expired | withdrawn
   applicationData: text('application_data'), // JSON: form data submitted
   externalApplicationId: text('external_application_id'), // ID from financial institution
   appliedAt: text('applied_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
@@ -371,6 +371,25 @@ export const productApplications = table('product_applications', {
   notes: text('notes'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+/**
+ * API keys de instituciones financieras para la API de leads (Fase 2). Cada key se asocia a un
+ * `provider` (nombre de institución en financial_products.provider) y solo puede ver/responder los
+ * leads de sus propios productos. Se guarda solo el HASH SHA-256 de la key (nunca la key en claro).
+ */
+export const institutionApiKeys = table('institution_api_keys', {
+  id: serialPk("id"),
+  /** Institución dueña de la key; matchea financial_products.provider. */
+  provider: text('provider').notNull(),
+  /** SHA-256 (hex) de la API key. La key en claro se muestra una sola vez al generarla. */
+  keyHash: text('key_hash').notNull(),
+  /** Etiqueta legible (p.ej. "Integración producción BancoEstado"). */
+  label: text('label'),
+  /** 0/1 — permite revocar sin borrar. */
+  active: integer('active').notNull().default(1),
+  lastUsedAt: text('last_used_at'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 export const notifications = table('notifications', {
