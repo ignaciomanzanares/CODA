@@ -10,6 +10,7 @@ import { registerRoutes } from "./routes.js";
 import { registerAuditRoutes } from "./routes-audit.js";
 import { registerHealthEvaluationRoutes } from "./routes-health-evaluation.js";
 import { registerAssetsRoutes } from "./routes-assets.js";
+import { registerInstitutionRoutes } from "./routes-institutions.js";
 import { checkDatabaseConnection } from "./db/index.js";
 import { logger, httpLogger } from "./logger.js";
 import { initializeTraceabilitySystem } from "./services/audit/algorithmicTraceability.js";
@@ -221,6 +222,7 @@ registerMetricsEndpoint(app);
   registerAuditRoutes(app);
   registerAssetsRoutes(app);
   registerHealthEvaluationRoutes(app);
+  registerInstitutionRoutes(app);
 
   // Then register main routes
   const server = await registerRoutes(app);
