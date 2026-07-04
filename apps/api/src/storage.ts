@@ -944,14 +944,21 @@ export class DatabaseStorage implements IStorage {
   
   // Financial product methods
   async getFinancialProducts(category?: string): Promise<any[]> {
-    const products = Array.from(this.financialProducts.values());
-    if (category) {
-      return products.filter((product: any) => product.category === category);
+    // Fuente de verdad: tabla financial_products (catálogo único, cargado por
+    // scripts/seedProductCatalog.ts). Solo productos activos. El Map es fallback dev sin DB.
+    if (!db) {
+      const products = Array.from(this.financialProducts.values());
+      return category ? products.filter((p: any) => p.category === category) : products;
     }
-    return products;
+    const where = category
+      ? and(eq(financialProducts.isActive, 1), eq(financialProducts.category, category))
+      : eq(financialProducts.isActive, 1);
+    return await db.select().from(financialProducts).where(where);
   }
   async getFinancialProduct(id: number): Promise<any | undefined> {
-    return this.financialProducts.get(id);
+    if (!db) return this.financialProducts.get(id);
+    const [row] = await db.select().from(financialProducts).where(eq(financialProducts.id, id));
+    return row || undefined;
   }
   async createFinancialProduct(insertProduct: any): Promise<any> {
     const id = this.currentFinancialProductId++;

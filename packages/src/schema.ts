@@ -320,6 +320,16 @@ export const financialProducts = table('financial_products', {
   priority: integer('priority').default(50), // Higher = shown first (0-100)
   externalUrl: text('external_url'), // Link to institution's application page
   logoUrl: text('logo_url'),
+  /** Clave natural estable del producto (slug), p.ej. "bancoe-cta-vista". Idempotencia del seed
+   *  (scripts/seedProductCatalog.ts hace upsert por slug) y referencia legible desde el front. */
+  slug: text('slug'),
+  /** Texto legal de disclosure del producto (patrocinio/afiliación), mostrado en el marketplace. */
+  disclosure: text('disclosure'),
+  /** Procedencia: 'seed_verified' (catálogo verificado) | 'placeholder' (monetización por defaults
+   *  de categoría, sin acuerdo comercial aún). Para el dashboard admin. */
+  dataSource: text('data_source'),
+  /** Fecha ISO de última verificación de los datos del producto (tasas/costos). */
+  lastVerified: text('last_verified'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
