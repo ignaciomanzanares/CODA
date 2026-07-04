@@ -8,7 +8,8 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { env, isDevelopment } from '../env.js';
 import { storage } from '../storage.js';
-import { emailService } from '../services/emailService.js';
+import { emailService, isEmailConfigured } from '../services/emailService.js';
+import { setAuthCookie, clearAuthCookie, getTokenFromCookie } from './authCookie.js';
 import { logger } from '../logger.js';
 import {
   logAuthSecurityEvent,
@@ -40,6 +41,18 @@ export interface AuthenticatedRequest extends Request {
 
 // Token blacklist for logout — in-memory fast path (backs up DB check below)
 const tokenBlacklist = new Set<string>();
+const TOKEN_BLACKLIST_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
+function scheduleBlacklistRemoval(token: string, remainingMs = TOKEN_BLACKLIST_TTL_MS): void {
+  const delay = Math.min(remainingMs, MAX_TIMEOUT_MS);
+  const timer = setTimeout(() => {
+    const nextRemaining = remainingMs - delay;
+    if (nextRemaining > 0) scheduleBlacklistRemoval(token, nextRemaining);
+    else tokenBlacklist.delete(token);
+  }, delay);
+  timer.unref?.();
+}
 
 // 2FA OTP storage.
 // Primary store is Redis (TTL nativo) para que un código generado en una instancia se valide
@@ -92,6 +105,23 @@ export function verifyPassword(password: string, storedHash: string): boolean {
 /** Email estable para login/registro (evita fallos por espacios o mayúsculas vs BD). */
 export function normalizeEmail(email: string): string {
   return String(email).trim().toLowerCase();
+}
+
+/**
+ * Allowlist de cuentas demo. Con DEMO_MODE activo, la contraseña demo (`demo123`)
+ * SOLO puede iniciar sesión para estos emails — nunca para cuentas reales.
+ *
+ * Configurable con `DEMO_ALLOWED_EMAILS` (lista separada por comas) o `DEMO_EMAIL`
+ * (un solo email). Default conservador: `demo@example.com`. Así, aunque DEMO_MODE
+ * siga en `true`, `demo123` + el email de una cuenta real NO emite token: cae al
+ * flujo real y debe coincidir con su contraseña real (o falla con 401).
+ */
+export function isDemoAllowedEmail(email: string): boolean {
+  const raw = process.env.DEMO_ALLOWED_EMAILS || process.env.DEMO_EMAIL || 'demo@example.com';
+  const allow = new Set(
+    raw.split(',').map((e) => normalizeEmail(e)).filter((e) => e.length > 0)
+  );
+  return allow.has(normalizeEmail(email));
 }
 
 /** Rol estable para JWT (columna opcional en filas antiguas). */
@@ -190,7 +220,7 @@ function singleLayerIsConnectionOrInfra(e: unknown): boolean {
  * Generate a 6-digit OTP code
  */
 export function generateOTP(): string {
-  return crypto.randomInt(100000, 1000000).toString();
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 /**
@@ -297,126 +327,6 @@ export function generateToken(payload: TokenPayload): string {
   return jwt.sign(payload, env.jwtSecret, { expiresIn: env.jwtExpiresIn } as jwt.SignOptions);
 }
 
-// =============================================================================
-// SESIÓN HÍBRIDA: cookie httpOnly + header Authorization (transición, #10)
-// =============================================================================
-// El token viaja en una cookie httpOnly (no accesible por JS → inmune a robo por
-// XSS) y, a la vez, se sigue devolviendo en el body para clientes que aún usan el
-// header `Authorization: Bearer`. `authenticate()` acepta cualquiera de los dos.
-// No usamos `cookie-parser`: `res.cookie/clearCookie` son nativos de Express y la
-// lectura se hace parseando `req.headers.cookie` a mano (una sola cookie).
-
-export const AUTH_COOKIE_NAME = 'coda_session';
-
-function authCookieOptions() {
-  const isProduction = process.env.NODE_ENV === 'production';
-  // En prod la API y el front están en orígenes distintos (Vercel ↔ Render), así que
-  // la cookie debe ser SameSite=None+Secure para viajar cross-site; en dev, Lax basta.
-  return {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
-    path: '/',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
-  };
-}
-
-export function setAuthCookie(res: Response, token: string): void {
-  res.cookie(AUTH_COOKIE_NAME, token, authCookieOptions());
-}
-
-export function clearAuthCookie(res: Response): void {
-  const { maxAge: _drop, ...opts } = authCookieOptions();
-  res.clearCookie(AUTH_COOKIE_NAME, opts);
-}
-
-/** Lee una cookie por nombre desde el header `Cookie` sin depender de cookie-parser. */
-function readCookie(req: Request, name: string): string | null {
-  const raw = req.headers.cookie;
-  if (!raw) return null;
-  for (const part of raw.split(';')) {
-    const idx = part.indexOf('=');
-    if (idx === -1) continue;
-    if (part.slice(0, idx).trim() === name) {
-      return decodeURIComponent(part.slice(idx + 1).trim());
-    }
-  }
-  return null;
-}
-
-function readAuthCookie(req: Request): string | null {
-  return readCookie(req, AUTH_COOKIE_NAME);
-}
-
-/** Token de la request: header `Authorization: Bearer` primero, luego cookie httpOnly. */
-export function readTokenFromRequest(req: Request): string | null {
-  const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith('Bearer ')) return authHeader.substring(7);
-  return readAuthCookie(req);
-}
-
-// =============================================================================
-// CSRF (double-submit cookie) — solo aplica cuando la sesión viaja por cookie.
-// =============================================================================
-// Un cliente con `Authorization: Bearer` no es vulnerable a CSRF (el navegador no
-// adjunta headers custom automáticamente en requests cross-site), así que el
-// chequeo solo se exige cuando `authenticate()` resolvió el token desde la cookie.
-// Patrón doble-submit: cookie NO httpOnly (el front la lee) + header `X-CSRF-Token`
-// que debe coincidir.
-
-export const CSRF_COOKIE_NAME = 'coda_csrf';
-const CSRF_HEADER_NAME = 'x-csrf-token';
-const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-
-function csrfCookieOptions() {
-  const isProduction = process.env.NODE_ENV === 'production';
-  return {
-    httpOnly: false,
-    secure: isProduction,
-    sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
-    path: '/',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  };
-}
-
-export function setCsrfCookie(res: Response): string {
-  const token = crypto.randomBytes(32).toString('hex');
-  res.cookie(CSRF_COOKIE_NAME, token, csrfCookieOptions());
-  return token;
-}
-
-export function clearCsrfCookie(res: Response): void {
-  const { maxAge: _drop, ...opts } = csrfCookieOptions();
-  res.clearCookie(CSRF_COOKIE_NAME, opts);
-}
-
-function isCsrfTokenValid(req: Request): boolean {
-  const cookieToken = readCookie(req, CSRF_COOKIE_NAME);
-  const headerToken = req.headers[CSRF_HEADER_NAME];
-  return (
-    !!cookieToken &&
-    typeof headerToken === 'string' &&
-    headerToken.length > 0 &&
-    headerToken === cookieToken
-  );
-}
-
-/**
- * Emite la sesión: genera el token, lo setea en la cookie httpOnly + cookie CSRF, y
- * devuelve el payload para incluirlo también en el body (modo híbrido). Centraliza
- * los ~4 puntos que antes hacían `res.json({ success, token, user })` a mano.
- */
-export function issueSession(
-  res: Response,
-  payload: TokenPayload,
-  extra: Record<string, unknown> = {},
-): void {
-  const token = generateToken(payload);
-  setAuthCookie(res, token);
-  setCsrfCookie(res);
-  res.json({ success: true, token, user: payload, ...extra });
-}
-
 /**
  * Verify and decode a JWT token
  */
@@ -436,7 +346,7 @@ export function verifyToken(token: string): TokenPayload | null {
  */
 export function invalidateToken(token: string, userId?: string): void {
   tokenBlacklist.add(token);
-  setTimeout(() => tokenBlacklist.delete(token), 30 * 24 * 60 * 60 * 1000);
+  scheduleBlacklistRemoval(token);
 
   // Persist logout timestamp to DB — any token with iat < this value is rejected
   // even after a server restart, covering all devices the user is logged into.
@@ -459,22 +369,30 @@ export function invalidateToken(token: string, userId?: string): void {
 export async function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;
-    const fromHeader = !!authHeader?.startsWith('Bearer ');
-    const token = fromHeader ? authHeader!.substring(7) : readAuthCookie(req);
+
+    // Prioridad estricta de Bearer. Si viene CUALQUIER header Authorization, debe
+    // ser exactamente 'Bearer <token>'; cualquier otro esquema (p.ej. Basic) →
+    // 401, SIN caer a la cookie. El fallback a cookie (si AUTH_COOKIE_ENABLED) solo
+    // ocurre cuando NO hay header Authorization. Un Bearer inválido también es 401.
+    let token: string | undefined;
+    let authenticatedWithCookie = false;
+    if (typeof authHeader === 'string' && authHeader.length > 0) {
+      if (!authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Missing or invalid authorization header',
+        });
+      }
+      token = authHeader.substring(7);
+    } else {
+      token = getTokenFromCookie(req);
+      authenticatedWithCookie = !!token;
+    }
 
     if (!token) {
       return res.status(401).json({
         error: 'Unauthorized',
         message: 'Missing or invalid authorization header',
-      });
-    }
-
-    // La sesión llegó solo por cookie (sin header explícito) y la request muta
-    // estado: exigir el token CSRF de doble-submit.
-    if (!fromHeader && MUTATING_METHODS.has(req.method) && !isCsrfTokenValid(req)) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'CSRF token missing or invalid',
       });
     }
 
@@ -494,6 +412,17 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
       .from(users)
       .where(eq(users.id, payload.userId))
       .limit(1);
+
+    // A valid JWT is not enough: the backing account must still exist. Without
+    // this check, a stale token could reach ensureUserForToken and recreate a
+    // user that had just deleted their account.
+    if (!userRow) {
+      if (authenticatedWithCookie) clearAuthCookie(res);
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Account no longer exists. Please log in again.',
+      });
+    }
 
     if (userRow?.tokenInvalidatedAt) {
       const invalidatedAtMs = new Date(userRow.tokenInvalidatedAt).getTime();
@@ -515,29 +444,15 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
 }
 
 /**
- * Optional authentication - doesn't fail if no token.
- * Mirrors authenticate()'s tokenInvalidatedAt check so that logged-out tokens
- * are treated as unauthenticated (not silently accepted) on optional routes.
+ * Optional authentication - doesn't fail if no token
  */
-export async function optionalAuth(req: AuthenticatedRequest, _res: Response, next: NextFunction) {
-  const token = readTokenFromRequest(req);
-  if (token) {
+export function optionalAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
     const payload = verifyToken(token);
     if (payload) {
-      const [userRow] = await db
-        .select({ tokenInvalidatedAt: users.tokenInvalidatedAt })
-        .from(users)
-        .where(eq(users.id, payload.userId))
-        .limit(1);
-
-      if (userRow?.tokenInvalidatedAt) {
-        const invalidatedAtMs = new Date(userRow.tokenInvalidatedAt).getTime();
-        const tokenIat = ((payload as unknown) as { iat?: number }).iat ?? 0;
-        if (tokenIat * 1000 < invalidatedAtMs) {
-          return next(); // token invalidado → tratar como no-autenticado
-        }
-      }
-
       req.user = payload;
     }
   }
@@ -550,11 +465,77 @@ export async function optionalAuth(req: AuthenticatedRequest, _res: Response, ne
 // =============================================================================
 
 /**
- * Logout handler - invalidates the current token y limpia las cookies de sesión/CSRF.
+ * Login handler
+ * In development: accepts demo password for testing
+ * In production: requires DEMO_MODE=true env var to enable demo auth
+ */
+export async function handleLogin(req: Request, res: Response) {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ 
+      error: 'Bad Request', 
+      message: 'Email and password are required' 
+    });
+  }
+
+  // Demo authentication - only allowed in development or when explicitly enabled
+  const isProduction = process.env.NODE_ENV === 'production';
+  const demoModeEnabled = process.env.DEMO_MODE === 'true';
+  const demoPassword = process.env.DEMO_PASSWORD || 'demo123';
+  
+  if (isProduction && !demoModeEnabled) {
+    // In production without demo mode, reject all login attempts
+    // Real authentication should use Auth0 or another provider
+    return res.status(401).json({ 
+      error: 'Unauthorized', 
+      message: 'Demo authentication is disabled in production' 
+    });
+  }
+
+  // Validate demo password
+  if (password !== demoPassword) {
+    return res.status(401).json({
+      error: 'Unauthorized',
+      message: 'Invalid email or password'
+    });
+  }
+
+  // Demo password SOLO para cuentas demo allowlisted — nunca cuentas reales.
+  // (Este handler legacy no está enrutado; se endurece por defensa en profundidad.)
+  if (!isDemoAllowedEmail(email)) {
+    return res.status(401).json({
+      error: 'Unauthorized',
+      message: 'Invalid email or password',
+    });
+  }
+
+  // Generate token
+  const tokenPayload: TokenPayload = {
+    userId: email.split('@')[0],
+    email: email,
+    name: email.split('@')[0],
+    role: 'persona',
+  };
+
+  const token = generateToken(tokenPayload);
+
+  setAuthCookie(res, token);
+  res.json({
+    success: true,
+    token,
+    user: tokenPayload,
+  });
+}
+
+/**
+ * Logout handler - invalidates the current token
  */
 export async function handleLogout(req: AuthenticatedRequest, res: Response) {
-  const token = readTokenFromRequest(req);
-
+  // Obtiene el token con el que se autenticó la sesión — venga de Bearer o de la
+  // cookie httpOnly — y lo invalida (blacklist + tokenInvalidatedAt), igual que una
+  // sesión Bearer. Así el JWT dentro de la cookie no se puede reutilizar tras logout.
+  const token = getAuthenticatedToken(req);
   if (token) {
     invalidateToken(token, req.user?.userId);
   }
@@ -567,8 +548,44 @@ export async function handleLogout(req: AuthenticatedRequest, res: Response) {
   }
 
   clearAuthCookie(res);
-  clearCsrfCookie(res);
   res.json({ success: true, message: 'Logged out successfully' });
+}
+
+function getAuthenticatedToken(req: AuthenticatedRequest): string | undefined {
+  const authHeader = req.headers.authorization;
+  return authHeader?.startsWith('Bearer ')
+    ? authHeader.substring(7)
+    : getTokenFromCookie(req);
+}
+
+/**
+ * Permanently delete the authenticated account and revoke the current session
+ * before removing the user row. authenticate also rejects any other still-valid
+ * JWT once its backing user no longer exists.
+ */
+export async function handleDeleteAccount(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized', message: 'Not authenticated' });
+    }
+
+    const token = getAuthenticatedToken(req);
+    if (token) invalidateToken(token, userId);
+
+    logger.info({ userId }, 'Received request to delete account');
+    await storage.deleteUserData(userId);
+    logger.info({ userId }, 'Database cleanup complete');
+
+    clearAuthCookie(res);
+    return res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    return next(error);
+  }
 }
 
 /**
@@ -716,13 +733,19 @@ export async function handleRegister(req: Request, res: Response) {
       displayName: newUser.displayName ?? name,
     });
 
+    const token = generateToken(tokenPayload);
+
     logAuthSecurityEvent('register_success', req, {
       userId: newUser.id,
       email: redactEmail(newUser.email),
     });
 
-    res.status(201);
-    issueSession(res, tokenPayload);
+    setAuthCookie(res, token);
+    res.status(201).json({
+      success: true,
+      token,
+      user: tokenPayload,
+    });
   } catch (error) {
     logger.error({ err: error }, 'Registration error');
     res.status(500).json({
@@ -756,9 +779,10 @@ export async function getOrCreateDemoUser(email: string): Promise<{ id: string; 
 /**
  * Resuelve el `users.id` efectivo para el JWT (FK en financial_goals, trazabilidad, etc.).
  *
- * - BD nueva (p. ej. Neon vacía): el JWT sigue siendo válido pero no hay fila → **creamos** una fila mínima.
  * - Email ya existe con otro id (JWT antiguo): devolvemos el id de la fila en BD.
  * - Demo: mismo comportamiento que antes con `getOrCreateDemoUser`.
+ * - Un JWT sin fila ni email existente se rechaza: nunca recreamos cuentas desde
+ *   autenticación general. Las migraciones deben usar su flujo explícito.
  */
 export async function ensureUserForToken(payload: TokenPayload): Promise<string | null> {
   if (!payload?.userId && !payload?.email) return null;
@@ -788,40 +812,15 @@ export async function ensureUserForToken(payload: TokenPayload): Promise<string 
   }
 
   const demoModeEnabled = process.env.DEMO_MODE === 'true';
-  if (demoModeEnabled && email) {
+  if (demoModeEnabled && email && isDemoAllowedEmail(email)) {
+    // Solo auto-creamos cuenta demo para emails allowlisted (no para cualquier JWT).
     const user = await getOrCreateDemoUser(email);
     return user.id;
   }
 
-  /** Migración a BD vacía: JWT verificado por `authenticate` pero `users` sin fila. */
-  if (payload.userId && email) {
-    try {
-      const [firstName, ...rest] = (payload.name ?? '').split(/\s+/).filter(Boolean);
-      const created = await storage.createUser({
-        id: payload.userId,
-        username: `u_${payload.userId.replace(/-/g, '')}`,
-        email,
-        passwordHash: hashPassword(`__jwt_sync__${payload.userId}__${email}`),
-        firstName: firstName || 'Usuario',
-        lastName: rest.length > 0 ? rest.join(' ') : null,
-        displayName: payload.name?.trim() || null,
-        /** Marca cuenta creada solo para FK: la contraseña real no está en BD hasta login o recuperación. */
-        userMetadata: JSON.stringify({ jwtSynced: true }),
-      });
-      logger.info(
-        { userId: created.id, email: redactEmail(email) },
-        'ensureUserForToken: fila users creada (JWT sin contraparte en BD)'
-      );
-      return created.id;
-    } catch (err) {
-      logger.error({ err }, 'ensureUserForToken: no se pudo crear usuario para FK');
-      return null;
-    }
-  }
-
   logger.warn(
     { hasUserId: !!payload.userId, hasEmail: !!email },
-    'ensureUserForToken: faltan datos para crear usuario'
+    'ensureUserForToken: JWT sin usuario existente; se rechaza la sesión'
   );
   return null;
 }
@@ -930,18 +929,28 @@ export async function handleLoginWithDB(req: Request, res: Response) {
   const demoModeEnabled = process.env.DEMO_MODE === 'true';
   const demoPassword = process.env.DEMO_PASSWORD || 'demo123';
   
-  // Allow demo login in development OR when DEMO_MODE is enabled in production
-  if ((!isProduction || demoModeEnabled) && password === demoPassword) {
+  // Allow demo login in development OR when DEMO_MODE is enabled in production,
+  // pero SOLO para emails demo allowlisted. Para cualquier otro email, `demo123`
+  // NO emite token: cae al flujo real abajo y debe coincidir con la contraseña
+  // real (o falla con 401). Esto cierra el bypass de cuentas reales con demo123.
+  if ((!isProduction || demoModeEnabled) && password === demoPassword && isDemoAllowedEmail(email)) {
     // Ensure demo user exists in DB and use real user.id in token (evita FK en consent_grants)
     const user = await getOrCreateDemoUser(email);
     const tokenPayload: TokenPayload = buildAuthTokenPayload(user);
+
+    const token = generateToken(tokenPayload);
 
     logAuthSecurityEvent('login_demo', req, {
       userId: user.id,
       email: redactEmail(user.email),
     });
 
-    return issueSession(res, tokenPayload);
+    setAuthCookie(res, token);
+    return res.json({
+      success: true,
+      token,
+      user: tokenPayload,
+    });
   }
 
   try {
@@ -975,9 +984,10 @@ export async function handleLoginWithDB(req: Request, res: Response) {
 
       // Check if 2FA is enabled
       if (isTwoFactorEnabledFlag(user.twoFactorEnabled)) {
-        // Check if email service is actually configured before attempting 2FA
-        const hasEmailConfig = !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) ||
-          !!(process.env.SMTP_HOST && process.env.SMTP_USER);
+        // Check if email service is actually configured before attempting 2FA.
+        // Incluye Resend (proveedor preferido); antes solo miraba Gmail/SMTP, por lo
+        // que con RESEND_API_KEY el 2FA fallaba cerrado pese a tener email operativo.
+        const hasEmailConfig = isEmailConfigured();
 
         if (!hasEmailConfig) {
           // 2FA está habilitado para la cuenta pero el servidor no tiene servicio de email.
@@ -1050,13 +1060,9 @@ export async function handleLoginWithDB(req: Request, res: Response) {
 
       const tokenPayload: TokenPayload = buildAuthTokenPayload(user);
 
-      logAuthSecurityEvent('login_success', req, {
-        userId: user.id,
-        email: redactEmail(user.email),
-      });
-
+      let token: string;
       try {
-        return issueSession(res, tokenPayload);
+        token = generateToken(tokenPayload);
       } catch (tokenErr) {
         logger.error({ err: tokenErr }, 'login: generateToken failed');
         return res.status(500).json({
@@ -1064,6 +1070,18 @@ export async function handleLoginWithDB(req: Request, res: Response) {
           message: 'No se pudo crear la sesión. Revisa la configuración del servidor (JWT).',
         });
       }
+
+      logAuthSecurityEvent('login_success', req, {
+        userId: user.id,
+        email: redactEmail(user.email),
+      });
+
+      setAuthCookie(res, token);
+      return res.json({
+        success: true,
+        token,
+        user: tokenPayload,
+      });
     }
 
     if (user && !user.passwordHash) {
@@ -1152,12 +1170,19 @@ export async function handleVerify2FA(req: Request, res: Response) {
 
     const tokenPayload: TokenPayload = buildAuthTokenPayload(user);
 
+    const token = generateToken(tokenPayload);
+
     logAuthSecurityEvent('twofa_verified', req, {
       userId: user.id,
       email: redactEmail(user.email),
     });
 
-    issueSession(res, tokenPayload);
+    setAuthCookie(res, token);
+    res.json({
+      success: true,
+      token,
+      user: tokenPayload,
+    });
   } catch (error) {
     logger.error({ err: error }, '2FA verification error');
     res.status(500).json({

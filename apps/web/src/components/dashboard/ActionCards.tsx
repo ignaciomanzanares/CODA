@@ -4,6 +4,7 @@
 // category or action. This is the primary revenue conversion path.
 
 import { useLocation } from "wouter";
+import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import { cn } from "@/lib/utils";
 import {
   ArrowRight,
@@ -15,6 +16,7 @@ import {
   TrendingUp,
   Wallet,
   Repeat2,
+  ListChecks,
 } from "lucide-react";
 import type { DashboardData, CategoryGroup } from "@/types/dashboard";
 
@@ -23,7 +25,21 @@ const fmtCLP = (n: number) =>
     style: "currency",
     currency: "CLP",
     maximumFractionDigits: 0,
-  }).format(n);
+	  }).format(n);
+
+const TRANSFER_SUBCATEGORIES = new Set([
+  "transferencia_enviada",
+  "transferencias_enviadas",
+  "Transferencias enviadas",
+]);
+
+function transferShare(group: CategoryGroup): number {
+  if (group.total <= 0) return 0;
+  const transferTotal = group.subcategories
+    .filter((subcategory) => TRANSFER_SUBCATEGORIES.has(subcategory.key) || /transferencia/i.test(subcategory.label))
+    .reduce((sum, subcategory) => sum + subcategory.total, 0);
+  return transferTotal / group.total;
+}
 
 // ── Recommendation types ──────────────────────────────────────────────────────
 
@@ -34,8 +50,14 @@ interface ActionRecommendation {
   title: string;
   body: string;
   cta: string;
-  /** Route to navigate to (usually /productos?category=X) */
-  href: string;
+  /** Route to navigate to (usually /productos?category=X). Omit for `action` cards. */
+  href?: string;
+  /**
+   * In-app action instead of navigation. "upload" opens the global upload drawer
+   * (same mechanism as CreditScoreCard) — used by the CMF card, which previously
+   * navigated to /panel (a no-op that never opened the drawer).
+   */
+  action?: "upload";
   /** Higher = shown first. Used to sort and limit to top 3 */
   priority: number;
 }
@@ -87,18 +109,45 @@ function generateRecommendations(data: DashboardData): ActionRecommendation[] {
     score,
     creditScore,
     categoryGroups,
+    pendingReviewCount,
   } = data;
+
+  // Tarea pendiente (no crítica): revisar categorías ambiguas. Prioridad media-baja
+  // para que NUNCA tape alertas críticas (déficit, deuda alta) en el top-3.
+  if (pendingReviewCount > 0) {
+    recs.push({
+      id: "pending-review",
+      icon: ListChecks,
+      color: "amber",
+      title: `Tienes ${pendingReviewCount} movimiento${pendingReviewCount === 1 ? "" : "s"} por categorizar`,
+      body: "Revisa y corrige las categorías marcadas para afinar tu diagnóstico y tu score.",
+      cta: "Revisar movimientos",
+      href: "/movimientos?revisar=1",
+      priority: 58,
+    });
+  }
 
   if (totalIncome === 0) return recs;
 
   const expenseRatio = totalIncome > 0 ? totalExpenses / totalIncome : 0;
   const findGroup = (key: string) => categoryGroups.find((g) => g.key === key);
 
-  // 1. Low savings rate → suggest savings accounts or depósitos a plazo
-  if (savingsRate < 10 && totalIncome > 0) {
-    const potential = Math.round(totalIncome * 0.10);
-    recs.push({
-      id: "low-savings",
+	  // 1. Low savings rate or deficit.
+	  if (savingsNet < 0 && totalIncome > 0) {
+	    recs.push({
+	      id: "period-deficit",
+	      icon: TrendingDown,
+	      color: "red",
+	      title: `Tus egresos superan ingresos por ${fmtCLP(Math.abs(savingsNet))}`,
+	      body: `Este periodo gastaste ${Math.round(expenseRatio * 100)}% de tus ingresos. Prioriza reducir la brecha antes de invertir o tomar productos de ahorro.`,
+	      cta: "Revisar movimientos",
+	      href: "/movimientos",
+	      priority: 95,
+	    });
+	  } else if (savingsRate < 10 && totalIncome > 0) {
+	    const potential = Math.round(totalIncome * 0.10);
+	    recs.push({
+	      id: "low-savings",
       icon: PiggyBank,
       color: "amber",
       title: "Tu ahorro está por debajo del 10%",
@@ -121,20 +170,33 @@ function generateRecommendations(data: DashboardData): ActionRecommendation[] {
     });
   }
 
-  // 2. High financial expenses (deudas) → suggest portabilidad or consolidation
-  const financieros = findGroup("financieros");
-  if (financieros && financieros.total > 0 && financieros.pctOfIncome > 25) {
-    recs.push({
-      id: "high-debt",
-      icon: Repeat2,
-      color: "red",
-      title: `${financieros.pctOfIncome}% de tu ingreso va a gastos financieros`,
-      body: "Podrías reducir tu carga financiera consolidando deudas o haciendo portabilidad a una tasa menor.",
-      cta: "Ver opciones de portabilidad",
-      href: "/productos?tab=portabilidad",
-      priority: 90,
-    });
-  }
+	  // 2. High financial expenses (deudas) → suggest portabilidad or consolidation
+	  const financieros = findGroup("financieros");
+	  if (financieros && financieros.total > 0 && financieros.pctOfIncome > 25) {
+	    if (transferShare(financieros) >= 0.5) {
+	      recs.push({
+	        id: "high-transfers",
+	        icon: Repeat2,
+	        color: "amber",
+	        title: `${financieros.pctOfIncome}% de tu ingreso va a transferencias y pagos`,
+	        body: "Revisa si corresponden a compromisos recurrentes, pagos de tarjeta o gastos que conviene reclasificar.",
+	        cta: "Ver detalle",
+	        href: "/movimientos?categoria=transferencia_enviada",
+	        priority: 86,
+	      });
+	    } else {
+	      recs.push({
+	        id: "high-debt",
+	        icon: Repeat2,
+	        color: "red",
+	        title: `Revisa tu carga financiera (~${financieros.pctOfIncome}% de tu ingreso)`,
+	        body: "La categoría Gastos Financieros puede incluir pagos o transferencias entre tus cuentas. Si es deuda real, consolidar o portar a una tasa menor puede ayudar.",
+	        cta: "Ver opciones de portabilidad",
+	        href: "/productos?tab=portabilidad",
+	        priority: 90,
+	      });
+	    }
+	  }
 
   // 3. High essential expenses → suggest switching accounts to lower costs
   const esenciales = findGroup("esenciales");
@@ -160,7 +222,7 @@ function generateRecommendations(data: DashboardData): ActionRecommendation[] {
       title: "Desbloquea tu score crediticio",
       body: "Sube tu informe de deudas CMF para obtener tu score crediticio y acceder a recomendaciones de crédito personalizadas.",
       cta: "Subir informe CMF",
-      href: "/panel", // triggers upload drawer
+      action: "upload", // opens the global upload drawer (was a no-op navigate to /panel)
       priority: 80,
     });
   }
@@ -227,7 +289,16 @@ interface ActionCardsProps {
 
 export default function ActionCards({ data }: ActionCardsProps) {
   const [, navigate] = useLocation();
+  const { setOpen: openUploadDrawer } = useUploadDrawer();
   const recommendations = generateRecommendations(data);
+
+  const handleAction = (rec: ActionRecommendation) => {
+    if (rec.action === "upload") {
+      openUploadDrawer(true);
+    } else if (rec.href) {
+      navigate(rec.href);
+    }
+  };
 
   if (recommendations.length === 0) return null;
 
@@ -242,7 +313,7 @@ export default function ActionCards({ data }: ActionCardsProps) {
         return (
           <button
             key={rec.id}
-            onClick={() => navigate(rec.href)}
+            onClick={() => handleAction(rec)}
             className={cn(
               "w-full text-left rounded-2xl border p-4 transition-all hover:shadow-md group",
               styles.card,

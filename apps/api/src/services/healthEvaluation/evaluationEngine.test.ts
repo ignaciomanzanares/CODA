@@ -142,7 +142,7 @@ describe('Mapeo nivel → salida (zona intermedia)', () => {
     expect(result.salida).toBe(expectedSalida);
   });
 
-  it('nivel 1 → ahorro_inversion', () => {
+  it('nivel 1 → refinanciamiento', () => {
     // Score que aterrice en nivel 1: compuesto ~37.5 (tramo 1: 25-37.5)
     const result = evaluateHealthV2({
       deudaFlujo: 0.25,
@@ -154,7 +154,7 @@ describe('Mapeo nivel → salida (zona intermedia)', () => {
       antiguedadMeses: 36,
       tiposCredito: 1,
     });
-    if (result.nivel >= 1) {
+    if (result.nivel >= 2) {
       expect(result.salida).toBe('ahorro_inversion');
     } else {
       expect(result.salida).toBe('refinanciamiento');

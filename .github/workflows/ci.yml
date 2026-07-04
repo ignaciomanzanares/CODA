@@ -28,6 +28,21 @@ jobs:
       - name: Typecheck
         run: npm run check --workspaces --if-present
 
+      # Los tests de @coda/api usan la DB SQLite de @coda/db
+      # (packages/data/coda.db), que está gitignored y no existe en CI. Sin
+      # schema, los tests que tocan tablas reales fallan con "no such table:
+      # users". db:push crea el schema en SQLite (sin DATABASE_URL Postgres en el
+      # entorno, drizzle.config resuelve a sqlite); --force es no-interactivo.
+      - name: Initialize SQLite test schema
+        run: |
+          mkdir -p packages/data
+          npm run db:push -w @coda/db -- --force
+
       - name: Test (@coda/api)
         working-directory: apps/api
         run: npx vitest run
+
+      # El build del front (Vite puro, sin dependencias nativas) valida que los
+      # cambios no rompan la compilación de la web.
+      - name: Build (@coda/web)
+        run: npm run build -w @coda/web

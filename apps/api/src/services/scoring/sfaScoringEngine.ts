@@ -77,6 +77,7 @@ function getWindowMonths(referenceDate: Date, months: number = SFA_UPDATE_TRANSA
 interface LiquidityMetrics {
   averageMonthlyBalanceClp: number;
   monthsWithAbonos: number;
+  observedMonths: number;
   monthsWithGap: number;
   totalMonthsInWindow: number;
 }
@@ -103,7 +104,7 @@ function computeLiquidity(
 
   for (const t of inWindow) {
     const sign = t.tipoOperacion === 'abono' ? 1 : -1;
-    const montoClp = toClp(t.montoOperacion, t.monedaOperacion, rates);
+    const montoClp = Math.abs(toClp(t.montoOperacion, t.monedaOperacion, rates));
     runningBalance += sign * montoClp;
     const m = monthKey(parseSfaDate(t.fechaContableOperacion));
     balanceByMonth.set(m, runningBalance);
@@ -130,10 +131,15 @@ function computeLiquidity(
   const averageMonthlyBalanceClp =
     windowMonths.length > 0 ? sumBalance / windowMonths.length : 0;
   const monthsWithAbonos = windowMonths.filter((m) => abonosByMonth.has(m)).length;
+  const observedMonths = windowMonths.filter((m) => {
+    const hadBalance = inWindow.some((t) => monthKey(parseSfaDate(t.fechaContableOperacion)) === m);
+    return hadBalance;
+  }).length;
 
   return {
     averageMonthlyBalanceClp: Math.round(averageMonthlyBalanceClp),
     monthsWithAbonos,
+    observedMonths,
     monthsWithGap,
     totalMonthsInWindow: windowMonths.length,
   };
@@ -233,18 +239,23 @@ function buildExplainableInsights(
 ): string[] {
   const total = liquidity.totalMonthsInWindow;
   const stability = total > 0 ? liquidity.monthsWithAbonos / total : 0;
+  const observedMonths = liquidity.observedMonths;
   const insights: string[] = [];
 
   if (total > 0) {
-    // When there are gap months (no data uploaded), adjust the stability message
-    // to reflect the months we actually have data for, not the full window.
-    const monthsWithData = total - liquidity.monthsWithGap;
-    const dataStability = monthsWithData > 0 ? liquidity.monthsWithAbonos / monthsWithData : 0;
-
-    if (liquidity.monthsWithGap > 0 && dataStability >= 0.75) {
-      // User has good stability in uploaded months but gaps in the window
+    if (observedMonths > 0 && observedMonths < 3) {
       insights.push(
-        `Tu estabilidad de ingresos es moderada (abonos en ${liquidity.monthsWithAbonos} de ${total} meses). Subiendo cartolas de los meses faltantes tu score podría mejorar.`
+        `Confianza baja: solo tenemos ${observedMonths} mes(es) con movimientos cargados. Sube mas cartolas para que el score refleje mejor tu comportamiento recurrente.`
+      );
+      insights.push(
+        `En el historial cargado registramos abonos en ${liquidity.monthsWithAbonos} de ${observedMonths} mes(es). No interpretamos los meses sin cartola como meses sin ingresos.`
+      );
+    } else if (observedMonths > 0 && observedMonths < 6) {
+      insights.push(
+        `Confianza media: tenemos ${observedMonths} meses con movimientos cargados. Mas historial ayuda a separar tendencias reales de meses puntuales.`
+      );
+      insights.push(
+        `En los meses cargados registramos abonos en ${liquidity.monthsWithAbonos} de ${observedMonths} mes(es).`
       );
     } else if (stability >= 0.75) {
       insights.push(
@@ -263,17 +274,17 @@ function buildExplainableInsights(
 
   if (liquidity.monthsWithGap > 0) {
     insights.push(
-      `No hubo movimientos registrados en ${liquidity.monthsWithGap} de los ${total} meses de la ventana de análisis; para esos meses se mantuvo el último saldo conocido. Sube más cartolas para cubrir la ventana completa y obtener un score más preciso.`
+      `No hubo movimientos registrados en ${liquidity.monthsWithGap} de los ${total} meses de la ventana de análisis; es una limitación de confianza, no una señal negativa por sí sola. Sube más cartolas para cubrir la ventana completa y obtener un score más preciso.`
     );
   }
 
   if (liquidity.averageMonthlyBalanceClp >= 0) {
     insights.push(
-      `Tu saldo promedio mensual (en pesos chilenos) en la ventana de ${total} meses es positivo, lo que aporta positivamente a tu liquidez.`
+      `El saldo acumulado estimado con los movimientos cargados es positivo en promedio, lo que sostiene parte del score transaccional.`
     );
   } else {
     insights.push(
-      `Tu saldo promedio mensual en la ventana analizada es negativo. Reducir descubiertos o usar menos la línea de sobregiro puede mejorar tu score.`
+      `El saldo acumulado estimado con los movimientos cargados es negativo. Reducir deficit mensual o uso de sobregiro puede mejorar tu score.`
     );
   }
 
@@ -355,9 +366,11 @@ export class SfaScoringEngine {
       metrics: {
         averageMonthlyBalanceClp: liquidity.averageMonthlyBalanceClp,
         monthsWithAbonos: liquidity.monthsWithAbonos,
+        observedMonths: liquidity.observedMonths,
         monthsWithGap: liquidity.monthsWithGap > 0 ? liquidity.monthsWithGap : undefined,
         overdraftUsageRatio: overdraftCount > 0 ? overdraftRatio : undefined,
         hasOptimizationOpportunity: hasOptimization,
+        scoreConfidence: liquidity.observedMonths < 3 ? 'baja' : liquidity.observedMonths < 6 ? 'media' : 'alta',
       },
     };
   }

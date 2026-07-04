@@ -1,20 +1,22 @@
 import { useEffect, useState } from "react";
 
-type Theme = "light" | "dark" | "system";
+// Tema explícito: solo claro u oscuro (sin "system"). Para usuarios nuevos se
+// resuelve UNA vez según la preferencia del SO y queda como valor explícito.
+type Theme = "light" | "dark";
 
-function getSystemTheme(): "light" | "dark" {
+function getSystemTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function applyTheme(theme: Theme) {
-  const resolved = theme === "system" ? getSystemTheme() : theme;
-  document.documentElement.classList.toggle("dark", resolved === "dark");
+  document.documentElement.classList.toggle("dark", theme === "dark");
 }
 
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
-    const stored = localStorage.getItem("coda-theme") as Theme | null;
-    return stored ?? "system";
+    const stored = localStorage.getItem("coda-theme");
+    // Compat: valores antiguos ("system" o null) se resuelven una vez al SO.
+    return stored === "light" || stored === "dark" ? stored : getSystemTheme();
   });
 
   useEffect(() => {
@@ -22,24 +24,9 @@ export function useTheme() {
     localStorage.setItem("coda-theme", theme);
   }, [theme]);
 
-  // Listen for OS theme changes when in "system" mode
-  useEffect(() => {
-    if (theme !== "system") return;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => applyTheme("system");
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, [theme]);
-
   const toggle = () => {
-    setThemeState((prev) => {
-      if (prev === "light") return "dark";
-      if (prev === "dark") return "system";
-      return "light";
-    });
+    setThemeState((prev) => (prev === "light" ? "dark" : "light"));
   };
 
-  const resolved = theme === "system" ? getSystemTheme() : theme;
-
-  return { theme, resolved, setTheme: setThemeState, toggle };
+  return { theme, resolved: theme, setTheme: setThemeState, toggle };
 }

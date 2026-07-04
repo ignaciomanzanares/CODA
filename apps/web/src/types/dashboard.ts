@@ -15,6 +15,7 @@ export interface DashboardTransaction {
   monto: number;          // CLP, always positive
   tipo: "ingreso" | "egreso";
   categoria: string;      // raw category from parser (alimentacion, transporte, etc.)
+  isInternalTransfer?: boolean;
 }
 
 /** Subcategory within a CategoryGroup */
@@ -73,13 +74,19 @@ export interface DashboardData {
   periodLabel: string;
 
   // ── Capa 1: Hero ──
-  score: number | null;                   // 0-100 transactional score
-  scoreDelta: number | null;              // vs previous period
-  scoreMaxHistory: { date: string; score: number }[];
-  scoreInsights: string[];                // text insights from scoring engine
+	  score: number | null;                   // 0-100 transactional score
+	  scoreDelta: number | null;              // vs previous period
+	  scoreMaxHistory: { date: string; score: number }[];
+	  scoreInsights: string[];                // text insights from scoring engine
+	  scoreConfidence: "baja" | "media" | "alta" | null;
+	  scoreObservedMonths: number | null;
 
   // ── Credit score (CMF, 0-850) ──
   creditScore: number | null;
+  creditScoreAvailable: boolean;
+  creditScoreUnavailableReason: string | null;
+  creditScoreMessage: string | null;
+  creditScoreSource: { label: string; uploadedAt: string | null } | null;
   creditScoreDelta: number | null;
   creditScoreDate: string | null;         // ISO date of last calculation
 
@@ -108,4 +115,8 @@ export interface DashboardData {
     cuentasVista: number;
     totalPatrimonioNeto: number;
   } | null;
+
+  // ── Cola de revisión de categorías ──
+  /** Movimientos con categoría por revisar (mismo flag que el badge de Movimientos). */
+  pendingReviewCount: number;
 }

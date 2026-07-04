@@ -17,6 +17,7 @@ import {
   ensureUserForToken,
   handleLoginWithDB,
   handleLogout,
+  handleDeleteAccount,
   handleMe,
   handleRegister,
   handleVerify2FA,
@@ -27,6 +28,7 @@ import {
   hashPassword,
   type AuthenticatedRequest
 } from "./middleware/auth.js";
+import { clearAuthCookie } from "./middleware/authCookie.js";
 import { env } from "./env.js";
 import { evaluateGovernmentPrograms } from "./services/governmentPrograms.js";
 import { emailService } from "./services/emailService.js";
@@ -231,8 +233,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ message: "El enlace ha expirado o no es válido." });
     }
     try {
-      await db.update(users).set({ passwordHash: hashPassword(password) }).where(eq(users.id, entry.userId));
+      // Al cambiar la contraseña, invalida también las sesiones existentes
+      // (tokenInvalidatedAt): cualquier JWT emitido antes de este reset queda
+      // rechazado por `authenticate`, cerrando sesiones potencialmente robadas.
+      await db
+        .update(users)
+        .set({ passwordHash: hashPassword(password), tokenInvalidatedAt: new Date().toISOString() })
+        .where(eq(users.id, entry.userId));
       passwordResetTokens.delete(token);
+      // Limpia la cookie de sesión si el flag está activo (no-op si no).
+      clearAuthCookie(res);
       return res.json({ message: "Contraseña actualizada correctamente." });
     } catch (err) {
       logger.error({ err }, "reset-password error");
@@ -317,20 +327,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalLiabilities = creditCardDebt + loansTotal;
       const netWorth = totalAssets - totalLiabilities;
 
-      // Bulk-fetch transactions for the last 90 days (single query)
-      const ninetyDaysAgo = new Date();
-      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      // ANCLAJE TEMPORAL: las ventanas de "últimos N días/meses" se anclan a la
+      // ÚLTIMA fecha con datos del usuario, NO a hoy. Así una cartola histórica
+      // (p. ej. may/jun 2025) sigue mostrando ingresos/gastos/tendencias en lugar de
+      // devolver 0 sólo porque hoy es 2026. Sin transacciones → anchor = hoy (estado vacío).
+      const allUserTx = await storage.getTransactionsForAccounts(accountIds);
+      const { latestPostedAt } = await import('./services/dashboard/anchorDate.js');
+      const anchorDate = latestPostedAt(allUserTx) ?? new Date();
 
-      const transactions = await storage.getTransactionsForAccounts(accountIds, { from: ninetyDaysAgo });
+      // Transacciones de los últimos 90 días CON DATOS (relativo al anchor).
+      const ninetyDaysAgo = new Date(anchorDate);
+      ninetyDaysAgo.setDate(anchorDate.getDate() - 90);
+      const transactions = allUserTx.filter(
+        (t: { postedAt?: string | null }) => t?.postedAt != null && new Date(t.postedAt) >= ninetyDaysAgo,
+      );
 
       // Flujo consolidado: descarta transferencias entre productos propios para
       // que ingreso/gasto/categorías no se cuenten doble (mismo predicado que
       // monthly-flow / insights). Las transferencias a terceros se conservan.
       const { isInternalTransferTx } = await import('./services/assistantContext.js');
 
-      // Calculate monthly income and expenses (last 30 days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      // Ingreso/gasto del último mes CON DATOS (30 días relativos al anchor, no a hoy).
+      const thirtyDaysAgo = new Date(anchorDate);
+      thirtyDaysAgo.setDate(anchorDate.getDate() - 30);
       const recentTransactions = transactions.filter(
         (t: any) => t != null && t.postedAt && new Date(t.postedAt) >= thirtyDaysAgo && !isInternalTransferTx(t)
       );
@@ -367,11 +386,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           spendingByCategory[category] = (spendingByCategory[category] || 0) + Math.abs(txAmount(t));
         });
 
-      // Últimos 6 meses calendario: ingresos y egresos reales por mes (sin ruido artificial).
+      // Últimos 6 meses calendario TERMINANDO en el mes de la última cartola (anchor),
+      // no en el mes actual: así no se inventan meses vacíos entre la última cartola y hoy.
       // Patrimonio: mismo valor actual por mes (no hay series históricas de saldos en BD).
       const netWorthTrend: { month: string; netWorth: number; assets: number; liabilities: number }[] = [];
       const cashFlowTrend: { month: string; income: number; expenses: number }[] = [];
-      const now = new Date();
+      const now = anchorDate;
       for (let i = 5; i >= 0; i--) {
         const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
@@ -417,7 +437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             monthlyExpenses > 0 ? Math.round((amount / monthlyExpenses) * 100) || 0 : 0,
         }));
 
-      // --- Augment with parsed cartola data when no linked accounts exist ---
+      // --- Legacy fallback: only when there are no normalized accounts yet ---
       let finalTotalBalance = Math.round(checkingTotal + savingsTotal);
       let finalMonthlyIncome = Math.round(monthlyIncome);
       let finalMonthlyExpenses = Math.round(monthlyExpenses);
@@ -429,15 +449,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (userAccounts.length === 0) {
         try {
+          const { isInternalTransferTx } = await import('./services/assistantContext.js');
           const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
           if (cartolas.length > 0) {
-            // Collect all raw transactions (deduplicated by content key)
-            interface RawTx { fecha: string; cargo: number; abono: number; saldo?: number; descripcion?: string }
+            // Legacy parsed_data fallback for old, non-backfilled cartolas.
+            interface RawTx { fecha: string; cargo: number; abono: number; saldo?: number; descripcion?: string; categoria?: string; es_transferencia?: boolean }
             const seenDoc = new Set<string>();
             const allRaw: RawTx[] = [];
             for (const c of cartolas) {
               const pd = (c.parsedData as { transacciones?: RawTx[] } | null);
               for (const t of pd?.transacciones ?? []) {
+                if (isInternalTransferTx(t)) continue;
                 const key = `${t.fecha}|${(t.descripcion ?? "").trim().toLowerCase()}|${t.abono ?? 0}|${t.cargo ?? 0}`;
                 if (seenDoc.has(key)) continue;
                 seenDoc.add(key);
@@ -1489,10 +1511,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        // 5. Success response with warnings
+        // 5. Success response with warnings (validación del archivo + best-effort del score)
         res.json({
           ...result,
-          warnings: validation.warnings,
+          warnings: [...(validation.warnings ?? []), ...(result.warnings ?? [])],
           metadata: {
             originalName: file.originalname,
             size: file.size,
@@ -1585,6 +1607,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+      // Cascada: las transacciones normalizadas tienen source_document_id apuntando al
+      // score doc; hay que borrarlas ANTES de borrar los score docs para no dejar
+      // transacciones huérfanas (cuenta vacía → inactiva, no se borra la cuenta).
+      const { deleteTransactionsForDocument } = await import("./services/documents/normalizeCartola.js");
+      const scoreDocs = await storage.listScoreDocumentUploadsByType(userId, "cartola");
+      for (const s of scoreDocs) await deleteTransactionsForDocument(userId, s.id).catch(() => {});
       // Delete score documents + transactional score + credit score atomically
       await Promise.all([
         storage.deleteAllScoreDocumentUploads(userId),
@@ -1639,17 +1667,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return { key: "checking", label: `${name} \u00b7 Cuenta corriente` };
       }
 
+      function parseNumberLike(value: unknown): number | null {
+        if (typeof value === "number" && Number.isFinite(value)) return value;
+        if (typeof value !== "string") return null;
+        const normalized = value.replace(/\./g, "").replace(",", ".").replace(/[^\d.-]/g, "");
+        const n = Number(normalized);
+        return Number.isFinite(n) ? n : null;
+      }
+
+      function rawBalance(raw: unknown, subtype?: string | null): number | null {
+        if (subtype === "credit_card") return null;
+        const data = typeof raw === "string" ? (() => {
+          try { return JSON.parse(raw) as Record<string, unknown>; } catch { return null; }
+        })() : raw && typeof raw === "object" ? raw as Record<string, unknown> : null;
+        if (!data) return null;
+        for (const key of ["saldo", "balance", "saldoFinal", "saldo_final", "saldoDisponible", "saldo_disponible", "saldoContable", "saldo_contable"]) {
+          const value = parseNumberLike(data[key]);
+          if (value != null) return value;
+        }
+        return null;
+      }
+
+      // Flag de revisión manual de categoría (fuente única: reviewStatus).
+      const { requiresReview, isManualCategory } = await import("./services/transactions/reviewStatus.js");
+
       const transactions = (rows as Array<Record<string, unknown>>).map((t) => {
         const acc = accById.get(t.accountId as number);
         const monto = Number(t.amount);
         const prod = productOf(acc);
+        const reviewTx = {
+          category: (t.category as string) ?? null,
+          categoryConfidence: typeof t.categoryConfidence === "number" ? t.categoryConfidence : null,
+          categoryRuleId: (t.categoryRuleId as string) ?? null,
+          categorizerVersion: (t.categorizerVersion as string) ?? null,
+        };
         return {
           id: String(t.id),
           fecha: String(t.postedAt).slice(0, 10),
           descripcion: (t.description as string) ?? "",
           monto,
           tipo: monto >= 0 ? "ingreso" : "egreso",
-          saldo: null,
+          saldo: rawBalance(t.raw, acc?.subtype ?? null),
           banco: acc?.name ?? null,
           accountId: t.accountId as number,
           accountName: acc?.name ?? null,
@@ -1658,7 +1716,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           product: prod.key,
           productLabel: prod.label,
           categoria: (t.category as string) ?? "otro",
-          category_confidence: typeof t.categoryConfidence === "number" ? t.categoryConfidence : null,
+          category_confidence: reviewTx.categoryConfidence,
+          requiresReview: requiresReview(reviewTx),
+          isManual: isManualCategory(reviewTx),
           isInternalTransfer: Number(t.isInternalTransfer ?? 0) === 1,
           periodoDesde: null,
           periodoHasta: null,
@@ -1690,35 +1750,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
 
-      const { category } = req.body as { category?: string };
+      const { category, subcategory } = req.body as { category?: string; subcategory?: string | null };
       if (!category || !VALID_CATEGORIES.has(category)) {
         return res.status(400).json({ message: `Categoría inválida. Opciones: ${[...VALID_CATEGORIES].join(", ")}` });
       }
+      const sub = typeof subcategory === "string" ? subcategory.trim() || null : null;
 
-      // ID format: "{documentUploadId}-{transactionIndex}"
+      // El id es el de la fila en la tabla `transactions` (fuente de verdad), igual
+      // que el que devuelve GET /api/transactions/parsed. Se actualiza ahí (no en
+      // parsed_data) verificando que la cuenta sea del usuario. La corrección queda
+      // marcada como MANUAL (rule_id=manual:user) para que el recategorizador no la pise.
       const txId = req.params.id;
-      const dashIdx = txId.lastIndexOf("-");
-      if (dashIdx < 0) return res.status(400).json({ message: "ID de transacción inválido." });
+      const idNum = parseInt(txId, 10);
+      if (isNaN(idNum)) return res.status(400).json({ message: "ID de transacción inválido." });
 
-      const docId = txId.slice(0, dashIdx);
-      const txIndex = parseInt(txId.slice(dashIdx + 1), 10);
-      if (isNaN(txIndex)) return res.status(400).json({ message: "Índice de transacción inválido." });
+      const ok = await storage.updateTransactionCategory(idNum, userId, category, { subcategory: sub });
+      if (!ok) return res.status(404).json({ message: "Transacción no encontrada." });
 
-      // Fetch the document upload and verify ownership
-      const doc = await storage.getDocumentUploadById(docId, userId);
-      if (!doc) return res.status(404).json({ message: "Documento no encontrado." });
-
-      const pd = doc.parsedData as { transacciones?: any[] } | null;
-      const txs = pd?.transacciones;
-      if (!txs || txIndex < 0 || txIndex >= txs.length) {
-        return res.status(404).json({ message: "Transacción no encontrada." });
-      }
-
-      // Update the category in-place
-      txs[txIndex].categoria = category;
-      await storage.updateDocumentUploadParsedData(docId, pd);
-
-      res.json({ id: txId, category });
+      res.json({ id: txId, category, subcategory: sub, manual: true });
     } catch (e) {
       logger.error({ err: e }, "Failed to update transaction category");
       res.status(500).json({ message: "Error al actualizar categoría." });
@@ -1732,7 +1781,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
 
-      const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
+      // Fuente de verdad: tabla `transactions` (no parsed_data). Este resumen es BRUTO
+      // (incluye todo lo que aparece en cartolas) y alimenta la vista Movimientos; el
+      // Panel/Salud usan los endpoints que excluyen transferencias internas.
+      const { getUserNormalizedTransactions, getReportedBalance } = await import("./services/normalizedTransactions.js");
+      const { transactions: txs } = await getUserNormalizedTransactions(userId);
+      const documentCount = (await storage.listDocumentUploadsByType(userId, "cartola")).length;
 
       let totalIncome = 0;
       let totalExpenses = 0;
@@ -1740,87 +1794,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const categoryBreakdown: Record<string, { count: number; total: number }> = {};
       const monthlyData: Record<string, { income: number; expenses: number }> = {};
 
-      for (const c of cartolas) {
-        const pd = c.parsedData as { transacciones?: any[]; saldo_inicial?: number; saldo_final?: number } | null;
-        const txs = pd?.transacciones ?? [];
+      for (const t of txs) {
+        const monto = t.tipo === "ingreso" ? t.abono : t.cargo;
+        if (monto === 0) continue;
+        transactionCount++;
 
-        for (const t of txs) {
-          let monto: number;
-          let tipo: 'ingreso' | 'egreso';
-          let fecha: string;
-          let categoria = 'otro';
+        if (t.tipo === "ingreso") totalIncome += monto;
+        else totalExpenses += monto;
 
-          // Extract amount and type
-          if ('tipo' in t && typeof t.monto === 'number') {
-            // New format
-            monto = t.monto;
-            tipo = t.tipo === 'abono' ? 'ingreso' : 'egreso';
-          } else {
-            // Old format (CartolaExtraida: cargo/abono)
-            const abono = t.abono ?? 0;
-            const cargo = t.cargo ?? 0;
-            if (abono > 0) {
-              monto = abono;
-              tipo = 'ingreso';
-            } else {
-              monto = cargo;
-              tipo = 'egreso';
-            }
-          }
-          categoria = t.categoria ?? 'otro';
+        if (!categoryBreakdown[t.categoria]) categoryBreakdown[t.categoria] = { count: 0, total: 0 };
+        categoryBreakdown[t.categoria].count++;
+        categoryBreakdown[t.categoria].total += monto;
 
-          // Extract and normalize date
-          if (t.fecha instanceof Date) {
-            fecha = t.fecha.toISOString().slice(0, 10);
-          } else if (typeof t.fecha === 'string') {
-            if (t.fecha.includes('/')) {
-              const parts = t.fecha.split('/');
-              if (parts.length === 3) {
-                if (parts[2].length === 2) {
-                  fecha = `20${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                } else {
-                  fecha = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                }
-              } else {
-                fecha = t.fecha.slice(0, 10);
-              }
-            } else {
-              fecha = t.fecha.slice(0, 10);
-            }
-          } else {
-            fecha = new Date().toISOString().slice(0, 10);
-          }
-
-          // Skip zero amounts
-          if (monto === 0) continue;
-
-          transactionCount++;
-
-          // Add to totals
-          if (tipo === 'ingreso') {
-            totalIncome += monto;
-          } else {
-            totalExpenses += monto;
-          }
-
-          // Category breakdown
-          if (!categoryBreakdown[categoria]) {
-            categoryBreakdown[categoria] = { count: 0, total: 0 };
-          }
-          categoryBreakdown[categoria].count++;
-          categoryBreakdown[categoria].total += monto;
-
-          // Monthly data
-          const monthKey = fecha.slice(0, 7); // YYYY-MM
-          if (!monthlyData[monthKey]) {
-            monthlyData[monthKey] = { income: 0, expenses: 0 };
-          }
-          if (tipo === 'ingreso') {
-            monthlyData[monthKey].income += monto;
-          } else {
-            monthlyData[monthKey].expenses += monto;
-          }
-        }
+        if (!monthlyData[t.month]) monthlyData[t.month] = { income: 0, expenses: 0 };
+        if (t.tipo === "ingreso") monthlyData[t.month].income += monto;
+        else monthlyData[t.month].expenses += monto;
       }
 
       // Sort monthly data by date
@@ -1828,13 +1816,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([month, data]) => ({ month, ...data }));
 
-      // Get latest cartola for balance info
-      let currentBalance: number | null = null;
-      if (cartolas.length > 0) {
-        const latestCartola = cartolas[0];
-        const pd = latestCartola.parsedData as { saldo_final?: number; saldoFinal?: number } | null;
-        currentBalance = pd?.saldo_final ?? pd?.saldoFinal ?? null;
-      }
+      const currentBalance = await getReportedBalance(userId);
 
       // Compute monthly averages using the last 3 months (more stable than all-time totals)
       const recentMonths = sortedMonthlyData.slice(-3);
@@ -1852,7 +1834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           netBalance: totalIncome - totalExpenses,
           currentBalance,
           transactionCount,
-          documentCount: cartolas.length,
+          documentCount,
           avgMonthlyIncome,
           avgMonthlyExpenses,
         },
@@ -1872,47 +1854,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
 
-      const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
+      // Fuente de verdad: tabla `transactions`. Comparación de GASTO por categoría →
+      // excluye transferencias internas (pago de tarjeta/divisas) para no inflar.
+      const { isInternalTransferTx } = await import('./services/assistantContext.js');
+      const { getUserNormalizedTransactions } = await import("./services/normalizedTransactions.js");
+      const { transactions: txs } = await getUserNormalizedTransactions(userId);
 
       // month → category → total
       const grid: Record<string, Record<string, number>> = {};
       const allCategories = new Set<string>();
 
-      for (const c of cartolas) {
-        const pd = c.parsedData as { transacciones?: any[] } | null;
-        for (const t of pd?.transacciones ?? []) {
-          let monto: number;
-          let cat: string;
-          let fecha: string;
-
-          if ('tipo' in t && typeof t.monto === 'number') {
-            if (t.tipo !== 'cargo') continue;
-            monto = t.monto;
-          } else {
-            monto = t.cargo ?? 0;
-            if (monto <= 0) continue;
-          }
-          cat = t.categoria ?? 'otro';
-
-          if (typeof t.fecha === 'string') {
-            if (t.fecha.includes('/')) {
-              const parts = t.fecha.split('/');
-              if (parts.length === 3) {
-                fecha = `${parts[2].length === 2 ? '20' + parts[2] : parts[2]}-${parts[1].padStart(2, '0')}`;
-              } else {
-                fecha = t.fecha.slice(0, 7);
-              }
-            } else {
-              fecha = t.fecha.slice(0, 7);
-            }
-          } else {
-            continue;
-          }
-
-          if (!grid[fecha]) grid[fecha] = {};
-          grid[fecha][cat] = (grid[fecha][cat] ?? 0) + monto;
-          allCategories.add(cat);
-        }
+      for (const t of txs) {
+        if (isInternalTransferTx(t)) continue;
+        if (t.tipo !== 'egreso' || t.cargo <= 0) continue;
+        if (!grid[t.month]) grid[t.month] = {};
+        grid[t.month][t.categoria] = (grid[t.month][t.categoria] ?? 0) + t.cargo;
+        allCategories.add(t.categoria);
       }
 
       // Build sorted months array
@@ -1947,61 +1904,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/transactions/monthly-flow — income vs expenses by month (last 12 months)
+  // GET /api/transactions/monthly-flow — income vs expenses by data month
   app.get("/api/transactions/monthly-flow", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
     try {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
 
-      const { isInternalTransferTx } = await import('./services/assistantContext.js');
-      const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
-      const byMonth: Record<string, { ingresos: number; egresos: number }> = {};
-
-      for (const c of cartolas) {
-        const pd = c.parsedData as { transacciones?: any[] } | null;
-        for (const t of pd?.transacciones ?? []) {
-          // Flujo consolidado: excluye movimientos entre productos propios para
-          // no contar doble (fondeo/pago de tarjeta, divisas). Terceros se mantienen.
-          if (isInternalTransferTx(t)) continue;
-
-          let fecha: string;
-          if (typeof t.fecha === "string") {
-            fecha = t.fecha.includes("/")
-              ? (() => { const p = t.fecha.split("/"); return p.length === 3 ? `${p[2].length === 2 ? "20" + p[2] : p[2]}-${p[1].padStart(2, "0")}` : t.fecha.slice(0, 7); })()
-              : t.fecha.slice(0, 7);
-          } else continue;
-
-          if (!byMonth[fecha]) byMonth[fecha] = { ingresos: 0, egresos: 0 };
-
-          if ("tipo" in t && typeof t.monto === "number") {
-            if (t.tipo === "abono") byMonth[fecha].ingresos += t.monto;
-            else if (t.tipo === "cargo") byMonth[fecha].egresos += t.monto;
-          } else {
-            byMonth[fecha].ingresos += t.abono ?? 0;
-            byMonth[fecha].egresos += t.cargo ?? 0;
-          }
-        }
-      }
-
-      const MONTH_LABELS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-      const now = new Date();
-      const result = [];
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        const entry = byMonth[key];
-        if (!entry) continue;
-        result.push({
-          month: key,
-          label: `${MONTH_LABELS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`,
-          ingresos: Math.round(entry.ingresos),
-          egresos: Math.round(entry.egresos),
-          balance: Math.round(entry.ingresos - entry.egresos),
-        });
-      }
-
-      res.json({ months: result });
+      const { getUserNormalizedTransactions } = await import("./services/normalizedTransactions.js");
+      const { buildMonthlyFlow } = await import("./services/monthlyFlow.js");
+      const { transactions: txs } = await getUserNormalizedTransactions(userId);
+      const view = req.query.view === "raw" ? "raw" : "real";
+      const product = typeof req.query.product === "string" && req.query.product !== "all"
+        ? req.query.product
+        : null;
+      res.json({ months: buildMonthlyFlow(txs, { view, product }), view });
     } catch (e) {
       logger.error({ err: e }, "Failed to get monthly flow");
       res.status(500).json({ message: "Error al obtener flujo mensual." });
@@ -2015,40 +1932,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
 
+      // Fuente de verdad: tabla `transactions`. Excluye internos para no inflar el
+      // gasto (mismo predicado que monthly-flow / dashboard). Terceros se mantienen.
       const { isInternalTransferTx } = await import('./services/assistantContext.js');
-      const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
-      interface NewFmtTx { fecha: string; tipo: 'cargo'|'abono'; monto: number; categoria?: string; descripcion: string }
-      interface OldFmtTx { fecha: string; cargo: number; abono: number; descripcion: string }
-      type AnyTx = NewFmtTx | OldFmtTx;
+      const { getUserNormalizedTransactions, getReportedBalance } = await import("./services/normalizedTransactions.js");
+      const { transactions: allTxs } = await getUserNormalizedTransactions(userId);
 
       // Collect all egresos with category and date
       const egresos: { fecha: string; monto: number; categoria: string; dia: number }[] = [];
       const seen = new Set<string>();
 
-      for (const c of cartolas) {
-        const pd = c.parsedData as { transacciones?: AnyTx[] } | null;
-        for (const t of pd?.transacciones ?? []) {
-          // Excluye movimientos internos propios para no inflar el gasto (mismo
-          // predicado que monthly-flow / dashboard). Terceros se mantienen.
-          if (isInternalTransferTx(t as any)) continue;
-          let monto: number; let cat: string;
-          if ('tipo' in t && typeof (t as NewFmtTx).monto === 'number') {
-            const nt = t as NewFmtTx;
-            if (nt.tipo !== 'cargo') continue;
-            monto = nt.monto;
-          } else {
-            const ot = t as OldFmtTx;
-            monto = ot.cargo ?? 0;
-            if (monto <= 0) continue;
-          }
-          cat = (t as any).categoria ?? 'otro';
-          const fechaStr = (t.fecha as string).slice(0, 10);
-          const key = `${fechaStr}|${(t.descripcion ?? '').trim().toLowerCase()}|${monto}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          const dia = new Date(fechaStr + 'T12:00:00').getDate();
-          egresos.push({ fecha: fechaStr, monto, categoria: cat, dia });
-        }
+      for (const t of allTxs) {
+        if (isInternalTransferTx(t)) continue;
+        if (t.tipo !== 'egreso' || t.cargo <= 0) continue;
+        const key = `${t.postedAt}|${t.descripcion.trim().toLowerCase()}|${t.cargo}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        egresos.push({ fecha: t.postedAt, monto: t.cargo, categoria: t.categoria, dia: t.day });
       }
 
       // ── Gastos por categoría ──────────────────────────────────────────────
@@ -2096,14 +1996,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // 4. Balance saludable
-      const ingresos = cartolas.reduce((s, c) => {
-        const pd = c.parsedData as { transacciones?: AnyTx[] } | null;
-        for (const t of pd?.transacciones ?? []) {
-          if (isInternalTransferTx(t as any)) continue; // mismo predicado consolidado
-          if ('tipo' in t && (t as NewFmtTx).tipo === 'abono') s += (t as NewFmtTx).monto;
-          else if ('abono' in t) s += (t as OldFmtTx).abono ?? 0;
-        }
-        return s;
+      const ingresos = allTxs.reduce((s, t) => {
+        if (isInternalTransferTx(t)) return s; // mismo predicado consolidado
+        return s + t.abono;
       }, 0);
       const tasaAhorro = ingresos > 0 ? Math.round(((ingresos - totalEgresos) / ingresos) * 100) : 0;
       if (ingresos > 0 && totalEgresos > 0) {
@@ -2172,8 +2067,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 8. Emergency fund check
       if (ingresos > 0) {
         const gastoMensual = totalEgresos;
-        const lastCartola = cartolas[0] as any;
-        const saldoActual: number = (lastCartola?.parsedData as any)?.saldoFinal ?? 0;
+        const saldoActual: number = (await getReportedBalance(userId)) ?? 0;
         const mesesCubiertos = gastoMensual > 0 ? Math.round((saldoActual / gastoMensual) * 10) / 10 : 0;
         const fmt = (n: number) => n.toLocaleString("es-CL", { maximumFractionDigits: 0 });
         if (mesesCubiertos < 1 && saldoActual > 0) {
@@ -2239,36 +2133,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
 
-      const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
-      if (cartolas.length === 0) {
+      // Fuente de verdad: tabla `transactions`. Excluye transferencias internas
+      // (pago de tarjeta, divisas) para que NO inflen el ingreso ni la tasa de ahorro.
+      const { isInternalTransferTx } = await import('./services/assistantContext.js');
+      const { getUserNormalizedTransactions, getReportedBalance } = await import("./services/normalizedTransactions.js");
+      const { transactions: txs } = await getUserNormalizedTransactions(userId);
+      if (txs.length === 0) {
         return res.json({ hasData: false, healthLevel: null, programs: [], savingsTips: [] });
       }
 
-      // Excluir transferencias internas (pago de tarjeta, divisas) para que NO
-      // inflen el ingreso ni la tasa de ahorro — mismo predicado que el resto.
-      const { isInternalTransferTx } = await import('./services/assistantContext.js');
-      interface RawTx { fecha: string; cargo: number; abono: number; descripcion?: string; categoria?: string }
       let totalIncome = 0, totalExpenses = 0, hasEduExpenses = false, eduTotal = 0;
 
-      for (const c of cartolas) {
-        const pd = c.parsedData as { transacciones?: (RawTx & { tipo?: string; monto?: number; es_transferencia?: boolean })[] } | null;
-        for (const t of pd?.transacciones ?? []) {
-          if (isInternalTransferTx(t as any)) continue;
-          if ('tipo' in t && t.tipo === 'abono' && typeof t.monto === 'number') {
-            totalIncome += t.monto;
-          } else if ('tipo' in t && t.tipo === 'cargo' && typeof t.monto === 'number') {
-            totalExpenses += t.monto;
-            if (t.categoria === 'educacion') { hasEduExpenses = true; eduTotal += t.monto; }
-          } else {
-            totalIncome += t.abono ?? 0;
-            const cargo = t.cargo ?? 0;
-            totalExpenses += cargo;
-          }
+      for (const t of txs) {
+        if (isInternalTransferTx(t)) continue;
+        if (t.tipo === 'ingreso') {
+          totalIncome += t.abono;
+        } else {
+          totalExpenses += t.cargo;
+          if (t.categoria === 'educacion') { hasEduExpenses = true; eduTotal += t.cargo; }
         }
       }
 
-      const latestCartola = cartolas[0] as any;
-      const saldoActual: number = (latestCartola?.parsedData as any)?.saldoFinal ?? 0;
+      const saldoActual: number = (await getReportedBalance(userId)) ?? 0;
       const savingsRate = totalIncome > 0 ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100) : 0;
       const mesesCubiertos = totalExpenses > 0 ? saldoActual / totalExpenses : 0;
       const eduPct = totalIncome > 0 ? Math.round((eduTotal / totalIncome) * 100) : 0;
@@ -2303,8 +2189,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+      // Cascada completa: transacciones normalizadas → score docs → document_uploads.
+      // Sin esto quedaban transacciones (y score docs) huérfanas tras "empezar de cero".
+      const { deleteTransactionsForDocument } = await import("./services/documents/normalizeCartola.js");
+      const scoreDocs = await storage.listScoreDocumentUploadsByType(userId, "cartola");
+      for (const s of scoreDocs) {
+        await deleteTransactionsForDocument(userId, s.id).catch(() => {});
+        await storage.deleteScoreDocumentUploadById(s.id, userId).catch(() => {});
+      }
       const deleted = await storage.deleteDocumentUploadsByType(userId, "cartola");
-      logger.info({ userId, deleted }, "Cartolas deleted by user");
+      logger.info({ userId, deleted, scoreDocs: scoreDocs.length }, "Cartolas deleted by user");
       res.json({ deleted, message: `${deleted} cartola(s) eliminada(s).` });
     } catch (e) {
       logger.error({ err: e }, "Failed to delete cartolas");
@@ -2365,6 +2259,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/user/documents/:id/review — el usuario marca una importación como revisada.
+  // Dueño-único (otro usuario → 404); idempotente (re-marcar refresca reviewed_at).
+  app.post("/api/user/documents/:id/review", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+      const updated = await storage.markDocumentReviewed(req.params.id, userId);
+      if (!updated) return res.status(404).json({ message: "Documento no encontrado." });
+      res.json({ success: true, reviewStatus: updated.reviewStatus, reviewedAt: updated.reviewedAt });
+    } catch (e) {
+      logger.error({ err: e }, "Failed to mark document reviewed");
+      res.status(500).json({ message: "Error al marcar el documento como revisado." });
+    }
+  });
+
   // GET /api/score-history — line chart data for score evolution
   app.get("/api/score-history", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
@@ -2383,12 +2293,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const authReq = req as AuthenticatedRequest;
     try {
       const userId = await ensureUserForToken(authReq.user!);
-      if (!userId) {
-        return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
-      }
-      const data = await storage.getTransactionalScore(userId);
-      if (!data) {
-        return res.json({ transactionalScore: null, mainInsights: [], metrics: undefined, recommendedProducts: [] });
+	      if (!userId) {
+	        return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
+	      }
+	      const { getNormalizedTransactionalScoreForUser } = await import("./services/normalizedTransactionalScore.js");
+	      const normalizedScore = await getNormalizedTransactionalScoreForUser(userId);
+	      if (normalizedScore) {
+	        storage.addScoreHistoryEntry(
+	          userId,
+	          normalizedScore.transactionalScore,
+	          100,
+	          JSON.stringify(normalizedScore.metrics ?? {}),
+	        ).catch(() => {});
+	        return res.json({
+	          transactionalScore: normalizedScore.transactionalScore,
+	          mainInsights: normalizedScore.mainInsights ?? [],
+	          metrics: normalizedScore.metrics,
+	          recommendedProducts: normalizedScore.recommendedProducts ?? [],
+	          lastUpdated: new Date().toISOString(),
+	          source: normalizedScore.source,
+	        });
+	      }
+	      const data = await storage.getTransactionalScore(userId);
+	      if (!data) {
+	        return res.json({ transactionalScore: null, mainInsights: [], metrics: undefined, recommendedProducts: [] });
       }
       // Save to score history (fire-and-forget)
       if (data.transactionalScore != null) {
@@ -2437,27 +2365,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.warn({ path: "/api/credit-score" }, "Credit score: usuario no encontrado para token");
         return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
       }
-      const userIdStr = String(userId);
-      logger.info({ userId: userIdStr, userIdType: typeof userId, path: "/api/credit-score" }, "Credit score: consultando storage (SELECT WHERE user_id = ...)");
-      const existing = await storage.getCreditScore(userIdStr);
-      if (!existing) {
-        logger.info({ userId, path: "/api/credit-score" }, "Credit score: sin registro para userId, devolviendo score null");
-        return res.json({
-          score: null,
-          maxScore: 850,
-          paymentHistory: "",
-          utilization: "",
-          ageOfCredit: "",
-        });
-      }
-      logger.info({ userId, score: existing.score, path: "/api/credit-score" }, "Credit score: registro encontrado");
-      res.json({
-        score: existing.score,
-        maxScore: existing.maxScore ?? 850,
-        paymentHistory: existing.paymentHistory ?? "Unknown",
-        utilization: existing.utilization ?? "Unknown",
-        ageOfCredit: existing.ageOfCredit ?? "Unknown",
-      });
+      const { getCreditScoreAvailability } = await import("./services/creditScoreAvailability.js");
+      const result = await getCreditScoreAvailability(String(userId), storage);
+      logger.info(
+        {
+          userId,
+          available: result.available,
+          reason: result.available ? null : result.reason,
+          path: "/api/credit-score",
+        },
+        "Credit score: estado CMF resuelto",
+      );
+      res.json(result);
     } catch (e) {
       logger.error({ err: e, userId, path: "/api/credit-score" }, "Get credit score failed (posible error SQL o columna)");
       res.status(500).json({ message: "Error al obtener el score crediticio." });
@@ -4091,7 +4010,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Account deleted successfully" });
     } catch (error) {
       // Let the central error handler deal with it
-      next(error); 
+      next(error);
     }
   });
 
@@ -4178,27 +4097,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let monthlyIncome: number | undefined;
       let monthlyDebt: number | undefined;
       try {
-        const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
-        if (cartolas.length > 0) {
-          // Excluir transferencias internas para no inflar el ingreso del match.
-          const { isInternalTransferTx } = await import('./services/assistantContext.js');
+        // Fuente de verdad: tabla `transactions`. Excluye internas para no inflar el match.
+        const { isInternalTransferTx } = await import('./services/assistantContext.js');
+        const { getUserNormalizedTransactions } = await import("./services/normalizedTransactions.js");
+        const { transactions: txs } = await getUserNormalizedTransactions(userId);
+        if (txs.length > 0) {
           let totalIncome = 0;
           let totalExpenses = 0;
-          let months = new Set<string>();
-          for (const c of cartolas) {
-            const pd = c.parsedData as { transacciones?: any[] } | null;
-            for (const t of pd?.transacciones ?? []) {
-              if (isInternalTransferTx(t)) continue;
-              const fecha = typeof t.fecha === "string" ? t.fecha.slice(0, 7) : "";
-              if (fecha) months.add(fecha);
-              if ("tipo" in t && typeof t.monto === "number") {
-                if (t.tipo === "abono") totalIncome += t.monto;
-                else totalExpenses += t.monto;
-              } else {
-                totalIncome += t.abono ?? 0;
-                totalExpenses += t.cargo ?? 0;
-              }
-            }
+          const months = new Set<string>();
+          for (const t of txs) {
+            if (isInternalTransferTx(t)) continue;
+            months.add(t.month);
+            totalIncome += t.abono;
+            totalExpenses += t.cargo;
           }
           const numMonths = Math.max(1, months.size);
           monthlyIncome = Math.round(totalIncome / numMonths);
@@ -4792,38 +4703,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/recategorize", authenticate, async (req: Request, res: Response) => {
     try {
       const userId = getUserIdFromAuth(req);
-      const { categorizeTransaction } = await import("./parsers/cartola-parser.js");
-
-      const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
-      let updated = 0;
-
-      for (const doc of cartolas) {
-        const pd = doc.parsedData as { transacciones?: any[] } | null;
-        if (!pd?.transacciones?.length) continue;
-
-        let docChanged = false;
-        for (const tx of pd.transacciones) {
-          if (!tx.descripcion) continue;
-          // Support both stored formats:
-          // New format: tipo="cargo"|"abono", monto=number
-          // Old format: cargo=number, abono=number (legacy)
-          const tipo: "cargo" | "abono" = tx.tipo
-            ? tx.tipo
-            : (tx.abono ?? 0) > 0 ? "abono" : "cargo";
-          const monto = tx.monto ?? ((tx.abono ?? 0) > 0 ? tx.abono : (tx.cargo ?? 0));
-          const newCat = categorizeTransaction(tx.descripcion, monto, tipo);
-          if (tx.categoria !== newCat) {
-            tx.categoria = newCat;
-            docChanged = true;
-            updated++;
-          }
-        }
-        if (docChanged) {
-          await storage.updateDocumentUploadParsedData(doc.id, pd);
-        }
-      }
-
-      res.json({ updated });
+      const { recategorizeUserTransactions } = await import("./services/recategorizeTransactions.js");
+      // force solo si se pide explícitamente (no lo envía el botón normal): NO pisa
+      // correcciones manuales por defecto.
+      const force = (req.body as { force?: boolean } | undefined)?.force === true;
+      const result = await recategorizeUserTransactions(userId, { force });
+      res.json(result);
     } catch (e) {
       logger.error({ err: e }, "admin/recategorize");
       res.status(500).json({ message: e instanceof Error ? e.message : "Error" });

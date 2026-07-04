@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import {
   db,
   withTransaction,
+  dialect,
   sql,
   users,
   bankConnections,
@@ -24,6 +25,20 @@ import {
   assistantFeedback,
   assistantSummaries,
   habitFeedback,
+  // Adicionales para el borrado completo de cuenta (deleteUserData legacy).
+  consentGrants,
+  privacyConsentEvents,
+  riskFactors,
+  goalProgress,
+  productRecommendations,
+  leadTracking,
+  productApplications,
+  pushSubscriptions,
+  auditLogs,
+  algorithmPredictionLogs,
+  userAssets,
+  inscripcionJobs,
+  parserDiagnostics,
   eq,
   and,
   inArray,
@@ -116,6 +131,7 @@ export interface IStorage {
   createTransactionsBulk(transactions: any[]): Promise<any[]>;
   getTransactions(accountId: number, options?: { from?: Date; to?: Date; limit?: number; offset?: number }): Promise<any[]>;
   getTransactionsForAccounts(accountIds: number[], options?: { from?: Date }): Promise<any[]>;
+  updateTransactionCategory(id: number, userId: string, category: string, opts?: { subcategory?: string | null }): Promise<boolean>;
   // Credit score operations
   getCreditScore(userId: string): Promise<any>;
   createCreditScore(creditScore: any): Promise<any>;
@@ -213,10 +229,15 @@ export interface IStorage {
     periodoHasta?: string | null;
     parsedData: unknown;
     parseStatus?: string;
+    normalizationStatus?: string | null;
+    reviewStatus?: string;
+    reviewReason?: string | null;
   }): Promise<any>;
+  markDocumentReviewed(documentId: string, userId: string): Promise<any | null>;
 
   getDocumentUploadById(id: string, userId: string): Promise<any | undefined>;
   updateDocumentUploadParsedData(id: string, parsedData: unknown): Promise<void>;
+  updateDocumentUploadNormalizationStatus(id: string, userId: string, normalizationStatus: string): Promise<void>;
   listDocumentUploadsByType(userId: string, tipo: string): Promise<any[]>;
   listAllDocumentUploads(userId: string): Promise<any[]>;
   deleteDocumentUploadById(id: string, userId: string): Promise<boolean>;
@@ -525,6 +546,42 @@ export class DatabaseStorage implements IStorage {
       result = result.filter((tx: any) => new Date(tx.postedAt) >= options.from!);
     }
     return result.map((row: any) => decryptTxRow(row));
+  }
+
+  /**
+   * Actualiza la categoría de UNA transacción normalizada, verificando que su
+   * cuenta pertenezca al usuario (fuente de verdad = tabla `transactions`).
+   */
+  async updateTransactionCategory(
+    id: number,
+    userId: string,
+    category: string,
+    opts?: { subcategory?: string | null },
+  ): Promise<boolean> {
+    if (!db) return false;
+    const [row] = await db.select({ accountId: transactions.accountId }).from(transactions).where(eq(transactions.id, id));
+    if (!row) return false;
+    const [acc] = await db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(and(eq(accounts.id, row.accountId as number), eq(accounts.userId, String(userId))));
+    if (!acc) return false;
+    // Corrección MANUAL: marca la fila para distinguir auto vs manual y para que el
+    // recategorizador automático NO la pise (ver reviewStatus / recategorizeUserTransactions).
+    const { MANUAL_RULE_ID, MANUAL_CATEGORIZER_VERSION, MANUAL_CONFIDENCE } = await import(
+      "./services/transactions/reviewStatus.js"
+    );
+    await db
+      .update(transactions)
+      .set({
+        category,
+        ...(opts && "subcategory" in opts ? { subcategory: opts.subcategory ?? null } : {}),
+        categoryRuleId: MANUAL_RULE_ID,
+        categoryConfidence: MANUAL_CONFIDENCE,
+        categorizerVersion: MANUAL_CATEGORIZER_VERSION,
+      })
+      .where(eq(transactions.id, id));
+    return true;
   }
 
   // Credit score operations
@@ -1410,6 +1467,9 @@ export class DatabaseStorage implements IStorage {
     periodoHasta?: string | null;
     parsedData: unknown;
     parseStatus?: string;
+    normalizationStatus?: string | null;
+    reviewStatus?: string;
+    reviewReason?: string | null;
   }): Promise<any> {
     if (!db) throw new Error("Database not available");
     const [inserted] = await db
@@ -1423,10 +1483,28 @@ export class DatabaseStorage implements IStorage {
         periodoHasta: row.periodoHasta ?? null,
         parsedData: encryptField(JSON.stringify(row.parsedData)),
         parseStatus: row.parseStatus ?? "success",
+        normalizationStatus: row.normalizationStatus ?? null,
+        reviewStatus: row.reviewStatus ?? "not_required",
+        reviewReason: row.reviewReason ?? null,
         uploadedAt: new Date().toISOString(),
       })
       .returning();
     return inserted;
+  }
+
+  /**
+   * Marca una importación como revisada por el usuario (ownership-safe + idempotente).
+   * Setea `reviewed_at` cada vez que se llama; devuelve la fila actualizada o null si el
+   * documento no existe o no pertenece al usuario.
+   */
+  async markDocumentReviewed(documentId: string, userId: string): Promise<any | null> {
+    if (!db) return null;
+    const [updated] = await db
+      .update(documentUploads)
+      .set({ reviewStatus: "reviewed", reviewedAt: new Date().toISOString() })
+      .where(and(eq(documentUploads.id, documentId), eq(documentUploads.userId, userId)))
+      .returning();
+    return updated ?? null;
   }
 
   async getDocumentUploadById(id: string, userId: string): Promise<any | undefined> {
@@ -1448,6 +1526,14 @@ export class DatabaseStorage implements IStorage {
       .update(documentUploads)
       .set({ parsedData: encryptField(JSON.stringify(parsedData)) })
       .where(eq(documentUploads.id, id));
+  }
+
+  async updateDocumentUploadNormalizationStatus(id: string, userId: string, normalizationStatus: string): Promise<void> {
+    if (!db) return;
+    await db
+      .update(documentUploads)
+      .set({ normalizationStatus })
+      .where(and(eq(documentUploads.id, id), eq(documentUploads.userId, userId)));
   }
 
   async listDocumentUploadsByType(userId: string, tipo: string): Promise<any[]> {
@@ -1477,6 +1563,10 @@ export class DatabaseStorage implements IStorage {
       periodoDesde: row.periodoDesde,
       periodoHasta: row.periodoHasta,
       parseStatus: row.parseStatus,
+      normalizationStatus: row.normalizationStatus,
+      reviewStatus: row.reviewStatus,
+      reviewReason: row.reviewReason,
+      reviewedAt: row.reviewedAt,
       uploadedAt: row.uploadedAt,
     }));
   }
@@ -1724,65 +1814,120 @@ export class DatabaseStorage implements IStorage {
       });
   }
 
+  /**
+   * Borra de forma permanente al usuario y TODOS sus datos asociados de la base
+   * de datos (Postgres/Neon en producción, SQLite en dev/tests).
+   *
+   * Antes este método solo borraba de unos Maps en memoria (vestigiales) y de 3
+   * tablas, por lo que en producción respondía 200 sin eliminar la fila del
+   * usuario en Neon. Ahora elimina explícitamente cada tabla que referencia a
+   * `users.id`, en orden hijos → padres para respetar las FKs de Postgres
+   * (donde no hay ON DELETE CASCADE), y deja la fila de `users` para el final.
+   *
+   * En Postgres se ejecuta dentro de una transacción (atómico: si algo falla,
+   * no queda un borrado a medias). En SQLite el driver better-sqlite3 no admite
+   * callbacks async en `transaction()`, así que se ejecuta secuencialmente.
+   *
+   * Lanza si el borrado falla (el handler de la ruta responde error en vez de
+   * un falso 200 "Account deleted successfully").
+   */
   async deleteUserData(userId: string): Promise<boolean> {
-    try {
-      // Delete all user-related data from memory maps
-      
-      // Delete bank connections
-      const userConnections = Array.from(this.bankConnections.entries())
-        .filter(([_, connection]) => connection.userId === userId);
-      userConnections.forEach(([id, _]) => this.bankConnections.delete(id));
-      
-      // Delete credit scores
-      const userCreditScores = Array.from(this.creditScores.entries())
-        .filter(([_, score]) => score.userId === userId);
-      userCreditScores.forEach(([id, _]) => this.creditScores.delete(id));
-      
-      // Delete insurance risks
-      const userInsuranceRisks = Array.from(this.insuranceRisks.entries())
-        .filter(([_, risk]) => risk.userId === userId);
-      userInsuranceRisks.forEach(([id, _]) => this.insuranceRisks.delete(id));
-      
-      // Delete financial goals
-      if (db) {
-        await db.delete(documentUploads).where(eq(documentUploads.userId, userId));
-        await db.delete(userScores).where(eq(userScores.userId, userId));
-        await db.delete(financialGoals).where(eq(financialGoals.userId, userId));
-      } else {
-        const userGoals = Array.from(this.financialGoals.entries())
-          .filter(([_, goal]) => goal.userId === userId);
-        userGoals.forEach(([id, _]) => this.financialGoals.delete(id));
-      }
-      
-      // Delete expenses
-      const userExpenses = Array.from(this.expenses.entries())
-        .filter(([_, expense]) => expense.userId === userId);
-      userExpenses.forEach(([id, _]) => this.expenses.delete(id));
-      
-      // Delete bill splits created by user
-      const userBillSplits = Array.from(this.billSplits.entries())
-        .filter(([_, billSplit]) => billSplit.createdBy === userId);
-      userBillSplits.forEach(([id, _]) => {
-        // Also delete participants for these bill splits
-        const participants = Array.from(this.billSplitParticipants.entries())
-          .filter(([_, participant]) => participant.billSplitId === id);
-        participants.forEach(([participantId, _]) => this.billSplitParticipants.delete(participantId));
-        
-        this.billSplits.delete(id);
+    if (!db) {
+      // Modo sin DB (solo Maps en memoria). En la práctica `db` siempre existe;
+      // se mantiene por compatibilidad con el fallback histórico.
+      this.bankConnections.forEach((c, id) => { if (c.userId === userId) this.bankConnections.delete(id); });
+      this.creditScores.forEach((s, id) => { if (s.userId === userId) this.creditScores.delete(id); });
+      this.insuranceRisks.forEach((r, id) => { if (r.userId === userId) this.insuranceRisks.delete(id); });
+      this.financialGoals.forEach((g, id) => { if (g.userId === userId) this.financialGoals.delete(id); });
+      this.expenses.forEach((e, id) => { if (e.userId === userId) this.expenses.delete(id); });
+      this.notifications.forEach((n, id) => { if (n.userId === userId) this.notifications.delete(id); });
+      this.billSplits.forEach((b, id) => {
+        if (b.createdBy === userId) {
+          this.billSplitParticipants.forEach((p, pid) => { if (p.billSplitId === id) this.billSplitParticipants.delete(pid); });
+          this.billSplits.delete(id);
+        }
       });
-      
-      // Delete notifications
-      const userNotifications = Array.from(this.notifications.entries())
-        .filter(([_, notification]) => notification.userId === userId);
-      userNotifications.forEach(([id, _]) => this.notifications.delete(id));
-      
-      // Finally delete the user
       this.users.delete(userId);
-      
+      return true;
+    }
+
+    // Borra al usuario y sus datos usando `executor` (la conexión o una tx).
+    const purge = async (executor: any) => {
+      // 1. Hijos vía cuenta: transactions y balances referencian accounts.id.
+      const userAccounts = await executor
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(eq(accounts.userId, userId));
+      const accountIds = userAccounts.map((a: { id: number }) => a.id);
+      if (accountIds.length > 0) {
+        await executor.delete(transactions).where(inArray(transactions.accountId, accountIds));
+        await executor.delete(balances).where(inArray(balances.accountId, accountIds));
+      }
+
+      // 2. Hijos de bill_splits: participantes de los splits del usuario, y
+      //    además las filas donde el usuario participa en splits ajenos (su PII).
+      const userSplits = await executor
+        .select({ id: billSplits.id })
+        .from(billSplits)
+        .where(eq(billSplits.createdBy, userId));
+      const splitIds = userSplits.map((s: { id: number }) => s.id);
+      if (splitIds.length > 0) {
+        await executor.delete(billSplitParticipants).where(inArray(billSplitParticipants.billSplitId, splitIds));
+      }
+      await executor.delete(billSplitParticipants).where(eq(billSplitParticipants.userId, userId));
+
+      // 3. Otros hijos directos antes que sus padres.
+      await executor.delete(goalProgress).where(eq(goalProgress.userId, userId));
+      await executor.delete(scoreDocumentUploads).where(eq(scoreDocumentUploads.userId, userId));
+
+      // 4. Padres intermedios.
+      await executor.delete(accounts).where(eq(accounts.userId, userId));          // tras transactions/balances
+      await executor.delete(bankConnections).where(eq(bankConnections.userId, userId)); // tras accounts
+      await executor.delete(billSplits).where(eq(billSplits.createdBy, userId));    // tras participants
+      await executor.delete(financialGoals).where(eq(financialGoals.userId, userId)); // tras goalProgress
+      await executor.delete(documentUploads).where(eq(documentUploads.userId, userId)); // tras scoreDocumentUploads
+
+      // 5. Resto de tablas que referencian users.id directamente.
+      await executor.delete(consentGrants).where(eq(consentGrants.userId, userId));
+      await executor.delete(privacyConsentEvents).where(eq(privacyConsentEvents.userId, userId));
+      await executor.delete(creditScores).where(eq(creditScores.userId, userId));
+      await executor.delete(creditScoreHistory).where(eq(creditScoreHistory.userId, userId));
+      await executor.delete(insuranceRisks).where(eq(insuranceRisks.userId, userId));
+      await executor.delete(transactionalScores).where(eq(transactionalScores.userId, userId));
+      await executor.delete(riskFactors).where(eq(riskFactors.userId, userId));
+      await executor.delete(expenses).where(eq(expenses.userId, userId));
+      await executor.delete(productRecommendations).where(eq(productRecommendations.userId, userId));
+      await executor.delete(leadTracking).where(eq(leadTracking.userId, userId));
+      await executor.delete(productApplications).where(eq(productApplications.userId, userId));
+      await executor.delete(notifications).where(eq(notifications.userId, userId));
+      await executor.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
+      await executor.delete(algorithmPredictionLogs).where(eq(algorithmPredictionLogs.userId, userId));
+      await executor.delete(userScores).where(eq(userScores.userId, userId));
+      await executor.delete(userAssets).where(eq(userAssets.userId, userId));
+      await executor.delete(inscripcionJobs).where(eq(inscripcionJobs.userId, userId));
+      await executor.delete(assistantSummaries).where(eq(assistantSummaries.userId, userId));
+      await executor.delete(assistantFeedback).where(eq(assistantFeedback.userId, userId));
+      await executor.delete(parserDiagnostics).where(eq(parserDiagnostics.userId, userId));
+      // audit_logs.user_id referencia users.id (sin cascade): hay que borrarlo o
+      // el DELETE de users falla en Postgres. Se elimina la fila completa para no
+      // dejar PII (IP, detalles) ligada a un usuario eliminado.
+      await executor.delete(auditLogs).where(eq(auditLogs.userId, userId));
+
+      // 6. Finalmente, la fila del usuario.
+      await executor.delete(users).where(eq(users.id, userId));
+    };
+
+    try {
+      if (dialect === "postgres") {
+        await db.transaction(async (tx: any) => { await purge(tx); });
+      } else {
+        // better-sqlite3: transaction() no admite callback async → secuencial.
+        await purge(db);
+      }
       return true;
     } catch (error) {
-      logger.error({ err: error }, 'Error deleting user data');
-      return false;
+      logger.error({ err: error, userId }, "Error deleting user data");
+      throw error;
     }
   }
 }
