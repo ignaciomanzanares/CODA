@@ -11,6 +11,7 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import PWAInstallBanner from "./components/PWAInstallBanner";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
 import PageLoader from "./components/PageLoader";
 import { Toaster } from "@/components/ui/toaster";
 import Login from "@/pages/Login";
@@ -277,9 +278,9 @@ function App() {
                     <Redirect to={`${ROUTES.movimientos}?tab=dividir`} />
                   </Route>
                   <Route path={ROUTES.auditoria}>
-                    <ProtectedRoute>
+                    <AdminRoute>
                       <AuditDashboard />
-                    </ProtectedRoute>
+                    </AdminRoute>
                   </Route>
                   <Route path="/audit">
                     <Redirect to={ROUTES.auditoria} />
@@ -293,9 +294,9 @@ function App() {
                     <Redirect to={ROUTES.productos} />
                   </Route>
                   <Route path={ROUTES.productosMetricas}>
-                    <ProtectedRoute>
+                    <AdminRoute>
                       <ProductMetrics />
-                    </ProtectedRoute>
+                    </AdminRoute>
                   </Route>
                   <Route path="/products/metrics">
                     <Redirect to={ROUTES.productosMetricas} />

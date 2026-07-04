@@ -14,7 +14,7 @@
  */
 
 import type { Express, Request, Response } from 'express';
-import { authenticate, type AuthenticatedRequest } from './middleware/auth.js';
+import { authenticate, requireAdmin, type AuthenticatedRequest } from './middleware/auth.js';
 import {
   getUserPredictionHistory,
   getAllAlgorithmChanges,
@@ -149,12 +149,8 @@ export function registerAuditRoutes(app: Express): void {
   app.get(
     '/api/audit/admin/stats',
     authenticate,
+    requireAdmin,
     async (req: Request, res: Response) => {
-      const authReq = req as AuthenticatedRequest;
-      if (authReq.user?.role !== 'admin') {
-        return res.status(403).json({ error: 'Acceso restringido a administradores' });
-      }
-
       try {
         const stats = getAuditStats();
         const activeModel = getActiveModelVersion();
@@ -182,12 +178,8 @@ export function registerAuditRoutes(app: Express): void {
   app.get(
     '/api/audit/admin/algorithm-changes',
     authenticate,
+    requireAdmin,
     async (req: Request, res: Response) => {
-      const authReq = req as AuthenticatedRequest;
-      if (authReq.user?.role !== 'admin') {
-        return res.status(403).json({ error: 'Acceso restringido a administradores' });
-      }
-
       try {
         const changes = getAllAlgorithmChanges();
         res.json({ changes });
@@ -205,12 +197,8 @@ export function registerAuditRoutes(app: Express): void {
   app.post(
     '/api/audit/admin/export',
     authenticate,
+    requireAdmin,
     async (req: Request, res: Response) => {
-      const authReq = req as AuthenticatedRequest;
-      if (authReq.user?.role !== 'admin') {
-        return res.status(403).json({ error: 'Acceso restringido a administradores' });
-      }
-
       try {
         const { startDate, endDate } = req.body;
         

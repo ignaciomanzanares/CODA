@@ -52,6 +52,11 @@ const navItems = [
   { href: ROUTES.conexiones, label: "Conexiones", icon: Link2 },
 ];
 
+// Items visibles solo para usuarios con role === 'admin' (se agregan al nav personal).
+const adminNavItems = [
+  { href: ROUTES.auditoria, label: "Admin", icon: Shield },
+];
+
 const empresasNavItems = [
   { href: "/empresas/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/empresas/companies", label: "Empresas", icon: Building },
@@ -71,6 +76,11 @@ export default function Header() {
   const { isAuthenticated, user, logout } = useAuth(authContext);
   const { theme, toggle: toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Nav personal + items admin si corresponde. Empresas no cambia.
+  const isAdmin = !isEmpresas && user?.role === "admin";
+  const personalNavItems = isAdmin ? [...navItems, ...adminNavItems] : navItems;
+  const currentNavItems = isEmpresas ? empresasNavItems : personalNavItems;
 
   const handleLogout = () => {
     logout(authContext);
@@ -125,7 +135,7 @@ export default function Header() {
           )}
           {isAuthenticated && (
             <nav className="hidden lg:flex items-center gap-0.5 min-w-0 justify-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {(isEmpresas ? empresasNavItems : navItems).map((item) => {
+              {currentNavItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location === item.href || location.startsWith(`${item.href}/`);
                 return (
@@ -247,7 +257,7 @@ export default function Header() {
                 {/* Nav items */}
                 {isAuthenticated && (
                   <nav className="flex flex-col gap-0.5">
-                    {(isEmpresas ? empresasNavItems : navItems).map((item) => {
+                    {currentNavItems.map((item) => {
                       const Icon = item.icon;
                       const isActive = location === item.href || location.startsWith(`${item.href}/`);
                       return (
