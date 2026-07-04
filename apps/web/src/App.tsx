@@ -73,6 +73,7 @@ const EmailInviteHandler = lazy(() => import("@/pages/EmailInviteHandler"));
 const ShareBillSplit = lazy(() => import("@/pages/ShareBillSplit"));
 const AuditDashboard = lazy(() => import("@/pages/AuditDashboard"));
 const ProductMetrics = lazy(() => import("@/pages/ProductMetrics"));
+const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
 const FinancialAssistant = lazy(() => import("@/components/FinancialAssistant"));
 const LegacySplitRedirect = lazy(() => import("@/components/LegacySplitRedirect"));
 const NotFound = lazy(() => import("@/pages/not-found"));
@@ -276,6 +277,11 @@ function App() {
                   </Route>
                   <Route path="/bill-split">
                     <Redirect to={`${ROUTES.movimientos}?tab=dividir`} />
+                  </Route>
+                  <Route path={ROUTES.admin}>
+                    <AdminRoute>
+                      <AdminDashboard />
+                    </AdminRoute>
                   </Route>
                   <Route path={ROUTES.auditoria}>
                     <AdminRoute>
