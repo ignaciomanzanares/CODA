@@ -460,6 +460,22 @@ export function optionalAuth(req: AuthenticatedRequest, res: Response, next: Nex
   next();
 }
 
+/**
+ * Gate de solo-admin. Debe ir SIEMPRE después de `authenticate` (lee `req.user`,
+ * que sale del JWT vía buildAuthTokenPayload). El `role` viaja en el token, así que
+ * un cambio de rol (scripts/setUserRole.ts) invalida las sesiones del usuario
+ * (tokenInvalidatedAt) para forzar re-login y que el nuevo rol entre al token.
+ */
+export function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Unauthorized', message: 'Authentication required' });
+  }
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });
+  }
+  next();
+}
+
 // =============================================================================
 // AUTH HANDLERS
 // =============================================================================
