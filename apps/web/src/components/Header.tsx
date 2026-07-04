@@ -54,7 +54,7 @@ const navItems = [
 
 // Items visibles solo para usuarios con role === 'admin' (se agregan al nav personal).
 const adminNavItems = [
-  { href: ROUTES.auditoria, label: "Admin", icon: Shield },
+  { href: ROUTES.admin, label: "Admin", icon: Shield },
 ];
 
 const empresasNavItems = [

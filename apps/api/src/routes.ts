@@ -26,6 +26,7 @@ import {
   handleResend2FA,
   handleRecoverMigrationPassword,
   hashPassword,
+  requireAdmin,
   type AuthenticatedRequest
 } from "./middleware/auth.js";
 import { clearAuthCookie } from "./middleware/authCookie.js";
@@ -4375,7 +4376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get product metrics (admin only - for now, authenticated users)
-  app.get("/api/products/metrics", authenticate, async (req: Request, res: Response) => {
+  app.get("/api/products/metrics", authenticate, requireAdmin, async (req: Request, res: Response) => {
     try {
       const { getTotalRevenueMetrics, getOverallFunnelMetrics } = await import('./services/products/leadTrackingService.js');
 
@@ -4395,7 +4396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get funnel metrics for a specific product
-  app.get("/api/products/:id/metrics", authenticate, async (req: Request, res: Response) => {
+  app.get("/api/products/:id/metrics", authenticate, requireAdmin, async (req: Request, res: Response) => {
     try {
       const productId = Number(req.params.id);
       const { getProductFunnelMetrics } = await import('./services/products/leadTrackingService.js');
@@ -4406,6 +4407,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error({ error }, 'Failed to get product funnel metrics');
       res.status(500).json({ message: 'Failed to retrieve product metrics' });
+    }
+  });
+
+  // ── Gestión de leads (back-office admin) ──
+  // Lista todos los leads con producto/estado/revenue para el dashboard admin.
+  app.get("/api/admin/leads", authenticate, requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit ?? '200'), 10) || 200));
+      const { getAllLeads } = await import('./services/institutions/institutionLeads.js');
+      const leads = await getAllLeads(limit);
+      res.json({ count: leads.length, leads });
+    } catch (error) {
+      logger.error({ error }, 'Failed to list admin leads');
+      res.status(500).json({ message: 'Error al listar leads' });
+    }
+  });
+
+  // Avanza manualmente el estado de un lead (mientras la institución no integre la API).
+  app.post("/api/admin/leads/:id/status", authenticate, requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const leadId = Number(req.params.id);
+      if (!Number.isInteger(leadId) || leadId <= 0) {
+        return res.status(400).json({ message: 'leadId inválido' });
+      }
+      const { status, originatedAmount, externalApplicationId } = (req.body ?? {}) as {
+        status?: 'accepted' | 'rejected' | 'originated';
+        originatedAmount?: number;
+        externalApplicationId?: string;
+      };
+      const valid = ['accepted', 'rejected', 'originated'];
+      if (!status || !valid.includes(status)) {
+        return res.status(400).json({ message: `status debe ser uno de: ${valid.join(', ')}` });
+      }
+      if (status === 'originated' && (typeof originatedAmount !== 'number' || originatedAmount <= 0)) {
+        return res.status(400).json({ message: 'originated requiere originatedAmount > 0' });
+      }
+      const { adminSetLeadStatus } = await import('./services/institutions/institutionLeads.js');
+      const ok = await adminSetLeadStatus(leadId, status, originatedAmount, externalApplicationId);
+      if (!ok) return res.status(404).json({ message: 'Lead no encontrado' });
+      res.json({ ok: true, leadId, status });
+    } catch (error) {
+      logger.error({ error }, 'Failed to set admin lead status');
+      res.status(500).json({ message: 'Error al actualizar el lead' });
     }
   });
 

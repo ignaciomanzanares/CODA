@@ -20,10 +20,9 @@ import {
   getAllAlgorithmChanges,
   getActiveModelVersion,
   getAuditStats,
-  exportAuditTrail,
   getPrediction,
 } from './services/audit/algorithmicTraceability.js';
-import { listAlgorithmPredictionLogsForUser } from './services/audit/traceabilityPersistence.js';
+import { listAlgorithmPredictionLogsForUser, exportPredictionLogsByDateRange } from './services/audit/traceabilityPersistence.js';
 
 export function registerAuditRoutes(app: Express): void {
   try {
@@ -200,20 +199,23 @@ export function registerAuditRoutes(app: Express): void {
     requireAdmin,
     async (req: Request, res: Response) => {
       try {
-        const { startDate, endDate } = req.body;
-        
+        const { startDate, endDate, kind } = req.body;
+
         if (!startDate || !endDate) {
           return res.status(400).json({ error: 'startDate y endDate son requeridos' });
         }
-        
-        const auditTrail = exportAuditTrail(
-          new Date(startDate),
-          new Date(endDate)
-        );
-        
+
+        // Fuente: DB (algorithm_prediction_logs), no el store en memoria — así el export
+        // sobrevive reinicios. `kind` opcional (p.ej. 'product_recommendation') para la
+        // auditoría trimestral de recomendaciones. Las fechas se comparan como ISO.
+        const startIso = new Date(startDate).toISOString();
+        const endIso = new Date(endDate).toISOString();
+        const predictions = await exportPredictionLogsByDateRange(startIso, endIso, kind);
+
         res.json({
-          period: { startDate, endDate },
-          ...auditTrail,
+          period: { startDate: startIso, endDate: endIso, kind: kind ?? null },
+          count: predictions.length,
+          predictions,
         });
       } catch (error) {
         console.error('[AuditRoutes] Error exporting audit trail:', error);

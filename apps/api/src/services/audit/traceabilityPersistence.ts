@@ -5,7 +5,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, gte, lte } from 'drizzle-orm';
 import { db, algorithmModelVersions, algorithmPredictionLogs } from '../../db/index.js';
 import { logger } from '../../logger.js';
 import { encryptField, decryptField, looksEncrypted } from '../crypto/fieldEncryption.js';
@@ -518,4 +518,56 @@ export async function listAlgorithmPredictionLogsForUser(
       outputSummary: safeParseJsonRecord(r.outputSnapshot),
     })
   );
+}
+
+/**
+ * Export de trazabilidad para compliance (auditoría CMF / NCG 502) desde la DB — reemplaza el
+ * export que leía del store en memoria (se perdía al reiniciar). Filtra por rango de fechas y,
+ * opcionalmente, por `kind` (p.ej. 'product_recommendation' para la auditoría trimestral de
+ * recomendaciones). Incluye el userId para trazabilidad interna (endpoint admin-gated).
+ */
+export async function exportPredictionLogsByDateRange(
+  startIso: string,
+  endIso: string,
+  kind?: string,
+  limit = 10000,
+): Promise<Array<AlgorithmPredictionLogRow & { userId: string }>> {
+  const cap = Math.min(Math.max(limit, 1), 50000);
+  const conds = [
+    gte(algorithmPredictionLogs.createdAt, startIso),
+    lte(algorithmPredictionLogs.createdAt, endIso),
+  ];
+  if (kind) conds.push(eq(algorithmPredictionLogs.kind, kind));
+
+  const rows = await db
+    .select({
+      id: algorithmPredictionLogs.id,
+      userId: algorithmPredictionLogs.userId,
+      requestId: algorithmPredictionLogs.requestId,
+      kind: algorithmPredictionLogs.kind,
+      modelVersion: algorithmPredictionLogs.modelVersion,
+      modelType: algorithmPredictionLogs.modelType,
+      inputFeatures: algorithmPredictionLogs.inputFeatures,
+      outputSnapshot: algorithmPredictionLogs.outputSnapshot,
+      createdAt: algorithmPredictionLogs.createdAt,
+    })
+    .from(algorithmPredictionLogs)
+    .where(and(...conds))
+    .orderBy(desc(algorithmPredictionLogs.createdAt))
+    .limit(cap);
+
+  return rows.map((r: {
+    id: string; userId: string; requestId: string; kind: string; modelVersion: string;
+    modelType: string; inputFeatures: string; outputSnapshot: string; createdAt: string | null;
+  }) => ({
+    id: r.id,
+    userId: r.userId,
+    requestId: r.requestId,
+    kind: r.kind,
+    modelVersion: r.modelVersion,
+    modelType: r.modelType,
+    createdAt: r.createdAt ?? '',
+    inputSummary: safeParseJsonRecord(r.inputFeatures),
+    outputSummary: safeParseJsonRecord(r.outputSnapshot),
+  }));
 }
