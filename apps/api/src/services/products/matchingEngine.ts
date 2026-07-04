@@ -85,6 +85,36 @@ export function getHealthProductPolicy(level: number): HealthProductPolicy {
   };
 }
 
+/**
+ * Mapea la categoría específica del producto (vocabulario español del catálogo unificado en DB, o
+ * el inglés legacy) al GRUPO amplio que usan las políticas de salud (loans/credit_cards/savings/
+ * insurance). Sin esto, la regla anti-predatoria (excluir crédito en zona crítica) no matchearía
+ * las categorías en español y dejaría de aplicarse — un fallo de cumplimiento.
+ */
+export function productGroup(category: string): string {
+  switch (category) {
+    case 'creditos_consumo':
+    case 'lineas_credito':
+    case 'creditos_hipotecarios':
+    case 'portabilidad':
+    case 'loans':
+      return 'loans';
+    case 'tarjetas_credito':
+    case 'credit_cards':
+      return 'credit_cards';
+    case 'cuentas_ahorro':
+    case 'depositos_plazo':
+    case 'fondos_mutuos':
+    case 'savings':
+      return 'savings';
+    case 'seguros':
+    case 'insurance':
+      return 'insurance';
+    default:
+      return category;
+  }
+}
+
 export interface ProductMatch {
   product: ProductCatalogItem;
   matchScore: number; // 0-100
@@ -191,12 +221,12 @@ function evaluateProductMatch(
     userProfile.financialHealthLevel !== undefined
       ? getHealthProductPolicy(userProfile.financialHealthLevel)
       : null;
-  if (healthPolicy?.excludedCategories.has(product.category)) {
+  if (healthPolicy?.excludedCategories.has(productGroup(product.category))) {
     isEligible = false;
     ineligibilityReasons.push(
       'No recomendado para tu situación financiera actual: prioriza ordenar tu deuda antes de tomar un nuevo crédito.'
     );
-  } else if (healthPolicy?.preferredCategories.has(product.category)) {
+  } else if (healthPolicy?.preferredCategories.has(productGroup(product.category))) {
     eligibilityReasons.push('Alineado con tu objetivo financiero actual');
   }
 
@@ -301,9 +331,9 @@ function calculateMatchScore(
   // Ajuste por salud financiera (#25): refuerza la categoría apropiada para la
   // situación del usuario y penaliza (sin excluir) la que no lo es.
   if (healthPolicy) {
-    if (healthPolicy.preferredCategories.has(product.category)) {
+    if (healthPolicy.preferredCategories.has(productGroup(product.category))) {
       score = Math.min(100, score * 1.15);
-    } else if (healthPolicy.discouragedCategories.has(product.category)) {
+    } else if (healthPolicy.discouragedCategories.has(productGroup(product.category))) {
       score = score * 0.8;
     }
   }

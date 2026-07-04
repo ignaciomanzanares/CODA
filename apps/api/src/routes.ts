@@ -4087,7 +4087,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         explainRecommendation,
         PRODUCT_MATCHING_ENGINE_VERSION,
       } = await import('./services/products/matchingEngine.js');
-      const { productCatalog, getProductsByCategory } = await import('./services/products/productCatalog.js');
 
       // Build user profile from available data
       const creditScore = await storage.getCreditScore(userId);
@@ -4140,8 +4139,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         financialHealthLevel,
       };
 
+      // Catálogo único: tabla financial_products (fuente de verdad). Los rows tienen la misma
+      // forma que ProductCatalogItem, así que el matchingEngine los consume sin cambios.
+      const productsToMatch = await storage.getFinancialProducts(category);
       // Get recommendations, ponderadas por conversión real (#35; neutro si el job no corrió).
-      const productsToMatch = category ? getProductsByCategory(category) : productCatalog;
       const { getLatestRankingWeights } = await import('./services/products/productRankingWeights.js');
       const conversionWeights = await getLatestRankingWeights();
       const recommendations = getTopRecommendations(productsToMatch, userProfile, limit, category, conversionWeights);
@@ -4182,9 +4183,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         category,
         limit,
         results: recommendations.map((match) => {
-          const productId = productCatalog.findIndex((p) => p === match.product);
+          // id real de financial_products (el catálogo ahora viene de la DB).
+          const productId = Number((match.product as { id?: number }).id) || 0;
           return {
-            productId: productId >= 0 ? productId : 0,
+            productId,
             name: `${match.product.provider} · ${match.product.productName}`,
             matchScore: Math.round(match.matchScore),
             rankingScore: Math.round(match.rankingScore),

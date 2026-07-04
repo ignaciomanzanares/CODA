@@ -14,6 +14,7 @@
     "db:rotate-encryption-key": "tsx src/scripts/rotate-encryption-key.ts",
     "db:backfill-rut-hash": "tsx src/scripts/backfillRutHash.ts",
     "db:set-role": "tsx src/scripts/setUserRole.ts",
+    "db:seed-catalog": "tsx src/scripts/seedProductCatalog.ts",
     "prebuild": "npm --prefix ../../packages run build",
     "build": "tsc",
     "check": "tsc --noEmit",
