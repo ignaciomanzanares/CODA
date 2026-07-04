@@ -3,7 +3,6 @@ import { useAuth } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/apiBase";
 import { dispatchSessionExpired } from "@/lib/authEvents";
 import { USER_FACING_CONNECTION_ERROR, extractApiErrorMessage } from "@/lib/userFacingErrors";
-import { withCsrfHeader } from "@/lib/csrf";
 import type {
   CreateBankConnectionData,
   CreateGoalData,
@@ -54,7 +53,17 @@ export type ApiClient = {
   createFinancialGoal: (goalData: import("@/types").CreateGoalData) => Promise<import("@/types").Goal>;
   updateFinancialGoal: (goalId: string, goalData: import("@/types").UpdateGoalData) => Promise<import("@/types").Goal>;
   deleteFinancialGoal: (goalId: string) => Promise<import("@/types").ApiResponse>;
-  getCreditScore: () => Promise<{ score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string }>;
+  getCreditScore: () => Promise<{
+    available?: boolean;
+    reason?: string | null;
+    score: number | null;
+    maxScore: number;
+    paymentHistory: string;
+    utilization: string;
+    ageOfCredit: string;
+    lastUpdated?: string | null;
+    message?: string;
+  }>;
   getFinancialProducts: (category?: string) => Promise<import("@/types").FinancialProduct[]>;
   getProductRecommendations: (category?: string, limit?: number) => Promise<any[]>;
   trackProductEvent: (productId: number, eventType: 'view' | 'click' | 'application', matchScore?: number, metadata?: Record<string, unknown>) => Promise<{ success: boolean }>;
@@ -109,11 +118,15 @@ export function useApi(): ApiClient {
 
   // Local response shapes used by the UI components
   type CreditScore = {
-    score: number;
+    available?: boolean;
+    reason?: string | null;
+    score: number | null;
     maxScore: number;
     paymentHistory: string;
     utilization: string;
     ageOfCredit: string;
+    lastUpdated?: string | null;
+    message?: string;
   };
 
   type Notification = {
@@ -132,12 +145,12 @@ export function useApi(): ApiClient {
     data?: unknown,
     options?: RequestInit
   ): Promise<T> => {
-    // If not authenticated, throw error
-    if (!isAuthenticated || !token) {
+    // Personal usa cookie auth. Empresas conserva su Bearer legacy.
+    if (!isAuthenticated) {
       throw new Error("User not authenticated");
     }
 
-    // No propagar `headers`/`body`/`method` en el spread final: podrían pisar Authorization.
+    // No propagar `headers`/`body`/`method` en el spread final.
     const { headers: optsHeaders, body: optsBody, method: _ignoredMethod, ...restOptions } = options ?? {};
 
     let extraHeaders: Record<string, string> = {};
@@ -150,11 +163,11 @@ export function useApi(): ApiClient {
       extraHeaders = optsHeaders as Record<string, string>;
     }
 
-    const headers: Record<string, string> = withCsrfHeader(method, {
+    const headers: Record<string, string> = {
       ...(data !== undefined ? { "Content-Type": "application/json" } : {}),
       ...extraHeaders,
-      Authorization: `Bearer ${token}`,
-    });
+      ...(context === "empresas" && token ? { Authorization: `Bearer ${token}` } : {}),
+    };
 
     // Prepend API_BASE_URL if url starts with '/api'
     const fullUrl = url.startsWith("/api") ? `${API_BASE_URL}${url.replace(/^\/api/, "")}` : url;
@@ -198,7 +211,9 @@ export function useApi(): ApiClient {
       const msg = extractApiErrorMessage(errorBody);
       if (res.status === 401) {
         dispatchSessionExpired(fullUrl);
-        throw new Error(msg || "Sesión expirada. Inicia sesión de nuevo.");
+        // No exponer el mensaje técnico del backend ("Missing or invalid
+        // authorization header"); el usuario solo necesita saber que re-loguee.
+        throw new Error("Tu sesión expiró. Inicia sesión nuevamente.");
       }
       throw new Error(msg || `Error ${res.status}`);
     }
@@ -260,6 +275,7 @@ export function useApi(): ApiClient {
     // Financial products is a public endpoint, don't require auth
     const res = await fetch(url, {
       method: "GET",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json"
       }
@@ -346,14 +362,14 @@ export function useApi(): ApiClient {
   };
 
   const scanExpense = async (imageFile: File): Promise<{ amount: number; merchant: string; category: string; confidence: number }> => {
-    if (!token) throw new Error("User not authenticated");
+    if (!isAuthenticated) throw new Error("User not authenticated");
     const formData = new FormData();
     formData.append("image", imageFile);
     const fullUrl = `${API_BASE_URL}/expenses/scan`;
     const res = await fetch(fullUrl, {
       method: "POST",
-      headers: withCsrfHeader("POST", { Authorization: `Bearer ${token}` }),
       credentials: "include",
+      headers: context === "empresas" && token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
     });
     const json = await res.json().catch(() => ({}));
@@ -486,14 +502,14 @@ export function useApi(): ApiClient {
   };
 
   const uploadDocument = async (file: File): Promise<import("@/types").DocumentUploadResult> => {
-    if (!token) throw new Error("User not authenticated");
+    if (!isAuthenticated) throw new Error("User not authenticated");
     const formData = new FormData();
     formData.append("document", file);
     const fullUrl = `${API_BASE_URL}/documents/upload`;
     const res = await fetch(fullUrl, {
       method: "POST",
-      headers: withCsrfHeader("POST", { Authorization: `Bearer ${token}` }),
       credentials: "include",
+      headers: context === "empresas" && token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
     });
     const json = await res.json().catch(() => ({}));
@@ -505,14 +521,14 @@ export function useApi(): ApiClient {
   };
 
   const extractInscripcion = async (file: File): Promise<ExtractInscripcionResponse> => {
-    if (!token) throw new Error("User not authenticated");
+    if (!isAuthenticated) throw new Error("User not authenticated");
     const formData = new FormData();
     formData.append("file", file);
     const fullUrl = `${API_BASE_URL}/assets/extract-inscripcion`;
     const res = await fetch(fullUrl, {
       method: "POST",
-      headers: withCsrfHeader("POST", { Authorization: `Bearer ${token}` }),
       credentials: "include",
+      headers: context === "empresas" && token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
     });
     const json = await res.json().catch(() => ({}));

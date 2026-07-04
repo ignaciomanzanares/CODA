@@ -195,7 +195,13 @@ describe('Document Validator', () => {
       
       // Nota: el texto NO debe contener la sigla "CMF" ni nombres de banco — si los menciona,
       // el detector (correctamente) los reconoce como indicadores y no emite el warning.
-      const text = 'This is just random text without any financial document markers.';
+      // Debe ser suficientemente largo para no caer en el warning de "scanned-PDF short-text".
+      const text = [
+        'This is just random text without recognizable financial document markers.',
+        'It has enough extracted text to avoid the scanned-PDF short-text warning path.',
+        'The validator should still warn that no expected document indicators were found.',
+      ].join(' ');
+
 
       const result = await validateDocumentWithContent(file, text);
 

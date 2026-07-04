@@ -237,53 +237,35 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
   let finalSpendingCategories = topSpendingCategories;
 
   try {
-    const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
-    if (cartolas.length > 0) {
+    // Fuente de verdad: tabla `transactions` (no parsed_data). El saldo reportado
+    // sigue siendo el único origen para "saldo actual" (snapshot del banco).
+    const { getUserNormalizedTransactions, getReportedBalance } = await import("./normalizedTransactions.js");
+    const { transactions: cartolaTxs } = await getUserNormalizedTransactions(userId);
+    if (cartolaTxs.length > 0) {
       let cartolaIncome = 0;
       let cartolaExpenses = 0;
       const months = new Set<string>();
       const catTotals: Record<string, number> = {};
 
-      for (const c of cartolas) {
-        const pd = c.parsedData as { transacciones?: any[]; saldoFinal?: number; saldo_final?: number } | null;
-        if (!pd) continue;
+      const saldoFinal = await getReportedBalance(userId);
+      if (saldoFinal != null && saldoFinal > 0) finalBalance = Math.max(finalBalance, saldoFinal);
 
-        const saldoFinal = pd.saldoFinal ?? pd.saldo_final;
-        if (saldoFinal != null && saldoFinal > 0) finalBalance = Math.max(finalBalance, saldoFinal);
+      for (const t of cartolaTxs) {
+        months.add(t.month);
 
-        for (const t of pd.transacciones ?? []) {
-          const fecha = typeof t.fecha === "string" ? t.fecha.slice(0, 7) : "";
-          if (fecha) months.add(fecha);
+        // Netear plomería entre productos propios (fondeo cuenta→tarjeta, pago
+        // de tarjeta, divisas): la columna autoritativa is_internal_transfer lo
+        // marca, así sus pagos no inflan el flujo vs las compras. Ver Task 4.
+        if (isInternalTransferTx(t)) continue;
 
-          // Netear plomería entre productos propios (fondeo cuenta→tarjeta, pago
-          // de tarjeta, divisas) también en cartolas: la tarjeta viaja por este
-          // mismo path, así sus pagos no inflan el flujo vs las compras. Ver Task 4.
-          if (isInternalTransfer({ description: t.descripcion, category: t.categoria })) continue;
+        const monto = t.tipo === "ingreso" ? t.abono : t.cargo;
+        if (monto <= 0) continue;
 
-          let monto = 0;
-          let esAbono = false;
-          let cat = "otro";
-
-          if ("tipo" in t && typeof t.monto === "number") {
-            monto = t.monto;
-            esAbono = t.tipo === "abono";
-            cat = t.categoria ?? "otro";
-          } else {
-            const abono = t.abono ?? 0;
-            const cargo = t.cargo ?? 0;
-            if (abono > 0) { monto = abono; esAbono = true; }
-            else { monto = cargo; esAbono = false; }
-            cat = "otro";
-          }
-
-          if (monto <= 0) continue;
-
-          if (esAbono) {
-            cartolaIncome += monto;
-          } else {
-            cartolaExpenses += monto;
-            catTotals[cat] = (catTotals[cat] ?? 0) + monto;
-          }
+        if (t.tipo === "ingreso") {
+          cartolaIncome += monto;
+        } else {
+          cartolaExpenses += monto;
+          catTotals[t.categoria] = (catTotals[t.categoria] ?? 0) + monto;
         }
       }
 

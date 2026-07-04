@@ -22,6 +22,12 @@ interface ScoreBreakdownProps {
   score: number;
   insights: string[];
   creditScore: number | null;
+  totalIncome: number;
+  totalExpenses: number;
+  savingsNet: number;
+  savingsRate: number;
+  scoreConfidence: "baja" | "media" | "alta" | null;
+  scoreObservedMonths: number | null;
 }
 
 // ── Determine quick-win tips based on score range ─────────────────────────────
@@ -33,8 +39,45 @@ interface QuickTip {
   ctaLabel?: string;
 }
 
-function getQuickTips(score: number, creditScore: number | null): QuickTip[] {
+function getQuickTips(
+  score: number,
+  creditScore: number | null,
+  totalIncome: number,
+  totalExpenses: number,
+  savingsNet: number,
+  savingsRate: number,
+  scoreConfidence: "baja" | "media" | "alta" | null,
+): QuickTip[] {
   const tips: QuickTip[] = [];
+  const hasDeficit = totalIncome > 0 && savingsNet < 0;
+  const expenseRatio = totalIncome > 0 ? Math.round((totalExpenses / totalIncome) * 100) : 0;
+
+  if (hasDeficit) {
+    tips.push({
+      icon: AlertTriangle,
+      text: `Tus egresos equivalen al ${expenseRatio}% de tus ingresos. Prioriza cerrar el deficit antes de invertir excedentes.`,
+      href: "/movimientos",
+      ctaLabel: "Revisar gastos",
+    });
+    tips.push({
+      icon: Banknote,
+      text: "Revisa las categorias que mas pesan y separa transferencias, pagos de tarjeta y gastos recurrentes.",
+      href: "/movimientos",
+      ctaLabel: "Ver movimientos",
+    });
+    if (scoreConfidence === "baja" || scoreConfidence === "media") {
+      tips.push({
+        icon: ShieldCheck,
+        text: "Sube mas meses de cartolas para aumentar la confianza del score y distinguir tendencias de meses puntuales.",
+      });
+    } else if (creditScore === null) {
+      tips.push({
+        icon: ShieldCheck,
+        text: "Sube tu informe CMF para sumar contexto crediticio real, separado del score transaccional.",
+      });
+    }
+    return tips;
+  }
 
   if (score < 35) {
     tips.push({
@@ -63,12 +106,21 @@ function getQuickTips(score: number, creditScore: number | null): QuickTip[] {
       ctaLabel: "Crear meta",
     });
   } else if (score < 70) {
-    tips.push({
-      icon: TrendingUp,
-      text: "Estás en buen camino. Un APV puede maximizar tu ahorro con beneficios tributarios.",
-      href: "/productos?tab=apv",
-      ctaLabel: "Ver APV",
-    });
+    if (savingsNet > 0 && savingsRate >= 10) {
+      tips.push({
+        icon: TrendingUp,
+        text: "Tienes ahorro positivo en el periodo. Un APV puede maximizar excedentes con beneficios tributarios.",
+        href: "/productos?tab=apv",
+        ctaLabel: "Ver APV",
+      });
+    } else {
+      tips.push({
+        icon: TrendingUp,
+        text: "Tu score es bueno, pero aun puede mejorar con ahorro positivo y gastos mas estables.",
+        href: "/movimientos",
+        ctaLabel: "Revisar flujo",
+      });
+    }
     if (creditScore === null) {
       tips.push({
         icon: ShieldCheck,
@@ -104,11 +156,29 @@ function scoreLabel(score: number): { label: string; colorClass: string } {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function ScoreBreakdown({ score, insights, creditScore }: ScoreBreakdownProps) {
+export default function ScoreBreakdown({
+  score,
+  insights,
+  creditScore,
+  totalIncome,
+  totalExpenses,
+  savingsNet,
+  savingsRate,
+  scoreConfidence,
+  scoreObservedMonths,
+}: ScoreBreakdownProps) {
   const [expanded, setExpanded] = useState(false);
   const [, navigate] = useLocation();
 
-  const tips = getQuickTips(score, creditScore);
+  const tips = getQuickTips(
+    score,
+    creditScore,
+    totalIncome,
+    totalExpenses,
+    savingsNet,
+    savingsRate,
+    scoreConfidence,
+  );
   const { label, colorClass } = scoreLabel(score);
 
   // Score progress bar segments (visual breakdown)
@@ -185,10 +255,10 @@ export default function ScoreBreakdown({ score, insights, creditScore }: ScoreBr
             </div>
 
             {/* Quick tips */}
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Próximos pasos
-              </p>
+	            <div className="space-y-2">
+	              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+	                Próximos pasos
+	              </p>
               {tips.map((tip, i) => {
                 const Icon = tip.icon;
                 return (
@@ -215,6 +285,19 @@ export default function ScoreBreakdown({ score, insights, creditScore }: ScoreBr
                   </div>
                 );
               })}
+
+              {scoreConfidence && (
+                <div className="rounded-xl border border-border bg-background/60 p-3">
+                  <p className="text-xs font-semibold text-foreground">
+                    Confianza {scoreConfidence}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                    {scoreObservedMonths != null
+                      ? `El score usa ${scoreObservedMonths} mes(es) con movimientos cargados. Más historial mejora la precisión sin castigar meses que aún no has subido.`
+                      : "Más historial de cartolas mejora la precisión del score transaccional."}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* AI insights from backend */}

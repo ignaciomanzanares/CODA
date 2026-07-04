@@ -7,7 +7,7 @@ export default function About() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero */}
-      <section className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white py-20">
+      <section className="bg-gradient-to-br from-orange-600 via-orange-700 to-orange-800 text-white py-20">
         <div className="container mx-auto px-4">
           <Link href="/">
             <Button variant="ghost" className="text-white hover:bg-white/10 mb-8">
@@ -17,7 +17,7 @@ export default function About() {
           </Link>
           <div className="max-w-3xl">
             <h1 className="text-4xl md:text-5xl font-bold mb-6">Sobre CODA</h1>
-            <p className="text-xl text-blue-100 leading-relaxed">
+            <p className="text-xl text-orange-100 leading-relaxed">
               Plataforma de salud financiera personal y marketplace financiero digital para Chile.
             </p>
           </div>
@@ -29,7 +29,7 @@ export default function About() {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-start gap-4 mb-6">
-              <Compass className="h-10 w-10 text-blue-600 flex-shrink-0 mt-1" />
+              <Compass className="h-10 w-10 text-orange-600 flex-shrink-0 mt-1" />
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">Misión</h2>
                 <p className="text-gray-600 text-lg leading-relaxed">
@@ -48,7 +48,7 @@ export default function About() {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-start gap-4 mb-6">
-              <Layers className="h-10 w-10 text-blue-600 flex-shrink-0 mt-1" />
+              <Layers className="h-10 w-10 text-orange-600 flex-shrink-0 mt-1" />
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">Qué hacemos</h2>
                 <div className="text-gray-600 text-lg leading-relaxed space-y-4">
@@ -74,7 +74,7 @@ export default function About() {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-start gap-4 mb-6">
-              <Handshake className="h-10 w-10 text-blue-600 flex-shrink-0 mt-1" />
+              <Handshake className="h-10 w-10 text-orange-600 flex-shrink-0 mt-1" />
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">Modelo de negocio</h2>
                 <div className="text-gray-600 text-lg leading-relaxed space-y-4">
@@ -100,7 +100,7 @@ export default function About() {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center gap-3 mb-8">
-              <Users className="h-10 w-10 text-blue-600" />
+              <Users className="h-10 w-10 text-orange-600" />
               <h2 className="text-3xl font-bold text-gray-900">Equipo fundador</h2>
             </div>
             <div className="grid md:grid-cols-3 gap-8">
@@ -129,7 +129,7 @@ export default function About() {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-start gap-4 mb-6">
-              <Building2 className="h-10 w-10 text-blue-600 flex-shrink-0 mt-1" />
+              <Building2 className="h-10 w-10 text-orange-600 flex-shrink-0 mt-1" />
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">Marco regulatorio</h2>
                 <div className="text-gray-600 text-lg leading-relaxed space-y-4">
@@ -164,18 +164,18 @@ export default function About() {
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-blue-600 text-white">
+      <section className="py-20 bg-orange-600 text-white">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
             ¿Quieres saber más?
           </h2>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">
             <Link href={ROUTES.registro}>
-              <Button size="lg" className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg">
+              <Button size="lg" className="bg-white text-orange-700 hover:bg-orange-50 font-semibold px-8 py-6 text-lg">
                 Crear cuenta gratis
               </Button>
             </Link>
-            <a href="mailto:info@codafinance.cl" className="text-blue-100 hover:text-white underline">
+            <a href="mailto:info@codafinance.cl" className="text-orange-100 hover:text-white underline">
               Contáctanos → info@codafinance.cl
             </a>
           </div>
@@ -188,13 +188,13 @@ export default function About() {
 function TeamMember({ name, role, description }: { name: string; role: string; description: string }) {
   return (
     <div className="bg-white rounded-xl p-6 shadow-sm border">
-      <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center mb-4">
-        <span className="text-blue-600 font-bold text-lg">
+      <div className="w-14 h-14 rounded-full bg-orange-100 flex items-center justify-center mb-4">
+        <span className="text-orange-600 font-bold text-lg">
           {name.split(" ").map(n => n[0]).slice(0, 2).join("")}
         </span>
       </div>
       <h3 className="text-lg font-semibold text-gray-900 mb-1">{name}</h3>
-      <p className="text-sm font-medium text-blue-600 mb-3">{role}</p>
+      <p className="text-sm font-medium text-orange-600 mb-3">{role}</p>
       <p className="text-sm text-gray-600">{description}</p>
     </div>
   );

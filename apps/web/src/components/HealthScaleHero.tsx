@@ -134,7 +134,7 @@ export default function HealthScaleHero() {
       </div>
 
       {/* Ambient glow behind the card */}
-      <div className="absolute -inset-4 -z-10 rounded-[2rem] bg-gradient-to-br from-emerald-500/10 via-transparent to-blue-500/10 blur-2xl pointer-events-none" />
+      <div className="absolute -inset-4 -z-10 rounded-[2rem] bg-gradient-to-br from-emerald-500/10 via-transparent to-orange-500/10 blur-2xl pointer-events-none" />
     </div>
   );
 }

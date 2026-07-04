@@ -26,7 +26,7 @@ export function getPushPermission(): NotificationPermission {
 
 export async function getVapidPublicKey(): Promise<string | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/push/vapid-key`);
+    const res = await fetch(`${API_BASE_URL}/push/vapid-key`, { credentials: "include" });
     if (!res.ok) return null;
     const data = await res.json();
     return data.publicKey || null;
@@ -35,7 +35,7 @@ export async function getVapidPublicKey(): Promise<string | null> {
   }
 }
 
-export async function subscribeToPush(token: string): Promise<boolean> {
+export async function subscribeToPush(): Promise<boolean> {
   if (!isPushSupported()) return false;
 
   try {
@@ -56,9 +56,9 @@ export async function subscribeToPush(token: string): Promise<boolean> {
 
     const res = await fetch(`${API_BASE_URL}/push/subscribe`, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ subscription: subscription.toJSON() }),
     });
@@ -70,7 +70,7 @@ export async function subscribeToPush(token: string): Promise<boolean> {
   }
 }
 
-export async function unsubscribeFromPush(token: string): Promise<boolean> {
+export async function unsubscribeFromPush(): Promise<boolean> {
   if (!isPushSupported()) return false;
 
   try {
@@ -80,9 +80,9 @@ export async function unsubscribeFromPush(token: string): Promise<boolean> {
 
     await fetch(`${API_BASE_URL}/push/unsubscribe`, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ endpoint: subscription.endpoint }),
     });
@@ -106,13 +106,13 @@ export async function isCurrentlySubscribed(): Promise<boolean> {
   }
 }
 
-export async function sendTestPush(token: string): Promise<boolean> {
+export async function sendTestPush(): Promise<boolean> {
   try {
     const res = await fetch(`${API_BASE_URL}/push/test`, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
     });
     return res.ok;

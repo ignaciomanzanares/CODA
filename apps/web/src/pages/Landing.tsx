@@ -174,15 +174,12 @@ export default function Landing() {
     }
   }, [isAuthenticated, isLoading, setLocation]);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
-      </div>
-    );
-  }
-
-  // Fade-in refs for each section
+  // Fade-in refs for each section.
+  // IMPORTANTE: estos hooks deben declararse SIEMPRE, antes de cualquier return
+  // condicional (p. ej. el spinner de `isLoading`). Si quedan después del early
+  // return, el primer render (auth cargando) llama menos hooks que el siguiente
+  // (auth resuelta) y React lanza el error #310 "Rendered more hooks than during
+  // the previous render". Ver Rules of Hooks.
   const serviciosRef = useFadeIn<HTMLElement>();
   const featuresRef = useFadeIn<HTMLElement>();
   const scoreRef = useFadeIn<HTMLElement>();
@@ -193,6 +190,14 @@ export default function Landing() {
   const expressRef = useFadeIn<HTMLDivElement>();
   const ctaRef = useFadeIn<HTMLElement>();
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0c0a09]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen font-sans">
       {/* Structured data: FAQPage + FinancialService offer catalog */}
@@ -202,7 +207,7 @@ export default function Landing() {
       </Helmet>
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-[#0a0f1e] text-white">
+      <section className="relative overflow-hidden bg-[#0c0a09] text-white">
         {/* Background grid */}
         <div
           className="absolute inset-0 opacity-[0.04]"
@@ -212,9 +217,9 @@ export default function Landing() {
             backgroundSize: "60px 60px",
           }}
         />
-        {/* Blue glow */}
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] rounded-full bg-indigo-600/10 blur-[100px] pointer-events-none" />
+        {/* Orange glow */}
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-orange-600/10 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] rounded-full bg-orange-600/10 blur-[100px] pointer-events-none" />
 
         <div className="relative container mx-auto px-4 py-24 md:py-32 lg:py-40">
           <div className="grid lg:grid-cols-2 gap-16 items-center max-w-6xl mx-auto">
@@ -230,7 +235,7 @@ export default function Landing() {
               {/* Headline */}
               <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight">
                 {t("landing.heroTitle")}{" "}
-                <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">
                   {t("landing.heroTitleHighlight")}
                 </span>
               </h1>
@@ -245,7 +250,7 @@ export default function Landing() {
                 <Link href={ROUTES.registro}>
                   <Button
                     size="lg"
-                    className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-8 h-12 text-base shadow-lg shadow-blue-600/25 transition-all"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 h-12 text-base shadow-lg shadow-primary/25 transition-all"
                     onClick={() => Analytics.signupStarted()}
                   >
                     {t("landing.getStarted")}
@@ -293,7 +298,7 @@ export default function Landing() {
       <section ref={serviciosRef} id="servicios" className="py-20 md:py-24 bg-white fade-section scroll-mt-20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12 max-w-2xl mx-auto">
-            <p className="text-blue-600 font-semibold text-xs sm:text-sm uppercase tracking-widest mb-3">
+            <p className="text-orange-600 font-semibold text-xs sm:text-sm uppercase tracking-widest mb-3">
               Marco regulatorio
             </p>
             <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-4">
@@ -309,9 +314,9 @@ export default function Landing() {
             {SERVICES.map(({ icon: Icon, title, body }) => (
               <article
                 key={title}
-                className="flex flex-col p-6 sm:p-7 rounded-2xl border border-gray-200 bg-white hover:border-blue-200 hover:shadow-sm transition-all"
+                className="flex flex-col p-6 sm:p-7 rounded-2xl border border-gray-200 bg-white hover:border-orange-200 hover:shadow-sm transition-all"
               >
-                <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
+                <div className="w-11 h-11 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center mb-4">
                   <Icon className="h-5 w-5" />
                 </div>
                 <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-3">
@@ -334,7 +339,7 @@ export default function Landing() {
       <section ref={featuresRef} id="features" className="py-24 bg-white fade-section">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16 max-w-2xl mx-auto">
-            <p className="text-blue-600 font-semibold text-sm uppercase tracking-widest mb-3">Funcionalidades</p>
+            <p className="text-orange-600 font-semibold text-sm uppercase tracking-widest mb-3">Funcionalidades</p>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
               {t("landing.featuresTitle")}
             </h2>
@@ -343,7 +348,7 @@ export default function Landing() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {[
-              { icon: BarChart3, title: t("landing.feature1Title"), desc: t("landing.feature1Desc"), color: "blue" },
+              { icon: BarChart3, title: t("landing.feature1Title"), desc: t("landing.feature1Desc"), color: "cyan" },
               { icon: Activity, title: t("landing.feature2Title"), desc: t("landing.feature2Desc"), color: "emerald" },
               { icon: Store, title: t("landing.feature3Title"), desc: t("landing.feature3Desc"), color: "violet" },
               { icon: Target, title: t("landing.feature4Title"), desc: t("landing.feature4Desc"), color: "orange" },
@@ -351,7 +356,7 @@ export default function Landing() {
               { icon: Lock, title: t("landing.feature6Title"), desc: t("landing.feature6Desc"), color: "slate" },
             ].map(({ icon: Icon, title, desc, color }) => {
               const bg: Record<string, string> = {
-                blue: "bg-blue-50 text-blue-600",
+                cyan: "bg-cyan-50 text-cyan-600",
                 emerald: "bg-emerald-50 text-emerald-600",
                 violet: "bg-violet-50 text-violet-600",
                 orange: "bg-orange-50 text-orange-600",
@@ -359,7 +364,7 @@ export default function Landing() {
                 slate: "bg-slate-100 text-slate-600",
               };
               return (
-                <div key={title} className="group p-6 rounded-2xl border border-gray-100 hover:border-blue-100 hover:shadow-md hover:-translate-y-0.5 transition-all bg-white">
+                <div key={title} className="group p-6 rounded-2xl border border-gray-100 hover:border-orange-100 hover:shadow-md hover:-translate-y-0.5 transition-all bg-white">
                   <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-4 ${bg[color]}`}>
                     <Icon className="h-5 w-5" />
                   </div>
@@ -373,21 +378,21 @@ export default function Landing() {
       </section>
 
       {/* ── SCORE PREVIEW ────────────────────────────────────────────────── */}
-      <section ref={scoreRef} className="py-16 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white overflow-hidden relative fade-section">
+      <section ref={scoreRef} className="py-16 bg-gradient-to-br from-orange-600 via-orange-700 to-orange-800 text-white overflow-hidden relative fade-section">
         <div className="absolute inset-0 opacity-[0.06]"
           style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "40px 40px" }} />
         <div className="relative container mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
             <div className="space-y-5">
-              <p className="text-blue-200 font-semibold text-sm uppercase tracking-widest">Score dual</p>
+              <p className="text-orange-200 font-semibold text-sm uppercase tracking-widest">Score dual</p>
               <h2 className="text-3xl md:text-4xl font-bold leading-tight">
                 Tu salud financiera, medida con dos lentes complementarios
               </h2>
-              <p className="text-blue-100 leading-relaxed">
+              <p className="text-orange-100 leading-relaxed">
                 El <strong>score crediticio tradicional</strong> (0–850) basado en el historial CMF, y el <strong>score transaccional</strong> (0–100) basado en tus comportamientos reales de gasto y ahorro. Juntos dan el panorama completo.
               </p>
               <Link href={ROUTES.infoScoreCredito}>
-                <Button className="bg-white text-blue-700 hover:bg-blue-50 font-semibold gap-2 mt-2">
+                <Button className="bg-white text-orange-700 hover:bg-orange-50 font-semibold gap-2 mt-2">
                   Entender mi score <ChevronRight className="h-4 w-4" />
                 </Button>
               </Link>
@@ -395,10 +400,10 @@ export default function Landing() {
             <div className="grid grid-cols-2 gap-4">
               {[
                 { label: "Score crediticio", value: "720", max: "850", color: "from-emerald-400 to-teal-400", tag: "Muy bueno", pct: 85 },
-                { label: "Score transaccional", value: "78", max: "100", color: "from-blue-300 to-indigo-300", tag: "Bueno", pct: 78 },
+                { label: "Score transaccional", value: "78", max: "100", color: "from-orange-300 to-orange-300", tag: "Bueno", pct: 78 },
               ].map(({ label, value, max, color, tag, pct }) => (
                 <div key={label} className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-5 text-center">
-                  <p className="text-xs text-blue-200 mb-3">{label}</p>
+                  <p className="text-xs text-orange-200 mb-3">{label}</p>
                   <div className="relative w-20 h-20 mx-auto mb-3">
                     <svg viewBox="0 0 80 80" className="w-20 h-20 -rotate-90">
                       <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="7"/>
@@ -415,7 +420,7 @@ export default function Landing() {
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className="text-xl font-bold text-white">{value}</span>
-                      <span className="text-[9px] text-blue-200">/{max}</span>
+                      <span className="text-[9px] text-orange-200">/{max}</span>
                     </div>
                   </div>
                   <span className={`inline-block text-xs font-semibold bg-gradient-to-r ${color} bg-clip-text text-transparent`}>{tag}</span>
@@ -430,7 +435,7 @@ export default function Landing() {
       <section ref={howRef} id="como-funciona" className="py-24 bg-slate-50 fade-section">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16 max-w-2xl mx-auto">
-            <p className="text-blue-600 font-semibold text-sm uppercase tracking-widest mb-3">Proceso</p>
+            <p className="text-orange-600 font-semibold text-sm uppercase tracking-widest mb-3">Proceso</p>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
               {t("landing.howItWorksTitle")}
             </h2>
@@ -445,12 +450,12 @@ export default function Landing() {
             ].map(({ n, icon: Icon, title, desc }, i) => (
               <div key={n} className="relative flex flex-col items-center text-center">
                 {i < 2 && (
-                  <div className="hidden md:block absolute top-8 left-[calc(50%+40px)] right-0 h-px border-t-2 border-dashed border-blue-200" />
+                  <div className="hidden md:block absolute top-8 left-[calc(50%+40px)] right-0 h-px border-t-2 border-dashed border-orange-200" />
                 )}
                 <div className="relative mb-6">
-                  <span className="absolute -top-3 -right-3 text-6xl font-black text-blue-50 select-none leading-none">{n}</span>
+                  <span className="absolute -top-3 -right-3 text-6xl font-black text-orange-50 select-none leading-none">{n}</span>
                   <div className="relative w-16 h-16 bg-white rounded-2xl shadow-md border border-gray-100 flex items-center justify-center">
-                    <Icon className="h-7 w-7 text-blue-600" />
+                    <Icon className="h-7 w-7 text-orange-600" />
                   </div>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
@@ -465,7 +470,7 @@ export default function Landing() {
       <section ref={categoriesRef} className="py-24 bg-white fade-section">
         <div className="container mx-auto px-4">
           <div className="text-center mb-14 max-w-2xl mx-auto">
-            <p className="text-blue-600 font-semibold text-sm uppercase tracking-widest mb-3">Marketplace</p>
+            <p className="text-orange-600 font-semibold text-sm uppercase tracking-widest mb-3">Marketplace</p>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
               {t("landing.categoriesTitle")}
             </h2>
@@ -483,8 +488,8 @@ export default function Landing() {
               { icon: TrendingUp, title: t("landing.catFondos"), desc: t("landing.catFondosDesc") },
               { icon: ArrowLeftRight, title: t("landing.catPortabilidad"), desc: t("landing.catPortabilidadDesc") },
             ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="group flex flex-col items-center text-center p-4 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 hover:shadow-sm transition-all cursor-default">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 group-hover:bg-blue-100 transition-colors">
+              <div key={title} className="group flex flex-col items-center text-center p-4 rounded-xl border border-gray-100 hover:border-orange-200 hover:bg-orange-50/30 hover:shadow-sm transition-all cursor-default">
+                <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center mb-3 group-hover:bg-orange-100 transition-colors">
                   <Icon className="h-5 w-5" />
                 </div>
                 <p className="text-xs font-semibold text-gray-800 leading-tight">{title}</p>
@@ -496,10 +501,10 @@ export default function Landing() {
       </section>
 
       {/* ── WHY CODA ─────────────────────────────────────────────────────── */}
-      <section ref={whyRef} className="py-24 bg-[#0a0f1e] text-white fade-section">
+      <section ref={whyRef} className="py-24 bg-[#0c0a09] text-white fade-section">
         <div className="container mx-auto px-4">
           <div className="text-center mb-14 max-w-2xl mx-auto">
-            <p className="text-blue-400 font-semibold text-sm uppercase tracking-widest mb-3">Diferencial</p>
+            <p className="text-orange-400 font-semibold text-sm uppercase tracking-widest mb-3">Diferencial</p>
             <h2 className="text-4xl md:text-5xl font-bold mb-4">
               {t("landing.whyChooseTitle")}
             </h2>
@@ -511,9 +516,9 @@ export default function Landing() {
           <div className="grid md:grid-cols-2 gap-5 max-w-4xl mx-auto">
             {[
               { icon: DollarSign, title: t("landing.whyFreeTitle"), desc: t("landing.whyFreeDesc"), accent: "text-green-400", bg: "bg-green-400/10 border-green-400/20" },
-              { icon: BarChart3, title: t("landing.whyRealDataTitle"), desc: t("landing.whyRealDataDesc"), accent: "text-blue-400", bg: "bg-blue-400/10 border-blue-400/20" },
+              { icon: BarChart3, title: t("landing.whyRealDataTitle"), desc: t("landing.whyRealDataDesc"), accent: "text-orange-400", bg: "bg-orange-400/10 border-orange-400/20" },
               { icon: Shield, title: t("landing.whyNeutralTitle"), desc: t("landing.whyNeutralDesc"), accent: "text-violet-400", bg: "bg-violet-400/10 border-violet-400/20" },
-              { icon: Landmark, title: t("landing.whyRegulatedTitle"), desc: t("landing.whyRegulatedDesc"), accent: "text-indigo-400", bg: "bg-indigo-400/10 border-indigo-400/20" },
+              { icon: Landmark, title: t("landing.whyRegulatedTitle"), desc: t("landing.whyRegulatedDesc"), accent: "text-orange-400", bg: "bg-orange-400/10 border-orange-400/20" },
             ].map(({ icon: Icon, title, desc, accent, bg }) => (
               <div key={title} className="p-6 rounded-2xl bg-slate-800/50 border border-slate-700/50 hover:border-slate-600/50 transition-colors flex gap-5">
                 <div className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 ${bg}`}>
@@ -548,7 +553,7 @@ export default function Landing() {
       <section ref={faqRef} className="py-24 bg-slate-50 fade-section">
         <div className="container mx-auto px-4">
           <div className="text-center mb-14 max-w-2xl mx-auto">
-            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center mx-auto mb-4">
               <HelpCircle className="h-6 w-6" />
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
@@ -583,25 +588,25 @@ export default function Landing() {
       </div>
 
       {/* ── CTA ──────────────────────────────────────────────────────────── */}
-      <section ref={ctaRef} className="py-24 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 text-white fade-section">
+      <section ref={ctaRef} className="py-24 bg-gradient-to-br from-orange-600 via-orange-700 to-orange-700 text-white fade-section">
         <div className="container mx-auto px-4 text-center max-w-2xl">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
             {t("landing.ctaTitle")}
           </h2>
-          <p className="text-xl text-blue-100 mb-10 leading-relaxed">
+          <p className="text-xl text-orange-100 mb-10 leading-relaxed">
             {t("landing.ctaSubtitle")}
           </p>
           <Link href={ROUTES.registro}>
             <Button
               size="lg"
-              className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-10 h-14 text-lg shadow-xl shadow-blue-900/30 transition-all"
+              className="bg-white text-orange-700 hover:bg-orange-50 font-semibold px-10 h-14 text-lg shadow-xl shadow-orange-900/30 transition-all"
               onClick={() => Analytics.signupStarted()}
             >
               {t("landing.createAccount")}
               <ChevronRight className="ml-2 h-5 w-5" />
             </Button>
           </Link>
-          <p className="mt-5 text-blue-200 text-sm">
+          <p className="mt-5 text-orange-200 text-sm">
             {t("landing.noPaymentRequired")}
           </p>
         </div>

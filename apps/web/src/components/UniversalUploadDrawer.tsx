@@ -21,7 +21,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL } from "@/lib/api";
-import { getPersonalToken } from "@/lib/auth";
 import DocumentManager from "@/components/DocumentManager";
 import {
   Upload,
@@ -50,6 +49,12 @@ interface UploadResultData {
   creditScore?: number;
   mainInsights?: string[];
   recommendedProducts?: string[];
+  /** Parser metadata (cartolas) — para guiar la revisión post-subida. */
+  detectionTier?: string;
+  detectedBanco?: string;
+  movementCount?: number;
+  documentId?: string;
+  reviewStatus?: string;
 }
 
 /** Map SFA product codes to marketplace tab keys. */
@@ -181,14 +186,13 @@ export default function UniversalUploadDrawer({
       setStatus("uploading");
       await new Promise((r) => setTimeout(r, 0));
       try {
-        const token = getPersonalToken() ?? "";
         const formData = new FormData();
         formData.append("document", fs.file);
 
         const apiBase = (API_URL || "").replace(/\/$/, "");
         const res = await fetch(`${apiBase}/api/documents/upload`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
           body: formData,
         });
 
@@ -201,20 +205,38 @@ export default function UniversalUploadDrawer({
         ]);
 
         if (!res.ok) {
+          // 5xx → error transitorio del servidor (p. ej. cold-start): mensaje amigable
+          // de reintento. 4xx (validación/parse) → conservar el mensaje específico del
+          // backend ("Archivo corrupto o vacío", "No se reconoció el banco…", etc.).
+          if (res.status >= 500) {
+            throw new Error(
+              "El servidor tardó más de lo esperado. Espera unos segundos e intenta nuevamente. Si el documento aparece como fallido, puedes eliminarlo y volver a subirlo."
+            );
+          }
           throw new Error(
             (json as { message?: string }).message ?? `Error ${res.status}`
           );
         }
 
-        // Capture scoring data from the response
+        // Capture scoring + parser metadata from the response
         const result = json as Record<string, unknown>;
-        if (result.transactionalScore || result.recommendedProducts || result.creditScore) {
+        if (
+          result.transactionalScore ||
+          result.recommendedProducts ||
+          result.creditScore ||
+          result.documentType === "cartola"
+        ) {
           lastResult = {
             documentType: result.documentType as string | undefined,
             transactionalScore: result.transactionalScore as number | undefined,
             creditScore: result.creditScore as number | undefined,
             mainInsights: result.mainInsights as string[] | undefined,
             recommendedProducts: result.recommendedProducts as string[] | undefined,
+            detectionTier: result.detection_tier as string | undefined,
+            detectedBanco: result.detected_banco as string | undefined,
+            movementCount: result.movementCount as number | undefined,
+            documentId: result.documentId as string | undefined,
+            reviewStatus: result.reviewStatus as string | undefined,
           };
         }
 
@@ -249,12 +271,12 @@ export default function UniversalUploadDrawer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg flex flex-col max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Subir documentos</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-2 overflow-y-auto min-h-0">
           {/* Drop zone */}
           <div
             onDragOver={(e) => {
@@ -315,7 +337,7 @@ export default function UniversalUploadDrawer({
                 <div
                   key={fs.file.name + idx}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors",
+                    "flex flex-col gap-1.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
                     fs.status === "success" &&
                       "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/20",
                     fs.status === "error" &&
@@ -325,6 +347,7 @@ export default function UniversalUploadDrawer({
                     fs.status === "pending" && "border-muted bg-muted/30"
                   )}
                 >
+                  <div className="flex items-center gap-3">
                   <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <span className="flex-1 truncate text-xs font-medium">
                     {fs.file.name}
@@ -355,11 +378,7 @@ export default function UniversalUploadDrawer({
                     {fs.status === "error" && (
                       <XCircle className="h-3.5 w-3.5" />
                     )}
-                    <span>
-                      {fs.status === "error" && fs.message
-                        ? fs.message.slice(0, 35)
-                        : LABEL[fs.status]}
-                    </span>
+                    <span>{LABEL[fs.status]}</span>
                   </span>
 
                   {fs.status === "pending" && (
@@ -373,6 +392,12 @@ export default function UniversalUploadDrawer({
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
+                  )}
+                  </div>
+                  {fs.status === "error" && fs.message && (
+                    <p className="text-xs text-red-600 dark:text-red-400 leading-snug break-words">
+                      {fs.message}
+                    </p>
                   )}
                 </div>
               ))}
@@ -400,8 +425,56 @@ export default function UniversalUploadDrawer({
                 .filter((t): t is string => t !== null)
             )].slice(0, 3);
 
+            const movementCount = uploadResult.movementCount;
+            // Fuente de verdad: el backend ya persiste review_status (#36). Si no viene,
+            // fallback a la heurística por parser/tier (banco genérico o detección no HIGH).
+            const reviewRecommended =
+              !isCmf &&
+              (uploadResult.reviewStatus != null
+                ? uploadResult.reviewStatus === "required"
+                : uploadResult.detectedBanco === "Genérico" ||
+                  (uploadResult.detectionTier != null &&
+                    uploadResult.detectionTier !== "HIGH"));
+            const reviewHref =
+              reviewRecommended && uploadResult.documentId
+                ? `/movimientos?review=1&documentId=${uploadResult.documentId}`
+                : reviewRecommended
+                  ? "/movimientos?review=1"
+                  : "/movimientos";
+
             return (
               <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 space-y-3">
+                {/* Cartola: aviso de revisión (parser genérico/confianza media) o conteo */}
+                {!isCmf && reviewRecommended && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                      <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Revisa tus movimientos</p>
+                      <p className="text-xs text-muted-foreground leading-snug">
+                        {movementCount != null
+                          ? `Leímos ${movementCount} movimiento${movementCount !== 1 ? "s" : ""} de tu cartola con una extracción general. `
+                          : "Leímos tu cartola con una extracción general. "}
+                        Revisa que los montos y las fechas estén correctos antes de confiar en tu score.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {!isCmf && !reviewRecommended && movementCount != null && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <FileText className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Cartola procesada</p>
+                      <p className="text-xs text-muted-foreground">
+                        Detectamos {movementCount} movimiento{movementCount !== 1 ? "s" : ""}.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* CMF credit score */}
                 {isCmf && uploadResult.creditScore != null && (
                   <div className="flex items-center gap-3">
@@ -494,20 +567,35 @@ export default function UniversalUploadDrawer({
                   </div>
                 )}
 
-                {/* Cartola: main CTA */}
+                {/* Cartola: main CTAs */}
                 {!isCmf && (
-                  <Button
-                    size="sm"
-                    className="w-full gap-2"
-                    onClick={() => {
-                      onOpenChange(false);
-                      navigate(tabs.length > 0 ? `/productos?tab=${tabs[0]}` : "/productos");
-                    }}
-                  >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Ver recomendaciones personalizadas
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Button>
+                  <>
+                    <Button
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={() => {
+                        onOpenChange(false);
+                        navigate(tabs.length > 0 ? `/productos?tab=${tabs[0]}` : "/productos");
+                      }}
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Ver recomendaciones personalizadas
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={() => {
+                        onOpenChange(false);
+                        navigate(reviewHref);
+                      }}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      {reviewRecommended ? "Revisar movimientos" : "Ver mis movimientos"}
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
                 )}
               </div>
             );

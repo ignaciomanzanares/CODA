@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { useAuth, getPersonalToken } from "@/lib/auth";
+import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -45,10 +45,8 @@ export default function ScoreHistoryChart() {
     queryKey: ["/api/score-history"],
     queryFn: () => {
       const token = getPersonalToken();
-      if (!token) return Promise.resolve({ history: [] });
-      return apiFetch("/api/score-history", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      if (!token && !hasPersonalSession()) return Promise.resolve({ history: [] });
+      return apiFetch("/api/score-history");
     },
     enabled: isAuthenticated,
     staleTime: 60_000,

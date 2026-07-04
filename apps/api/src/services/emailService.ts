@@ -99,6 +99,20 @@ function redactEmail(email: string): string {
   return `${email[0] ?? '?'}***@${email.split('@')[1] ?? '?'}`;
 }
 
+/**
+ * True si hay al menos un proveedor de email configurado (Resend / Gmail / SMTP).
+ * Única fuente de verdad para decidir el fail-closed de 2FA: evita que el chequeo
+ * en el login se desincronice de la lista de proveedores de `sendEmail()`.
+ * (Ethereal de dev no cuenta: solo aplica fuera de producción.)
+ */
+export function isEmailConfigured(): boolean {
+  return (
+    !!process.env.RESEND_API_KEY ||
+    !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) ||
+    !!(process.env.SMTP_HOST && process.env.SMTP_USER)
+  );
+}
+
 // ── Nodemailer transporter (lazy singleton) ──────────────────────────────────
 
 let _transporter: nodemailer.Transporter | null | undefined; // undefined = not initialized
@@ -166,7 +180,7 @@ class EmailService {
       html: `
         <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
           <div style="text-align:center;margin-bottom:24px;">
-            <div style="display:inline-block;background:#2563eb;color:white;padding:8px 16px;border-radius:8px;font-weight:bold;font-size:18px;">CODA</div>
+            <div style="display:inline-block;background:#FF5C35;color:white;padding:8px 16px;border-radius:8px;font-weight:bold;font-size:18px;">CODA</div>
           </div>
           <p style="color:#334155;font-size:15px;">Tu código de verificación es:</p>
           <div style="background:#f1f5f9;border-radius:12px;padding:20px;text-align:center;margin:16px 0;">
@@ -186,11 +200,11 @@ class EmailService {
       html: `
         <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
           <div style="text-align:center;margin-bottom:24px;">
-            <div style="display:inline-block;background:#2563eb;color:white;padding:8px 16px;border-radius:8px;font-weight:bold;font-size:18px;">CODA</div>
+            <div style="display:inline-block;background:#FF5C35;color:white;padding:8px 16px;border-radius:8px;font-weight:bold;font-size:18px;">CODA</div>
           </div>
           <p style="color:#334155;font-size:15px;">Recibimos una solicitud para restablecer la contraseña de tu cuenta CODA.</p>
           <div style="text-align:center;margin:24px 0;">
-            <a href="${resetUrl}" style="display:inline-block;background:#2563eb;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">
+            <a href="${resetUrl}" style="display:inline-block;background:#FF5C35;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;">
               Restablecer contraseña
             </a>
           </div>
@@ -219,14 +233,14 @@ class EmailService {
     return `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;">
       <div style="text-align:center;margin-bottom:24px;">
-        <div style="display:inline-block;background:#2563eb;color:white;padding:8px 16px;border-radius:8px;font-weight:bold;font-size:18px;">CODA</div>
+        <div style="display:inline-block;background:#FF5C35;color:white;padding:8px 16px;border-radius:8px;font-weight:bold;font-size:18px;">CODA</div>
         <p style="color:#64748b;font-size:14px;margin-top:8px;">Dividir cuenta</p>
       </div>
 
       <p style="color:#334155;font-size:15px;">Hola ${participantName},</p>
       <p style="color:#334155;font-size:15px;"><strong>${creatorName}</strong> te invitó a dividir:</p>
 
-      <div style="background:#f1f5f9;border-radius:12px;padding:20px;margin:16px 0;border-left:4px solid #2563eb;">
+      <div style="background:#f1f5f9;border-radius:12px;padding:20px;margin:16px 0;border-left:4px solid #FF5C35;">
         <h3 style="margin:0 0 8px;color:#1e293b;">${billSplit.name}</h3>
         ${billSplit.description ? `<p style="color:#64748b;margin:0 0 8px;font-style:italic;">${billSplit.description}</p>` : ''}
         <p style="margin:4px 0;color:#475569;">📅 ${new Date(billSplit.date).toLocaleDateString('es-CL')}</p>
@@ -237,7 +251,7 @@ class EmailService {
       </div>
 
       <div style="text-align:center;margin:24px 0;">
-        <a href="${billSplitUrl}" style="display:inline-block;background:#2563eb;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;">
+        <a href="${billSplitUrl}" style="display:inline-block;background:#FF5C35;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;">
           Ver detalle
         </a>
       </div>

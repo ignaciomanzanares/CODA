@@ -15,7 +15,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/apiFetch";
-import { getPersonalToken, useAuth } from "@/lib/auth";
+import { getPersonalToken, hasPersonalSession, useAuth } from "@/lib/auth";
 import {
   CATEGORY_TAXONOMY,
   resolveGroupKey,
@@ -44,6 +44,8 @@ interface RawParsedTx {
   saldo: number | null;
   banco: string | null;
   categoria: string;
+  isInternalTransfer?: boolean;
+  requiresReview?: boolean;
 }
 
 interface RawParsedResponse {
@@ -76,7 +78,7 @@ interface RawInsights {
 interface RawScoreResult {
   transactionalScore: number | null;
   mainInsights?: string[];
-  metrics?: Record<string, number | boolean | undefined>;
+  metrics?: Record<string, number | boolean | string | undefined>;
   lastUpdated?: string;
 }
 
@@ -88,11 +90,19 @@ interface RawScoreHistoryEntry {
 }
 
 interface RawCreditScore {
+  available: boolean;
+  reason: string | null;
   score: number | null;
   maxScore: number;
   paymentHistory: string;
   utilization: string;
   ageOfCredit: string;
+  lastUpdated?: string | null;
+  message?: string;
+  source?: {
+    label: string;
+    uploadedAt: string | null;
+  } | null;
 }
 
 interface RawFinancialSummary {
@@ -112,9 +122,9 @@ interface RawFinancialSummary {
 
 async function fetchJson<T>(path: string): Promise<T | null> {
   const token = getPersonalToken();
-  if (!token) return null;
+  if (!token && !hasPersonalSession()) return null;
   try {
-    return await apiFetch(path, { headers: { Authorization: `Bearer ${token}` } });
+    return await apiFetch(path);
   } catch {
     return null;
   }
@@ -129,6 +139,7 @@ function toDisplayTx(raw: RawParsedTx): DashboardTransaction {
     monto: Math.abs(raw.monto), // Always positive — tipo indicates direction
     tipo: raw.tipo,
     categoria: raw.categoria || "otro",
+    isInternalTransfer: raw.isInternalTransfer === true,
   };
 }
 
@@ -216,12 +227,16 @@ function filterByPeriod(
 /** Build sparkline: daily totals for last 30 days (or last 30 days of data) */
 function buildSparkline(txs: DashboardTransaction[]): number[] {
   if (txs.length === 0) return [];
-  const now = new Date();
+  // Anclar la ventana de 30 días a la ÚLTIMA fecha con datos, no a hoy: así las
+  // cartolas históricas (p. ej. jun 2025) muestran tendencia en vez de salir planas.
+  let latest = txs[0].fecha;
+  for (const tx of txs) if (tx.fecha > latest) latest = tx.fecha;
+  const anchor = new Date(latest + "T12:00:00");
   const days = new Array<number>(30).fill(0);
   for (const tx of txs) {
     if (tx.tipo !== "egreso") continue;
     const txDate = new Date(tx.fecha + "T12:00:00");
-    const daysAgo = Math.floor((now.getTime() - txDate.getTime()) / 86400000);
+    const daysAgo = Math.floor((anchor.getTime() - txDate.getTime()) / 86400000);
     if (daysAgo >= 0 && daysAgo < 30) {
       days[29 - daysAgo] += tx.monto;
     }
@@ -335,11 +350,17 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
       data: {
         hasData: false,
         periodLabel: "",
-        score: null,
-        scoreDelta: null,
-        scoreMaxHistory: [],
-        scoreInsights: [],
+	        score: null,
+	        scoreDelta: null,
+	        scoreMaxHistory: [],
+	        scoreInsights: [],
+	        scoreConfidence: null,
+	        scoreObservedMonths: null,
         creditScore: null,
+        creditScoreAvailable: false,
+        creditScoreUnavailableReason: "missing_cmf_report",
+        creditScoreMessage: "Sube tu Informe de Deudas CMF para calcular tu score crediticio.",
+        creditScoreSource: null,
         creditScoreDelta: null,
         creditScoreDate: null,
         availableUntilEndOfMonth: null,
@@ -356,6 +377,7 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
         savingsGoalPct: 0,
         categoryGroups: [],
         patrimonio: null,
+        pendingReviewCount: 0,
       },
       isLoading: false,
       error: null,
@@ -365,8 +387,13 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
 
   // ── Parse transactions ─────────────────────────────────────────────────
   const rawTxList = parsedTx.data?.transactions ?? [];
+  // Pendientes por revisar (mismo flag del backend que usa el badge/filtro de Movimientos).
+  const pendingReviewCount = rawTxList.filter((t) => t.requiresReview).length;
   const allTx = rawTxList.map(toDisplayTx);
-  const { filtered: periodTx, label: periodLabel, totalMonths } = filterByPeriod(allTx, period, monthOffset);
+  // Movimientos muestra la vista bruta; el Panel usa flujo REAL, excluyendo
+  // traspasos internos entre productos propios para no inflar ingresos/gastos.
+  const realTx = allTx.filter((t) => !t.isInternalTransfer);
+  const { filtered: periodTx, label: periodLabel, totalMonths } = filterByPeriod(realTx, period, monthOffset);
 
   // ── Capa 1: Hero ──────────────────────────────────────────────────────
 
@@ -387,7 +414,14 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
   const availableUntilEndOfMonth = Math.max(0, availableRaw);
 
   // ── Score (transactional only, 0-100) ──────────────────────────────────
-  const currentScore = score.data?.transactionalScore ?? null;
+	  const currentScore = score.data?.transactionalScore ?? null;
+	  const scoreConfidenceValue = score.data?.metrics?.scoreConfidence;
+	  const scoreConfidence =
+	    scoreConfidenceValue === "baja" || scoreConfidenceValue === "media" || scoreConfidenceValue === "alta"
+	      ? scoreConfidenceValue
+	      : null;
+	  const observedMonthsValue = score.data?.metrics?.observedMonths;
+	  const scoreObservedMonths = typeof observedMonthsValue === "number" ? observedMonthsValue : null;
 
   // Delta: only compare against OTHER transactional score entries (maxScore=100).
   // The credit_score_history table mixes both transactional (max=100) and
@@ -410,10 +444,20 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
   }));
 
   // ── Credit score (CMF, from /api/credit-score, separate table) ──────
-  const creditScore = creditScoreQuery.data?.score ?? null;
+  const rawCreditScore = creditScoreQuery.data;
+  const creditScoreAvailable = rawCreditScore?.available === true && typeof rawCreditScore.score === "number";
+  const creditScore = creditScoreAvailable ? rawCreditScore.score : null;
+  const creditScoreSource = rawCreditScore?.source
+    ? {
+        label: rawCreditScore.source.label,
+        uploadedAt: rawCreditScore.source.uploadedAt ?? null,
+      }
+    : null;
   // No delta available from this endpoint (single row per user, no history)
   const creditScoreDelta: number | null = null;
-  const creditScoreDate: string | null = null;
+  const creditScoreDate: string | null = creditScoreAvailable
+    ? (rawCreditScore?.lastUpdated ?? creditScoreSource?.uploadedAt ?? null)
+    : null;
 
   // ── Insight ────────────────────────────────────────────────────────────
   const allInsights = insights.data?.insights ?? [];
@@ -462,7 +506,7 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
 
   // Previous month data for month-over-month comparison
   const prevMonthResult = period === "month" && totalMonths > 1
-    ? filterByPeriod(allTx, "month", monthOffset - 1)
+    ? filterByPeriod(realTx, "month", monthOffset - 1)
     : null;
   const prevMonthTx = prevMonthResult?.filtered ?? [];
 
@@ -513,8 +557,8 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
     // Sparkline from ALL transactions (not just period-filtered)
     const allGroupTx =
       key === "ingresos"
-        ? allTx.filter((t) => t.tipo === "ingreso")
-        : allTx.filter(
+        ? realTx.filter((t) => t.tipo === "ingreso")
+        : realTx.filter(
             (t) => t.tipo === "egreso" && resolveGroupKey(t.categoria) === key,
           );
     const sparklineData = buildSparkline(allGroupTx);
@@ -557,10 +601,18 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
       hasData: true,
       periodLabel,
       score: currentScore,
-      scoreDelta,
-      scoreMaxHistory,
-      scoreInsights: score.data?.mainInsights ?? [],
+	      scoreDelta,
+	      scoreMaxHistory,
+	      scoreInsights: score.data?.mainInsights ?? [],
+	      scoreConfidence,
+	      scoreObservedMonths,
       creditScore,
+      creditScoreAvailable,
+      creditScoreUnavailableReason: creditScoreAvailable ? null : (rawCreditScore?.reason ?? "missing_cmf_report"),
+      creditScoreMessage: creditScoreAvailable
+        ? null
+        : (rawCreditScore?.message ?? "Sube tu Informe de Deudas CMF para calcular tu score crediticio."),
+      creditScoreSource,
       creditScoreDelta,
       creditScoreDate,
       availableUntilEndOfMonth,
@@ -577,6 +629,7 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
       savingsGoalPct: savingsGoalProgress,
       categoryGroups,
       patrimonio,
+      pendingReviewCount,
     },
     isLoading: false,
     error: error as Error | null,

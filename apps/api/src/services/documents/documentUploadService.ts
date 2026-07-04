@@ -52,7 +52,35 @@ export interface UploadResult {
   banco_confidence?: number;
   /** Nombre del banco detectado */
   detected_banco?: string;
+  /** Cantidad de movimientos extraídos de la cartola (para feedback de revisión en la UI) */
+  movementCount?: number;
+  /** Id de la importación creada (document_uploads.id), para linkear la revisión en la UI. */
+  documentId?: string;
+  /** Estado de revisión de la importación: 'not_required' | 'required' | 'reviewed'. */
+  reviewStatus?: string;
+  /** Razón interna de revisión ('generic_parser' | 'low_confidence'), null si no aplica. */
+  reviewReason?: string | null;
+  /** Avisos no fatales (p. ej. score post-parse que no se pudo calcular ahora). */
+  warnings?: string[];
   error?: string;
+}
+
+/**
+ * Deriva el estado de revisión de una importación de cartola a partir de la metadata del parser.
+ * `required` cuando el banco no se reconoció directamente (parser genérico) o la detección no fue
+ * de alta confianza; si no, `not_required`. CMF no usa este flujo (queda `not_required`).
+ */
+export function deriveDocumentReviewState(opts: {
+  banco?: string | null;
+  detectionTier?: DetectionTier | string | null;
+}): { reviewStatus: 'not_required' | 'required'; reviewReason: string | null } {
+  if (opts.banco === 'Genérico') {
+    return { reviewStatus: 'required', reviewReason: 'generic_parser' };
+  }
+  if (opts.detectionTier != null && opts.detectionTier !== 'HIGH') {
+    return { reviewStatus: 'required', reviewReason: 'low_confidence' };
+  }
+  return { reviewStatus: 'not_required', reviewReason: null };
 }
 
 /**
@@ -120,6 +148,10 @@ export async function processDocumentUpload(
   }
 
   // 2. Cartola path: hardened pipeline (format detection + tier + reconciliation in one pass)
+  // `documentUploadId` se hoistea fuera del try para poder marcar el documento
+  // 'failed' en el outer catch si algo lanza DESPUÉS de crearlo (evita dejarlo
+  // 'pending' huérfano, confuso para el usuario).
+  let documentUploadId: string | undefined;
   try {
     const parsed = await parseCartolaBuffer(buffer);
 
@@ -204,20 +236,28 @@ export async function processDocumentUpload(
       parseStatus: "success" as const,
     };
 
+    const review = deriveDocumentReviewState({ banco, detectionTier: parsed.detection_tier });
+
     // Write to BOTH tables (el score doc referencia explicitamente al document upload).
-    const documentUploadId = randomUUID();
+    documentUploadId = randomUUID();
     const scoreDocId = randomUUID();
     await Promise.all([
-      storage.createDocumentUpload({ ...baseRow, id: documentUploadId }),
+      storage.createDocumentUpload({
+        ...baseRow,
+        id: documentUploadId,
+        normalizationStatus: "pending",
+        reviewStatus: review.reviewStatus,
+        reviewReason: review.reviewReason,
+      }),
       storage.createScoreDocumentUpload({ ...baseRow, id: scoreDocId, sourceDocumentUploadId: documentUploadId }),
     ]);
 
     // Normalizar a accounts/transactions (fuente de verdad para Movimientos y el
-    // split bruto/real). No bloquea la respuesta si falla — el score ya fue calculado.
-    // Si falla, el documentUploadId queda registrado para diagnóstico y retry manual.
+    // split bruto/real). Si falla, NO dejamos un upload "success" con Movimientos
+    // vacío: el documento queda marcado failed y el score doc se elimina.
     try {
       const { normalizeCartolaDoc } = await import('./normalizeCartola.js');
-      await normalizeCartolaDoc({
+      const normalized = await normalizeCartolaDoc({
         userId,
         documentId: scoreDocId,
         banco,
@@ -225,64 +265,28 @@ export async function processDocumentUpload(
         periodoHasta,
         transacciones: (cartolaExtraida.transacciones ?? []) as never,
       });
+      if (!normalized || normalized.inserted === 0) {
+        throw new Error('No se insertaron transacciones normalizadas para la cartola.');
+      }
+      await storage.updateDocumentUploadNormalizationStatus(documentUploadId, userId, "success");
     } catch (e) {
-      // Log con documentUploadId para retry manual desde logs de Render
-      logger.error(
-        { err: e, documentUploadId, scoreDocId, userId, banco },
-        '[documentUploadService] normalizeCartola falló — movimientos no importados. El score fue calculado correctamente.'
-      );
-    }
-
-    // ── Compute transactional score from ALL score cartolas ──
-    const rut = cartolaExtraida.rutDocumento ?? '00.000.000-0';
-    const allScoreCartolas = await storage.listScoreDocumentUploadsByType(userId, "cartola");
-    const allParsed: CartolaExtraida[] = allScoreCartolas
-      .map((r) => r?.parsedData as CartolaExtraida | null)
-      .filter((c): c is CartolaExtraida => !!c && Array.isArray(c.transacciones));
-    const transactions = allParsed.flatMap((c) => cartolaToSfaTransactions(c, c.rutDocumento ?? rut));
-    const products = allParsed.flatMap((c) => cartolaToSfaProductos(c, c.rutDocumento ?? rut));
-
-    const engine = getSfaScoringEngine();
-    const scoreResult = engine.run({ transactions, products });
-
-    const hasInterest = parsed.transacciones.some(
-      (t) => /interés|interes|intereses|línea|linea|crédito|credito|tarjeta/i.test(t.descripcion)
-    );
-    const mainInsights = [...scoreResult.mainInsights];
-    if (hasInterest) {
-      mainInsights.push(
-        'Detectamos intereses de línea de crédito o tarjeta en tu cartola. Te recomendamos consolidar deudas y evaluar ofertas de ahorro según el Business Plan.'
-      );
-    }
-    if (parsed.warnings && parsed.warnings.length > 0) {
-      mainInsights.push(...parsed.warnings);
-    }
-    if (duplicateReplaced) {
-      mainInsights.push(
-        'Esta cartola ya había sido subida previamente (mismo banco y período). Los datos anteriores fueron reemplazados.'
-      );
-    }
-
-    await storage.upsertTransactionalScore(userId, {
-      transactionalScore: scoreResult.transactionalScore,
-      metrics: scoreResult.metrics,
-      mainInsights,
-      recommendedProducts: scoreResult.recommendedProducts,
-      algorithmInputs: {
-        pipeline: 'cartola_pdf_hardened',
-        transactionCount: transactions.length,
-        productCount: products.length,
-        cartolasCount: allParsed.length,
-        banco_confidence: parsed.banco_confidence,
+      await storage.updateDocumentUploadNormalizationStatus(documentUploadId, userId, "failed").catch(() => {});
+      await storage.deleteScoreDocumentUploadById(scoreDocId, userId).catch(() => {});
+      logger.warn({ err: e, userId, documentUploadId, scoreDocId }, '[documentUploadService] normalizeCartola falló');
+      return {
+        step: 'done',
+        documentType: 'cartola',
+        error: 'La cartola se leyó, pero no pudimos normalizar sus movimientos. El documento quedó marcado para revisión; elimínalo y vuelve a subirlo.',
         detection_tier: parsed.detection_tier,
-        parse_confidence: parsed.parse_confidence,
-      },
-    });
+        banco_confidence: parsed.banco_confidence,
+        detected_banco: parsed.banco,
+      };
+    }
 
-    // Ingesta unificada (#18): además del score SFA (arriba, desde el blob), poblamos
+    // Ingesta unificada (#18): además del score SFA (desde el blob), poblamos
     // accounts/transactions vía el punto único OBProvider, para que las features ML y los
     // listados lean de las mismas tablas que un futuro proveedor de open banking. Idempotente
-    // (dedup por externalId), best-effort: un fallo aquí no debe tumbar el upload del score.
+    // (dedup por externalId), best-effort: un fallo aquí no debe tumbar el upload.
     try {
       const { ingestFromProvider } = await import('../ingestion/ingestFromProvider.js');
       const { CartolaUploadProvider } = await import('../ingestion/cartolaUploadProvider.js');
@@ -292,30 +296,112 @@ export async function processDocumentUpload(
       logger.warn({ err: ingErr, userId }, '[documentUploadService] ingesta accounts/transactions falló (no fatal)');
     }
 
-    // Registro de outcome (#32): éxito, con banco/tier/confianza/conteo para priorizar mejoras.
-    {
-      const { recordParseOutcome } = await import('./parseOutcomes.js');
-      await recordParseOutcome(userId, {
-        status: 'success',
-        documentType: 'cartola',
-        banco,
-        detectionTier: parsed.detection_tier ?? null,
-        parseConfidence: parsed.parse_confidence ?? null,
-        transactionCount: parsed.transacciones.length,
-      });
-    }
+    // ── Compute transactional score from ALL score cartolas (best-effort) ──
+    // El documento y los movimientos YA quedaron persistidos/normalizados arriba.
+    // El score transaccional es derivado y recomputable (otros endpoints lo
+    // recalculan), así que si este paso falla (p. ej. hiccup transitorio de DB),
+    // NO tumbamos el upload: respondemos 200 degradado con un warning, en vez de
+    // un 500 confuso cuando la cartola en realidad sí se importó.
+    try {
+      const rut = cartolaExtraida.rutDocumento ?? '00.000.000-0';
+      const allScoreCartolas = await storage.listScoreDocumentUploadsByType(userId, "cartola");
+      const allParsed: CartolaExtraida[] = allScoreCartolas
+        .map((r) => r?.parsedData as CartolaExtraida | null)
+        .filter((c): c is CartolaExtraida => !!c && Array.isArray(c.transacciones));
+      const transactions = allParsed.flatMap((c) => cartolaToSfaTransactions(c, c.rutDocumento ?? rut));
+      const products = allParsed.flatMap((c) => cartolaToSfaProductos(c, c.rutDocumento ?? rut));
 
-    return {
-      step: 'done',
-      documentType: 'cartola',
-      transactionalScore: scoreResult.transactionalScore,
-      mainInsights,
-      recommendedProducts: scoreResult.recommendedProducts,
-      metrics: scoreResult.metrics,
-      detection_tier: parsed.detection_tier,
-      banco_confidence: parsed.banco_confidence,
-      detected_banco: parsed.banco,
-    };
+      const engine = getSfaScoringEngine();
+      const scoreResult = engine.run({ transactions, products });
+
+      const hasInterest = parsed.transacciones.some(
+        (t) => /interés|interes|intereses|línea|linea|crédito|credito|tarjeta/i.test(t.descripcion)
+      );
+      const mainInsights = [...scoreResult.mainInsights];
+      if (hasInterest) {
+        mainInsights.push(
+          'Detectamos intereses de línea de crédito o tarjeta en tu cartola. Te recomendamos consolidar deudas y evaluar ofertas de ahorro según el Business Plan.'
+        );
+      }
+      if (parsed.warnings && parsed.warnings.length > 0) {
+        mainInsights.push(...parsed.warnings);
+      }
+      if (duplicateReplaced) {
+        mainInsights.push(
+          'Esta cartola ya había sido subida previamente (mismo banco y período). Los datos anteriores fueron reemplazados.'
+        );
+      }
+
+      await storage.upsertTransactionalScore(userId, {
+        transactionalScore: scoreResult.transactionalScore,
+        metrics: scoreResult.metrics,
+        mainInsights,
+        recommendedProducts: scoreResult.recommendedProducts,
+        algorithmInputs: {
+          pipeline: 'cartola_pdf_hardened',
+          transactionCount: transactions.length,
+          productCount: products.length,
+          cartolasCount: allParsed.length,
+          banco_confidence: parsed.banco_confidence,
+          detection_tier: parsed.detection_tier,
+          parse_confidence: parsed.parse_confidence,
+        },
+      });
+
+      // Registro de outcome (#32): éxito, con banco/tier/confianza/conteo para priorizar mejoras.
+      {
+        const { recordParseOutcome } = await import('./parseOutcomes.js');
+        await recordParseOutcome(userId, {
+          status: 'success',
+          documentType: 'cartola',
+          banco,
+          detectionTier: parsed.detection_tier ?? null,
+          parseConfidence: parsed.parse_confidence ?? null,
+          transactionCount: parsed.transacciones.length,
+        });
+      }
+
+      return {
+        step: 'done',
+        documentType: 'cartola',
+        transactionalScore: scoreResult.transactionalScore,
+        mainInsights,
+        recommendedProducts: scoreResult.recommendedProducts,
+        metrics: scoreResult.metrics,
+        detection_tier: parsed.detection_tier,
+        banco_confidence: parsed.banco_confidence,
+        detected_banco: parsed.banco,
+        movementCount: parsed.transacciones.length,
+        documentId: documentUploadId,
+        reviewStatus: review.reviewStatus,
+        reviewReason: review.reviewReason,
+      };
+    } catch (scoreErr) {
+      logger.warn(
+        {
+          err: scoreErr,
+          userId,
+          documentUploadId,
+          detected_banco: parsed.banco,
+          detection_tier: parsed.detection_tier,
+        },
+        '[documentUploadService] score post-parse falló; upload degradado (movimientos importados, score recomputará)'
+      );
+      return {
+        step: 'done',
+        documentType: 'cartola',
+        detection_tier: parsed.detection_tier,
+        banco_confidence: parsed.banco_confidence,
+        detected_banco: parsed.banco,
+        movementCount: parsed.transacciones.length,
+        documentId: documentUploadId,
+        reviewStatus: review.reviewStatus,
+        reviewReason: review.reviewReason,
+        warnings: [
+          'Tus movimientos fueron importados, pero no pudimos actualizar tu score en este momento. Intenta recalcularlo más tarde.',
+        ],
+      };
+    }
   } catch (e) {
     if (e instanceof ParseError) {
       // Registro de outcome (#32): fallo, con mensaje accionable para el usuario.
@@ -326,6 +412,20 @@ export async function processDocumentUpload(
         errorMessage: e.messageEs,
       });
       return { step: 'done', error: userFacingParseError() };
+    }
+    // Si el documento ya se había creado y luego algo lanzó (fuera del try/catch
+    // de normalización, p. ej. en la escritura del score doc), no lo dejamos
+    // 'pending' huérfano: lo marcamos 'failed' (best-effort; no-op si la fila no
+    // existe, p. ej. cuando el fallo fue ANTES de crear el documento). Se mantiene
+    // el re-throw → 500, pero DocumentManager ya lo muestra como "fallida".
+    if (documentUploadId) {
+      await storage
+        .updateDocumentUploadNormalizationStatus(documentUploadId, userId, "failed")
+        .catch(() => {});
+      logger.warn(
+        { err: e, userId, documentUploadId },
+        '[documentUploadService] upload falló tras crear el documento; marcado failed'
+      );
     }
     throw e;
   }

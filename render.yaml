@@ -52,6 +52,11 @@ services:
         # (la fuga que reportó la auditoría). Si necesitas demo, clona este
         # servicio en un environment de staging documentado y pon "true" solo ahí.
         value: false
+      # Con DEMO_MODE=true, la contraseña demo (demo123) SOLO inicia sesión para
+      # estos emails (lista separada por comas) — nunca para cuentas reales.
+      # Alternativa: DEMO_EMAIL (uno solo). Default si no se define: demo@example.com.
+      - key: DEMO_ALLOWED_EMAILS
+        value: demo@example.com
       # Onboarding (consentimiento + KYC mock + 2FA). OFF por defecto. En "true"
       # exige 2FA antes de vincular un banco. Debe ir junto con VITE_ENABLE_ONBOARDING.
       - key: ENABLE_ONBOARDING
@@ -66,11 +71,61 @@ services:
       # Generar con: openssl rand -base64 32. Requerida en producción (env.ts lanza si falta).
       - key: FIELD_ENCRYPTION_KEY
         sync: false  # Must be set manually in dashboard
+      # Pepper del hash irreversible del RUT (seudonimización, ver services/crypto/identifierHashing.ts).
+      # Generar con: openssl rand -base64 32. Requerida en producción (env.ts lanza si falta).
+      # Secreto DISTINTO de FIELD_ENCRYPTION_KEY; rotarlo invalida todos los hashes.
+      - key: RUT_HASH_PEPPER
+        sync: false  # Must be set manually in dashboard
+      # Redis del blueprint (coda-redis): store de OTP 2FA (TTL nativo), rate limiting
+      # distribuido y colas BullMQ. Conectado por fromService — no requiere set manual.
       - key: REDIS_URL
         fromService:
           name: coda-redis
           type: keyvalue
           property: connectionString
+      # Observability core. Metrics stay OFF unless explicitly enabled. If enabled
+      # in production, METRICS_TOKEN is required and must be set manually.
+      - key: METRICS_ENABLED
+        value: false
+      - key: METRICS_TOKEN
+        sync: false
+      # Optional Sentry error capture. Empty/unset DSN keeps Sentry disabled.
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_TRACES_SAMPLE_RATE
+        value: 0
+      # Auth cookie en producción. api.codafinance.cl permite una cookie
+      # first-party/same-site; Bearer y token JSON se mantienen por compatibilidad.
+      - key: AUTH_COOKIE_ENABLED
+        value: true
+      - key: AUTH_COOKIE_NAME
+        value: coda_session
+      - key: AUTH_COOKIE_SECURE
+        value: true
+      - key: AUTH_COOKIE_SAMESITE
+        value: lax
+      # Vacío a propósito: cookie host-only para api.codafinance.cl, sin Domain.
+      - key: AUTH_COOKIE_DOMAIN
+        value: ""
+      - key: COOKIE_CSRF_ENABLED
+        value: false
+      # CSRF Origin/Referer check (CSRF-1). MANTENER false hasta validar; en "true"
+      # exige Origin/Referer allowlisted en mutaciones cookie-auth. Skip Bearer/
+      # empresas/auth-bootstrap/públicos/GET. Rollback: volver a false + redeploy.
+      - key: CSRF_ENFORCE
+        value: false
+      # Email — REQUERIDO para 2FA OTP y reset de contraseña. Configura UN proveedor
+      # (Resend preferido). Sin proveedor: 2FA falla cerrado (503) y forgot-password
+      # no envía correo. Todos sync:false (set manual en el Dashboard, son secretos).
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM     # remitente verificado, p.ej. "CODA <noreply@codafinance.cl>"
+        sync: false
+      # Alternativas a Resend (configurar solo si no se usa Resend):
+      - key: GMAIL_USER
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
 
   # Worker: procesa OCR/parseo PDF + scoring SFA encolado por POST /api/documents/upload
   # (ver src/queues/documentQueue.ts), separado del proceso web para que un pico de uploads
@@ -92,6 +147,9 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: FIELD_ENCRYPTION_KEY
+        sync: false
+      # El worker también hashea el RUT al procesar uploads → necesita el pepper.
+      - key: RUT_HASH_PEPPER
         sync: false
       - key: REDIS_URL
         fromService:

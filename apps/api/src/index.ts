@@ -4,6 +4,8 @@ import "./env.js";
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
+import { csrfOriginCheck } from "./middleware/csrf.js";
 import { registerRoutes } from "./routes.js";
 import { registerAuditRoutes } from "./routes-audit.js";
 import { registerHealthEvaluationRoutes } from "./routes-health-evaluation.js";
@@ -12,7 +14,13 @@ import { checkDatabaseConnection } from "./db/index.js";
 import { logger, httpLogger } from "./logger.js";
 import { initializeTraceabilitySystem } from "./services/audit/algorithmicTraceability.js";
 import { ensureSeedTraceabilityModels } from "./services/audit/traceabilityPersistence.js";
-import { initObservability, metrics, captureError } from "./services/observability/index.js";
+import {
+  captureError,
+  getNormalizedRoute,
+  httpMetricsMiddleware,
+  initObservability,
+  registerMetricsEndpoint,
+} from "./services/observability/index.js";
 
 
 
@@ -83,6 +91,14 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 // este límite solo acota el JSON/urlencoded de rutas normales contra abuso.
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: false, limit: "1mb" }));
+// Parsea cookies para que `authenticate` pueda leer el JWT desde la cookie httpOnly
+// (además del Authorization: Bearer). Inerte mientras AUTH_COOKIE_ENABLED=false.
+app.use(cookieParser());
+// CSRF Origin/Referer allowlist para mutaciones cookie-auth. Inerte salvo
+// CSRF_ENFORCE=true (default off). Va tras cookieParser (necesita req.cookies)
+// y antes de las rutas. No toca CORS allowedHeaders ni el frontend.
+app.use(csrfOriginCheck);
+app.use(httpMetricsMiddleware);
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -98,16 +114,8 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      // Métricas (siempre, antes del filtro de 304): contador por método/status +
-      // última latencia. Ruta normalizada al primer segmento para acotar cardinalidad.
-      const routeLabel = "/api/" + (path.split("/")[2] ?? "");
-      metrics.incCounter("coda_http_requests_total", {
-        method: req.method,
-        route: routeLabel,
-        status: String(res.statusCode),
-      });
-      metrics.setGauge("coda_http_request_duration_ms", duration, { route: routeLabel });
-
+      // Las métricas HTTP (contador por método/status + latencia) las emite
+      // httpMetricsMiddleware (arriba). Aquí solo queda el logging de la request.
       // Skip logging 304 Not Modified responses to reduce noise
       if (res.statusCode === 304) {
         return;
@@ -128,25 +136,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Endpoint de métricas (Prometheus text). Requiere token Bearer == METRICS_TOKEN en producción.
-// En dev sin METRICS_TOKEN configurado, solo accesible desde localhost.
-app.get("/metrics", (req: Request, res: Response) => {
-  const metricsToken = process.env.METRICS_TOKEN;
-  if (metricsToken) {
-    const auth = req.headers.authorization ?? '';
-    if (auth !== `Bearer ${metricsToken}`) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-  } else {
-    // Sin token configurado: restringir a loopback
-    const ip = req.ip ?? '';
-    if (!['::1', '127.0.0.1', '::ffff:127.0.0.1'].includes(ip)) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-  }
-  res.setHeader("Content-Type", "text/plain; version=0.0.4");
-  res.send(metrics.render());
-});
+registerMetricsEndpoint(app);
 
 (async () => {
   try {
@@ -235,13 +225,18 @@ app.get("/metrics", (req: Request, res: Response) => {
   // Then register main routes
   const server = await registerRoutes(app);
 
-  app.use((err: Error & { status?: number; statusCode?: number }, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: Error & { status?: number; statusCode?: number }, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
     // Log the error
     if (status >= 500) {
-      captureError(err, { kind: "express", status, path: _req.path });
+      captureError(err, {
+        environment: process.env.NODE_ENV ?? "development",
+        method: req.method,
+        route: getNormalizedRoute(req),
+        status,
+      });
     } else {
       logger.warn({ status, message }, "Client error occurred");
     }

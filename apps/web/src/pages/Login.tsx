@@ -35,25 +35,25 @@ function BrandPanel({ isEmpresas }: { isEmpresas: boolean }) {
   // but we gate the literal anyway for grep-clean compliance.
   const brand = FEATURES.codaEmpresas && isEmpresas ? "CODA Empresas" : "CODA";
   return (
-    <div className="hidden lg:flex flex-col justify-between bg-[#0a0f1e] text-white p-12 w-1/2 relative overflow-hidden">
+    <div className="hidden lg:flex flex-col justify-between bg-[#0c0a09] text-white p-12 w-1/2 relative overflow-hidden">
       {/* Background accent */}
-      <div className="absolute top-0 left-0 w-[500px] h-[500px] rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-[300px] h-[300px] rounded-full bg-indigo-600/10 blur-[80px] pointer-events-none" />
+      <div className="absolute top-0 left-0 w-[500px] h-[500px] rounded-full bg-primary/15 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-[300px] h-[300px] rounded-full bg-orange-500/10 blur-[80px] pointer-events-none" />
 
-      {/* Logo */}
-      <div className="relative flex items-center gap-3">
-        <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30">
+      {/* Logo — siempre lleva al inicio */}
+      <Link href="/" className="relative flex items-center gap-3 w-fit group" aria-label="Ir al inicio">
+        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
           <Wallet className="h-5 w-5 text-white" />
         </div>
-        <span className="text-xl font-bold tracking-tight">{brand}</span>
-      </div>
+        <span className="text-xl font-bold tracking-tight group-hover:text-primary transition-colors">{brand}</span>
+      </Link>
 
       {/* Main copy */}
       <div className="relative space-y-8">
         <div>
           <h2 className="text-4xl font-bold leading-tight mb-4">
             Tu salud financiera,{" "}
-            <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">
               en un solo lugar
             </span>
           </h2>
@@ -66,8 +66,8 @@ function BrandPanel({ isEmpresas }: { isEmpresas: boolean }) {
         <ul className="space-y-4">
           {brandFeatures.map(({ icon: Icon, text }) => (
             <li key={text} className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-blue-600/10 border border-blue-600/20 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                <Icon className="h-4 w-4 text-blue-400" />
+              <div className="w-8 h-8 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                <Icon className="h-4 w-4 text-primary" />
               </div>
               <span className="text-sm text-slate-300 leading-relaxed">{text}</span>
             </li>
@@ -202,10 +202,13 @@ export default function Login() {
         body: JSON.stringify({ email, code: otpCode }),
       });
       if (data.token && data.user) {
-        const tokenKey = isEmpresas ? "jwt_token_empresas" : "jwt_token";
-        const userKey = isEmpresas ? "user_data_empresas" : "user_data";
-        localStorage.setItem(tokenKey, data.token);
-        localStorage.setItem(userKey, JSON.stringify(data.user));
+        // Empresas sigue token-based (sin cambios). Personal cookie-first (C2): no
+        // guardamos jwt_token/user_data nuevos — la cookie httpOnly ya quedó seteada
+        // por 2fa/verify y la sesión se rehidrata desde /api/auth/me tras el reload.
+        if (isEmpresas) {
+          localStorage.setItem("jwt_token_empresas", data.token);
+          localStorage.setItem("user_data_empresas", JSON.stringify(data.user));
+        }
         toast({ title: "Sesión iniciada", description: "¡Bienvenido de nuevo!" });
         Analytics.loginSuccess(isEmpresas ? "empresa" : "persona");
         window.location.href = defaultRedirect;
@@ -240,15 +243,15 @@ export default function Login() {
 
       {/* Right: Form */}
       <div className="flex-1 lg:w-1/2 flex flex-col justify-center bg-background px-6 py-12 sm:px-12 lg:px-16">
-        {/* Mobile logo */}
-        <div className="lg:hidden flex items-center gap-2 mb-10">
-          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
+        {/* Mobile logo — siempre lleva al inicio */}
+        <Link href="/" className="lg:hidden flex items-center gap-2 mb-10 w-fit" aria-label="Ir al inicio">
+          <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center">
             <Wallet className="h-5 w-5 text-white" />
           </div>
           <span className="text-lg font-bold text-foreground">
             {FEATURES.codaEmpresas && isEmpresas ? "CODA Empresas" : "CODA"}
           </span>
-        </div>
+        </Link>
 
         <div className="w-full max-w-md mx-auto space-y-8">
           <div>
@@ -262,7 +265,7 @@ export default function Login() {
                   ? "Accede a tu panel de empresas"
                   : "¿No tienes cuenta? " }
               {!requires2FA && !isEmpresas && (
-                <Link href={ROUTES.registro} className="text-blue-600 hover:underline font-medium">
+                <Link href={ROUTES.registro} className="text-primary hover:underline font-medium">
                   Crear cuenta gratis
                 </Link>
               )}
@@ -323,14 +326,14 @@ export default function Login() {
                         onChange={e => setForgotEmail(e.target.value)}
                         placeholder="tu@correo.cl"
                         disabled={forgotLoading}
-                        className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                        className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
                       />
                     </div>
                   </div>
                 </div>
                 <Button
                   type="submit"
-                  className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold text-sm"
+                  className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-semibold text-sm"
                   disabled={forgotLoading}
                 >
                   {forgotLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...</> : "Enviar enlace"}
@@ -364,12 +367,12 @@ export default function Login() {
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
                     placeholder="123456"
                     disabled={isLoading}
-                    className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 tracking-widest text-center font-mono text-lg"
+                    className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50 tracking-widest text-center font-mono text-lg"
                   />
                 </div>
               </div>
 
-              <Button type="submit" className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold" disabled={isLoading || otpCode.length !== 6}>
+              <Button type="submit" className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-semibold" disabled={isLoading || otpCode.length !== 6}>
                 {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verificando...</> : "Verificar código"}
               </Button>
 
@@ -377,7 +380,7 @@ export default function Login() {
                 <button type="button" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1" onClick={() => { setRequires2FA(false); setOtpCode(""); setError(""); }}>
                   <ArrowLeft className="h-3.5 w-3.5" /> Volver
                 </button>
-                <button type="button" className="text-sm text-blue-600 hover:underline flex items-center gap-1" onClick={handleResendCode} disabled={isLoading}>
+                <button type="button" className="text-sm text-primary hover:underline flex items-center gap-1" onClick={handleResendCode} disabled={isLoading}>
                   <RefreshCw className="h-3.5 w-3.5" /> Reenviar código
                 </button>
               </div>
@@ -400,7 +403,7 @@ export default function Login() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="tu@correo.cl"
                     disabled={isLoading}
-                    className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                    className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
                   />
                 </div>
               </div>
@@ -421,7 +424,7 @@ export default function Login() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     disabled={isLoading}
-                    className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-11 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                    className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-11 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
                   />
                   <button
                     type="button"
@@ -438,7 +441,7 @@ export default function Login() {
               <div className="flex justify-end">
                 <button
                   type="button"
-                  className="text-xs text-blue-600 hover:underline"
+                  className="text-xs text-primary hover:underline"
                   onClick={() => { setShowForgot(true); setForgotEmail(email); setError(""); }}
                 >
                   ¿Olvidaste tu contraseña?
@@ -447,7 +450,7 @@ export default function Login() {
 
               <Button
                 type="submit"
-                className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold text-sm"
+                className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-semibold text-sm"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -466,14 +469,14 @@ export default function Login() {
             </Link>
             {FEATURES.codaEmpresas && isEmpresas && (
               <p className="text-sm text-muted-foreground">
-                <Link href={ROUTES.iniciarSesion} className="text-blue-600 hover:underline">
+                <Link href={ROUTES.iniciarSesion} className="text-primary hover:underline">
                   Iniciar sesión en CODA Personal
                 </Link>
               </p>
             )}
             {FEATURES.codaEmpresas && !isEmpresas && (
               <p className="text-sm text-muted-foreground">
-                <Link href="/empresas/login" className="text-blue-600 hover:underline">
+                <Link href="/empresas/login" className="text-primary hover:underline">
                   ¿Eres empresa? CODA Empresas →
                 </Link>
               </p>

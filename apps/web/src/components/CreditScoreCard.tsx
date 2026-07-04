@@ -127,9 +127,11 @@ export default function CreditScoreCard() {
     );
   }
 
-  const noScore = creditScore == null || creditScore.score == null || typeof creditScore.score !== "number";
+  const scoreValue = creditScore?.score;
+  const noScore = typeof scoreValue !== "number";
   const isServerError = !!error;
-  const invalidData = rawData != null && (creditScore == null || noScore);
+  const unavailable = creditScore?.available === false;
+  const invalidData = rawData != null && !unavailable && (creditScore == null || noScore);
 
   if (error || !creditScore || noScore) {
     return (
@@ -147,15 +149,18 @@ export default function CreditScoreCard() {
               <Info className="h-6 w-6 text-muted-foreground" />
             </div>
             <p className="font-medium text-muted-foreground mb-1">
+              {unavailable && "Pendiente de Análisis"}
               {invalidData && "Sin datos disponibles"}
-              {noScore && !error && !invalidData && "Pendiente de Análisis"}
+              {noScore && !error && !invalidData && !unavailable && "Pendiente de Análisis"}
               {error && (error instanceof Error ? error.message : String(error))}
               {!rawData && !error && "Cargando..."}
             </p>
             <p className="text-sm text-muted-foreground mb-4">
               {isServerError
                 ? "Hubo un fallo en el servidor al obtener el score. Comprueba que estés autenticado y vuelve a intentar."
-                : invalidData
+                : unavailable
+                  ? (creditScore?.message ?? "Sube un Informe de Deudas CMF para obtener tu score crediticio.")
+                  : invalidData
                   ? "El servidor respondió pero sin score válido. Sube un Informe CMF o pulsa Actualizar."
                   : noScore && !error
                     ? "Sube un Informe de Deudas CMF en la tarjeta Documentos oficiales para obtener tu score (Deuda $0 = perfil saludable)."
@@ -176,9 +181,9 @@ export default function CreditScoreCard() {
     );
   }
 
-  const scoreStatus = getCreditScoreStatus(creditScore.score);
-  const circleColor = getCircleColor(creditScore.score);
-  const progress = (creditScore.score / creditScore.maxScore) * 100;
+  const scoreStatus = getCreditScoreStatus(scoreValue);
+  const circleColor = getCircleColor(scoreValue);
+  const progress = (scoreValue / creditScore.maxScore) * 100;
   
   const getStatusBadgeStyle = () => {
     const l = scoreStatus.label.toLowerCase();
@@ -212,7 +217,7 @@ export default function CreditScoreCard() {
         <div className="flex justify-center py-2">
           <ProgressRing progress={progress} color={circleColor}>
             <div className="text-score-value font-bold">
-              {creditScore.score}
+              {scoreValue}
             </div>
             <div className="text-xs text-muted-foreground">
               de {creditScore.maxScore}
@@ -274,7 +279,7 @@ export default function CreditScoreCard() {
         <div className="space-y-6 py-2">
           <div className="flex justify-center">
             <ProgressRing progress={progress} color={circleColor}>
-              <div className="text-score-value font-bold">{creditScore.score}</div>
+              <div className="text-score-value font-bold">{scoreValue}</div>
               <div className="text-xs text-muted-foreground">de {creditScore.maxScore}</div>
             </ProgressRing>
           </div>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApi, apiFetch } from "@/lib/api";
-import { useAuth, getPersonalToken } from "@/lib/auth";
+import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { mapUserFacingApiError } from "@/lib/userFacingErrors";
 import { Analytics } from "@/lib/analytics";
@@ -395,8 +395,8 @@ export default function Plan() {
     queryKey: ["financial-summary"],
     queryFn: async () => {
       const token = getPersonalToken();
-      if (!token) return null;
-      return apiFetch("/api/financial-summary", { headers: { Authorization: `Bearer ${token}` } });
+      if (!token && !hasPersonalSession()) return null;
+      return apiFetch("/api/financial-summary");
     },
     enabled: isAuthenticated && !authLoading,
     staleTime: 30_000,
@@ -410,10 +410,7 @@ export default function Plan() {
     setPlanRequested(true);
     setPlanLoading(true);
     try {
-      const token = getPersonalToken();
-      const data = await apiFetch("/api/plan/insights", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const data = await apiFetch("/api/plan/insights");
       setPlanData(data as PlanInsightsData);
     } catch {
       toast({ title: "Error", description: "No se pudo generar el plan. Intenta de nuevo.", variant: "destructive" });

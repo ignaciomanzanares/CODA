@@ -61,7 +61,7 @@ function computeExpressScore(input: ExpressInput): number {
 
 function scoreLabel(score: number): { text: string; color: string; ring: string } {
   if (score >= 75) return { text: "Excelente", color: "text-emerald-400", ring: "stroke-emerald-400" };
-  if (score >= 55) return { text: "Bueno", color: "text-blue-400", ring: "stroke-blue-400" };
+  if (score >= 55) return { text: "Bueno", color: "text-lime-400", ring: "stroke-lime-400" };
   if (score >= 35) return { text: "Regular", color: "text-amber-400", ring: "stroke-amber-400" };
   return { text: "Bajo", color: "text-red-400", ring: "stroke-red-400" };
 }
@@ -115,7 +115,7 @@ function Slider({
       <div className="relative h-2">
         <div className="absolute inset-0 rounded-full bg-white/10" />
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-blue-400"
+          className="absolute inset-y-0 left-0 rounded-full bg-primary"
           style={{ width: `${pct}%` }}
         />
         <input
@@ -174,8 +174,8 @@ function RecommendedProductCard({ product, rank }: { product: RankedProduct; ran
   return (
     <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3 transition-colors hover:bg-white/[0.08]">
       {/* Rank number */}
-      <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
-        <span className="text-sm font-bold text-blue-400">#{rank}</span>
+      <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
+        <span className="text-sm font-bold text-primary">#{rank}</span>
       </div>
       {/* Info */}
       <div className="flex-1 min-w-0">
@@ -242,7 +242,7 @@ export default function ScoreExpressWidget() {
       <div className="container mx-auto px-4 max-w-4xl">
         {/* Heading */}
         <div className="text-center mb-12">
-          <span className="inline-block text-xs font-semibold uppercase tracking-widest text-blue-400 mb-3">
+          <span className="inline-block text-xs font-semibold uppercase tracking-widest text-primary mb-3">
             Pruébalo ahora
           </span>
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
@@ -307,7 +307,7 @@ export default function ScoreExpressWidget() {
               {/* Toggle products */}
               <button
                 onClick={() => setShowProducts(v => !v)}
-                className="flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
+                className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
               >
                 <Store className="h-4 w-4" />
                 {showProducts ? "Ocultar productos" : "Ver productos recomendados"}
@@ -358,7 +358,7 @@ export default function ScoreExpressWidget() {
 
               <Link href={ROUTES.registro}>
                 <Button
-                  className="w-full bg-blue-500 hover:bg-blue-400 text-white font-semibold h-11 mt-2"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-11 mt-2"
                   onClick={() => Analytics.signupStarted()}
                 >
                   Crear cuenta gratis y ver todos
@@ -374,7 +374,7 @@ export default function ScoreExpressWidget() {
               <div className="flex flex-col sm:flex-row gap-3 items-center">
                 <Link href={ROUTES.registro} className="w-full sm:flex-1">
                   <Button
-                    className="w-full bg-blue-500 hover:bg-blue-400 text-white font-semibold h-11"
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-11"
                     onClick={() => Analytics.signupStarted()}
                   >
                     Obtén tu score real

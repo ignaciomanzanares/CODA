@@ -42,13 +42,16 @@ describe('accountKindForBanco — cuenta corriente vs tarjeta', () => {
   });
 });
 
-describe('isInternalByDescription — sólo patrones claros', () => {
+describe('isInternalByDescription — sólo traspasos entre productos propios', () => {
   for (const d of [
-    'Traspaso Internet a T. Crédito', 'MONTO CANCELADO', 'PAGO COOPEUCH',
+    'Traspaso Internet a T. Crédito', 'MONTO CANCELADO',
     'ABONO DE DIVISAS', 'Egreso por Compra de Divisas',
   ]) {
     it(`"${d}" → interna`, () => expect(isInternalByDescription(d)).toBe(true));
   }
+  it('PAGO COOPEUCH NO es interna (dividendo hipotecario = gasto real)', () => {
+    expect(isInternalByDescription('PAGO COOPEUCH')).toBe(false);
+  });
   it('una transferencia de tercero NO es interna', () => {
     expect(isInternalByDescription('Transf de PATRICIO RAFAEL')).toBe(false);
     expect(isInternalByDescription('Compra Nacional JUMBO')).toBe(false);

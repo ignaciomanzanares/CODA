@@ -9,6 +9,7 @@
     "seed:products": "tsx src/scripts/seedProducts.ts",
     "db:recategorize": "tsx src/scripts/recategorize.ts",
     "db:normalize-cartolas": "tsx src/scripts/normalize-cartolas.ts",
+    "db:backfill-source-links": "tsx src/scripts/backfill-source-document-upload-links.ts",
     "db:dedupe-assets": "tsx src/scripts/dedupeAssets.ts",
     "db:rotate-encryption-key": "tsx src/scripts/rotate-encryption-key.ts",
     "db:backfill-rut-hash": "tsx src/scripts/backfillRutHash.ts",
@@ -30,9 +31,11 @@
   "dependencies": {
     "@coda/db": "*",
     "@napi-rs/canvas": "^0.1.94",
+    "@sentry/node": "^10.62.0",
     "@types/cors": "^2.8.19",
     "bullmq": "^5.79.1",
     "canvas": "^3.2.1",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.2.1",
     "drizzle-orm": "^0.45.2",
@@ -62,6 +65,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",

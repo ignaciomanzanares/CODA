@@ -35,7 +35,6 @@ import {
   Landmark,
   Sun,
   Moon,
-  Monitor,
 } from "lucide-react";
 import NotificationCenter from "@/components/NotificationCenter";
 import { cn } from "@/lib/utils";
@@ -147,17 +146,19 @@ export default function Header() {
               })}
             </nav>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
-            onClick={toggleTheme}
-            title={theme === "light" ? "Modo oscuro" : theme === "dark" ? "Modo sistema" : "Modo claro"}
-          >
-            {theme === "light" && <Sun className="h-4 w-4" />}
-            {theme === "dark" && <Moon className="h-4 w-4" />}
-            {theme === "system" && <Monitor className="h-4 w-4" />}
-          </Button>
+          {/* Toggle claro/oscuro: solo en la app (logueado). La landing es un
+              diseño fijo de marketing, así que ahí no se muestra. */}
+          {isAuthenticated && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={toggleTheme}
+              title={theme === "light" ? "Modo oscuro" : "Modo claro"}
+            >
+              {theme === "light" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+          )}
         </div>
 
         {/* Derecha: CODA Personal/Empresas, notificaciones, usuario — lo más a la derecha */}

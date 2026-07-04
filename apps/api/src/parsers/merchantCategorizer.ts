@@ -114,7 +114,7 @@ export function normalizeMerchant(raw: string): string {
 // ──────────────────────────────────────────────────────────────────────────────
 
 /** Versión del motor — se registra en cada categorización (NCG 502). */
-export const CATEGORIZER_VERSION = "batch10.v1";
+export const CATEGORIZER_VERSION = "batch10.v3";
 
 export type CategoryLabel =
   | "Vivienda"
@@ -234,10 +234,10 @@ const RULES: Rule[] = [
   { id: "cl.inversion.divisas", category: "Inversión y divisas", re: /\bAFEX\b|AGENTES?\s+DE\s+VAL|\bDIVISA(S)?\b|FONDO\s+MUTUO|\bFINTUAL\b|\bRACIONAL\b|CORREDORA\s+DE\s+BOLSA|CASA\s+DE\s+CAMBIO|\bAFP\b|\bAPV\b|DEP[O]?SITO\s+A\s+PLAZO|\bDAP\b/, confidence: 0.88 },
 
   // ── Suscripciones y software ──────────────────────────────────────────────
-  { id: "cl.suscripciones", category: "Suscripciones y software", re: /NETFLIX|SPOTIFY|OPENAI|CHATGPT|ANTHROPIC|CLAUDE|\bHBO\b|DISNEY|PARAMOUNT|STAR\+|YOUTUBE\s*PREMIUM|AMAZON\s+PRIME|PRIME\s+VIDEO|APPLE\.COM|ITUNES|ICLOUD|APPLE\s+MUSIC|\bADOBE\b|\bNOTION\b|\bCANVA\b|MICROSOFT|OFFICE\s?365|\bGITHUB\b|\bGOOGLE\b|DROPBOX|\bLINKEDIN\b|SUSCRIPCION|SUBSCRIPTION|\bSUBSCR\b|MEMBERSHIP|MEMBRESIA|\bPATREON\b/, confidence: 0.9, recurring: true },
+  { id: "cl.suscripciones", category: "Suscripciones y software", re: /NETFLIX|SPOTIFY|OPENAI|CHATGPT|ANTHROPIC|CLAUDE|\bHBO\b|DISNEY|PARAMOUNT|STAR\+|YOUTUBE\s*PREMIUM|AMAZON\s+PRIME|PRIME\s+VIDEO|\bAMZN\b|\bAMAZON\b|APPLE\.COM|ITUNES|ICLOUD|APPLE\s+MUSIC|\bADOBE\b|\bNOTION\b|\bCANVA\b|MICROSOFT|OFFICE\s?365|\bGITHUB\b|\bGOOGLE\b|DROPBOX|\bLINKEDIN\b|SUSCRIPCION|SUBSCRIPTION|\bSUBSCR\b|MEMBERSHIP|MEMBRESIA|\bPATREON\b/, confidence: 0.9, recurring: true },
 
   // ── Entretenimiento ───────────────────────────────────────────────────────
-  { id: "cl.entretenimiento", category: "Entretenimiento", re: /PLAY\s?STATION|\bXBOX\b|NINTENDO|\bSTEAM\b|EPIC\s+GAMES|\bRIOT\b|\bTWITCH\b|CINEMARK|CINE\s?HOYTS|\bHOYTS\b|CINEPOLIS|\bCINE\b|\bTEATRO\b|CONCIERTO|\bGYM\b|GIMNASIO|SMART\s?FIT|\bPASS\s?LINE\b|PUNTO\s?TICKET|TICKETMASTER/, confidence: 0.88 },
+  { id: "cl.entretenimiento", category: "Entretenimiento", re: /PLAY\s?STATION|\bXBOX\b|NINTENDO|\bSTEAM\b|EPIC\s+GAMES|\bRIOT\b|\bTWITCH\b|CINEMARK|CINE\s?HOYTS|\bHOYTS\b|CINEPOLIS|\bCINE\b|\bCINEMA\b|ENTERTAI|ENTERTAINMENT|\bTEATRO\b|CONCIERTO|\bGYM\b|GIMNASIO|SMART\s?FIT|\bPASS\s?LINE\b|PUNTO\s?TICKET|TICKETMASTER/, confidence: 0.88 },
 
   // ── Combustible ───────────────────────────────────────────────────────────
   { id: "cl.combustible", category: "Combustible", re: /\bCOPEC\b|\bSHELL\b|\bESMAX\b|PETROBRAS|\bARAMCO\b|\bENEX\b|\bTERPEL\b|PETRONOR|\bBENCINA\b|COMBUSTIBLE|\bGASOLINA\b|\bDIESEL\b|FULL\s+COPEC/, confidence: 0.92 },
@@ -247,9 +247,10 @@ const RULES: Rule[] = [
 
   // ── Transporte ────────────────────────────────────────────────────────────
   { id: "cl.transporte", category: "Transporte", re: /\bUBER\b|\bCABIFY\b|\bDIDI\b|\bBEAT\b|\bLIME\b|\bBIP\b|TRANSANTIAGO|RED\s+MOVILIDAD|METRO\s+DE\b|\bPASAJE\b|AUTOPISTA|\bTAG\b|\bPEAJE\b|ESTACIONAMIENTO|\bPARKING\b|\bTAXI\b|VESPUCIO|COSTANERA\s+NORTE/, not: /UBER\s*EATS|DIDI\s*FOOD/, confidence: 0.88 },
+  { id: "cl.transporte.aereo", category: "Transporte", re: /\bLATAM\b|SKY\s?AIRLINE|\bJETSMART\b|JET\s+SMART|AEROLINEA|\bVUELO\b|AEROPUERTO/, confidence: 0.88 },
 
   // ── Restaurantes — locales ────────────────────────────────────────────────
-  { id: "cl.restaurantes", category: "Restaurantes y delivery", re: /MC\s?DONALD|BURGER\s+KING|\bKFC\b|\bSUBWAY\b|\bPIZZA\b|\bSUSHI\b|STARBUCKS|JUAN\s+VALDEZ|RESTAURANT|RESTOBAR|\bCAFE\b|CAFETERIA|\bBAR\b|EMPANAD|PANADERIA|PASTELERIA/, confidence: 0.82 },
+  { id: "cl.restaurantes", category: "Restaurantes y delivery", re: /MC\s?DONALD|BURGER\s+KING|\bKFC\b|\bSUBWAY\b|\bPIZZA\b|\bSUSHI\b|STARBUCKS|JUAN\s+VALDEZ|\bVIPS\b|RESTAURANT|RESTOBAR|\bCAFE\b|CAFETERIA|\bBAR\b|EMPANAD|PANADERIA|PASTELERIA/, confidence: 0.82 },
 
   // ── Salud y farmacia ──────────────────────────────────────────────────────
   { id: "cl.salud", category: "Salud y farmacia", re: /CRUZ\s+VERDE|SALCO\s?BRAND|\bFARMACIA(S)?\b|\bAHUMADA\b|DR\.?\s?SIMI|\bFONASA\b|\bISAPRE\b|BANMEDICA|CONSALUD|\bCOLMENA\b|\bCLINICA\b|HOSPITAL|\bDENTAL\b|DENTISTA|\bMEDIC|\bOPTICA\b/, confidence: 0.88 },
@@ -261,16 +262,16 @@ const RULES: Rule[] = [
   { id: "cl.servicios_basicos", category: "Servicios básicos", re: /\bENEL\b|\bCGE\b|CHILECTRA|\bSAESA\b|FRONTEL|CONAFE|AGUAS\s+ANDINAS|\bESVAL\b|\bESSBIO\b|AGUAS\s+DEL\s+VALLE|\bAGUAS\b|METROGAS|LIPIGAS|ABASTIBLE|\bGASCO\b|GAS\s+NATURAL|MOVISTAR|\bENTEL\b|\bWOM\b|\bVTR\b|\bCLARO\b|\bGTD\b|MUNDO\s+PACIFICO|INTERNET\s+HOGAR|FIBRA\s+OPTICA/, confidence: 0.9, recurring: true },
 
   // ── Viajes ────────────────────────────────────────────────────────────────
-  { id: "cl.viajes", category: "Viajes", re: /\bLATAM\b|SKY\s?AIRLINE|\bJETSMART\b|JET\s+SMART|\bBOOKING\b|DESPEGAR|\bAIRBNB\b|TRIP\.COM|\bHOTEL\b|AEROLINEA|\bVUELO\b|AEROPUERTO|\bEXPEDIA\b|\bKAYAK\b/, confidence: 0.85 },
+  { id: "cl.viajes", category: "Viajes", re: /\bBOOKING\b|DESPEGAR|\bAIRBNB\b|TRIP\.COM|\bHOTEL\b|\bEXPEDIA\b|\bKAYAK\b/, confidence: 0.85 },
 
   // ── Educación ─────────────────────────────────────────────────────────────
   { id: "cl.educacion", category: "Educación", re: /UNIVERSIDAD|\bCOLEGIO\b|\bLICEO\b|\bDUOC\b|\bINACAP\b|\bCFT\b|PREUNIVERSITARIO|MATRICULA|\bARANCEL\b|JARDIN\s+INFANTIL|INSTITUTO\s+PROF|PONTIFICIA|\bESCUELA\b/, confidence: 0.88, recurring: true },
 
   // ── Retail y compras ──────────────────────────────────────────────────────
-  { id: "cl.retail", category: "Retail y compras", re: /FALABELLA|\bPARIS\b|\bRIPLEY\b|LA\s+POLAR|\bHITES\b|ABC\s?DIN|SODIMAC|\bEASY\b|HOMECENTER|\bIKEA\b|MERCADO\s?LIBRE|ALIEXPRESS|\bSHEIN\b|\bAMAZON\b|\bEBAY\b|\bSHOPEE\b|CASAIDEAS|\bTIENDA\b/, confidence: 0.8 },
+  { id: "cl.retail", category: "Retail y compras", re: /FALABELLA|\bPARIS\b|\bRIPLEY\b|LA\s+POLAR|\bHITES\b|ABC\s?DIN|SODIMAC|\bEASY\b|HOMECENTER|\bIKEA\b|MERCADO\s?LIBRE|ALIEXPRESS|\bSHEIN\b|\bAMAZON\b|\bEBAY\b|\bSHOPEE\b|CASAIDEAS|\bTIENDA\b|\bZETTLE\b|\bLOCAL\s+DEALER\b|\bNYX\b.*SERVICIOS/, confidence: 0.8 },
 
   // ── Transferencias a terceros (PATRÓN — nunca el nombre de la contraparte) ─
-  { id: "transfer.tercero", category: "Transferencias", re: /\bTRANSF(?:ERENCIA)?\.?\s+A\b|\bTRANSF(?:ERENCIA)?\.?\s+DE\b|\bTEF\b|\bTRASPASO\s+A\b|\bGIRO\s+A\b/, confidence: 0.78 },
+  { id: "transfer.tercero", category: "Transferencias", re: /\bTRANSF(?:ERENCIA)?\.?\s+A\b|\bTRANSF(?:ERENCIA)?\.?\s+DE\b|\bTEF\b|\bTRASPASO\s+A\b|\bGIRO\s+A\b|\b(?:\d{7,8}[\dK]\s+)?TRANSF\.?\s+\S+/, confidence: 0.78 },
 ];
 
 /**
@@ -320,6 +321,14 @@ function build(
   };
 }
 
+function transferSubcategory(input: CategorizeInput): "Transferencias recibidas" | "Transferencias enviadas" {
+  if (input.tipo === "abono") return "Transferencias recibidas";
+  if (input.tipo === "cargo") return "Transferencias enviadas";
+  if (typeof input.monto === "number" && input.monto > 0) return "Transferencias recibidas";
+  if (typeof input.monto === "number" && input.monto < 0) return "Transferencias enviadas";
+  return "Transferencias enviadas";
+}
+
 /**
  * Categoriza una transacción de forma determinista y auditable.
  * Lo desconocido permanece "Otro" con baja confianza — nunca se inventa.
@@ -336,7 +345,7 @@ export function categorize(input: CategorizeInput): CategorizationResult {
   for (const rule of RULES) {
     if (rule.re.test(haystack) && !(rule.not && rule.not.test(haystack))) {
       return build(rule.category, rule.id, rule.confidence, {
-        subcategory: rule.subcategory,
+        subcategory: rule.category === "Transferencias" ? transferSubcategory(input) : rule.subcategory,
         recurring: rule.recurring,
       });
     }

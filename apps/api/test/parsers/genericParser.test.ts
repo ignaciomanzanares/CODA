@@ -44,4 +44,12 @@ describe("parser genérico por coordenadas (#20)", () => {
       expect(generic.reconciliation).toBeTruthy();
     });
   }
+
+  // Contrato de fallback graceful (#20): si el motor no logra un parseo válido, el genérico
+  // LANZA en vez de devolver basura. Asi `tryGenericParser` lo captura -> null y el caller
+  // conserva el ParseError original mas informativo (no se inventan transacciones).
+  it("rechaza (lanza) un buffer ilegible en vez de devolver un resultado parcial", async () => {
+    const notAPdf = Buffer.from("esto no es un PDF de cartola");
+    await expect(parseGeneric(notAPdf)).rejects.toThrow();
+  });
 });

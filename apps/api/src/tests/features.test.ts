@@ -1,42 +1,23 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { buildUserFeatureVector } from "../ml/features.js";
 import { storage } from "../storage.js";
-import { db, users, accounts, transactions, eq, inArray } from "../db/index.js";
 import type { InsertAccount, InsertTransaction } from "../schema.js";
 
 /**
- * Aislamiento de test: la BD SQLite de dev/test es un archivo persistente (packages/data/coda.db),
- * así que filas de corridas anteriores quedan. Borramos por email (en orden de FK:
- * transactions → accounts → users) para empezar limpio en cada test, evitando que cuentas exactas
- * (txCount, totalCredits, etc.) se inflen al acumular datos entre corridas.
+ * Aislamiento de test: la BD SQLite de dev/test es un archivo persistente (packages/data/coda.db).
+ * Cada corrida usa un userId aleatorio único (ver beforeEach) para no acumular datos entre corridas.
  */
-async function cleanupTestUserByEmail(email: string): Promise<void> {
-  if (!db) return;
-  const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
-  const ids = existing.map((u: { id: string }) => u.id);
-  if (ids.length === 0) return;
-  const accs = await db.select({ id: accounts.id }).from(accounts).where(inArray(accounts.userId, ids));
-  const accIds = accs.map((a: { id: number }) => a.id);
-  if (accIds.length > 0) {
-    await db.delete(transactions).where(inArray(transactions.accountId, accIds));
-    await db.delete(accounts).where(inArray(accounts.id, accIds));
-  }
-  await db.delete(users).where(inArray(users.id, ids));
-}
-
 describe("Feature Engineering", () => {
-  const TEST_USER_ID = "test-user-features";
+  let testUserId: string;
 
   beforeEach(async () => {
-    // Limpiar datos de corridas previas (incluye filas legacy con otro id pero mismo email).
-    await cleanupTestUserByEmail("test@example.com");
-    await cleanupTestUserByEmail("empty@example.com");
+    testUserId = `test-user-features-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     // Create test user
     await storage.createUser({
-      id: TEST_USER_ID,
-      username: "testuser",
-      email: "test@example.com",
+      id: testUserId,
+      username: testUserId,
+      email: `${testUserId}@example.com`,
       passwordHash: "testhash",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -44,7 +25,7 @@ describe("Feature Engineering", () => {
 
     // Create test account
     const account = await storage.createAccount({
-      userId: TEST_USER_ID,
+      userId: testUserId,
       name: "Test Checking",
       type: "checking",
       currency: "USD",
@@ -109,7 +90,7 @@ describe("Feature Engineering", () => {
   });
 
   it("should compute basic transaction statistics", async () => {
-    const features = await buildUserFeatureVector(TEST_USER_ID, 90);
+    const features = await buildUserFeatureVector(testUserId, 90);
 
     expect(features.txCount).toBe(5);
     expect(features.debitCount).toBe(3);
@@ -118,7 +99,7 @@ describe("Feature Engineering", () => {
   });
 
   it("should calculate total credits and debits correctly", async () => {
-    const features = await buildUserFeatureVector(TEST_USER_ID, 90);
+    const features = await buildUserFeatureVector(testUserId, 90);
 
     // The test creates transactions for "test-user-features" but also might pick up seeded data
     // So we check that credits are at least 10000 (our 2 salary transactions)
@@ -127,21 +108,21 @@ describe("Feature Engineering", () => {
   });
 
   it("should compute debit-to-credit ratio", async () => {
-    const features = await buildUserFeatureVector(TEST_USER_ID, 90);
+    const features = await buildUserFeatureVector(testUserId, 90);
 
     const expectedRatio = 1795 / 10000;
     expect(features.debitCreditRatio).toBeCloseTo(expectedRatio, 4);
   });
 
   it("should count active days correctly", async () => {
-    const features = await buildUserFeatureVector(TEST_USER_ID, 90);
+    const features = await buildUserFeatureVector(testUserId, 90);
 
     // We have transactions on 5 different days
     expect(features.activeDays).toBeGreaterThanOrEqual(4);
   });
 
   it("should calculate DTI-related features", async () => {
-    const features = await buildUserFeatureVector(TEST_USER_ID, 90);
+    const features = await buildUserFeatureVector(testUserId, 90);
 
     expect(features.monthlyIncome).toBeGreaterThan(0);
     expect(features.monthlyDebits).toBeGreaterThan(0);
@@ -150,21 +131,21 @@ describe("Feature Engineering", () => {
   });
 
   it("should identify recurring expenses", async () => {
-    const features = await buildUserFeatureVector(TEST_USER_ID, 90);
+    const features = await buildUserFeatureVector(testUserId, 90);
 
     // Whole Foods appears twice, should be marked as recurring
     expect(features.recurringExpenseShare).toBeGreaterThan(0);
   });
 
   it("should compute top category share", async () => {
-    const features = await buildUserFeatureVector(TEST_USER_ID, 90);
+    const features = await buildUserFeatureVector(testUserId, 90);
 
     // We have 2 income transactions and 2 grocery transactions out of 5 total
     expect(features.topCategoryShare).toBeGreaterThanOrEqual(0.4); // 2/5
   });
 
   it("should handle empty transaction history", async () => {
-    const emptyUser = "empty-user";
+    const emptyUser = `empty-user-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     await storage.createUser({
       id: emptyUser,
       username: "emptyuser",

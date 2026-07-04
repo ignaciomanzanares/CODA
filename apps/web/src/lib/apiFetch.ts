@@ -14,7 +14,6 @@ export class ApiError extends Error {
 }
 
 import { dispatchSessionExpired } from './authEvents';
-import { withCsrfHeader } from './csrf';
 
 function messageFromErrorBody(text: string, status: number): string {
   const trimmed = text?.trim() ?? "";
@@ -73,13 +72,30 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
   // Timeout via AbortController (skip if caller already provides a signal)
   let controller: AbortController | undefined;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const fetchInit = { ...init };
-  // Cookie de sesión httpOnly (#10, modo híbrido): siempre la mandamos, además
-  // del header Authorization que algunos callers ya adjuntan.
-  if (fetchInit.credentials === undefined) {
-    fetchInit.credentials = "include";
+  // Personal usa la cookie httpOnly; empresas conserva Bearer. El CORS del API
+  // responde Access-Control-Allow-Credentials: true. El caller puede
+  // sobreescribirlo vía `init.credentials`.
+  const fetchInit: RequestInit = { credentials: "include", ...init };
+  // Sesión cookie-only: si un caller adjuntó un Authorization Bearer "vacío"
+  // (p. ej. `Bearer ${token}` con token null/"" cuando no hay jwt_token), lo
+  // quitamos. Así el backend autentica con la cookie httpOnly en vez de rechazar
+  // un Bearer inválido (que tiene prioridad estricta sobre la cookie).
+  if (
+    fetchInit.headers &&
+    typeof fetchInit.headers === "object" &&
+    !(fetchInit.headers instanceof Headers) &&
+    !Array.isArray(fetchInit.headers)
+  ) {
+    const h = fetchInit.headers as Record<string, string>;
+    const auth = h.Authorization ?? h.authorization;
+    if (typeof auth === "string") {
+      const tokenPart = auth.replace(/^Bearer\s*/i, "").trim();
+      if (tokenPart === "" || tokenPart === "null" || tokenPart === "undefined") {
+        delete h.Authorization;
+        delete h.authorization;
+      }
+    }
   }
-  fetchInit.headers = withCsrfHeader(fetchInit.method, { ...(fetchInit.headers as Record<string, string> | undefined) });
   if (!fetchInit.signal) {
     controller = new AbortController();
     fetchInit.signal = controller.signal;
@@ -110,7 +126,11 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
   const text = await res.text().catch(() => "");
   if (!res.ok) {
     if (res.status === 401) dispatchSessionExpired(String(url));
-    const msg = messageFromErrorBody(text, res.status);
+    // No exponer el mensaje técnico de auth del backend; mensaje amigable en 401.
+    const msg =
+      res.status === 401
+        ? "Tu sesión expiró. Inicia sesión nuevamente."
+        : messageFromErrorBody(text, res.status);
     console.error(`[apiFetch] HTTP ${res.status}:`, msg, "url:", url);
     throw new ApiError(msg, res.status);
   }

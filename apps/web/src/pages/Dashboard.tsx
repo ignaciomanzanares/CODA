@@ -32,7 +32,6 @@ import { RefreshCw, FileText, Upload, ChevronLeft, ChevronRight, RotateCcw, More
 import { cn } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
 import { apiFetch } from "@/lib/apiFetch";
-import { getPersonalToken } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 
 const fmtCLP = (n: number) =>
@@ -61,19 +60,22 @@ export default function Dashboard() {
   const handleRecategorizeAll = async () => {
     setIsRecategorizing(true);
     setShowAdminMenu(false);
+    toast({
+      title: "Recategorizando transacciones",
+      description: "Estamos actualizando las categorías con el motor más reciente.",
+    });
     try {
-      const token = getPersonalToken();
       const result = await apiFetch("/api/admin/recategorize", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      }) as { updated: number };
+      }) as { updated: number; scanned?: number; version?: string };
       await queryClient.invalidateQueries();
       const updated = result?.updated ?? 0;
+      const scanned = result?.scanned ?? 0;
       toast({
         title: "Categorías actualizadas",
         description: updated > 0
-          ? `Se recategorizaron ${updated} transacciones.`
-          : "Todas las transacciones ya tenían la categoría correcta.",
+          ? `Se recategorizaron ${updated} de ${scanned} transacciones.`
+          : `Todas las ${scanned} transacciones ya tenían la categoría correcta.`,
       });
     } catch {
       toast({
@@ -258,22 +260,31 @@ export default function Dashboard() {
                 <ScoreHero score={data.score} delta={data.scoreDelta} />
               )}
 
-              {/* Credit Score (compact, only when available) */}
-              {data.creditScore !== null && (
-                <CreditScoreCard
-                  score={data.creditScore}
-                  delta={data.creditScoreDelta}
-                  lastUpdated={data.creditScoreDate}
-                />
-              )}
+              {/* Credit Score (CMF, separate from transactional score) */}
+              <CreditScoreCard
+                score={data.creditScore}
+                available={data.creditScoreAvailable}
+                unavailableReason={data.creditScoreUnavailableReason}
+                message={data.creditScoreMessage}
+                sourceLabel={data.creditScoreSource?.label ?? null}
+                sourceUploadedAt={data.creditScoreSource?.uploadedAt ?? null}
+                delta={data.creditScoreDelta}
+                lastUpdated={data.creditScoreDate}
+              />
 
               {/* Score Breakdown — how to improve */}
               {data.score !== null && (
-                <ScoreBreakdown
-                  score={data.score}
-                  insights={data.scoreInsights}
-                  creditScore={data.creditScore}
-                />
+	                <ScoreBreakdown
+	                  score={data.score}
+	                  insights={data.scoreInsights}
+	                  creditScore={data.creditScore}
+	                  totalIncome={data.totalIncome}
+	                  totalExpenses={data.totalExpenses}
+	                  savingsNet={data.savingsNet}
+	                  savingsRate={data.savingsRate}
+	                  scoreConfidence={data.scoreConfidence}
+	                  scoreObservedMonths={data.scoreObservedMonths}
+	                />
               )}
 
               {/* Balance del período */}

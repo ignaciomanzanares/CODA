@@ -14,7 +14,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { API_URL } from "@/lib/api";
-import { useAuth, getPersonalToken } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import SignInBanner from "@/components/SignInBanner";
 import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
 import { useToast } from "@/hooks/use-toast";
@@ -42,10 +42,9 @@ export default function Expenses() {
   const confirmLimpiarCartolas = async () => {
     setIsLimpiando(true);
     try {
-      const token = localStorage.getItem("jwt_token") ?? "";
       const res = await fetch(apiUrl("/api/user/cartolas"), {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       });
       if (!res.ok) throw new Error(`Error ${res.status}`);
       // Deleting cartolas changes all financial data globally

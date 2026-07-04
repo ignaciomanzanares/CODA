@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Ejercicio de restauración de Neon (#7): crea un branch point-in-time, mide el RTO real.
+# Ejercicio de restauración de Neon (#7): crea un branch point-in-time aislado y mide el RTO real.
+# NO toca producción (solo crea un branch nuevo). Ver docs/DISASTER_RECOVERY.md.
 # Requiere: NEON_API_KEY, NEON_PROJECT_ID. Opcional: RESTORE_MINUTES_AGO (default 60).
 set -euo pipefail
 

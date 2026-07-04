@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { useAuth, getPersonalToken } from "@/lib/auth";
+import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -58,8 +58,8 @@ export default function SmartInsights() {
     queryKey: ["/api/transactions/insights"],
     queryFn: () => {
       const token = getPersonalToken();
-      if (!token) return Promise.resolve({ insights: [], spendingByCategory: [], totalEgresos: 0, totalIngresos: 0 });
-      return apiFetch("/api/transactions/insights", { headers: { Authorization: `Bearer ${token}` } });
+      if (!token && !hasPersonalSession()) return Promise.resolve({ insights: [], spendingByCategory: [], totalEgresos: 0, totalIngresos: 0 });
+      return apiFetch("/api/transactions/insights");
     },
     enabled: isAuthenticated,
     staleTime: 60_000,

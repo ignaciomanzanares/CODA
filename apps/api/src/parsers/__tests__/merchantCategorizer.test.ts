@@ -67,7 +67,14 @@ describe("categorize — real cartola corpus", () => {
     ["ANTHROPIC", "Suscripciones y software"],
     ["Google Workspace_codafina", "Suscripciones y software"],
     ["LIME*RIDE", "Transporte"],
-    ["LATAM.COM EUR LA", "Viajes"],
+    ["UBER", "Transporte"],
+    ["LATAM.COM EUR LA", "Transporte"],
+    ["MERPAGO*LATAM", "Transporte"],
+    ["Prime Video", "Suscripciones y software"],
+    ["Amazon", "Suscripciones y software"],
+    ["amzn", "Suscripciones y software"],
+    ["CAFE HAITI", "Restaurantes y delivery"],
+    ["VIPs", "Restaurantes y delivery"],
     ["PLAYSTATION", "Entretenimiento"],
     ["PAGO EN LINEA T.G.R.", "Impuestos y servicios públicos"],
     ["COM.MANT.PROD.OPC.CTA.CTE.", "Comisiones bancarias"],
@@ -98,7 +105,61 @@ describe("categorize — real cartola corpus", () => {
   it("transfer to a third party matches the pattern, not the name", () => {
     const r = categorize({ descripcion: "Transf a Maria Gonzalez", tipo: "cargo" });
     expect(r.category).toBe("Transferencias");
+    expect(r.subcategory).toBe("Transferencias enviadas");
     expect(r.ruleId).toBe("transfer.tercero");
+    expect(r.confidence).toBeGreaterThan(0.5);
+  });
+
+  it("generic Santander transfer deposits are Transferencias recibidas, not Otro", () => {
+    const descriptions = [
+      "Transf. Rudolf Paul Schmidt Crnos",
+      "077971019K Transf. STALLION SPA",
+      "Transf. AGUILERA PINEIRO ANA",
+      "Transf. JUAN SEBASTIAN CABELLO",
+      "Transf. HAUG LIMITADA HAUG",
+      "77.901.388-K Transf. HOME TELE",
+    ];
+
+    for (const descripcion of descriptions) {
+      const r = categorize({ descripcion, tipo: "abono", monto: 100_000 });
+      expect(r.category).toBe("Transferencias");
+      expect(r.subcategory).toBe("Transferencias recibidas");
+      expect(r.ruleId).toBe("transfer.tercero");
+      expect(r.confidence).toBeGreaterThan(0.5);
+    }
+  });
+
+  it("generic Santander transfer charges are Transferencias enviadas", () => {
+    const r = categorize({ descripcion: "Transf. MARIA GONZALEZ", tipo: "cargo", monto: 50_000 });
+    expect(r.category).toBe("Transferencias");
+    expect(r.subcategory).toBe("Transferencias enviadas");
+  });
+
+  it("foreign merchants with clear hints avoid low-confidence Otro", () => {
+    expect(categorize({ descripcion: "WOW Cinema Frankfurt am", tipo: "cargo" }).category).toBe("Entretenimiento");
+    expect(categorize({ descripcion: "WOW Entertai Frankfurt am", tipo: "cargo" }).category).toBe("Entretenimiento");
+
+    const zettle = categorize({ descripcion: "Zettle *Local Dealer Frankfurt am", tipo: "cargo" });
+    expect(zettle.category).toBe("Retail y compras");
+    expect(zettle.ruleId).toBe("cl.retail");
+
+    const nyx = categorize({ descripcion: "NYX*ABServiciosSelectaE Madrid", tipo: "cargo" });
+    expect(nyx.category).toBe("Retail y compras");
+    expect(nyx.ruleId).toBe("cl.retail");
+  });
+
+  it("keeps Campus-Shop Frankfurt am as ambiguous Otro", () => {
+    const r = categorize({ descripcion: "Campus-Shop Frankfurt am", tipo: "cargo" });
+    expect(r.category).toBe("Otro");
+    expect(r.confidence).toBeLessThan(0.5);
+  });
+
+  it("frequent Santander rules map to informative legacy categories for Movimientos", () => {
+    expect(categorize({ descripcion: "PAGO EN LINEA T.G.R.", tipo: "cargo" }).category).toBe("Impuestos y servicios públicos");
+    expect(categorize({ descripcion: "PAGO EN LINEA T.G.R.", tipo: "cargo" }).confidence).toBeGreaterThan(0.5);
+    expect(categorize({ descripcion: "COM.MANT.PROD.OPC.CTA.CTE.", tipo: "cargo" }).category).toBe("Comisiones bancarias");
+    expect(categorize({ descripcion: "MERPAGO*LATAM", tipo: "cargo" }).category).toBe("Transporte");
+    expect(categorize({ descripcion: "Amazon", tipo: "cargo" }).category).toBe("Suscripciones y software");
   });
 });
 
@@ -118,6 +179,10 @@ describe("categorize — traceability (NCG 502)", () => {
       expect(r.ruleId).toBeTruthy();
       expect(r.version).toBe(CATEGORIZER_VERSION);
     }
+  });
+
+  it("uses categorizer version batch10.v3", () => {
+    expect(CATEGORIZER_VERSION).toBe("batch10.v3");
   });
 
   it("exposes essential + recurring tags", () => {
