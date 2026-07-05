@@ -104,6 +104,7 @@ export default function UniversalUploadDrawer({
   const [isDragging, setIsDragging] = useState(false);
   const [files, setFiles] = useState<FileStatus[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [doneCount, setDoneCount] = useState<number | null>(null);
   const [uploadResult, setUploadResult] = useState<UploadResultData | null>(null);
   const queryClient = useQueryClient();
@@ -162,7 +163,54 @@ export default function UniversalUploadDrawer({
     setUploadResult(null);
   };
 
+  /**
+   * Sube UN archivo. Reintenta SOLO ante 429 (rate limit): el servidor rechazó sin
+   * procesar, así que reintentar no duplica. Backoff corto (2–4s, o Retry-After si es
+   * chico) y máximo 2 reintentos — la ventana del limiter es larga, así que no esperamos
+   * minutos: si sigue en 429, se reporta con un mensaje amable y se sigue con el resto.
+   */
+  const uploadOne = async (
+    fs: FileStatus,
+    setStatus: (status: FileState, message?: string) => void,
+  ): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> => {
+    const apiBase = (API_URL || "").replace(/\/$/, "");
+    const maxRetries = 2;
+    for (let attempt = 0; ; attempt++) {
+      // Yield to the renderer so "uploading" paint is guaranteed before fetch blocks.
+      setStatus("uploading");
+      await new Promise((r) => setTimeout(r, 0));
+
+      const formData = new FormData();
+      formData.append("document", fs.file);
+      const res = await fetch(`${apiBase}/api/documents/upload`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      if (res.status === 429 && attempt < maxRetries) {
+        const retryAfter = Number(res.headers.get("Retry-After"));
+        const waitMs =
+          Number.isFinite(retryAfter) && retryAfter > 0 && retryAfter <= 10
+            ? retryAfter * 1000
+            : 2000 + attempt * 1000;
+        setStatus("uploading", "Estamos procesando varios documentos. Espera unos segundos y reintentamos automáticamente.");
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
+      }
+
+      // Show "Analizando" while reading the response body (min 400ms so el estado se ve).
+      setStatus("parsing");
+      const [json] = await Promise.all([
+        res.json().catch(() => ({})),
+        new Promise((r) => setTimeout(r, 400)),
+      ]);
+      return { ok: res.ok, status: res.status, json: json as Record<string, unknown> };
+    }
+  };
+
   const uploadAll = async () => {
+    if (isUploading) return; // guard: no arrancar un segundo batch con doble click
     const pending = files.filter(
       (f) => f.status === "pending" || f.status === "error"
     );
@@ -171,95 +219,84 @@ export default function UniversalUploadDrawer({
     setIsUploading(true);
     setDoneCount(null);
     setUploadResult(null);
+    setProgress({ done: 0, total: pending.length });
     let successCount = 0;
     let lastResult: UploadResultData | null = null;
 
-    for (const fs of pending) {
-      const setStatus = (status: FileState, message?: string) =>
-        setFiles((prev) =>
-          prev.map((f) =>
-            f.file === fs.file ? { ...f, status, message } : f
-          )
-        );
+    try {
+      // Cola SECUENCIAL (nunca Promise.all/forEach async): un archivo a la vez para no
+      // saturar el rate limit del backend ni el parsing pesado de PDF.
+      for (let i = 0; i < pending.length; i++) {
+        const fs = pending[i];
+        const setStatus = (status: FileState, message?: string) =>
+          setFiles((prev) =>
+            prev.map((f) => (f.file === fs.file ? { ...f, status, message } : f))
+          );
 
-      // Yield to the renderer so "uploading" paint is guaranteed before fetch blocks.
-      setStatus("uploading");
-      await new Promise((r) => setTimeout(r, 0));
-      try {
-        const formData = new FormData();
-        formData.append("document", fs.file);
-
-        const apiBase = (API_URL || "").replace(/\/$/, "");
-        const res = await fetch(`${apiBase}/api/documents/upload`, {
-          method: "POST",
-          credentials: "include",
-          body: formData,
-        });
-
-        // Show "Analizando" while reading the response body.
-        // Minimum 400ms so the user sees the state change.
-        setStatus("parsing");
-        const [json] = await Promise.all([
-          res.json().catch(() => ({})),
-          new Promise((r) => setTimeout(r, 400)),
-        ]);
-
-        if (!res.ok) {
-          // 5xx → error transitorio del servidor (p. ej. cold-start): mensaje amigable
-          // de reintento. 4xx (validación/parse) → conservar el mensaje específico del
-          // backend ("Archivo corrupto o vacío", "No se reconoció el banco…", etc.).
-          if (res.status >= 500) {
+        try {
+          const { ok, status, json } = await uploadOne(fs, setStatus);
+          if (!ok) {
+            if (status === 429) {
+              // Reintentos agotados: el límite es temporal, no un error del documento.
+              throw new Error(
+                "No pudimos subir este documento por el límite temporal de subidas. Espera un momento e inténtalo nuevamente."
+              );
+            }
+            if (status >= 500) {
+              // 5xx transitorio (p. ej. cold-start): mensaje amigable de reintento (#43).
+              throw new Error(
+                "El servidor tardó más de lo esperado. Espera unos segundos e intenta nuevamente. Si el documento aparece como fallido, puedes eliminarlo y volver a subirlo."
+              );
+            }
+            // 4xx (validación/parse): conservar el mensaje específico del backend.
             throw new Error(
-              "El servidor tardó más de lo esperado. Espera unos segundos e intenta nuevamente. Si el documento aparece como fallido, puedes eliminarlo y volver a subirlo."
+              (json as { message?: string }).message ?? "No pudimos procesar el documento."
             );
           }
-          throw new Error(
-            (json as { message?: string }).message ?? `Error ${res.status}`
-          );
-        }
 
-        // Capture scoring + parser metadata from the response
-        const result = json as Record<string, unknown>;
-        if (
-          result.transactionalScore ||
-          result.recommendedProducts ||
-          result.creditScore ||
-          result.documentType === "cartola"
-        ) {
-          lastResult = {
-            documentType: result.documentType as string | undefined,
-            transactionalScore: result.transactionalScore as number | undefined,
-            creditScore: result.creditScore as number | undefined,
-            mainInsights: result.mainInsights as string[] | undefined,
-            recommendedProducts: result.recommendedProducts as string[] | undefined,
-            detectionTier: result.detection_tier as string | undefined,
-            detectedBanco: result.detected_banco as string | undefined,
-            movementCount: result.movementCount as number | undefined,
-            documentId: result.documentId as string | undefined,
-            reviewStatus: result.reviewStatus as string | undefined,
-          };
-        }
+          // Capture scoring + parser metadata from the response
+          const result = json;
+          if (
+            result.transactionalScore ||
+            result.recommendedProducts ||
+            result.creditScore ||
+            result.documentType === "cartola"
+          ) {
+            lastResult = {
+              documentType: result.documentType as string | undefined,
+              transactionalScore: result.transactionalScore as number | undefined,
+              creditScore: result.creditScore as number | undefined,
+              mainInsights: result.mainInsights as string[] | undefined,
+              recommendedProducts: result.recommendedProducts as string[] | undefined,
+              detectionTier: result.detection_tier as string | undefined,
+              detectedBanco: result.detected_banco as string | undefined,
+              movementCount: result.movementCount as number | undefined,
+              documentId: result.documentId as string | undefined,
+              reviewStatus: result.reviewStatus as string | undefined,
+            };
+          }
 
-        setStatus("success");
-        successCount++;
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "Error al procesar";
-        setStatus("error", msg);
+          setStatus("success");
+          successCount++;
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : "Error al procesar";
+          setStatus("error", msg);
+        } finally {
+          setProgress({ done: i + 1, total: pending.length });
+        }
       }
-    }
 
-    // Uploading a document changes the user's financial data globally —
-    // every page in the app could be affected (dashboard, movimientos,
-    // gastos, metas, etc.). Instead of maintaining a fragile list of
-    // specific query keys, invalidate ALL queries so every active and
-    // future observer sees fresh data.
-    await queryClient.invalidateQueries();
-
-    setIsUploading(false);
-    setDoneCount(successCount);
-
-    if (successCount > 0) {
-      setUploadResult(lastResult);
+      // Uploading a document changes the user's financial data globally —
+      // every page could be affected. Invalidate ALL queries so every observer
+      // sees fresh data.
+      await queryClient.invalidateQueries();
+    } finally {
+      // finally: el botón NUNCA queda en "Procesando…", aunque algún archivo falle
+      // o invalidateQueries lance.
+      setIsUploading(false);
+      setProgress(null);
+      setDoneCount(successCount);
+      if (successCount > 0) setUploadResult(lastResult);
     }
   };
 
@@ -276,7 +313,7 @@ export default function UniversalUploadDrawer({
           <DialogTitle>Subir documentos</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-2 overflow-y-auto min-h-0">
+        <div className="space-y-4 py-2 overflow-y-auto min-h-0 flex-1">
           {/* Drop zone */}
           <div
             onDragOver={(e) => {
@@ -404,8 +441,9 @@ export default function UniversalUploadDrawer({
             </div>
           )}
 
-          {/* Documentos ya subidos — borrar para re-subir (incluye "Borrar todo") */}
-          {!isUploading && <DocumentManager />}
+          {/* Documentos ya subidos — borrar para re-subir (incluye "Borrar todo").
+              flat: sin scroll interno propio (el body del drawer ya scrollea). */}
+          {!isUploading && <DocumentManager flat />}
 
           {/* Summary after completion — with smart CTA */}
           {doneCount !== null && !uploadResult && (
@@ -600,59 +638,61 @@ export default function UniversalUploadDrawer({
               </div>
             );
           })()}
+        </div>
 
-          {/* Actions */}
-          <div className="flex gap-2 justify-end pt-1">
-            {!isUploading && files.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={reset}
-                className="text-xs"
-              >
-                Limpiar lista
-              </Button>
-            )}
+        {/* Actions — footer fijo, fuera del área scrolleable (siempre visible) */}
+        <div className="flex gap-2 justify-end pt-3 border-t border-border">
+          {!isUploading && files.length > 0 && (
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={() => onOpenChange(false)}
+              onClick={reset}
+              className="text-xs"
+            >
+              Limpiar lista
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            disabled={isUploading}
+          >
+            Cerrar
+          </Button>
+          {hasPending && (
+            <Button
+              size="sm"
+              onClick={uploadAll}
               disabled={isUploading}
             >
-              Cerrar
+              {isUploading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  {progress
+                    ? `Subiendo ${Math.min(progress.done + 1, progress.total)} de ${progress.total}…`
+                    : "Procesando…"}
+                </>
+              ) : (
+                <>
+                  <Upload className="h-3.5 w-3.5 mr-1.5" />
+                  Subir{" "}
+                  {
+                    files.filter(
+                      (f) =>
+                        f.status === "pending" || f.status === "error"
+                    ).length
+                  }{" "}
+                  archivo
+                  {files.filter(
+                    (f) => f.status === "pending" || f.status === "error"
+                  ).length !== 1
+                    ? "s"
+                    : ""}
+                </>
+              )}
             </Button>
-            {hasPending && (
-              <Button
-                size="sm"
-                onClick={uploadAll}
-                disabled={isUploading}
-              >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                    Procesando…
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-3.5 w-3.5 mr-1.5" />
-                    Subir{" "}
-                    {
-                      files.filter(
-                        (f) =>
-                          f.status === "pending" || f.status === "error"
-                      ).length
-                    }{" "}
-                    archivo
-                    {files.filter(
-                      (f) => f.status === "pending" || f.status === "error"
-                    ).length !== 1
-                      ? "s"
-                      : ""}
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

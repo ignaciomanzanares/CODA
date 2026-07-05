@@ -32,6 +32,9 @@ type DocumentManagerProps = {
   documentType?: "all" | "cartola";
   showDeleteAll?: boolean;
   showEmptyState?: boolean;
+  /** Cuando va embebido en un contenedor ya scrolleable (p. ej. el drawer de subida),
+   *  desactiva el scroll interno propio para evitar doble scrollbar. */
+  flat?: boolean;
 };
 
 function productLabel(doc: { tipo: string; banco: string | null }) {
@@ -61,6 +64,7 @@ export default function DocumentManager({
   documentType = "all",
   showDeleteAll = true,
   showEmptyState = false,
+  flat = false,
 }: DocumentManagerProps) {
   const { documents: allDocuments, isLoading } = useUserDocuments();
   const documents = documentType === "cartola"
@@ -162,7 +166,7 @@ export default function DocumentManager({
         )}
       </div>
 
-      <div className="space-y-1.5 max-h-[60vh] overflow-y-auto pr-1">
+      <div className={cn("space-y-1.5 pr-1", !flat && "max-h-[60vh] overflow-y-auto")}>
         {documents.map((doc) => {
           const periodo = doc.periodoDesde
             ? `${doc.periodoDesde}${doc.periodoHasta ? ` → ${doc.periodoHasta}` : ""}`
