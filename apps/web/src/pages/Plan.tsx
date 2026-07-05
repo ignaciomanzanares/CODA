@@ -374,6 +374,64 @@ function PlanInsightsPanel({ data }: { data: PlanInsightsData }) {
   );
 }
 
+interface DebtRuleRec {
+  key: string;
+  familia: string;
+  titulo: string;
+  descripcion: string;
+  accion: string;
+  impacto: string;
+}
+interface DebtRulesResponse {
+  enabled: boolean;
+  hasData: boolean;
+  nivel?: number;
+  families?: Array<{ familia: string; label: string; recommendations: DebtRuleRec[] }>;
+}
+
+/**
+ * Motor de 12 reglas de optimización de deuda (Fase 4): muestra, agrupadas por familia, las
+ * acciones concretas que mejoran el score/nivel del usuario, cada una con su impacto.
+ */
+function DebtRulesPanel() {
+  const { data, isLoading } = useQuery<DebtRulesResponse>({
+    queryKey: ["/api/debt-rules/recommendations"],
+    queryFn: () => apiFetch("/api/debt-rules/recommendations"),
+    staleTime: 60_000,
+  });
+
+  if (isLoading) return <Skeleton className="h-40 w-full rounded-2xl" />;
+  if (!data?.enabled || !data?.hasData || !data.families?.length) return null;
+
+  return (
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold">Cómo mejorar tu score y tu salud financiera</h2>
+        <p className="text-sm text-muted-foreground">
+          Acciones concretas para tu situación actual, priorizadas por impacto.
+        </p>
+      </div>
+      {data.families.map((fam) => (
+        <div key={fam.familia} className="space-y-2">
+          <h3 className="text-sm font-medium text-muted-foreground">{fam.label}</h3>
+          {fam.recommendations.map((rec) => (
+            <Card key={rec.key}>
+              <CardContent className="space-y-1.5 p-4">
+                <p className="font-medium">{rec.titulo}</p>
+                <p className="text-sm text-muted-foreground">{rec.descripcion}</p>
+                <p className="text-sm">
+                  <span className="font-medium">Qué hacer:</span> {rec.accion}
+                </p>
+                <p className="text-xs font-medium text-primary">Mejora: {rec.impacto}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ))}
+    </section>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Plan() {
@@ -620,6 +678,9 @@ export default function Plan() {
 
         {/* Plan IA insights */}
         {planData && !planLoading && <PlanInsightsPanel data={planData} />}
+
+        {/* Motor de 12 reglas de optimización de deuda (auto-carga si hay datos) */}
+        {isAuthenticated && <DebtRulesPanel />}
 
         {/* ── 50/30/20 Section ─────────────────────────────────────────────── */}
         <Card className="rounded-2xl border-border">
