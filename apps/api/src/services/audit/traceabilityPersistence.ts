@@ -58,6 +58,11 @@ export const TRACEABILITY_SEED_MODELS = {
     modelType: 'financial_health_v2',
     version: 'v2.0.0',
   },
+  debtRules: {
+    id: 'a0000005-0000-4000-8000-000000000001',
+    modelType: 'debt_rules',
+    version: 'v1.0.0',
+  },
 } as const;
 
 const MAX_JSON = 400_000;
@@ -407,6 +412,50 @@ export async function logFinancialHealthV2(params: {
     userId: params.userId,
     requestId: params.requestId,
     kind: 'financial_health_v2',
+    modelVersionId: m.id,
+    modelVersion: m.version,
+    modelType: m.modelType,
+    inputFeatures: safeJson(params.input),
+    outputSnapshot: safeJson(params.output),
+    cmfData: null,
+    sfaData: null,
+    topFactors: null,
+    processingTimeMs: params.processingTimeMs ?? null,
+    ipAddress: params.ipAddress ?? null,
+    userAgent: params.userAgent ?? null,
+  });
+}
+
+/**
+ * Trazabilidad NCG 502 del motor de reglas de optimización de deuda (Fase 4): persiste los ratios
+ * de entrada, la versión del motor, y las reglas disparadas (keys) — reconstruible ex post.
+ */
+export async function logDebtRulesEvaluation(params: {
+  userId: string;
+  requestId: string;
+  input: {
+    deudaFlujo: number;
+    deudaActivos: number;
+    ahorroIngreso: number;
+    moraActiva: boolean;
+    diasMora: number;
+    nivel: number;
+    zona: string;
+    tiposCredito: number;
+  };
+  output: { rules: string[]; count: number };
+  processingTimeMs?: number;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}): Promise<void> {
+  const m = TRACEABILITY_SEED_MODELS.debtRules;
+  await ensureModelVersionRow({ id: m.id, modelType: m.modelType, version: m.version });
+
+  await db.insert(algorithmPredictionLogs).values({
+    id: randomUUID(),
+    userId: params.userId,
+    requestId: params.requestId,
+    kind: 'debt_rules',
     modelVersionId: m.id,
     modelVersion: m.version,
     modelType: m.modelType,

@@ -886,6 +886,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Motor de 12 reglas de optimización de deuda (#Fase4): explica al usuario qué acciones
+  // concretas mejoran su score crediticio / nivel de salud, agrupadas por familia.
+  app.get("/api/debt-rules/recommendations", authenticate, async (req: Request, res: Response) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { isDebtRulesEnabled, evaluateDebtRules } = await import("./services/debtRules/ruleEngine.js");
+      if (!isDebtRulesEnabled()) {
+        return res.json({ enabled: false, hasData: false, recommendations: [], families: [] });
+      }
+
+      const { buildDebtRuleContext } = await import("./services/debtRules/context.js");
+      const ctx = await buildDebtRuleContext(userId);
+      if (!ctx) {
+        // Faltan insumos (cartola + CMF). El front muestra el CTA de subir documentos.
+        return res.json({ enabled: true, hasData: false, recommendations: [], families: [] });
+      }
+
+      const t0 = Date.now();
+      const recommendations = evaluateDebtRules(ctx);
+
+      // Familias en orden fijo para el front (aunque no todas tengan reglas activas).
+      const { FAMILY_LABELS } = await import("./services/debtRules/types.js");
+      const families = (Object.keys(FAMILY_LABELS) as Array<keyof typeof FAMILY_LABELS>).map((f) => ({
+        familia: f,
+        label: FAMILY_LABELS[f],
+        recommendations: recommendations.filter((r) => r.familia === f),
+      })).filter((g) => g.recommendations.length > 0);
+
+      // Trazabilidad NCG 502 (fire-and-forget).
+      const reqId = typeof req.headers["x-request-id"] === "string" && req.headers["x-request-id"].length > 0
+        ? (req.headers["x-request-id"] as string)
+        : crypto.randomUUID();
+      import("./services/audit/traceabilityPersistence.js")
+        .then(({ logDebtRulesEvaluation }) =>
+          logDebtRulesEvaluation({
+            userId,
+            requestId: reqId,
+            input: {
+              deudaFlujo: ctx.health.ratios.deudaFlujo,
+              deudaActivos: ctx.health.ratios.deudaActivos,
+              ahorroIngreso: ctx.health.ratios.ahorroIngreso,
+              moraActiva: ctx.health.ratios.moraActiva,
+              diasMora: ctx.health.ratios.diasMora,
+              nivel: ctx.health.nivel,
+              zona: ctx.health.zona,
+              tiposCredito: ctx.tiposCredito,
+            },
+            output: { rules: recommendations.map((r) => r.key), count: recommendations.length },
+            processingTimeMs: Date.now() - t0,
+          }),
+        )
+        .catch((err) => logger.warn({ err }, "debt-rules traceability failed (non-fatal)"));
+
+      res.json({ enabled: true, hasData: true, nivel: ctx.health.nivel, zona: ctx.health.zona, recommendations, families });
+    } catch (e) {
+      logger.error({ err: e }, "debt-rules recommendations error");
+      res.status(500).json({ message: "Error al calcular las recomendaciones." });
+    }
+  });
+
   // Accounts (Open Banking) routes
   app.get("/api/accounts", authenticate, async (req, res) => {
     try {
