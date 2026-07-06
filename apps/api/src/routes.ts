@@ -2406,6 +2406,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/risk/evaluation", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
     try {
+      // Flag de rollout (Fase F): gateado en producción hasta validar con outcomes locales (Fase G).
+      // En dev/test va habilitado; en prod requiere RISK_DUAL_SCORE_ENABLED=true. Defensa en profundidad:
+      // el front ya lo esconde tras FEATURES.riskDualScore, esto protege el endpoint ante llamadas directas.
+      const dualEnabled = process.env.NODE_ENV !== "production" || process.env.RISK_DUAL_SCORE_ENABLED === "true";
+      if (!dualEnabled) return res.status(404).json({ message: "No disponible." });
+
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
 
