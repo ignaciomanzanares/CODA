@@ -39,6 +39,7 @@ export const {
   userScores,
   creditScoreHistory,
   riskFactors,
+  riskDecisionOutcomes,
   goalProgress,
   productRecommendations,
   insertAccountSchema,

@@ -16,6 +16,7 @@
     "db:set-role": "tsx src/scripts/setUserRole.ts",
     "db:seed-catalog": "tsx src/scripts/seedProductCatalog.ts",
     "db:create-institution-key": "tsx src/scripts/createInstitutionApiKey.ts",
+    "db:export-decision-outcomes": "tsx src/scripts/exportDecisionOutcomes.ts",
     "prebuild": "npm --prefix ../../packages run build",
     "build": "tsc",
     "check": "tsc --noEmit",
@@ -26,7 +27,6 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "test:run": "vitest run",
-    "scoring:demo": "tsx src/services/scoring/demo-score.ts",
     "ml:make:synth": "tsx src/ml/make_synth_training.ts",
     "ml:setup": "python3 -m venv src/ml/.venv && src/ml/.venv/bin/python -m pip install -U pip setuptools wheel && src/ml/.venv/bin/pip install -r src/ml/requirements.txt",
     "ml:train": "src/ml/.venv/bin/python src/ml/train_xgb.py --in src/ml/out/synth_features.csv --out src/ml/artifacts/current --label label"

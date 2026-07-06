@@ -4528,6 +4528,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Fase G: outcomes reales de decisiones de crédito — cuánta data etiquetada hay para reentrenar
+  // y tasa de aprobación por proveedor ("quién otorga a quién").
+  app.get("/api/admin/risk-outcomes", authenticate, requireAdmin, async (_req: Request, res: Response) => {
+    try {
+      const { getDecisionOutcomeStats } = await import('./services/risk/decisionOutcomes.js');
+      res.json(await getDecisionOutcomeStats());
+    } catch (error) {
+      logger.error({ error }, 'Failed to get risk outcomes');
+      res.status(500).json({ message: 'Error al obtener outcomes de riesgo' });
+    }
+  });
+
   // Avanza manualmente el estado de un lead (mientras la institución no integre la API).
   app.post("/api/admin/leads/:id/status", authenticate, requireAdmin, async (req: Request, res: Response) => {
     try {
