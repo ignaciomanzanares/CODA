@@ -201,11 +201,40 @@ export const insuranceRisks = table('insurance_risks', {
 export const transactionalScores = table('transactional_scores', {
   id: serialPk("id"),
   userId: text('user_id').notNull().references(() => users.id).unique(),
-  transactionalScore: integer('transactional_score').notNull(),
+  // Nullable desde Fase C del doble evaluador: al subir cartola solo se persisten las MÉTRICAS de
+  // liquidez (para el motor de salud); el SCORE lo produce el modelo XGB bajo demanda (puede no existir).
+  transactionalScore: integer('transactional_score'),
   metrics: text('metrics'), // JSON: averageMonthlyBalanceClp, monthsWithAbonos, etc.
   mainInsights: text('main_insights'), // JSON array
   recommendedProducts: text('recommended_products'), // JSON array
   lastUpdated: text('last_updated').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+/**
+ * Outcomes reales de decisiones de crédito (Fase G del doble evaluador). Al aplicar a un producto se
+ * congela un snapshot (features + scores emitidos, anti-leakage); cuando la institución responde se
+ * completa el `outcome`. Es el dataset propio con el que se recalibran ambos modelos con data chilena
+ * y se aprende qué proveedor otorga a quién.
+ */
+export const riskDecisionOutcomes = table('risk_decision_outcomes', {
+  id: serialPk("id"),
+  applicationId: integer('application_id').notNull().unique(),
+  userId: text('user_id').notNull(),
+  provider: text('provider'),
+  productId: integer('product_id'),
+  segment: text('segment'), // thin_file | cmf_rich
+  // Scores emitidos al momento de aplicar (para comparar predicción vs resultado real).
+  traditionalScore: integer('traditional_score'),
+  traditionalPd: real('traditional_pd'),
+  transactionalScore: integer('transactional_score'),
+  transactionalPd: real('transactional_pd'),
+  // Snapshot de features CIFRADO (datos financieros) — reconstruible para reentrenar.
+  featuresSnapshot: text('features_snapshot'),
+  // Resultado real de la institución (se completa después): accepted | rejected | originated | approved.
+  outcome: text('outcome'),
+  originatedAmountClp: integer('originated_amount_clp'),
+  outcomeAt: text('outcome_at'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 export const riskFactors = table('risk_factors', {

@@ -56,6 +56,12 @@ export default function AdminDashboard() {
     refetchInterval: 30000,
   });
 
+  const { data: outcomes, isLoading: outcomesLoading } = useQuery({
+    queryKey: ["/api/admin/risk-outcomes"],
+    queryFn: () => apiFetch("/api/admin/risk-outcomes"),
+    refetchInterval: 30000,
+  });
+
   const statusMutation = useMutation({
     mutationFn: async (vars: { leadId: number; status: string; originatedAmount?: number }) => {
       return apiFetch(`/api/admin/leads/${vars.leadId}/status`, {
@@ -107,6 +113,52 @@ export default function AdminDashboard() {
           value={String(revenue.applicationsCount ?? 0)} />
         <KpiCard icon={TrendingUp} label="Conversión" loading={metricsLoading}
           value={`${Number(funnel.overallConversionRate ?? 0).toFixed(1)}%`} />
+      </section>
+
+      {/* Aprendizaje del modelo (Fase G): outcomes reales para recalibrar con data chilena */}
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-medium">Aprendizaje del modelo</h2>
+          <p className="text-sm text-muted-foreground">
+            Decisiones reales capturadas (snapshot al aplicar + resultado de la institución). Es el dataset
+            propio con el que se recalibran los scores y se aprende qué proveedor otorga a quién.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <KpiCard icon={Users} label="Snapshots" loading={outcomesLoading} value={String(outcomes?.total ?? 0)} />
+          <KpiCard icon={CheckCircle} label="Con resultado" loading={outcomesLoading} value={String(outcomes?.labeled ?? 0)} />
+          <KpiCard icon={TrendingUp} label="Pendientes" loading={outcomesLoading} value={String(outcomes?.pending ?? 0)} />
+        </div>
+        <Card>
+          <CardContent className="p-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="p-3 font-medium">Proveedor</th>
+                  <th className="p-3 font-medium">Decisiones</th>
+                  <th className="p-3 font-medium">Aprobaciones</th>
+                  <th className="p-3 font-medium">Tasa aprobación</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(outcomes?.byProvider ?? []).length === 0 ? (
+                  <tr><td colSpan={4} className="p-4 text-center text-muted-foreground">
+                    Aún no hay decisiones con resultado. Se acumulan cuando las instituciones responden leads.
+                  </td></tr>
+                ) : (
+                  outcomes.byProvider.map((p: { provider: string; decisions: number; approvals: number; approvalRate: number }) => (
+                    <tr key={p.provider} className="border-b last:border-0">
+                      <td className="p-3 font-medium">{p.provider}</td>
+                      <td className="p-3 tabular-nums">{p.decisions}</td>
+                      <td className="p-3 tabular-nums">{p.approvals}</td>
+                      <td className="p-3 tabular-nums font-semibold">{p.approvalRate}%</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
       </section>
 
       {/* Gestión de leads */}

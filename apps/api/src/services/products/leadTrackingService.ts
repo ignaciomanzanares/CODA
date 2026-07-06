@@ -157,6 +157,13 @@ export async function createProductApplication(
       leadFeeRevenue
     }, 'Product application created');
 
+    // Fase G: congela el snapshot de riesgo al aplicar (anti-leakage), fire-and-forget.
+    import('../risk/decisionOutcomes.js')
+      .then(({ captureDecisionSnapshot }) =>
+        captureDecisionSnapshot({ userId, applicationId: result.id, provider: (product as any).provider ?? null, productId }),
+      )
+      .catch(() => {});
+
     return result.id;
   } catch (error) {
     logger.error({ error, userId, productId }, 'Failed to create product application');
@@ -221,6 +228,15 @@ export async function updateApplicationStatus(
         eventType: status === 'approved' ? 'approval' : 'rejection',
         metadata: { applicationId, externalApplicationId, loanAmount, revenue: totalRevenue }
       });
+    }
+
+    // Fase G: registra el outcome real de la institución (label para reentrenar), fire-and-forget.
+    if (status === 'approved' || status === 'rejected' || status === 'accepted') {
+      import('../risk/decisionOutcomes.js')
+        .then(({ recordDecisionOutcome }) =>
+          recordDecisionOutcome({ applicationId, outcome: status, originatedAmountClp: loanAmount ?? null }),
+        )
+        .catch(() => {});
     }
 
     logger.info({
