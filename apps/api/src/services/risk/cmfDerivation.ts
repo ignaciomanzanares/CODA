@@ -65,8 +65,10 @@ export interface CmfFeatures {
   mora90: number;
   /** Deuda total (CMF; el llamador puede sumarle deuda fiscal TGR antes de derivar). */
   deudaTotalClp: number;
-  /** deuda total / ingreso anual (proxy DTI). 0 si no hay deuda. */
+  /** deuda total / ingreso anual (proxy DTI anual). 0 si no hay deuda. */
   deudaIngresoRatio: number;
+  /** cuota mensual estimada / ingreso mensual (DTI mensual, definición GMSC). Cap [0,2]. */
+  dtiMensual: number;
   /** deuda / (deuda + crédito disponible). 0..1. Proxy de utilización. */
   utilizacion: number;
   /** Nº de tipos de crédito distintos en deuda directa. */
@@ -85,6 +87,10 @@ export function deriveCmfFeatures(cmf: CMFParseResult, ingresoMensualClp: number
   const deuda = deudaTotalClp ?? cmf.deuda_total ?? 0;
   const ingresoAnual = Math.max(1, ingresoMensualClp) * 12;
   const deudaIngresoRatio = deuda > 0 ? deuda / ingresoAnual : 0;
+  // DTI mensual con la MISMA definición que el DebtRatio de GMSC (cuota/ingreso mensual), cap 2.0
+  // (igual que el preprocesamiento de entrenamiento en prepare_gmsc.py).
+  const cuotaMensual = estimarCuotaMensual(cmf, deuda);
+  const dtiMensual = Math.min(2, cuotaMensual / Math.max(1, ingresoMensualClp));
   const disponible = cmf.metricas?.credito_disponible_total ?? 0;
   const utilizacion = deuda + disponible > 0 ? deuda / (deuda + disponible) : 0;
   const tiposCredito = new Set(cmf.deuda_directa.map((d) => d.tipo_credito)).size;
@@ -94,6 +100,7 @@ export function deriveCmfFeatures(cmf: CMFParseResult, ingresoMensualClp: number
     mora90,
     deudaTotalClp: deuda,
     deudaIngresoRatio,
+    dtiMensual,
     utilizacion,
     tiposCredito,
     scoreCmfInterno: cmf.metricas?.score_cmf ?? 0,
