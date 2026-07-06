@@ -59,6 +59,7 @@ import {
   parserDiagnostics,
   productConversionEvents,
   auditLogs,
+  userFinancialSources,
 } from '../../db/index.js';
 import { logger } from '../../logger.js';
 
@@ -140,6 +141,8 @@ export async function anonymizeUser(userId: string): Promise<void> {
   // Eventos de conversión de productos: dependen de un ON DELETE CASCADE que nunca se dispara
   // porque la fila de `users` nunca se borra (se sobrescribe) — hay que borrarlos explícitamente.
   await db.delete(productConversionEvents).where(eq(productConversionEvents.userId, userId));
+  // Datos verificados de fuentes gov (renta/deuda fiscal) → PII, se borran.
+  await db.delete(userFinancialSources).where(eq(userFinancialSources.userId, userId));
 
   // Rastro de seguridad (auditoría): se conserva el evento, se desvincula del usuario (userId
   // nullable, a diferencia de algorithm_prediction_logs — no hace falta usuario placeholder).

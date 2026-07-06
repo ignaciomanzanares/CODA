@@ -69,6 +69,7 @@ const Profile = lazy(() => import("@/pages/Profile"));
 const Expenses = lazy(() => import("@/pages/Expenses"));
 const Movimientos = lazy(() => import("@/pages/Movimientos"));
 const ConsentConnections = lazy(() => import("@/pages/ConsentConnections"));
+const ConectarDatos = lazy(() => import("@/pages/ConectarDatos"));
 const EmailInviteHandler = lazy(() => import("@/pages/EmailInviteHandler"));
 const ShareBillSplit = lazy(() => import("@/pages/ShareBillSplit"));
 const AuditDashboard = lazy(() => import("@/pages/AuditDashboard"));
@@ -264,6 +265,11 @@ function App() {
                   <Route path="/conexiones">
                     <ProtectedRoute>
                       <ConsentConnections />
+                    </ProtectedRoute>
+                  </Route>
+                  <Route path={ROUTES.conectarDatos}>
+                    <ProtectedRoute>
+                      <ConectarDatos />
                     </ProtectedRoute>
                   </Route>
                   <Route path={ROUTES.gastos}>

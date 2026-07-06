@@ -105,7 +105,14 @@ export async function evaluateUserHealth(userId: string): Promise<HealthEvaluati
       notes: row.notes ?? null, createdAt: row.createdAt, updatedAt: row.updatedAt,
     }));
 
-    const deudaTotalClp: number = cmfData.deuda_total ?? 0;
+    // Ajustes de fuentes gov conectadas (#Fase5): la deuda fiscal (TGR) suma a la deuda total, lo
+    // que endurece correctamente los ratios deuda/flujo y deuda/activos. El ingreso verificado
+    // (SII/AFP) se persiste y se muestra en la UI, pero no reemplaza el ingreso de cartola aquí
+    // para no romper la coherencia ingreso–gasto del cálculo de ahorro.
+    const { getGovSourceAdjustments } = await import('../dataSources/govSourceService.js');
+    const govAdj = await getGovSourceAdjustments(userId).catch(() => ({ fiscalDebtClp: 0, verifiedMonthlyIncomeClp: null }));
+
+    const deudaTotalClp: number = (cmfData.deuda_total ?? 0) + (govAdj.fiscalDebtClp ?? 0);
     const deudaMensualClp = estimarCuotaMensual(cmfData, deudaTotalClp);
     const sfaAvg = txScore?.metrics?.averageMonthlyBalanceClp ?? undefined;
 
