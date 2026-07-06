@@ -54,6 +54,8 @@ apps/api/src/ml/out/*.csv
 # las versiones nuevas viven en el blob store y se promueven por fila en algorithm_model_versions.
 apps/api/src/ml/artifacts/*
 !apps/api/src/ml/artifacts/current/
+# Scorecard tradicional (regresión logística GMSC) — se versiona para reproducibilidad/provenance.
+!apps/api/src/ml/artifacts/logreg_cmf/
 # Cache de descarga del modelo de producción desde el blob store (runtime).
 apps/api/src/ml/artifacts/_remote_production/
 
