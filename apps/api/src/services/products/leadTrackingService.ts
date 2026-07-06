@@ -292,7 +292,7 @@ export async function getProductFunnelMetrics(productId: number): Promise<{
     const eventCounts = await db
       .select({
         eventType: leadTracking.eventType,
-        count: sql<number>`count(*)::int`
+        count: sql<number>`CAST(count(*) AS INTEGER)`
       })
       .from(leadTracking)
       .where(eq(leadTracking.productId, productId))
@@ -319,7 +319,7 @@ export async function getProductFunnelMetrics(productId: number): Promise<{
     // Calculate total revenue from applications
     const revenueResult = await db
       .select({
-        total: sql<number>`COALESCE(SUM(${productApplications.revenueEarned}), 0)::int`
+        total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`
       })
       .from(productApplications)
       .where(eq(productApplications.productId, productId));
@@ -388,7 +388,7 @@ export async function getTotalRevenueMetrics(): Promise<{
     // Total revenue
     const totalResult = await db
       .select({
-        total: sql<number>`COALESCE(SUM(${productApplications.revenueEarned}), 0)::int`
+        total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`
       })
       .from(productApplications);
 
@@ -398,7 +398,7 @@ export async function getTotalRevenueMetrics(): Promise<{
     const revenueByTypeResult = await db
       .select({
         revenueType: productApplications.revenueType,
-        total: sql<number>`COALESCE(SUM(${productApplications.revenueEarned}), 0)::int`
+        total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`
       })
       .from(productApplications)
       .where(sql`${productApplications.revenueType} IS NOT NULL`)
@@ -415,7 +415,7 @@ export async function getTotalRevenueMetrics(): Promise<{
     const revenueByProductResult = await db
       .select({
         productId: productApplications.productId,
-        total: sql<number>`COALESCE(SUM(${productApplications.revenueEarned}), 0)::int`
+        total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`
       })
       .from(productApplications)
       .groupBy(productApplications.productId);
@@ -428,8 +428,8 @@ export async function getTotalRevenueMetrics(): Promise<{
     // Counts
     const countsResult = await db
       .select({
-        total: sql<number>`count(*)::int`,
-        approved: sql<number>`count(*) FILTER (WHERE ${productApplications.status} = 'approved')::int`
+        total: sql<number>`CAST(count(*) AS INTEGER)`,
+        approved: sql<number>`CAST(count(*) FILTER (WHERE ${productApplications.status} = 'approved') AS INTEGER)`
       })
       .from(productApplications);
 
@@ -476,7 +476,7 @@ export async function getOverallFunnelMetrics(): Promise<{
     const eventCounts = await db
       .select({
         eventType: leadTracking.eventType,
-        count: sql<number>`count(*)::int`,
+        count: sql<number>`CAST(count(*) AS INTEGER)`,
         avgMatchScore: sql<number>`AVG(${leadTracking.matchScore})`
       })
       .from(leadTracking)
@@ -507,8 +507,8 @@ export async function getOverallFunnelMetrics(): Promise<{
     const topProducts = await db
       .select({
         productId: leadTracking.productId,
-        views: sql<number>`count(*) FILTER (WHERE ${leadTracking.eventType} = 'view')::int`,
-        approvals: sql<number>`count(*) FILTER (WHERE ${leadTracking.eventType} = 'approval')::int`
+        views: sql<number>`CAST(count(*) FILTER (WHERE ${leadTracking.eventType} = 'view') AS INTEGER)`,
+        approvals: sql<number>`CAST(count(*) FILTER (WHERE ${leadTracking.eventType} = 'approval') AS INTEGER)`
       })
       .from(leadTracking)
       .groupBy(leadTracking.productId)
@@ -522,7 +522,7 @@ export async function getOverallFunnelMetrics(): Promise<{
         // Get revenue for this product
         const revenueResult = await db
           .select({
-            total: sql<number>`COALESCE(SUM(${productApplications.revenueEarned}), 0)::int`
+            total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`
           })
           .from(productApplications)
           .where(eq(productApplications.productId, p.productId));
