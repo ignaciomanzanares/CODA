@@ -57,6 +57,16 @@ const corsOptions: cors.CorsOptions = {
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
+    // En desarrollo, aceptar cualquier origen local (localhost / 127.0.0.1 / [::1], cualquier
+    // puerto): Vite puede servir en 127.0.0.1 o saltar a 5174 si 5173 está ocupado, y con un
+    // Origin no permitido la API responde sin Access-Control-Allow-Origin → el navegador lo
+    // bloquea y la web muestra "no hay conexión con el servidor". Producción queda estricta.
+    if (
+      process.env.NODE_ENV !== "production" &&
+      /^http:\/\/(localhost|127\.0\.0\.1|\[::1\]):\d+$/.test(origin)
+    ) {
+      return callback(null, true);
+    }
     logger.warn({ origin }, "CORS: origin not allowed");
     return callback(null, false);
   },
