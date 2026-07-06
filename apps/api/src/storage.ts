@@ -145,7 +145,8 @@ export interface IStorage {
   upsertTransactionalScore(
     userId: string,
     data: {
-      transactionalScore: number;
+      // null cuando solo se persisten métricas de liquidez (el score lo da el modelo XGB bajo demanda).
+      transactionalScore: number | null;
       metrics?: object;
       mainInsights?: string[];
       recommendedProducts?: string[];
@@ -739,7 +740,7 @@ export class DatabaseStorage implements IStorage {
   async upsertTransactionalScore(
     userId: string,
     data: {
-      transactionalScore: number;
+      transactionalScore: number | null;
       metrics?: object;
       mainInsights?: string[];
       recommendedProducts?: string[];
@@ -781,7 +782,8 @@ export class DatabaseStorage implements IStorage {
             ...(data.algorithmInputs ?? {}),
           },
           output: {
-            transactionalScore: data.transactionalScore,
+            // null (upsert solo-métricas) → 0 en la traza; el score real lo emite el modelo XGB.
+            transactionalScore: data.transactionalScore ?? 0,
             mainInsights: data.mainInsights ?? [],
             recommendedProducts: data.recommendedProducts,
             metrics: data.metrics,

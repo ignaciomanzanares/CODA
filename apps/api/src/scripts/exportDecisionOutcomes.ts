@@ -11,14 +11,17 @@
  *   npm run db:export-decision-outcomes -w @coda/api -- ruta.csv
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { db, riskDecisionOutcomes } from '../db/index.js';
 import { decryptField, looksEncrypted } from '../services/crypto/fieldEncryption.js';
 
 const APPROVED = new Set(['originated', 'approved', 'accepted']);
+// Ruta por defecto relativa al script (no al cwd), para que funcione desde cualquier directorio.
+const DEFAULT_OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'ml', 'out', 'decision_outcomes.csv');
 
 async function main() {
-  const outPath = process.argv[2] ?? 'apps/api/src/ml/out/decision_outcomes.csv';
+  const outPath = process.argv[2] ?? DEFAULT_OUT;
   const rows = (await db.select().from(riskDecisionOutcomes)) as Array<any>;
 
   const header = ['mora30', 'mora60', 'mora90', 'dti', 'util', 'provider', 'segment', 'approved'];
