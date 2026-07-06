@@ -63,6 +63,17 @@ export const TRACEABILITY_SEED_MODELS = {
     modelType: 'debt_rules',
     version: 'v1.0.0',
   },
+  // Doble evaluador de riesgo (Fase D): scorecard tradicional (logístico GMSC) + transaccional (XGB Berka).
+  creditScorecard: {
+    id: 'a0000006-0000-4000-8000-000000000001',
+    modelType: 'credit_scorecard_logreg',
+    version: 'v1.0.0',
+  },
+  transactionalXgb: {
+    id: 'a0000007-0000-4000-8000-000000000001',
+    modelType: 'transactional_xgb',
+    version: 'v1.0.0',
+  },
 } as const;
 
 const MAX_JSON = 400_000;
@@ -424,6 +435,47 @@ export async function logFinancialHealthV2(params: {
     ipAddress: params.ipAddress ?? null,
     userAgent: params.userAgent ?? null,
   });
+}
+
+/**
+ * Trazabilidad NCG 502 del doble evaluador de riesgo (Fase D): persiste una fila por modelo emitido
+ * (scorecard tradicional y/o transaccional XGB) con sus inputs, versión y output — reconstruible ex post.
+ */
+export async function logRiskEvaluation(params: {
+  userId: string;
+  requestId: string;
+  segment: string;
+  traditional?: { input: unknown; output: unknown } | null;
+  transactional?: { input: unknown; output: unknown } | null;
+  processingTimeMs?: number;
+}): Promise<void> {
+  const rows: Array<{ model: { id: string; modelType: string; version: string }; kind: string; input: unknown; output: unknown }> = [];
+  if (params.traditional) {
+    rows.push({ model: TRACEABILITY_SEED_MODELS.creditScorecard, kind: 'credit_scorecard_logreg', ...params.traditional });
+  }
+  if (params.transactional) {
+    rows.push({ model: TRACEABILITY_SEED_MODELS.transactionalXgb, kind: 'transactional_xgb', ...params.transactional });
+  }
+  for (const r of rows) {
+    await ensureModelVersionRow({ id: r.model.id, modelType: r.model.modelType, version: r.model.version });
+    await db.insert(algorithmPredictionLogs).values({
+      id: randomUUID(),
+      userId: params.userId,
+      requestId: params.requestId,
+      kind: r.kind,
+      modelVersionId: r.model.id,
+      modelVersion: r.model.version,
+      modelType: r.model.modelType,
+      inputFeatures: safeJson({ segment: params.segment, ...(r.input as object) }),
+      outputSnapshot: safeJson(r.output),
+      cmfData: null,
+      sfaData: null,
+      topFactors: null,
+      processingTimeMs: params.processingTimeMs ?? null,
+      ipAddress: null,
+      userAgent: null,
+    });
+  }
 }
 
 /**
