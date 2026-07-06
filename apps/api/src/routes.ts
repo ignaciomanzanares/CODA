@@ -2360,12 +2360,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 	      const { getNormalizedTransactionalScoreForUser } = await import("./services/normalizedTransactionalScore.js");
 	      const normalizedScore = await getNormalizedTransactionalScoreForUser(userId);
 	      if (normalizedScore) {
-	        storage.addScoreHistoryEntry(
-	          userId,
-	          normalizedScore.transactionalScore,
-	          100,
-	          JSON.stringify(normalizedScore.metrics ?? {}),
-	        ).catch(() => {});
+	        if (normalizedScore.transactionalScore != null) {
+	          storage.addScoreHistoryEntry(
+	            userId,
+	            normalizedScore.transactionalScore,
+	            100,
+	            JSON.stringify(normalizedScore.metrics ?? {}),
+	          ).catch(() => {});
+	        }
 	        return res.json({
 	          transactionalScore: normalizedScore.transactionalScore,
 	          mainInsights: normalizedScore.mainInsights ?? [],
@@ -2394,6 +2396,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e) {
       logger.error({ err: e }, "Get transactional score failed");
       res.status(500).json({ message: "Error al obtener el score transaccional." });
+    }
+  });
+
+  /**
+   * Doble evaluador de riesgo (Fase D): score tradicional (control) + transaccional CODA (beta)
+   * desde el profile unificado, con segmento, titular y reconciliación. Alimenta la tarjeta de score.
+   */
+  app.get("/api/risk/evaluation", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
+
+      const startedAt = Date.now();
+      const { evaluateRisk } = await import("./services/risk/evaluateRisk.js");
+      const evaluation = await evaluateRisk(userId);
+      if (!evaluation) {
+        return res.json({ available: false, message: "Aún no hay datos suficientes. Sube tu Informe CMF y una cartola." });
+      }
+
+      // Trazabilidad NCG 502 (fire-and-forget): una fila por modelo emitido.
+      import("./services/audit/traceabilityPersistence.js")
+        .then(({ logRiskEvaluation }) =>
+          logRiskEvaluation({
+            userId,
+            requestId: crypto.randomUUID(),
+            segment: evaluation.segment,
+            traditional: evaluation.traditional.available
+              ? { input: evaluation.traditional.features, output: { pd: evaluation.traditional.pd, score: evaluation.traditional.score, band: evaluation.traditional.band.label } }
+              : null,
+            transactional: evaluation.transactional.available
+              ? { input: { transactionMonths: true }, output: { pd: evaluation.transactional.pd, score: evaluation.transactional.score, band: evaluation.transactional.band } }
+              : null,
+            processingTimeMs: Date.now() - startedAt,
+          }),
+        )
+        .catch((err) => logger.warn({ err }, "logRiskEvaluation failed (non-fatal)"));
+
+      return res.json({ available: true, ...evaluation });
+    } catch (e) {
+      logger.error({ err: e }, "Get risk evaluation failed");
+      res.status(500).json({ message: "Error al evaluar el riesgo." });
     }
   });
 
