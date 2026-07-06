@@ -1,5 +1,31 @@
 # Modelo de credit scoring (XGBoost)
 
+## Doble evaluador de riesgo (Fases A–G) — naturaleza BETA y direccional
+
+CODA sirve **dos evaluadores que conviven** sobre un feature store unificado (`services/risk/`):
+
+1. **Tradicional (control)** — regresión logística (`train_logreg.py` → `artifacts/logreg_cmf/coeffs.json`,
+   servida por `services/risk/creditScorecard.ts`) sobre features CMF (mora30/60/90, dti mensual,
+   utilización), entrenada en **GiveMeSomeCredit** (150k, AUC 0.836). Escala 0–850, interpretable.
+2. **Transaccional CODA (experimental/beta)** — XGB Berka (`modelRegistry` / `artifacts/current`),
+   PD + puntaje 0–100 (`services/risk/transactionalScore.ts`).
+
+**Ambos scores son DIRECCIONALES, no calibrados a Chile.** Se entrenaron con datasets extranjeros
+(GiveMeSomeCredit y Berka son de otras poblaciones/épocas). Sirven como MVP y para comparar
+metodologías, pero **no deben publicarse como verdad absoluta** — por eso el transaccional va
+etiquetado **"Beta"** en la UI y el endpoint `/api/risk/evaluation` está detrás del flag
+`RISK_DUAL_SCORE_ENABLED` (habilitado en dev; en prod requiere set explícito) + `FEATURES.riskDualScore`
+en el front.
+
+**El "control" es METODOLÓGICO, no estadístico.** El tradicional es un control del experimental solo
+en el sentido de "interpretable vs ML sobre el mismo usuario". Un control estadístico real requiere
+evaluar ambos sobre la MISMA data con el MISMO target — es decir, **outcomes de repago propios de
+CODA**. Ese puente lo abre la **Fase G** (`services/risk/decisionOutcomes.ts` + tabla
+`risk_decision_outcomes` + `db:export-decision-outcomes`): captura decisiones reales por proveedor.
+Hoy el export etiqueta APROBACIÓN (entrena el modelo de aprobación por proveedor); la recalibración
+del PD de default necesita outcomes de REPAGO (cuando maduren los créditos originados). Hasta entonces,
+los scores se mantienen beta/direccionales.
+
 ## Hallazgo de auditoría: AUC 0.4172 (peor que azar) en `artifacts/current`
 
 `artifacts/current/manifest.json` reporta `auc: 0.4172`, `gini: -0.1655` — peor que un
