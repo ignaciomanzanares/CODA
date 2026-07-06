@@ -880,6 +880,29 @@ export const inscripcionJobs = table('inscripcion_jobs', {
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+/**
+ * Datos verificados de fuentes institucionales conectadas por el usuario (Fase 5): AFP
+ * (cotizaciones), SII (renta) y Tesorería (deuda fiscal). Una fila por usuario+fuente (upsert al
+ * subir un nuevo documento). Alimenta los ratios de salud: ingreso verificado, deuda fiscal,
+ * estabilidad de cotizaciones. Los datos se extraen del PDF oficial que el usuario sube con Clave
+ * Única (no manejamos sus credenciales).
+ */
+export const userFinancialSources = table('user_financial_sources', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  /** 'afp' | 'sii' | 'tgr' */
+  source: text('source').notNull(),
+  /** Ingreso mensual verificado (SII: renta líquida/12; AFP: renta imponible promedio). */
+  verifiedMonthlyIncomeClp: integer('verified_monthly_income_clp'),
+  /** Deuda fiscal vigente (TGR). */
+  fiscalDebtClp: integer('fiscal_debt_clp'),
+  /** Meses cotizados / continuidad previsional (AFP) — proxy de estabilidad de ingresos. */
+  contributionMonths: integer('contribution_months'),
+  /** JSON del parse completo (auditoría / campos adicionales). */
+  rawData: text('raw_data'),
+  extractedAt: text('extracted_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 /** Memoria del asistente IA por usuario: resumen rolling de conversaciones pasadas. */
 export const assistantSummaries = table('assistant_summaries', {
   userId: text('user_id').primaryKey().references(() => users.id),

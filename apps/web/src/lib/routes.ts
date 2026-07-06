@@ -7,6 +7,8 @@ export const ROUTES = {
   panel: "/panel",
   movimientos: "/movimientos",
   conexiones: "/conexiones",
+  /** Conectores AFP/SII/Tesorería por flujo guiado (Fase 5). */
+  conectarDatos: "/conectar-datos",
   gastos: "/gastos",
   /** Página principal «Dividir cuenta» */
   dividirCuenta: "/dividir-cuenta",

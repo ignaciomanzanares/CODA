@@ -49,6 +49,7 @@ const navItems = [
   { href: ROUTES.productos, label: "Productos", icon: Store },
   { href: ROUTES.movimientos, label: "Movimientos", icon: ArrowLeftRight },
   { href: ROUTES.plan, label: "Plan", icon: FileText },
+  { href: ROUTES.conectarDatos, label: "Conectar datos", icon: Activity },
   { href: ROUTES.conexiones, label: "Conexiones", icon: Link2 },
 ];
 
