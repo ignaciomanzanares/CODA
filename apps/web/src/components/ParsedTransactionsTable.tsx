@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, API_URL } from "@/lib/api";
-import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -172,11 +172,12 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
 
   const { data, isLoading } = useQuery<{ transactions: ParsedTransaction[]; count: number }>({
     queryKey: ["/api/transactions/parsed"],
-    queryFn: async () => {
-      const token = getPersonalToken();
-      if (!token && !hasPersonalSession()) return { transactions: [], count: 0 };
-      return apiFetch("/api/transactions/parsed");
-    },
+    // Sin guard de token/sesión: `enabled: isAuthenticated` ya evita correr la query
+    // logueado-fuera. Con auth cookie-only, devolver { transactions: [], count: 0 }
+    // durante la hidratación (token null + mirror de sesión aún sin setear) se cacheaba
+    // como éxito y dejaba un empty state falso ("Sin movimientos") aunque hubiera datos.
+    // apiFetch va con credentials:"include", así que la cookie httpOnly autentica.
+    queryFn: () => apiFetch("/api/transactions/parsed"),
     enabled: isAuthenticated,
     staleTime: 30_000,
   });
