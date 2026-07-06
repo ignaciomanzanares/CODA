@@ -4,7 +4,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import { getSfaScoringEngine } from '../scoring/index.js';
+import { computeLiquidityMetrics } from '../risk/liquidityMetrics.js';
 import { storage } from '../../storage.js';
 import { withTransaction, db, users, eq } from '../../db/index.js';
 import { logger } from '../../logger.js';
@@ -311,13 +311,15 @@ export async function processDocumentUpload(
       const transactions = allParsed.flatMap((c) => cartolaToSfaTransactions(c, c.rutDocumento ?? rut));
       const products = allParsed.flatMap((c) => cartolaToSfaProductos(c, c.rutDocumento ?? rut));
 
-      const engine = getSfaScoringEngine();
-      const scoreResult = engine.run({ transactions, products });
+      // El score transaccional lo produce ahora el modelo XGB (services/risk/transactionalScore.ts),
+      // bajo demanda vía /api/risk/evaluation. Al subir solo persistimos las MÉTRICAS de liquidez
+      // (que consume el motor de salud); el heurístico sfaScoringEngine fue eliminado.
+      const metrics = computeLiquidityMetrics({ transactions, products });
 
       const hasInterest = parsed.transacciones.some(
         (t) => /interés|interes|intereses|línea|linea|crédito|credito|tarjeta/i.test(t.descripcion)
       );
-      const mainInsights = [...scoreResult.mainInsights];
+      const mainInsights: string[] = [];
       if (hasInterest) {
         mainInsights.push(
           'Detectamos intereses de línea de crédito o tarjeta en tu cartola. Te recomendamos consolidar deudas y evaluar ofertas de ahorro según el Business Plan.'
@@ -333,10 +335,10 @@ export async function processDocumentUpload(
       }
 
       await storage.upsertTransactionalScore(userId, {
-        transactionalScore: scoreResult.transactionalScore,
-        metrics: scoreResult.metrics,
+        transactionalScore: null,
+        metrics,
         mainInsights,
-        recommendedProducts: scoreResult.recommendedProducts,
+        recommendedProducts: [],
         algorithmInputs: {
           pipeline: 'cartola_pdf_hardened',
           transactionCount: transactions.length,
@@ -364,10 +366,10 @@ export async function processDocumentUpload(
       return {
         step: 'done',
         documentType: 'cartola',
-        transactionalScore: scoreResult.transactionalScore,
+        transactionalScore: undefined,
         mainInsights,
-        recommendedProducts: scoreResult.recommendedProducts,
-        metrics: scoreResult.metrics,
+        recommendedProducts: [],
+        metrics,
         detection_tier: parsed.detection_tier,
         banco_confidence: parsed.banco_confidence,
         detected_banco: parsed.banco,

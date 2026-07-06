@@ -40,7 +40,7 @@ describe("processDocumentUpload — score best-effort (#40)", () => {
     return;
   }
 
-  it("caso normal: 200 con transactionalScore + documentId (sin warnings de score)", async () => {
+  it("caso normal: 200 con métricas de liquidez + documentId (sin warnings de score)", async () => {
     const userId = await seedUser();
     const buf = readFileSync(fixture);
     const res = await processDocumentUpload(userId, buf);
@@ -48,7 +48,10 @@ describe("processDocumentUpload — score best-effort (#40)", () => {
     expect(res.error).toBeUndefined();
     expect(res.documentType).toBe("cartola");
     expect(res.documentId).toBeTruthy();
-    expect(typeof res.transactionalScore).toBe("number");
+    // El score transaccional ya NO se computa al subir (lo da el modelo XGB bajo demanda);
+    // la subida persiste las métricas de liquidez que consume el motor de salud.
+    expect(res.transactionalScore).toBeUndefined();
+    expect(typeof res.metrics?.averageMonthlyBalanceClp).toBe("number");
     expect(typeof res.movementCount).toBe("number");
     expect(res.warnings ?? []).toHaveLength(0);
   });
