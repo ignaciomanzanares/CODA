@@ -1,0 +1,29 @@
+{
+  "model_id": "logreg_cmf_1783351412",
+  "trained_at": "2026-07-06T15:23:32.236670+00:00",
+  "algo": "logistic_regression",
+  "features": [
+    "mora30",
+    "mora60",
+    "mora90",
+    "dti",
+    "util"
+  ],
+  "intercept": -3.9554575248385047,
+  "coefficients": {
+    "mora30": 0.41755275413146536,
+    "mora60": 0.1731422877324404,
+    "mora90": 0.4678056490230813,
+    "dti": 0.05929982617134254,
+    "util": 1.9844892398437808
+  },
+  "metrics": {
+    "auc_cv5": 0.8361426992207845,
+    "brier": 0.0525453469351317,
+    "base_rate": 0.06684
+  },
+  "transfer": null,
+  "dataset_hash": "d109bceb151c069363c54440ef3f76a5ff0cda2b18069fa47f5c76e342a08c8c",
+  "source": "GiveMeSomeCredit (150000 filas) \u2014 features CMF (mora30/60/90, dti, util)",
+  "note": "PD = sigmoid(intercept + sum(coef_i * feature_i)). El scorecard TS mapea PD -> 0-850."
+}

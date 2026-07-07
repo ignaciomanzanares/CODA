@@ -175,10 +175,10 @@ export function useApi(): ApiClient {
     let res: Response;
     try {
       res = await fetch(fullUrl, {
-        credentials: "include",
         ...restOptions,
         method,
         headers,
+        credentials: "include",
         body: data !== undefined ? JSON.stringify(data) : optsBody,
         // Evita caché HTTP/304 en listas (p. ej. metas con ETag): sin cuerpo JSON el refetch no actualiza React Query.
         cache: method === "GET" ? "no-store" : restOptions?.cache,

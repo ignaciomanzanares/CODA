@@ -46,6 +46,19 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Dataset de terceros (Kaggle) descargado por prepare_kaggle_benchmark.py — no redistribuir.
+apps/api/src/ml/out/kaggle_benchmark_features.csv
+# CSVs de entrenamiento generados (se regeneran con ml:make:synth; no versionar).
+apps/api/src/ml/out/*.csv
+# Artefactos de modelo entrenados (#5): solo `current/` queda versionado como fallback;
+# las versiones nuevas viven en el blob store y se promueven por fila en algorithm_model_versions.
+apps/api/src/ml/artifacts/*
+!apps/api/src/ml/artifacts/current/
+# Scorecard tradicional (regresión logística GMSC) — se versiona para reproducibilidad/provenance.
+!apps/api/src/ml/artifacts/logreg_cmf/
+# Cache de descarga del modelo de producción desde el blob store (runtime).
+apps/api/src/ml/artifacts/_remote_production/
+
 # Cache directories
 .cache/
 .turbo/

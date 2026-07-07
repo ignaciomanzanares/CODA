@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import {
   db,
+  withTransaction,
   dialect,
   sql,
   users,
@@ -23,7 +24,8 @@ import {
   creditScoreHistory,
   assistantFeedback,
   assistantSummaries,
-  // Adicionales para el borrado completo de cuenta (deleteUserData).
+  habitFeedback,
+  // Adicionales para el borrado completo de cuenta (deleteUserData legacy).
   consentGrants,
   privacyConsentEvents,
   riskFactors,
@@ -44,7 +46,29 @@ import {
   desc,
 } from "./db/index.js";
 import { logger } from "./logger.js";
-import { logTransactionalScoreComputationFireAndForget } from "./services/audit/traceabilityPersistence.js";
+import { logTransactionalScoreComputation } from "./services/audit/traceabilityPersistence.js";
+import { encryptField, encryptFieldOrNull, decryptField, decryptFieldOrNull, looksEncrypted } from "./services/crypto/fieldEncryption.js";
+
+/** Tolera filas pre-existentes guardadas antes de activar cifrado de columna (ver scripts/encrypt-existing-data.ts). */
+function decryptStoredJson(value: string): string {
+  return looksEncrypted(value) ? decryptField(value) : value;
+}
+
+/** Descifra un campo de texto cifrado, tolerando filas legacy en claro (mixed read). */
+function maybeDecryptField(value: string | null | undefined): string | null {
+  if (value === null || value === undefined) return null;
+  return looksEncrypted(value) ? decryptField(value) : value;
+}
+
+/** Devuelve la transacción con `description`/`merchantName`/`raw` en claro (cifrados en reposo). */
+function decryptTxRow<T extends { description?: string | null; merchantName?: string | null; raw?: string | null }>(tx: T): T {
+  if (!tx) return tx;
+  const out: T = { ...tx };
+  if (typeof tx.description === 'string') out.description = maybeDecryptField(tx.description);
+  if (typeof tx.merchantName === 'string') out.merchantName = maybeDecryptField(tx.merchantName);
+  if (typeof tx.raw === 'string') out.raw = maybeDecryptField(tx.raw);
+  return out;
+}
 import type {
   User,
   InsertUser,
@@ -114,14 +138,15 @@ export interface IStorage {
   updateCreditScore(userId: string, creditScore: any): Promise<any>;
   /** Mismo contrato que upsertTransactionalScore: evita TS2551 y mismo "riel" de guardado. */
   upsertCreditScoreRaw(userId: string, payload: any): Promise<any>;
-  /** Misma infraestructura que cartola: select + update o insert (Drizzle). */
-  upsertCreditScore(userId: string, data: { score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string; lastUpdated: string }): Promise<any>;
+  /** Misma infraestructura que cartola: select + update o insert (Drizzle). `exec` opcional comparte la transacción del caller (#14). */
+  upsertCreditScore(userId: string, data: { score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string; lastUpdated: string }, exec?: any): Promise<any>;
   // Transactional score (cartolas)
   getTransactionalScore(userId: string): Promise<any>;
   upsertTransactionalScore(
     userId: string,
     data: {
-      transactionalScore: number;
+      // null cuando solo se persisten métricas de liquidez (el score lo da el modelo XGB bajo demanda).
+      transactionalScore: number | null;
       metrics?: object;
       mainInsights?: string[];
       recommendedProducts?: string[];
@@ -187,6 +212,10 @@ export interface IStorage {
   // Assistant cross-session memory (rolling summary per user)
   getAssistantSummary(userId: string): Promise<{ summary: string; exchangeCount: number } | null>;
   upsertAssistantSummary(userId: string, data: { summary: string; exchangeCount: number }): Promise<void>;
+
+  // Habit feedback (thumbs up/down sobre hábitos financieros recomendados)
+  createHabitFeedback(data: { userId: string; habitKey: string; rating: 'up' | 'down' }): Promise<void>;
+  getRecentlyDownvotedHabitKeys(userId: string): Promise<Set<string>>;
 
   // User cleanup
   deleteUserData(userId: string): Promise<boolean>;
@@ -273,18 +302,41 @@ export class DatabaseStorage implements IStorage {
   private currentBillSplitParticipantId = 1;
 
   // User operations
+  // `email`/`username` se usan en WHERE (login, unicidad) y quedan en texto plano — AES-GCM con IV
+  // aleatorio no soporta búsqueda por igualdad. `firstName`/`lastName`/`totpSecret`/`backupCodes`
+  // nunca se consultan por valor, así que se cifran en reposo (pseudonimización de columna).
+  private encryptUserPII<T extends Partial<InsertUser>>(data: T): T {
+    const out: any = { ...data };
+    if ('firstName' in out) out.firstName = encryptFieldOrNull(out.firstName);
+    if ('lastName' in out) out.lastName = encryptFieldOrNull(out.lastName);
+    if ('totpSecret' in out) out.totpSecret = encryptFieldOrNull(out.totpSecret);
+    if ('backupCodes' in out) out.backupCodes = encryptFieldOrNull(out.backupCodes);
+    return out;
+  }
+
+  private decryptUserPII<T extends { firstName?: string | null; lastName?: string | null; totpSecret?: string | null; backupCodes?: string | null } | undefined>(user: T): T {
+    if (!user) return user;
+    return {
+      ...user,
+      firstName: decryptFieldOrNull(user.firstName),
+      lastName: decryptFieldOrNull(user.lastName),
+      totpSecret: decryptFieldOrNull(user.totpSecret),
+      backupCodes: decryptFieldOrNull(user.backupCodes),
+    };
+  }
+
   async getUser(id: string): Promise<User | undefined> {
     if (!db) return undefined;
     const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
+    return this.decryptUserPII(user) || undefined;
   }
-  
+
   async getUserByUsername(username: string): Promise<User | undefined> {
     if (!db) return undefined;
     const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
+    return this.decryptUserPII(user) || undefined;
   }
-  
+
   async getUserByEmail(email: string): Promise<User | undefined> {
     if (!db) return undefined;
     const normalized = String(email).trim().toLowerCase();
@@ -292,20 +344,20 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(users)
       .where(sql`lower(${users.email}) = ${normalized}`);
-    return user || undefined;
+    return this.decryptUserPII(user) || undefined;
   }
-  
+
   async createUser(insertUser: InsertUser & { id?: string }): Promise<User> {
     if (!db) throw new Error("Database not available");
     // Use provided ID or generate a unique ID for the user if not provided
     const userWithId = {
-      ...insertUser,
+      ...this.encryptUserPII(insertUser),
       id: insertUser.id || Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9)
     };
 
     try {
       const [user] = await db.insert(users).values(userWithId).returning();
-      return user;
+      return this.decryptUserPII(user);
     } catch (err: any) {
       // Handle concurrent insert race: Postgres unique_violation code is '23505'
       // SQLite unique constraint uses 'SQLITE_CONSTRAINT_UNIQUE' and message contains 'UNIQUE constraint failed'
@@ -321,7 +373,7 @@ export class DatabaseStorage implements IStorage {
           const rows = await db.select().from(users).where(eq(users.email, userWithId.email));
           existing = rows && rows.length ? rows[0] : null;
         }
-        if (existing) return existing;
+        if (existing) return this.decryptUserPII(existing);
       }
       throw err;
     }
@@ -331,54 +383,66 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       return undefined;
     }
-    
+
     const [updatedUser] = await db
       .update(users)
       .set({
-        ...updateData,
+        ...this.encryptUserPII(updateData),
         updatedAt: new Date().toISOString()
       })
       .where(eq(users.id, id))
       .returning();
-    return updatedUser || undefined;
+    return this.decryptUserPII(updatedUser) || undefined;
   }
   
   // Bank connection methods
+  // `connectionData` se cifra en reposo (puede llevar tokens/datos de sesión del proveedor
+  // bancario — riesgo de account-takeover si se filtra, no solo PII).
   async getBankConnections(userId: string): Promise<BankConnection[]> {
     return Array.from(this.bankConnections.values()).filter(
       (connection) => connection.userId === userId,
     );
   }
-  
+
   async getBankConnection(id: number): Promise<BankConnection | undefined> {
     if (!db) return undefined;
     const [connection] = await db
       .select()
       .from(bankConnections)
       .where(eq(bankConnections.id, id));
-    return connection || undefined;
+    if (!connection) return undefined;
+    return { ...connection, connectionData: maybeDecryptField(connection.connectionData) };
   }
-  
+
   async createBankConnection(insertConnection: InsertBankConnection): Promise<BankConnection> {
     if (!db) throw new Error("Database not available");
+    const toInsert = {
+      ...insertConnection,
+      connectionData: encryptFieldOrNull((insertConnection as { connectionData?: string | null }).connectionData),
+    };
     const [connection] = await db
       .insert(bankConnections)
-      .values(insertConnection)
+      .values(toInsert)
       .returning();
-    return connection;
+    return { ...connection, connectionData: maybeDecryptField(connection.connectionData) };
   }
-  
+
   async updateBankConnection(id: number, connection: Partial<InsertBankConnection>): Promise<BankConnection | undefined> {
     if (!db) return undefined;
+    const updates = { ...connection } as Partial<InsertBankConnection> & Record<string, unknown>;
+    if ('connectionData' in updates) {
+      updates.connectionData = encryptFieldOrNull(updates.connectionData as string | null | undefined);
+    }
     const [updatedConnection] = await db
       .update(bankConnections)
       .set({
-        ...connection,
+        ...updates,
         lastUpdated: new Date().toISOString()
       })
       .where(eq(bankConnections.id, id))
       .returning();
-    return updatedConnection || undefined;
+    if (!updatedConnection) return undefined;
+    return { ...updatedConnection, connectionData: maybeDecryptField(updatedConnection.connectionData) };
   }
   
   async deleteBankConnection(id: number): Promise<boolean> {
@@ -428,8 +492,20 @@ export class DatabaseStorage implements IStorage {
   async createTransactionsBulk(items: InsertTransaction[]): Promise<Transaction[]> {
     if (!db) throw new Error("Database not available");
     if (items.length === 0) return [];
-    const inserted = await db.insert(transactions).values(items).returning();
-    return inserted;
+    // Cifra `description`/`merchantName`/`raw` en reposo (PII: nombre de comercio/contraparte y
+    // dato crudo del banco). El detalle ya va cifrado en parsedData; esto cierra la copia
+    // operacional en la tabla transactions.
+    const toInsert = items.map((it) => {
+      const row = it as { description?: unknown; merchantName?: unknown; raw?: unknown };
+      const out = { ...it } as typeof it & Record<string, unknown>;
+      if (typeof row.description === 'string') out.description = encryptField(row.description);
+      if (typeof row.merchantName === 'string') out.merchantName = encryptField(row.merchantName);
+      if (typeof row.raw === 'string') out.raw = encryptField(row.raw);
+      return out;
+    });
+    const inserted = await db.insert(transactions).values(toInsert).returning();
+    // Devuelve los campos en claro al caller (acaba de pasarlos en claro).
+    return inserted.map((row: any) => decryptTxRow(row));
   }
 
   async getTransactions(accountId: number, options?: { from?: Date; to?: Date; limit?: number; offset?: number }): Promise<Transaction[]> {
@@ -447,7 +523,7 @@ export class DatabaseStorage implements IStorage {
     result.sort((a: any, b: any) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime());
     if (options?.offset) result = result.slice(options.offset);
     if (options?.limit) result = result.slice(0, options.limit);
-    return result;
+    return result.map((row: any) => decryptTxRow(row));
   }
 
   async getLatestBalancesForAccounts(accountIds: number[]): Promise<Record<number, any>> {
@@ -470,7 +546,7 @@ export class DatabaseStorage implements IStorage {
     if (options?.from) {
       result = result.filter((tx: any) => new Date(tx.postedAt) >= options.from!);
     }
-    return result;
+    return result.map((row: any) => decryptTxRow(row));
   }
 
   /**
@@ -620,7 +696,8 @@ export class DatabaseStorage implements IStorage {
    */
   async upsertCreditScore(
     userId: string,
-    data: { score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string; lastUpdated: string }
+    data: { score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string; lastUpdated: string },
+    exec: any = db,
   ): Promise<any> {
     if (!db) return undefined;
     const payload = {
@@ -634,8 +711,9 @@ export class DatabaseStorage implements IStorage {
     };
     // INSERT ... ON CONFLICT (user_id) DO UPDATE — atómico, sin el SELECT-then-write previo
     // que abría una race condition (TOCTOU) bajo requests concurrentes para el mismo usuario.
+    // `exec` (db o tx) permite compartir la transacción del caller para atomicidad score+traza (#14).
     const { userId: _omitOnUpdate, ...updateSet } = payload;
-    const [row] = await db
+    const [row] = await exec
       .insert(creditScores)
       .values(payload)
       .onConflictDoUpdate({ target: creditScores.userId, set: updateSet })
@@ -662,7 +740,7 @@ export class DatabaseStorage implements IStorage {
   async upsertTransactionalScore(
     userId: string,
     data: {
-      transactionalScore: number;
+      transactionalScore: number | null;
       metrics?: object;
       mainInsights?: string[];
       recommendedProducts?: string[];
@@ -679,31 +757,43 @@ export class DatabaseStorage implements IStorage {
       lastUpdated: new Date().toISOString(),
     };
     const t0 = Date.now();
-    // INSERT ... ON CONFLICT (user_id) DO UPDATE — atómico, elimina el TOCTOU del SELECT-then-write.
     const { userId: _omitOnUpdate, ...updateSet } = payload;
-    const [row] = await db
-      .insert(transactionalScores)
-      .values(payload)
-      .onConflictDoUpdate({ target: transactionalScores.userId, set: updateSet })
-      .returning();
 
-    logTransactionalScoreComputationFireAndForget({
-      userId,
-      requestId: randomUUID(),
-      input: {
-        source: "storage.upsertTransactionalScore",
-        hasMetrics: data.metrics != null,
-        mainInsightsCount: data.mainInsights?.length ?? 0,
-        recommendedProductsCount: data.recommendedProducts?.length ?? 0,
-        ...(data.algorithmInputs ?? {}),
-      },
-      output: {
-        transactionalScore: data.transactionalScore,
-        mainInsights: data.mainInsights ?? [],
-        recommendedProducts: data.recommendedProducts,
-        metrics: data.metrics,
-      },
-      processingTimeMs: Date.now() - t0,
+    // Atomicidad (#14): el upsert del score y su traza NCG 502 se confirman juntos
+    // o no se confirman (en Postgres; en SQLite corren secuenciales — ver withTransaction).
+    // Antes eran dos statements sueltos: un fallo entre ambos dejaba el score sin traza.
+    const row = await withTransaction(async (tx) => {
+      // INSERT ... ON CONFLICT (user_id) DO UPDATE — atómico, elimina el TOCTOU del SELECT-then-write.
+      const [inserted] = await tx
+        .insert(transactionalScores)
+        .values(payload)
+        .onConflictDoUpdate({ target: transactionalScores.userId, set: updateSet })
+        .returning();
+
+      await logTransactionalScoreComputation(
+        {
+          userId,
+          requestId: randomUUID(),
+          input: {
+            source: "storage.upsertTransactionalScore",
+            hasMetrics: data.metrics != null,
+            mainInsightsCount: data.mainInsights?.length ?? 0,
+            recommendedProductsCount: data.recommendedProducts?.length ?? 0,
+            ...(data.algorithmInputs ?? {}),
+          },
+          output: {
+            // null (upsert solo-métricas) → 0 en la traza; el score real lo emite el modelo XGB.
+            transactionalScore: data.transactionalScore ?? 0,
+            mainInsights: data.mainInsights ?? [],
+            recommendedProducts: data.recommendedProducts,
+            metrics: data.metrics,
+          },
+          processingTimeMs: Date.now() - t0,
+        },
+        tx,
+      );
+
+      return inserted;
     });
 
     return row;
@@ -856,14 +946,21 @@ export class DatabaseStorage implements IStorage {
   
   // Financial product methods
   async getFinancialProducts(category?: string): Promise<any[]> {
-    const products = Array.from(this.financialProducts.values());
-    if (category) {
-      return products.filter((product: any) => product.category === category);
+    // Fuente de verdad: tabla financial_products (catálogo único, cargado por
+    // scripts/seedProductCatalog.ts). Solo productos activos. El Map es fallback dev sin DB.
+    if (!db) {
+      const products = Array.from(this.financialProducts.values());
+      return category ? products.filter((p: any) => p.category === category) : products;
     }
-    return products;
+    const where = category
+      ? and(eq(financialProducts.isActive, 1), eq(financialProducts.category, category))
+      : eq(financialProducts.isActive, 1);
+    return await db.select().from(financialProducts).where(where);
   }
   async getFinancialProduct(id: number): Promise<any | undefined> {
-    return this.financialProducts.get(id);
+    if (!db) return this.financialProducts.get(id);
+    const [row] = await db.select().from(financialProducts).where(eq(financialProducts.id, id));
+    return row || undefined;
   }
   async createFinancialProduct(insertProduct: any): Promise<any> {
     const id = this.currentFinancialProductId++;
@@ -1393,7 +1490,7 @@ export class DatabaseStorage implements IStorage {
         banco: row.banco ?? null,
         periodoDesde: row.periodoDesde ?? null,
         periodoHasta: row.periodoHasta ?? null,
-        parsedData: JSON.stringify(row.parsedData),
+        parsedData: encryptField(JSON.stringify(row.parsedData)),
         parseStatus: row.parseStatus ?? "success",
         normalizationStatus: row.normalizationStatus ?? null,
         reviewStatus: row.reviewStatus ?? "not_required",
@@ -1428,7 +1525,7 @@ export class DatabaseStorage implements IStorage {
     if (!row) return undefined;
     return {
       ...row,
-      parsedData: row.parsedData ? JSON.parse(row.parsedData) : null,
+      parsedData: row.parsedData ? JSON.parse(decryptStoredJson(row.parsedData)) : null,
     };
   }
 
@@ -1436,7 +1533,7 @@ export class DatabaseStorage implements IStorage {
     if (!db) return;
     await db
       .update(documentUploads)
-      .set({ parsedData: JSON.stringify(parsedData) })
+      .set({ parsedData: encryptField(JSON.stringify(parsedData)) })
       .where(eq(documentUploads.id, id));
   }
 
@@ -1457,7 +1554,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(documentUploads.uploadedAt));
     return rows.map((row: any) => ({
       ...row,
-      parsedData: row.parsedData ? JSON.parse(row.parsedData) : null,
+      parsedData: row.parsedData ? JSON.parse(decryptStoredJson(row.parsedData)) : null,
     }));
   }
 
@@ -1517,16 +1614,20 @@ export class DatabaseStorage implements IStorage {
     const serialized = typeof row.parsedData === 'string' ? row.parsedData : JSON.stringify(row.parsedData);
     const [inserted] = await db
       .insert(scoreDocumentUploads)
-      .values({ ...row, parsedData: serialized, parseStatus: row.parseStatus ?? 'success' })
+      .values({ ...row, parsedData: encryptField(serialized), parseStatus: row.parseStatus ?? 'success' })
       .returning();
     return inserted;
   }
 
   async listScoreDocumentUploads(userId: string): Promise<any[]> {
     if (!db) return [];
-    return db.select().from(scoreDocumentUploads)
+    const rows = await db.select().from(scoreDocumentUploads)
       .where(eq(scoreDocumentUploads.userId, userId))
       .orderBy(desc(scoreDocumentUploads.uploadedAt));
+    return rows.map((r: any) => ({
+      ...r,
+      parsedData: r.parsedData ? decryptStoredJson(r.parsedData) : r.parsedData,
+    }));
   }
 
   async listScoreDocumentUploadsByType(userId: string, tipo: string): Promise<any[]> {
@@ -1536,7 +1637,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(scoreDocumentUploads.uploadedAt));
     return rows.map((r: any) => ({
       ...r,
-      parsedData: typeof r.parsedData === 'string' ? JSON.parse(r.parsedData) : r.parsedData,
+      parsedData: typeof r.parsedData === 'string' ? JSON.parse(decryptStoredJson(r.parsedData)) : r.parsedData,
     }));
   }
 
@@ -1645,6 +1746,50 @@ export class DatabaseStorage implements IStorage {
       provider: data.provider ?? null,
       comment: data.comment ?? null,
     });
+  }
+
+  async createHabitFeedback(data: {
+    userId: string;
+    habitKey: string;
+    rating: 'up' | 'down';
+  }): Promise<void> {
+    if (!db) {
+      logger.debug({ habitKey: data.habitKey, rating: data.rating }, 'Habit feedback (mem-storage, dropped)');
+      return;
+    }
+    await db.insert(habitFeedback).values({
+      id: randomUUID(),
+      userId: data.userId,
+      habitKey: data.habitKey,
+      rating: data.rating,
+    });
+  }
+
+  /**
+   * Hábitos que el usuario marcó "no útil" la última vez que dio feedback sobre ellos.
+   * Un feedback más reciente "útil" sobre la misma key revierte la exclusión — solo
+   * importa el rating más reciente por `habitKey`, no el historial completo.
+   */
+  async getRecentlyDownvotedHabitKeys(userId: string): Promise<Set<string>> {
+    if (!db) return new Set();
+    const rows = await db
+      .select()
+      .from(habitFeedback)
+      .where(eq(habitFeedback.userId, userId))
+      .orderBy(desc(habitFeedback.createdAt));
+
+    const latestRatingByKey = new Map<string, 'up' | 'down'>();
+    for (const row of rows as Array<{ habitKey: string; rating: 'up' | 'down' }>) {
+      if (!latestRatingByKey.has(row.habitKey)) {
+        latestRatingByKey.set(row.habitKey, row.rating);
+      }
+    }
+
+    const downvoted = new Set<string>();
+    for (const [key, rating] of latestRatingByKey) {
+      if (rating === 'down') downvoted.add(key);
+    }
+    return downvoted;
   }
 
   async getAssistantSummary(userId: string): Promise<{ summary: string; exchangeCount: number } | null> {

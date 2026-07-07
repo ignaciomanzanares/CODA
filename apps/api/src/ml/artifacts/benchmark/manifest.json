@@ -1,0 +1,29 @@
+{
+  "model_id": "xgb_kaggle_benchmark_1782360586",
+  "trained_at": "2026-06-25T04:09:46Z",
+  "algo": "xgb",
+  "source": "Give Me Some Credit (Kaggle, 2011) \u2014 ver prepare_kaggle_benchmark.py",
+  "feature_cols": [
+    "RevolvingUtilizationOfUnsecuredLines",
+    "age",
+    "NumberOfTime30-59DaysPastDueNotWorse",
+    "DebtRatio",
+    "MonthlyIncome",
+    "NumberOfOpenCreditLinesAndLoans",
+    "NumberOfTimes90DaysLate",
+    "NumberRealEstateLoansOrLines",
+    "NumberOfTime60-89DaysPastDueNotWorse",
+    "NumberOfDependents"
+  ],
+  "metrics": {
+    "auc_per_fold": [
+      0.860860343690148,
+      0.8652937888231734,
+      0.8686388495463881
+    ],
+    "auc": 0.8649309940199031,
+    "gini": 0.7298619880398063,
+    "brier": 0.04934626476736126
+  },
+  "note": "Benchmark diagn\u00f3stico, no apto para producci\u00f3n: no usa el feature set de make_synth_training.ts/features.ts (transacciones bancarias), sino las columnas nativas del dataset de bur\u00f3 de cr\u00e9dito. Objetivo: confirmar que el pipeline train_xgb.py no tiene un bug estructural, comparando contra el AUC 0.4172 (peor que azar) de artifacts/current con etiqueta sint\u00e9tica Math.random(). No incluye export a ONNX (ver docstring del m\u00f3dulo)."
+}

@@ -9,7 +9,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 
 // Data & ranking
-import seedProducts from "@/data/products.seed.json";
 import { rankProductsByCategory } from "@/lib/product-ranking";
 import { PRODUCT_CATEGORIES } from "@/types/products";
 import type { Product, ProductCategory, UserFinancialProfile, RankedProduct, RankingReason, EligibilityStatus } from "@/types/products";
@@ -100,6 +99,43 @@ const emptyProfile: UserFinancialProfile = {
   age: null,
   has_real_data: false,
 };
+
+/**
+ * Mapea una fila de `financial_products` (respuesta de /api/financial-products) al tipo Product
+ * del front. Clave: `id` = el id numérico real de la DB (como string), para que applyToProduct
+ * (Number(product.id)) envíe el id correcto — antes el slug daba NaN.
+ */
+function mapApiProductToProduct(row: Record<string, unknown>): Product {
+  let tags: string[] = [];
+  const rawFeatures = row.features;
+  if (typeof rawFeatures === "string") {
+    try {
+      const parsed = JSON.parse(rawFeatures);
+      if (Array.isArray(parsed)) tags = parsed.map((t) => String(t));
+    } catch {
+      /* features no-JSON: sin tags */
+    }
+  } else if (Array.isArray(rawFeatures)) {
+    tags = rawFeatures.map((t) => String(t));
+  }
+  const num = (v: unknown): number | null => (typeof v === "number" ? v : null);
+  return {
+    id: String(row.id),
+    institution: String(row.provider ?? ""),
+    institution_logo_url: (row.logoUrl as string | null) ?? null,
+    category: String(row.category ?? "") as ProductCategory,
+    name: String(row.productName ?? ""),
+    short_description: String(row.description ?? ""),
+    annual_rate_pct: num(row.interestRate),
+    monthly_cost_clp: num(row.monthlyPayment),
+    min_income_clp: num(row.minIncome),
+    min_credit_score: num(row.minCreditScore),
+    tags,
+    source_url: String(row.externalUrl ?? ""),
+    last_verified: String(row.lastVerified ?? ""),
+    disclosure: String(row.disclosure ?? ""),
+  };
+}
 
 function buildProfile(
   financialSummary: { summary?: { monthlyIncome?: number; monthlyExpenses?: number } } | null,
@@ -599,6 +635,20 @@ export default function Products() {
     staleTime: 60_000,
   });
 
+  // Catálogo único desde la DB (financial_products). Reemplaza el import estático de
+  // products.seed.json: así el `id` es el real de la tabla, requisito para que "aplicar"
+  // funcione (antes el slug hacía Number(slug)=NaN). Público, no requiere sesión.
+  const { data: apiProducts } = useQuery({
+    queryKey: ["/api/financial-products"],
+    queryFn: () => apiFetch("/api/financial-products"),
+    staleTime: 5 * 60_000,
+  });
+
+  const products: Product[] = useMemo(
+    () => (Array.isArray(apiProducts) ? apiProducts.map(mapApiProductToProduct) : []),
+    [apiProducts],
+  );
+
   // Build user profile
   const profile = useMemo(() => {
     if (!isAuthenticated) return emptyProfile;
@@ -607,8 +657,8 @@ export default function Products() {
 
   // Rank products for the active tab
   const rankedProducts: RankedProduct[] = useMemo(() => {
-    return rankProductsByCategory(seedProducts as Product[], activeTab, profile);
-  }, [activeTab, profile]);
+    return rankProductsByCategory(products, activeTab, profile);
+  }, [products, activeTab, profile]);
 
   const eligibleCount = rankedProducts.filter(p => p.eligibility === "eligible").length;
   const hasProfile = profile.has_real_data;

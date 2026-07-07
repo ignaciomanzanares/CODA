@@ -15,6 +15,8 @@ import FlowDonut from "@/components/dashboard/FlowDonut";
 import SavingsProgress from "@/components/dashboard/SavingsProgress";
 import CategoryCard from "@/components/dashboard/CategoryCard";
 import CreditScoreCard from "@/components/dashboard/CreditScoreCard";
+import RiskScoreCard from "@/components/RiskScoreCard";
+import { FEATURES } from "@/config/features";
 import PatrimonioSidebar from "@/components/dashboard/PatrimonioSidebar";
 import ReferralShareCard from "@/components/dashboard/ReferralShareCard";
 import DashboardTextInsights from "@/components/dashboard/DashboardTextInsights";
@@ -255,22 +257,29 @@ export default function Dashboard() {
             <>
               {/* ── CAPA 1: HERO ─────────────────────────────────────── */}
 
-              {/* Score Hero */}
-              {data.score !== null && (
-                <ScoreHero score={data.score} delta={data.scoreDelta} />
-              )}
+              {FEATURES.riskDualScore ? (
+                /* Doble evaluador de riesgo: un titular + segunda opinión (subsume hero + credit card). */
+                <RiskScoreCard />
+              ) : (
+                <>
+                  {/* Score Hero */}
+                  {data.score !== null && (
+                    <ScoreHero score={data.score} delta={data.scoreDelta} />
+                  )}
 
-              {/* Credit Score (CMF, separate from transactional score) */}
-              <CreditScoreCard
-                score={data.creditScore}
-                available={data.creditScoreAvailable}
-                unavailableReason={data.creditScoreUnavailableReason}
-                message={data.creditScoreMessage}
-                sourceLabel={data.creditScoreSource?.label ?? null}
-                sourceUploadedAt={data.creditScoreSource?.uploadedAt ?? null}
-                delta={data.creditScoreDelta}
-                lastUpdated={data.creditScoreDate}
-              />
+                  {/* Credit Score (CMF, separate from transactional score) */}
+                  <CreditScoreCard
+                    score={data.creditScore}
+                    available={data.creditScoreAvailable}
+                    unavailableReason={data.creditScoreUnavailableReason}
+                    message={data.creditScoreMessage}
+                    sourceLabel={data.creditScoreSource?.label ?? null}
+                    sourceUploadedAt={data.creditScoreSource?.uploadedAt ?? null}
+                    delta={data.creditScoreDelta}
+                    lastUpdated={data.creditScoreDate}
+                  />
+                </>
+              )}
 
               {/* Score Breakdown — how to improve */}
               {data.score !== null && (

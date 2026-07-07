@@ -11,6 +11,9 @@
  */
 
 export interface ProductCatalogItem {
+  /** Id del producto en la BD (`financial_products`). El catálogo estático no lo trae; los
+   *  productos cargados de BD sí. Se usa para mapear pesos de conversión por producto (#35). */
+  id?: number;
   productName: string;
   provider: string;
   productType: string;

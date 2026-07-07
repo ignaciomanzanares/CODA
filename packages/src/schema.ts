@@ -48,6 +48,18 @@ export const users = table("users", {
   tokenInvalidatedAt: text("token_invalidated_at"),
   /** Onboarding KYC (mock por ahora): null | 'mock_completed'. Se pide una sola vez. */
   kycStatus: text("kyc_status"),
+  /**
+   * @deprecated Legacy: RUT chileno del titular EN TEXTO PLANO. Reemplazado por `rutHash`
+   * (seudonimización, HMAC-SHA256 irreversible — ver services/crypto/identifierHashing.ts).
+   * El código ya no lee ni escribe esta columna; se mantiene únicamente hasta que
+   * `scripts/backfillRutHash.ts` confirme el backfill completo en producción, momento en el que
+   * se agrega una migración para hacer DROP COLUMN y se borra este campo del schema.
+   */
+  rut: text("rut"),
+  /** Hash HMAC-SHA256 (pepper RUT_HASH_PEPPER) del RUT del titular, normalizado. Se guarda al
+   * primer upload de Informe CMF; uploads posteriores deben producir el mismo hash (binding de
+   * identidad). Irreversible: no permite recuperar el RUT original. */
+  rutHash: text("rut_hash"),
   /** 0/1 — flujo de primer ingreso (consentimiento + KYC + 2FA) finalizado. */
   onboardingCompleted: integer("onboarding_completed").notNull().default(0),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
@@ -189,11 +201,40 @@ export const insuranceRisks = table('insurance_risks', {
 export const transactionalScores = table('transactional_scores', {
   id: serialPk("id"),
   userId: text('user_id').notNull().references(() => users.id).unique(),
-  transactionalScore: integer('transactional_score').notNull(),
+  // Nullable desde Fase C del doble evaluador: al subir cartola solo se persisten las MÉTRICAS de
+  // liquidez (para el motor de salud); el SCORE lo produce el modelo XGB bajo demanda (puede no existir).
+  transactionalScore: integer('transactional_score'),
   metrics: text('metrics'), // JSON: averageMonthlyBalanceClp, monthsWithAbonos, etc.
   mainInsights: text('main_insights'), // JSON array
   recommendedProducts: text('recommended_products'), // JSON array
   lastUpdated: text('last_updated').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+/**
+ * Outcomes reales de decisiones de crédito (Fase G del doble evaluador). Al aplicar a un producto se
+ * congela un snapshot (features + scores emitidos, anti-leakage); cuando la institución responde se
+ * completa el `outcome`. Es el dataset propio con el que se recalibran ambos modelos con data chilena
+ * y se aprende qué proveedor otorga a quién.
+ */
+export const riskDecisionOutcomes = table('risk_decision_outcomes', {
+  id: serialPk("id"),
+  applicationId: integer('application_id').notNull().unique(),
+  userId: text('user_id').notNull(),
+  provider: text('provider'),
+  productId: integer('product_id'),
+  segment: text('segment'), // thin_file | cmf_rich
+  // Scores emitidos al momento de aplicar (para comparar predicción vs resultado real).
+  traditionalScore: integer('traditional_score'),
+  traditionalPd: real('traditional_pd'),
+  transactionalScore: integer('transactional_score'),
+  transactionalPd: real('transactional_pd'),
+  // Snapshot de features CIFRADO (datos financieros) — reconstruible para reentrenar.
+  featuresSnapshot: text('features_snapshot'),
+  // Resultado real de la institución (se completa después): accepted | rejected | originated | approved.
+  outcome: text('outcome'),
+  originatedAmountClp: integer('originated_amount_clp'),
+  outcomeAt: text('outcome_at'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 export const riskFactors = table('risk_factors', {
@@ -308,6 +349,16 @@ export const financialProducts = table('financial_products', {
   priority: integer('priority').default(50), // Higher = shown first (0-100)
   externalUrl: text('external_url'), // Link to institution's application page
   logoUrl: text('logo_url'),
+  /** Clave natural estable del producto (slug), p.ej. "bancoe-cta-vista". Idempotencia del seed
+   *  (scripts/seedProductCatalog.ts hace upsert por slug) y referencia legible desde el front. */
+  slug: text('slug'),
+  /** Texto legal de disclosure del producto (patrocinio/afiliación), mostrado en el marketplace. */
+  disclosure: text('disclosure'),
+  /** Procedencia: 'seed_verified' (catálogo verificado) | 'placeholder' (monetización por defaults
+   *  de categoría, sin acuerdo comercial aún). Para el dashboard admin. */
+  dataSource: text('data_source'),
+  /** Fecha ISO de última verificación de los datos del producto (tasas/costos). */
+  lastVerified: text('last_verified'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
@@ -339,7 +390,7 @@ export const productApplications = table('product_applications', {
   id: serialPk("id"),
   userId: text('user_id').notNull().references(() => users.id),
   productId: integer('product_id').notNull().references(() => financialProducts.id),
-  status: text('status').notNull().default('pending'), // 'pending' | 'approved' | 'rejected' | 'expired' | 'withdrawn'
+  status: text('status').notNull().default('pending'), // pending | delivered | accepted | approved | rejected | expired | withdrawn
   applicationData: text('application_data'), // JSON: form data submitted
   externalApplicationId: text('external_application_id'), // ID from financial institution
   appliedAt: text('applied_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
@@ -349,6 +400,25 @@ export const productApplications = table('product_applications', {
   notes: text('notes'),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+/**
+ * API keys de instituciones financieras para la API de leads (Fase 2). Cada key se asocia a un
+ * `provider` (nombre de institución en financial_products.provider) y solo puede ver/responder los
+ * leads de sus propios productos. Se guarda solo el HASH SHA-256 de la key (nunca la key en claro).
+ */
+export const institutionApiKeys = table('institution_api_keys', {
+  id: serialPk("id"),
+  /** Institución dueña de la key; matchea financial_products.provider. */
+  provider: text('provider').notNull(),
+  /** SHA-256 (hex) de la API key. La key en claro se muestra una sola vez al generarla. */
+  keyHash: text('key_hash').notNull(),
+  /** Etiqueta legible (p.ej. "Integración producción BancoEstado"). */
+  label: text('label'),
+  /** 0/1 — permite revocar sin borrar. */
+  active: integer('active').notNull().default(1),
+  lastUsedAt: text('last_used_at'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 export const notifications = table('notifications', {
@@ -613,7 +683,38 @@ export const algorithmModelVersions = table('algorithm_model_versions', {
   deployedBy: text('deployed_by').notNull(),
   isActive: integer('is_active').notNull().default(0),
   changelog: text('changelog'),
+  // Ciclo de vida del registro de modelo (Frente C: promover sin redeploy).
+  // 'candidate' = entrenado/evaluado, no sirve tráfico. 'production' = el que carga
+  // modelRegistry al boot. 'archived' = histórico. `isActive` se conserva por
+  // compatibilidad; `lifecycle` es la fuente de verdad nueva.
+  lifecycle: text('lifecycle').default('candidate'),
+  /** URI del artefacto en el blob store (s3://… o pg://stored_blobs/<id>). Null = artefacto local en filesystem (legacy). */
+  artifactUri: text('artifact_uri'),
+  auc: real('auc'),
+  /** sha256 del CSV de entrenamiento (reproducibilidad, #39). */
+  datasetHash: text('dataset_hash'),
+  /** Hash del set de features para detectar skew train/serving. */
+  featureSetHash: text('feature_set_hash'),
+  /** Porcentaje de tráfico asignado a esta versión para A/B testing (0-100). Default 100 = todo el tráfico. */
+  abTrafficPct: real('ab_traffic_pct').default(100),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+/**
+ * Almacén de blobs en Postgres — backend de fallback de `services/storage/blobStore.ts`
+ * cuando no hay bucket S3/R2 configurado (`BLOB_BACKEND` != 's3'). Los bytes se guardan
+ * cifrados (AES-256-GCM, base64) en `data`. Pensado para artefactos ML y documentos
+ * originales con TTL; no para alto volumen. `expires_at` lo usa el job de retención (#21).
+ */
+export const storedBlobs = table('stored_blobs', {
+  key: text('key').primaryKey(),
+  contentType: text('content_type'),
+  /** Bytes cifrados en base64 (fieldEncryption). */
+  data: text('data').notNull(),
+  sizeBytes: integer('size_bytes'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  /** ISO timestamp; null = sin expiración. El job de retención borra los vencidos. */
+  expiresAt: text('expires_at'),
 });
 
 export const algorithmPredictionLogs = table('algorithm_prediction_logs', {
@@ -674,6 +775,92 @@ export const scoreDocumentUploads = table('score_document_uploads', {
   uploadedAt: text('uploaded_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+/**
+ * Originales (PDF/imagen) subidos, cifrados en el blob store con TTL (#21). Esta tabla solo
+ * guarda la referencia (`blob_key`) y el vencimiento; los bytes viven en `stored_blobs` (o S3/R2)
+ * cifrados. El job de retención borra los vencidos; el cierre de cuenta los borra de inmediato.
+ */
+export const documentOriginals = table('document_originals', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  blobKey: text('blob_key').notNull(),
+  contentType: text('content_type'),
+  sizeBytes: integer('size_bytes'),
+  /** ISO timestamp; el job de retención borra cuando expira (TTL 30 días por defecto). */
+  expiresAt: text('expires_at'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+/**
+ * Resultado de cada intento de parseo de documento (#32): éxito/fallo, banco detectado, tier de
+ * detección, confianza, conteo de transacciones y mensaje de error. Sirve para (a) dar feedback
+ * claro al usuario y (b) detectar qué bancos/formatos fallan más y priorizar mejoras del parser.
+ */
+export const documentParseOutcomes = table('document_parse_outcomes', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  /** 'success' | 'failed' | 'partial' */
+  status: text('status').notNull(),
+  /** 'cartola' | 'cmf' | 'unknown' */
+  documentType: text('document_type'),
+  banco: text('banco'),
+  detectionTier: text('detection_tier'),
+  parseConfidence: real('parse_confidence'),
+  transactionCount: integer('transaction_count'),
+  errorMessage: text('error_message'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+/**
+ * Correcciones de categoría hechas por el usuario (#31): cuando reclasifica un movimiento, se
+ * guarda el texto normalizado + la categoría correcta. Alimenta el clasificador incremental
+ * (Naive Bayes sobre estas filas) que mejora la categorización por sobre las reglas regex.
+ */
+export const transactionCategoryCorrections = table('transaction_category_corrections', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  /** Descripción/merchant normalizado (uppercase, sin ruido) — la "feature" de texto. */
+  normalizedText: text('normalized_text').notNull(),
+  originalCategory: text('original_category'),
+  correctedCategory: text('corrected_category').notNull(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+/**
+ * Snapshot de cada hábito recomendado al usuario (#34): guarda los ratios de salud financiera al
+ * momento de recomendar, para luego medir efectividad comparando contra el siguiente ciclo
+ * (¿bajó la deuda?, ¿subió el ahorro?, ¿se regularizó la mora?).
+ */
+export const habitRecommendationsLog = table('habit_recommendations_log', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  habitKey: text('habit_key').notNull(),
+  nivel: integer('nivel'),
+  deudaFlujo: real('deuda_flujo'),
+  deudaActivos: real('deuda_activos'),
+  ahorroIngreso: real('ahorro_ingreso'),
+  diasMora: integer('dias_mora'),
+  moraActiva: integer('mora_activa'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+/**
+ * Pesos de ranking de productos por conversión real (#35). Cada corrida del job inserta una fila
+ * por producto (no actualiza) → historial versionado y auditable: se puede ver cómo cambió el
+ * peso de cada producto en el tiempo y con qué tasa de conversión se calculó.
+ */
+export const productRankingWeights = table('product_ranking_weights', {
+  id: text('id').primaryKey(),
+  productId: integer('product_id').notNull(),
+  /** Multiplicador del rankingScore (acotado, p.ej. 0.5–1.5). 1.0 = neutro. */
+  weight: real('weight').notNull(),
+  /** Tasa de conversión global usada para calcular el peso (snapshot). */
+  conversionRate: real('conversion_rate'),
+  /** Identificador de la corrida (batch) — agrupa los pesos calculados juntos. */
+  version: text('version').notNull(),
+  computedAt: text('computed_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 /** Historial de scores combinados (transaccional 0–100 + crediticio 0–850) por cálculo. */
 export const userScores = table('user_scores', {
   id: text('id').primaryKey(),
@@ -722,6 +909,29 @@ export const inscripcionJobs = table('inscripcion_jobs', {
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+/**
+ * Datos verificados de fuentes institucionales conectadas por el usuario (Fase 5): AFP
+ * (cotizaciones), SII (renta) y Tesorería (deuda fiscal). Una fila por usuario+fuente (upsert al
+ * subir un nuevo documento). Alimenta los ratios de salud: ingreso verificado, deuda fiscal,
+ * estabilidad de cotizaciones. Los datos se extraen del PDF oficial que el usuario sube con Clave
+ * Única (no manejamos sus credenciales).
+ */
+export const userFinancialSources = table('user_financial_sources', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  /** 'afp' | 'sii' | 'tgr' */
+  source: text('source').notNull(),
+  /** Ingreso mensual verificado (SII: renta líquida/12; AFP: renta imponible promedio). */
+  verifiedMonthlyIncomeClp: integer('verified_monthly_income_clp'),
+  /** Deuda fiscal vigente (TGR). */
+  fiscalDebtClp: integer('fiscal_debt_clp'),
+  /** Meses cotizados / continuidad previsional (AFP) — proxy de estabilidad de ingresos. */
+  contributionMonths: integer('contribution_months'),
+  /** JSON del parse completo (auditoría / campos adicionales). */
+  rawData: text('raw_data'),
+  extractedAt: text('extracted_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 /** Memoria del asistente IA por usuario: resumen rolling de conversaciones pasadas. */
 export const assistantSummaries = table('assistant_summaries', {
   userId: text('user_id').primaryKey().references(() => users.id),
@@ -739,6 +949,15 @@ export const assistantFeedback = table('assistant_feedback', {
   assistantMessage: text('assistant_message').notNull(),
   provider: text('provider'),
   comment: text('comment'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+/** Feedback del usuario sobre hábitos financieros recomendados (thumbs up/down), por `habitKey` estable del catálogo en `services/habits/habitCatalog.ts`. Un "down" reciente excluye ese hábito de futuras recomendaciones (feedback loop). */
+export const habitFeedback = table('habit_feedback', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  habitKey: text('habit_key').notNull(),
+  rating: text('rating').notNull(), // 'up' | 'down'
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -768,4 +987,14 @@ export const parserDiagnostics = table("parser_diagnostics", {
   pageCount: integer("page_count"),
   textLength: integer("text_length"),
   userAction: text("user_action"),  // accepted | rejected | pending | null
+});
+
+
+/** Eventos de conversión de productos financieros para función de pérdida CTR × tasa conversión. */
+export const productConversionEvents = table("product_conversion_events", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  productId: text("product_id").notNull(),
+  eventType: text("event_type").notNull(), // 'view' | 'click' | 'apply' | 'convert'
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

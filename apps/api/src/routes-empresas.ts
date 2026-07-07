@@ -9,6 +9,7 @@ import {
   db,
   eq,
   and,
+  inArray,
   sql,
   empresasCompanies,
   empresasBankAccounts,
@@ -32,6 +33,11 @@ import {
 import type { BankTransactionForMatch, DTEDocumentForMatch } from "./empresas/core-finance/index.js";
 import type { JournalEntryInput, CashTransactionInput, AccountBalanceInput } from "./empresas/core-finance/index.js";
 import {
+  requireMembership,
+  listMemberCompanyIds,
+  grantMembership,
+} from "./empresas/membership.js";
+import {
   createMockOpenBankingConnector,
   createMockSIIConnector,
   createMockPurchaseOrdersConnector,
@@ -45,18 +51,26 @@ router.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // ========== COMPANIES ==========
-router.get("/companies", async (_req: Request, res: Response, next: NextFunction) => {
+router.get("/companies", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const result = await db.select().from(empresasCompanies);
+    // #G: solo las empresas a las que el usuario pertenece (antes devolvía TODAS).
+    const ids = await listMemberCompanyIds(req as AuthenticatedRequest);
+    const result = ids.length
+      ? await db.select().from(empresasCompanies).where(inArray(empresasCompanies.id, ids))
+      : [];
     res.json({ data: result, count: result.length });
   } catch (error) {
     next(error);
   }
 });
 
-router.get("/companies/summary", async (_req: Request, res: Response, next: NextFunction) => {
+router.get("/companies/summary", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const allCompanies = await db.select().from(empresasCompanies);
+    // #G: solo las empresas del usuario.
+    const ids = await listMemberCompanyIds(req as AuthenticatedRequest);
+    const allCompanies = ids.length
+      ? await db.select().from(empresasCompanies).where(inArray(empresasCompanies.id, ids))
+      : [];
     const summaries = await Promise.all(
       allCompanies.map(async (company: (typeof allCompanies)[0]) => {
         const accounts = await db
@@ -125,6 +139,7 @@ router.get("/companies/:id", async (req: Request, res: Response, next: NextFunct
       res.status(400).json({ error: "Invalid company ID" });
       return;
     }
+    if (!(await requireMembership(req as AuthenticatedRequest, res, id))) return;
     const result = await db.select().from(empresasCompanies).where(eq(empresasCompanies.id, id));
     if (result.length === 0) {
       res.status(404).json({ error: "Company not found" });
@@ -149,6 +164,7 @@ router.get("/transactions", async (req: Request, res: Response, next: NextFuncti
       res.status(400).json({ error: "Invalid company_id" });
       return;
     }
+    if (!(await requireMembership(req as AuthenticatedRequest, res, companyId))) return;
     const rows = await db
       .select({
         id: empresasBankTransactions.id,
@@ -186,6 +202,7 @@ router.get("/dashboard/:company_id", async (req: Request, res: Response, next: N
       res.status(400).json({ error: "Invalid company_id" });
       return;
     }
+    if (!(await requireMembership(req as AuthenticatedRequest, res, companyId))) return;
     const companyResult = await db.select().from(empresasCompanies).where(eq(empresasCompanies.id, companyId));
     if (companyResult.length === 0) {
       res.status(404).json({ error: "Company not found" });
@@ -302,6 +319,7 @@ router.get("/risk/:company_id", async (req: Request, res: Response, next: NextFu
       res.status(400).json({ error: "Invalid company_id" });
       return;
     }
+    if (!(await requireMembership(req as AuthenticatedRequest, res, companyId))) return;
     const companyResult = await db.select().from(empresasCompanies).where(eq(empresasCompanies.id, companyId));
     if (companyResult.length === 0) {
       res.status(404).json({ error: "Company not found" });
@@ -383,6 +401,7 @@ router.get("/reconciliation/:company_id", async (req: Request, res: Response, ne
       res.status(400).json({ error: "Invalid company_id" });
       return;
     }
+    if (!(await requireMembership(req as AuthenticatedRequest, res, companyId))) return;
     const companyResult = await db.select().from(empresasCompanies).where(eq(empresasCompanies.id, companyId));
     if (companyResult.length === 0) {
       res.status(404).json({ error: "Company not found" });
@@ -442,6 +461,7 @@ router.post("/reconciliation/:company_id/run", async (req: Request, res: Respons
       res.status(400).json({ error: "Invalid company_id" });
       return;
     }
+    if (!(await requireMembership(req as AuthenticatedRequest, res, companyId))) return;
     const companyResult = await db.select().from(empresasCompanies).where(eq(empresasCompanies.id, companyId));
     if (companyResult.length === 0) {
       res.status(404).json({ error: "Company not found" });
@@ -548,6 +568,7 @@ router.get("/statements/:company_id", async (req: Request, res: Response, next: 
       res.status(400).json({ error: "Invalid company_id" });
       return;
     }
+    if (!(await requireMembership(req as AuthenticatedRequest, res, companyId))) return;
     const companyResult = await db.select().from(empresasCompanies).where(eq(empresasCompanies.id, companyId));
     if (companyResult.length === 0) {
       res.status(404).json({ error: "Company not found" });
@@ -682,6 +703,7 @@ router.get("/documents", async (req: Request, res: Response, next: NextFunction)
       res.status(400).json({ error: "Invalid company_id" });
       return;
     }
+    if (!(await requireMembership(req as AuthenticatedRequest, res, companyId))) return;
     const result = await db
       .select()
       .from(empresasDteDocuments)
@@ -705,6 +727,7 @@ router.post("/documents", async (req: Request, res: Response, next: NextFunction
       res.status(400).json({ error: "companyId is required" });
       return;
     }
+    if (!(await requireMembership(req as AuthenticatedRequest, res, companyId))) return;
     const companyRows = await db.select().from(empresasCompanies).where(eq(empresasCompanies.id, companyId));
     if (companyRows.length === 0) {
       res.status(404).json({ error: "Company not found" });
@@ -770,6 +793,7 @@ router.get("/purchase-orders", async (req: Request, res: Response, next: NextFun
       res.status(400).json({ error: "Invalid company_id" });
       return;
     }
+    if (!(await requireMembership(req as AuthenticatedRequest, res, companyId))) return;
     const result = await db
       .select()
       .from(empresasPurchaseOrders)
@@ -793,6 +817,7 @@ router.get("/purchase-orders/by-vendor", async (req: Request, res: Response, nex
       res.status(400).json({ error: "Invalid company_id" });
       return;
     }
+    if (!(await requireMembership(req as AuthenticatedRequest, res, companyId))) return;
     const list = await db
       .select()
       .from(empresasPurchaseOrders)
@@ -834,6 +859,7 @@ router.patch("/purchase-orders/:id/link-dte", async (req: Request, res: Response
       return;
     }
     const po = poRows[0] as { companyId: number };
+    if (!(await requireMembership(req as AuthenticatedRequest, res, po.companyId))) return;
     const dteRows = await db.select().from(empresasDteDocuments).where(eq(empresasDteDocuments.id, dteId));
     if (dteRows.length === 0 || (dteRows[0] as { companyId: number }).companyId !== po.companyId) {
       res.status(404).json({ error: "DTE not found or does not belong to this company" });
@@ -867,6 +893,7 @@ router.get("/cash-forecast/:company_id", async (req: Request, res: Response, nex
       res.status(400).json({ error: "Invalid company_id" });
       return;
     }
+    if (!(await requireMembership(req as AuthenticatedRequest, res, companyId))) return;
     const daysParam = req.query.days;
     const daysAhead = daysParam ? Math.min(parseInt(String(daysParam), 10) || 30, 90) : 30;
 
@@ -917,12 +944,14 @@ router.get("/cash-forecast/:company_id", async (req: Request, res: Response, nex
 });
 
 // ========== SEED DEMO (empresa demo para login) ==========
-router.post("/seed-demo", async (_req: Request, res: Response, next: NextFunction) => {
+router.post("/seed-demo", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const existing = await db.select().from(empresasCompanies);
-    if (existing.length > 0) {
+    // #G: per-usuario. Antes, "ya existen empresas" miraba TODAS; ahora solo las del usuario,
+    // y el creador recibe membresía 'owner' para que solo él vea su empresa demo.
+    const myIds = await listMemberCompanyIds(req as AuthenticatedRequest);
+    if (myIds.length > 0) {
       return res.json({
-        data: { message: "Ya existen empresas.", count: existing.length },
+        data: { message: "Ya tienes una empresa demo.", count: myIds.length },
       });
     }
     const today = new Date().toISOString().slice(0, 10);
@@ -938,6 +967,8 @@ router.post("/seed-demo", async (_req: Request, res: Response, next: NextFunctio
       return res.status(500).json({ error: "No se pudo crear la empresa demo" });
     }
     const companyId = c1.id;
+    // El creador queda como dueño (multi-tenancy, #G).
+    await grantMembership(req as AuthenticatedRequest, companyId, "owner");
     const demoAccounts: { accountNumber: string; accountType: "checking" | "savings" | "credit"; balance: number; txns?: { amount: number; description: string; category: string }[] }[] = [
       { accountNumber: "10000001", accountType: "checking", balance: 7_000_000, txns: [{ amount: 1_500_000, description: "Venta cliente", category: "ingreso" }, { amount: -400_000, description: "Pago proveedor", category: "gasto" }] },
       { accountNumber: "10000002", accountType: "savings", balance: 2_000_000 },
@@ -1004,6 +1035,7 @@ router.get("/connections/:company_id", async (req: Request, res: Response, next:
       res.status(400).json({ error: "Invalid company_id" });
       return;
     }
+    if (!(await requireMembership(req as AuthenticatedRequest, res, companyId))) return;
     const accounts = await db.select({ lastSyncAt: empresasBankAccounts.lastSyncAt }).from(empresasBankAccounts).where(eq(empresasBankAccounts.companyId, companyId)).limit(1);
     const dteCount = await db.select({ count: sql<number>`COUNT(*)` }).from(empresasDteDocuments).where(eq(empresasDteDocuments.companyId, companyId));
     const poCount = await db.select({ count: sql<number>`COUNT(*)` }).from(empresasPurchaseOrders).where(eq(empresasPurchaseOrders.companyId, companyId));
@@ -1028,6 +1060,7 @@ router.post("/connections/:company_id/:type/sync", async (req: Request, res: Res
       res.status(400).json({ error: "Invalid company_id" });
       return;
     }
+    if (!(await requireMembership(req as AuthenticatedRequest, res, companyId))) return;
     const validTypes = ["openbanking", "sii", "purchase_orders"];
     if (!validTypes.includes(connectionType)) {
       res.status(400).json({ error: `Invalid type. Valid: ${validTypes.join(", ")}` });
