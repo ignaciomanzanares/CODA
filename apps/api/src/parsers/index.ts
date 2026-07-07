@@ -60,9 +60,22 @@ export async function parseCartolaBuffer(buffer: Buffer): Promise<ParseResult> {
   }
 
   if (!text || text.trim().length < 40) {
+    // Último recurso: OCR vía Tesseract para PDFs escaneados
+    try {
+      const { smartOcr } = await import("../services/documents/ocrService.js");
+      const ocrResult = await smartOcr(buffer, text, "application/pdf");
+      if (ocrResult.usedOcr && ocrResult.text && ocrResult.text.trim().length >= 40) {
+        text = ocrResult.text;
+      }
+    } catch {
+      /* OCR no disponible (tesseract no instalado) — seguimos con error original */
+    }
+  }
+
+  if (!text || text.trim().length < 40) {
     throw new ParseError(
       "TEXT_EXTRACTION_FAILED",
-      "El PDF parece ser una imagen escaneada o un documento que no es una cartola bancaria (ej: escritura pública). Solo se aceptan cartolas bancarias en PDF con texto.",
+      "El PDF parece ser una imagen escaneada. Intenta subir el PDF original (no una foto o escaneo) o exportarlo directamente desde tu banco.",
       { text_length: text?.length ?? 0 }
     );
   }

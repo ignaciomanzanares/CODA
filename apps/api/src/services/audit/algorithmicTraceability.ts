@@ -17,10 +17,12 @@
 
 import { randomUUID } from 'crypto';
 import type { CmfInformeDeudas } from '../documents/pdfAnalysis.js';
+import { db } from '../../db/index.js';
 import {
-  persistCreditPredictionAsync,
+  persistCreditPredictionFromLog,
   ensureSeedTraceabilityModels,
   DEFAULT_CREDIT_MODEL_VERSION_ID,
+  listActiveModelVersionsByType,
 } from './traceabilityPersistence.js';
 
 // ============================================================================
@@ -108,11 +110,16 @@ export interface AlgorithmChange {
   approvedBy?: string;
   approvedAt?: Date;
   deployedAt?: Date;
+  rollbackReason?: string;
+  /** Id de la fila que esta entrada reemplaza (cadena de versiones inmutable; ver updateAlgorithmChangeStatus). */
+  supersedesId?: string;
 }
 
 // ============================================================================
-// IN-MEMORY STORE (for development)
-// TODO: Replace with actual database persistence
+// IN-MEMORY CACHE — las escrituras críticas van a DB vía traceabilityPersistence.ts.
+// Este Map es un cache de lectura rápida (p.ej. getActiveModelVersion en hot path).
+// Prediction logs → persistCreditPredictionFromLog (DB primero, cache después).
+// Model versions → ensureSeedTraceabilityModels (DB en startup y en deployNewModelVersion).
 // ============================================================================
 
 class TraceabilityStore {
@@ -184,11 +191,10 @@ class TraceabilityStore {
   
   // ========== PREDICTIONS ==========
   
-  logPrediction(log: Omit<CreditScorePredictionLog, 'id'>): string {
-    const id = randomUUID();
+  /** El id ya viene persistido en Postgres (ver logCreditScorePrediction); aquí solo se cachea para lecturas rápidas. */
+  cachePrediction(id: string, log: Omit<CreditScorePredictionLog, 'id'>): void {
     const prediction: CreditScorePredictionLog = { id, ...log };
     this.predictions.set(id, prediction);
-    return id;
   }
   
   getPrediction(id: string): CreditScorePredictionLog | undefined {
@@ -230,23 +236,32 @@ class TraceabilityStore {
       });
   }
   
+  /**
+   * Inserta una nueva fila versionada con el nuevo status en vez de mutar la existente
+   * (inmutabilidad del historial de cambios de algoritmo, requerido para auditoría NCG 502).
+   * La fila original (`id`) queda intacta; el resultado es el id de la nueva fila.
+   */
   updateAlgorithmChangeStatus(
     id: string,
     status: AlgorithmChange['status'],
     metadata?: { approvedBy?: string; deployedAt?: Date; rollbackReason?: string }
-  ): boolean {
+  ): string | null {
     const change = this.algorithmChanges.get(id);
-    if (!change) return false;
-    
+    if (!change) return null;
+
+    const newId = randomUUID();
     const updated: AlgorithmChange = {
       ...change,
+      id: newId,
       status,
+      supersedesId: id,
       ...(metadata?.approvedBy && { approvedBy: metadata.approvedBy, approvedAt: new Date() }),
       ...(metadata?.deployedAt && { deployedAt: metadata.deployedAt }),
+      ...(metadata?.rollbackReason && { rollbackReason: metadata.rollbackReason }),
     };
-    
-    this.algorithmChanges.set(id, updated);
-    return true;
+
+    this.algorithmChanges.set(newId, updated);
+    return newId;
   }
   
   // ========== STATS ==========
@@ -288,7 +303,7 @@ const traceabilityStore = new TraceabilityStore();
 /**
  * Log a credit score prediction for audit trail
  */
-export function logCreditScorePrediction(
+export async function logCreditScorePrediction(
   userId: string,
   requestId: string,
   prediction: {
@@ -308,10 +323,30 @@ export function logCreditScorePrediction(
     processingTimeMs?: number;
     ipAddress?: string;
     userAgent?: string;
+  },
+  exec: any = db,
+): Promise<string> {
+  // Selección de modelo con sampleo A/B si hay múltiples versiones activas del mismo tipo.
+  let activeModel = traceabilityStore.getActiveModelVersion();
+  try {
+    const activeVersions = await listActiveModelVersionsByType(activeModel?.modelType ?? 'simple_rules');
+    if (activeVersions.length >= 2) {
+      const totalWeight = activeVersions.reduce((s, v) => s + (v.abTrafficPct ?? 100), 0);
+      const rand = Math.random() * totalWeight;
+      let cumulative = 0;
+      for (const v of activeVersions) {
+        cumulative += v.abTrafficPct ?? 100;
+        if (rand < cumulative) {
+          const cached = traceabilityStore.getModelVersion(v.id);
+          if (cached) activeModel = cached;
+          break;
+        }
+      }
+    }
+  } catch {
+    // DB no disponible en test/dev — seguir con el modelo del cache
   }
-): string {
-  const activeModel = traceabilityStore.getActiveModelVersion();
-  
+
   const log: Omit<CreditScorePredictionLog, 'id'> = {
     userId,
     requestId,
@@ -336,8 +371,11 @@ export function logCreditScorePrediction(
     userAgent: metadata?.userAgent,
   };
 
-  const predictionId = traceabilityStore.logPrediction(log);
-  persistCreditPredictionAsync({
+  const predictionId = randomUUID();
+  // Persistencia en Postgres ANTES de responder: un crash del proceso ya no pierde la decisión
+  // (antes era fire-and-forget vía persistCreditPredictionAsync). El Map queda como cache de lectura.
+  // `exec` permite que el insert comparta la transacción del caller (atomicidad score+traza, #14).
+  await persistCreditPredictionFromLog({
     id: predictionId,
     userId: log.userId,
     requestId: log.requestId,
@@ -355,7 +393,8 @@ export function logCreditScorePrediction(
     processingTimeMs: log.processingTimeMs,
     ipAddress: log.ipAddress,
     userAgent: log.userAgent,
-  });
+  }, exec);
+  traceabilityStore.cachePrediction(predictionId, log);
   return predictionId;
 }
 
@@ -396,6 +435,18 @@ export function registerAlgorithmChange(
   change: Omit<AlgorithmChange, 'id'>
 ): string {
   return traceabilityStore.registerAlgorithmChange(change);
+}
+
+/**
+ * Cambia el status de un algorithm change insertando una nueva fila versionada
+ * (la fila original no se modifica). Devuelve el id de la nueva fila, o null si `id` no existe.
+ */
+export function updateAlgorithmChangeStatus(
+  id: string,
+  status: AlgorithmChange['status'],
+  metadata?: { approvedBy?: string; deployedAt?: Date; rollbackReason?: string }
+): string | null {
+  return traceabilityStore.updateAlgorithmChangeStatus(id, status, metadata);
 }
 
 /**

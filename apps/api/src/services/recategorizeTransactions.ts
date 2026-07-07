@@ -2,6 +2,7 @@ import { inArray } from "drizzle-orm";
 import { accounts, db, eq, transactions } from "../db/index.js";
 import { categorize, TAXONOMY, CATEGORIZER_VERSION } from "../parsers/merchantCategorizer.js";
 import { isManualCategory } from "./transactions/reviewStatus.js";
+import { looksEncrypted, decryptField } from "./crypto/fieldEncryption.js";
 
 export interface RecategorizeResult {
   scanned: number;
@@ -52,7 +53,12 @@ export async function recategorizeUserTransactions(
   let skippedManual = 0;
 
   for (const row of rows as Array<Record<string, unknown>>) {
-    const description = String(row.description ?? "").trim();
+    // `transactions.description` se cifra en reposo (fieldEncryption); descifrar para
+    // categorizar. Tolera filas legacy en claro vía looksEncrypted.
+    const rawDesc = row.description;
+    const description = String(
+      typeof rawDesc === "string" && looksEncrypted(rawDesc) ? decryptField(rawDesc) : rawDesc ?? ""
+    ).trim();
     if (!description) continue;
 
     // No pisar correcciones manuales del usuario (salvo force explícito).

@@ -21,4 +21,11 @@ export const FEATURES = {
    * en la API para el bloqueo de vinculación bancaria).
    */
   onboarding: import.meta.env.VITE_ENABLE_ONBOARDING === "true",
+  /**
+   * Doble evaluador de riesgo (tarjeta de score tradicional + transaccional CODA beta).
+   * OFF por defecto: con el flag apagado, el dashboard muestra el ScoreHero/CreditScoreCard actuales.
+   * Encendido (VITE_ENABLE_RISK_DUAL_SCORE=true), la tarjeta consume /api/risk/evaluation y muestra
+   * titular + segunda opinión según segmento. Beta hasta calibrar con outcomes locales (Fase G).
+   */
+  riskDualScore: import.meta.env.VITE_ENABLE_RISK_DUAL_SCORE === "true",
 } as const;

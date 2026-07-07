@@ -1,0 +1,262 @@
+# Modelo de credit scoring (XGBoost)
+
+## Doble evaluador de riesgo (Fases A–G) — naturaleza BETA y direccional
+
+CODA sirve **dos evaluadores que conviven** sobre un feature store unificado (`services/risk/`):
+
+1. **Tradicional (control)** — regresión logística (`train_logreg.py` → `artifacts/logreg_cmf/coeffs.json`,
+   servida por `services/risk/creditScorecard.ts`) sobre features CMF (mora30/60/90, dti mensual,
+   utilización), entrenada en **GiveMeSomeCredit** (150k, AUC 0.836). Escala 0–850, interpretable.
+2. **Transaccional CODA (experimental/beta)** — XGB Berka (`modelRegistry` / `artifacts/current`),
+   PD + puntaje 0–100 (`services/risk/transactionalScore.ts`).
+
+**Ambos scores son DIRECCIONALES, no calibrados a Chile.** Se entrenaron con datasets extranjeros
+(GiveMeSomeCredit y Berka son de otras poblaciones/épocas). Sirven como MVP y para comparar
+metodologías, pero **no deben publicarse como verdad absoluta** — por eso el transaccional va
+etiquetado **"Beta"** en la UI y el endpoint `/api/risk/evaluation` está detrás del flag
+`RISK_DUAL_SCORE_ENABLED` (habilitado en dev; en prod requiere set explícito) + `FEATURES.riskDualScore`
+en el front.
+
+**El "control" es METODOLÓGICO, no estadístico.** El tradicional es un control del experimental solo
+en el sentido de "interpretable vs ML sobre el mismo usuario". Un control estadístico real requiere
+evaluar ambos sobre la MISMA data con el MISMO target — es decir, **outcomes de repago propios de
+CODA**. Ese puente lo abre la **Fase G** (`services/risk/decisionOutcomes.ts` + tabla
+`risk_decision_outcomes` + `db:export-decision-outcomes`): captura decisiones reales por proveedor.
+Hoy el export etiqueta APROBACIÓN (entrena el modelo de aprobación por proveedor); la recalibración
+del PD de default necesita outcomes de REPAGO (cuando maduren los créditos originados). Hasta entonces,
+los scores se mantienen beta/direccionales.
+
+## Hallazgo de auditoría: AUC 0.4172 (peor que azar) en `artifacts/current`
+
+`artifacts/current/manifest.json` reporta `auc: 0.4172`, `gini: -0.1655` — peor que un
+clasificador aleatorio (AUC≈0.5). La causa raíz es la generación de la etiqueta en
+`make_synth_training.ts`: `const label = Math.random() < pd ? 1 : 0;` — la etiqueta de
+default es ruido puro, sin relación con las features. Ruido puro normalmente da AUC≈0.5,
+no <0.5 de forma consistente; ese patrón (peor que azar de forma sistemática) es la señal
+de que también podría haber un bug de pipeline (inversión de etiqueta, leakage, orden de
+columnas), no solo "datos sintéticos sin señal".
+
+## Benchmark diagnóstico con datos reales
+
+Para aislar si el bug está en el **pipeline de entrenamiento/evaluación** (`train_xgb.py`)
+o es específico de la **generación de datos sintéticos**, se entrenó el mismo algoritmo
+(`XGBClassifier`, mismos hiperparámetros, mismo split temporal de 3 folds que
+`train_xgb.py`) contra un dataset público con señal real: **Give Me Some Credit**
+(Kaggle, 2011 — 150.000 prestatarios reales, ~6.7% con default real a 2 años).
+
+- Script de preparación: `prepare_kaggle_benchmark.py` — usa las columnas nativas del
+  dataset (no el feature set de `features.ts`/`make_synth_training.ts`, que está atado a
+  transacciones bancarias y no tiene equivalente en un dataset de buró de crédito).
+  `train_xgb.py` es agnóstico al nombre/significado de las columnas, así que esto es
+  válido para el propósito del benchmark.
+- Script de entrenamiento: `train_xgb_benchmark.py` (variante de `train_xgb.py` sin
+  exportación a ONNX/SHAP — ver docstring del módulo, es un problema de compatibilidad de
+  versiones de `onnxmltools`/`onnx` con `xgboost==3.0.5` en este entorno, no relacionado
+  con los datos; se reproduce igual con el CSV sintético actual).
+- Artefacto resultante: `artifacts/benchmark/manifest.json` (no usar en producción —
+  feature set distinto al de `artifacts/current`).
+
+**Resultado: AUC 0.8649 (gini 0.7299) con datos reales**, usando el pipeline de
+entrenamiento/evaluación sin modificar. Esto confirma que `train_xgb.py` **no tiene un bug
+estructural** — el AUC 0.4172 de `artifacts/current` es específico de la etiqueta sintética
+`Math.random()` en `make_synth_training.ts`, no del código de entrenamiento.
+
+## Cómo reproducir
+
+```bash
+npm run ml:setup   # crea .venv con las deps de requirements.txt
+
+# Descargar el dataset (no se redistribuye en este repo, ver .gitignore):
+# https://www.kaggle.com/c/GiveMeSomeCredit -> cs-training.csv
+.venv/bin/python prepare_kaggle_benchmark.py <ruta-al-csv-de-kaggle> out/kaggle_benchmark_features.csv
+.venv/bin/python train_xgb_benchmark.py --in out/kaggle_benchmark_features.csv --out artifacts/benchmark --label label
+```
+
+## Arquitectura de datos: un dataset por modelo
+
+CODA tiene dos modelos en espacios de features distintos. Cada uno tiene su dataset real:
+
+| Modelo CODA | Feature space | Dataset real | Rol |
+|---|---|---|---|
+| **Transaccional** (XGB PD, `features.ts`, 19 features) | Transacciones bancarias | **Berka** | **Servible** — datos reales reemplazan al sintético |
+| **Evaluador de riesgo** (score CMF, `credit-score.ts`) | Mora + deuda/ingreso (Informe CMF) | **Home Credit** | **Solo benchmark** — ver abajo |
+
+### Berka → modelo transaccional SERVIBLE (`prepare_berka.py`)
+
+Berka (PKDD'99) es el único dataset público con **transacciones reales** (~1M en `trans`) +
+**outcome de préstamo real** (`loan.status`). `prepare_berka.py` replica la semántica exacta de
+`buildUserFeatureVector()` (features.ts) sobre las transacciones ANTERIORES a cada préstamo
+(ventana de 90d, anti-leakage), con etiqueta desde `loan.status` (B/D = default). El artefacto
+es servible tal cual sobre el vector que produce CODA en runtime.
+
+```bash
+npm run ml:setup
+python -c "import kagglehub; print(kagglehub.dataset_download('marceloventura/the-berka-dataset'))"
+.venv/bin/python prepare_berka.py <dir_con_csvs> out/berka_features.csv --window-days 90
+.venv/bin/python train_xgb.py --in out/berka_features.csv --out artifacts/berka --label label
+# Si AUC >= 0.72: promover con deployNewModelVersion() (modelType xgb_pd).
+```
+
+**Caveats:** set etiquetado chico (~682 préstamos, ~76 defaults → alta varianza, es una BASE
+real no la palabra final); data checa/CZK/años 90 → las features de RATIO transfieren
+(scale-free), las ABSOLUTAS (totalCredits, monthlyIncome en CZK) no → de-priorizarlas o
+normalizarlas (TODO). Aun así es muchísimo mejor que el sintético actual (AUC 0.61 / 2000 filas).
+
+#### Resultados medidos (HistGradientBoosting, 5-fold StratifiedKFold)
+
+681 préstamos con historia, 75 defaults (11%). AUC sube con la historia transaccional dada:
+
+| Ventana (pre-préstamo) | AUC media | Folds |
+|---|---|---|
+| 90d (= ventana producción) | 0.678 | 0.64–0.72 |
+| 180d | 0.692 | 0.61–0.74 |
+| **365d** | **0.739** | 0.67–0.80 |
+| 730d | 0.763 | 0.68–0.82 |
+
+Baseline logístico: 0.639. Medido con `HistGradientBoostingClassifier` (xgboost no carga sin
+`libomp` en este entorno; GBDT equivalente, ±0.02 del número de XGBoost).
+
+**Driver dominante = `activeDays`** (importancia de permutación +0.106 @365d), seguido de
+`incomeTrend30_90`, `debitCount`, `creditCount`, `txCount`. La mayoría de la señal es
+"actividad de la cuenta en la ventana". DTI NO es top driver en Berka (es transaccional, no de buró).
+
+#### Solución de ventana (#B): features invariantes + entrenamiento multi-ventana
+
+El driver dominante depende de la ventana → un modelo entrenado a 365d **servido a 90d colapsa
+a 0.63** (peor que entrenar+servir a 90d = 0.68). Hacer las features invariantes a la ventana
+NO recupera por sí solo el 0.74: la invariancia arregla la ESCALA, no el desajuste de
+distribución. Lo que sí funciona, validado empíricamente:
+
+| | serve 90d | serve 180d | serve 365d |
+|---|---|---|---|
+| train MISMA ventana | 0.679 | 0.692 | 0.739 |
+| train 365d (cross) | **0.628** ⚠️ | — | 0.739 |
+| **train MIX(90,180,365)** | **0.674** | **0.696** | **0.719** |
+
+Un solo modelo entrenado sobre el MIX de ventanas (data augmentation) sirve **cualquier**
+ventana sin colapso, cerca del óptimo de cada ventana. AUC ~0.67 con 90d de historia, subiendo
+a ~0.72 a medida que el usuario acumula data — todo sobre datos reales (vs 0.61 sintético hoy).
+
+Implementado:
+- `features.ts`: `FeatureVector` extendido (superset no-breaking) con 4 features invariantes
+  (`txPerMonth`, `debitPerMonth`, `creditPerMonth`, `activeDaysShare`). Las 19 crudas se
+  conservan → el artefacto actual sigue sirviendo por nombre; un artefacto invariante nuevo
+  elige sus 16 features por nombre desde su `feature_meta`.
+- `prepare_berka.py --invariant` (16 features) y `--multi-window 90,180,365` (data augmentation).
+
+```bash
+.venv/bin/python prepare_berka.py ~/Downloads/archive out/berka_mw.csv --multi-window 90,180,365
+.venv/bin/python train_xgb.py --in out/berka_mw.csv --out artifacts/berka_invariant --label label
+# train_xgb.py escribe feature_meta.json con las 16 invariantes → artefacto servible sobre
+# cualquier ventana. Promover con deployNewModelVersion() (modelType xgb_pd) si AUC ok.
+```
+
+#### Artefacto entrenado (XGBoost real) — `artifacts/berka_scalefree`
+
+`libomp` sin Homebrew: scikit-learn ya trae `libomp.dylib` en `site-packages/sklearn/.dylibs/`.
+xgboost lo encuentra vía `DYLD_LIBRARY_PATH`:
+
+```bash
+SK=apps/api/src/ml/.venv/lib/python3.13/site-packages/sklearn/.dylibs
+.venv/bin/python prepare_berka.py ~/Downloads/archive out/berka_sf.csv --scale-free --multi-window 90,180,365
+DYLD_LIBRARY_PATH=$SK .venv/bin/python train_xgb.py --in out/berka_sf.csv --out artifacts/berka_scalefree --label label
+```
+(`train_xgb.py` ahora hace opcionales los imports de `shap`/`skl2onnx` → corre con
+pandas+numpy+xgboost+scikit-learn; ONNX/SHAP se omiten, no son requisito para servir.)
+
+**Feature set deployable = 12 SCALE-FREE** (sin las 4 absolutas en CZK: avgAmount, stdAmount,
+monthlyIncome, monthlyDebits). Quitarlas no cuesta AUC (0.723→0.722 account-grouped) y permite
+transferir CZK→CLP. La señal vive en ratios/tasas: recurringExpenseShare, dti, activeDaysShare,
+creditPerMonth, debitCreditRatio, topCategoryShare.
+
+**AUC honesto (GroupKFold(5) por cuenta, account-disjoint): 0.722** — overall, cruza 0.72.
+Per-serving-window: 90d=0.682, 180d=0.715, 365d=0.773. (El número de `train_xgb.py`,
+`TimeSeriesSplit`, queda en `manifest.metrics_raw_timeseriessplit` y está inflado por leakage:
+la misma cuenta aparece en las 3 ventanas. El manifest se patcheó con el AUC honesto.)
+
+**Estado: candidato, no promovido.** Es una BASE real (vs 0.61 sintético), pero entrenada en
+conducta checa — recalibrar/re-entrenar con datos chilenos antes de confiar en producción.
+Para servir: `features.ts` ya produce el superset (las 12 se eligen por nombre); promover con
+`deployNewModelVersion()` (modelType `xgb_pd`) cuando se decida.
+
+### Home Credit → solo benchmark del evaluador de riesgo (`prepare_home_credit.py`)
+
+**No produce un modelo servible.** El evaluador de riesgo de CODA puntúa sobre el Informe CMF:
+su señal central son los **buckets de mora (30/60/90)** + deuda/ingreso. Home Credit es data de
+solicitud cuyos predictores fuertes (`EXT_SOURCE_*`, `DAYS_EMPLOYED`) **CODA no puede recolectar**,
+y **no tiene mora**. La intersección con lo que CODA sirve es demasiado fina para servir.
+
+Como **no existe dataset público con features estilo CMF (mora) + default**, el evaluador ML
+sobre features CMF no es entrenable con datos públicos → **se mantiene la heurística calibrada**
+(`credit-score.ts`) como evaluador en vivo. Home Credit valida el pipeline sobre un 2º dataset
+real grande (~307k filas) y cuantifica el techo de la señal de afordabilidad de forma aislada.
+
+```bash
+python -c "import kagglehub; print(kagglehub.competition_download('home-credit-default-risk'))"
+.venv/bin/python prepare_home_credit.py <dir>/application_train.csv out/home_credit_features.csv
+.venv/bin/python train_xgb_benchmark.py --in out/home_credit_features.csv --out artifacts/home_credit_benchmark --label label
+```
+
+**Camino a un evaluador de riesgo genuinamente mejor:** (1) datos chilenos reales con mora +
+default (DICOM/Equifax, validar contrato de datos con legal), o (2) usar Home Credit para
+calibrar la función de etiqueta del provider sintético en su componente de afordabilidad.
+
+## Fix aplicado: heterogeneidad real + etiqueta calibrada a Chile (`artifacts/synthetic_chile_v2`)
+
+Implementado: `apps/api/src/ml/syntheticChileanProvider.ts` reemplaza `MockProvider` para la
+generación de entrenamiento. Causa raíz más profunda que la etiqueta `Math.random()`:
+`MockProvider` generaba transacciones **casi idénticas para los 200 usuarios sintéticos**
+(mismo saldo, mismo patrón de gasto, solo ruido menor en montos/fechas) — sin heterogeneidad
+real entre usuarios no había señal real para que el modelo aprendiera, independientemente de
+cómo se sorteara la etiqueta.
+
+`SyntheticChileanProvider` introduce un perfil latente por usuario (`ChileanProfile`: ingreso
+mensual lognormal, carga financiera, volatilidad de ingreso) calibrado contra estadísticas
+públicas de Chile (BCCh, Encuesta Financiera de Hogares 2024; CMF, morosidad de cartera —
+ver docstring del módulo para las cifras exactas y sus caveats de cobertura), y deriva tanto
+las transacciones como la etiqueta de default (`sampleLabel`) de ese mismo perfil latente —
+ya no de `pdScoring.ts` (el scorer heurístico de producción, que además asigna peso cero a
+varias de las features nuevas de DTI/volatilidad) ni de `Math.random()` puro.
+
+`make_synth_training.ts` ahora usa este provider (y crea la fila de usuario en la BD local
+antes de ingestar — `accounts.userId` es FK a `users.id`, paso que faltaba y causaba
+`SQLITE_CONSTRAINT_FOREIGNKEY` con 0 filas generadas en SQLite local).
+
+**Resultado** (`train_xgb_benchmark.py`, mismo pipeline sin modificar, 2000 usuarios
+sintéticos, `artifacts/synthetic_chile_v2/manifest.json`): **AUC 0.6147 (gini 0.2293)**,
+frente al 0.4172 (peor que azar) de `artifacts/current`. Confirma que el problema era la
+falta de heterogeneidad/señal en los datos generadores, no un bug de `train_xgb.py`.
+
+**Resuelto — el modelo chileno (AUC 0.6147) ya está promovido a `artifacts/current`.** El
+bloqueador del export ONNX se eliminó **dejando de depender de ONNX para servir**:
+`modelRegistry.ts` ahora evalúa el dump nativo `xgb.json` directamente en TypeScript
+(`XgbTreeModel.predictProba` = `sigmoid(margin)`), no `onnxruntime`. Esto cierra dos problemas
+a la vez:
+
+1. **El export ONNX seguía fallando** (`onnx.helper.make_attribute: TypeError: Field
+   onnx.AttributeProto.ints: Expected an int, got a boolean`, incompatibilidad
+   `onnxmltools==1.14.0`/`onnx==1.19.0`/`xgboost==3.0.5`). `train_xgb.py` ahora trata el export
+   ONNX como **opcional** (lo intenta, y si falla registra `onnx_path=null` y continúa) — ya no
+   aborta el pipeline ni bloquea la promoción.
+2. **Bug de serving real**: el código previo leía `outputs[Object.keys(outputs)[0]]` de la
+   sesión ONNX, que es el tensor `label` (clase 0/1 int64), **no** `probabilities` — devolvía
+   un PD binarizado, no una probabilidad. La evaluación en TS lo elimina.
+
+La paridad `XgbTreeModel` ↔ booster está verificada a tolerancia float32 en
+`services/__tests__/treeExplain.test.ts` (margin y `predictProba` contra
+`booster.predict(output_margin=True)`/`predict()`), reproduciendo el camino de decisión float32
+de XGBoost vía `Math.fround` sobre features y umbrales de split. El manifest de `current`
+reporta `auc: 0.6147` (≥ 0.60), `dataset_hash` (sha256 del CSV de entrenamiento, #39),
+`n_rows`/`n_features`.
+
+## Próximos pasos
+
+1. ~~Reemplazar la etiqueta `Math.random()` en `make_synth_training.ts` por una relación
+   determinística entre features y default~~ — hecho, ver sección anterior.
+2. ~~Calibrar las distribuciones sintéticas contra la Encuesta Financiera de Hogares del
+   Banco Central de Chile~~ — hecho (`syntheticChileanProvider.ts`).
+3. ~~Resolver la incompatibilidad de versiones ONNX para poder promover un artefacto~~ — ya no
+   aplica: el serving evalúa `xgb.json` en TS (sin ONNX), así que la promoción no depende del
+   export ONNX. El artefacto chileno (AUC 0.6147) ya está en `artifacts/current`.
+4. Evaluar la compra de un piloto de datos chilenos reales (Equifax/DICOM) — validar antes
+   con legal el contrato de tratamiento de datos.

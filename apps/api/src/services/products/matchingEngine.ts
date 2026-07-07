@@ -27,6 +27,92 @@ export interface UserProfile {
   hasVehicle?: boolean;
   hasProperty?: boolean;
   employmentMonths?: number;
+  /**
+   * Estado de salud financiera (-2..+5) del motor `evaluateHealthV2`. Acopla las
+   * recomendaciones a la SITUACIÓN del usuario, no solo a su score crediticio: a un
+   * usuario sobreendeudado no se le ofrece deuda revolvente nueva, a uno con excedente
+   * se le prioriza ahorro/inversión. Si es `undefined`, el motor se comporta igual que
+   * antes (solo score + ingresos) — backward-compatible.
+   */
+  financialHealthLevel?: number;
+}
+
+/**
+ * Política de productos según el nivel de salud financiera (-2..+5). Espeja el mapeo
+ * `nivel → salida` del motor de salud (`evaluationEngine.ts`): la "salida" de un nivel
+ * crítico es reestructurar/refinanciar (no tomar más deuda), y la de un nivel sano es
+ * ahorrar/proteger patrimonio. `excluded` es regla dura (producto inelegible);
+ * `preferred`/`discouraged` ajustan el match score sin bloquear.
+ */
+export interface HealthProductPolicy {
+  preferredCategories: ReadonlySet<string>;
+  discouragedCategories: ReadonlySet<string>;
+  excludedCategories: ReadonlySet<string>;
+}
+
+export function getHealthProductPolicy(level: number): HealthProductPolicy {
+  // -2 (insolvencia activa): necesita reestructuración legal, no productos de crédito.
+  // No se le ofrece NADA de deuda nueva; ahorro/seguro quedan desincentivados (no es la prioridad).
+  if (level <= -2) {
+    return {
+      preferredCategories: new Set(),
+      discouragedCategories: new Set(['savings', 'insurance']),
+      excludedCategories: new Set(['credit_cards', 'loans']),
+    };
+  }
+  // -1 (endeudado): la salida es refinanciar/consolidar. Préstamos sí (para consolidar),
+  // pero NUNCA una tarjeta de crédito nueva (deuda revolvente que agrava la carga).
+  if (level === -1) {
+    return {
+      preferredCategories: new Set(['loans']),
+      discouragedCategories: new Set(['savings']),
+      excludedCategories: new Set(['credit_cards']),
+    };
+  }
+  // 0 (sin deudas, sin excedente): refinanciamiento preventivo; sin sesgo fuerte.
+  if (level === 0) {
+    return {
+      preferredCategories: new Set(['loans']),
+      discouragedCategories: new Set(),
+      excludedCategories: new Set(),
+    };
+  }
+  // >=1 (excedente para ahorrar/proteger): priorizar ahorro/seguro; no sumar deuda revolvente.
+  return {
+    preferredCategories: new Set(['savings', 'insurance']),
+    discouragedCategories: new Set(['credit_cards']),
+    excludedCategories: new Set(),
+  };
+}
+
+/**
+ * Mapea la categoría específica del producto (vocabulario español del catálogo unificado en DB, o
+ * el inglés legacy) al GRUPO amplio que usan las políticas de salud (loans/credit_cards/savings/
+ * insurance). Sin esto, la regla anti-predatoria (excluir crédito en zona crítica) no matchearía
+ * las categorías en español y dejaría de aplicarse — un fallo de cumplimiento.
+ */
+export function productGroup(category: string): string {
+  switch (category) {
+    case 'creditos_consumo':
+    case 'lineas_credito':
+    case 'creditos_hipotecarios':
+    case 'portabilidad':
+    case 'loans':
+      return 'loans';
+    case 'tarjetas_credito':
+    case 'credit_cards':
+      return 'credit_cards';
+    case 'cuentas_ahorro':
+    case 'depositos_plazo':
+    case 'fondos_mutuos':
+    case 'savings':
+      return 'savings';
+    case 'seguros':
+    case 'insurance':
+      return 'insurance';
+    default:
+      return category;
+  }
 }
 
 export interface ProductMatch {
@@ -44,7 +130,13 @@ export interface ProductMatch {
  */
 export function matchProductsToUser(
   products: ProductCatalogItem[],
-  userProfile: UserProfile
+  userProfile: UserProfile,
+  /**
+   * Pesos de conversión por producto (#35), de `product_ranking_weights`: multiplican el
+   * rankingScore para que los productos que CONVIERTEN de verdad suban en la lista. Default 1.0
+   * (sin efecto) cuando no hay dato — el sistema funciona igual sin haber corrido el job.
+   */
+  conversionWeights: Record<number, number> = {},
 ): ProductMatch[] {
   const matches: ProductMatch[] = [];
 
@@ -52,7 +144,8 @@ export function matchProductsToUser(
     // Only consider active products
     if (!product.isActive) continue;
 
-    const match = evaluateProductMatch(product, userProfile);
+    const conversionFactor = product.id != null ? (conversionWeights[product.id] ?? 1) : 1;
+    const match = evaluateProductMatch(product, userProfile, conversionFactor);
     matches.push(match);
   }
 
@@ -67,7 +160,8 @@ export function matchProductsToUser(
  */
 function evaluateProductMatch(
   product: ProductCatalogItem,
-  userProfile: UserProfile
+  userProfile: UserProfile,
+  conversionFactor = 1,
 ): ProductMatch {
   const eligibilityReasons: string[] = [];
   const ineligibilityReasons: string[] = [];
@@ -121,13 +215,30 @@ function evaluateProductMatch(
     }
   }
 
-  // Calculate match score (0-100) using product-specific weights
-  const matchScore = calculateMatchScore(product, userProfile, isEligible);
+  // Financial-health gate (#25): acopla la recomendación a la situación, no solo al score.
+  // Ej.: no ofrecer una tarjeta de crédito nueva a un usuario sobreendeudado (nivel ≤ -1).
+  const healthPolicy =
+    userProfile.financialHealthLevel !== undefined
+      ? getHealthProductPolicy(userProfile.financialHealthLevel)
+      : null;
+  if (healthPolicy?.excludedCategories.has(productGroup(product.category))) {
+    isEligible = false;
+    ineligibilityReasons.push(
+      'No recomendado para tu situación financiera actual: prioriza ordenar tu deuda antes de tomar un nuevo crédito.'
+    );
+  } else if (healthPolicy?.preferredCategories.has(productGroup(product.category))) {
+    eligibilityReasons.push('Alineado con tu objetivo financiero actual');
+  }
 
-  // Calculate ranking score: combines match quality, priority, and approval rate
+  // Calculate match score (0-100) using product-specific weights
+  const matchScore = calculateMatchScore(product, userProfile, isEligible, healthPolicy);
+
+  // Calculate ranking score: combines match quality, priority, approval rate y el peso de
+  // conversión real (#35, default 1.0). El peso de conversión está acotado en el job a un rango
+  // razonable para que no domine ni anule a los otros factores.
   const approvalFactor = product.approvalRate ?? 0.5;
   const priorityFactor = (product.priority ?? 50) / 100;
-  const rankingScore = matchScore * priorityFactor * approvalFactor * 100;
+  const rankingScore = matchScore * priorityFactor * approvalFactor * conversionFactor * 100;
 
   // Generate human-readable explanation
   const explanation = generateExplanation(product, userProfile, matchScore, isEligible);
@@ -149,7 +260,8 @@ function evaluateProductMatch(
 function calculateMatchScore(
   product: ProductCatalogItem,
   userProfile: UserProfile,
-  isEligible: boolean
+  isEligible: boolean,
+  healthPolicy: HealthProductPolicy | null = null
 ): number {
   // If not eligible, return low score
   if (!isEligible) return 0;
@@ -214,7 +326,19 @@ function calculateMatchScore(
 
   // Normalize to 0-100; return a base score of 50 when no criteria to evaluate
   // (allows eligible products with unknown profile to still be ranked)
-  return totalWeight > 0 ? totalScore / totalWeight : 50;
+  let score = totalWeight > 0 ? totalScore / totalWeight : 50;
+
+  // Ajuste por salud financiera (#25): refuerza la categoría apropiada para la
+  // situación del usuario y penaliza (sin excluir) la que no lo es.
+  if (healthPolicy) {
+    if (healthPolicy.preferredCategories.has(productGroup(product.category))) {
+      score = Math.min(100, score * 1.15);
+    } else if (healthPolicy.discouragedCategories.has(productGroup(product.category))) {
+      score = score * 0.8;
+    }
+  }
+
+  return score;
 }
 
 /**
@@ -296,7 +420,8 @@ export function getTopRecommendations(
   products: ProductCatalogItem[],
   userProfile: UserProfile,
   limit: number = 5,
-  category?: string
+  category?: string,
+  conversionWeights: Record<number, number> = {},
 ): ProductMatch[] {
   // Filter by category if specified
   let filteredProducts = products;
@@ -304,8 +429,8 @@ export function getTopRecommendations(
     filteredProducts = products.filter(p => p.category === category);
   }
 
-  // Get all matches
-  const matches = matchProductsToUser(filteredProducts, userProfile);
+  // Get all matches (#35: ponderados por conversión real cuando hay pesos)
+  const matches = matchProductsToUser(filteredProducts, userProfile, conversionWeights);
 
   // When the user's profile is sparse (no credit or transactional score), the
   // matchScore can be artificially low even for eligible products. In that case,

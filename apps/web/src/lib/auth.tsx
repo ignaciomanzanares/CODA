@@ -8,6 +8,8 @@ interface User {
   userId: string;
   email: string;
   name?: string;
+  /** persona | empresa | admin — viene del JWT (buildAuthTokenPayload en el backend). */
+  role?: string;
 }
 
 import type { RegisterConsentPayload } from '@/types';

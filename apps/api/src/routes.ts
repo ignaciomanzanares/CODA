@@ -8,13 +8,13 @@ import { registerTestRoutes } from "./routes-test.js";
 import { registerDocumentParsingAndScoringRoutes } from "./routes-scoring-documents.js";
 import { registerDashboardRoutes } from "./routes-dashboard.js";
 import { storage } from "./storage.js";
+import { anonymizeUser } from "./services/privacy/accountAnonymization.js";
 import { db, dialect, users, bankConnections, accounts, balances, transactions, creditScores, insuranceRisks, financialGoals, financialProducts, expenses, billSplits, billSplitParticipants, notifications, eq, and, inArray, isNull, desc, insertAccountSchema, insertBankConnectionSchema } from "./db/index.js";
 import { ZodError, z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import {
   authenticate,
   ensureUserForToken,
-  handleLogin,
   handleLoginWithDB,
   handleLogout,
   handleDeleteAccount,
@@ -26,6 +26,7 @@ import {
   handleResend2FA,
   handleRecoverMigrationPassword,
   hashPassword,
+  requireAdmin,
   type AuthenticatedRequest
 } from "./middleware/auth.js";
 import { clearAuthCookie } from "./middleware/authCookie.js";
@@ -38,9 +39,9 @@ import { apiLimiter, expensiveLimiter, authLimiter, uploadLimiter, publicLimiter
 import multer from "multer";
 import { logger } from "./logger.js";
 import {
-  logProductRecommendationRunFireAndForget,
-  logProductInteractionTraceFireAndForget,
-  logProductApplicationTraceFireAndForget,
+  logProductRecommendationRun,
+  logProductInteractionTrace,
+  logProductApplicationTrace,
 } from "./services/audit/traceabilityPersistence.js";
 import {
   validateBody,
@@ -779,6 +780,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  /**
+   * GET /api/habits/recommendations
+   * Hábitos financieros personalizados según la salud financiera del usuario,
+   * excluyendo los que el usuario marcó como "no útil" la última vez (feedback loop).
+   */
+  app.get("/api/habits/recommendations", authenticate, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { evaluateUserHealth } = await import('./services/healthEvaluation/index.js');
+      const { generateHabitRecommendations } = await import('./services/habits/habitEngine.js');
+
+      const health = await evaluateUserHealth(userId);
+      if (!health) {
+        return res.json({ habits: [], reason: 'insufficient_data' });
+      }
+
+      const excludedKeys = await storage.getRecentlyDownvotedHabitKeys(userId);
+      const habits = generateHabitRecommendations(health, excludedKeys);
+
+      // #34: snapshot del estado financiero al recomendar, para medir efectividad luego.
+      try {
+        const { logHabitRecommendations } = await import('./services/habits/habitRecommendationsLog.js');
+        await logHabitRecommendations(userId, habits, health);
+      } catch (logErr) {
+        logger.warn({ err: logErr, userId }, 'No se pudo registrar snapshot de hábitos (no fatal)');
+      }
+
+      res.json({ habits });
+    } catch (error) {
+      logger.error({ err: error }, 'Habit recommendations error');
+      res.status(500).json({ error: 'Failed to get habit recommendations' });
+    }
+  });
+
+  /**
+   * GET /api/habits/progress
+   * Efectividad (#34): compara el estado financiero actual contra el snapshot de cuando se
+   * recomendó cada hábito, e indica si la métrica objetivo (deuda/ahorro/mora) mejoró.
+   */
+  app.get("/api/habits/progress", authenticate, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { evaluateUserHealth } = await import('./services/healthEvaluation/index.js');
+      const { getHabitProgress } = await import('./services/habits/habitRecommendationsLog.js');
+      const health = await evaluateUserHealth(userId);
+      if (!health) return res.json({ progress: [], reason: 'insufficient_data' });
+      const progress = await getHabitProgress(userId, health);
+      res.json({ progress });
+    } catch (error) {
+      logger.error({ err: error }, 'Habit progress error');
+      res.status(500).json({ error: 'Failed to get habit progress' });
+    }
+  });
+
+  /**
+   * POST /api/habits/feedback
+   * Thumbs up/down sobre un hábito recomendado. El rating más reciente por
+   * `habitKey` decide si ese hábito sigue mostrándose (ver storage.getRecentlyDownvotedHabitKeys).
+   */
+  app.post("/api/habits/feedback", authenticate, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { habitKey, rating } = req.body ?? {};
+      const { HABIT_KEYS } = await import('./services/habits/habitCatalog.js');
+
+      if (typeof habitKey !== 'string' || !HABIT_KEYS.has(habitKey)) {
+        return res.status(400).json({ error: 'habitKey inválido' });
+      }
+      if (rating !== 'up' && rating !== 'down') {
+        return res.status(400).json({ error: 'rating debe ser "up" o "down"' });
+      }
+
+      await storage.createHabitFeedback({ userId, habitKey, rating });
+      res.json({ ok: true });
+    } catch (error) {
+      logger.error({ err: error }, 'Habit feedback error');
+      res.status(500).json({ error: 'Failed to save habit feedback' });
+    }
+  });
+
   /** Mensaje inicial y chips del chat (datos reales, sin plantillas genéricas). */
   app.get("/api/assistant/bootstrap", authenticate, async (req, res) => {
     try {
@@ -802,6 +883,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e) {
       logger.error({ err: e }, "plan insights error");
       res.status(500).json({ message: "Error al calcular el plan." });
+    }
+  });
+
+  // Motor de 12 reglas de optimización de deuda (#Fase4): explica al usuario qué acciones
+  // concretas mejoran su score crediticio / nivel de salud, agrupadas por familia.
+  app.get("/api/debt-rules/recommendations", authenticate, async (req: Request, res: Response) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { isDebtRulesEnabled, evaluateDebtRules } = await import("./services/debtRules/ruleEngine.js");
+      if (!isDebtRulesEnabled()) {
+        return res.json({ enabled: false, hasData: false, recommendations: [], families: [] });
+      }
+
+      const { buildDebtRuleContext } = await import("./services/debtRules/context.js");
+      const ctx = await buildDebtRuleContext(userId);
+      if (!ctx) {
+        // Faltan insumos (cartola + CMF). El front muestra el CTA de subir documentos.
+        return res.json({ enabled: true, hasData: false, recommendations: [], families: [] });
+      }
+
+      const t0 = Date.now();
+      const recommendations = evaluateDebtRules(ctx);
+
+      // Familias en orden fijo para el front (aunque no todas tengan reglas activas).
+      const { FAMILY_LABELS } = await import("./services/debtRules/types.js");
+      const families = (Object.keys(FAMILY_LABELS) as Array<keyof typeof FAMILY_LABELS>).map((f) => ({
+        familia: f,
+        label: FAMILY_LABELS[f],
+        recommendations: recommendations.filter((r) => r.familia === f),
+      })).filter((g) => g.recommendations.length > 0);
+
+      // Trazabilidad NCG 502 (fire-and-forget).
+      const reqId = typeof req.headers["x-request-id"] === "string" && req.headers["x-request-id"].length > 0
+        ? (req.headers["x-request-id"] as string)
+        : crypto.randomUUID();
+      import("./services/audit/traceabilityPersistence.js")
+        .then(({ logDebtRulesEvaluation }) =>
+          logDebtRulesEvaluation({
+            userId,
+            requestId: reqId,
+            input: {
+              deudaFlujo: ctx.health.ratios.deudaFlujo,
+              deudaActivos: ctx.health.ratios.deudaActivos,
+              ahorroIngreso: ctx.health.ratios.ahorroIngreso,
+              moraActiva: ctx.health.ratios.moraActiva,
+              diasMora: ctx.health.ratios.diasMora,
+              nivel: ctx.health.nivel,
+              zona: ctx.health.zona,
+              tiposCredito: ctx.tiposCredito,
+            },
+            output: { rules: recommendations.map((r) => r.key), count: recommendations.length },
+            processingTimeMs: Date.now() - t0,
+          }),
+        )
+        .catch((err) => logger.warn({ err }, "debt-rules traceability failed (non-fatal)"));
+
+      res.json({ enabled: true, hasData: true, nivel: ctx.health.nivel, zona: ctx.health.zona, recommendations, families });
+    } catch (e) {
+      logger.error({ err: e }, "debt-rules recommendations error");
+      res.status(500).json({ message: "Error al calcular las recomendaciones." });
     }
   });
 
@@ -940,6 +1081,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (_e) {
       logger.error({ err: _e }, 'Error creating transactions batch');
       res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Hook de corrección de categoría (#31): el usuario reclasifica un movimiento → se guarda la
+  // corrección y alimenta el clasificador incremental (fallback a reglas regex).
+  app.post("/api/transactions/category-correction", authenticate, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { text, correctedCategory, originalCategory } = req.body || {};
+      if (typeof text !== "string" || !text.trim() || typeof correctedCategory !== "string" || !correctedCategory.trim()) {
+        return res.status(400).json({ message: "Se requieren 'text' y 'correctedCategory'." });
+      }
+      const { recordCategoryCorrection } = await import("./services/documents/categoryCorrections.js");
+      const result = await recordCategoryCorrection({
+        userId,
+        text,
+        correctedCategory,
+        originalCategory: typeof originalCategory === "string" ? originalCategory : null,
+      });
+      if (!result.ok) {
+        return res.status(400).json({ message: "Texto no válido para aprender (vacío tras normalizar)." });
+      }
+      return res.status(201).json({ ok: true });
+    } catch (e) {
+      logger.error({ err: e }, "Error registrando corrección de categoría");
+      return res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -1290,7 +1457,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document upload: Import enhanced middleware with validation, OCR support
-  const { documentUpload } = await import("./middleware/uploadMiddleware.js");
+  const { documentUpload, handleMulterError } = await import("./middleware/uploadMiddleware.js");
   app.post(
     "/api/documents/upload",
     authenticate,
@@ -1298,8 +1465,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     (req: Request, res: Response, next: NextFunction) => {
       documentUpload.single("document")(req, res, (err: unknown) => {
         if (err) {
-          // Import multer error handler
-          const { handleMulterError } = require('./middleware/uploadMiddleware.js');
           const errorMessage = handleMulterError(err);
           return res.status(400).json({ 
             message: errorMessage,
@@ -1361,22 +1526,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
         }
         
-        // 4. Process document
+        // 3.5 Persistir el ORIGINAL cifrado con TTL (#21). Best-effort: si falla, el upload sigue.
+        try {
+          const { storeOriginal } = await import("./services/documents/originalStore.js");
+          await storeOriginal(userId, file.buffer, {
+            contentType: file.mimetype,
+            filename: file.originalname,
+          });
+        } catch (origErr) {
+          logger.warn({ err: origErr, userId }, "[Upload] no se pudo persistir el original (no fatal)");
+        }
+
+        // 4. Process document — en cola (BullMQ) si hay Redis configurado, para no bloquear el
+        // request HTTP con OCR/parseo PDF + scoring; si no, igual que antes (síncrono).
+        const { documentQueue } = await import("./queues/documentQueue.js");
+        if (documentQueue) {
+          const job = await documentQueue.add("upload", {
+            userId,
+            fileBase64: file.buffer.toString("base64"),
+          });
+          return res.status(202).json({
+            step: "queued",
+            jobId: job.id,
+            metadata: {
+              originalName: file.originalname,
+              size: file.size,
+              uploadedAt: new Date().toISOString(),
+            },
+            warnings: validation.warnings,
+          });
+        }
+
         const { processDocumentUpload } = await import("./services/documents/index.js");
         const result = await processDocumentUpload(userId, file.buffer);
-        
+
         if (result.error) {
           logger.warn(
             { userId, error: result.error, step: result.step },
             '[Upload] Document processing failed'
           );
-          return res.status(400).json({ 
-            message: result.error, 
+          return res.status(400).json({
+            message: result.error,
             step: result.step,
             warnings: validation.warnings
           });
         }
-        
+
         // 5. Success response with warnings (validación del archivo + best-effort del score)
         res.json({
           ...result,
@@ -1387,7 +1582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             uploadedAt: new Date().toISOString(),
           },
         });
-        
+
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Error procesando documento";
         
@@ -1415,6 +1610,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   );
+
+  // GET /api/documents/upload/:jobId — polling de estado para uploads encolados (ver POST arriba).
+  // Solo aplica cuando hay Redis configurado; sin Redis el POST ya responde con el resultado final.
+  app.get("/api/documents/upload/:jobId", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+
+      const { documentQueue } = await import("./queues/documentQueue.js");
+      if (!documentQueue) {
+        return res.status(404).json({ message: "No hay cola de procesamiento configurada." });
+      }
+
+      const job = await documentQueue.getJob(req.params.jobId);
+      if (!job || job.data.userId !== userId) {
+        return res.status(404).json({ message: "Job no encontrado." });
+      }
+
+      const state = await job.getState();
+      if (state === "completed") {
+        return res.json({ step: "done", state, result: job.returnvalue });
+      }
+      if (state === "failed") {
+        return res.status(500).json({ step: "processing", state, message: job.failedReason });
+      }
+      return res.json({ step: "queued", state });
+    } catch (e) {
+      logger.error({ err: e, userId: authReq.user?.userId }, "Document upload job status check failed");
+      res.status(500).json({ message: "Error al consultar el estado del documento." });
+    }
+  });
 
   // DELETE /api/documents — clear all movement documents (documentUploads table only)
   app.delete("/api/documents", authenticate, async (req: Request, res: Response) => {
@@ -2133,12 +2360,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 	      const { getNormalizedTransactionalScoreForUser } = await import("./services/normalizedTransactionalScore.js");
 	      const normalizedScore = await getNormalizedTransactionalScoreForUser(userId);
 	      if (normalizedScore) {
-	        storage.addScoreHistoryEntry(
-	          userId,
-	          normalizedScore.transactionalScore,
-	          100,
-	          JSON.stringify(normalizedScore.metrics ?? {}),
-	        ).catch(() => {});
+	        if (normalizedScore.transactionalScore != null) {
+	          storage.addScoreHistoryEntry(
+	            userId,
+	            normalizedScore.transactionalScore,
+	            100,
+	            JSON.stringify(normalizedScore.metrics ?? {}),
+	          ).catch(() => {});
+	        }
 	        return res.json({
 	          transactionalScore: normalizedScore.transactionalScore,
 	          mainInsights: normalizedScore.mainInsights ?? [],
@@ -2167,6 +2396,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e) {
       logger.error({ err: e }, "Get transactional score failed");
       res.status(500).json({ message: "Error al obtener el score transaccional." });
+    }
+  });
+
+  /**
+   * Doble evaluador de riesgo (Fase D): score tradicional (control) + transaccional CODA (beta)
+   * desde el profile unificado, con segmento, titular y reconciliación. Alimenta la tarjeta de score.
+   */
+  app.get("/api/risk/evaluation", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      // Flag de rollout (Fase F): gateado en producción hasta validar con outcomes locales (Fase G).
+      // En dev/test va habilitado; en prod requiere RISK_DUAL_SCORE_ENABLED=true. Defensa en profundidad:
+      // el front ya lo esconde tras FEATURES.riskDualScore, esto protege el endpoint ante llamadas directas.
+      const dualEnabled = process.env.NODE_ENV !== "production" || process.env.RISK_DUAL_SCORE_ENABLED === "true";
+      if (!dualEnabled) return res.status(404).json({ message: "No disponible." });
+
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado. Inicia sesión de nuevo." });
+
+      const startedAt = Date.now();
+      const { evaluateRisk } = await import("./services/risk/evaluateRisk.js");
+      const evaluation = await evaluateRisk(userId);
+      if (!evaluation) {
+        return res.json({ available: false, message: "Aún no hay datos suficientes. Sube tu Informe CMF y una cartola." });
+      }
+
+      // Trazabilidad NCG 502 (fire-and-forget): una fila por modelo emitido.
+      import("./services/audit/traceabilityPersistence.js")
+        .then(({ logRiskEvaluation }) =>
+          logRiskEvaluation({
+            userId,
+            requestId: crypto.randomUUID(),
+            segment: evaluation.segment,
+            traditional: evaluation.traditional.available
+              ? { input: evaluation.traditional.features, output: { pd: evaluation.traditional.pd, score: evaluation.traditional.score, band: evaluation.traditional.band.label } }
+              : null,
+            transactional: evaluation.transactional.available
+              ? { input: { transactionMonths: true }, output: { pd: evaluation.transactional.pd, score: evaluation.transactional.score, band: evaluation.transactional.band } }
+              : null,
+            processingTimeMs: Date.now() - startedAt,
+          }),
+        )
+        .catch((err) => logger.warn({ err }, "logRiskEvaluation failed (non-fatal)"));
+
+      return res.json({ available: true, ...evaluation });
+    } catch (e) {
+      logger.error({ err: e }, "Get risk evaluation failed");
+      res.status(500).json({ message: "Error al evaluar el riesgo." });
     }
   });
 
@@ -2247,6 +2524,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  /**
+   * Traza la predicción XGB en `algorithmPredictionLogs` con razones por instancia (no el
+   * ranking SHAP global de `getTopFeatures`) — antes este path de scoring no se registraba
+   * en absoluto en la trazabilidad algorítmica (NCG 502).
+   */
+  async function tracePdXgbPrediction(
+    userId: string,
+    pd: number,
+    reasons: Array<{ feature: string; contribution: number; direction: "increases_risk" | "decreases_risk" }>,
+    features: Record<string, unknown>,
+    startedAt: number
+  ) {
+    try {
+      const { logCreditScorePrediction } = await import("./services/audit/algorithmicTraceability.js");
+      const { randomUUID } = await import("node:crypto");
+      const creditScore = Math.round(850 - pd * 550);
+      const riskCategory = creditScore >= 750 ? "EXCELLENT" : creditScore >= 680 ? "GOOD" : creditScore >= 620 ? "AVERAGE" : creditScore >= 550 ? "POOR" : "VERY_POOR";
+      await logCreditScorePrediction(
+        userId,
+        randomUUID(),
+        {
+          creditScore,
+          probabilityDefault: pd,
+          riskCategory,
+          confidence: 0.8,
+          shapValues: reasons,
+          topFactors: reasons,
+        },
+        { features },
+        { processingTimeMs: Date.now() - startedAt }
+      );
+    } catch (err) {
+      logger.warn({ err }, "Failed to persist XGB prediction trace");
+    }
+  }
+
   // PD Scoring (protected) - Expensive operation
   app.post("/api/scoring/application", authenticate, expensiveLimiter, validateBody(scoringApplicationSchema), async (req, res) => {
     try {
@@ -2258,42 +2571,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (modelParam === "xgb") {
         try {
+          const startedAt = Date.now();
           const { PDModelRegistry } = await import("./services/modelRegistry.js");
           const reg = PDModelRegistry.instance();
-          if (!reg.isReady) {
-            await new Promise((r) => setTimeout(r, 150));
-          }
+          // El modelo se evalúa desde xgb.json en TS (carga síncrona), así que isReady es
+          // confiable de inmediato — ya no hace falta el sleep ni el fallback ONNX one-off
+          // (que además leía el tensor `label` en vez de `probabilities`). Si no está listo,
+          // cae a baseline.
           if (reg.isReady) {
-            const pd = await reg.scoreXGB(fv as any);
-            const reasons = ["model:xgb", ...reg.getTopFeatures(5)];
-            return res.json({ pd, reasons, features: fv, model: reg.getManifest() });
+            const pd = await reg.scoreXGB(fv);
+            const instanceReasons = reg.explainInstance(fv, 5);
+            const reasons = ["model:xgb", ...instanceReasons.map((r) => r.feature)];
+            await tracePdXgbPrediction(userId, pd, instanceReasons, fv, startedAt);
+            return res.json({ pd, reasons, reasonDetail: instanceReasons, features: fv, model: reg.getManifest() });
           }
-
-          // Fallback: one-off ONNX scoring if registry not yet ready
-          const pathMod = await import("node:path");
-          const fsMod = await import("node:fs");
-          const baseDir = await getMLArtifactsDir();
-          const manifest = JSON.parse(fsMod.readFileSync(pathMod.join(baseDir, "manifest.json"), "utf-8"));
-          const featureMeta = JSON.parse(
-            fsMod.readFileSync(pathMod.join(baseDir, manifest.feature_meta_path || "feature_meta.json"), "utf-8")
-          );
-          const onnxPath = pathMod.join(baseDir, manifest.onnx_path || "xgb_pd.onnx");
-          const ortMod: any = await import("onnxruntime-node");
-          const ortAny: any = (ortMod as any)?.default ?? ortMod;
-          const feats = featureMeta.features.map((k: string) => Number((fv as any)[k] ?? 0));
-          const input = new Float32Array(feats);
-          const tensor = new ortAny.Tensor("float32", input, [1, feats.length]);
-          const session = await ortAny.InferenceSession.create(onnxPath, { executionProviders: ["cpu"] });
-          const outputs = await session.run({ input: tensor });
-          const out = (outputs as any)[Object.keys(outputs)[0]];
-          let p = Number(Array.isArray(out.data) ? out.data[0] : out.data[0]);
-          const cal = manifest?.calibration;
-          if (cal?.type === "platt" && typeof cal.params?.a === "number" && typeof cal.params?.b === "number") {
-            const z = cal.params.a * p + cal.params.b;
-            p = 1 / (1 + Math.exp(-z));
-          }
-          const reasons = ["model:xgb", ...((manifest?.shap_top || []) as string[]).slice(0, 5)];
-          return res.json({ pd: p, reasons, features: fv, model: manifest });
+          logger.warn("XGB model not ready, falling back to baseline");
         } catch (err) {
           logger.warn({ err }, 'XGB scoring failed, falling back to baseline');
         }
@@ -2324,6 +2616,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const modelParam = String(req.query.model || "baseline");
       if (modelParam.toLowerCase() === "xgb") {
         try {
+          const startedAt = Date.now();
           const reg = PDModelRegistry.instance();
           // Allow a short warm-up window for lazy model load
           if (!reg.isReady) {
@@ -2331,8 +2624,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           if (reg.isReady) {
             const pd = await reg.scoreXGB(fv as any);
-            const reasons = ["model:xgb", ...reg.getTopFeatures(5)];
-            return res.json({ pd, reasons, features: fv, model: reg.getManifest() });
+            const instanceReasons = reg.explainInstance(fv as any, 5);
+            const reasons = ["model:xgb", ...instanceReasons.map((r) => r.feature)];
+            await tracePdXgbPrediction(userId, pd, instanceReasons, fv as Record<string, unknown>, startedAt);
+            return res.json({ pd, reasons, reasonDetail: instanceReasons, features: fv, model: reg.getManifest() });
           }
 
           // Fallback: score directly via ONNXRuntime (one-off session) if registry not ready
@@ -3713,7 +4008,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/profile/account", authenticate, authLimiter, handleDeleteAccount);
+  // GET /api/profile/accounts/:accountId/transactions-sfa — movimientos del titular renderizados
+  // en el formato del Sistema de Finanzas Abiertas (CMF, NCG 514/569, ISO 20022). Diagnóstico/
+  // readiness: muestra cómo se ven las cartolas ya normalizadas en el schema exacto que CODA
+  // consumirá como PSBI cuando entren en vigencia las APIs. Solo datos propios del usuario.
+  app.get("/api/profile/accounts/:accountId/transactions-sfa", authenticate, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const accountId = Number(req.params.accountId);
+      const userAccounts = await storage.getAccounts(userId);
+      const owned = userAccounts.find((a: { id: number }) => a.id === accountId);
+      if (!owned) return res.status(404).json({ message: 'Cuenta no encontrada' });
+
+      const fromDate = typeof req.query.fromDate === 'string' ? req.query.fromDate : undefined;
+      const toDate = typeof req.query.toDate === 'string' ? req.query.toDate : undefined;
+      const page = Math.max(1, parseInt(String(req.query.page ?? '1'), 10) || 1);
+      const pageSize = Math.min(200, Math.max(1, parseInt(String(req.query.pageSize ?? '25'), 10) || 25));
+
+      const txs = await storage.getTransactions(accountId, {
+        from: fromDate ? new Date(fromDate) : undefined,
+        to: toDate ? new Date(toDate) : undefined,
+      });
+      const { buildSfaTransactionsResponse } = await import('./services/sfa/sfaMapper.js');
+      const baseUrl = `${req.protocol}://${req.get('host')}/api/profile/accounts/${accountId}/transactions-sfa`;
+      const resp = buildSfaTransactionsResponse(
+        txs.map((t: any) => ({ id: t.id, externalId: t.externalId, postedAt: t.postedAt, description: t.description, amount: Number(t.amount), currency: t.currency ?? 'CLP' })),
+        { baseUrl, fromDate, toDate, page, pageSize },
+      );
+      res.json(resp);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // GET /api/profile/my-data — exportación de todos los datos del titular (Ley 21.719 Art. 13).
+  // Rate-limit: 1 solicitud/hora vía expensiveLimiter (ventana 60 min).
+  app.get("/api/profile/my-data", authenticate, expensiveLimiter, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+
+      const [profile] = await db.select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        rutHash: users.rutHash,
+        kycStatus: users.kycStatus,
+        onboardingCompleted: users.onboardingCompleted,
+        createdAt: users.createdAt,
+      }).from(users).where(eq(users.id, userId)).limit(1);
+
+      if (!profile) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+      // El RUT se guarda seudonimizado (hash irreversible) — no hay texto plano que devolver.
+      // Se informa solo si el sistema tiene uno registrado, no su valor.
+      const { rutHash, ...profileRest } = profile;
+      const profileForExport = { ...profileRest, rutOnFile: !!rutHash };
+
+      const cutoffDate = new Date();
+      cutoffDate.setMonth(cutoffDate.getMonth() - 24);
+      const cutoff = cutoffDate.toISOString().slice(0, 10);
+
+      const { documentUploads: docUploads, consentGrants: grants } = await import('./db/index.js');
+      const [
+        userTransactions,
+        userAccounts,
+        userCreditScores,
+        userDocuments,
+        userConsentGrants,
+      ] = await Promise.all([
+        db.select().from(transactions).where(and(eq(transactions.userId, userId), desc(transactions.date) as any)).limit(2000),
+        db.select().from(accounts).where(eq(accounts.userId, userId)),
+        db.select().from(creditScores).where(eq(creditScores.userId, userId)),
+        db.select({ id: (docUploads as any).id, tipo: (docUploads as any).tipo, banco: (docUploads as any).banco, parseStatus: (docUploads as any).parseStatus, createdAt: (docUploads as any).createdAt }).from(docUploads as any).where(eq((docUploads as any).userId, userId)),
+        db.select().from(grants as any).where(eq((grants as any).userId, userId)),
+      ]);
+
+      // description va cifrada en reposo → descifrar para el export del titular (RTBF, en claro).
+      const { looksEncrypted, decryptField } = await import('./services/crypto/fieldEncryption.js');
+      const txsPlano = (userTransactions as Array<Record<string, unknown>>).map((t) => {
+        const d = t.description;
+        return typeof d === 'string' && looksEncrypted(d) ? { ...t, description: decryptField(d) } : t;
+      });
+
+      res.setHeader('Content-Disposition', 'attachment; filename="mis-datos-coda.json"');
+      res.json({
+        exportedAt: new Date().toISOString(),
+        dataController: 'CODA Finance SpA',
+        legalBasis: 'Ley 21.719 Art. 13 — Derecho de acceso del titular',
+        profile: profileForExport,
+        accounts: userAccounts,
+        transactions: txsPlano,
+        creditScores: userCreditScores,
+        documents: userDocuments,
+        consentGrants: userConsentGrants,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.delete("/api/profile/account", authenticate, authLimiter, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      logger.info({ userId }, 'Received request to delete account');
+
+      // Anonimización irreversible (Ley 19.628/21.719) — ver services/privacy/accountAnonymization.ts.
+      await anonymizeUser(userId);
+      logger.info({ userId }, 'Account anonymization complete');
+
+      res.json({ message: "Account deleted successfully" });
+    } catch (error) {
+      // Let the central error handler deal with it
+      next(error);
+    }
+  });
 
   app.get("/api/profile/mfa-status", authenticate, async (req: Request, res: Response) => {
     try {
@@ -3788,7 +4198,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         explainRecommendation,
         PRODUCT_MATCHING_ENGINE_VERSION,
       } = await import('./services/products/matchingEngine.js');
-      const { productCatalog, getProductsByCategory } = await import('./services/products/productCatalog.js');
 
       // Build user profile from available data
       const creditScore = await storage.getCreditScore(userId);
@@ -3820,17 +4229,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.warn({ err: e }, "Could not extract cartola data for product matching");
       }
 
+      // Salud financiera (#25): acopla las recomendaciones a la SITUACIÓN del usuario,
+      // no solo a su score. Best-effort: si faltan cartola/CMF, queda undefined y el
+      // motor se comporta como antes (solo score + ingresos).
+      let financialHealthLevel: number | undefined;
+      try {
+        const { evaluateUserHealth } = await import('./services/healthEvaluation/index.js');
+        const health = await evaluateUserHealth(userId);
+        financialHealthLevel = health?.nivel;
+      } catch (e) {
+        logger.warn({ err: e }, 'Could not evaluate financial health for product matching');
+      }
+
       const userProfile = {
         userId,
         creditScore: creditScore?.score,
         transactionalScore: transactionalScoreData?.transactionalScore ?? undefined,
         monthlyIncome,
         monthlyDebt,
+        financialHealthLevel,
       };
 
-      // Get recommendations
-      const productsToMatch = category ? getProductsByCategory(category) : productCatalog;
-      const recommendations = getTopRecommendations(productsToMatch, userProfile, limit, category);
+      // Catálogo único: tabla financial_products (fuente de verdad). Los rows tienen la misma
+      // forma que ProductCatalogItem, así que el matchingEngine los consume sin cambios.
+      const productsToMatch = await storage.getFinancialProducts(category);
+      // Get recommendations, ponderadas por conversión real (#35; neutro si el job no corrió).
+      const { getLatestRankingWeights } = await import('./services/products/productRankingWeights.js');
+      const conversionWeights = await getLatestRankingWeights();
+      const recommendations = getTopRecommendations(productsToMatch, userProfile, limit, category, conversionWeights);
 
       // Format response with explanations
       const response = recommendations.map(match => {
@@ -3856,20 +4282,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requestId =
         typeof reqIdHeader === "string" && reqIdHeader.length > 0 ? reqIdHeader : crypto.randomUUID();
 
-      logProductRecommendationRunFireAndForget({
+      await logProductRecommendationRun({
         userId,
         requestId,
         userProfile: {
           creditScore: userProfile.creditScore,
           transactionalScore: userProfile.transactionalScore,
+          financialHealthLevel: userProfile.financialHealthLevel,
           matchingEngineVersion: PRODUCT_MATCHING_ENGINE_VERSION,
         },
         category,
         limit,
         results: recommendations.map((match) => {
-          const productId = productCatalog.findIndex((p) => p === match.product);
+          // id real de financial_products (el catálogo ahora viene de la DB).
+          const productId = Number((match.product as { id?: number }).id) || 0;
           return {
-            productId: productId >= 0 ? productId : 0,
+            productId,
             name: `${match.product.provider} · ${match.product.productName}`,
             matchScore: Math.round(match.matchScore),
             rankingScore: Math.round(match.rankingScore),
@@ -3901,9 +4329,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'productId and eventType are required' });
       }
 
-      const validEvents = ['view', 'click', 'application', 'approval', 'rejection'];
+      const validEvents = ['view', 'click', 'apply', 'convert', 'application', 'approval', 'rejection'];
       if (!validEvents.includes(eventType)) {
         return res.status(400).json({ message: `Invalid eventType. Must be one of: ${validEvents.join(', ')}` });
+      }
+
+      // Registrar en product_conversion_events para función de pérdida CTR × conversión
+      if (['view', 'click', 'apply', 'convert'].includes(eventType)) {
+        const { productConversionEvents } = await import('./db/index.js');
+        await db.insert(productConversionEvents as any).values({
+          id: crypto.randomUUID(),
+          userId,
+          productId: String(productId),
+          eventType,
+        });
       }
 
       const { trackLeadEvent } = await import('./services/products/leadTrackingService.js');
@@ -3935,7 +4374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? reqIdTrackHeader
           : crypto.randomUUID();
 
-      logProductInteractionTraceFireAndForget({
+      await logProductInteractionTrace({
         userId,
         requestId: requestIdTrack,
         productId: Number(productId),
@@ -3970,10 +4409,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { createProductApplication } = await import('./services/products/leadTrackingService.js');
-      const { productCatalog } = await import('./services/products/productCatalog.js');
 
-      // Find product in catalog
-      const product = productCatalog.find(p => p.provider + p.productName === productId || productCatalog.indexOf(p) === Number(productId));
+      // Lookup por PK real en financial_products (catálogo único, Fase 1b). El front envía el
+      // id numérico de la DB, no un slug — antes el match por provider+productName/indexOf era frágil.
+      const numericProductId = Number(productId);
+      if (!Number.isInteger(numericProductId) || numericProductId <= 0) {
+        return res.status(400).json({ message: 'productId inválido' });
+      }
+      const product = await storage.getFinancialProduct(numericProductId);
       if (!product) {
         return res.status(404).json({ message: 'Product not found' });
       }
@@ -3981,7 +4424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create application
       const applicationId = await createProductApplication(
         userId,
-        Number(productId),
+        numericProductId,
         { requestedAmount, term, purpose, additionalInfo },
         product
       );
@@ -3999,7 +4442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? reqIdApplyHeader
           : crypto.randomUUID();
 
-      logProductApplicationTraceFireAndForget({
+      await logProductApplicationTrace({
         userId,
         requestId: requestIdApply,
         productId: Number(productId),
@@ -4043,7 +4486,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get product metrics (admin only - for now, authenticated users)
-  app.get("/api/products/metrics", authenticate, async (req: Request, res: Response) => {
+  app.get("/api/products/metrics", authenticate, requireAdmin, async (req: Request, res: Response) => {
     try {
       const { getTotalRevenueMetrics, getOverallFunnelMetrics } = await import('./services/products/leadTrackingService.js');
 
@@ -4063,7 +4506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get funnel metrics for a specific product
-  app.get("/api/products/:id/metrics", authenticate, async (req: Request, res: Response) => {
+  app.get("/api/products/:id/metrics", authenticate, requireAdmin, async (req: Request, res: Response) => {
     try {
       const productId = Number(req.params.id);
       const { getProductFunnelMetrics } = await import('./services/products/leadTrackingService.js');
@@ -4074,6 +4517,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error({ error }, 'Failed to get product funnel metrics');
       res.status(500).json({ message: 'Failed to retrieve product metrics' });
+    }
+  });
+
+  // ── Gestión de leads (back-office admin) ──
+  // Lista todos los leads con producto/estado/revenue para el dashboard admin.
+  app.get("/api/admin/leads", authenticate, requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const limit = Math.min(500, Math.max(1, parseInt(String(req.query.limit ?? '200'), 10) || 200));
+      const { getAllLeads } = await import('./services/institutions/institutionLeads.js');
+      const leads = await getAllLeads(limit);
+      res.json({ count: leads.length, leads });
+    } catch (error) {
+      logger.error({ error }, 'Failed to list admin leads');
+      res.status(500).json({ message: 'Error al listar leads' });
+    }
+  });
+
+  // Fase G: outcomes reales de decisiones de crédito — cuánta data etiquetada hay para reentrenar
+  // y tasa de aprobación por proveedor ("quién otorga a quién").
+  app.get("/api/admin/risk-outcomes", authenticate, requireAdmin, async (_req: Request, res: Response) => {
+    try {
+      const { getDecisionOutcomeStats } = await import('./services/risk/decisionOutcomes.js');
+      res.json(await getDecisionOutcomeStats());
+    } catch (error) {
+      logger.error({ error }, 'Failed to get risk outcomes');
+      res.status(500).json({ message: 'Error al obtener outcomes de riesgo' });
+    }
+  });
+
+  // Avanza manualmente el estado de un lead (mientras la institución no integre la API).
+  app.post("/api/admin/leads/:id/status", authenticate, requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const leadId = Number(req.params.id);
+      if (!Number.isInteger(leadId) || leadId <= 0) {
+        return res.status(400).json({ message: 'leadId inválido' });
+      }
+      const { status, originatedAmount, externalApplicationId } = (req.body ?? {}) as {
+        status?: 'accepted' | 'rejected' | 'originated';
+        originatedAmount?: number;
+        externalApplicationId?: string;
+      };
+      const valid = ['accepted', 'rejected', 'originated'];
+      if (!status || !valid.includes(status)) {
+        return res.status(400).json({ message: `status debe ser uno de: ${valid.join(', ')}` });
+      }
+      if (status === 'originated' && (typeof originatedAmount !== 'number' || originatedAmount <= 0)) {
+        return res.status(400).json({ message: 'originated requiere originatedAmount > 0' });
+      }
+      const { adminSetLeadStatus } = await import('./services/institutions/institutionLeads.js');
+      const ok = await adminSetLeadStatus(leadId, status, originatedAmount, externalApplicationId);
+      if (!ok) return res.status(404).json({ message: 'Lead no encontrado' });
+      res.json({ ok: true, leadId, status });
+    } catch (error) {
+      logger.error({ error }, 'Failed to set admin lead status');
+      res.status(500).json({ message: 'Error al actualizar el lead' });
     }
   });
 

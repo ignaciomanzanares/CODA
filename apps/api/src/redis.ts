@@ -1,12 +1,13 @@
 import Redis from 'ioredis';
+import { env } from './env.js';
 import { logger } from './logger.js';
 
 /**
- * Cliente Redis compartido.
- * Si REDIS_URL no está definida, queda en null y los consumidores deben usar fallback local/dev.
+ * Cliente Redis compartido (Render add-on). `null` si `REDIS_URL` no está definida — en ese caso
+ * rate limiting y colas caen a memoria local de un solo proceso (ver rateLimiter.ts/documentQueue.ts).
  */
-export const redis: Redis | null = process.env.REDIS_URL
-  ? new Redis(process.env.REDIS_URL, {
+export const redis: Redis | null = env.redisUrl
+  ? new Redis(env.redisUrl, {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
     })

@@ -21,6 +21,24 @@ import { calculateProductRevenue } from './productCatalog.js';
 
 export type LeadEventType = 'view' | 'click' | 'application' | 'approval' | 'rejection';
 
+/**
+ * Máquina de estados de un lead (productApplications.status):
+ *   pending   → el usuario aplicó (lead creado).
+ *   delivered → la institución obtuvo el lead vía la API de instituciones.
+ *   accepted  → la institución lo aceptó (aprobado, sin desembolso aún; sin success fee).
+ *   approved  → originado/desembolsado (genera success fee). "originated" en la API externa.
+ *   rejected  → la institución lo rechazó.
+ *   expired / withdrawn → ciclo cerrado sin originación.
+ */
+export type ApplicationStatus =
+  | 'pending'
+  | 'delivered'
+  | 'accepted'
+  | 'approved'
+  | 'rejected'
+  | 'expired'
+  | 'withdrawn';
+
 export interface TrackLeadEventParams {
   userId: string;
   productId: number;
@@ -139,6 +157,13 @@ export async function createProductApplication(
       leadFeeRevenue
     }, 'Product application created');
 
+    // Fase G: congela el snapshot de riesgo al aplicar (anti-leakage), fire-and-forget.
+    import('../risk/decisionOutcomes.js')
+      .then(({ captureDecisionSnapshot }) =>
+        captureDecisionSnapshot({ userId, applicationId: result.id, provider: (product as any).provider ?? null, productId }),
+      )
+      .catch(() => {});
+
     return result.id;
   } catch (error) {
     logger.error({ error, userId, productId }, 'Failed to create product application');
@@ -152,7 +177,7 @@ export async function createProductApplication(
  */
 export async function updateApplicationStatus(
   applicationId: number,
-  status: 'approved' | 'rejected' | 'expired' | 'withdrawn',
+  status: ApplicationStatus,
   product: ProductCatalogItem,
   loanAmount?: number,
   externalApplicationId?: string
@@ -194,13 +219,25 @@ export async function updateApplicationStatus(
       })
       .where(eq(productApplications.id, applicationId));
 
-    // Track event
-    await trackLeadEvent({
-      userId: application.userId,
-      productId: application.productId,
-      eventType: status === 'approved' ? 'approval' : 'rejection',
-      metadata: { applicationId, externalApplicationId, loanAmount, revenue: totalRevenue }
-    });
+    // Track event solo en los estados terminales que alimentan el funnel (aprobación/rechazo).
+    // 'delivered'/'accepted' son intermedios y no deben contarse como conversión ni pérdida.
+    if (status === 'approved' || status === 'rejected') {
+      await trackLeadEvent({
+        userId: application.userId,
+        productId: application.productId,
+        eventType: status === 'approved' ? 'approval' : 'rejection',
+        metadata: { applicationId, externalApplicationId, loanAmount, revenue: totalRevenue }
+      });
+    }
+
+    // Fase G: registra el outcome real de la institución (label para reentrenar), fire-and-forget.
+    if (status === 'approved' || status === 'rejected' || status === 'accepted') {
+      import('../risk/decisionOutcomes.js')
+        .then(({ recordDecisionOutcome }) =>
+          recordDecisionOutcome({ applicationId, outcome: status, originatedAmountClp: loanAmount ?? null }),
+        )
+        .catch(() => {});
+    }
 
     logger.info({
       applicationId,
@@ -271,7 +308,7 @@ export async function getProductFunnelMetrics(productId: number): Promise<{
     const eventCounts = await db
       .select({
         eventType: leadTracking.eventType,
-        count: sql<number>`count(*)::int`
+        count: sql<number>`CAST(count(*) AS INTEGER)`
       })
       .from(leadTracking)
       .where(eq(leadTracking.productId, productId))
@@ -298,7 +335,7 @@ export async function getProductFunnelMetrics(productId: number): Promise<{
     // Calculate total revenue from applications
     const revenueResult = await db
       .select({
-        total: sql<number>`COALESCE(SUM(${productApplications.revenueEarned}), 0)::int`
+        total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`
       })
       .from(productApplications)
       .where(eq(productApplications.productId, productId));
@@ -367,7 +404,7 @@ export async function getTotalRevenueMetrics(): Promise<{
     // Total revenue
     const totalResult = await db
       .select({
-        total: sql<number>`COALESCE(SUM(${productApplications.revenueEarned}), 0)::int`
+        total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`
       })
       .from(productApplications);
 
@@ -377,7 +414,7 @@ export async function getTotalRevenueMetrics(): Promise<{
     const revenueByTypeResult = await db
       .select({
         revenueType: productApplications.revenueType,
-        total: sql<number>`COALESCE(SUM(${productApplications.revenueEarned}), 0)::int`
+        total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`
       })
       .from(productApplications)
       .where(sql`${productApplications.revenueType} IS NOT NULL`)
@@ -394,7 +431,7 @@ export async function getTotalRevenueMetrics(): Promise<{
     const revenueByProductResult = await db
       .select({
         productId: productApplications.productId,
-        total: sql<number>`COALESCE(SUM(${productApplications.revenueEarned}), 0)::int`
+        total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`
       })
       .from(productApplications)
       .groupBy(productApplications.productId);
@@ -407,8 +444,8 @@ export async function getTotalRevenueMetrics(): Promise<{
     // Counts
     const countsResult = await db
       .select({
-        total: sql<number>`count(*)::int`,
-        approved: sql<number>`count(*) FILTER (WHERE ${productApplications.status} = 'approved')::int`
+        total: sql<number>`CAST(count(*) AS INTEGER)`,
+        approved: sql<number>`CAST(count(*) FILTER (WHERE ${productApplications.status} = 'approved') AS INTEGER)`
       })
       .from(productApplications);
 
@@ -455,7 +492,7 @@ export async function getOverallFunnelMetrics(): Promise<{
     const eventCounts = await db
       .select({
         eventType: leadTracking.eventType,
-        count: sql<number>`count(*)::int`,
+        count: sql<number>`CAST(count(*) AS INTEGER)`,
         avgMatchScore: sql<number>`AVG(${leadTracking.matchScore})`
       })
       .from(leadTracking)
@@ -486,8 +523,8 @@ export async function getOverallFunnelMetrics(): Promise<{
     const topProducts = await db
       .select({
         productId: leadTracking.productId,
-        views: sql<number>`count(*) FILTER (WHERE ${leadTracking.eventType} = 'view')::int`,
-        approvals: sql<number>`count(*) FILTER (WHERE ${leadTracking.eventType} = 'approval')::int`
+        views: sql<number>`CAST(count(*) FILTER (WHERE ${leadTracking.eventType} = 'view') AS INTEGER)`,
+        approvals: sql<number>`CAST(count(*) FILTER (WHERE ${leadTracking.eventType} = 'approval') AS INTEGER)`
       })
       .from(leadTracking)
       .groupBy(leadTracking.productId)
@@ -501,7 +538,7 @@ export async function getOverallFunnelMetrics(): Promise<{
         // Get revenue for this product
         const revenueResult = await db
           .select({
-            total: sql<number>`COALESCE(SUM(${productApplications.revenueEarned}), 0)::int`
+            total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`
           })
           .from(productApplications)
           .where(eq(productApplications.productId, p.productId));

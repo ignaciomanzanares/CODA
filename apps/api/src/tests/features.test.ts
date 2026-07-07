@@ -3,6 +3,10 @@ import { buildUserFeatureVector } from "../ml/features.js";
 import { storage } from "../storage.js";
 import type { InsertAccount, InsertTransaction } from "../schema.js";
 
+/**
+ * Aislamiento de test: la BD SQLite de dev/test es un archivo persistente (packages/data/coda.db).
+ * Cada corrida usa un userId aleatorio único (ver beforeEach) para no acumular datos entre corridas.
+ */
 describe("Feature Engineering", () => {
   let testUserId: string;
 
