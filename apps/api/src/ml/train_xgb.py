@@ -1,15 +1,28 @@
 #!/usr/bin/env python3
-import argparse, json, os, pathlib, time
+import argparse, hashlib, json, os, pathlib, time
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import roc_auc_score, brier_score_loss
-import shap
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 import xgboost as xgb
-from skl2onnx import convert_sklearn
-from onnxconverter_common.data_types import FloatTensorType as OCCFloatTensorType
+
+# Imports OPCIONALES: shap (importancia global) y skl2onnx/onnxconverter-common (export ONNX).
+# Ninguno es requisito para producir un artefacto SERVIBLE (xgb.json + feature_meta + calibración):
+# el serving evalúa xgb.json en TS (sin ONNX), y shap_summary es solo diagnóstico. Se hacen
+# opcionales para no exigir el chain pesado/frágil de onnx en entornos sin esas wheels (p.ej.
+# Python nuevo). Su USO ya está envuelto en try/except más abajo.
+try:
+    import shap
+except Exception:
+    shap = None
+try:
+    from skl2onnx import convert_sklearn
+    from onnxconverter_common.data_types import FloatTensorType as OCCFloatTensorType
+except Exception:
+    convert_sklearn = None
+    OCCFloatTensorType = None
 
 
 def time_split_indices(df, n_splits=3, time_col=None):
@@ -38,6 +51,10 @@ def main():
 
     out_dir = pathlib.Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Hash del dataset de entrenamiento (#39): identifica de forma reproducible con qué
+    # datos exactos se entrenó este artefacto. Va al manifest junto al n de filas/features.
+    dataset_hash = hashlib.sha256(pathlib.Path(args.inp).read_bytes()).hexdigest()
 
     df = pd.read_csv(args.inp)
     if args.label not in df.columns:
@@ -94,21 +111,28 @@ def main():
     lr.fit(p_all.reshape(-1,1), label)
     a = float(lr.coef_[0][0]); b = float(lr.intercept_[0])
 
-    # Build initial types for both converters
-    initial_type_skl2onnx = [('input', OCCFloatTensorType([None, X.shape[1]]))]
-    # onnxmltools expects its own datatypes
-    from onnxmltools.convert.common.data_types import FloatTensorType as OMLFloatTensorType
-    initial_type_onnxmltools = [('input', OMLFloatTensorType([None, X.shape[1]]))]
-
-    # Try scikit-learn converter first; if unavailable for this XGBoost version, fallback to onnxmltools
+    # Export a ONNX: OPCIONAL. El serving en producción evalúa `xgb.json` directamente en
+    # TypeScript (`XgbTreeModel.predictProba`), así que un ONNX válido ya NO es requisito para
+    # promover un modelo. Lo intentamos igual (útil para validación cruzada externa), pero si
+    # falla por la incompatibilidad de versiones onnxmltools/onnx/xgboost (ver README.md) el
+    # entrenamiento continúa y el manifest registra onnx_path=None — antes esto abortaba todo
+    # el pipeline y bloqueaba la promoción de modelos buenos (#9).
+    onnx_export_path = None
     try:
-        onnx_model = convert_sklearn(model, initial_types=initial_type_skl2onnx)
-    except Exception:
-        from onnxmltools import convert_xgboost
-        onnx_model = convert_xgboost(model, initial_types=initial_type_onnxmltools)
-    onnx_path = out_dir / 'xgb_pd.onnx'
-    with open(onnx_path, 'wb') as f:
-        f.write(onnx_model.SerializeToString())
+        initial_type_skl2onnx = [('input', OCCFloatTensorType([None, X.shape[1]]))]
+        try:
+            onnx_model = convert_sklearn(model, initial_types=initial_type_skl2onnx)
+        except Exception:
+            from onnxmltools import convert_xgboost
+            from onnxmltools.convert.common.data_types import FloatTensorType as OMLFloatTensorType
+            initial_type_onnxmltools = [('input', OMLFloatTensorType([None, X.shape[1]]))]
+            onnx_model = convert_xgboost(model, initial_types=initial_type_onnxmltools)
+        onnx_path = out_dir / 'xgb_pd.onnx'
+        with open(onnx_path, 'wb') as f:
+            f.write(onnx_model.SerializeToString())
+        onnx_export_path = 'xgb_pd.onnx'
+    except Exception as e:
+        print(f"[train_xgb] ONNX export omitido (no bloquea): {type(e).__name__}: {e}")
 
     feature_meta = {'features': feature_cols}
     (out_dir / 'feature_meta.json').write_text(json.dumps(feature_meta, indent=2))
@@ -141,8 +165,11 @@ def main():
         'model_id': f"xgb_{int(time.time())}",
         'trained_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
         'algo': 'xgb',
-        'onnx_path': 'xgb_pd.onnx',
+        'onnx_path': onnx_export_path,
         'feature_meta_path': 'feature_meta.json',
+        'dataset_hash': dataset_hash,
+        'n_rows': int(len(df)),
+        'n_features': int(X.shape[1]),
         'metrics': { 'auc': auc, 'gini': gini, 'brier': brier, 'ks': ks },
         'calibration': { 'type': 'platt', 'params': { 'a': a, 'b': b } },
         'shap_top': top_features,

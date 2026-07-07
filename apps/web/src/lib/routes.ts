@@ -7,6 +7,8 @@ export const ROUTES = {
   panel: "/panel",
   movimientos: "/movimientos",
   conexiones: "/conexiones",
+  /** Conectores AFP/SII/Tesorería por flujo guiado (Fase 5). */
+  conectarDatos: "/conectar-datos",
   gastos: "/gastos",
   /** Página principal «Dividir cuenta» */
   dividirCuenta: "/dividir-cuenta",
@@ -23,6 +25,8 @@ export const ROUTES = {
   /** Onboarding de primer ingreso: consentimiento + KYC + 2FA (detrás del flag). */
   verificacion: "/verificacion",
   auditoria: "/auditoria",
+  /** Dashboard de administración (solo role=admin): revenue/funnel, gestión de leads, export compliance. */
+  admin: "/admin",
   infoScoreCredito: "/info/score-credito",
   infoMetasFinancieras: "/info/metas-financieras",
   infoComparacionProductos: "/info/comparacion-productos",

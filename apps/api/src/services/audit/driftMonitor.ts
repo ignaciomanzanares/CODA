@@ -14,7 +14,13 @@
  */
 
 import type { CreditScorePredictionLog, ModelVersion } from './algorithmicTraceability.js';
-import { getUserPredictionHistory, getActiveModelVersion } from './algorithmicTraceability.js';
+import { getUserPredictionHistory, getActiveModelVersion, registerAlgorithmChange } from './algorithmicTraceability.js';
+import { listRecentPredictionPds } from './traceabilityPersistence.js';
+import { notifyOps } from '../observability/index.js';
+import { mlLogger as logger } from '../../logger.js';
+
+/** PSI > 0.25 = drift severo → registrar AlgorithmChange como señal de reentrenamiento urgente. */
+const PSI_SEVERE_THRESHOLD = 0.25;
 
 // ============================================================================
 // TYPES
@@ -214,29 +220,97 @@ export function monitorModelDrift(
   };
 }
 
+// ============================================================================
+// PREDICTION DRIFT JOB (DB-backed, #24)
+// ============================================================================
+
+/** PSI > 0.2 = drift significativo (umbral estándar de la industria). */
+export const PSI_DRIFT_THRESHOLD = 0.2;
+/** Mínimo de muestras por ventana para que el PSI sea estadísticamente útil. */
+export const DRIFT_MIN_SAMPLES = 50;
+
+/** Histograma de `values` en `bins` celdas uniformes sobre [lo, hi], como proporciones. */
+function proportions(values: number[], bins = 10, lo = 0, hi = 1): number[] {
+  const counts = new Array<number>(bins).fill(0);
+  for (const v of values) {
+    const clamped = Math.min(hi, Math.max(lo, v));
+    let idx = Math.floor(((clamped - lo) / (hi - lo)) * bins);
+    if (idx >= bins) idx = bins - 1;
+    counts[idx] += 1;
+  }
+  const total = values.length || 1;
+  return counts.map((c) => c / total);
+}
+
+export interface DriftJobResult {
+  status: 'ok' | 'insufficient_data';
+  kind: string;
+  recentN: number;
+  referenceN: number;
+  psi?: number;
+  alert?: boolean;
+}
+
 /**
- * Cron job to monitor drift daily
- * 
- * In production, this should run as a scheduled task (e.g., cron, AWS Lambda)
+ * Job de drift de predicción (#24): compara la distribución de PD de las predicciones más
+ * recientes contra el lote anterior (mismo `kind`), vía PSI sobre `algorithm_prediction_logs`
+ * (ya no es un TODO/placeholder). Si PSI supera el umbral, alerta a ops (`notifyOps`, no-op si
+ * `OPS_WEBHOOK_URL` no está configurado). Pensado para correr en un scheduler (ver index.ts) o
+ * desde el workflow de CI.
  */
-export async function runDriftMonitoringJob() {
-  console.log('🔍 Running drift monitoring job...');
-  
-  const now = new Date();
-  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  
-  // Get all predictions from last 24h
-  // TODO: Replace with actual DB query
-  // const predictions = await storage.getPredictionsInRange(oneDayAgo, now);
-  
-  // For now, return placeholder
-  console.log('⚠️  Drift monitoring requires PostgreSQL migration');
-  console.log('   TODO: Implement after migrating from in-memory to DB');
-  
-  return {
-    status: 'pending_db_migration',
-    message: 'Drift monitoring will be active after PostgreSQL migration',
-  };
+export async function runDriftMonitoringJob(opts?: {
+  kind?: string;
+  sampleSize?: number;
+}): Promise<DriftJobResult> {
+  const kind = opts?.kind ?? 'credit_cmf';
+  const sampleSize = opts?.sampleSize ?? 500;
+
+  // Trae los 2*N más recientes; mitad reciente vs mitad anterior.
+  const all = await listRecentPredictionPds(kind, sampleSize * 2);
+  const recent = all.slice(0, Math.floor(all.length / 2));
+  const reference = all.slice(Math.floor(all.length / 2));
+
+  if (recent.length < DRIFT_MIN_SAMPLES || reference.length < DRIFT_MIN_SAMPLES) {
+    logger.info(
+      { kind, recentN: recent.length, referenceN: reference.length },
+      '[driftMonitor] datos insuficientes para PSI (se necesita acumular más predicciones)',
+    );
+    return { status: 'insufficient_data', kind, recentN: recent.length, referenceN: reference.length };
+  }
+
+  const psi = computePSI(proportions(reference), proportions(recent));
+  const alert = psi > PSI_DRIFT_THRESHOLD;
+
+  logger.info({ kind, psi, alert, recentN: recent.length, referenceN: reference.length }, '[driftMonitor] PSI calculado');
+
+  if (alert) {
+    await notifyOps(`Drift de PD detectado en '${kind}' (PSI=${psi.toFixed(3)} > ${PSI_DRIFT_THRESHOLD})`, {
+      kind,
+      psi,
+      recentN: recent.length,
+      referenceN: reference.length,
+      hint: 'Revisar si la distribución de entrada cambió o reentrenar el modelo.',
+    });
+
+    // Drift severo → registrar AlgorithmChange pendiente de aprobación humana (NCG 502)
+    if (psi > PSI_SEVERE_THRESHOLD) {
+      const activeModel = getActiveModelVersion();
+      registerAlgorithmChange({
+        changeType: 'model_update',
+        component: 'credit_score',
+        title: `Drift severo detectado en '${kind}' (PSI=${psi.toFixed(3)})`,
+        description: `El PSI de la distribución de PD supera el umbral severo (${PSI_SEVERE_THRESHOLD}). Se recomienda reentrenar o revisar la distribución de datos de entrada. Ventana: ${recent.length} predicciones recientes vs ${reference.length} de referencia.`,
+        newVersion: activeModel?.version ?? 'unknown',
+        oldVersion: activeModel?.version,
+        status: 'pending',
+        requestedBy: 'drift-monitor-auto',
+        expectedImpact: `PSI=${psi.toFixed(3)} indica que la distribución de PDs cambió significativamente.`,
+      });
+      logger.warn({ kind, psi }, '[driftMonitor] drift severo — AlgorithmChange pendiente registrado');
+    }
+  }
+
+  return { status: 'ok', kind, recentN: recent.length, referenceN: reference.length, psi, alert };
 }
 
 /**

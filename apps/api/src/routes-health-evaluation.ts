@@ -7,45 +7,9 @@ import { storage } from './storage.js';
 import { db, userAssets } from './db/index.js';
 import { logger } from './logger.js';
 import { evaluateHealthV2, deriveHealthInput, HEALTH_EVALUATION_ENGINE_VERSION } from './services/healthEvaluation/index.js';
-import { logFinancialHealthV2FireAndForget } from './services/audit/traceabilityPersistence.js';
+import { logFinancialHealthV2 } from './services/audit/traceabilityPersistence.js';
+import { estimarCuotaMensual, normalizeCmfData } from './services/healthEvaluation/userHealthService.js';
 import type { UserAsset } from './services/assets/types.js';
-import type { CMFParseResult } from './parsers/cmf-parser.js';
-
-const PLAZOS_MESES: Record<string, number> = {
-  vivienda: 300,   // ~25 años, estándar hipotecas Chile
-  comercial: 60,   // ~5 años
-  consumo: 36,     // ~3 años
-  otro: 36,
-};
-
-function estimarCuotaMensual(cmf: CMFParseResult, deudaTotalFallback: number): number {
-  if (cmf.deuda_directa.length === 0) return deudaTotalFallback / 36;
-  return cmf.deuda_directa.reduce((sum, d) => {
-    const plazo = PLAZOS_MESES[d.tipo_credito] ?? 36;
-    return sum + d.total / plazo;
-  }, 0);
-}
-
-/** Normaliza ambos formatos de CMF almacenados en BD a CMFParseResult. */
-function normalizeCmfData(raw: any): CMFParseResult {
-  // Formato nuevo: cmf-parser.ts (tiene deuda_total)
-  if (typeof raw?.deuda_total === 'number') return raw as CMFParseResult;
-  // Formato antiguo: pdfAnalysis.ts (tiene deudaTotalVigente)
-  const deudaTotal = raw?.deudaTotalVigente ?? 0;
-  return {
-    deuda_total: deudaTotal,
-    deuda_directa: [],
-    deuda_indirecta: [],
-    lineas_credito: [],
-    metricas: {
-      porcentaje_al_dia: deudaTotal === 0 ? 100 : 90,
-      score_cmf: deudaTotal === 0 ? 85 : 60,
-      tiene_mora: false,
-      credito_disponible_total: 0,
-      utilizacion_promedio: 0,
-    },
-  } as unknown as CMFParseResult;
-}
 
 const NIVEL_DESCRIPCION: Record<number, string> = {
   [-2]: 'Tu deuda supera tus activos o está en mora grave. Se recomienda asesoría legal para explorar reestructuración o proceso concursal.',
@@ -148,8 +112,8 @@ async function handleHealthEvaluationMe(req: Request, res: Response): Promise<an
         monthlyDebt: deudaMensualClp,
       });
 
-      // Trazabilidad NCG 502 (fire-and-forget, no bloquea respuesta)
-      logFinancialHealthV2FireAndForget({
+      // Trazabilidad NCG 502 — persistida antes de responder (ver algorithmicTraceability.ts)
+      await logFinancialHealthV2({
         userId,
         requestId,
         input: {

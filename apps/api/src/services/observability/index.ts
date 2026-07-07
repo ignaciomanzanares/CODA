@@ -301,3 +301,29 @@ export function metricsHandler(req: Request, res: Response): void {
 export function registerMetricsEndpoint(app: Express): void {
   app.get("/metrics", metricsHandler);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Alertas operacionales
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Envía una alerta al webhook de Ops (`OPS_WEBHOOK_URL`) si está configurado; si no, loguea. */
+export async function notifyOps(message: string, details: Record<string, unknown> = {}): Promise<void> {
+  const url = process.env.OPS_WEBHOOK_URL;
+  if (!url) {
+    logger.warn({ ...details }, `[ops-alert] ${message}`);
+    return;
+  }
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 5000);
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: `🔔 CODA: ${message}`, details }),
+      signal: controller.signal,
+    });
+    clearTimeout(t);
+  } catch (e) {
+    logger.error({ err: e, message }, '[observability] notifyOps falló');
+  }
+}

@@ -4,6 +4,7 @@ import { db, transactions } from "../../src/db/index.js";
 import { storage } from "../../src/storage.js";
 import { recategorizeUserTransactions } from "../../src/services/recategorizeTransactions.js";
 import { CATEGORIZER_VERSION } from "../../src/parsers/merchantCategorizer.js";
+import { looksEncrypted, decryptField } from "../../src/services/crypto/fieldEncryption.js";
 
 function unique(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -130,7 +131,12 @@ describe("recategorizeUserTransactions", () => {
     expect(tgr.categorizerVersion).toBe(CATEGORIZER_VERSION);
     expect(tgr.amount).toBe(before.amount);
     expect(tgr.postedAt).toBe(before.postedAt);
-    expect(tgr.description).toBe(before.description);
+    // `description` se guarda cifrada en reposo; recategorize no debe tocarla.
+    // `before` viene de createTransactionsBulk (description en claro), así que se descifra la de la DB.
+    const tgrDesc = typeof tgr.description === "string" && looksEncrypted(tgr.description)
+      ? decryptField(tgr.description)
+      : tgr.description;
+    expect(tgrDesc).toBe(before.description);
     expect(tgr.accountId).toBe(before.accountId);
     expect(tgr.externalId).toBe(before.externalId);
     expect(tgr.sourceDocumentId).toBe(before.sourceDocumentId);

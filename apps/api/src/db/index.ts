@@ -3,7 +3,7 @@
 
 
 
-import { eq, and, inArray, isNull, desc, sql } from 'drizzle-orm';
+import { eq, and, inArray, isNull, isNotNull, lt, desc, sql } from 'drizzle-orm';
 import * as schema from '@coda/db/schema';
 // Re-export tables and helper schemas for consumption by other modules
 export const {
@@ -19,6 +19,7 @@ export const {
   financialProducts,
   leadTracking,
   productApplications,
+  institutionApiKeys,
   expenses,
   billSplits,
   billSplitParticipants,
@@ -30,12 +31,17 @@ export const {
   algorithmPredictionLogs,
   documentUploads,
   scoreDocumentUploads,
+  documentOriginals,
+  documentParseOutcomes,
+  transactionCategoryCorrections,
+  habitRecommendationsLog,
+  productRankingWeights,
   userScores,
   creditScoreHistory,
   riskFactors,
+  riskDecisionOutcomes,
   goalProgress,
   productRecommendations,
-  parserDiagnostics,
   insertAccountSchema,
   insertBankConnectionSchema,
   insertExpenseSchema,
@@ -60,10 +66,15 @@ export const {
   empresasRiskFactors,
   userAssets,
   inscripcionJobs,
+  userFinancialSources,
   auditLogs,
   assistantFeedback,
   assistantSummaries,
+  habitFeedback,
+  storedBlobs,
   indicatorValues,
+  productConversionEvents,
+  parserDiagnostics,
 } = schema as any;
 import postgres from 'postgres';
 import { ensurePostgresSslMode } from './postgresUrl.js';
@@ -101,8 +112,28 @@ if (dbUrl && (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://
     dialect = 'sqlite';
 }
 
+/**
+ * Transacción dialect-aware (#14). En Postgres envuelve `fn` en una transacción
+ * real: si cualquier escritura falla, se revierten todas (atomicidad). En SQLite
+ * (better-sqlite3) el driver exige un callback **síncrono** y nuestras escrituras
+ * son async (`await db.insert(...)`), así que no existe transacción nativa
+ * compatible: las operaciones corren secuencialmente sobre `db` —mismo
+ * comportamiento que antes—. SQLite es solo dev/test; la garantía de atomicidad
+ * aplica en producción (Postgres).
+ *
+ * `fn` recibe un "executor" (`tx` en Postgres, `db` en SQLite) que expone la
+ * misma API de Drizzle (`.insert()`, `.execute()`, …); pásalo a cada escritura
+ * que deba compartir la transacción.
+ */
+async function withTransaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
+  if (dialect === 'postgres') {
+    return db.transaction(fn);
+  }
+  return fn(db);
+}
+
 // Export only db, dialect, and all tables from schema
-export { db, dialect, eq, and, inArray, isNull, desc, sql };
+export { db, dialect, withTransaction, eq, and, inArray, isNull, isNotNull, lt, desc, sql };
 export * from '@coda/db/schema';
 
 export function checkDatabaseConnection(): boolean {

@@ -4,8 +4,9 @@
  */
 
 import { randomUUID } from 'crypto';
-import { getSfaScoringEngine } from '../scoring/index.js';
+import { computeLiquidityMetrics } from '../risk/liquidityMetrics.js';
 import { storage } from '../../storage.js';
+import { withTransaction, db, users, eq } from '../../db/index.js';
 import { logger } from '../../logger.js';
 import {
   extractPdfText,
@@ -16,10 +17,13 @@ import {
 import { parseCmfPdfBuffer, type CMFParseResult } from '../../parsers/cmf-parser.js';
 import { parseCartolaBuffer, ParseError } from '../../parsers/index.js';
 import { categorizeTransaction } from '../../parsers/cartola-parser.js';
+import { categoryClassifier, classifyOrRule } from './categoryClassifier.js';
 import { isInternalTransferTx } from '../assistantContext.js';
 import { type DetectionTier } from '../../parsers/base.js';
 import { logCreditScorePrediction } from '../audit/algorithmicTraceability.js';
 import { deleteRelatedScoreDocsForDocumentUpload } from './documentUploadLinks.js';
+import { calculateCreditScoreCmfOnly } from '../../scoring/credit-score.js';
+import { hashRut } from '../crypto/identifierHashing.js';
 
 export const CREDIT_SCORE_EXCELLENT = 680;
 export const CREDIT_SCORE_MAX = 850;
@@ -80,14 +84,34 @@ export function deriveDocumentReviewState(opts: {
 }
 
 /**
- * Valida que el RUT del documento coincida con el usuario (si tenemos RUT en perfil).
- * Por ahora solo comprobamos que hay userId; se puede extender con user.rut o userMetadata.
+ * Valida que el RUT del documento coincida con el hash del RUT registrado del usuario
+ * (seudonimización — nunca se guarda el RUT en texto plano, ver services/crypto/identifierHashing.ts).
+ * Si el usuario no tiene hash registrado aún, el primer upload lo establece (binding inicial).
+ * Retorna { valid: true, storeRutHash } cuando hay que persistir el hash por primera vez.
  */
-export function validateDocumentBelongsToUser(
-  _userId: string,
-  _rutDocumento?: string | null
-): { valid: boolean; message?: string } {
-  // TODO: cuando tengamos RUT en users o userMetadata, comparar con rutDocumento
+export async function validateDocumentBelongsToUser(
+  userId: string,
+  rutDocumento?: string | null
+): Promise<{ valid: boolean; message?: string; storeRutHash?: string }> {
+  if (!rutDocumento) return { valid: true };
+
+  const [userRow] = await db.select({ rutHash: users.rutHash }).from(users).where(eq(users.id, userId));
+  const rutHashRegistrado = userRow?.rutHash;
+  const rutHashDocumento = hashRut(rutDocumento);
+
+  if (!rutHashRegistrado) {
+    // Primer upload con RUT — lo registraremos (como hash) después del parseo exitoso
+    return { valid: true, storeRutHash: rutHashDocumento };
+  }
+
+  if (rutHashRegistrado !== rutHashDocumento) {
+    logger.warn({ userId }, '[CMF] RUT del documento no coincide con el usuario');
+    return {
+      valid: false,
+      message: 'El RUT del Informe CMF no coincide con tu perfil. Verifica que estás subiendo tu propio informe.',
+    };
+  }
+
   return { valid: true };
 }
 
@@ -108,13 +132,19 @@ export async function processDocumentUpload(
   // 1. Try CMF path first — parseCmfPdfBuffer handles its own text extraction
   try {
     const cmfDoc = await parseCmfPdfBuffer(buffer);
-    const validation = validateDocumentBelongsToUser(userId, cmfDoc.rut ?? undefined);
+    const validation = await validateDocumentBelongsToUser(userId, cmfDoc.rut ?? undefined);
     if (!validation.valid) {
       return { step: 'done', error: validation.message ?? 'El documento no corresponde al usuario.' };
     }
+    // Primer upload exitoso con RUT — registrar hash en perfil del usuario (binding identidad)
+    if (validation.storeRutHash) {
+      await db.update(users).set({ rutHash: validation.storeRutHash }).where(eq(users.id, userId));
+      logger.info({ userId }, '[CMF] RUT registrado (hash) en perfil del usuario');
+    }
     return processCmfUpload(userId, cmfDoc);
-  } catch {
+  } catch (cmfErr) {
     // Not a CMF document (no RUT, no dates, or can't extract text) — fall through to cartola path
+    logger.warn({ err: cmfErr }, '[processDocumentUpload] CMF parse failed, trying cartola path');
   }
 
   // 2. Cartola path: hardened pipeline (format detection + tier + reconciliation in one pass)
@@ -124,6 +154,10 @@ export async function processDocumentUpload(
   let documentUploadId: string | undefined;
   try {
     const parsed = await parseCartolaBuffer(buffer);
+
+    // #31: clasificador incremental listo antes de categorizar (predicción síncrona en el map).
+    // Si no está entrenado o sin confianza, classifyOrRule cae a las reglas regex.
+    await categoryClassifier.ensureLoaded();
 
     // Convert ParseResult → CartolaExtraida for SFA scoring aggregation with previous uploads
     const cartolaExtraida: CartolaExtraida = {
@@ -145,7 +179,9 @@ export async function processDocumentUpload(
           cargo: tx.tipo === 'cargo' ? tx.monto : 0,
           abono: tx.tipo === 'abono' ? tx.monto : 0,
           saldo: tx.saldo_despues,
-          categoria: interna ? 'Transferencia interna' : categorizeTransaction(tx.descripcion, tx.monto, tx.tipo),
+          categoria: interna
+            ? 'Transferencia interna'
+            : classifyOrRule(tx.descripcion, categorizeTransaction(tx.descripcion, tx.monto, tx.tipo)),
           es_transferencia: interna || tx.es_transferencia === true,
           ...(tx.montoUsd != null ? { montoUsd: tx.montoUsd } : {}),
           ...(tx.fxRate != null ? { fxRate: tx.fxRate } : {}),
@@ -247,6 +283,19 @@ export async function processDocumentUpload(
       };
     }
 
+    // Ingesta unificada (#18): además del score SFA (desde el blob), poblamos
+    // accounts/transactions vía el punto único OBProvider, para que las features ML y los
+    // listados lean de las mismas tablas que un futuro proveedor de open banking. Idempotente
+    // (dedup por externalId), best-effort: un fallo aquí no debe tumbar el upload.
+    try {
+      const { ingestFromProvider } = await import('../ingestion/ingestFromProvider.js');
+      const { CartolaUploadProvider } = await import('../ingestion/cartolaUploadProvider.js');
+      const ingestSummary = await ingestFromProvider(userId, new CartolaUploadProvider(banco, [cartolaExtraida]));
+      logger.info({ userId, ingestSummary }, '[documentUploadService] cartola ingestada a accounts/transactions (OBProvider)');
+    } catch (ingErr) {
+      logger.warn({ err: ingErr, userId }, '[documentUploadService] ingesta accounts/transactions falló (no fatal)');
+    }
+
     // ── Compute transactional score from ALL score cartolas (best-effort) ──
     // El documento y los movimientos YA quedaron persistidos/normalizados arriba.
     // El score transaccional es derivado y recomputable (otros endpoints lo
@@ -262,13 +311,15 @@ export async function processDocumentUpload(
       const transactions = allParsed.flatMap((c) => cartolaToSfaTransactions(c, c.rutDocumento ?? rut));
       const products = allParsed.flatMap((c) => cartolaToSfaProductos(c, c.rutDocumento ?? rut));
 
-      const engine = getSfaScoringEngine();
-      const scoreResult = engine.run({ transactions, products });
+      // El score transaccional lo produce ahora el modelo XGB (services/risk/transactionalScore.ts),
+      // bajo demanda vía /api/risk/evaluation. Al subir solo persistimos las MÉTRICAS de liquidez
+      // (que consume el motor de salud); el heurístico sfaScoringEngine fue eliminado.
+      const metrics = computeLiquidityMetrics({ transactions, products });
 
       const hasInterest = parsed.transacciones.some(
         (t) => /interés|interes|intereses|línea|linea|crédito|credito|tarjeta/i.test(t.descripcion)
       );
-      const mainInsights = [...scoreResult.mainInsights];
+      const mainInsights: string[] = [];
       if (hasInterest) {
         mainInsights.push(
           'Detectamos intereses de línea de crédito o tarjeta en tu cartola. Te recomendamos consolidar deudas y evaluar ofertas de ahorro según el Business Plan.'
@@ -284,10 +335,10 @@ export async function processDocumentUpload(
       }
 
       await storage.upsertTransactionalScore(userId, {
-        transactionalScore: scoreResult.transactionalScore,
-        metrics: scoreResult.metrics,
+        transactionalScore: null,
+        metrics,
         mainInsights,
-        recommendedProducts: scoreResult.recommendedProducts,
+        recommendedProducts: [],
         algorithmInputs: {
           pipeline: 'cartola_pdf_hardened',
           transactionCount: transactions.length,
@@ -298,13 +349,27 @@ export async function processDocumentUpload(
           parse_confidence: parsed.parse_confidence,
         },
       });
+
+      // Registro de outcome (#32): éxito, con banco/tier/confianza/conteo para priorizar mejoras.
+      {
+        const { recordParseOutcome } = await import('./parseOutcomes.js');
+        await recordParseOutcome(userId, {
+          status: 'success',
+          documentType: 'cartola',
+          banco,
+          detectionTier: parsed.detection_tier ?? null,
+          parseConfidence: parsed.parse_confidence ?? null,
+          transactionCount: parsed.transacciones.length,
+        });
+      }
+
       return {
         step: 'done',
         documentType: 'cartola',
-        transactionalScore: scoreResult.transactionalScore,
+        transactionalScore: undefined,
         mainInsights,
-        recommendedProducts: scoreResult.recommendedProducts,
-        metrics: scoreResult.metrics,
+        recommendedProducts: [],
+        metrics,
         detection_tier: parsed.detection_tier,
         banco_confidence: parsed.banco_confidence,
         detected_banco: parsed.banco,
@@ -341,7 +406,14 @@ export async function processDocumentUpload(
     }
   } catch (e) {
     if (e instanceof ParseError) {
-      return { step: 'done', error: `${e.messageEs}` };
+      // Registro de outcome (#32): fallo, con mensaje accionable para el usuario.
+      const { recordParseOutcome, userFacingParseError } = await import('./parseOutcomes.js');
+      await recordParseOutcome(userId, {
+        status: 'failed',
+        documentType: 'cartola',
+        errorMessage: e.messageEs,
+      });
+      return { step: 'done', error: userFacingParseError() };
     }
     // Si el documento ya se había creado y luego algo lanzó (fuera del try/catch
     // de normalización, p. ej. en la escritura del score doc), no lo dejamos
@@ -408,7 +480,21 @@ async function processCmfUpload(userId: string, doc: CMFParseResult): Promise<Up
       : 'VERY_POOR';
     const pd = Math.max(0, Math.min(1, (850 - scoreNum) / 550));
 
-    const predictionLogId = logCreditScorePrediction(
+    const creditPayload = {
+      score: scoreNum,
+      maxScore: CREDIT_SCORE_MAX,
+      paymentHistory: 'Excellent',
+      utilization: 'Good',
+      ageOfCredit: 'Good',
+      lastUpdated: new Date().toISOString(),
+    };
+
+    // Atomicidad (#14): la traza NCG 502 de la predicción y el upsert del credit
+    // score se confirman juntos (en Postgres). El read-back de verificación va
+    // DESPUÉS del commit para leer el valor ya confirmado.
+    let predictionLogId = '';
+    await withTransaction(async (tx) => {
+      predictionLogId = await logCreditScorePrediction(
       userId,
       requestId,
       {
@@ -453,21 +539,14 @@ async function processCmfUpload(userId: string, doc: CMFParseResult): Promise<Up
             : 0,
         },
       },
-      { processingTimeMs: Date.now() - startTime }
-    );
+      { processingTimeMs: Date.now() - startTime },
+      tx,
+      );
 
-    logger.info({ userId, requestId, predictionLogId, score: scoreNum }, '[documentUploadService] CMF: prediction logged');
+      await storage.upsertCreditScore(userId, creditPayload, tx);
+    });
 
-    const creditPayload = {
-      score: scoreNum,
-      maxScore: CREDIT_SCORE_MAX,
-      paymentHistory: 'Excellent',
-      utilization: 'Good',
-      ageOfCredit: 'Good',
-      lastUpdated: new Date().toISOString(),
-    };
-    logger.info({ userId, creditPayload }, '[documentUploadService] CMF: upsertCreditScore');
-    await storage.upsertCreditScore(userId, creditPayload);
+    logger.info({ userId, requestId, predictionLogId, score: scoreNum }, '[documentUploadService] CMF: prediction logged + score upserted (tx)');
 
     const afterSave = await storage.getCreditScore(userId);
     if (!afterSave) {
@@ -481,12 +560,24 @@ async function processCmfUpload(userId: string, doc: CMFParseResult): Promise<Up
     }
     logger.info({ userId, score: scoreEnDb }, '[documentUploadService] CMF: DB confirmed OK');
 
+    // Validación cruzada con cartolas previas (#2.3): señales informativas, no bloquean.
+    const { crossValidateCmfVsCartolas } = await import('./crossValidator.js');
+    const crossWarnings = await crossValidateCmfVsCartolas(userId, doc);
+    if (crossWarnings.length > 0) {
+      const { recordParseOutcome } = await import('./parseOutcomes.js');
+      await recordParseOutcome(userId, {
+        status: 'partial',
+        documentType: 'cmf',
+        errorMessage: crossWarnings.map((w) => w.code).join('; '),
+      });
+    }
+
     return {
       step: 'done',
       documentType: 'cmf_informe_deudas',
       cmf: doc,
       creditScore: scoreNum,
-      mainInsights: [cmfInsight],
+      mainInsights: [cmfInsight, ...crossWarnings.map((w) => w.message)],
     };
 }
 
@@ -494,6 +585,8 @@ async function processCmfUpload(userId: string, doc: CMFParseResult): Promise<Up
  * Score crediticio a partir del Informe CMF (usa metricas.score_cmf 0-100 → escala 300-850).
  */
 function computeCreditScoreFromCmf(cmf: CMFParseResult): number {
-  const raw = Math.round(300 + cmf.metricas.score_cmf * 5.5);
-  return Math.max(300, Math.min(CREDIT_SCORE_MAX, raw));
+  // Usa calibración actuarial: historial_cmf (35%) + endeudamiento (30%) ponderados a 0–850.
+  // Reemplaza la antigua heurística (score_cmf * 5.5 + 300) que daba 768 fijo sin deudas.
+  const result = calculateCreditScoreCmfOnly(cmf);
+  return Math.max(300, Math.min(CREDIT_SCORE_MAX, result.score));
 }

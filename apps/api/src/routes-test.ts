@@ -7,7 +7,7 @@ import type { Express, Request, Response } from 'express';
 import { Router } from 'express';
 import { getConsentService } from './services/consent/index.js';
 import { handleConsentWebhook } from './services/consent/webhooks.js';
-import { getSfaScoringEngine } from './services/scoring/index.js';
+import { computeLiquidityMetrics } from './services/risk/liquidityMetrics.js';
 import type { AuthenticatedRequest } from './middleware/auth.js';
 import { authenticate, ensureUserForToken } from './middleware/auth.js';
 import type {
@@ -102,7 +102,6 @@ export function registerTestRoutes(app: Express): void {
     }
 
     const consentService = getConsentService();
-    const scoringEngine = getSfaScoringEngine();
 
     try {
       // 1) Crear consentimiento en estado pending
@@ -133,16 +132,16 @@ export function registerTestRoutes(app: Express): void {
       }
       const authorizedConsent = webhookResult.grant as typeof grant;
 
-      // 4) Generar datos mock SFA y calcular score
+      // 4) Generar datos mock SFA y calcular métricas de liquidez (el score transaccional lo da
+      // ahora el modelo XGB bajo demanda; el heurístico sfaScoringEngine fue eliminado).
       const { transactions, products } = generateMockSfaData();
-      const scoreResult = scoringEngine.run({ transactions, products }, REF_DATE);
+      const metrics = computeLiquidityMetrics({ transactions, products }, REF_DATE);
 
-      // Mismo riel que cartola/demo: persiste score y dispara trazabilidad en `algorithm_prediction_logs`
       await storage.upsertTransactionalScore(userId, {
-        transactionalScore: scoreResult.transactionalScore,
-        metrics: scoreResult.metrics,
-        mainInsights: scoreResult.mainInsights,
-        recommendedProducts: scoreResult.recommendedProducts.map((c) => String(c)),
+        transactionalScore: null,
+        metrics,
+        mainInsights: [],
+        recommendedProducts: [],
         algorithmInputs: {
           pipeline: 'simulate_bank_flow_sfa',
           mockTransactionCount: transactions.length,
@@ -152,7 +151,7 @@ export function registerTestRoutes(app: Express): void {
 
       return res.json({
         consent: authorizedConsent,
-        score: scoreResult,
+        metrics,
       });
     } catch (e) {
       logger.error({ err: e }, 'Simulate bank flow failed');

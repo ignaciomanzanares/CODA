@@ -18,7 +18,11 @@
     "db:add-po-dte-column": "node scripts/add-po-dte-column.mjs",
     "db:seed": "npm run db:seed -w @coda/db",
     "db:reset:sqlite": "npm run reset:sqlite -w @coda/db",
-    "db:reset:postgres": "npm run reset:postgres -w @coda/db"
+    "db:reset:postgres": "npm run reset:postgres -w @coda/db",
+    "prepare": "husky || true"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": "bash -c 'npm run check --workspaces --if-present'"
   },
   "devDependencies": {
     "dotenv": "^16.4.5",

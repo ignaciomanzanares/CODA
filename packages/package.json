@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",
-    "drizzle-orm": "^0.38.4",
+    "drizzle-orm": "^0.45.2",
     "drizzle-zod": "^0.7.0",
     "uuid": "^11.0.3",
     "zod": "^3.23.8"

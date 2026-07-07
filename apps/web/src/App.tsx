@@ -11,6 +11,7 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import PWAInstallBanner from "./components/PWAInstallBanner";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
 import PageLoader from "./components/PageLoader";
 import { Toaster } from "@/components/ui/toaster";
 import Login from "@/pages/Login";
@@ -68,10 +69,12 @@ const Profile = lazy(() => import("@/pages/Profile"));
 const Expenses = lazy(() => import("@/pages/Expenses"));
 const Movimientos = lazy(() => import("@/pages/Movimientos"));
 const ConsentConnections = lazy(() => import("@/pages/ConsentConnections"));
+const ConectarDatos = lazy(() => import("@/pages/ConectarDatos"));
 const EmailInviteHandler = lazy(() => import("@/pages/EmailInviteHandler"));
 const ShareBillSplit = lazy(() => import("@/pages/ShareBillSplit"));
 const AuditDashboard = lazy(() => import("@/pages/AuditDashboard"));
 const ProductMetrics = lazy(() => import("@/pages/ProductMetrics"));
+const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
 const FinancialAssistant = lazy(() => import("@/components/FinancialAssistant"));
 const LegacySplitRedirect = lazy(() => import("@/components/LegacySplitRedirect"));
 const NotFound = lazy(() => import("@/pages/not-found"));
@@ -264,6 +267,11 @@ function App() {
                       <ConsentConnections />
                     </ProtectedRoute>
                   </Route>
+                  <Route path={ROUTES.conectarDatos}>
+                    <ProtectedRoute>
+                      <ConectarDatos />
+                    </ProtectedRoute>
+                  </Route>
                   <Route path={ROUTES.gastos}>
                     <Redirect to={ROUTES.movimientos} />
                   </Route>
@@ -276,10 +284,15 @@ function App() {
                   <Route path="/bill-split">
                     <Redirect to={`${ROUTES.movimientos}?tab=dividir`} />
                   </Route>
+                  <Route path={ROUTES.admin}>
+                    <AdminRoute>
+                      <AdminDashboard />
+                    </AdminRoute>
+                  </Route>
                   <Route path={ROUTES.auditoria}>
-                    <ProtectedRoute>
+                    <AdminRoute>
                       <AuditDashboard />
-                    </ProtectedRoute>
+                    </AdminRoute>
                   </Route>
                   <Route path="/audit">
                     <Redirect to={ROUTES.auditoria} />
@@ -293,9 +306,9 @@ function App() {
                     <Redirect to={ROUTES.productos} />
                   </Route>
                   <Route path={ROUTES.productosMetricas}>
-                    <ProtectedRoute>
+                    <AdminRoute>
                       <ProductMetrics />
-                    </ProtectedRoute>
+                    </AdminRoute>
                   </Route>
                   <Route path="/products/metrics">
                     <Redirect to={ROUTES.productosMetricas} />
