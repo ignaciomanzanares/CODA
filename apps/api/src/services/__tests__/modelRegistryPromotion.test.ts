@@ -9,13 +9,17 @@ import { PDModelRegistry } from "../modelRegistry.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const currentDir = path.join(__dirname, "..", "..", "ml", "artifacts", "current");
 const haveModel = fs.existsSync(path.join(currentDir, "xgb.json"));
+// El blob store usa backend Postgres (stored_blobs); en SQLite (CI sin DATABASE_URL
+// Postgres) el round-trip no funciona → gateamos también por Postgres. En staging/
+// prod con Postgres real el test corre de verdad.
+const isPostgres = !!process.env.DATABASE_URL?.startsWith("postgres");
 
 /**
  * #5: promoción sin redeploy. Subimos artefactos al blob store (backend Postgres sobre
  * stored_blobs), registramos una fila lifecycle='production' y verificamos que
  * `loadProductionFromRegistry()` los descarga y sirve — sin tocar artifacts/current.
  */
-describe.skipIf(!haveModel)("PDModelRegistry.loadProductionFromRegistry (#5)", () => {
+describe.skipIf(!haveModel || !isPostgres)("PDModelRegistry.loadProductionFromRegistry (#5)", () => {
   const unique = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const modelId = `promo-test-${unique}`;
   const keyPrefix = `models/xgb_pd/${modelId}`;
