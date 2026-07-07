@@ -5,9 +5,10 @@
  */
 
 import { randomUUID } from 'crypto';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and, gte, lte } from 'drizzle-orm';
 import { db, algorithmModelVersions, algorithmPredictionLogs } from '../../db/index.js';
 import { logger } from '../../logger.js';
+import { encryptField, decryptField, looksEncrypted } from '../crypto/fieldEncryption.js';
 
 /** Evita import circular con algorithmicTraceability.ts */
 export interface PersistableCreditPredictionLog {
@@ -57,30 +58,51 @@ export const TRACEABILITY_SEED_MODELS = {
     modelType: 'financial_health_v2',
     version: 'v2.0.0',
   },
+  debtRules: {
+    id: 'a0000005-0000-4000-8000-000000000001',
+    modelType: 'debt_rules',
+    version: 'v1.0.0',
+  },
+  // Doble evaluador de riesgo (Fase D): scorecard tradicional (logístico GMSC) + transaccional (XGB Berka).
+  creditScorecard: {
+    id: 'a0000006-0000-4000-8000-000000000001',
+    modelType: 'credit_scorecard_logreg',
+    version: 'v1.0.0',
+  },
+  transactionalXgb: {
+    id: 'a0000007-0000-4000-8000-000000000001',
+    modelType: 'transactional_xgb',
+    version: 'v1.0.0',
+  },
 } as const;
 
 const MAX_JSON = 400_000;
 
+/** Serializa y cifra (pseudonimización de columna — `algorithm_prediction_logs` guarda PII/datos financieros). */
 function safeJson(value: unknown): string {
+  let s: string;
   try {
-    const s = JSON.stringify(value);
-    if (s.length > MAX_JSON) return `${s.slice(0, MAX_JSON)}…[truncated]`;
-    return s;
+    s = JSON.stringify(value);
+    if (s.length > MAX_JSON) s = `${s.slice(0, MAX_JSON)}…[truncated]`;
   } catch {
-    return '{"error":"serialization_failed"}';
+    s = '{"error":"serialization_failed"}';
   }
+  return encryptField(s);
 }
 
-async function ensureModelVersionRow(row: {
-  id: string;
-  modelType: string;
-  version: string;
-  deployedBy?: string;
-  changelog?: string | null;
-}): Promise<void> {
+async function ensureModelVersionRow(
+  row: {
+    id: string;
+    modelType: string;
+    version: string;
+    deployedBy?: string;
+    changelog?: string | null;
+  },
+  exec: any = db,
+): Promise<void> {
   const now = new Date().toISOString();
   try {
-    await db
+    await exec
       .insert(algorithmModelVersions)
       .values({
         id: row.id,
@@ -137,15 +159,21 @@ export async function ensureSeedTraceabilityModels(activeCreditModel?: SeedCredi
   }
 }
 
-export async function persistCreditPredictionFromLog(log: PersistableCreditPredictionLog): Promise<void> {
-  await ensureModelVersionRow({
-    id: log.modelVersionId,
-    modelType: log.modelType,
-    version: log.modelVersion,
-    changelog: 'credit CMF from document',
-  });
+export async function persistCreditPredictionFromLog(
+  log: PersistableCreditPredictionLog,
+  exec: any = db,
+): Promise<void> {
+  await ensureModelVersionRow(
+    {
+      id: log.modelVersionId,
+      modelType: log.modelType,
+      version: log.modelVersion,
+      changelog: 'credit CMF from document',
+    },
+    exec,
+  );
 
-  await db.insert(algorithmPredictionLogs).values({
+  await exec.insert(algorithmPredictionLogs).values({
     id: log.id,
     userId: log.userId,
     requestId: log.requestId,
@@ -182,16 +210,16 @@ export async function logTransactionalScoreComputation(params: {
   processingTimeMs?: number;
   ipAddress?: string | null;
   userAgent?: string | null;
-}): Promise<void> {
+}, exec: any = db): Promise<void> {
   const m = TRACEABILITY_SEED_MODELS.transactionalSfa;
   await ensureModelVersionRow({
     id: m.id,
     modelType: m.modelType,
     version: m.version,
-  });
+  }, exec);
 
   const id = randomUUID();
-  await db.insert(algorithmPredictionLogs).values({
+  await exec.insert(algorithmPredictionLogs).values({
     id,
     userId: params.userId,
     requestId: params.requestId,
@@ -207,15 +235,6 @@ export async function logTransactionalScoreComputation(params: {
     processingTimeMs: params.processingTimeMs ?? null,
     ipAddress: params.ipAddress ?? null,
     userAgent: params.userAgent ?? null,
-  });
-}
-
-/** No bloquea el flujo principal; errores solo en log. */
-export function logTransactionalScoreComputationFireAndForget(
-  params: Parameters<typeof logTransactionalScoreComputation>[0]
-): void {
-  void logTransactionalScoreComputation(params).catch((err) => {
-    logger.error({ err, userId: params.userId }, 'traceability: transactional_sfa log failed');
   });
 }
 
@@ -262,14 +281,6 @@ export async function logProductRecommendationRun(params: {
     processingTimeMs: null,
     ipAddress: params.ipAddress ?? null,
     userAgent: params.userAgent ?? null,
-  });
-}
-
-export function logProductRecommendationRunFireAndForget(
-  params: Parameters<typeof logProductRecommendationRun>[0]
-): void {
-  void logProductRecommendationRun(params).catch((err) => {
-    logger.error({ err, userId: params.userId }, 'traceability: product_recommendation log failed');
   });
 }
 
@@ -322,14 +333,6 @@ export async function logProductInteractionTrace(params: {
   });
 }
 
-export function logProductInteractionTraceFireAndForget(
-  params: Parameters<typeof logProductInteractionTrace>[0]
-): void {
-  void logProductInteractionTrace(params).catch((err) => {
-    logger.error({ err, userId: params.userId }, 'traceability: product_interaction log failed');
-  });
-}
-
 /** Solicitud formal de producto (post-recomendación). */
 export async function logProductApplicationTrace(params: {
   userId: string;
@@ -371,23 +374,11 @@ export async function logProductApplicationTrace(params: {
   });
 }
 
-export function logProductApplicationTraceFireAndForget(
-  params: Parameters<typeof logProductApplicationTrace>[0]
-): void {
-  void logProductApplicationTrace(params).catch((err) => {
-    logger.error({ err, userId: params.userId }, 'traceability: product_application log failed');
-  });
-}
-
-export function persistCreditPredictionAsync(log: PersistableCreditPredictionLog): void {
-  void persistCreditPredictionFromLog(log).catch((err) => {
-    logger.error({ err, predictionId: log.id }, 'traceability: persist credit prediction failed');
-  });
-}
-
+/** Descifra (si corresponde) y parsea el JSON guardado vía `safeJson`. */
 function safeParseJsonRecord(s: string): Record<string, unknown> | null {
   try {
-    const v = JSON.parse(s) as unknown;
+    const decrypted = looksEncrypted(s) ? decryptField(s) : s;
+    const v = JSON.parse(decrypted) as unknown;
     return v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
   } catch {
     return null;
@@ -446,13 +437,91 @@ export async function logFinancialHealthV2(params: {
   });
 }
 
-export function logFinancialHealthV2FireAndForget(
-  params: Parameters<typeof logFinancialHealthV2>[0]
-): void {
-  void logFinancialHealthV2(params).catch((err) => {
-    logger.error({ err, userId: params.userId }, 'traceability: financial_health_v2 log failed');
+/**
+ * Trazabilidad NCG 502 del doble evaluador de riesgo (Fase D): persiste una fila por modelo emitido
+ * (scorecard tradicional y/o transaccional XGB) con sus inputs, versión y output — reconstruible ex post.
+ */
+export async function logRiskEvaluation(params: {
+  userId: string;
+  requestId: string;
+  segment: string;
+  traditional?: { input: unknown; output: unknown } | null;
+  transactional?: { input: unknown; output: unknown } | null;
+  processingTimeMs?: number;
+}): Promise<void> {
+  const rows: Array<{ model: { id: string; modelType: string; version: string }; kind: string; input: unknown; output: unknown }> = [];
+  if (params.traditional) {
+    rows.push({ model: TRACEABILITY_SEED_MODELS.creditScorecard, kind: 'credit_scorecard_logreg', ...params.traditional });
+  }
+  if (params.transactional) {
+    rows.push({ model: TRACEABILITY_SEED_MODELS.transactionalXgb, kind: 'transactional_xgb', ...params.transactional });
+  }
+  for (const r of rows) {
+    await ensureModelVersionRow({ id: r.model.id, modelType: r.model.modelType, version: r.model.version });
+    await db.insert(algorithmPredictionLogs).values({
+      id: randomUUID(),
+      userId: params.userId,
+      requestId: params.requestId,
+      kind: r.kind,
+      modelVersionId: r.model.id,
+      modelVersion: r.model.version,
+      modelType: r.model.modelType,
+      inputFeatures: safeJson({ segment: params.segment, ...(r.input as object) }),
+      outputSnapshot: safeJson(r.output),
+      cmfData: null,
+      sfaData: null,
+      topFactors: null,
+      processingTimeMs: params.processingTimeMs ?? null,
+      ipAddress: null,
+      userAgent: null,
+    });
+  }
+}
+
+/**
+ * Trazabilidad NCG 502 del motor de reglas de optimización de deuda (Fase 4): persiste los ratios
+ * de entrada, la versión del motor, y las reglas disparadas (keys) — reconstruible ex post.
+ */
+export async function logDebtRulesEvaluation(params: {
+  userId: string;
+  requestId: string;
+  input: {
+    deudaFlujo: number;
+    deudaActivos: number;
+    ahorroIngreso: number;
+    moraActiva: boolean;
+    diasMora: number;
+    nivel: number;
+    zona: string;
+    tiposCredito: number;
+  };
+  output: { rules: string[]; count: number };
+  processingTimeMs?: number;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}): Promise<void> {
+  const m = TRACEABILITY_SEED_MODELS.debtRules;
+  await ensureModelVersionRow({ id: m.id, modelType: m.modelType, version: m.version });
+
+  await db.insert(algorithmPredictionLogs).values({
+    id: randomUUID(),
+    userId: params.userId,
+    requestId: params.requestId,
+    kind: 'debt_rules',
+    modelVersionId: m.id,
+    modelVersion: m.version,
+    modelType: m.modelType,
+    inputFeatures: safeJson(params.input),
+    outputSnapshot: safeJson(params.output),
+    cmfData: null,
+    sfaData: null,
+    topFactors: null,
+    processingTimeMs: params.processingTimeMs ?? null,
+    ipAddress: params.ipAddress ?? null,
+    userAgent: params.userAgent ?? null,
   });
 }
+
 
 /** Entrada legible para el usuario (sin PII extra); el JSON completo sigue en BD. */
 export interface AlgorithmPredictionLogRow {
@@ -469,6 +538,45 @@ export interface AlgorithmPredictionLogRow {
 /**
  * Historial persistido en `algorithm_prediction_logs` (complementa la memoria de credit CMF).
  */
+/**
+ * PDs (`probabilityDefault`) de las predicciones más recientes de un `kind`, en orden
+ * descendente por fecha. Lo consume el monitor de drift (#24) para comparar la distribución
+ * reciente contra la anterior. Lee de `algorithm_prediction_logs` (persistido síncrono),
+ * desencriptando `outputSnapshot`. Cuenta-basado (no ventana temporal) para ser robusto al
+ * formato de `created_at` entre dialectos.
+ */
+export async function listRecentPredictionPds(kind: string, limit = 5000): Promise<number[]> {
+  const cap = Math.min(Math.max(limit, 1), 50000);
+  const rows = await db
+    .select({ outputSnapshot: algorithmPredictionLogs.outputSnapshot })
+    .from(algorithmPredictionLogs)
+    .where(eq(algorithmPredictionLogs.kind, kind))
+    .orderBy(desc(algorithmPredictionLogs.createdAt))
+    .limit(cap);
+
+  const pds: number[] = [];
+  for (const r of rows as Array<{ outputSnapshot: string }>) {
+    const rec = safeParseJsonRecord(r.outputSnapshot);
+    const pd = rec?.probabilityDefault;
+    if (typeof pd === 'number' && Number.isFinite(pd)) pds.push(pd);
+  }
+  return pds;
+}
+
+/**
+ * Retorna todas las versiones activas de un modelType ordenadas por fecha de despliegue.
+ * Usado para sampleo A/B: si hay 2+ versiones activas, se sortea según abTrafficPct.
+ */
+export async function listActiveModelVersionsByType(modelType: string): Promise<Array<{
+  id: string; version: string; modelType: string; abTrafficPct: number | null;
+}>> {
+  return db
+    .select({ id: algorithmModelVersions.id, version: algorithmModelVersions.version, modelType: algorithmModelVersions.modelType, abTrafficPct: algorithmModelVersions.abTrafficPct })
+    .from(algorithmModelVersions)
+    .where(and(eq(algorithmModelVersions.modelType, modelType), eq(algorithmModelVersions.isActive, 1)))
+    .orderBy(desc(algorithmModelVersions.deployedAt)) as Promise<Array<{ id: string; version: string; modelType: string; abTrafficPct: number | null }>>;
+}
+
 export async function listAlgorithmPredictionLogsForUser(
   userId: string,
   limit = 50
@@ -511,4 +619,56 @@ export async function listAlgorithmPredictionLogsForUser(
       outputSummary: safeParseJsonRecord(r.outputSnapshot),
     })
   );
+}
+
+/**
+ * Export de trazabilidad para compliance (auditoría CMF / NCG 502) desde la DB — reemplaza el
+ * export que leía del store en memoria (se perdía al reiniciar). Filtra por rango de fechas y,
+ * opcionalmente, por `kind` (p.ej. 'product_recommendation' para la auditoría trimestral de
+ * recomendaciones). Incluye el userId para trazabilidad interna (endpoint admin-gated).
+ */
+export async function exportPredictionLogsByDateRange(
+  startIso: string,
+  endIso: string,
+  kind?: string,
+  limit = 10000,
+): Promise<Array<AlgorithmPredictionLogRow & { userId: string }>> {
+  const cap = Math.min(Math.max(limit, 1), 50000);
+  const conds = [
+    gte(algorithmPredictionLogs.createdAt, startIso),
+    lte(algorithmPredictionLogs.createdAt, endIso),
+  ];
+  if (kind) conds.push(eq(algorithmPredictionLogs.kind, kind));
+
+  const rows = await db
+    .select({
+      id: algorithmPredictionLogs.id,
+      userId: algorithmPredictionLogs.userId,
+      requestId: algorithmPredictionLogs.requestId,
+      kind: algorithmPredictionLogs.kind,
+      modelVersion: algorithmPredictionLogs.modelVersion,
+      modelType: algorithmPredictionLogs.modelType,
+      inputFeatures: algorithmPredictionLogs.inputFeatures,
+      outputSnapshot: algorithmPredictionLogs.outputSnapshot,
+      createdAt: algorithmPredictionLogs.createdAt,
+    })
+    .from(algorithmPredictionLogs)
+    .where(and(...conds))
+    .orderBy(desc(algorithmPredictionLogs.createdAt))
+    .limit(cap);
+
+  return rows.map((r: {
+    id: string; userId: string; requestId: string; kind: string; modelVersion: string;
+    modelType: string; inputFeatures: string; outputSnapshot: string; createdAt: string | null;
+  }) => ({
+    id: r.id,
+    userId: r.userId,
+    requestId: r.requestId,
+    kind: r.kind,
+    modelVersion: r.modelVersion,
+    modelType: r.modelType,
+    createdAt: r.createdAt ?? '',
+    inputSummary: safeParseJsonRecord(r.inputFeatures),
+    outputSummary: safeParseJsonRecord(r.outputSnapshot),
+  }));
 }

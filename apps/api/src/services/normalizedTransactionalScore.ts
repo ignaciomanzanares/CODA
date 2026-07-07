@@ -1,20 +1,16 @@
-import type {
-  SfaProductoVigente,
-  SfaProductoVigenteCuenta,
-  SfaProductoVigenteTarjeta,
-  SfaTransaccionCuenta,
-} from "../sfa/types.js";
-import type { SfaScoringResult } from "./scoring/types.js";
-import { SfaScoringEngine } from "./scoring/sfaScoringEngine.js";
-import {
-  getUserNormalizedTransactions,
-  type NormalizedAccount,
-  type NormalizedTx,
-} from "./normalizedTransactions.js";
+/**
+ * Adaptador del score transaccional para el endpoint legacy `/api/transactional-score`.
+ *
+ * Desde la Fase C, el SCORE lo produce el modelo XGB (`risk/transactionalScore.ts`), no el heurístico
+ * `sfaScoringEngine` (eliminado). Aquí solo combinamos ese score con métricas FÁCTICAS de ingreso/
+ * ahorro derivadas de las transacciones normalizadas. Este endpoint queda subsumido por
+ * `/api/risk/evaluation` (Fase D); se conserva la forma que la ruta espera para no romperla.
+ */
+import { getUserNormalizedTransactions, type NormalizedTx } from "./normalizedTransactions.js";
+import { buildUserRiskProfile } from "./risk/userRiskProfile.js";
+import { computeTransactionalScore } from "./risk/transactionalScore.js";
 
-const SCORE_RUT_PLACEHOLDER = "00.000.000-0";
-
-interface NormalizedScoreMetrics extends NonNullable<SfaScoringResult["metrics"]> {
+export interface NormalizedScoreMetrics {
   transactionCount: number;
   excludedInternalTransferCount: number;
   totalIncome: number;
@@ -24,107 +20,53 @@ interface NormalizedScoreMetrics extends NonNullable<SfaScoringResult["metrics"]
   expenseRatio: number;
 }
 
-export interface NormalizedTransactionalScoreResult extends Omit<SfaScoringResult, "metrics"> {
+export interface NormalizedTransactionalScoreResult {
+  /** Puntaje 0–100 del modelo XGB, o null si no hay señal suficiente. */
+  transactionalScore: number | null;
+  available: boolean;
+  pd?: number;
+  band?: string;
+  mainInsights: string[];
+  recommendedProducts: string[];
   metrics: NormalizedScoreMetrics;
-  transactionCount: number;
-  excludedInternalTransferCount: number;
-  source: "transactions_accounts";
+  source: "xgb_berka";
 }
 
-function latestTransactionDate(transactions: NormalizedTx[]): Date {
-  const latest = transactions.reduce((max, tx) => (tx.postedAt > max ? tx.postedAt : max), transactions[0]?.postedAt ?? "");
-  return new Date(`${latest}T12:00:00Z`);
-}
-
-function toSfaTransactions(transactions: NormalizedTx[]): SfaTransaccionCuenta[] {
-  return transactions.map((tx) => ({
-    rutCliente: SCORE_RUT_PLACEHOLDER,
-    idInternoTransaccion: `tx-${tx.id}`,
-    fechaOperacion: tx.postedAt,
-    fechaContableOperacion: tx.postedAt,
-    tipoProductoFinanciero: tx.accountSubtype === "credit_card" ? "B001" : "A001",
-    tipoOperacion: tx.tipo === "ingreso" ? "abono" : "cargo",
-    montoOperacion: tx.tipo === "ingreso" ? Math.abs(tx.abono || tx.amount) : Math.abs(tx.cargo || tx.amount),
-    monedaOperacion: "CLP",
-  }));
-}
-
-function toSfaProducts(accounts: NormalizedAccount[]): SfaProductoVigente[] {
-  return accounts.map((account) => {
-    const isCreditCard = account.subtype === "credit_card" || account.type === "credit_card";
-    if (isCreditCard) {
-      const tarjeta: SfaProductoVigenteTarjeta = {
-        rutCliente: SCORE_RUT_PLACEHOLDER,
-        idInternoProducto: `account-${account.id}`,
-        fechaContratacionProducto: "2025-01-01",
-        tipoProductoFinanciero: "B001",
-        saldo: 0,
-        moneda: "CLP",
-        lineaTotalAprobada: 0,
-        lineaNoUtilizada: 0,
-      };
-      return tarjeta;
-    }
-
-    const cuenta: SfaProductoVigenteCuenta = {
-      rutCliente: SCORE_RUT_PLACEHOLDER,
-      idInternoProducto: `account-${account.id}`,
-      fechaContratacionProducto: "2025-01-01",
-      tipoProductoFinanciero: "A001",
-      saldo: 0,
-      moneda: "CLP",
-      lineaCreditoSobregiroTotal: 0,
-      lineaCreditoSobregiroUtilizada: 0,
-      lineaCreditoSobregiroDisponible: 0,
-    };
-    return cuenta;
-  });
-}
-
-export function computeNormalizedTransactionalScore(
-  accounts: NormalizedAccount[],
-  transactions: NormalizedTx[],
-  engine = new SfaScoringEngine(),
-): NormalizedTransactionalScoreResult | null {
-  const realTransactions = transactions.filter((tx) => !tx.isInternalTransfer);
-  if (realTransactions.length === 0) return null;
-
-  const referenceDate = latestTransactionDate(realTransactions);
-  const result = engine.run(
-    {
-      transactions: toSfaTransactions(realTransactions),
-      products: toSfaProducts(accounts),
-    },
-    referenceDate,
-  );
-
-  const totalIncome = realTransactions.reduce((sum, tx) => sum + tx.abono, 0);
-  const totalExpenses = realTransactions.reduce((sum, tx) => sum + tx.cargo, 0);
+/** Métricas fácticas de ingreso/ahorro desde las transacciones normalizadas (sin heurístico). */
+export function computeIncomeSavingsMetrics(transactions: NormalizedTx[]): NormalizedScoreMetrics {
+  const real = transactions.filter((tx) => !tx.isInternalTransfer);
+  const totalIncome = real.reduce((sum, tx) => sum + tx.abono, 0);
+  const totalExpenses = real.reduce((sum, tx) => sum + tx.cargo, 0);
   const netBalance = totalIncome - totalExpenses;
-  const savingsRate = totalIncome > 0 ? Math.round((netBalance / totalIncome) * 100) : 0;
-  const expenseRatio = totalIncome > 0 ? Math.round((totalExpenses / totalIncome) * 100) : 0;
-
   return {
-    ...result,
-    source: "transactions_accounts",
-    transactionCount: realTransactions.length,
-    excludedInternalTransferCount: transactions.length - realTransactions.length,
-    metrics: {
-      ...result.metrics,
-      transactionCount: realTransactions.length,
-      excludedInternalTransferCount: transactions.length - realTransactions.length,
-      totalIncome,
-      totalExpenses,
-      netBalance,
-      savingsRate,
-      expenseRatio,
-    },
+    transactionCount: real.length,
+    excludedInternalTransferCount: transactions.length - real.length,
+    totalIncome,
+    totalExpenses,
+    netBalance,
+    savingsRate: totalIncome > 0 ? Math.round((netBalance / totalIncome) * 100) : 0,
+    expenseRatio: totalIncome > 0 ? Math.round((totalExpenses / totalIncome) * 100) : 0,
   };
 }
 
 export async function getNormalizedTransactionalScoreForUser(
   userId: string,
 ): Promise<NormalizedTransactionalScoreResult | null> {
-  const { accounts, transactions } = await getUserNormalizedTransactions(userId);
-  return computeNormalizedTransactionalScore(accounts, transactions);
+  const { transactions } = await getUserNormalizedTransactions(userId);
+  const metrics = computeIncomeSavingsMetrics(transactions);
+  if (metrics.transactionCount === 0) return null;
+
+  const profile = await buildUserRiskProfile(userId);
+  const tx = profile ? await computeTransactionalScore(profile) : { available: false as const, isBeta: true as const };
+
+  return {
+    transactionalScore: tx.available ? (tx.score ?? null) : null,
+    available: tx.available,
+    pd: tx.available ? tx.pd : undefined,
+    band: tx.available ? tx.band : undefined,
+    mainInsights: [],
+    recommendedProducts: [],
+    metrics,
+    source: "xgb_berka",
+  };
 }

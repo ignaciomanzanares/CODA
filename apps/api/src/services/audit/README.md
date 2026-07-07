@@ -76,7 +76,7 @@ const modelId = await deployNewModelVersion({
 
 ## Storage
 
-**In-memory:** Predicciones credit CMF vía `logCreditScorePrediction` (también persistidas en `algorithm_prediction_logs`).
+**Persistencia síncrona:** `logCreditScorePrediction()` y los demás `log*` de `traceabilityPersistence.ts` hacen `await db.insert(...)` en `algorithm_prediction_logs` **antes** de devolver el id — ya no es fire-and-forget. El `Map` en memoria de `algorithmicTraceability.ts` (`TraceabilityStore`) es solo un cache de lectura rápida, poblado después de que el insert en Postgres confirma; un crash del proceso ya no pierde una decisión que el cliente ya recibió como respuesta.
 
 **Persistido en BD:** `algorithm_model_versions` + `algorithm_prediction_logs` con `kind`:
 
@@ -88,7 +88,36 @@ const modelId = await deployNewModelVersion({
 | `product_interaction` | `POST /api/products/track` (view, click, …) |
 | `product_application` | `POST /api/products/apply` |
 
-Cada `upsertTransactionalScore` puede incluir `algorithmInputs` (p. ej. `pipeline`, conteos). Recomendaciones registran `matchingEngineVersion` en el snapshot de entrada. Ver `docs/TRACEABILITY_RUNTIME.md`. Endpoint: `GET /api/audit/my-algorithm-logs?limit=40` (auditoría UI aparte).
+Cada `upsertTransactionalScore` puede incluir `algorithmInputs` (p. ej. `pipeline`, conteos). Recomendaciones registran `matchingEngineVersion` **y `financialHealthLevel`** en el snapshot de entrada (la recomendación está acoplada al estado de salud financiera del usuario, no solo a su score — ver `services/products/matchingEngine.ts`). Ver `docs/TRACEABILITY_RUNTIME.md`. Endpoint: `GET /api/audit/my-algorithm-logs?limit=40` (auditoría UI aparte).
+
+**Atomicidad score + traza (resuelto, #14):** en `storage.upsertTransactionalScore` la escritura del score y el `await logTransactionalScoreComputation(...)` ahora se ejecutan dentro de `withTransaction()` (`db/index.ts`), igual que el par `logCreditScorePrediction` + `upsertCreditScore` del flujo CMF en `documentUploadService.ts`. `withTransaction` es **dialect-aware**: en Postgres usa `db.transaction()` real (si una escritura falla, se revierten todas — el score nunca queda sin su traza NCG 502); en SQLite (dev/test), donde el driver `better-sqlite3` exige callback **síncrono** y nuestras escrituras son `async`, las operaciones corren secuencialmente sobre `db` (sin transacción nativa, pero SQLite es solo dev/test). El handle de transacción (`tx`/`db`) se propaga vía un parámetro `exec` opcional en `logTransactionalScoreComputation`, `persistCreditPredictionFromLog`, `logCreditScorePrediction`, `ensureModelVersionRow` y `upsertCreditScore`. La rama Postgres no es testeable sin Postgres local, pero el contrato del helper y la doble escritura sí están cubiertos en `src/__tests__/transactionAtomicity.test.ts`.
+
+## Explicabilidad por instancia (NCG 502: no solo trazabilidad de datos)
+
+NCG 502 exige no solo que la decisión quede registrada (quién, cuándo, qué modelo, qué score — cubierto por la sección "Storage" arriba) sino que el resultado sea **explicable** a la persona o al regulador: por qué *este* usuario obtuvo *este* score. Hasta este cambio, `PDModelRegistry.getTopFeatures()` devolvía siempre el mismo ranking SHAP **global** del modelo (los mismos 5 features para cualquier usuario, vía `manifest.shap_top`/`shap_summary.json`) — no era una explicación por instancia. Además, los endpoints de scoring con modelo XGB (`POST /api/scoring/application`, `GET /api/scoring/pd` en `routes.ts`, cuando `reg.isReady`) ni siquiera llamaban a `logCreditScorePrediction`: las predicciones XGB reales no quedaban trazadas en absoluto (solo el path heurístico CMF lo estaba).
+
+**Fix:** `services/treeExplain.ts` (`XgbTreeModel`) lee directamente el dump nativo del booster (`xgb.json`, ya generado por `train_xgb.py` y referenciado en `manifest.json` como `xgb_json_path`, pero sin usar hasta ahora) y calcula atribución por feature **por instancia** con el método de Saabas (decision-path attribution): para el feature vector dado, sigue el camino real que toma en cada árbol y atribuye a cada split el cambio en el valor esperado del nodo. El resultado varía con el input de cada usuario, a diferencia del ranking global. No es TreeSHAP exacto (no garantiza eficiencia/simetría de Shapley) — caveat documentado en el código; subir a TreeSHAP exacto requeriría el algoritmo EXTEND/UNWIND completo.
+
+Validación: se generaron márgenes de verdad con el propio XGBoost (`booster.predict(dm, output_margin=True)`, Python, `xgboost==3.0.5`) sobre el mismo `xgb.json`, y se confirmó que `XgbTreeModel.explain()` reconstruye el mismo margen (tolerancia float32) — ver `__tests__/treeExplain.test.ts` y su fixture `__tests__/fixtures/xgb_ground_truth.json`.
+
+`PDModelRegistry.explainInstance()` expone esto con fallback automático a `getTopFeatures()` (ranking global) si el modelo no trae `xgb_json_path` o falla la carga. Los dos endpoints de scoring XGB ahora usan `explainInstance()` (no `getTopFeatures()`) para las `reasons`/`reasonDetail` de la respuesta, y llaman a `logCreditScorePrediction` (vía el helper `tracePdXgbPrediction` en `routes.ts`) para persistir esas razones por instancia en `shapValues`/`topFactors` — cerrando también el segundo gap (este path de scoring no estaba trazado). El path de fallback "one-off ONNX" (cuando `reg.isReady` es falso, sin `PDModelRegistry`) queda fuera de este cambio: sigue usando el ranking global, por ser un camino de respaldo poco usado.
+
+## Cifrado de columna (pseudonimización)
+
+`inputFeatures`, `outputSnapshot`, `cmfData`, `sfaData` y `topFactors` se cifran (AES-256-GCM, `services/crypto/fieldEncryption.ts`) antes de persistirse — contienen datos financieros y, en `cmfData`, el RUT del titular del informe CMF. La lectura (`listAlgorithmPredictionLogsForUser`) descifra de forma transparente; filas antiguas sin cifrar se siguen leyendo bien (`looksEncrypted()` detecta el formato).
+
+## Tensión NCG 502 vs. Ley 19.628/21.719 (borrado de cuenta)
+
+NCG 502 exige conservar el registro de cada decisión algorítmica (modelo, score, versión, fecha). La Ley 19.628/21.719 exige poder borrar/anonimizar la PII de un usuario que cierra su cuenta. Resolución adoptada (ver `services/privacy/accountAnonymization.ts`): al anonimizar una cuenta, la fila de `algorithm_prediction_logs` **no se borra** (se conserva el hecho de que se tomó una decisión, con qué modelo y qué score), pero:
+- `userId` se reemplaza por el id de una única fila placeholder compartida por todas las cuentas anonimizadas (`anon-placeholder-system-user`, ver `accountAnonymization.ts`) — no un hash por usuario, porque `algorithm_prediction_logs.user_id` tiene FK `NOT NULL` a `users.id` y no hay fila real con un id sintético derivado. Al compartir un mismo id, no se puede saber a qué usuario anonimizado correspondía un log puntual.
+- `inputFeatures`, `cmfData`, `sfaData` y `topFactors` se sobrescriben con un placeholder (la PII/datos financieros de entrada ya no son necesarios para la trazabilidad regulatoria, que solo exige la salida del modelo).
+- `outputSnapshot` (score, categoría de riesgo, modelo) se conserva intacto — es el objeto de la trazabilidad NCG 502.
+
+`consent_grants`/`privacy_consent_events` tampoco se borran al anonimizar (son la prueba de que el usuario consintió y luego revocó, exigida por la propia ley); solo se anonimizan `ipAddress`/`userAgent`.
+
+## Alcance del cifrado (qué falta y por qué)
+
+`email`/`username` de `users` y los RUT (`empresas_bank_transactions.counterpartyRut`, `empresas_dte_documents.emitterRut/receiverRut`, `empresas_purchase_orders.customerRut`, etc.) **no están cifrados todavía**: se usan en `WHERE`/`JOIN`/`ORDER BY` (login por email, conciliación bancaria por RUT) y AES-GCM con IV aleatorio no soporta búsqueda por igualdad sobre el ciphertext. Cifrarlos requiere agregar una columna de blind index (HMAC determinístico) para igualdad antes de cifrar el valor visible — pendiente, ver `scripts/encrypt-existing-data.ts` para el detalle de qué sí quedó cubierto en este pase (`firstName/lastName/totpSecret/backupCodes`, `document_uploads.parsedData`, `score_document_uploads.parsedData`, y los campos de `algorithm_prediction_logs` de esta sección).
 
 ## Database Schema
 
@@ -157,7 +186,6 @@ npm test -- compliance/traceability.test.ts
 
 ## TODO
 
-- [ ] Migrate from in-memory to PostgreSQL
 - [ ] Implement admin role checks
 - [ ] Add automated drift alerts
 - [ ] Build admin dashboard

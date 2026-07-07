@@ -22,6 +22,14 @@ export type FeatureVector = {
   incomeTrend30_90: number;  // last 30d income / last 90d income
   netCashflowVolatility: number; // std(daily net) / (|mean daily net| + eps)
   recurringExpenseShare: number; // share of debits from recurring merchants
+  // Window-invariant equivalents (#B): tasas por mes / shares en vez de conteos y totales
+  // que escalan con windowDays. Permiten que un modelo entrenado a una ventana se sirva a otra
+  // sin skew de escala. Superset: las features crudas de arriba se conservan para compatibilidad
+  // con el artefacto actual (19 features); un artefacto nuevo elige el subset invariante por nombre.
+  txPerMonth: number;        // txCount / (windowDays/30)
+  debitPerMonth: number;     // debitCount / (windowDays/30)
+  creditPerMonth: number;    // creditCount / (windowDays/30)
+  activeDaysShare: number;   // activeDays / windowDays (0..1)
 };
 
 export async function buildUserFeatureVector(userId: string, windowDays = 90): Promise<FeatureVector> {
@@ -149,6 +157,11 @@ export async function buildUserFeatureVector(userId: string, windowDays = 90): P
     incomeTrend30_90,
     netCashflowVolatility,
     recurringExpenseShare,
+    // Window-invariant (#B): mismas cantidades extensivas normalizadas por la ventana.
+    txPerMonth: txs.length / months,
+    debitPerMonth: debitAmounts.length / months,
+    creditPerMonth: creditAmounts.length / months,
+    activeDaysShare: windowDays > 0 ? activeDaySet.size / windowDays : 0,
   };
   return fv;
 }

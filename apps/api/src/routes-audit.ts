@@ -14,16 +14,15 @@
  */
 
 import type { Express, Request, Response } from 'express';
-import { authenticate, type AuthenticatedRequest } from './middleware/auth.js';
+import { authenticate, requireAdmin, type AuthenticatedRequest } from './middleware/auth.js';
 import {
   getUserPredictionHistory,
   getAllAlgorithmChanges,
   getActiveModelVersion,
   getAuditStats,
-  exportAuditTrail,
   getPrediction,
 } from './services/audit/algorithmicTraceability.js';
-import { listAlgorithmPredictionLogsForUser } from './services/audit/traceabilityPersistence.js';
+import { listAlgorithmPredictionLogsForUser, exportPredictionLogsByDateRange } from './services/audit/traceabilityPersistence.js';
 
 export function registerAuditRoutes(app: Express): void {
   try {
@@ -48,17 +47,16 @@ export function registerAuditRoutes(app: Express): void {
       const userId = authReq.user.userId;
       
       try {
-        const predictions = getUserPredictionHistory(userId, 50);
-        
+        const predictions = await listAlgorithmPredictionLogsForUser(userId, 50);
+
         // Sanitize for user display (remove internal details)
         const sanitized = predictions.map(p => ({
           id: p.id,
-          timestamp: p.decisionTimestamp,
-          creditScore: p.creditScore,
-          riskCategory: p.riskCategory,
-          confidence: p.confidence,
-          topFactors: p.topFactors,
+          timestamp: p.createdAt,
+          kind: p.kind,
           modelVersion: p.modelVersion,
+          inputSummary: p.inputSummary,
+          outputSummary: p.outputSummary,
         }));
         
         res.json({
@@ -90,29 +88,22 @@ export function registerAuditRoutes(app: Express): void {
       const predictionId = req.params.id;
       
       try {
-        const prediction = getPrediction(predictionId);
-        
+        // Lee desde DB (fuente de verdad persistente, sobrevive reinicios — NCG 502)
+        const userLogs = await listAlgorithmPredictionLogsForUser(userId, 100);
+        const prediction = userLogs.find(p => p.id === predictionId);
+
         if (!prediction) {
           return res.status(404).json({ error: 'Predicción no encontrada' });
         }
-        
-        // Verify user owns this prediction
-        if (prediction.userId !== userId) {
-          return res.status(403).json({ error: 'No autorizado' });
-        }
-        
-        // Return full details for user's own prediction
+
+        // La query ya filtra por userId, así que la pertenencia está garantizada
         res.json({
           id: prediction.id,
-          timestamp: prediction.decisionTimestamp,
-          creditScore: prediction.creditScore,
-          probabilityDefault: prediction.probabilityDefault,
-          riskCategory: prediction.riskCategory,
-          confidence: prediction.confidence,
-          topFactors: prediction.topFactors,
-          shapValues: prediction.shapValues,
+          timestamp: prediction.createdAt,
+          kind: prediction.kind,
           modelVersion: prediction.modelVersion,
-          processingTimeMs: prediction.processingTimeMs,
+          inputSummary: prediction.inputSummary,
+          outputSummary: prediction.outputSummary,
         });
       } catch (error) {
         console.error('[AuditRoutes] Error fetching prediction:', error);
@@ -157,12 +148,8 @@ export function registerAuditRoutes(app: Express): void {
   app.get(
     '/api/audit/admin/stats',
     authenticate,
+    requireAdmin,
     async (req: Request, res: Response) => {
-      const authReq = req as AuthenticatedRequest;
-      if (authReq.user?.role !== 'admin') {
-        return res.status(403).json({ error: 'Acceso restringido a administradores' });
-      }
-
       try {
         const stats = getAuditStats();
         const activeModel = getActiveModelVersion();
@@ -190,12 +177,8 @@ export function registerAuditRoutes(app: Express): void {
   app.get(
     '/api/audit/admin/algorithm-changes',
     authenticate,
+    requireAdmin,
     async (req: Request, res: Response) => {
-      const authReq = req as AuthenticatedRequest;
-      if (authReq.user?.role !== 'admin') {
-        return res.status(403).json({ error: 'Acceso restringido a administradores' });
-      }
-
       try {
         const changes = getAllAlgorithmChanges();
         res.json({ changes });
@@ -213,27 +196,26 @@ export function registerAuditRoutes(app: Express): void {
   app.post(
     '/api/audit/admin/export',
     authenticate,
+    requireAdmin,
     async (req: Request, res: Response) => {
-      const authReq = req as AuthenticatedRequest;
-      if (authReq.user?.role !== 'admin') {
-        return res.status(403).json({ error: 'Acceso restringido a administradores' });
-      }
-
       try {
-        const { startDate, endDate } = req.body;
-        
+        const { startDate, endDate, kind } = req.body;
+
         if (!startDate || !endDate) {
           return res.status(400).json({ error: 'startDate y endDate son requeridos' });
         }
-        
-        const auditTrail = exportAuditTrail(
-          new Date(startDate),
-          new Date(endDate)
-        );
-        
+
+        // Fuente: DB (algorithm_prediction_logs), no el store en memoria — así el export
+        // sobrevive reinicios. `kind` opcional (p.ej. 'product_recommendation') para la
+        // auditoría trimestral de recomendaciones. Las fechas se comparan como ISO.
+        const startIso = new Date(startDate).toISOString();
+        const endIso = new Date(endDate).toISOString();
+        const predictions = await exportPredictionLogsByDateRange(startIso, endIso, kind);
+
         res.json({
-          period: { startDate, endDate },
-          ...auditTrail,
+          period: { startDate: startIso, endDate: endIso, kind: kind ?? null },
+          count: predictions.length,
+          predictions,
         });
       } catch (error) {
         console.error('[AuditRoutes] Error exporting audit trail:', error);

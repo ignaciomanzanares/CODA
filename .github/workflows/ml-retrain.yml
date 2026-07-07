@@ -1,0 +1,72 @@
+name: ML Retrain (weekly)
+
+# #33: re-entrena el modelo PD semanalmente con el generador sintético chileno, evalúa el AUC
+# y registra el artefacto como **candidate** (no lo promueve a producción — eso es manual,
+# corriendo promote-model.ts sin --candidate tras revisar el AUC/PSI del candidato).
+on:
+  schedule:
+    - cron: "0 6 * * 1" # lunes 06:00 UTC
+  workflow_dispatch: {} # permite dispararlo a mano
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install node dependencies
+        run: npm ci
+
+      - name: Build packages (@coda/db)
+        run: npm run build -w packages
+
+      - name: Setup ML venv
+        working-directory: apps/api
+        run: npm run ml:setup
+
+      - name: Generate synthetic Chilean training data
+        working-directory: apps/api
+        run: npm run ml:make:synth
+
+      - name: Train model → artifacts/candidate
+        working-directory: apps/api
+        run: src/ml/.venv/bin/python src/ml/train_xgb.py --in src/ml/out/synth_features.csv --out src/ml/artifacts/candidate --label label
+
+      - name: Gate on AUC ≥ 0.60
+        working-directory: apps/api
+        run: |
+          AUC=$(node -e "console.log(JSON.parse(require('fs').readFileSync('src/ml/artifacts/candidate/manifest.json','utf8')).metrics.auc)")
+          echo "Candidate AUC = $AUC"
+          node -e "process.exit(JSON.parse(require('fs').readFileSync('src/ml/artifacts/candidate/manifest.json','utf8')).metrics.auc >= 0.60 ? 0 : 1)" \
+            || { echo '::error::AUC del candidato por debajo de 0.60 — no se registra.'; exit 1; }
+
+      - name: Upload candidate artifact for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: xgb-pd-candidate
+          path: apps/api/src/ml/artifacts/candidate/
+
+      # Registro del candidate en la DB (opcional): solo si hay credenciales configuradas como
+      # secrets. Sin ellas, el artefacto queda disponible arriba para revisión/promoción manual.
+      - name: Register candidate in model registry
+        if: ${{ secrets.DATABASE_URL != '' }}
+        working-directory: apps/api
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FIELD_ENCRYPTION_KEY: ${{ secrets.FIELD_ENCRYPTION_KEY }}
+          BLOB_BACKEND: ${{ secrets.BLOB_BACKEND }}
+          BLOB_BUCKET: ${{ secrets.BLOB_BUCKET }}
+          BLOB_REGION: ${{ secrets.BLOB_REGION }}
+          BLOB_ACCESS_KEY_ID: ${{ secrets.BLOB_ACCESS_KEY_ID }}
+          BLOB_SECRET_ACCESS_KEY: ${{ secrets.BLOB_SECRET_ACCESS_KEY }}
+          BLOB_ENDPOINT: ${{ secrets.BLOB_ENDPOINT }}
+        run: npx tsx scripts/promote-model.ts src/ml/artifacts/candidate --candidate --apply

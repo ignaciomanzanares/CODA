@@ -77,7 +77,7 @@ export function calculateCreditScoreCmfOnly(cmf: CMFParseResult): CreditScoreRes
   };
 }
 
-const CATEGORIAS: Array<{ min: number; label: string; desc: string }> = [
+export const CATEGORIAS: Array<{ min: number; label: string; desc: string }> = [
   { min: 750, label: "Excelente", desc: "Acceso a mejores tasas del mercado" },
   { min: 650, label: "Muy bueno", desc: "Condiciones favorables de crédito" },
   { min: 550, label: "Bueno", desc: "Acceso normal a productos financieros" },
@@ -86,7 +86,7 @@ const CATEGORIAS: Array<{ min: number; label: string; desc: string }> = [
   { min: 0, label: "Crítico", desc: "Alto riesgo crediticio" },
 ];
 
-function categoriaFromScore(score: number): { label: string; desc: string } {
+export function categoriaFromScore(score: number): { label: string; desc: string } {
   for (const c of CATEGORIAS) {
     if (score >= c.min) return { label: c.label, desc: c.desc };
   }

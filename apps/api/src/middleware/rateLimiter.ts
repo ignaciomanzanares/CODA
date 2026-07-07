@@ -1,5 +1,20 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { type Store, ipKeyGenerator } from "express-rate-limit";
+import { RedisStore } from "rate-limit-redis";
 import { isProduction } from "../env.js";
+import { redis } from "../redis.js";
+
+/**
+ * Sin Redis (`REDIS_URL` no definida), cada limiter usa su `MemoryStore` por defecto — válido en dev
+ * con un solo proceso, pero no escala a múltiples instancias en producción (ver render.yaml).
+ */
+function redisStoreOrDefault(prefix: string): Store | undefined {
+  const client = redis;
+  if (!client) return undefined;
+  return new RedisStore({
+    prefix,
+    sendCommand: (command: string, ...args: string[]) => client.call(command, ...args) as ReturnType<RedisStore['sendCommand']>,
+  });
+}
 
 /**
  * Rate limiter for authentication endpoints
@@ -11,6 +26,7 @@ export const authLimiter = rateLimit({
   message: "Too many authentication attempts, please try again later",
   standardHeaders: true,
   legacyHeaders: false,
+  store: redisStoreOrDefault("rl:auth:"),
 });
 
 /**
@@ -27,6 +43,7 @@ export const apiLimiter = rateLimit({
     // Skip rate limiting for health checks
     return req.path === "/health";
   },
+  store: redisStoreOrDefault("rl:api:"),
 });
 
 /**
@@ -39,6 +56,7 @@ export const expensiveLimiter = rateLimit({
   message: "Rate limit exceeded for this operation, please try again later",
   standardHeaders: true,
   legacyHeaders: false,
+  store: redisStoreOrDefault("rl:expensive:"),
 });
 
 /**
@@ -52,11 +70,12 @@ export const uploadLimiter = rateLimit({
   keyGenerator: (req) => {
     // Use userId from JWT payload if available, fall back to IP
     const authReq = req as { user?: { userId?: string } };
-    return authReq.user?.userId ?? req.ip ?? 'unknown';
+    return authReq.user?.userId ?? ipKeyGenerator(req.ip ?? '127.0.0.1');
   },
   message: "Límite de subida de documentos alcanzado. Intenta de nuevo en una hora.",
   standardHeaders: true,
   legacyHeaders: false,
+  store: redisStoreOrDefault("rl:upload:"),
 });
 
 /**
@@ -69,4 +88,5 @@ export const publicLimiter = rateLimit({
   message: "Too many requests, please try again later",
   standardHeaders: true,
   legacyHeaders: false,
+  store: redisStoreOrDefault("rl:public:"),
 });

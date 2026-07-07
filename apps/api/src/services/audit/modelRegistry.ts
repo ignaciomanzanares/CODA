@@ -11,8 +11,10 @@
  */
 
 import { randomUUID } from 'crypto';
+import { existsSync } from 'node:fs';
 import type { ModelVersion } from './algorithmicTraceability.js';
 import { registerModelVersion, getActiveModelVersion } from './algorithmicTraceability.js';
+import { ensureSeedTraceabilityModels } from './traceabilityPersistence.js';
 
 // ============================================================================
 // MODEL DEPLOYMENT
@@ -41,9 +43,14 @@ export async function deployNewModelVersion(config: {
 }): Promise<string> {
   console.log(`🚀 Deploying new model version: ${config.version}`);
   
-  // TODO: Validate model artifacts exist at modelPath
-  // TODO: Run smoke tests before activation
-  
+  // Validar que el artefacto existe antes de promover (NCG 502: no activar modelos sin artefacto)
+  if (config.modelPath && !existsSync(config.modelPath)) {
+    throw new Error(
+      `El artefacto del modelo no existe en la ruta indicada: ${config.modelPath}. ` +
+      `Verifica que el archivo esté disponible antes de promocionar.`
+    );
+  }
+
   const modelVersionId = registerModelVersion({
     modelType: config.modelType,
     version: config.version,
@@ -56,7 +63,15 @@ export async function deployNewModelVersion(config: {
     modelPath: config.modelPath,
     changelog: config.changelog,
   });
-  
+
+  // Persiste en DB (NCG 502: versiones de modelo deben sobrevivir reinicios)
+  await ensureSeedTraceabilityModels({
+    id: modelVersionId,
+    modelType: config.modelType,
+    version: config.version,
+    changelog: config.changelog,
+  });
+
   console.log(`✅ Model ${config.version} deployed with ID: ${modelVersionId}`);
   
   return modelVersionId;

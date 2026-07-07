@@ -10,6 +10,8 @@ import { registerRoutes } from "./routes.js";
 import { registerAuditRoutes } from "./routes-audit.js";
 import { registerHealthEvaluationRoutes } from "./routes-health-evaluation.js";
 import { registerAssetsRoutes } from "./routes-assets.js";
+import { registerInstitutionRoutes } from "./routes-institutions.js";
+import { registerDataSourceRoutes } from "./routes-data-sources.js";
 import { checkDatabaseConnection } from "./db/index.js";
 import { logger, httpLogger } from "./logger.js";
 import { initializeTraceabilitySystem } from "./services/audit/algorithmicTraceability.js";
@@ -55,6 +57,16 @@ const corsOptions: cors.CorsOptions = {
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
+    // En desarrollo, aceptar cualquier origen local (localhost / 127.0.0.1 / [::1], cualquier
+    // puerto): Vite puede servir en 127.0.0.1 o saltar a 5174 si 5173 está ocupado, y con un
+    // Origin no permitido la API responde sin Access-Control-Allow-Origin → el navegador lo
+    // bloquea y la web muestra "no hay conexión con el servidor". Producción queda estricta.
+    if (
+      process.env.NODE_ENV !== "production" &&
+      /^http:\/\/(localhost|127\.0\.0\.1|\[::1\]):\d+$/.test(origin)
+    ) {
+      return callback(null, true);
+    }
     logger.warn({ origin }, "CORS: origin not allowed");
     return callback(null, false);
   },
@@ -66,6 +78,7 @@ const corsOptions: cors.CorsOptions = {
     "X-Requested-With",
     "Accept",
     "X-Request-Id",
+    "X-CSRF-Token",
   ],
   optionsSuccessStatus: 200,
 };
@@ -113,11 +126,13 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
+      // Las métricas HTTP (contador por método/status + latencia) las emite
+      // httpMetricsMiddleware (arriba). Aquí solo queda el logging de la request.
       // Skip logging 304 Not Modified responses to reduce noise
       if (res.statusCode === 304) {
         return;
       }
-      
+
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
@@ -138,7 +153,9 @@ registerMetricsEndpoint(app);
 (async () => {
   try {
     logger.info("🚀 Starting CODA application...");
-    initObservability();
+
+    // Observabilidad (Sentry/captura de errores) — no-op si SENTRY_DSN no está.
+    await initObservability();
 
     // Aplica migraciones pendientes ANTES de todo (no depende de render.yaml ni
     // del dashboard). Si falla, el arranque aborta (fail-fast) y Render reinicia.
@@ -154,6 +171,57 @@ registerMetricsEndpoint(app);
       logger.warn({ err: seedErr }, "⚠️ Traceability seed failed (non-fatal, will retry on first request)");
     }
 
+    // Promoción sin redeploy (#5): si hay un modelo 'production' registrado en
+    // algorithm_model_versions con artefacto en el blob store, cárgalo. No-op seguro:
+    // si no hay fila/artefacto, se sirve artifacts/current local. Fire-and-forget para no
+    // bloquear el arranque.
+    void import("./services/modelRegistry.js")
+      .then(({ PDModelRegistry }) => PDModelRegistry.instance().loadProductionFromRegistry())
+      .catch((err) => logger.warn({ err }, "loadProductionFromRegistry (boot) falló; usando modelo local"));
+
+    // Job de retención (#21): borra los originales (PDF/imagen) vencidos del blob store. Corre al
+    // boot y luego cada 24h. Desactivado en test. RETENTION_JOB_ENABLED=false para apagarlo.
+    if (process.env.NODE_ENV !== "test" && process.env.RETENTION_JOB_ENABLED !== "false") {
+      const runRetention = async () => {
+        try {
+          const { purgeExpiredOriginals } = await import("./services/documents/originalStore.js");
+          await purgeExpiredOriginals();
+        } catch (err) {
+          logger.warn({ err }, "[retention] purgeExpiredOriginals falló");
+        }
+      };
+      void runRetention();
+      const retentionTimer = setInterval(runRetention, 24 * 60 * 60 * 1000);
+      retentionTimer.unref?.();
+
+      // Reponderación de productos por conversión real (#35): al boot y cada 7 días. Apagable con
+      // RANKING_WEIGHTS_JOB_ENABLED=false.
+      if (process.env.RANKING_WEIGHTS_JOB_ENABLED !== "false") {
+        const runReweight = async () => {
+          try {
+            const { recomputeProductRankingWeights } = await import("./services/products/productRankingWeights.js");
+            await recomputeProductRankingWeights();
+          } catch (err) {
+            logger.warn({ err }, "[ranking-weights] recompute falló");
+          }
+        };
+        void runReweight();
+        const reweightTimer = setInterval(runReweight, 7 * 24 * 60 * 60 * 1000);
+        reweightTimer.unref?.();
+      }
+    }
+
+    // Monitor de profundidad de cola (#27): alerta a Ops si la cola de documentos se satura
+    // (worker caído). No-op si no hay Redis. Desactivado en test.
+    if (process.env.NODE_ENV !== "test") {
+      try {
+        const { startQueueDepthMonitor } = await import("./services/observability/queueMonitor.js");
+        startQueueDepthMonitor();
+      } catch (err) {
+        logger.warn({ err }, "[queueMonitor] no se pudo iniciar");
+      }
+    }
+
     logger.info("✅ Application initialization completed successfully");
   } catch (error) {
     logger.error({ error }, "❌ Error during application initialization");
@@ -165,6 +233,8 @@ registerMetricsEndpoint(app);
   registerAuditRoutes(app);
   registerAssetsRoutes(app);
   registerHealthEvaluationRoutes(app);
+  registerInstitutionRoutes(app);
+  registerDataSourceRoutes(app);
 
   // Then register main routes
   const server = await registerRoutes(app);
@@ -200,7 +270,6 @@ registerMetricsEndpoint(app);
   server.listen({
     port,
     host: "0.0.0.0",
-    reusePort: true,
   }, () => {
     logger.info(`🌐 API Server listening on port ${port}`);
     logger.info(`📊 Environment: ${process.env.NODE_ENV}`);
