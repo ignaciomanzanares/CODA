@@ -193,10 +193,23 @@ export default function UniversalUploadDrawer({
       }
       const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
       if (r.ok && j.step === "done") {
-        return { ok: true, status: 200, json: (j.result as Record<string, unknown>) ?? {} };
+        const result = (j.result as Record<string, unknown>) ?? {};
+        // El pipeline puede COMPLETAR con `result.error` (p. ej. documento no soportado,
+        // normalización fallida). Espejar la ruta síncrona: 400 con el mensaje específico,
+        // nunca marcarlo como éxito.
+        if (typeof result.error === "string" && result.error) {
+          return { ok: false, status: 400, json: { message: result.error } };
+        }
+        return { ok: true, status: 200, json: result };
       }
-      if (r.status === 500 || j.state === "failed") {
+      if (j.state === "failed") {
+        // Job realmente fallido en el worker → terminal, conservar failedReason del backend.
         return { ok: false, status: 500, json: { message: (j.message as string) ?? "No pudimos procesar el documento." } };
+      }
+      if (r.status >= 500) {
+        // 5xx SIN state="failed" = error transitorio consultando el estado (hiccup de
+        // Redis/DB en el GET), no un fallo del documento → seguir polleando hasta el deadline.
+        continue;
       }
       if (r.status === 404) {
         return { ok: false, status: 404, json: { message: "El procesamiento del documento no está disponible." } };
@@ -291,9 +304,11 @@ export default function UniversalUploadDrawer({
               );
             }
             if (status >= 500) {
-              // 5xx transitorio (p. ej. cold-start): mensaje amigable de reintento (#43).
+              // Preferir el mensaje real del backend (p. ej. failedReason del job encolado);
+              // el genérico queda solo para 5xx opacos (cold-start del proxy, body no-JSON) (#43).
               throw new Error(
-                "El servidor tardó más de lo esperado. Espera unos segundos e intenta nuevamente. Si el documento aparece como fallido, puedes eliminarlo y volver a subirlo."
+                (json as { message?: string }).message ??
+                  "El servidor tardó más de lo esperado. Espera unos segundos e intenta nuevamente. Si el documento aparece como fallido, puedes eliminarlo y volver a subirlo."
               );
             }
             // 4xx (validación/parse): conservar el mensaje específico del backend.

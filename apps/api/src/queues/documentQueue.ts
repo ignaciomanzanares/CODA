@@ -28,7 +28,12 @@ export const documentQueue: Queue<DocumentUploadJobData> | null = env.redisUrl
       defaultJobOptions: {
         removeOnComplete: { age: 60 * 60 }, // 1h — alcanza para que el cliente haga polling del resultado
         removeOnFail: { age: 24 * 60 * 60 },
-        attempts: 1, // el documento puede estar corrupto/no soportado; reintentar no ayuda
+        // Un documento corrupto/no soportado NO lanza: completa con `result.error` (ver
+        // processDocumentUpload, que atrapa ParseError). Un job "failed" es un throw de
+        // infraestructura (hiccup de Neon/Redis) → reintentar SÍ ayuda, y el pipeline es
+        // idempotente (cartola duplicada por banco+período se reemplaza, no se duplica).
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
       },
     })
   : null;
