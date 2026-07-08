@@ -132,17 +132,17 @@ export default function OnboardingFlow() {
   return (
     <div className="min-h-screen flex">
       {/* Left brand panel */}
-      <div className="hidden lg:flex flex-col justify-between bg-[#0a0f1e] text-white p-12 w-1/2 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-[500px] h-[500px] rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
+      <div className="hidden lg:flex flex-col justify-between bg-[#0c0a09] text-white p-12 w-1/2 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-[500px] h-[500px] rounded-full bg-primary/15 blur-[120px] pointer-events-none" />
         <div className="relative flex items-center gap-2">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
             <Wallet className="h-5 w-5 text-white" />
           </div>
           <span className="text-xl font-bold">CODA</span>
         </div>
         <div className="relative space-y-8">
           <h1 className="text-4xl font-bold leading-tight">
-            Empieza a conocer <span className="text-blue-400">tu salud financiera</span>
+            Empieza a conocer <span className="bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">tu salud financiera</span>
           </h1>
           <p className="text-slate-300 leading-relaxed max-w-md">
             Crea tu cuenta gratis y recibe tu primer diagnóstico financiero en minutos, basado en tus documentos reales.
@@ -150,8 +150,8 @@ export default function OnboardingFlow() {
           <div className="space-y-4">
             {BRAND_FEATURES.map(({ Icon, text }) => (
               <div key={text} className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-blue-600/20 flex items-center justify-center shrink-0">
-                  <Icon className="h-4 w-4 text-blue-400" />
+                <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                  <Icon className="h-4 w-4 text-primary" />
                 </div>
                 <span className="text-sm text-slate-200">{text}</span>
               </div>
@@ -167,7 +167,7 @@ export default function OnboardingFlow() {
       {/* Right: wizard */}
       <div className="flex-1 lg:w-1/2 flex flex-col justify-center bg-background px-6 py-12 sm:px-12 lg:px-16 overflow-y-auto">
         <div className="lg:hidden flex items-center gap-2 mb-8">
-          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
+          <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center">
             <Wallet className="h-5 w-5 text-white" />
           </div>
           <span className="text-lg font-bold text-foreground">CODA</span>
@@ -184,13 +184,13 @@ export default function OnboardingFlow() {
                   <div className="flex items-center gap-1.5">
                     <div className={cn(
                       "w-6 h-6 rounded-full grid place-items-center border-2 shrink-0 text-white",
-                      done ? "bg-green-500 border-green-500" : active ? "bg-blue-600 border-blue-600" : "bg-transparent border-border text-muted-foreground",
+                      done ? "bg-green-500 border-green-500" : active ? "bg-primary border-primary" : "bg-transparent border-border text-muted-foreground",
                     )}>
                       {done ? <Check size={13} /> : <meta.Icon size={13} className={active ? "text-white" : "text-muted-foreground"} />}
                     </div>
                     <span className={cn("text-xs hidden sm:block", active ? "font-semibold text-foreground" : "text-muted-foreground")}>{meta.label}</span>
                   </div>
-                  <div className={cn("h-1 rounded mt-2", done ? "bg-green-500" : active ? "bg-blue-600" : "bg-border")} />
+                  <div className={cn("h-1 rounded mt-2", done ? "bg-green-500" : active ? "bg-primary" : "bg-border")} />
                 </div>
               );
             })}
@@ -222,7 +222,7 @@ export default function OnboardingFlow() {
               </button>
             )}
             <button type="button" onClick={advance} disabled={!canAdvance || busy}
-              className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+              className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
               {busy ? <Loader2 size={17} className="animate-spin" /> : <>{buttonLabel} <ChevronRight size={17} /></>}
             </button>
           </div>
@@ -230,7 +230,7 @@ export default function OnboardingFlow() {
           {!isAuthenticated && (
             <p className="mt-6 text-center text-sm text-muted-foreground">
               ¿Ya tienes cuenta?{" "}
-              <Link href={ROUTES.iniciarSesion} className="text-blue-600 hover:underline font-medium">Iniciar sesión</Link>
+              <Link href={ROUTES.iniciarSesion} className="text-primary hover:underline font-medium">Iniciar sesión</Link>
             </p>
           )}
         </div>
@@ -250,13 +250,13 @@ function StepHeading({ title, sub }: { title: string; sub: string }) {
 
 function ConsentCheckbox({ consent, setConsent }: { consent: boolean; setConsent: (v: boolean) => void }) {
   return (
-    <label className={cn("flex gap-3 items-start p-3.5 rounded-xl cursor-pointer border", consent ? "border-blue-500 bg-blue-50 dark:bg-blue-500/10" : "border-border")}>
-      <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-blue-600" />
+    <label className={cn("flex gap-3 items-start p-3.5 rounded-xl cursor-pointer border", consent ? "border-primary bg-primary/5 dark:bg-primary/10" : "border-border")}>
+      <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#FF5C35]" />
       <span className="text-[13px] text-foreground/80 leading-relaxed">
         He leído y acepto los{" "}
-        <a href={ROUTES.terminos} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Términos y Condiciones</a>{" "}
+        <a href={ROUTES.terminos} target="_blank" rel="noopener noreferrer" className="text-primary underline">Términos y Condiciones</a>{" "}
         y la{" "}
-        <a href={ROUTES.privacidad} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Política de Privacidad</a>{" "}
+        <a href={ROUTES.privacidad} target="_blank" rel="noopener noreferrer" className="text-primary underline">Política de Privacidad</a>{" "}
         de CODA, y autorizo el tratamiento de mis datos personales para prestar el servicio.
       </span>
     </label>
@@ -268,7 +268,7 @@ function AccountStep({ name, email, password, confirm, consent, setName, setEmai
   setName: (v: string) => void; setEmail: (v: string) => void; setPassword: (v: string) => void; setConfirm: (v: string) => void; setConsent: (v: boolean) => void;
   showPwd: boolean; setShowPwd: (v: boolean) => void; pwdIssues: boolean[]; pwdMatch: boolean;
 }) {
-  const inputCls = "flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
+  const inputCls = "flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent";
   return (
     <>
       <StepHeading title="Crea tu cuenta" sub="Empieza gratis. Luego verificamos tu identidad y aseguramos tu cuenta." />
@@ -350,7 +350,7 @@ function CaptureCard({ Icon, title, hint, done, onClick }: { Icon: typeof Credit
       "w-full flex items-center gap-3 p-3.5 rounded-xl text-left transition-all border",
       done ? "border-green-500 bg-green-50 dark:bg-green-950/20" : "border-dashed border-border",
     )}>
-      <span className={cn("w-10 h-10 rounded-xl flex-shrink-0 grid place-items-center", done ? "bg-green-500 text-white" : "bg-blue-600/10 text-blue-600")}>
+      <span className={cn("w-10 h-10 rounded-xl flex-shrink-0 grid place-items-center", done ? "bg-green-500 text-white" : "bg-primary/10 text-primary")}>
         {done ? <Check size={20} /> : <Icon size={20} />}
       </span>
       <span>
@@ -405,13 +405,13 @@ function TwoFAStep({ twoFA, setTwoFA, totpDone, setTotpDone }: {
 function ChoiceCard({ Icon, title, hint, active, onClick }: { Icon: typeof KeyRound; title: string; hint: string; active: boolean; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} className={cn(
-      "w-full flex items-center gap-3 p-3.5 rounded-xl text-left transition-all border", active ? "border-blue-500 bg-blue-50 dark:bg-blue-500/10" : "border-border")}>
-      <span className={cn("w-10 h-10 rounded-xl flex-shrink-0 grid place-items-center", active ? "bg-blue-600 text-white" : "bg-muted text-muted-foreground")}><Icon size={20} /></span>
+      "w-full flex items-center gap-3 p-3.5 rounded-xl text-left transition-all border", active ? "border-primary bg-primary/5 dark:bg-primary/10" : "border-border")}>
+      <span className={cn("w-10 h-10 rounded-xl flex-shrink-0 grid place-items-center", active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}><Icon size={20} /></span>
       <span>
         <span className="block text-sm font-semibold text-foreground">{title}</span>
         <span className="text-xs text-muted-foreground">{hint}</span>
       </span>
-      <span className={cn("ml-auto w-5 h-5 rounded-full flex-shrink-0 border-2 grid place-items-center", active ? "border-blue-600 bg-blue-600" : "border-muted-foreground")}>
+      <span className={cn("ml-auto w-5 h-5 rounded-full flex-shrink-0 border-2 grid place-items-center", active ? "border-primary bg-primary" : "border-muted-foreground")}>
         {active && <Check size={12} className="text-white" />}
       </span>
     </button>
