@@ -11,7 +11,7 @@ const root = join(__dirname, "..");
 const input = join(root, "public", "favicon.svg");
 const outDir = join(root, "public", "icons");
 
-const BRAND_BLUE = { r: 59, g: 130, b: 246, alpha: 1 };
+const BRAND_ORANGE = { r: 255, g: 92, b: 53, alpha: 1 };
 
 const sizes = [72, 96, 128, 144, 152, 180, 192, 384, 512];
 
@@ -29,7 +29,7 @@ const canvas = 512;
 const inner = Math.round(canvas * 0.7);
 const offset = Math.round((canvas - inner) / 2);
 const iconBuf = await sharp(input)
-  .resize(inner, inner, { fit: "contain", background: { ...BRAND_BLUE, alpha: 1 } })
+  .resize(inner, inner, { fit: "contain", background: { ...BRAND_ORANGE, alpha: 1 } })
   .png()
   .toBuffer();
 
@@ -38,7 +38,7 @@ await sharp({
     width: canvas,
     height: canvas,
     channels: 4,
-    background: BRAND_BLUE,
+    background: BRAND_ORANGE,
   },
 })
   .composite([{ input: iconBuf, left: offset, top: offset }])

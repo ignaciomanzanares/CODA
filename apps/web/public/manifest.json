@@ -17,13 +17,13 @@
     {
       "name": "Ver mi score",
       "short_name": "Score",
-      "url": "/info/score-credito",
+      "url": "/panel",
       "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96", "type": "image/png" }]
     },
     {
       "name": "Gastos del mes",
       "short_name": "Gastos",
-      "url": "/gastos",
+      "url": "/movimientos",
       "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96", "type": "image/png" }]
     }
   ],
