@@ -169,6 +169,47 @@ export default function UniversalUploadDrawer({
    * chico) y máximo 2 reintentos — la ventana del limiter es larga, así que no esperamos
    * minutos: si sigue en 429, se reporta con un mensaje amable y se sigue con el resto.
    */
+  /**
+   * Cuando la cola BullMQ está activa (Redis configurado en el backend), el POST de subida
+   * responde `202 { step: "queued", jobId }` y el worker procesa async. Polleamos
+   * `GET /api/documents/upload/:jobId` hasta terminal y devolvemos el mismo shape que la ruta
+   * síncrona, para que `uploadAll` maneje el resultado idéntico. Dormante cuando la cola está
+   * apagada (sin Redis el POST ya trae el resultado final y este helper no se invoca).
+   */
+  const pollUploadJob = async (
+    apiBase: string,
+    jobId: string,
+    setStatus: (status: FileState, message?: string) => void,
+  ): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> => {
+    const deadline = Date.now() + 120_000; // 2 min máx de polling
+    while (Date.now() < deadline) {
+      setStatus("parsing", "Procesando en segundo plano…");
+      await new Promise((r) => setTimeout(r, 1500));
+      let r: Response;
+      try {
+        r = await fetch(`${apiBase}/api/documents/upload/${jobId}`, { credentials: "include" });
+      } catch {
+        continue; // error de red transitorio → reintentar el poll
+      }
+      const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+      if (r.ok && j.step === "done") {
+        return { ok: true, status: 200, json: (j.result as Record<string, unknown>) ?? {} };
+      }
+      if (r.status === 500 || j.state === "failed") {
+        return { ok: false, status: 500, json: { message: (j.message as string) ?? "No pudimos procesar el documento." } };
+      }
+      if (r.status === 404) {
+        return { ok: false, status: 404, json: { message: "El procesamiento del documento no está disponible." } };
+      }
+      // step === "queued" → seguir polleando
+    }
+    return {
+      ok: false,
+      status: 408,
+      json: { message: "El documento sigue procesándose. Aparecerá en tus movimientos cuando termine; puedes cerrar esta ventana." },
+    };
+  };
+
   const uploadOne = async (
     fs: FileStatus,
     setStatus: (status: FileState, message?: string) => void,
@@ -205,6 +246,13 @@ export default function UniversalUploadDrawer({
         res.json().catch(() => ({})),
         new Promise((r) => setTimeout(r, 400)),
       ]);
+
+      // Cola activa: el POST devuelve 202 { step:"queued", jobId } → pollear hasta terminal.
+      const jobId = res.status === 202 ? (json as { jobId?: string }).jobId : undefined;
+      if (jobId) {
+        return await pollUploadJob(apiBase, jobId, setStatus);
+      }
+
       return { ok: res.ok, status: res.status, json: json as Record<string, unknown> };
     }
   };
