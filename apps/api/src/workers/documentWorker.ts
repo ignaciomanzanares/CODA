@@ -44,7 +44,7 @@ export function startDocumentWorker(): Worker<DocumentUploadJobData, UploadResul
   worker.on('completed', (job) => {
     logger.info({ jobId: job.id, userId: job.data.userId }, 'Document upload job completed');
   });
-  worker.on('failed', (job, err) => {
+  worker.on('failed', (job: Job<DocumentUploadJobData> | undefined, err: Error) => {
     logger.error({ jobId: job?.id, userId: job?.data.userId, err }, 'Document upload job failed');
   });
 
