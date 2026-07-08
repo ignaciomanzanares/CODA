@@ -60,7 +60,7 @@ services:
       # Onboarding (consentimiento + KYC mock + 2FA). OFF por defecto. En "true"
       # exige 2FA antes de vincular un banco. Debe ir junto con VITE_ENABLE_ONBOARDING.
       - key: ENABLE_ONBOARDING
-        value: false
+        value: true
       # DATABASE_URL must be set manually in Render Dashboard (Neon pooled URL)
       - key: DATABASE_URL
         sync: false
