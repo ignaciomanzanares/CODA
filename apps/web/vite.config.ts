@@ -45,55 +45,19 @@ export default defineConfig({
           }),
         ]
       : []),
-    // PWA: manifest en public/manifest.json (display: standalone). Para Web Push futuro:
-    // registrar suscripción en el SW, endpoint en API y claves VAPID — workbox ya cachea assets;
-    // añadir handler de push en sw personalizado cuando se implemente.
+    // PWA (PWA-1): manifest en public/manifest.json (display: standalone). SW propio en
+    // src/sw.ts (injectManifest): precache Workbox + handlers de Web Push en un solo SW.
+    // Las estrategias de runtime cache viven en src/sw.ts — /api/ NO se cachea (datos
+    // personales fuera de CacheStorage).
     VitePWA({
       registerType: "prompt",
       injectRegister: "auto",
       manifest: false,
-      includeAssets: ["favicon.svg", "icons/*.png", "og-image.png"],
-      /* Web Push: en el futuro se puede añadir push en el SW (eventos push/subscriptionchange).
-         La base Workbox + manifest standalone ya permite registrar handlers sin cambiar el build. */
-      workbox: {
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
+      injectManifest: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//, /^\/robots\.txt$/, /^\/sitemap\.xml$/],
-        runtimeCaching: [
-          {
-            urlPattern: /^https?:\/\/.+\/api\//,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "api-cache",
-              networkTimeoutSeconds: 10,
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 300,
-              },
-            },
-          },
-          {
-            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "images-cache",
-              expiration: {
-                maxEntries: 60,
-                maxAgeSeconds: 86400,
-              },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\//,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "fonts-cache",
-              expiration: {
-                maxAgeSeconds: 31536000,
-              },
-            },
-          },
-        ],
       },
     }),
     ...(process.env.NODE_ENV !== "production" &&

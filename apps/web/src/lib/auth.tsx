@@ -216,6 +216,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clear the "had a session" marker so ProtectedRoute doesn't show the
     // session-expired toast after an explicit logout.
     sessionStorage.removeItem(HAD_SESSION_KEY);
+    // PWA-1: purga best-effort de caches del SW con respuestas personales de clientes
+    // antiguos ('api-cache' del runtimeCaching legado; 'coda-v2' del SW manual). El SW
+    // nuevo ya no cachea /api/ y también los borra en activate — esto cubre logout en
+    // sesiones que aún no actualizaron el SW.
+    if (typeof caches !== "undefined") {
+      void caches.delete("api-cache").catch(() => {});
+      void caches.delete("coda-v2").catch(() => {});
+    }
 
     if (context === 'empresas') {
       setTokenEmpresas(null);

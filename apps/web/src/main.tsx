@@ -10,11 +10,8 @@ import { initWebObservability } from "./lib/observability";
 // #27: Sentry frontend (no-op si VITE_SENTRY_DSN no está configurado).
 void initWebObservability();
 
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
-  });
-}
+// PWA-1: el SW se registra vía useRegisterSW (PWAUpdatePrompt / virtual:pwa-register),
+// que además maneja el flujo de actualización con prompt. Sin register manual duplicado.
 
 createRoot(document.getElementById("root")!).render(
   <HelmetProvider>
