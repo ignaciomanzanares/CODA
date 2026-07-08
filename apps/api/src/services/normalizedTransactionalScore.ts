@@ -24,6 +24,8 @@ export interface NormalizedTransactionalScoreResult {
   /** Puntaje 0–100 del modelo XGB, o null si no hay señal suficiente. */
   transactionalScore: number | null;
   available: boolean;
+  /** El score transaccional es un modelo XGB base (Berka, no chileno) → beta/en calibración. */
+  isBeta: boolean;
   pd?: number;
   band?: string;
   mainInsights: string[];
@@ -62,6 +64,7 @@ export async function getNormalizedTransactionalScoreForUser(
   return {
     transactionalScore: tx.available ? (tx.score ?? null) : null,
     available: tx.available,
+    isBeta: tx.isBeta,
     pd: tx.available ? tx.pd : undefined,
     band: tx.available ? tx.band : undefined,
     mainInsights: [],

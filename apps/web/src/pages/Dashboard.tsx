@@ -264,7 +264,7 @@ export default function Dashboard() {
                 <>
                   {/* Score Hero */}
                   {data.score !== null && (
-                    <ScoreHero score={data.score} delta={data.scoreDelta} />
+                    <ScoreHero score={data.score} delta={data.scoreDelta} isBeta={data.scoreIsBeta} />
                   )}
 
                   {/* Credit Score (CMF, separate from transactional score) */}

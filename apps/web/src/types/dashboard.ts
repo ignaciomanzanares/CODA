@@ -75,6 +75,7 @@ export interface DashboardData {
 
   // ── Capa 1: Hero ──
 	  score: number | null;                   // 0-100 transactional score
+	  scoreIsBeta: boolean;                   // XGB base (no chileno) → beta / en calibración
 	  scoreDelta: number | null;              // vs previous period
 	  scoreMaxHistory: { date: string; score: number }[];
 	  scoreInsights: string[];                // text insights from scoring engine

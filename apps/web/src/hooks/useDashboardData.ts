@@ -77,6 +77,7 @@ interface RawInsights {
 
 interface RawScoreResult {
   transactionalScore: number | null;
+  isBeta?: boolean;
   mainInsights?: string[];
   metrics?: Record<string, number | boolean | string | undefined>;
   lastUpdated?: string;
@@ -351,7 +352,8 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
         hasData: false,
         periodLabel: "",
 	        score: null,
-	        scoreDelta: null,
+	        scoreIsBeta: false,
+        scoreDelta: null,
 	        scoreMaxHistory: [],
 	        scoreInsights: [],
 	        scoreConfidence: null,
@@ -415,6 +417,7 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
 
   // ── Score (transactional only, 0-100) ──────────────────────────────────
 	  const currentScore = score.data?.transactionalScore ?? null;
+	  const scoreIsBeta = score.data?.isBeta ?? false;
 	  const scoreConfidenceValue = score.data?.metrics?.scoreConfidence;
 	  const scoreConfidence =
 	    scoreConfidenceValue === "baja" || scoreConfidenceValue === "media" || scoreConfidenceValue === "alta"
@@ -601,6 +604,7 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
       hasData: true,
       periodLabel,
       score: currentScore,
+	      scoreIsBeta,
 	      scoreDelta,
 	      scoreMaxHistory,
 	      scoreInsights: score.data?.mainInsights ?? [],

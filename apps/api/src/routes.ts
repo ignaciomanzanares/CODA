@@ -2370,6 +2370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 	        }
 	        return res.json({
 	          transactionalScore: normalizedScore.transactionalScore,
+          isBeta: normalizedScore.isBeta,
 	          mainInsights: normalizedScore.mainInsights ?? [],
 	          metrics: normalizedScore.metrics,
 	          recommendedProducts: normalizedScore.recommendedProducts ?? [],

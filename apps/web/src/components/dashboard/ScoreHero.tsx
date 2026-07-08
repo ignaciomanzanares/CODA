@@ -10,24 +10,30 @@ import {
 interface ScoreHeroProps {
   score: number;           // 0-100
   delta: number | null;    // vs previous period
+  /** Modelo base (XGB no chileno) en calibración: se muestra neutro, sin banda alarmante ni delta. */
+  isBeta?: boolean;
 }
 
 /** Large semicircular gauge for the hero score. 0-100 scale. */
-function HeroGauge({ score }: { score: number }) {
+function HeroGauge({ score, isBeta }: { score: number; isBeta?: boolean }) {
   const pct = Math.min(100, Math.max(0, score));
   // Arc length: path from (10,70) to (190,70) via semicircle ≈ π × 90 ≈ 283
   const arcLength = 283;
   const dashLength = (pct / 100) * arcLength;
 
-  const color =
-    score >= 70
+  // En beta el color es neutro (no verde/ámbar/rojo): el número no es un veredicto
+  // confiable todavía, así que evitamos el rojo alarmante de un "Bajo".
+  const color = isBeta
+    ? "stroke-slate-400 dark:stroke-slate-500"
+    : score >= 70
       ? "stroke-emerald-500"
       : score >= 45
         ? "stroke-amber-500"
         : "stroke-rose-500";
 
-  const label =
-    score >= 70
+  const label = isBeta
+    ? "En calibración"
+    : score >= 70
       ? "Excelente"
       : score >= 55
         ? "Bueno"
@@ -66,7 +72,7 @@ function HeroGauge({ score }: { score: number }) {
   );
 }
 
-export default function ScoreHero({ score, delta }: ScoreHeroProps) {
+export default function ScoreHero({ score, delta, isBeta }: ScoreHeroProps) {
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="flex items-center gap-1.5">
@@ -82,13 +88,20 @@ export default function ScoreHero({ score, delta }: ScoreHeroProps) {
               </button>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-[260px] text-xs leading-relaxed">
-              Mide tu salud financiera en base a tus movimientos bancarios: estabilidad de ingresos, nivel de ahorro, gastos fijos y liquidez. Se calcula a partir de tu cartola.
+              {isBeta
+                ? "Modelo en calibración: por ahora usa una base internacional mientras lo ajustamos con datos chilenos. El puntaje es referencial y puede cambiar."
+                : "Mide tu salud financiera en base a tus movimientos bancarios: estabilidad de ingresos, nivel de ahorro, gastos fijos y liquidez. Se calcula a partir de tu cartola."}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+        {isBeta && (
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Beta · en calibración
+          </span>
+        )}
       </div>
-      <HeroGauge score={score} />
-      {delta !== null && delta !== 0 && (
+      <HeroGauge score={score} isBeta={isBeta} />
+      {!isBeta && delta !== null && delta !== 0 && (
         <div
           className={cn(
             "inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium",
@@ -106,7 +119,7 @@ export default function ScoreHero({ score, delta }: ScoreHeroProps) {
           {delta} pts
         </div>
       )}
-      {delta === 0 && (
+      {!isBeta && delta === 0 && (
         <div className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium bg-muted text-muted-foreground">
           <Minus className="h-3.5 w-3.5" />
           Sin cambios
