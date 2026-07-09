@@ -207,7 +207,12 @@ html {
 }
 body {
   overscroll-behavior: none;
-  overflow-x: hidden;
+  /* `clip` (no `hidden`): recorta el desborde horizontal SIN convertir al body en
+     scroll container. Con `hidden`, el body atrapa el scroll de rueda/teclado y
+     `overscroll-behavior: none` bloquea el encadenamiento hacia html (que es quien
+     scrollea) → página entera sin scroll en Chromium. html mantiene `hidden` como
+     respaldo para navegadores sin soporte de `clip`. */
+  overflow-x: clip;
   -webkit-overflow-scrolling: touch;
 }
 
