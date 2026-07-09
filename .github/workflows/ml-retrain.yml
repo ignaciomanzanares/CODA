@@ -57,8 +57,19 @@ jobs:
 
       # Registro del candidate en la DB (opcional): solo si hay credenciales configuradas como
       # secrets. Sin ellas, el artefacto queda disponible arriba para revisión/promoción manual.
+      - name: Check model registry credentials
+        id: registry
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -n "$DATABASE_URL" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Register candidate in model registry
-        if: ${{ secrets.DATABASE_URL != '' }}
+        if: ${{ steps.registry.outputs.enabled == 'true' }}
         working-directory: apps/api
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
