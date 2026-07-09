@@ -14,6 +14,8 @@ export class ApiError extends Error {
 }
 
 import { dispatchSessionExpired } from './authEvents';
+import { isBrowserOffline } from "@/lib/networkStatus";
+import { USER_FACING_CONNECTION_ERROR } from "@/lib/userFacingErrors";
 
 function messageFromErrorBody(text: string, status: number): string {
   const trimmed = text?.trim() ?? "";
@@ -55,6 +57,10 @@ function messageFromErrorBody(text: string, status: number): string {
 const DEFAULT_TIMEOUT_MS = 45_000;
 
 export async function apiFetch(input: RequestInfo, init?: RequestInit) {
+  if (isBrowserOffline()) {
+    throw new ApiError(USER_FACING_CONNECTION_ERROR, 0);
+  }
+
   const apiBase =
     (typeof import.meta !== "undefined" &&
       (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL) ||

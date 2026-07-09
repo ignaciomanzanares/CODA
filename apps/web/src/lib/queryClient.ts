@@ -1,4 +1,6 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { assertBrowserOnline } from "@/lib/networkStatus";
+import { USER_FACING_CONNECTION_ERROR } from "@/lib/userFacingErrors";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -13,6 +15,8 @@ export async function apiRequest(
   data?: unknown | undefined,
   options?: { headers?: Record<string, string> }
 ): Promise<Response> {
+  assertBrowserOnline();
+
   const headers = {
     ...(data ? { "Content-Type": "application/json" } : {}),
     ...(options?.headers || {})
@@ -35,6 +39,8 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    assertBrowserOnline();
+
     const res = await fetch(queryKey[0] as string, {
       credentials: "include",
     });
@@ -54,6 +60,7 @@ export const getQueryFn: <T>(options: {
 function shouldRetry(failureCount: number, error: unknown): boolean {
   if (failureCount >= 2) return false;
   const msg = error instanceof Error ? error.message : String(error);
+  if (msg.includes(USER_FACING_CONNECTION_ERROR)) return false;
   // Extract status from "STATUS: message" format used by throwIfResNotOk
   const statusMatch = msg.match(/^(\d+):/);
   if (statusMatch) {

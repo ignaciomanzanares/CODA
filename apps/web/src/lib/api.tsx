@@ -2,6 +2,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/apiBase";
 import { dispatchSessionExpired } from "@/lib/authEvents";
+import { assertBrowserOnline } from "@/lib/networkStatus";
 import { USER_FACING_CONNECTION_ERROR, extractApiErrorMessage } from "@/lib/userFacingErrors";
 import type {
   CreateBankConnectionData,
@@ -149,6 +150,7 @@ export function useApi(): ApiClient {
     if (!isAuthenticated) {
       throw new Error("User not authenticated");
     }
+    assertBrowserOnline();
 
     // No propagar `headers`/`body`/`method` en el spread final.
     const { headers: optsHeaders, body: optsBody, method: _ignoredMethod, ...restOptions } = options ?? {};
