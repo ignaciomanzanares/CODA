@@ -287,3 +287,15 @@ button,
 .app-footer {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* Scroll horizontal sin barra visible (chips de filtros/cuentas). Tailwind 3.x
+   no trae esta utility; los usos existentes de `scrollbar-none` la asumían. */
+@layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}

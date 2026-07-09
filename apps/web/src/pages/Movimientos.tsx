@@ -257,7 +257,7 @@ export default function Movimientos() {
 
         {/* Account chips */}
         {loadingTx && !s ? (
-          <div className="flex gap-3 overflow-x-auto pb-1">
+          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
             {[1, 2, 3, 4].map((i) => (
               <Skeleton key={i} className="h-12 w-36 rounded-xl shrink-0" />
             ))}
