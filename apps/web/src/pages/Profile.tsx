@@ -149,6 +149,7 @@ export default function Profile() {
   const [pushSupported] = useState(() => isPushSupported());
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+  const [pushTesting, setPushTesting] = useState(false);
 
   useEffect(() => {
     if (pushSupported) {
@@ -185,11 +186,23 @@ export default function Profile() {
   };
 
   const handleTestPush = async () => {
-    const ok = await sendTestPush();
-    if (ok) {
-      toast({ title: "Push de prueba enviado", description: "Deberías recibir una notificación en breve." });
-    } else {
-      toast({ title: "Error al enviar", variant: "destructive" });
+    setPushTesting(true);
+    try {
+      const result = await sendTestPush();
+      if (result.ok && result.devicesSent > 0) {
+        toast({ title: "Push de prueba enviado", description: "Deberías recibir una notificación en breve." });
+      } else if (result.ok) {
+        setPushSubscribed(false);
+        toast({
+          title: "No hay dispositivos suscritos",
+          description: "Activa las notificaciones nuevamente en este navegador.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Error al enviar", variant: "destructive" });
+      }
+    } finally {
+      setPushTesting(false);
     }
   };
 
@@ -819,7 +832,14 @@ export default function Profile() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {pushSubscribed && (
-                          <Button variant="ghost" size="sm" onClick={handleTestPush} className="text-xs">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleTestPush}
+                            disabled={pushTesting || pushLoading}
+                            className="text-xs"
+                          >
+                            {pushTesting && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
                             Probar
                           </Button>
                         )}

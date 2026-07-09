@@ -1,4 +1,10 @@
 import { API_BASE_URL } from "./apiBase";
+import { withCsrfHeader } from "./csrf";
+
+export interface TestPushResult {
+  ok: boolean;
+  devicesSent: number;
+}
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -57,9 +63,9 @@ export async function subscribeToPush(): Promise<boolean> {
     const res = await fetch(`${API_BASE_URL}/push/subscribe`, {
       method: "POST",
       credentials: "include",
-      headers: {
+      headers: withCsrfHeader("POST", {
         "Content-Type": "application/json",
-      },
+      }),
       body: JSON.stringify({ subscription: subscription.toJSON() }),
     });
 
@@ -81,9 +87,9 @@ export async function unsubscribeFromPush(): Promise<boolean> {
     await fetch(`${API_BASE_URL}/push/unsubscribe`, {
       method: "POST",
       credentials: "include",
-      headers: {
+      headers: withCsrfHeader("POST", {
         "Content-Type": "application/json",
-      },
+      }),
       body: JSON.stringify({ endpoint: subscription.endpoint }),
     });
 
@@ -106,17 +112,21 @@ export async function isCurrentlySubscribed(): Promise<boolean> {
   }
 }
 
-export async function sendTestPush(): Promise<boolean> {
+export async function sendTestPush(): Promise<TestPushResult> {
   try {
     const res = await fetch(`${API_BASE_URL}/push/test`, {
       method: "POST",
       credentials: "include",
-      headers: {
+      headers: withCsrfHeader("POST", {
         "Content-Type": "application/json",
-      },
+      }),
     });
-    return res.ok;
+    const data = await res.json().catch(() => ({}));
+    return {
+      ok: res.ok,
+      devicesSent: typeof data.devicesSent === "number" ? data.devicesSent : 0,
+    };
   } catch {
-    return false;
+    return { ok: false, devicesSent: 0 };
   }
 }
