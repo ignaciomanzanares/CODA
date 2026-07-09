@@ -44,6 +44,12 @@ function distPathFromUrl(url) {
   return join(distDir, url.replace(/^\/+/, ""));
 }
 
+function pngDimensions(file) {
+  const png = readFileSync(file);
+  if (png.length < 24 || png.toString("ascii", 1, 4) !== "PNG") return null;
+  return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
+}
+
 const html = readText("index.html");
 const manifest = readJson("manifest.json");
 const sw = readText("sw.js");
@@ -73,6 +79,24 @@ assert(manifest.shortcuts?.some((shortcut) => shortcut.url === "/movimientos"), 
 
 for (const icon of manifest.icons || []) {
   assert(existsSync(distPathFromUrl(icon.src)), `manifest icon missing in dist: ${icon.src}`);
+}
+
+assert(Array.isArray(manifest.screenshots), "manifest.screenshots must be present");
+assert(manifest.screenshots?.some((shot) => shot.form_factor === "narrow"), "manifest must include a narrow screenshot");
+assert(manifest.screenshots?.some((shot) => shot.form_factor === "wide"), "manifest must include a wide screenshot");
+
+for (const shot of manifest.screenshots || []) {
+  const file = distPathFromUrl(shot.src);
+  assert(existsSync(file), `manifest screenshot missing in dist: ${shot.src}`);
+  const dims = existsSync(file) ? pngDimensions(file) : null;
+  assert(dims !== null, `manifest screenshot is not a valid PNG: ${shot.src}`);
+  assert(`${dims?.width}x${dims?.height}` === shot.sizes, `manifest screenshot size mismatch for ${shot.src}`);
+  if (shot.form_factor === "narrow") {
+    assert((dims?.height ?? 0) > (dims?.width ?? 0), `narrow screenshot must be portrait: ${shot.src}`);
+  }
+  if (shot.form_factor === "wide") {
+    assert((dims?.width ?? 0) > (dims?.height ?? 0), `wide screenshot must be landscape: ${shot.src}`);
+  }
 }
 
 assert(sw.includes('self.addEventListener("push"'), "sw.js must include push handler");

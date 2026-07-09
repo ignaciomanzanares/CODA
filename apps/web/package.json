@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "generate:icons": "node scripts/generate-icons.mjs",
+    "generate:screenshots": "node scripts/generate-pwa-screenshots.mjs",
     "generate:sitemap": "node scripts/generate-sitemap.mjs",
     "build": "npx vite build && node scripts/prerender.mjs",
     "analyze": "ANALYZE=true vite build --mode production",
