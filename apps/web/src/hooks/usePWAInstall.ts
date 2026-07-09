@@ -6,17 +6,35 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const DISMISSED_KEY = "coda-pwa-install-dismissed";
+const DISMISS_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+function readInstallDismissed() {
+  if (typeof window === "undefined") return false;
+
+  try {
+    const ts = window.localStorage.getItem(DISMISSED_KEY);
+    if (!ts) return false;
+    return Date.now() - Number(ts) < DISMISS_WINDOW_MS;
+  } catch {
+    return false;
+  }
+}
+
+function writeInstallDismissed() {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(DISMISSED_KEY, String(Date.now()));
+  } catch {
+    // Some browsers disable storage in restrictive modes; dismissal can remain session-only.
+  }
+}
 
 /** Tracks the `beforeinstallprompt` event for showing an in-app install banner. */
 export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
-  const [dismissed, setDismissed] = useState(() => {
-    const ts = localStorage.getItem(DISMISSED_KEY);
-    if (!ts) return false;
-    // Re-show after 7 days
-    return Date.now() - Number(ts) < 7 * 24 * 60 * 60 * 1000;
-  });
+  const [dismissed, setDismissed] = useState(readInstallDismissed);
 
   useEffect(() => {
     // Already installed as standalone PWA
@@ -30,12 +48,18 @@ export function usePWAInstall() {
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
+    const handleInstalled = () => {
+      setDeferredPrompt(null);
+      setIsInstalled(true);
+    };
+
     window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", handleInstalled);
 
-    // Detect install after prompt
-    window.addEventListener("appinstalled", () => setIsInstalled(true));
-
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", handleInstalled);
+    };
   }, []);
 
   const install = useCallback(async () => {
@@ -52,7 +76,7 @@ export function usePWAInstall() {
 
   const dismiss = useCallback(() => {
     setDismissed(true);
-    localStorage.setItem(DISMISSED_KEY, String(Date.now()));
+    writeInstallDismissed();
   }, []);
 
   return {
