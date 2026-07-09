@@ -57,7 +57,23 @@ export default defineConfig({
       srcDir: "src",
       filename: "sw.ts",
       injectManifest: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // PWA-3: precache diet. Keep only the offline app shell and install assets.
+        // Lazy route chunks, screenshots and iOS splash images stay network/runtime-cached.
+        globPatterns: [
+          "index.html",
+          "favicon.svg",
+          "manifest.json",
+          "icons/*.png",
+          "assets/index-*.js",
+          "assets/index-*.css",
+          "assets/vendor-react-*.js",
+          "assets/vendor-router-*.js",
+          "assets/vendor-query-*.js",
+          "assets/vendor-charts-*.js",
+          "assets/vendor-radix-*.js",
+          "assets/vendor-ui-*.js",
+          "assets/workbox-window*.js",
+        ],
       },
     }),
     ...(process.env.NODE_ENV !== "production" &&
