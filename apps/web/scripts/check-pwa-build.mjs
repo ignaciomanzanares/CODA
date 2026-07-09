@@ -50,6 +50,20 @@ function pngDimensions(file) {
   return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
 }
 
+function parseStartupImageLinks(markup) {
+  const links = [];
+  for (const match of markup.matchAll(/<link\b[^>]*rel="apple-touch-startup-image"[^>]*>/g)) {
+    const tag = match[0];
+    const href = tag.match(/\bhref="([^"]+)"/)?.[1];
+    const media = tag.match(/\bmedia="([^"]+)"/)?.[1] || "";
+    const width = Number(media.match(/device-width:\s*(\d+)px/)?.[1]);
+    const height = Number(media.match(/device-height:\s*(\d+)px/)?.[1]);
+    const ratio = Number(media.match(/-webkit-device-pixel-ratio:\s*(\d+)/)?.[1]);
+    links.push({ href, media, width, height, ratio });
+  }
+  return links;
+}
+
 const html = readText("index.html");
 const manifest = readJson("manifest.json");
 const sw = readText("sw.js");
@@ -61,6 +75,23 @@ assert(html.includes('name="theme-color" content="#FF5C35"'), "index.html theme-
 assert(!html.includes("REPLACE_WITH_GSC_VERIFICATION_CODE"), "index.html contains the old GSC placeholder");
 assert(!html.includes("vendor-charts"), "index.html must not preload vendor-charts");
 assert(!html.includes("UniversalUploadDrawer"), "index.html must not preload UniversalUploadDrawer");
+assert(html.includes('name="apple-mobile-web-app-capable" content="yes"'), "index.html must enable iOS standalone mode");
+assert(html.includes('name="apple-mobile-web-app-status-bar-style" content="black-translucent"'), "index.html must set iOS status bar style");
+
+const startupImages = parseStartupImageLinks(html);
+assert(startupImages.length >= 12, `expected iOS startup images, found ${startupImages.length}`);
+for (const image of startupImages) {
+  assert(Boolean(image.href), "startup image link missing href");
+  assert(Boolean(image.width && image.height && image.ratio), `startup image media is incomplete: ${image.media}`);
+  const file = image.href ? distPathFromUrl(image.href) : "";
+  assert(existsSync(file), `startup image missing in dist: ${image.href}`);
+  const dims = existsSync(file) ? pngDimensions(file) : null;
+  assert(dims !== null, `startup image is not a valid PNG: ${image.href}`);
+  assert(
+    dims?.width === image.width * image.ratio && dims?.height === image.height * image.ratio,
+    `startup image size mismatch for ${image.href}: expected ${image.width * image.ratio}x${image.height * image.ratio}, got ${dims?.width}x${dims?.height}`
+  );
+}
 
 assert(manifest.name === "CODA", "manifest.name must be CODA");
 assert(manifest.short_name === "CODA", "manifest.short_name must be CODA");
