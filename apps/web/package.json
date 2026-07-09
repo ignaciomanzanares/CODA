@@ -9,6 +9,7 @@
     "build": "npx vite build && node scripts/prerender.mjs",
     "analyze": "ANALYZE=true vite build --mode production",
     "test": "vitest run",
+    "test:pwa": "node scripts/check-pwa-build.mjs",
     "check": "tsc --noEmit",
     "preview": "vite preview",
     "translate": "node scripts/translate-auto.mjs",

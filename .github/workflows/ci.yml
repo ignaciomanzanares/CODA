@@ -46,3 +46,6 @@ jobs:
       # cambios no rompan la compilación de la web.
       - name: Build (@coda/web)
         run: npm run build -w @coda/web
+
+      - name: PWA smoke (@coda/web)
+        run: npm run test:pwa -w @coda/web
