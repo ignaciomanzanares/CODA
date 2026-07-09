@@ -4,6 +4,7 @@ import { sendTestPush } from "../pushNotifications";
 afterEach(() => {
   vi.restoreAllMocks();
   delete (globalThis as { document?: unknown }).document;
+  delete (globalThis as { navigator?: unknown }).navigator;
 });
 
 describe("pushNotifications", () => {
@@ -40,5 +41,13 @@ describe("pushNotifications", () => {
     );
 
     await expect(sendTestPush()).resolves.toEqual({ ok: true, devicesSent: 0 });
+  });
+
+  it("no intenta enviar push de prueba cuando el navegador esta offline", async () => {
+    (globalThis as { navigator?: { onLine: boolean } }).navigator = { onLine: false };
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    await expect(sendTestPush()).resolves.toEqual({ ok: false, devicesSent: 0 });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

@@ -21,6 +21,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL } from "@/lib/api";
+import { isBrowserOffline } from "@/lib/networkStatus";
+import { USER_FACING_CONNECTION_ERROR } from "@/lib/userFacingErrors";
 import DocumentManager from "@/components/DocumentManager";
 import {
   Upload,
@@ -185,6 +187,9 @@ export default function UniversalUploadDrawer({
     while (Date.now() < deadline) {
       setStatus("parsing", "Procesando en segundo plano…");
       await new Promise((r) => setTimeout(r, 1500));
+      if (isBrowserOffline()) {
+        return { ok: false, status: 0, json: { message: USER_FACING_CONNECTION_ERROR } };
+      }
       let r: Response;
       try {
         r = await fetch(`${apiBase}/api/documents/upload/${jobId}`, { credentials: "include" });
@@ -236,6 +241,9 @@ export default function UniversalUploadDrawer({
 
       const formData = new FormData();
       formData.append("document", fs.file);
+      if (isBrowserOffline()) {
+        throw new Error(USER_FACING_CONNECTION_ERROR);
+      }
       const res = await fetch(`${apiBase}/api/documents/upload`, {
         method: "POST",
         credentials: "include",

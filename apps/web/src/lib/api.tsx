@@ -271,6 +271,7 @@ export function useApi(): ApiClient {
 
   // Example: get financial products (public endpoint)
   const getFinancialProducts = async (category?: string): Promise<import("@/types").FinancialProduct[]> => {
+    assertBrowserOnline();
     const url = category
       ? `${API_BASE_URL}/financial-products?category=${encodeURIComponent(category)}`
       : `${API_BASE_URL}/financial-products`;
@@ -365,6 +366,7 @@ export function useApi(): ApiClient {
 
   const scanExpense = async (imageFile: File): Promise<{ amount: number; merchant: string; category: string; confidence: number }> => {
     if (!isAuthenticated) throw new Error("User not authenticated");
+    assertBrowserOnline();
     const formData = new FormData();
     formData.append("image", imageFile);
     const fullUrl = `${API_BASE_URL}/expenses/scan`;
@@ -505,6 +507,7 @@ export function useApi(): ApiClient {
 
   const uploadDocument = async (file: File): Promise<import("@/types").DocumentUploadResult> => {
     if (!isAuthenticated) throw new Error("User not authenticated");
+    assertBrowserOnline();
     const formData = new FormData();
     formData.append("document", file);
     const fullUrl = `${API_BASE_URL}/documents/upload`;
@@ -524,6 +527,7 @@ export function useApi(): ApiClient {
 
   const extractInscripcion = async (file: File): Promise<ExtractInscripcionResponse> => {
     if (!isAuthenticated) throw new Error("User not authenticated");
+    assertBrowserOnline();
     const formData = new FormData();
     formData.append("file", file);
     const fullUrl = `${API_BASE_URL}/assets/extract-inscripcion`;

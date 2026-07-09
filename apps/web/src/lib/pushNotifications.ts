@@ -1,5 +1,6 @@
 import { API_BASE_URL } from "./apiBase";
 import { withCsrfHeader } from "./csrf";
+import { isBrowserOffline } from "./networkStatus";
 
 export interface TestPushResult {
   ok: boolean;
@@ -31,6 +32,8 @@ export function getPushPermission(): NotificationPermission {
 }
 
 export async function getVapidPublicKey(): Promise<string | null> {
+  if (isBrowserOffline()) return null;
+
   try {
     const res = await fetch(`${API_BASE_URL}/push/vapid-key`, { credentials: "include" });
     if (!res.ok) return null;
@@ -43,6 +46,7 @@ export async function getVapidPublicKey(): Promise<string | null> {
 
 export async function subscribeToPush(): Promise<boolean> {
   if (!isPushSupported()) return false;
+  if (isBrowserOffline()) return false;
 
   try {
     const permission = await Notification.requestPermission();
@@ -78,6 +82,7 @@ export async function subscribeToPush(): Promise<boolean> {
 
 export async function unsubscribeFromPush(): Promise<boolean> {
   if (!isPushSupported()) return false;
+  if (isBrowserOffline()) return false;
 
   try {
     const registration = await navigator.serviceWorker.ready;
@@ -113,6 +118,8 @@ export async function isCurrentlySubscribed(): Promise<boolean> {
 }
 
 export async function sendTestPush(): Promise<TestPushResult> {
+  if (isBrowserOffline()) return { ok: false, devicesSent: 0 };
+
   try {
     const res = await fetch(`${API_BASE_URL}/push/test`, {
       method: "POST",

@@ -10,6 +10,7 @@ import { useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserDocuments } from "@/hooks/useUserDocuments";
 import { API_URL } from "@/lib/api";
+import { assertBrowserOnline } from "@/lib/networkStatus";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -80,6 +81,7 @@ export default function DocumentManager({
     async (id: string) => {
       setDeletingId(id);
       try {
+        assertBrowserOnline();
         const res = await fetch(`${apiBase}/api/user/documents/${id}`, {
           method: "DELETE",
           credentials: "include",
@@ -87,8 +89,9 @@ export default function DocumentManager({
         if (!res.ok) throw new Error("delete failed");
         await queryClient.invalidateQueries();
         toast({ title: "Documento eliminado", description: "Puedes volver a subirlo cuando quieras." });
-      } catch {
-        toast({ title: "No se pudo eliminar", description: "Inténtalo de nuevo.", variant: "destructive" });
+      } catch (error) {
+        const description = error instanceof Error ? error.message : "Inténtalo de nuevo.";
+        toast({ title: "No se pudo eliminar", description, variant: "destructive" });
       } finally {
         setDeletingId(null);
       }
@@ -99,6 +102,7 @@ export default function DocumentManager({
   const deleteAll = useCallback(async () => {
     setDeletingAll(true);
     try {
+      assertBrowserOnline();
       const res = await fetch(`${apiBase}/api/documents`, {
         method: "DELETE",
         credentials: "include",
@@ -106,8 +110,9 @@ export default function DocumentManager({
       if (!res.ok) throw new Error("delete all failed");
       await queryClient.invalidateQueries();
       toast({ title: "Documentos eliminados", description: "Tus movimientos quedaron en blanco." });
-    } catch {
-      toast({ title: "No se pudo eliminar", description: "Inténtalo de nuevo.", variant: "destructive" });
+    } catch (error) {
+      const description = error instanceof Error ? error.message : "Inténtalo de nuevo.";
+      toast({ title: "No se pudo eliminar", description, variant: "destructive" });
     } finally {
       setDeletingAll(false);
     }

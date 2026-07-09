@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL } from "@/lib/api";
+import { assertBrowserOnline } from "@/lib/networkStatus";
 import { Upload, FileText, CheckCircle2, XCircle, Loader2, X } from "lucide-react";
 
 interface FileStatus {
@@ -62,6 +63,7 @@ export default function MultiFileDropzone({ onDone, className }: MultiFileDropzo
       try {
         const formData = new FormData();
         formData.append("document", fs.file);
+        assertBrowserOnline();
 
         const apiBase = (API_URL || "").replace(/\/$/, "");
         const res = await fetch(`${apiBase}/api/documents/upload`, {
