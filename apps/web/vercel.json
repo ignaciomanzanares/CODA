@@ -10,7 +10,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!robots\\.txt$|sitemap\\.xml$|manifest\\.json$|favicon\\.svg$|sw\\.js$|og-image\\.png$)(?!assets/)(?!icons/)(?!screenshots/).*)",
+      "source": "/((?!robots\\.txt$|sitemap\\.xml$|manifest\\.json$|favicon\\.svg$|sw\\.js$|og-image\\.png$)(?!assets/)(?!icons/)(?!screenshots/)(?!splash/).*)",
       "destination": "/index.html"
     }
   ],

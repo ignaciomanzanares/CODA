@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const appRoot = join(__dirname, "..");
+const repoRoot = join(appRoot, "..", "..");
 const distDir = join(appRoot, "dist");
 const publicDir = join(appRoot, "public");
 
@@ -40,6 +41,17 @@ function readJson(relativePath) {
   }
 }
 
+function readRepoJson(relativePath) {
+  const file = join(repoRoot, relativePath);
+  try {
+    assert(existsSync(file), `Missing ${relativePath}`);
+    return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {};
+  } catch (error) {
+    fail(`Invalid JSON in ${relativePath}: ${error.message}`);
+    return {};
+  }
+}
+
 function distPathFromUrl(url) {
   return join(distDir, url.replace(/^\/+/, ""));
 }
@@ -64,11 +76,36 @@ function parseStartupImageLinks(markup) {
   return links;
 }
 
+function assertVercelStaticExclusions(configPath, config) {
+  const rewriteSource = config.rewrites?.find((rewrite) => rewrite.destination === "/index.html")?.source || "";
+  const requiredExclusions = [
+    "robots\\.txt$",
+    "sitemap\\.xml$",
+    "manifest\\.json$",
+    "favicon\\.svg$",
+    "sw\\.js$",
+    "og-image\\.png$",
+    "assets/",
+    "icons/",
+    "screenshots/",
+    "splash/",
+  ];
+
+  assert(Boolean(rewriteSource), `${configPath} must define the SPA index.html rewrite`);
+  for (const exclusion of requiredExclusions) {
+    assert(rewriteSource.includes(exclusion), `${configPath} rewrite must exclude ${exclusion}`);
+  }
+}
+
 const html = readText("index.html");
 const manifest = readJson("manifest.json");
 const sw = readText("sw.js");
+const rootVercelConfig = readRepoJson("vercel.json");
+const appVercelConfig = readRepoJson("apps/web/vercel.json");
 
 assert(!existsSync(join(publicDir, "sw.js")), "public/sw.js must not exist; Workbox injectManifest owns /sw.js");
+assertVercelStaticExclusions("vercel.json", rootVercelConfig);
+assertVercelStaticExclusions("apps/web/vercel.json", appVercelConfig);
 
 assert(html.includes('<link rel="manifest" href="/manifest.json"'), "index.html must link /manifest.json");
 assert(html.includes('name="theme-color" content="#FF5C35"'), "index.html theme-color must match orange brand");
