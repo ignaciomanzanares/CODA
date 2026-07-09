@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import { AlertTriangle, RefreshCw, Home, WifiOff } from "lucide-react";
 
 interface Props {
   children: ReactNode;
@@ -34,16 +34,26 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (!this.state.hasError) return this.props.children;
     if (this.props.fallback) return this.props.fallback;
 
+    const offline = typeof navigator !== "undefined" && !navigator.onLine;
+
     if (this.props.pageLevel) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center space-y-6">
           <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-950/30 flex items-center justify-center">
-            <AlertTriangle className="h-8 w-8 text-amber-500" />
+            {offline ? (
+              <WifiOff className="h-8 w-8 text-amber-500" />
+            ) : (
+              <AlertTriangle className="h-8 w-8 text-amber-500" />
+            )}
           </div>
           <div className="space-y-2 max-w-sm">
-            <h2 className="text-xl font-semibold text-foreground">Algo salió mal</h2>
+            <h2 className="text-xl font-semibold text-foreground">
+              {offline ? "Sin conexión" : "Algo salió mal"}
+            </h2>
             <p className="text-sm text-muted-foreground">
-              Esta página encontró un error inesperado. Puedes volver al panel o recargar la página.
+              {offline
+                ? "No se pudo cargar esta vista. Vuelve a intentarlo cuando recuperes internet."
+                : "Esta página encontró un error inesperado. Puedes volver al panel o recargar la página."}
             </p>
           </div>
           <div className="flex gap-3">

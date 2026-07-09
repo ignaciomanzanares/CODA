@@ -22,6 +22,7 @@ import RouteErrorBoundary from "@/components/RouteErrorBoundary";
 import SessionExpiryGuard from "@/components/SessionExpiryGuard";
 import SeoHelmet from "@/components/SeoHelmet";
 import PWAUpdatePrompt from "@/components/PWAUpdatePrompt";
+import OfflineBanner from "@/components/OfflineBanner";
 import { useVisualViewportHeight } from "@/hooks/useVisualViewportHeight";
 import { useBrowserNotifications } from "@/hooks/useBrowserNotifications";
 import { useKeepAlive } from "@/hooks/useKeepAlive";
@@ -98,6 +99,7 @@ function App() {
       <VisualViewportRootSync />
       <BrowserNotificationsInit />
       <KeepAliveInit />
+      <OfflineBanner />
       <SeoHelmet />
       <Suspense fallback={<PageLoader />}>
         <Switch>

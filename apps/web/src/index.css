@@ -203,9 +203,11 @@
 
 html {
   overscroll-behavior: none;
+  overflow-x: hidden;
 }
 body {
   overscroll-behavior: none;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
 
