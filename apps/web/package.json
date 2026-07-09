@@ -11,6 +11,7 @@
     "analyze": "ANALYZE=true vite build --mode production",
     "test": "vitest run",
     "test:pwa": "node scripts/check-pwa-build.mjs",
+    "test:pwa:prod": "node scripts/check-pwa-production.mjs",
     "check": "tsc --noEmit",
     "preview": "vite preview",
     "translate": "node scripts/translate-auto.mjs",
