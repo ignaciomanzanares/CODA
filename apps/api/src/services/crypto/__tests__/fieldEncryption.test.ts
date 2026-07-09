@@ -27,7 +27,10 @@ describe('fieldEncryption', () => {
 
   it('rejects tampered ciphertext (auth tag mismatch)', () => {
     const ciphertext = encryptField('secret');
-    const tampered = ciphertext.slice(0, -2) + (ciphertext.endsWith('A') ? 'B' : 'A') + ciphertext.slice(-1);
+    const parts = ciphertext.split(':');
+    const encryptedPayload = Buffer.from(parts[2], 'base64');
+    encryptedPayload[0] ^= 1;
+    const tampered = [parts[0], parts[1], encryptedPayload.toString('base64')].join(':');
     expect(() => decryptField(tampered)).toThrow();
   });
 
