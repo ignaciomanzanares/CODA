@@ -5,7 +5,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { CurrencyProvider } from "./lib/CurrencyContext";
 import { UploadDrawerProvider, useUploadDrawer } from "./contexts/UploadDrawerContext";
-import UniversalUploadDrawer from "./components/UniversalUploadDrawer";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -83,10 +82,17 @@ const BillSplit = lazy(() => import("@/pages/BillSplit"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const SaludFinanciera = lazy(() => import("@/pages/SaludFinanciera"));
 const MisActivos = lazy(() => import("@/pages/MisActivos"));
+const UniversalUploadDrawer = lazy(() => import("@/components/UniversalUploadDrawer"));
 
 function UploadDrawerGlobal() {
   const { open, setOpen } = useUploadDrawer();
-  return <UniversalUploadDrawer open={open} onOpenChange={setOpen} />;
+  if (!open) return null;
+
+  return (
+    <Suspense fallback={null}>
+      <UniversalUploadDrawer open={open} onOpenChange={setOpen} />
+    </Suspense>
+  );
 }
 
 function App() {
