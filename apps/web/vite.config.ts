@@ -8,6 +8,10 @@ import { visualizer } from "rollup-plugin-visualizer";
 /** Particionado de vendor para mejor caché y paralelismo (Lighthouse / FCP). */
 function manualChunks(id: string): string | undefined {
   if (!id.includes("node_modules")) return;
+  // `clsx` is used by the app shell via cn(). Recharts also depends on it; without
+  // this pin Rollup can place clsx inside vendor-charts, forcing charts into the
+  // initial shell and PWA precache.
+  if (id.includes("node_modules/clsx")) return "vendor-ui";
   if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/")) {
     return "vendor-react";
   }
@@ -69,7 +73,6 @@ export default defineConfig({
           "assets/vendor-react-*.js",
           "assets/vendor-router-*.js",
           "assets/vendor-query-*.js",
-          "assets/vendor-charts-*.js",
           "assets/vendor-radix-*.js",
           "assets/vendor-ui-*.js",
           "assets/workbox-window*.js",
