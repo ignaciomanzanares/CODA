@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "@/lib/api";
 import { Link } from "wouter";
 import { ROUTES } from "@/lib/routes";
@@ -11,44 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUserDocuments } from "@/hooks/useUserDocuments";
 import HealthLevelCard from "@/components/health/HealthLevelCard";
 import EvaluationBreakdown from "@/components/health/EvaluationBreakdown";
-
-type HealthSalida = 'ahorro_inversion' | 'refinanciamiento' | 'reestructuracion' | 'concursal';
-type HealthZone = 'critica' | 'intermedia';
-type HealthLevel = -2 | -1 | 0 | 1 | 2 | 3 | 4 | 5;
-
-interface HealthEvaluation {
-  nivel: HealthLevel;
-  nivelNombre: string;
-  zona: HealthZone;
-  salida: HealthSalida;
-  scoreRatios: number;
-  scoreInterno: number;
-  scoreCompuesto: number;
-  nivelBruto: number;
-  ratios: {
-    deudaFlujo: number;
-    deudaActivos: number;
-    ahorroIngreso: number;
-    moraActiva: boolean;
-    diasMora: number;
-  };
-  productos: {
-    productName: string;
-    provider: string;
-    category: string;
-    matchScore: number;
-    explanation: string;
-  }[];
-  insights: string[];
-}
-
-interface HealthResponse {
-  hasData: boolean;
-  evaluation?: HealthEvaluation;
-  modelVersion?: string;
-  descripcionNivel?: string;
-  missingData?: { cartola: boolean; cmf: boolean };
-}
+import { useHealthEvaluation, type HealthResponse, type HealthSalida } from "@/hooks/useHealthEvaluation";
 
 const SALIDA_LABEL: Record<HealthSalida, string> = {
   ahorro_inversion: 'Ahorro e Inversión',
@@ -64,11 +27,7 @@ export default function SaludFinanciera() {
   const { toast } = useToast();
   const { documents } = useUserDocuments();
 
-  const { data, isLoading, isError, error } = useQuery<HealthResponse>({
-    queryKey: ['health-evaluation'],
-    queryFn: () => apiRequest<HealthResponse>('GET', '/api/health-evaluation/me'),
-    retry: 1,
-  });
+  const { data, isLoading, isError, error } = useHealthEvaluation();
 
   const recalcMutation = useMutation({
     mutationFn: () => apiRequest<HealthResponse>('GET', '/api/health-evaluation/me'),

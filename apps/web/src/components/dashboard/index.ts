@@ -18,3 +18,5 @@ export { default as PatrimonioSidebar } from './PatrimonioSidebar';
 export { default as CreditScoreCard } from './CreditScoreCard';
 export { default as ActionCards } from './ActionCards';
 export { default as ScoreBreakdown } from './ScoreBreakdown';
+export { default as HealthSummaryCard } from './HealthSummaryCard';
+export { default as PlanSummaryCard } from './PlanSummaryCard';

@@ -15,6 +15,8 @@ import FlowDonut from "@/components/dashboard/FlowDonut";
 import SavingsProgress from "@/components/dashboard/SavingsProgress";
 import CategoryCard from "@/components/dashboard/CategoryCard";
 import CreditScoreCard from "@/components/dashboard/CreditScoreCard";
+import HealthSummaryCard from "@/components/dashboard/HealthSummaryCard";
+import PlanSummaryCard from "@/components/dashboard/PlanSummaryCard";
 import RiskScoreCard from "@/components/RiskScoreCard";
 import { FEATURES } from "@/config/features";
 import PatrimonioSidebar from "@/components/dashboard/PatrimonioSidebar";
@@ -258,8 +260,12 @@ export default function Dashboard() {
               {/* ── CAPA 1: HERO ─────────────────────────────────────── */}
 
               {FEATURES.riskDualScore ? (
-                /* Doble evaluador de riesgo: un titular + segunda opinión (subsume hero + credit card). */
-                <RiskScoreCard />
+                /* Doble evaluador de riesgo: un titular + segunda opinión (subsume hero + credit card).
+                   Card grande → el tile de salud va full-width debajo. */
+                <>
+                  <RiskScoreCard />
+                  <HealthSummaryCard />
+                </>
               ) : (
                 <>
                   {/* Score Hero */}
@@ -267,17 +273,20 @@ export default function Dashboard() {
                     <ScoreHero score={data.score} delta={data.scoreDelta} />
                   )}
 
-                  {/* Credit Score (CMF, separate from transactional score) */}
-                  <CreditScoreCard
-                    score={data.creditScore}
-                    available={data.creditScoreAvailable}
-                    unavailableReason={data.creditScoreUnavailableReason}
-                    message={data.creditScoreMessage}
-                    sourceLabel={data.creditScoreSource?.label ?? null}
-                    sourceUploadedAt={data.creditScoreSource?.uploadedAt ?? null}
-                    delta={data.creditScoreDelta}
-                    lastUpdated={data.creditScoreDate}
-                  />
+                  {/* Crediticio (CMF) | Salud financiera — lado a lado en sm+, apilados en mobile */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <CreditScoreCard
+                      score={data.creditScore}
+                      available={data.creditScoreAvailable}
+                      unavailableReason={data.creditScoreUnavailableReason}
+                      message={data.creditScoreMessage}
+                      sourceLabel={data.creditScoreSource?.label ?? null}
+                      sourceUploadedAt={data.creditScoreSource?.uploadedAt ?? null}
+                      delta={data.creditScoreDelta}
+                      lastUpdated={data.creditScoreDate}
+                    />
+                    <HealthSummaryCard />
+                  </div>
                 </>
               )}
 
@@ -305,17 +314,11 @@ export default function Dashboard() {
                 />
               )}
 
+              {/* Plan financiero — resumen 50/30/20 + metas */}
+              <PlanSummaryCard />
+
               {/* ── ACTION CARDS — Revenue bridge ────────────────────── */}
               <ActionCards data={data} />
-
-              {/* Text insights — natural-language observations */}
-              <DashboardTextInsights data={data} />
-
-              {/* Insight of the day */}
-              {data.insight && <InsightCard insight={data.insight} />}
-
-              {/* Referral — organic growth */}
-              <ReferralShareCard />
 
               {/* ── CAPA 2: FLUJO DEL PERÍODO ────────────────────────── */}
               <div className="space-y-4">
@@ -331,6 +334,12 @@ export default function Dashboard() {
                   goalAmount={data.savingsGoalAmount}
                 />
               </div>
+
+              {/* Text insights — natural-language observations */}
+              <DashboardTextInsights data={data} />
+
+              {/* Insight of the day */}
+              {data.insight && <InsightCard insight={data.insight} />}
 
               {/* ── CAPA 3: DETALLE EXPANDIBLE ───────────────────────── */}
               <div className="space-y-3">
@@ -353,6 +362,9 @@ export default function Dashboard() {
                   totalPatrimonioNeto={data.patrimonio.totalPatrimonioNeto}
                 />
               )}
+
+              {/* Referral — organic growth */}
+              <ReferralShareCard />
             </>
           )}
         </div>
