@@ -109,11 +109,13 @@ services:
         value: ""
       - key: COOKIE_CSRF_ENABLED
         value: false
-      # CSRF Origin/Referer check (CSRF-1). MANTENER false hasta validar; en "true"
-      # exige Origin/Referer allowlisted en mutaciones cookie-auth. Skip Bearer/
-      # empresas/auth-bootstrap/públicos/GET. Rollback: volver a false + redeploy.
+      # CSRF Origin/Referer check: ACTIVO y validado en producción (CSRF-2, ver
+      # docs/production-checkpoint.md). Exige Origin/Referer allowlisted en
+      # mutaciones cookie-auth; skip Bearer/empresas/auth-bootstrap/públicos/GET.
+      # Este valor DEBE reflejar producción: con "false" acá, un redeploy desde
+      # el blueprint apagaría el CSRF en silencio. Rollback: false + redeploy.
       - key: CSRF_ENFORCE
-        value: false
+        value: true
       # Email — REQUERIDO para 2FA OTP y reset de contraseña. Configura UN proveedor
       # (Resend preferido). Sin proveedor: 2FA falla cerrado (503) y forgot-password
       # no envía correo. Todos sync:false (set manual en el Dashboard, son secretos).
