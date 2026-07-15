@@ -1,9 +1,9 @@
 /**
  * Reconciliation Scoring
- * 
+ *
  * Calculates match scores between bank transactions and DTE documents.
  * Pure functions for testability.
- * 
+ *
  * SCORING BREAKDOWN:
  * - Amount exact match: 40 points
  * - Amount fuzzy match (within tolerance): 20 points
@@ -11,7 +11,7 @@
  * - Date proximity (within N days): 15-25 points
  * - RUT match: 30 points
  * - Reference/Folio match: 10 points (bonus)
- * 
+ *
  * MAX SCORE: 100 (without bonus)
  */
 
@@ -45,12 +45,9 @@ export interface MatchScore {
 /**
  * Calculate match score between a bank transaction and a DTE document
  */
-export function scoreMatch(
-  candidate: MatchCandidate,
-  options: ScoringOptions = {}
-): MatchScore {
+export function scoreMatch(candidate: MatchCandidate, options: ScoringOptions = {}): MatchScore {
   const { maxDateDiff = 7, amountTolerance = 0.05 } = options;
-  
+
   const matchedFields: string[] = [];
   let amountScore = 0;
   let dateScore = 0;
@@ -59,22 +56,22 @@ export function scoreMatch(
 
   // Amount matching (0-40 points)
   amountScore = scoreAmount(candidate.bankAmount, candidate.docAmount, amountTolerance);
-  if (amountScore > 0) matchedFields.push('amount');
+  if (amountScore > 0) matchedFields.push("amount");
 
   // Date matching (0-30 points)
   dateScore = scoreDate(candidate.bankDate, candidate.docDate, maxDateDiff);
-  if (dateScore > 0) matchedFields.push('date');
+  if (dateScore > 0) matchedFields.push("date");
 
   // Counterparty RUT matching (0-30 points)
   if (candidate.bankCounterpartyRut && candidate.docCounterpartyRut) {
     counterpartyScore = scoreRut(candidate.bankCounterpartyRut, candidate.docCounterpartyRut);
-    if (counterpartyScore > 0) matchedFields.push('counterparty');
+    if (counterpartyScore > 0) matchedFields.push("counterparty");
   }
 
   // Reference/Folio matching (0-10 bonus points)
   if (candidate.bankReference && candidate.docFolio) {
     referenceScore = scoreReference(candidate.bankReference, candidate.docFolio);
-    if (referenceScore > 0) matchedFields.push('reference');
+    if (referenceScore > 0) matchedFields.push("reference");
   }
 
   // Cap at 100
@@ -95,11 +92,7 @@ export function scoreMatch(
 /**
  * Score amount match
  */
-export function scoreAmount(
-  bankAmount: number,
-  docAmount: number,
-  tolerance: number
-): number {
+export function scoreAmount(bankAmount: number, docAmount: number, tolerance: number): number {
   if (bankAmount === docAmount) {
     return 40; // Exact match
   }
@@ -117,11 +110,7 @@ export function scoreAmount(
 /**
  * Score date proximity
  */
-export function scoreDate(
-  bankDate: string,
-  docDate: string,
-  maxDays: number
-): number {
+export function scoreDate(bankDate: string, docDate: string, maxDays: number): number {
   const bank = new Date(bankDate);
   const doc = new Date(docDate);
   const diffMs = Math.abs(bank.getTime() - doc.getTime());
@@ -147,8 +136,8 @@ export function scoreDate(
  */
 export function scoreRut(rut1: string, rut2: string): number {
   // Normalize RUTs (remove dots and dashes)
-  const normalize = (rut: string) => rut.replace(/[.\-]/g, '').toUpperCase();
-  
+  const normalize = (rut: string) => rut.replace(/[.-]/g, "").toUpperCase();
+
   if (normalize(rut1) === normalize(rut2)) {
     return 30;
   }

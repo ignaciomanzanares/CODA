@@ -27,17 +27,20 @@ describe("getCreditScoreAvailability", () => {
   });
 
   it("does not treat cartola uploads as a credit score source", async () => {
-    const result = await getCreditScoreAvailability("user-1", storageMock({
-      documentUploads: [{ id: "doc-cartola", tipo: "cartola", parseStatus: "success" }],
-      scoreDocumentUploads: [{ id: "score-cartola", tipo: "cartola", parseStatus: "success" }],
-      creditScore: {
-        score: 768,
-        maxScore: 850,
-        paymentHistory: "Excellent",
-        utilization: "Good",
-        ageOfCredit: "Good",
-      },
-    }));
+    const result = await getCreditScoreAvailability(
+      "user-1",
+      storageMock({
+        documentUploads: [{ id: "doc-cartola", tipo: "cartola", parseStatus: "success" }],
+        scoreDocumentUploads: [{ id: "score-cartola", tipo: "cartola", parseStatus: "success" }],
+        creditScore: {
+          score: 768,
+          maxScore: 850,
+          paymentHistory: "Excellent",
+          utilization: "Good",
+          ageOfCredit: "Good",
+        },
+      }),
+    );
 
     expect(result.available).toBe(false);
     expect(result.reason).toBe("missing_cmf_report");
@@ -45,9 +48,19 @@ describe("getCreditScoreAvailability", () => {
   });
 
   it("returns pending when a CMF report exists but no credit score row has been persisted", async () => {
-    const result = await getCreditScoreAvailability("user-1", storageMock({
-      documentUploads: [{ id: "cmf-doc", tipo: "cmf", parseStatus: "success", uploadedAt: "2026-06-20T10:00:00.000Z" }],
-    }));
+    const result = await getCreditScoreAvailability(
+      "user-1",
+      storageMock({
+        documentUploads: [
+          {
+            id: "cmf-doc",
+            tipo: "cmf",
+            parseStatus: "success",
+            uploadedAt: "2026-06-20T10:00:00.000Z",
+          },
+        ],
+      }),
+    );
 
     expect(result.available).toBe(false);
     expect(result.reason).toBe("cmf_score_pending");
@@ -55,17 +68,27 @@ describe("getCreditScoreAvailability", () => {
   });
 
   it("returns the credit score only when a successful CMF report exists", async () => {
-    const result = await getCreditScoreAvailability("user-1", storageMock({
-      documentUploads: [{ id: "cmf-doc", tipo: "cmf", parseStatus: "success", uploadedAt: "2026-06-20T10:00:00.000Z" }],
-      creditScore: {
-        score: 768,
-        maxScore: 850,
-        paymentHistory: "Excellent",
-        utilization: "Good",
-        ageOfCredit: "Good",
-        lastUpdated: "2026-06-20T10:01:00.000Z",
-      },
-    }));
+    const result = await getCreditScoreAvailability(
+      "user-1",
+      storageMock({
+        documentUploads: [
+          {
+            id: "cmf-doc",
+            tipo: "cmf",
+            parseStatus: "success",
+            uploadedAt: "2026-06-20T10:00:00.000Z",
+          },
+        ],
+        creditScore: {
+          score: 768,
+          maxScore: 850,
+          paymentHistory: "Excellent",
+          utilization: "Good",
+          ageOfCredit: "Good",
+          lastUpdated: "2026-06-20T10:01:00.000Z",
+        },
+      }),
+    );
 
     expect(result).toMatchObject({
       available: true,

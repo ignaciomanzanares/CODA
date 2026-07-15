@@ -9,10 +9,10 @@
  * fallback que `middleware/rateLimiter.ts`.
  */
 
-import { Queue } from 'bullmq';
-import { env } from '../env.js';
+import { Queue } from "bullmq";
+import { env } from "../env.js";
 
-export const DOCUMENT_QUEUE_NAME = 'document-upload';
+export const DOCUMENT_QUEUE_NAME = "document-upload";
 
 export interface DocumentUploadJobData {
   userId: string;
@@ -33,7 +33,7 @@ export const documentQueue: Queue<DocumentUploadJobData> | null = env.redisUrl
         // infraestructura (hiccup de Neon/Redis) → reintentar SÍ ayuda, y el pipeline es
         // idempotente (cartola duplicada por banco+período se reemplaza, no se duplica).
         attempts: 3,
-        backoff: { type: 'exponential', delay: 2000 },
+        backoff: { type: "exponential", delay: 2000 },
       },
     })
   : null;

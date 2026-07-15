@@ -22,14 +22,14 @@ import {
   transactions,
   bankConnections,
   eq,
-} from '../../db/index.js';
-import { decryptField, encryptField, needsReencryption } from './fieldEncryption.js';
-import { ENCRYPTED_COLUMNS } from './encryptedColumnsRegistry.js';
-import { logger } from '../../logger.js';
+} from "../../db/index.js";
+import { decryptField, encryptField, needsReencryption } from "./fieldEncryption.js";
+import { ENCRYPTED_COLUMNS } from "./encryptedColumnsRegistry.js";
+import { logger } from "../../logger.js";
 
 interface RotationTarget {
   name: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   table: any;
   idCol: string;
   cols: string[];
@@ -37,7 +37,7 @@ interface RotationTarget {
 
 // Exportado para que keyRotationCoverage.test.ts pueda verificar que cada tabla del registro
 // (encryptedColumnsRegistry.ts) está realmente wireada aquí, sin duplicar el mapeo en el test.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export const TABLES_BY_NAME: Record<string, any> = {
   users,
   document_uploads: documentUploads,
@@ -49,7 +49,7 @@ export const TABLES_BY_NAME: Record<string, any> = {
 };
 
 // PK de cada tabla — 'id' para todas salvo stored_blobs (PK 'key').
-const ID_COL_BY_NAME: Record<string, string> = { stored_blobs: 'key' };
+const ID_COL_BY_NAME: Record<string, string> = { stored_blobs: "key" };
 
 // TARGETS se construye desde ENCRYPTED_COLUMNS (registro único, compartido con storage.ts) para
 // que una columna cifrada nueva se rote automáticamente en cuanto se agrega al registro — así se
@@ -57,7 +57,7 @@ const ID_COL_BY_NAME: Record<string, string> = { stored_blobs: 'key' };
 export const TARGETS: RotationTarget[] = ENCRYPTED_COLUMNS.map(({ table, cols }) => ({
   name: table,
   table: TABLES_BY_NAME[table],
-  idCol: ID_COL_BY_NAME[table] ?? 'id',
+  idCol: ID_COL_BY_NAME[table] ?? "id",
   cols: [...cols],
 }));
 
@@ -73,17 +73,26 @@ export interface RotationResult {
  * Re-cifra con la llave ACTUAL todo valor que aún esté cifrado con la anterior.
  * No-op si FIELD_ENCRYPTION_KEY_PREV no está configurada (needsReencryption → false siempre).
  */
-export async function rotateEncryptionKey(opts?: { batchSize?: number; dryRun?: boolean }): Promise<RotationResult> {
+export async function rotateEncryptionKey(opts?: {
+  batchSize?: number;
+  dryRun?: boolean;
+}): Promise<RotationResult> {
   const batchSize = opts?.batchSize ?? 500;
   const dryRun = opts?.dryRun ?? false;
-  const result: RotationResult = { scanned: 0, reencryptedRows: 0, reencryptedFields: 0, perTable: {}, dryRun };
+  const result: RotationResult = {
+    scanned: 0,
+    reencryptedRows: 0,
+    reencryptedFields: 0,
+    perTable: {},
+    dryRun,
+  };
 
   for (const t of TARGETS) {
     let rows: Record<string, unknown>[] = [];
     try {
       rows = (await db.select().from(t.table)) as Record<string, unknown>[];
     } catch (e) {
-      logger.warn({ err: e, table: t.name }, '[keyRotation] tabla no accesible, se omite');
+      logger.warn({ err: e, table: t.name }, "[keyRotation] tabla no accesible, se omite");
       continue;
     }
     let tableRows = 0;
@@ -95,7 +104,7 @@ export async function rotateEncryptionKey(opts?: { batchSize?: number; dryRun?: 
       const updates: Record<string, string> = {};
       for (const col of t.cols) {
         const val = row[col];
-        if (typeof val === 'string' && val.length > 0 && needsReencryption(val)) {
+        if (typeof val === "string" && val.length > 0 && needsReencryption(val)) {
           if (!dryRun) updates[col] = encryptField(decryptField(val));
           tableFields++;
         }
@@ -107,7 +116,10 @@ export async function rotateEncryptionKey(opts?: { batchSize?: number; dryRun?: 
         tableRows++;
         pending++;
         if (pending >= batchSize) {
-          logger.info({ table: t.name, rows: tableRows, fields: tableFields }, '[keyRotation] lote procesado');
+          logger.info(
+            { table: t.name, rows: tableRows, fields: tableFields },
+            "[keyRotation] lote procesado",
+          );
           pending = 0;
         }
       }
@@ -116,9 +128,12 @@ export async function rotateEncryptionKey(opts?: { batchSize?: number; dryRun?: 
     result.perTable[t.name] = { rows: tableRows, fields: tableFields };
     result.reencryptedRows += tableRows;
     result.reencryptedFields += tableFields;
-    logger.info({ table: t.name, rows: tableRows, fields: tableFields, dryRun }, '[keyRotation] tabla completa');
+    logger.info(
+      { table: t.name, rows: tableRows, fields: tableFields, dryRun },
+      "[keyRotation] tabla completa",
+    );
   }
 
-  logger.info(result, '[keyRotation] rotación completa');
+  logger.info(result, "[keyRotation] rotación completa");
   return result;
 }

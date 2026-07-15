@@ -5,4 +5,7 @@ async function main() {
   process.stdout.write(JSON.stringify(fv));
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

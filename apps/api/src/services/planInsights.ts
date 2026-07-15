@@ -5,13 +5,7 @@ import { storage } from "../storage.js";
 import { buildFinancialContextForAssistant } from "./assistantContext.js";
 
 export type PlanRecommendationIcon =
-  | "trending"
-  | "landmark"
-  | "shield"
-  | "piggy"
-  | "target"
-  | "alert"
-  | "wallet";
+  "trending" | "landmark" | "shield" | "piggy" | "target" | "alert" | "wallet";
 
 export type PlanRecommendation = {
   id: string;
@@ -52,9 +46,7 @@ export async function buildPlanInsights(userId: string): Promise<{
   const expenseCount = Array.isArray(allExpenses) ? allExpenses.length : 0;
   const hasExpenses = expenseCount > 0;
   const hasFlow =
-    (ctx.monthlyIncome ?? 0) > 0 ||
-    (ctx.monthlyExpenses ?? 0) > 0 ||
-    (ctx.totalBalance ?? 0) !== 0;
+    (ctx.monthlyIncome ?? 0) > 0 || (ctx.monthlyExpenses ?? 0) > 0 || (ctx.totalBalance ?? 0) !== 0;
   const hasData = hasExpenses || hasFlow;
 
   const recommendations: PlanRecommendation[] = [];

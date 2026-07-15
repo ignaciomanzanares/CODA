@@ -27,17 +27,19 @@ import type { FeatureVector } from "./features.js";
  *   windowDays = 90
  */
 async function main() {
-  const outPath = process.argv[2] || path.join(process.cwd(), "server", "ml", "out", "synth_features.csv");
+  const outPath =
+    process.argv[2] || path.join(process.cwd(), "server", "ml", "out", "synth_features.csv");
   const nUsers = process.argv[3] ? parseInt(process.argv[3], 10) : 2000;
   const windowDays = process.argv[4] ? parseInt(process.argv[4], 10) : 90;
 
   // Force memory storage for this script
-  if (!process.env.USE_MEM_STORAGE) process.env.USE_MEM_STORAGE = '1';
+  if (!process.env.USE_MEM_STORAGE) process.env.USE_MEM_STORAGE = "1";
 
   // Dynamic imports after setting env
   const { ingestOpenBankingForUser } = await import("../jobs/ingest.js");
   const { buildUserFeatureVector } = await import("./features.js");
-  const { SyntheticChileanProvider, sampleProfile, sampleLabel } = await import("./syntheticChileanProvider.js");
+  const { SyntheticChileanProvider, sampleProfile, sampleLabel } =
+    await import("./syntheticChileanProvider.js");
   const { storage } = await import("../storage.js");
 
   await fs.promises.mkdir(path.dirname(outPath), { recursive: true });
@@ -90,25 +92,21 @@ async function main() {
       const profile = sampleProfile(userId);
       const label = sampleLabel(userId, profile);
 
-      const row = cols.map((c) => (fv[c] as number)).join(",") + "," + label + "\n";
+      const row = cols.map((c) => fv[c] as number).join(",") + "," + label + "\n";
       await fs.promises.appendFile(outPath, row, { encoding: "utf-8" });
 
       if (i % 25 === 0) {
-         
         console.log(`Generated ${i}/${nUsers} synthetic users...`);
       }
     } catch (e) {
-       
       console.error(`Failed for user ${userId}`, e);
     }
   }
 
-   
   console.log(`Synthetic training data written to ${outPath}`);
 }
 
 main().catch((e) => {
-   
   console.error(e);
   process.exit(1);
 });

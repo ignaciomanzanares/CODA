@@ -41,7 +41,7 @@ export default function TabsComponent({
                 "py-2 px-4 font-medium",
                 activeTab === tab.id
                   ? "text-primary border-b-2 border-primary"
-                  : "text-muted-foreground hover:text-primary"
+                  : "text-muted-foreground hover:text-primary",
               )}
               onClick={() => handleTabClick(tab.id)}
               type="button"
@@ -54,16 +54,19 @@ export default function TabsComponent({
       <div className="mt-4">
         {React.Children.map(children, (child) => {
           if (!React.isValidElement(child)) return null;
-          
+
           // Check if child has an id prop
           const childProps = child.props as { id?: string; className?: string };
-          
-          return React.cloneElement(child as React.ReactElement<{ id?: string; className?: string }>, {
-            className: cn(
-              childProps.className || "",
-              childProps.id === activeTab ? "block" : "hidden"
-            ),
-          });
+
+          return React.cloneElement(
+            child as React.ReactElement<{ id?: string; className?: string }>,
+            {
+              className: cn(
+                childProps.className || "",
+                childProps.id === activeTab ? "block" : "hidden",
+              ),
+            },
+          );
         })}
       </div>
     </div>

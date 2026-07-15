@@ -48,9 +48,9 @@ const PARSE_ERROR_MESSAGES: Record<string, { title: string; hint: string }> = {
   },
 };
 
-const PENDING_UPLOAD_KEY = 'coda:pending_upload';
+const PENDING_UPLOAD_KEY = "coda:pending_upload";
 
-const ALLOWED_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+const ALLOWED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/jpg", "image/webp"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 function toFileList(files: FileList | null): File[] {
@@ -60,34 +60,32 @@ function toFileList(files: FileList | null): File[] {
 
 /** Misma lógica que toFileList pero para un arreglo ya materializado (p. ej. drag-and-drop). */
 function filterValidFiles(files: readonly File[]): File[] {
-  return files.filter(
-    (f) => ALLOWED_TYPES.includes(f.type) && f.size <= MAX_FILE_SIZE
-  );
+  return files.filter((f) => ALLOWED_TYPES.includes(f.type) && f.size <= MAX_FILE_SIZE);
 }
 
 function validateFile(file: File): { valid: boolean; error?: string } {
   if (!ALLOWED_TYPES.includes(file.type)) {
     return {
       valid: false,
-      error: `Formato no permitido: ${file.type}. Formatos válidos: PDF, PNG, JPG, WEBP.`
+      error: `Formato no permitido: ${file.type}. Formatos válidos: PDF, PNG, JPG, WEBP.`,
     };
   }
-  
+
   if (file.size > MAX_FILE_SIZE) {
     const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
     return {
       valid: false,
-      error: `Archivo demasiado grande (${sizeMB} MB). Máximo: 10 MB.`
+      error: `Archivo demasiado grande (${sizeMB} MB). Máximo: 10 MB.`,
     };
   }
-  
+
   if (file.size < 1024) {
     return {
       valid: false,
-      error: 'Archivo demasiado pequeño. Puede estar vacío o corrupto.'
+      error: "Archivo demasiado pequeño. Puede estar vacío o corrupto.",
     };
   }
-  
+
   return { valid: true };
 }
 
@@ -122,28 +120,30 @@ export default function DocumentUploadCard() {
   const processFiles = useCallback(
     async (fileList: File[]) => {
       const validFiles = filterValidFiles(fileList);
-      
+
       // Client-side validation
       if (validFiles.length === 0) {
         // Check if files were rejected due to type or size
-        const rejectedFiles = Array.from(fileList).filter(f => !validFiles.includes(f));
+        const rejectedFiles = Array.from(fileList).filter((f) => !validFiles.includes(f));
         if (rejectedFiles.length > 0) {
           const firstRejected = rejectedFiles[0];
           const validation = validateFile(firstRejected);
           setError(validation.error || "Archivo no válido.");
         } else {
-          setError("No se seleccionó ningún archivo válido. Formatos: PDF, PNG, JPG, WEBP (máx 10 MB).");
+          setError(
+            "No se seleccionó ningún archivo válido. Formatos: PDF, PNG, JPG, WEBP (máx 10 MB).",
+          );
         }
         return;
       }
-      
+
       setError(null);
       setWarnings([]);
       setResult(null);
       setLoading(true);
       setProgressTotal(validFiles.length);
       let lastResult: DocumentUploadResult | null = null;
-      
+
       for (let i = 0; i < validFiles.length; i++) {
         setProgressCurrent(i + 1);
         setProgressStep("reading");
@@ -169,7 +169,7 @@ export default function DocumentUploadCard() {
             size: currentFile.size,
             lastModified: currentFile.lastModified,
             sourcePage: window.location.pathname,
-          })
+          }),
         );
         setPendingUploadBanner(null); // dismiss any stale banner
 
@@ -178,12 +178,12 @@ export default function DocumentUploadCard() {
           const res = await uploadDocument(currentFile);
           setProgressStep("scoring");
           lastResult = res;
-          
+
           // Handle warnings from server
           if (res.warnings && res.warnings.length > 0) {
             setWarnings(res.warnings);
           }
-          
+
           if (res.error) {
             sessionStorage.removeItem(PENDING_UPLOAD_KEY); // non-auth failure
             setError(res.error);
@@ -200,7 +200,8 @@ export default function DocumentUploadCard() {
           const apiData = e?.response?.data ?? e?.data;
           const errorCode: string | undefined = apiData?.error_code;
           const rawMessage: string =
-            apiData?.message ?? (e instanceof Error ? e.message : "Error al procesar el documento.");
+            apiData?.message ??
+            (e instanceof Error ? e.message : "Error al procesar el documento.");
 
           if (errorCode && PARSE_ERROR_MESSAGES[errorCode]) {
             const { title, hint } = PARSE_ERROR_MESSAGES[errorCode];
@@ -218,10 +219,14 @@ export default function DocumentUploadCard() {
         setProgressStep("done");
         setUploadResult({
           ...(lastResult.creditScore != null && { creditScore: lastResult.creditScore }),
-          ...(lastResult.transactionalScore != null && { transactionalScore: lastResult.transactionalScore }),
+          ...(lastResult.transactionalScore != null && {
+            transactionalScore: lastResult.transactionalScore,
+          }),
           ...(lastResult.mainInsights != null && { mainInsights: lastResult.mainInsights }),
           ...(lastResult.cmf?.rutDocumento && { documentRut: lastResult.cmf.rutDocumento }),
-          ...(lastResult.cmf?.deudaTotalVigente != null && { cmfDeudaTotalVigente: lastResult.cmf.deudaTotalVigente }),
+          ...(lastResult.cmf?.deudaTotalVigente != null && {
+            cmfDeudaTotalVigente: lastResult.cmf.deudaTotalVigente,
+          }),
         });
         if (lastResult.documentType === "cartola") {
           Analytics.documentUploaded("cartola");
@@ -234,7 +239,7 @@ export default function DocumentUploadCard() {
       }
       setLoading(false);
     },
-    [uploadDocument, setUploadResult]
+    [uploadDocument, setUploadResult],
   );
 
   const onDrop = useCallback(
@@ -245,7 +250,7 @@ export default function DocumentUploadCard() {
       const files = toFileList(e.dataTransfer.files);
       if (files.length) processFiles(files);
     },
-    [processFiles]
+    [processFiles],
   );
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -264,7 +269,7 @@ export default function DocumentUploadCard() {
       if (files.length) processFiles(files);
       e.target.value = "";
     },
-    [processFiles]
+    [processFiles],
   );
 
   const onSelectClick = useCallback(() => {
@@ -282,7 +287,8 @@ export default function DocumentUploadCard() {
           Documentos oficiales
         </CardTitle>
         <CardDescription>
-          Sube un Informe de Deudas CMF o una Cartola bancaria (PDF, PNG, JPG) para actualizar tu Score crediticio y transaccional.
+          Sube un Informe de Deudas CMF o una Cartola bancaria (PDF, PNG, JPG) para actualizar tu
+          Score crediticio y transaccional.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -294,8 +300,8 @@ export default function DocumentUploadCard() {
             <div className="flex-1">
               <p className="font-medium mb-1">Carga interrumpida</p>
               <p>
-                Tu carga de <strong>{pendingUploadBanner.filename}</strong> se interrumpió.
-                Vuelve a seleccionar el archivo para continuar.
+                Tu carga de <strong>{pendingUploadBanner.filename}</strong> se interrumpió. Vuelve a
+                seleccionar el archivo para continuar.
               </p>
             </div>
             <button
@@ -328,14 +334,14 @@ export default function DocumentUploadCard() {
           className={cn(
             "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
             drag ? "border-primary bg-primary/5" : "border-muted-foreground/30",
-            loading && "pointer-events-none opacity-80"
+            loading && "pointer-events-none opacity-80",
           )}
         >
           {loading ? (
             <div className="space-y-2">
               <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
               <p className="text-sm font-medium">
-                {progressStep ? STEPS[progressStep] ?? progressStep : "Procesando..."}
+                {progressStep ? (STEPS[progressStep] ?? progressStep) : "Procesando..."}
               </p>
               {progressTotal > 1 && (
                 <p className="text-xs text-muted-foreground">
@@ -356,12 +362,7 @@ export default function DocumentUploadCard() {
               <p className="text-sm text-muted-foreground mb-2">
                 Arrastra uno o más archivos aquí o haz clic para seleccionar
               </p>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={onSelectClick}
-                disabled={loading}
-              >
+              <Button type="button" variant="secondary" onClick={onSelectClick} disabled={loading}>
                 Seleccionar archivo
               </Button>
               <p className="text-xs text-muted-foreground mt-2">
@@ -402,59 +403,71 @@ export default function DocumentUploadCard() {
           </div>
         )}
 
-        {result && result.step === "done" && !result.error && result.detection_tier === "MEDIUM" && result.documentType === "cartola" && (
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
-            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="font-medium mb-1">
-                Detectamos como {result.detected_banco ?? "banco"} con{" "}
-                {result.banco_confidence != null
-                  ? `${Math.round(result.banco_confidence * 100)}%`
-                  : "baja"}{" "}
-                de confianza. Revisa antes de continuar.
-              </p>
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-amber-400 text-amber-800 hover:bg-amber-100"
-                onClick={() => {
-                  // CTA: transaction review — user can proceed after acknowledgment
-                  alert(
-                    "Revisa los movimientos extraídos en la sección de transacciones antes de usarlos para decisiones financieras."
-                  );
-                }}
-              >
-                <Eye className="h-3.5 w-3.5 mr-1" />
-                Revisar antes de continuar
-              </Button>
+        {result &&
+          result.step === "done" &&
+          !result.error &&
+          result.detection_tier === "MEDIUM" &&
+          result.documentType === "cartola" && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-medium mb-1">
+                  Detectamos como {result.detected_banco ?? "banco"} con{" "}
+                  {result.banco_confidence != null
+                    ? `${Math.round(result.banco_confidence * 100)}%`
+                    : "baja"}{" "}
+                  de confianza. Revisa antes de continuar.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-amber-400 text-amber-800 hover:bg-amber-100"
+                  onClick={() => {
+                    // CTA: transaction review — user can proceed after acknowledgment
+                    alert(
+                      "Revisa los movimientos extraídos en la sección de transacciones antes de usarlos para decisiones financieras.",
+                    );
+                  }}
+                >
+                  <Eye className="h-3.5 w-3.5 mr-1" />
+                  Revisar antes de continuar
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {result && result.step === "done" && !result.error && (
           <div className="space-y-3 rounded-lg border bg-card p-4">
-            <div className={cn(
-              "flex items-center gap-2",
-              result.detection_tier === "MEDIUM"
-                ? "text-amber-600 dark:text-amber-400"
-                : "text-emerald-600 dark:text-emerald-400"
-            )}>
+            <div
+              className={cn(
+                "flex items-center gap-2",
+                result.detection_tier === "MEDIUM"
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-emerald-600 dark:text-emerald-400",
+              )}
+            >
               <CheckCircle2 className="h-5 w-5" />
               <span className="font-medium">Datos procesados con éxito</span>
             </div>
             {result.documentType === "cmf_informe_deudas" && result.cmf && (
               <div className="text-sm space-y-1">
-                <p>Deuda total vigente: ${result.cmf.deudaTotalVigente.toLocaleString("es-CL")} CLP</p>
+                <p>
+                  Deuda total vigente: ${result.cmf.deudaTotalVigente.toLocaleString("es-CL")} CLP
+                </p>
                 <p>Deuda indirecta: ${result.cmf.deudaIndirecta.toLocaleString("es-CL")} CLP</p>
                 <p>Número de instituciones: {result.cmf.numeroInstituciones}</p>
                 {result.creditScore != null && (
-                  <p className="font-medium pt-1">Score crediticio actualizado: {result.creditScore} / 850</p>
+                  <p className="font-medium pt-1">
+                    Score crediticio actualizado: {result.creditScore} / 850
+                  </p>
                 )}
               </div>
             )}
             {result.documentType === "cartola" && result.transactionalScore != null && (
               <div className="text-sm space-y-1">
-                <p className="font-medium">Score transaccional: {result.transactionalScore} / 100</p>
+                <p className="font-medium">
+                  Score transaccional: {result.transactionalScore} / 100
+                </p>
                 {result.recommendedProducts && result.recommendedProducts.length > 0 && (
                   <p>Ofertas recomendadas: {result.recommendedProducts.join(", ")}</p>
                 )}

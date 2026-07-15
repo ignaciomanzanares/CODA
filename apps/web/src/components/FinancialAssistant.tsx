@@ -4,7 +4,6 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   MessageCircle,
@@ -96,8 +95,7 @@ const ACTION_ICONS: Record<string, React.ElementType> = {
 function getApiBase(): string {
   return (
     (typeof import.meta !== "undefined" &&
-      (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env
-        ?.VITE_API_URL) ||
+      (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL) ||
     ""
   );
 }
@@ -380,11 +378,7 @@ export default function FinancialAssistant({
                   content: last.content || msg,
                   isStreaming: false,
                   toolStatus: null,
-                  suggestions: [
-                    "Intenta de nuevo",
-                    "¿Cómo puedo ahorrar?",
-                    "Analiza mis gastos",
-                  ],
+                  suggestions: ["Intenta de nuevo", "¿Cómo puedo ahorrar?", "Analiza mis gastos"],
                 };
               }
               return updated;
@@ -514,9 +508,7 @@ export default function FinancialAssistant({
         {
           role: "assistant",
           content: bootstrapData.welcome,
-          suggestions: bootstrapData.chips?.length
-            ? bootstrapData.chips
-            : undefined,
+          suggestions: bootstrapData.chips?.length ? bootstrapData.chips : undefined,
           timestamp: new Date(),
         },
       ]);
@@ -536,9 +528,7 @@ export default function FinancialAssistant({
           <MessageCircle className="h-5 w-5" />
           <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-primary animate-pulse" />
         </div>
-        <span className="text-sm font-semibold whitespace-nowrap">
-          Asistente IA
-        </span>
+        <span className="text-sm font-semibold whitespace-nowrap">Asistente IA</span>
       </button>
     );
   }
@@ -556,9 +546,7 @@ export default function FinancialAssistant({
             <h3 className="font-semibold text-white">CODA AI</h3>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-              <p className="text-xs text-blue-100">
-                Asistente financiero · En línea
-              </p>
+              <p className="text-xs text-blue-100">Asistente financiero · En línea</p>
             </div>
           </div>
         </div>
@@ -606,21 +594,16 @@ export default function FinancialAssistant({
         <>
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-4">
-              {isAuthenticated &&
-                bootstrapLoading &&
-                messages.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                    <p className="text-sm">Cargando tu contexto financiero…</p>
-                  </div>
-                )}
+              {isAuthenticated && bootstrapLoading && messages.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                  <p className="text-sm">Cargando tu contexto financiero…</p>
+                </div>
+              )}
               {messages.map((message, index) => (
                 <div
                   key={index}
-                  className={cn(
-                    "flex gap-3",
-                    message.role === "user" && "flex-row-reverse",
-                  )}
+                  className={cn("flex gap-3", message.role === "user" && "flex-row-reverse")}
                 >
                   {/* Avatar */}
                   <div
@@ -678,32 +661,27 @@ export default function FinancialAssistant({
                     </div>
 
                     {/* Action Items */}
-                    {message.actionItems &&
-                      message.actionItems.length > 0 && (
-                        <div className="space-y-2 mt-2">
-                          {message.actionItems.map((item, i) => {
-                            const IconComp =
-                              (item.icon && ACTION_ICONS[item.icon]) ||
-                              Lightbulb;
-                            return (
-                              <Link key={i} href={item.link || "#"}>
-                                <div className="flex items-center gap-2 p-2.5 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors cursor-pointer border border-primary/10">
-                                  <IconComp className="h-4 w-4 text-primary flex-shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium">
-                                      {item.title}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground truncate">
-                                      {item.description}
-                                    </p>
-                                  </div>
-                                  <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                    {message.actionItems && message.actionItems.length > 0 && (
+                      <div className="space-y-2 mt-2">
+                        {message.actionItems.map((item, i) => {
+                          const IconComp = (item.icon && ACTION_ICONS[item.icon]) || Lightbulb;
+                          return (
+                            <Link key={i} href={item.link || "#"}>
+                              <div className="flex items-center gap-2 p-2.5 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors cursor-pointer border border-primary/10">
+                                <IconComp className="h-4 w-4 text-primary flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium">{item.title}</p>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {item.description}
+                                  </p>
                                 </div>
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      )}
+                                <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     {/* Suggestions */}
                     {message.suggestions &&
@@ -781,27 +759,21 @@ export default function FinancialAssistant({
           </ScrollArea>
 
           {/* Quick Insights — datos del usuario (calculados, no IA) */}
-          {isAuthenticated &&
-            insightsData?.insights?.length > 0 &&
-            messages.length === 1 && (
-              <div className="px-4 pb-2">
-                <p className="text-xs text-muted-foreground mb-2">
-                  Insights rápidos:
-                </p>
-                <div className="flex flex-col gap-1.5">
-                  {insightsData.insights
-                    .slice(0, 3)
-                    .map((insight: string, i: number) => (
-                      <div
-                        key={i}
-                        className="text-xs text-foreground/80 bg-muted/50 rounded-md px-3 py-1.5 leading-relaxed"
-                      >
-                        {insight}
-                      </div>
-                    ))}
-                </div>
+          {isAuthenticated && insightsData?.insights?.length > 0 && messages.length === 1 && (
+            <div className="px-4 pb-2">
+              <p className="text-xs text-muted-foreground mb-2">Insights rápidos:</p>
+              <div className="flex flex-col gap-1.5">
+                {insightsData.insights.slice(0, 3).map((insight: string, i: number) => (
+                  <div
+                    key={i}
+                    className="text-xs text-foreground/80 bg-muted/50 rounded-md px-3 py-1.5 leading-relaxed"
+                  >
+                    {insight}
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
+          )}
 
           {/* Input */}
           <form onSubmit={handleSubmit} className="p-3 border-t bg-muted/30">
@@ -811,16 +783,12 @@ export default function FinancialAssistant({
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder={
-                  isAuthenticated
-                    ? "Pregunta sobre tus finanzas…"
-                    : "Escribe tu pregunta…"
+                  isAuthenticated ? "Pregunta sobre tus finanzas…" : "Escribe tu pregunta…"
                 }
                 disabled={isLoading}
                 className="flex-1 border-0 shadow-none focus-visible:ring-0 bg-transparent px-0 text-sm"
                 onKeyDown={(e) =>
-                  e.key === "Enter" &&
-                  !e.shiftKey &&
-                  handleSubmit(e as unknown as React.FormEvent)
+                  e.key === "Enter" && !e.shiftKey && handleSubmit(e as unknown as React.FormEvent)
                 }
               />
               <Button
@@ -838,10 +806,7 @@ export default function FinancialAssistant({
             </div>
             {!isAuthenticated && (
               <p className="text-xs text-muted-foreground mt-2 text-center">
-                <Link
-                  href={ROUTES.iniciarSesion}
-                  className="text-primary hover:underline"
-                >
+                <Link href={ROUTES.iniciarSesion} className="text-primary hover:underline">
                   Inicia sesión
                 </Link>{" "}
                 para consejos personalizados basados en tus datos
@@ -855,9 +820,7 @@ export default function FinancialAssistant({
 
   // Embedded mode
   if (embedded) {
-    return (
-      <Card className="flex flex-col h-[500px]">{chatContent}</Card>
-    );
+    return <Card className="flex flex-col h-[500px]">{chatContent}</Card>;
   }
 
   // Floating mode
@@ -891,9 +854,7 @@ export function AssistantButton() {
         <Bot className="h-4 w-4" />
         Consultar asistente
       </Button>
-      {isOpen && (
-        <FinancialAssistant isOpen={isOpen} onClose={() => setIsOpen(false)} />
-      )}
+      {isOpen && <FinancialAssistant isOpen={isOpen} onClose={() => setIsOpen(false)} />}
     </>
   );
 }

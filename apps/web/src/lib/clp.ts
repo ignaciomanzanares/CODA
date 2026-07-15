@@ -18,10 +18,7 @@ export function parseCLP(input: string | number | null | undefined): number {
   if (input === null || input === undefined) return 0;
   if (typeof input === "number") return Number.isFinite(input) ? Math.round(input) : 0;
 
-  const s = String(input)
-    .trim()
-    .replace(/\$/g, "")
-    .replace(/\s/g, "");
+  const s = String(input).trim().replace(/\$/g, "").replace(/\s/g, "");
 
   if (!s) return 0;
 

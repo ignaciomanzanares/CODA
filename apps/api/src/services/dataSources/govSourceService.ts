@@ -2,9 +2,9 @@
  * Persistencia y agregación de las fuentes de datos gov (Fase 5). Guarda un dato por usuario+fuente
  * (upsert) y expone los ajustes que alimentan los ratios de salud financiera.
  */
-import { randomUUID } from 'crypto';
-import { db, userFinancialSources, eq } from '../../db/index.js';
-import type { GovParseResult } from './types.js';
+import { randomUUID } from "crypto";
+import { db, userFinancialSources, eq } from "../../db/index.js";
+import type { GovParseResult } from "./types.js";
 
 export async function saveGovSourceData(userId: string, r: GovParseResult): Promise<void> {
   const now = new Date().toISOString();
@@ -42,7 +42,10 @@ export interface GovSourceStatus {
 
 /** Fuentes conectadas por el usuario (para la UI de "Conecta tus datos"). */
 export async function getGovSources(userId: string): Promise<GovSourceStatus[]> {
-  const rows = await db.select().from(userFinancialSources).where(eq(userFinancialSources.userId, userId));
+  const rows = await db
+    .select()
+    .from(userFinancialSources)
+    .where(eq(userFinancialSources.userId, userId));
   return rows.map((r: any) => ({
     source: r.source,
     verifiedMonthlyIncomeClp: r.verifiedMonthlyIncomeClp ?? null,
@@ -67,9 +70,11 @@ export async function getGovSourceAdjustments(userId: string): Promise<{
   let siiIncome: number | null = null;
   let afpIncome: number | null = null;
   for (const r of rows) {
-    if (typeof r.fiscalDebtClp === 'number') fiscalDebtClp += r.fiscalDebtClp;
-    if (r.source === 'sii' && typeof r.verifiedMonthlyIncomeClp === 'number') siiIncome = r.verifiedMonthlyIncomeClp;
-    if (r.source === 'afp' && typeof r.verifiedMonthlyIncomeClp === 'number') afpIncome = r.verifiedMonthlyIncomeClp;
+    if (typeof r.fiscalDebtClp === "number") fiscalDebtClp += r.fiscalDebtClp;
+    if (r.source === "sii" && typeof r.verifiedMonthlyIncomeClp === "number")
+      siiIncome = r.verifiedMonthlyIncomeClp;
+    if (r.source === "afp" && typeof r.verifiedMonthlyIncomeClp === "number")
+      afpIncome = r.verifiedMonthlyIncomeClp;
   }
   return { fiscalDebtClp, verifiedMonthlyIncomeClp: siiIncome ?? afpIncome };
 }

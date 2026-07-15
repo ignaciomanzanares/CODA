@@ -25,7 +25,10 @@ import { FEATURES } from "@/config/features";
 
 const brandFeatures = [
   { icon: BarChart3, text: "Score crediticio dual basado en tus datos reales" },
-  { icon: Store, text: "Marketplace de productos financieros (créditos, tarjetas, depósitos, fondos)" },
+  {
+    icon: Store,
+    text: "Marketplace de productos financieros (créditos, tarjetas, depósitos, fondos)",
+  },
   { icon: Shield, text: "Diseñado bajo la normativa CMF y Ley Fintec" },
 ];
 
@@ -41,11 +44,17 @@ function BrandPanel({ isEmpresas }: { isEmpresas: boolean }) {
       <div className="absolute bottom-0 right-0 w-[300px] h-[300px] rounded-full bg-orange-500/10 blur-[80px] pointer-events-none" />
 
       {/* Logo — siempre lleva al inicio */}
-      <Link href="/" className="relative flex items-center gap-3 w-fit group" aria-label="Ir al inicio">
+      <Link
+        href="/"
+        className="relative flex items-center gap-3 w-fit group"
+        aria-label="Ir al inicio"
+      >
         <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
           <Wallet className="h-5 w-5 text-white" />
         </div>
-        <span className="text-xl font-bold tracking-tight group-hover:text-primary transition-colors">{brand}</span>
+        <span className="text-xl font-bold tracking-tight group-hover:text-primary transition-colors">
+          {brand}
+        </span>
       </Link>
 
       {/* Main copy */}
@@ -58,8 +67,8 @@ function BrandPanel({ isEmpresas }: { isEmpresas: boolean }) {
             </span>
           </h2>
           <p className="text-slate-400 leading-relaxed">
-            Diagnóstico financiero automatizado, score crediticio dual y
-            recomendaciones personalizadas basadas en tus datos reales.
+            Diagnóstico financiero automatizado, score crediticio dual y recomendaciones
+            personalizadas basadas en tus datos reales.
           </p>
         </div>
 
@@ -146,7 +155,10 @@ export default function Login() {
 
       if (result?.requires2FA) {
         setRequires2FA(true);
-        toast({ title: "Verificación requerida", description: "Se ha enviado un código a tu correo." });
+        toast({
+          title: "Verificación requerida",
+          description: "Se ha enviado un código a tu correo.",
+        });
         return;
       }
       toast({ title: "Sesión iniciada", description: "¡Bienvenido de nuevo!" });
@@ -244,7 +256,11 @@ export default function Login() {
       {/* Right: Form */}
       <div className="flex-1 lg:w-1/2 flex flex-col justify-center bg-background px-6 py-12 sm:px-12 lg:px-16">
         {/* Mobile logo — siempre lleva al inicio */}
-        <Link href="/" className="lg:hidden flex items-center gap-2 mb-10 w-fit" aria-label="Ir al inicio">
+        <Link
+          href="/"
+          className="lg:hidden flex items-center gap-2 mb-10 w-fit"
+          aria-label="Ir al inicio"
+        >
           <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center">
             <Wallet className="h-5 w-5 text-white" />
           </div>
@@ -263,7 +279,7 @@ export default function Login() {
                 ? `Ingresa el código enviado a ${email}`
                 : isEmpresas
                   ? "Accede a tu panel de empresas"
-                  : "¿No tienes cuenta? " }
+                  : "¿No tienes cuenta? "}
               {!requires2FA && !isEmpresas && (
                 <Link href={ROUTES.registro} className="text-primary hover:underline font-medium">
                   Crear cuenta gratis
@@ -273,7 +289,10 @@ export default function Login() {
           </div>
 
           {error && (
-            <div role="alert" className="rounded-xl border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+            <div
+              role="alert"
+              className="rounded-xl border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400"
+            >
               {error}
             </div>
           )}
@@ -296,12 +315,20 @@ export default function Login() {
               <div className="space-y-5">
                 <div className="rounded-xl border border-green-200 dark:border-green-500/20 bg-green-50 dark:bg-green-500/10 px-4 py-4 text-sm text-green-700 dark:text-green-400 space-y-1">
                   <p className="font-medium">Revisa tu correo</p>
-                  <p className="text-green-600 dark:text-green-400">Si el correo <strong>{forgotEmail}</strong> está registrado, recibirás las instrucciones para restablecer tu contraseña.</p>
+                  <p className="text-green-600 dark:text-green-400">
+                    Si el correo <strong>{forgotEmail}</strong> está registrado, recibirás las
+                    instrucciones para restablecer tu contraseña.
+                  </p>
                 </div>
                 <button
                   type="button"
                   className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-                  onClick={() => { setShowForgot(false); setForgotSent(false); setForgotEmail(""); setError(""); }}
+                  onClick={() => {
+                    setShowForgot(false);
+                    setForgotSent(false);
+                    setForgotEmail("");
+                    setError("");
+                  }}
                 >
                   <ArrowLeft className="h-3.5 w-3.5" /> Volver al inicio de sesión
                 </button>
@@ -313,7 +340,10 @@ export default function Login() {
                     Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.
                   </p>
                   <div className="space-y-1.5">
-                    <label htmlFor="forgot-email" className="block text-sm font-medium text-foreground">
+                    <label
+                      htmlFor="forgot-email"
+                      className="block text-sm font-medium text-foreground"
+                    >
                       Correo electrónico
                     </label>
                     <div className="relative">
@@ -323,7 +353,7 @@ export default function Login() {
                         type="email"
                         required
                         value={forgotEmail}
-                        onChange={e => setForgotEmail(e.target.value)}
+                        onChange={(e) => setForgotEmail(e.target.value)}
                         placeholder="tu@correo.cl"
                         disabled={forgotLoading}
                         className="flex h-11 w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
@@ -336,12 +366,22 @@ export default function Login() {
                   className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-semibold text-sm"
                   disabled={forgotLoading}
                 >
-                  {forgotLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...</> : "Enviar enlace"}
+                  {forgotLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando...
+                    </>
+                  ) : (
+                    "Enviar enlace"
+                  )}
                 </Button>
                 <button
                   type="button"
                   className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-                  onClick={() => { setShowForgot(false); setForgotEmail(""); setError(""); }}
+                  onClick={() => {
+                    setShowForgot(false);
+                    setForgotEmail("");
+                    setError("");
+                  }}
                 >
                   <ArrowLeft className="h-3.5 w-3.5" /> Volver
                 </button>
@@ -372,15 +412,38 @@ export default function Login() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-semibold" disabled={isLoading || otpCode.length !== 6}>
-                {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verificando...</> : "Verificar código"}
+              <Button
+                type="submit"
+                className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-semibold"
+                disabled={isLoading || otpCode.length !== 6}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verificando...
+                  </>
+                ) : (
+                  "Verificar código"
+                )}
               </Button>
 
               <div className="flex items-center justify-between">
-                <button type="button" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1" onClick={() => { setRequires2FA(false); setOtpCode(""); setError(""); }}>
+                <button
+                  type="button"
+                  className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+                  onClick={() => {
+                    setRequires2FA(false);
+                    setOtpCode("");
+                    setError("");
+                  }}
+                >
                   <ArrowLeft className="h-3.5 w-3.5" /> Volver
                 </button>
-                <button type="button" className="text-sm text-primary hover:underline flex items-center gap-1" onClick={handleResendCode} disabled={isLoading}>
+                <button
+                  type="button"
+                  className="text-sm text-primary hover:underline flex items-center gap-1"
+                  onClick={handleResendCode}
+                  disabled={isLoading}
+                >
                   <RefreshCw className="h-3.5 w-3.5" /> Reenviar código
                 </button>
               </div>
@@ -442,7 +505,11 @@ export default function Login() {
                 <button
                   type="button"
                   className="text-xs text-primary hover:underline"
-                  onClick={() => { setShowForgot(true); setForgotEmail(email); setError(""); }}
+                  onClick={() => {
+                    setShowForgot(true);
+                    setForgotEmail(email);
+                    setError("");
+                  }}
                 >
                   ¿Olvidaste tu contraseña?
                 </button>
@@ -454,7 +521,9 @@ export default function Login() {
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Iniciando sesión...</>
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Iniciando sesión...
+                  </>
                 ) : (
                   "Iniciar sesión"
                 )}
@@ -464,7 +533,10 @@ export default function Login() {
 
           {/* Footer links */}
           <div className="space-y-3 pt-2">
-            <Link href="/" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-gray-600">
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-gray-600"
+            >
               <ArrowLeft className="h-3.5 w-3.5" /> Volver al inicio
             </Link>
             {FEATURES.codaEmpresas && isEmpresas && (

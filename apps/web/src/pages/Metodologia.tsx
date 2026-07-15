@@ -9,13 +9,11 @@ export default function Metodologia() {
         <div className="w-16 h-16 rounded-2xl bg-orange-50 dark:bg-orange-950 flex items-center justify-center mx-auto">
           <BookOpen className="h-8 w-8 text-orange-600" />
         </div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Metodología de scoring
-        </h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Metodología de scoring</h1>
         <p className="text-gray-500 dark:text-slate-400 leading-relaxed">
-          Estamos preparando la publicación completa de nuestra metodología de scoring
-          crediticio y transaccional, basada en estándares CMF NCG 502 y la metodología
-          Hjelkrem 2022. Pronto disponible.
+          Estamos preparando la publicación completa de nuestra metodología de scoring crediticio y
+          transaccional, basada en estándares CMF NCG 502 y la metodología Hjelkrem 2022. Pronto
+          disponible.
         </p>
         <p className="text-sm text-gray-400 dark:text-slate-500">
           Si tienes preguntas sobre nuestros algoritmos, escríbenos a{" "}

@@ -6,8 +6,8 @@ export type FeatureVector = {
   txCount: number;
   debitCount: number;
   creditCount: number;
-  totalDebits: number;     // absolute sum of negative amounts
-  totalCredits: number;    // sum of positive amounts
+  totalDebits: number; // absolute sum of negative amounts
+  totalCredits: number; // sum of positive amounts
   avgAmount: number;
   stdAmount: number;
   activeDays: number;
@@ -15,24 +15,27 @@ export type FeatureVector = {
   incomeRegularity: number; // heuristic 0..1
   topCategoryShare: number; // max share by category (0..1)
   // DTI & liquidity/volatility extensions
-  monthlyIncome: number;     // inferred from credits per 30d
-  monthlyDebits: number;     // inferred from debits per 30d
-  dti: number;               // monthlyDebits / monthlyIncome
-  dtiCapped: number;         // capped dti for numerical stability
-  incomeTrend30_90: number;  // last 30d income / last 90d income
+  monthlyIncome: number; // inferred from credits per 30d
+  monthlyDebits: number; // inferred from debits per 30d
+  dti: number; // monthlyDebits / monthlyIncome
+  dtiCapped: number; // capped dti for numerical stability
+  incomeTrend30_90: number; // last 30d income / last 90d income
   netCashflowVolatility: number; // std(daily net) / (|mean daily net| + eps)
   recurringExpenseShare: number; // share of debits from recurring merchants
   // Window-invariant equivalents (#B): tasas por mes / shares en vez de conteos y totales
   // que escalan con windowDays. Permiten que un modelo entrenado a una ventana se sirva a otra
   // sin skew de escala. Superset: las features crudas de arriba se conservan para compatibilidad
   // con el artefacto actual (19 features); un artefacto nuevo elige el subset invariante por nombre.
-  txPerMonth: number;        // txCount / (windowDays/30)
-  debitPerMonth: number;     // debitCount / (windowDays/30)
-  creditPerMonth: number;    // creditCount / (windowDays/30)
-  activeDaysShare: number;   // activeDays / windowDays (0..1)
+  txPerMonth: number; // txCount / (windowDays/30)
+  debitPerMonth: number; // debitCount / (windowDays/30)
+  creditPerMonth: number; // creditCount / (windowDays/30)
+  activeDaysShare: number; // activeDays / windowDays (0..1)
 };
 
-export async function buildUserFeatureVector(userId: string, windowDays = 90): Promise<FeatureVector> {
+export async function buildUserFeatureVector(
+  userId: string,
+  windowDays = 90,
+): Promise<FeatureVector> {
   const accounts = await storage.getAccounts(userId);
   const to = new Date();
   const from = new Date();
@@ -42,27 +45,32 @@ export async function buildUserFeatureVector(userId: string, windowDays = 90): P
   for (const acc of accounts) {
     if (acc == null) continue;
     const accId = acc.id as number;
-    const part = await storage.getTransactions(accId, { from, to, limit: undefined, offset: undefined });
+    const part = await storage.getTransactions(accId, {
+      from,
+      to,
+      limit: undefined,
+      offset: undefined,
+    });
     txs = txs.concat(part.filter((t): t is Transaction => t != null));
   }
 
   // Basic stats
   const amounts = txs.map((t) => parseFloat(String(t?.amount ?? 0)));
-  const debitAmounts = amounts.filter(a => a < 0);
-  const creditAmounts = amounts.filter(a => a > 0);
+  const debitAmounts = amounts.filter((a) => a < 0);
+  const creditAmounts = amounts.filter((a) => a > 0);
 
   const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
   const mean = (arr: number[]) => (arr.length ? sum(arr) / arr.length : 0);
   const variance = (arr: number[]) => {
     if (!arr.length) return 0;
     const m = mean(arr);
-    return mean(arr.map(x => (x - m) ** 2));
+    return mean(arr.map((x) => (x - m) ** 2));
   };
 
   // Active days
   const dayKey = (d: Date) => d.toISOString().slice(0, 10);
   const activeDaySet = new Set(
-    txs.filter((t) => t?.postedAt).map((t) => dayKey(new Date(t.postedAt!)))
+    txs.filter((t) => t?.postedAt).map((t) => dayKey(new Date(t.postedAt!))),
   );
 
   // Category distribution
@@ -99,7 +107,13 @@ export async function buildUserFeatureVector(userId: string, windowDays = 90): P
   const from30 = new Date(toDate.getTime());
   from30.setDate(toDate.getDate() - 30);
   const credits30 = txs
-    .filter((t) => t != null && parseFloat(String(t?.amount ?? 0)) > 0 && t.postedAt && new Date(t.postedAt) >= from30)
+    .filter(
+      (t) =>
+        t != null &&
+        parseFloat(String(t?.amount ?? 0)) > 0 &&
+        t.postedAt &&
+        new Date(t.postedAt) >= from30,
+    )
     .map((t) => parseFloat(String(t?.amount ?? 0)));
   const income30 = sum(credits30);
   const income90 = totalCreditsSum;

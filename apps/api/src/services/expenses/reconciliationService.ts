@@ -1,22 +1,31 @@
 /**
  * Automatic Reconciliation Service
- * 
+ *
  * Detects deposits (abonos) that match pending bill split payments
  * and automatically marks them as paid + notifies the user.
- * 
+ *
  * Matching criteria:
  * 1. Amount match (exact or within tolerance)
  * 2. Time window (deposit within N days of split creation)
  * 3. Counterparty match (RUT or name similarity)
- * 
+ *
  * This implements the "Plan de transición" for expense automation
  * while SFA APIs become fully transactional.
  */
 
-import { db, billSplits, billSplitParticipants, notifications, eq, and, sql, desc } from '../../db/index.js';
-import { logger } from '../../logger.js';
-import type { CartolaMovement } from './cartolaParser.js';
-import type { ParsedNotification } from './notificationParser.js';
+import {
+  db,
+  billSplits,
+  billSplitParticipants,
+  notifications,
+  eq,
+  and,
+  sql,
+  desc,
+} from "../../db/index.js";
+import { logger } from "../../logger.js";
+import type { CartolaMovement } from "./cartolaParser.js";
+import type { ParsedNotification } from "./notificationParser.js";
 
 export interface ReconciliationMatch {
   participantId: number;
@@ -25,7 +34,7 @@ export interface ReconciliationMatch {
   participantName: string;
   amountOwed: number;
   depositAmount: number;
-  matchConfidence: number;   // 0-1
+  matchConfidence: number; // 0-1
   matchReason: string;
   autoReconciled: boolean;
 }
@@ -36,8 +45,8 @@ export interface ReconciliationResult {
   totalPending: number;
 }
 
-const AMOUNT_TOLERANCE_PERCENT = 0.02;   // 2% tolerance
-const AMOUNT_TOLERANCE_FIXED = 100;      // CLP 100 flat tolerance
+const AMOUNT_TOLERANCE_PERCENT = 0.02; // 2% tolerance
+const AMOUNT_TOLERANCE_FIXED = 100; // CLP 100 flat tolerance
 const RECONCILIATION_WINDOW_DAYS = 30;
 
 /**
@@ -73,15 +82,17 @@ function stringSimilarity(a: string, b: string): number {
 /**
  * Get all pending bill split participants for a user (as creator)
  */
-async function getPendingSplits(userId: string): Promise<Array<{
-  participantId: number;
-  billSplitId: number;
-  billSplitName: string;
-  participantName: string;
-  participantEmail: string | null;
-  amountOwed: number;
-  createdAt: string;
-}>> {
+async function getPendingSplits(userId: string): Promise<
+  Array<{
+    participantId: number;
+    billSplitId: number;
+    billSplitName: string;
+    participantName: string;
+    participantEmail: string | null;
+    amountOwed: number;
+    createdAt: string;
+  }>
+> {
   try {
     const results = await db
       .select({
@@ -98,16 +109,16 @@ async function getPendingSplits(userId: string): Promise<Array<{
       .where(
         and(
           eq(billSplits.createdBy, userId),
-          eq(billSplits.status, 'active'),
+          eq(billSplits.status, "active"),
           sql`(${billSplitParticipants.isPaid} = 0 OR ${billSplitParticipants.isPaid} IS NULL)`,
-          sql`${billSplitParticipants.userId} != ${userId}`
-        )
+          sql`${billSplitParticipants.userId} != ${userId}`,
+        ),
       )
       .orderBy(desc(billSplits.createdAt));
 
     return results;
   } catch (error) {
-    logger.error({ error, userId }, 'Failed to get pending splits');
+    logger.error({ error, userId }, "Failed to get pending splits");
     return [];
   }
 }
@@ -117,7 +128,13 @@ async function getPendingSplits(userId: string): Promise<Array<{
  */
 export async function reconcileDeposit(
   userId: string,
-  deposit: { amount: number; description: string; date: string; counterpartyName?: string; counterpartyRut?: string }
+  deposit: {
+    amount: number;
+    description: string;
+    date: string;
+    counterpartyName?: string;
+    counterpartyRut?: string;
+  },
 ): Promise<ReconciliationMatch[]> {
   const pendingSplits = await getPendingSplits(userId);
   if (pendingSplits.length === 0) return [];
@@ -131,12 +148,12 @@ export async function reconcileDeposit(
     // 1. Amount match (most important)
     if (amountsMatch(split.amountOwed, deposit.amount)) {
       confidence += 0.6;
-      reasons.push('Monto coincide');
+      reasons.push("Monto coincide");
 
       // Exact match gets extra confidence
       if (Math.abs(split.amountOwed - deposit.amount) < 1) {
         confidence += 0.1;
-        reasons.push('Monto exacto');
+        reasons.push("Monto exacto");
       }
     } else {
       continue; // Skip if amounts don't match at all
@@ -172,7 +189,7 @@ export async function reconcileDeposit(
         amountOwed: split.amountOwed,
         depositAmount: deposit.amount,
         matchConfidence: Math.min(confidence, 1),
-        matchReason: reasons.join(', '),
+        matchReason: reasons.join(", "),
         autoReconciled,
       });
     }
@@ -189,7 +206,7 @@ export async function reconcileDeposit(
  */
 export async function autoReconcileAndNotify(
   userId: string,
-  match: ReconciliationMatch
+  match: ReconciliationMatch,
 ): Promise<boolean> {
   try {
     // Mark participant as paid
@@ -204,10 +221,10 @@ export async function autoReconcileAndNotify(
     // Create notification for the creator
     await db.insert(notifications).values({
       userId,
-      title: '💰 Pago recibido',
-      message: `${match.participantName} pagó $${match.depositAmount.toLocaleString('es-CL')} por "${match.billSplitName}". Conciliación automática (${Math.round(match.matchConfidence * 100)}% confianza).`,
-      type: 'reconciliation',
-      category: 'bill_split',
+      title: "💰 Pago recibido",
+      message: `${match.participantName} pagó $${match.depositAmount.toLocaleString("es-CL")} por "${match.billSplitName}". Conciliación automática (${Math.round(match.matchConfidence * 100)}% confianza).`,
+      type: "reconciliation",
+      category: "bill_split",
       isRead: 0,
       actionUrl: `/bill-split`,
       metadata: JSON.stringify({
@@ -218,16 +235,19 @@ export async function autoReconcileAndNotify(
       }),
     });
 
-    logger.info({
-      userId,
-      billSplitId: match.billSplitId,
-      participantId: match.participantId,
-      confidence: match.matchConfidence,
-    }, 'Auto-reconciliation completed');
+    logger.info(
+      {
+        userId,
+        billSplitId: match.billSplitId,
+        participantId: match.participantId,
+        confidence: match.matchConfidence,
+      },
+      "Auto-reconciliation completed",
+    );
 
     return true;
   } catch (error) {
-    logger.error({ error, match }, 'Failed to auto-reconcile');
+    logger.error({ error, match }, "Failed to auto-reconcile");
     return false;
   }
 }
@@ -238,9 +258,9 @@ export async function autoReconcileAndNotify(
  */
 export async function reconcileCartolaMovements(
   userId: string,
-  movements: CartolaMovement[]
+  movements: CartolaMovement[],
 ): Promise<ReconciliationResult> {
-  const abonos = movements.filter(m => m.sfaOperationType === 'abono');
+  const abonos = movements.filter((m) => m.sfaOperationType === "abono");
   const allMatches: ReconciliationMatch[] = [];
   let totalReconciled = 0;
 
@@ -277,9 +297,9 @@ export async function reconcileCartolaMovements(
  */
 export async function reconcileNotification(
   userId: string,
-  notification: ParsedNotification
+  notification: ParsedNotification,
 ): Promise<ReconciliationMatch[]> {
-  if (notification.operationType !== 'abono') return [];
+  if (notification.operationType !== "abono") return [];
 
   return reconcileDeposit(userId, {
     amount: notification.amount,

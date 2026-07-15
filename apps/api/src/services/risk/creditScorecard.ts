@@ -7,16 +7,16 @@
  * Interpretable por diseño: cada feature aporta una contribución al logit, que se traduce en razones
  * de "adverse action" (por qué el score no es más alto). Mismo espíritu que `services/pdScoring.ts`.
  */
-import { CREDIT_SCORECARD, SCORE_MAPPING, FEATURE_LABELS } from './creditScorecard.config.js';
-import { categoriaFromScore } from '../../scoring/credit-score.js';
-import type { CmfFeatures } from './cmfDerivation.js';
+import { CREDIT_SCORECARD, SCORE_MAPPING, FEATURE_LABELS } from "./creditScorecard.config.js";
+import { categoriaFromScore } from "../../scoring/credit-score.js";
+import type { CmfFeatures } from "./cmfDerivation.js";
 
 export interface ScorecardReason {
   feature: string;
   label: string;
   /** Contribución al logit (coef·valor). Positiva = sube el riesgo (baja el score). */
   contribution: number;
-  direction: 'increases_risk' | 'reduces_risk';
+  direction: "increases_risk" | "reduces_risk";
 }
 
 export interface CreditScorecardResult {
@@ -48,11 +48,11 @@ const sigmoid = (z: number): number => 1 / (1 + Math.exp(-z));
 export function evaluateCreditScorecard(input: ScorecardInput): CreditScorecardResult {
   const { intercept, coefficients: c } = CREDIT_SCORECARD;
   const contribs: Array<{ feature: keyof ScorecardInput; contribution: number }> = [
-    { feature: 'mora30', contribution: c.mora30 * input.mora30 },
-    { feature: 'mora60', contribution: c.mora60 * input.mora60 },
-    { feature: 'mora90', contribution: c.mora90 * input.mora90 },
-    { feature: 'dti', contribution: c.dti * input.dti },
-    { feature: 'util', contribution: c.util * input.util },
+    { feature: "mora30", contribution: c.mora30 * input.mora30 },
+    { feature: "mora60", contribution: c.mora60 * input.mora60 },
+    { feature: "mora90", contribution: c.mora90 * input.mora90 },
+    { feature: "dti", contribution: c.dti * input.dti },
+    { feature: "util", contribution: c.util * input.util },
   ];
 
   const logit = intercept + contribs.reduce((s, x) => s + x.contribution, 0);
@@ -68,7 +68,7 @@ export function evaluateCreditScorecard(input: ScorecardInput): CreditScorecardR
       feature: x.feature,
       label: FEATURE_LABELS[x.feature] ?? x.feature,
       contribution: x.contribution,
-      direction: x.contribution > 0 ? 'increases_risk' : 'reduces_risk',
+      direction: x.contribution > 0 ? "increases_risk" : "reduces_risk",
     }));
 
   return {

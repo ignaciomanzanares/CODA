@@ -18,33 +18,33 @@
  *   npx tsx apps/api/scripts/migrate-demo-users.ts          # dry-run (solo reporta)
  *   npx tsx apps/api/scripts/migrate-demo-users.ts --apply  # aplica los UPDATE
  */
-import type { SQL } from 'drizzle-orm';
-import { db, dialect, sql } from '../src/db/index.js';
+import type { SQL } from "drizzle-orm";
+import { db, dialect, sql } from "../src/db/index.js";
 
 const TABLES_WITH_USER_ID = [
-  'bank_connections',
-  'financial_goals',
-  'expenses',
-  'bill_splits',
-  'notifications',
-  'push_subscriptions',
-  'consent_grants',
-  'document_uploads',
-  'user_scores',
-  'credit_score_history',
-  'assistant_feedback',
-  'assistant_summaries',
-  'habit_feedback',
-  'user_assets',
-  'transactional_scores',
-  'credit_scores',
+  "bank_connections",
+  "financial_goals",
+  "expenses",
+  "bill_splits",
+  "notifications",
+  "push_subscriptions",
+  "consent_grants",
+  "document_uploads",
+  "user_scores",
+  "credit_score_history",
+  "assistant_feedback",
+  "assistant_summaries",
+  "habit_feedback",
+  "user_assets",
+  "transactional_scores",
+  "credit_scores",
 ];
 
-const apply = process.argv.includes('--apply');
+const apply = process.argv.includes("--apply");
 
 /** SELECT dialect-aware: Postgres devuelve filas vía db.execute; SQLite vía db.all. */
 async function runSelect<T>(query: SQL): Promise<T[]> {
-  if (dialect === 'postgres') {
+  if (dialect === "postgres") {
     const res = await db.execute(query);
     // postgres-js drizzle devuelve un array-like de filas
     return (Array.isArray(res) ? res : (res?.rows ?? [])) as T[];
@@ -54,7 +54,7 @@ async function runSelect<T>(query: SQL): Promise<T[]> {
 
 /** Ejecuta una mutación dialect-aware. */
 async function runExec(query: SQL): Promise<void> {
-  if (dialect === 'postgres') {
+  if (dialect === "postgres") {
     await db.execute(query);
     return;
   }
@@ -64,7 +64,7 @@ async function runExec(query: SQL): Promise<void> {
 /** True solo si la tabla existe Y tiene columna `user_id` (filtra drift de esquema). */
 async function hasUserIdColumn(table: string): Promise<boolean> {
   try {
-    if (dialect === 'postgres') {
+    if (dialect === "postgres") {
       const rows = await runSelect<{ column_name: string }>(
         sql`SELECT column_name FROM information_schema.columns
             WHERE table_name = ${table} AND column_name = 'user_id'`,
@@ -75,7 +75,7 @@ async function hasUserIdColumn(table: string): Promise<boolean> {
     const rows = await runSelect<{ name: string }>(
       sql`SELECT name FROM pragma_table_info(${table})`,
     );
-    return rows.some((r) => r.name === 'user_id');
+    return rows.some((r) => r.name === "user_id");
   } catch {
     return false;
   }
@@ -110,9 +110,7 @@ async function migrateTable(
 
     const realId = candidates[0].id;
     if (applyChanges) {
-      await runExec(
-        sql`UPDATE ${t} SET user_id = ${realId} WHERE user_id = ${orphanId}`,
-      );
+      await runExec(sql`UPDATE ${t} SET user_id = ${realId} WHERE user_id = ${orphanId}`);
     }
     migrated += 1;
   }
@@ -121,7 +119,7 @@ async function migrateTable(
 }
 
 async function main() {
-  console.log(`[migrate-demo-users] dialect=${dialect} mode=${apply ? 'APPLY' : 'dry-run'}`);
+  console.log(`[migrate-demo-users] dialect=${dialect} mode=${apply ? "APPLY" : "dry-run"}`);
   let totalOrphans = 0;
   let totalMigrated = 0;
 
@@ -132,14 +130,14 @@ async function main() {
     totalMigrated += result.migrated;
     if (result.orphans > 0) {
       console.log(
-        `  ${result.table}: ${result.orphans} userId huérfano(s), ${result.migrated} ${apply ? 'migrado(s)' : 'migrable(s)'}` +
-          (result.ambiguous.length ? `, sin match único: ${result.ambiguous.join(', ')}` : ''),
+        `  ${result.table}: ${result.orphans} userId huérfano(s), ${result.migrated} ${apply ? "migrado(s)" : "migrable(s)"}` +
+          (result.ambiguous.length ? `, sin match único: ${result.ambiguous.join(", ")}` : ""),
       );
     }
   }
 
   console.log(
-    `[migrate-demo-users] total: ${totalOrphans} huérfanos, ${totalMigrated} ${apply ? 'migrados' : 'migrables (re-ejecuta con --apply)'}`,
+    `[migrate-demo-users] total: ${totalOrphans} huérfanos, ${totalMigrated} ${apply ? "migrados" : "migrables (re-ejecuta con --apply)"}`,
   );
 }
 
@@ -150,7 +148,7 @@ if (!process.env.VITEST) {
   main()
     .then(() => process.exit(0))
     .catch((err) => {
-      console.error('[migrate-demo-users] error:', err);
+      console.error("[migrate-demo-users] error:", err);
       process.exit(1);
     });
 }

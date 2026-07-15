@@ -57,15 +57,20 @@ export async function recategorizeUserTransactions(
     // categorizar. Tolera filas legacy en claro vía looksEncrypted.
     const rawDesc = row.description;
     const description = String(
-      typeof rawDesc === "string" && looksEncrypted(rawDesc) ? decryptField(rawDesc) : rawDesc ?? ""
+      typeof rawDesc === "string" && looksEncrypted(rawDesc)
+        ? decryptField(rawDesc)
+        : (rawDesc ?? ""),
     ).trim();
     if (!description) continue;
 
     // No pisar correcciones manuales del usuario (salvo force explícito).
-    if (!options.force && isManualCategory({
-      categoryRuleId: (row.categoryRuleId as string) ?? null,
-      categorizerVersion: (row.categorizerVersion as string) ?? null,
-    })) {
+    if (
+      !options.force &&
+      isManualCategory({
+        categoryRuleId: (row.categoryRuleId as string) ?? null,
+        categorizerVersion: (row.categorizerVersion as string) ?? null,
+      })
+    ) {
       skippedManual++;
       continue;
     }

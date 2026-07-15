@@ -61,10 +61,7 @@ async function main() {
   // db/index inicializa su conexión (evita el fallback a SQLite).
   const { db, documentUploads } = await import("../db/index.js");
 
-  const docs = await db
-    .select()
-    .from(documentUploads)
-    .where(eq(documentUploads.tipo, "cartola"));
+  const docs = await db.select().from(documentUploads).where(eq(documentUploads.tipo, "cartola"));
 
   console.log(`📄 ${docs.length} cartola(s) encontradas.`);
 
@@ -92,17 +89,22 @@ async function main() {
       bump(before, tx.category ?? "—");
 
       // Soporta formato nuevo (tipo/monto) y heredado (cargo/abono).
-      const tipo: "cargo" | "abono" =
-        tx.tipo ?? ((tx.abono ?? 0) > 0 ? "abono" : "cargo");
-      const monto =
-        tx.monto ?? ((tx.abono ?? 0) > 0 ? tx.abono ?? 0 : tx.cargo ?? 0);
+      const tipo: "cargo" | "abono" = tx.tipo ?? ((tx.abono ?? 0) > 0 ? "abono" : "cargo");
+      const monto = tx.monto ?? ((tx.abono ?? 0) > 0 ? (tx.abono ?? 0) : (tx.cargo ?? 0));
 
       // Honra la señal del adaptador de tarjeta (es_transferencia) además de la glosa.
-      const r = categorize({ descripcion: tx.descripcion, monto, tipo, internalTransfer: tx.es_transferencia === true });
+      const r = categorize({
+        descripcion: tx.descripcion,
+        monto,
+        tipo,
+        internalTransfer: tx.es_transferencia === true,
+      });
       // Las internas se PERSISTEN como 'Transferencia interna' (no el slug legacy
       // 'otro') para que isInternalTransferTx las excluya por `categoria`.
       const newCategoria =
-        r.category === 'Transferencia interna' ? 'Transferencia interna' : TAXONOMY[r.category].legacy;
+        r.category === "Transferencia interna"
+          ? "Transferencia interna"
+          : TAXONOMY[r.category].legacy;
 
       bump(after, r.category);
 
@@ -111,7 +113,7 @@ async function main() {
         tx.category_rule_id !== r.ruleId ||
         tx.categorizer_version !== r.version ||
         tx.categoria !== newCategoria ||
-        (r.category === 'Transferencia interna' && tx.es_transferencia !== true)
+        (r.category === "Transferencia interna" && tx.es_transferencia !== true)
       ) {
         const prevCategoria = tx.categoria;
         tx.categoria = newCategoria;
@@ -123,8 +125,9 @@ async function main() {
         tx.essential = r.essential;
         tx.recurring = r.recurring || tx.recurring === true;
         tx.excluded = r.excluded;
-        if (r.category === 'Transferencia interna') tx.es_transferencia = true;
-        if (prevCategoria === 'ingreso_principal' && newCategoria === 'Transferencia interna') ingresoToInterna++;
+        if (r.category === "Transferencia interna") tx.es_transferencia = true;
+        if (prevCategoria === "ingreso_principal" && newCategoria === "Transferencia interna")
+          ingresoToInterna++;
         docChanged = true;
         changedTx++;
       }
@@ -151,7 +154,7 @@ async function main() {
   const coverage = totalTx > 0 ? ((known / totalTx) * 100).toFixed(1) : "0.0";
   console.log(
     `\n✅ ${changedTx} tx actualizadas en ${changedDocs} documento(s).` +
-      ` Cobertura (no-"Otro"): ${coverage}%.`
+      ` Cobertura (no-"Otro"): ${coverage}%.`,
   );
   process.exit(0);
 }

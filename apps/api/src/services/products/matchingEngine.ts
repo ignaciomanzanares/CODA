@@ -1,9 +1,9 @@
 /**
  * Product Matching Engine
- * 
+ *
  * Calculates how well each financial product matches a user's profile
  * based on credit score, income, debt-to-income ratio, and transactional behavior.
- * 
+ *
  * Algorithm:
  * 1. Filter out ineligible products (hard requirements)
  * 2. Calculate match score (0-100) for each eligible product
@@ -11,11 +11,10 @@
  * 4. Return top N recommendations with explanations
  */
 
-import type { ProductCatalogItem } from './productCatalog.js';
-import { logger } from '../../logger.js';
+import type { ProductCatalogItem } from "./productCatalog.js";
 
 /** Versión del motor de matching (trazabilidad CMF / NCG 502). */
-export const PRODUCT_MATCHING_ENGINE_VERSION = 'v1.0.0';
+export const PRODUCT_MATCHING_ENGINE_VERSION = "v1.0.0";
 
 export interface UserProfile {
   userId: string;
@@ -56,31 +55,31 @@ export function getHealthProductPolicy(level: number): HealthProductPolicy {
   if (level <= -2) {
     return {
       preferredCategories: new Set(),
-      discouragedCategories: new Set(['savings', 'insurance']),
-      excludedCategories: new Set(['credit_cards', 'loans']),
+      discouragedCategories: new Set(["savings", "insurance"]),
+      excludedCategories: new Set(["credit_cards", "loans"]),
     };
   }
   // -1 (endeudado): la salida es refinanciar/consolidar. Préstamos sí (para consolidar),
   // pero NUNCA una tarjeta de crédito nueva (deuda revolvente que agrava la carga).
   if (level === -1) {
     return {
-      preferredCategories: new Set(['loans']),
-      discouragedCategories: new Set(['savings']),
-      excludedCategories: new Set(['credit_cards']),
+      preferredCategories: new Set(["loans"]),
+      discouragedCategories: new Set(["savings"]),
+      excludedCategories: new Set(["credit_cards"]),
     };
   }
   // 0 (sin deudas, sin excedente): refinanciamiento preventivo; sin sesgo fuerte.
   if (level === 0) {
     return {
-      preferredCategories: new Set(['loans']),
+      preferredCategories: new Set(["loans"]),
       discouragedCategories: new Set(),
       excludedCategories: new Set(),
     };
   }
   // >=1 (excedente para ahorrar/proteger): priorizar ahorro/seguro; no sumar deuda revolvente.
   return {
-    preferredCategories: new Set(['savings', 'insurance']),
-    discouragedCategories: new Set(['credit_cards']),
+    preferredCategories: new Set(["savings", "insurance"]),
+    discouragedCategories: new Set(["credit_cards"]),
     excludedCategories: new Set(),
   };
 }
@@ -93,23 +92,23 @@ export function getHealthProductPolicy(level: number): HealthProductPolicy {
  */
 export function productGroup(category: string): string {
   switch (category) {
-    case 'creditos_consumo':
-    case 'lineas_credito':
-    case 'creditos_hipotecarios':
-    case 'portabilidad':
-    case 'loans':
-      return 'loans';
-    case 'tarjetas_credito':
-    case 'credit_cards':
-      return 'credit_cards';
-    case 'cuentas_ahorro':
-    case 'depositos_plazo':
-    case 'fondos_mutuos':
-    case 'savings':
-      return 'savings';
-    case 'seguros':
-    case 'insurance':
-      return 'insurance';
+    case "creditos_consumo":
+    case "lineas_credito":
+    case "creditos_hipotecarios":
+    case "portabilidad":
+    case "loans":
+      return "loans";
+    case "tarjetas_credito":
+    case "credit_cards":
+      return "credit_cards";
+    case "cuentas_ahorro":
+    case "depositos_plazo":
+    case "fondos_mutuos":
+    case "savings":
+      return "savings";
+    case "seguros":
+    case "insurance":
+      return "insurance";
     default:
       return category;
   }
@@ -174,10 +173,10 @@ function evaluateProductMatch(
     if (userProfile.creditScore < product.minCreditScore) {
       isEligible = false;
       ineligibilityReasons.push(
-        `Score crediticio ${userProfile.creditScore} menor al requerido (${product.minCreditScore})`
+        `Score crediticio ${userProfile.creditScore} menor al requerido (${product.minCreditScore})`,
       );
     } else {
-      eligibilityReasons.push('Cumple requisito de score crediticio');
+      eligibilityReasons.push("Cumple requisito de score crediticio");
     }
   }
 
@@ -185,7 +184,7 @@ function evaluateProductMatch(
     if (userProfile.creditScore > product.maxCreditScore) {
       isEligible = false;
       ineligibilityReasons.push(
-        `Score crediticio ${userProfile.creditScore} supera el máximo (${product.maxCreditScore})`
+        `Score crediticio ${userProfile.creditScore} supera el máximo (${product.maxCreditScore})`,
       );
     }
   }
@@ -195,23 +194,27 @@ function evaluateProductMatch(
     if (userProfile.monthlyIncome < product.minIncome) {
       isEligible = false;
       ineligibilityReasons.push(
-        `Ingreso mensual menor al requerido (CLP ${product.minIncome.toLocaleString('es-CL')})`
+        `Ingreso mensual menor al requerido (CLP ${product.minIncome.toLocaleString("es-CL")})`,
       );
     } else {
-      eligibilityReasons.push('Cumple requisito de ingresos');
+      eligibilityReasons.push("Cumple requisito de ingresos");
     }
   }
 
   // Debt-to-income ratio check
-  if (product.maxDebtToIncome && userProfile.monthlyIncome && userProfile.monthlyDebt !== undefined) {
+  if (
+    product.maxDebtToIncome &&
+    userProfile.monthlyIncome &&
+    userProfile.monthlyDebt !== undefined
+  ) {
     const dti = userProfile.monthlyDebt / userProfile.monthlyIncome;
     if (dti > product.maxDebtToIncome) {
       isEligible = false;
       ineligibilityReasons.push(
-        `Ratio deuda/ingreso ${(dti * 100).toFixed(1)}% supera el máximo (${(product.maxDebtToIncome * 100).toFixed(0)}%)`
+        `Ratio deuda/ingreso ${(dti * 100).toFixed(1)}% supera el máximo (${(product.maxDebtToIncome * 100).toFixed(0)}%)`,
       );
     } else {
-      eligibilityReasons.push('Ratio deuda/ingreso saludable');
+      eligibilityReasons.push("Ratio deuda/ingreso saludable");
     }
   }
 
@@ -224,10 +227,10 @@ function evaluateProductMatch(
   if (healthPolicy?.excludedCategories.has(productGroup(product.category))) {
     isEligible = false;
     ineligibilityReasons.push(
-      'No recomendado para tu situación financiera actual: prioriza ordenar tu deuda antes de tomar un nuevo crédito.'
+      "No recomendado para tu situación financiera actual: prioriza ordenar tu deuda antes de tomar un nuevo crédito.",
     );
   } else if (healthPolicy?.preferredCategories.has(productGroup(product.category))) {
-    eligibilityReasons.push('Alineado con tu objetivo financiero actual');
+    eligibilityReasons.push("Alineado con tu objetivo financiero actual");
   }
 
   // Calculate match score (0-100) using product-specific weights
@@ -250,7 +253,7 @@ function evaluateProductMatch(
     eligibilityReasons,
     ineligibilityReasons,
     rankingScore,
-    explanation
+    explanation,
   };
 }
 
@@ -261,7 +264,7 @@ function calculateMatchScore(
   product: ProductCatalogItem,
   userProfile: UserProfile,
   isEligible: boolean,
-  healthPolicy: HealthProductPolicy | null = null
+  healthPolicy: HealthProductPolicy | null = null,
 ): number {
   // If not eligible, return low score
   if (!isEligible) return 0;
@@ -270,9 +273,9 @@ function calculateMatchScore(
   let weights = {
     creditScore: 0.35,
     income: 0.25,
-    debtToIncome: 0.20,
+    debtToIncome: 0.2,
     transactionalScore: 0.15,
-    profileComplete: 0.05
+    profileComplete: 0.05,
   };
 
   if (product.matchingWeights) {
@@ -302,7 +305,12 @@ function calculateMatchScore(
   }
 
   // Debt-to-income component (lower is better)
-  if (weights.debtToIncome > 0 && userProfile.monthlyIncome && userProfile.monthlyDebt !== undefined && product.maxDebtToIncome) {
+  if (
+    weights.debtToIncome > 0 &&
+    userProfile.monthlyIncome &&
+    userProfile.monthlyDebt !== undefined &&
+    product.maxDebtToIncome
+  ) {
     const dti = userProfile.monthlyDebt / userProfile.monthlyIncome;
     const dtiNormalized = Math.max(0, 100 - (dti / product.maxDebtToIncome) * 100);
     totalScore += dtiNormalized * weights.debtToIncome;
@@ -377,10 +385,10 @@ function calculateProfileCompleteness(userProfile: UserProfile): number {
     userProfile.monthlyIncome,
     userProfile.monthlyDebt,
     userProfile.age,
-    userProfile.employmentMonths
+    userProfile.employmentMonths,
   ];
 
-  fields.forEach(field => {
+  fields.forEach((field) => {
     total++;
     if (field !== undefined && field !== null) complete++;
   });
@@ -395,22 +403,22 @@ function generateExplanation(
   product: ProductCatalogItem,
   userProfile: UserProfile,
   matchScore: number,
-  isEligible: boolean
+  isEligible: boolean,
 ): string {
   if (!isEligible) {
-    return 'No cumples todos los requisitos de elegibilidad';
+    return "No cumples todos los requisitos de elegibilidad";
   }
 
   if (matchScore >= 80) {
-    return 'Excelente match - Altamente recomendado para tu perfil';
+    return "Excelente match - Altamente recomendado para tu perfil";
   }
   if (matchScore >= 60) {
-    return 'Buen match - Cumples los requisitos principales';
+    return "Buen match - Cumples los requisitos principales";
   }
   if (matchScore >= 40) {
-    return 'Match aceptable - Considera otras opciones también';
+    return "Match aceptable - Considera otras opciones también";
   }
-  return 'Match bajo - Revisa los requisitos cuidadosamente';
+  return "Match bajo - Revisa los requisitos cuidadosamente";
 }
 
 /**
@@ -426,7 +434,7 @@ export function getTopRecommendations(
   // Filter by category if specified
   let filteredProducts = products;
   if (category) {
-    filteredProducts = products.filter(p => p.category === category);
+    filteredProducts = products.filter((p) => p.category === category);
   }
 
   // Get all matches (#35: ponderados por conversión real cuando hay pesos)
@@ -439,7 +447,7 @@ export function getTopRecommendations(
     userProfile.creditScore !== undefined || userProfile.transactionalScore !== undefined;
   const scoreThreshold = hasRichProfile ? 30 : 0;
 
-  const eligibleMatches = matches.filter(m => m.isEligible && m.matchScore >= scoreThreshold);
+  const eligibleMatches = matches.filter((m) => m.isEligible && m.matchScore >= scoreThreshold);
 
   // Return top N
   return eligibleMatches.slice(0, limit);
@@ -458,26 +466,26 @@ export function explainRecommendation(match: ProductMatch): {
 
   // Add score-based reasons
   if (match.matchScore >= 80) {
-    reasons.push('Tu perfil financiero es ideal para este producto');
+    reasons.push("Tu perfil financiero es ideal para este producto");
   }
 
-  if (match.product.approvalRate && match.product.approvalRate >= 0.70) {
+  if (match.product.approvalRate && match.product.approvalRate >= 0.7) {
     reasons.push(`Alta tasa de aprobación (${(match.product.approvalRate * 100).toFixed(0)}%)`);
   }
 
   if (match.product.avgProcessingDays && match.product.avgProcessingDays <= 2) {
-    reasons.push('Aprobación rápida (1-2 días)');
+    reasons.push("Aprobación rápida (1-2 días)");
   }
 
   // Add warnings for marginal eligibility
   if (match.matchScore < 50) {
-    warnings.push('Tu perfil está en el límite de los requisitos');
+    warnings.push("Tu perfil está en el límite de los requisitos");
   }
 
   return {
     title: match.explanation,
     reasons,
-    warnings
+    warnings,
   };
 }
 
@@ -487,7 +495,7 @@ export function explainRecommendation(match: ProductMatch): {
 export function estimateDebtToIncome(
   monthlyIncome: number,
   monthlyExpenses: number,
-  existingDebts: number = 0
+  existingDebts: number = 0,
 ): number {
   const totalMonthlyDebt = monthlyExpenses + existingDebts;
   return totalMonthlyDebt / monthlyIncome;

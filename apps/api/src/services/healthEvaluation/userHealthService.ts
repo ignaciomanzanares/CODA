@@ -9,16 +9,16 @@
  * solo-lectura, pensada para enriquecer otras decisiones (recomendaciones, reglas, scores).
  */
 
-import { logger } from '../../logger.js';
-import { deriveHealthInput } from './ratiosDerivation.js';
-import { evaluateHealthV2 } from './evaluationEngine.js';
-import type { HealthEvaluationResult } from './types.js';
-import { buildUserRiskProfile, type UserRiskProfile } from '../risk/userRiskProfile.js';
+import { logger } from "../../logger.js";
+import { deriveHealthInput } from "./ratiosDerivation.js";
+import { evaluateHealthV2 } from "./evaluationEngine.js";
+import type { HealthEvaluationResult } from "./types.js";
+import { buildUserRiskProfile, type UserRiskProfile } from "../risk/userRiskProfile.js";
 
 // Re-export para compatibilidad con callers existentes (p. ej. debtRules/context.ts). La
 // implementación vive en risk/cmfDerivation.ts para evitar ciclos de import con el profile.
-export { normalizeCmfData, estimarCuotaMensual } from '../risk/cmfDerivation.js';
-import { estimarCuotaMensual } from '../risk/cmfDerivation.js';
+export { normalizeCmfData, estimarCuotaMensual } from "../risk/cmfDerivation.js";
+import { estimarCuotaMensual } from "../risk/cmfDerivation.js";
 
 /**
  * Deriva la salud financiera desde un `UserRiskProfile` ya construido. Devuelve `null` si faltan los
@@ -63,7 +63,7 @@ export async function evaluateUserHealth(userId: string): Promise<HealthEvaluati
     if (!profile) return null;
     return evaluateHealthFromProfile(profile);
   } catch (e) {
-    logger.warn({ err: e, userId }, '[userHealthService] evaluateUserHealth failed (non-fatal)');
+    logger.warn({ err: e, userId }, "[userHealthService] evaluateUserHealth failed (non-fatal)");
     return null;
   }
 }

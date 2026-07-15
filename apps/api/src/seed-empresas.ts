@@ -51,7 +51,13 @@ async function main() {
   for (let i = 0; i < companyIds.length; i++) {
     const companyId = companyIds[i];
     const base = companyId * 100;
-    const accountsToCreate: { bankName: string; accountNumber: string; accountType: "checking" | "savings" | "credit"; balance: number; txns?: { amount: number; description: string; category: string }[] }[] = [
+    const accountsToCreate: {
+      bankName: string;
+      accountNumber: string;
+      accountType: "checking" | "savings" | "credit";
+      balance: number;
+      txns?: { amount: number; description: string; category: string }[];
+    }[] = [
       {
         bankName: i === 0 ? "Banco Estado" : "Banco de Chile",
         accountNumber: String(base + 12345678),

@@ -8,17 +8,18 @@ describe("usePWAInstall platform detection", () => {
         userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15",
         platform: "iPhone",
         maxTouchPoints: 5,
-      })
+      }),
     ).toBe(true);
   });
 
   it("detecta iPadOS moderno aunque reporte plataforma MacIntel", () => {
     expect(
       isAppleMobilePlatform({
-        userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Safari/605.1.15",
+        userAgent:
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Safari/605.1.15",
         platform: "MacIntel",
         maxTouchPoints: 5,
-      })
+      }),
     ).toBe(true);
   });
 
@@ -28,7 +29,7 @@ describe("usePWAInstall platform detection", () => {
         userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126",
         platform: "MacIntel",
         maxTouchPoints: 0,
-      })
+      }),
     ).toBe(false);
   });
 
@@ -37,14 +38,14 @@ describe("usePWAInstall platform detection", () => {
       isStandalonePWA({
         navigator: { userAgent: "", platform: "", maxTouchPoints: 0, standalone: true },
         matchMedia: () => ({ matches: false }) as MediaQueryList,
-      })
+      }),
     ).toBe(true);
 
     expect(
       isStandalonePWA({
         navigator: { userAgent: "", platform: "", maxTouchPoints: 0 },
         matchMedia: () => ({ matches: true }) as MediaQueryList,
-      })
+      }),
     ).toBe(true);
   });
 });

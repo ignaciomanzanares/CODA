@@ -18,8 +18,8 @@
  * necesitar el usuario placeholder.
  */
 
-import { randomUUID } from 'crypto';
-import { eq, inArray } from 'drizzle-orm';
+import { randomUUID } from "crypto";
+import { eq, inArray } from "drizzle-orm";
 import {
   db,
   users,
@@ -60,10 +60,10 @@ import {
   productConversionEvents,
   auditLogs,
   userFinancialSources,
-} from '../../db/index.js';
-import { logger } from '../../logger.js';
+} from "../../db/index.js";
+import { logger } from "../../logger.js";
 
-const ANON_PLACEHOLDER = '[anonimizado]';
+const ANON_PLACEHOLDER = "[anonimizado]";
 
 /**
  * `algorithm_prediction_logs.user_id` tiene FK NOT NULL a `users.id` — no se puede apuntar a un id
@@ -71,7 +71,7 @@ const ANON_PLACEHOLDER = '[anonimizado]';
  * comparten esta única fila placeholder: muchos usuarios distintos terminan en el mismo `userId`
  * de log, por lo que ya no se puede saber a cuál de ellos correspondía una decisión puntual.
  */
-const ANONYMOUS_PLACEHOLDER_USER_ID = 'anon-placeholder-system-user';
+const ANONYMOUS_PLACEHOLDER_USER_ID = "anon-placeholder-system-user";
 
 async function ensureAnonymousPlaceholderUser(): Promise<void> {
   await db
@@ -87,7 +87,10 @@ async function ensureAnonymousPlaceholderUser(): Promise<void> {
 
 export async function anonymizeUser(userId: string): Promise<void> {
   // Cuentas bancarias del usuario → balances/transacciones cuelgan de accountId, no de userId.
-  const userAccounts = await db.select({ id: accounts.id }).from(accounts).where(eq(accounts.userId, userId));
+  const userAccounts = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.userId, userId));
   const accountIds = userAccounts.map((a: { id: number }) => a.id);
   if (accountIds.length > 0) {
     await db.delete(balances).where(inArray(balances.accountId, accountIds));
@@ -97,10 +100,15 @@ export async function anonymizeUser(userId: string): Promise<void> {
   await db.delete(bankConnections).where(eq(bankConnections.userId, userId));
 
   // Bill splits creados por el usuario → borrar también sus participantes.
-  const ownedSplits = await db.select({ id: billSplits.id }).from(billSplits).where(eq(billSplits.createdBy, userId));
+  const ownedSplits = await db
+    .select({ id: billSplits.id })
+    .from(billSplits)
+    .where(eq(billSplits.createdBy, userId));
   const ownedSplitIds = ownedSplits.map((s: { id: number }) => s.id);
   if (ownedSplitIds.length > 0) {
-    await db.delete(billSplitParticipants).where(inArray(billSplitParticipants.billSplitId, ownedSplitIds));
+    await db
+      .delete(billSplitParticipants)
+      .where(inArray(billSplitParticipants.billSplitId, ownedSplitIds));
   }
   await db.delete(billSplits).where(eq(billSplits.createdBy, userId));
   await db.delete(billSplitParticipants).where(eq(billSplitParticipants.userId, userId));
@@ -122,7 +130,9 @@ export async function anonymizeUser(userId: string): Promise<void> {
   await db.delete(scoreDocumentUploads).where(eq(scoreDocumentUploads.userId, userId));
   await db.delete(userScores).where(eq(userScores.userId, userId));
   // Correcciones de categoría del usuario (#31): contienen texto de comercios → se borran.
-  await db.delete(transactionCategoryCorrections).where(eq(transactionCategoryCorrections.userId, userId));
+  await db
+    .delete(transactionCategoryCorrections)
+    .where(eq(transactionCategoryCorrections.userId, userId));
   // Snapshots de recomendaciones de hábitos (#34): datos del usuario → se borran.
   await db.delete(habitRecommendationsLog).where(eq(habitRecommendationsLog.userId, userId));
 
@@ -151,11 +161,15 @@ export async function anonymizeUser(userId: string): Promise<void> {
   // Borrado inmediato de los originales (PDF/imagen) cifrados del blob store (#21): no esperar
   // al TTL de retención cuando el usuario cierra la cuenta.
   try {
-    const { deleteOriginalsForUser } = await import('../documents/originalStore.js');
+    const { deleteOriginalsForUser } = await import("../documents/originalStore.js");
     const n = await deleteOriginalsForUser(userId);
-    if (n > 0) logger.info({ userId, count: n }, 'Originales del usuario borrados (cierre de cuenta)');
+    if (n > 0)
+      logger.info({ userId, count: n }, "Originales del usuario borrados (cierre de cuenta)");
   } catch (e) {
-    logger.warn({ err: e, userId }, 'No se pudieron borrar los originales del usuario (continúo con la anonimización)');
+    logger.warn(
+      { err: e, userId },
+      "No se pudieron borrar los originales del usuario (continúo con la anonimización)",
+    );
   }
 
   // Trazabilidad NCG 502: se conserva la decisión (modelo/score), se desvincula y se borra la PII de entrada.
@@ -205,5 +219,5 @@ export async function anonymizeUser(userId: string): Promise<void> {
     })
     .where(eq(users.id, userId));
 
-  logger.info({ userId }, 'Account anonymized');
+  logger.info({ userId }, "Account anonymized");
 }

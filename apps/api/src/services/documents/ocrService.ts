@@ -1,20 +1,20 @@
 /**
  * OCR Service for Scanned Documents
- * 
+ *
  * Handles OCR (Optical Character Recognition) for:
  * - Scanned PDFs
  * - Image-based PDFs
  * - Image uploads (PNG, JPG, WEBP)
- * 
+ *
  * Uses Tesseract.js for Spanish language OCR.
- * 
+ *
  * @author AI Assistant (Cursor)
  * @date 2026-03-06
  */
 
-import { createWorker, createScheduler } from 'tesseract.js';
-import { Buffer } from 'buffer';
-import * as os from 'node:os';
+import { createWorker, createScheduler } from "tesseract.js";
+import { Buffer } from "buffer";
+import * as os from "node:os";
 // Carga diferida del módulo nativo `canvas`: solo se importa al usarse (preprocesamiento de
 // imagen para OCR), no al importar este archivo. Así tests/CI sin el binario nativo compilado
 // (build/Release/canvas.node) pueden importar este módulo sin romperse. La rasterización de
@@ -26,15 +26,18 @@ let _canvasMod: { createCanvas: any; loadImage: any } | null = null;
 async function getCanvas(): Promise<{ createCanvas: any; loadImage: any }> {
   if (_canvasMod) return _canvasMod;
   try {
-    const napi = await import('@napi-rs/canvas');
+    const napi = await import("@napi-rs/canvas");
     _canvasMod = { createCanvas: (napi as any).createCanvas, loadImage: (napi as any).loadImage };
   } catch {
-    const native = await import('canvas');
-    _canvasMod = { createCanvas: (native as any).createCanvas, loadImage: (native as any).loadImage };
+    const native = await import("canvas");
+    _canvasMod = {
+      createCanvas: (native as any).createCanvas,
+      loadImage: (native as any).loadImage,
+    };
   }
   return _canvasMod;
 }
-import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 
 // ============================================================================
 // TYPES
@@ -61,8 +64,11 @@ export interface OcrResult {
 // una vez y se reutiliza; los jobs se reparten entre los workers en paralelo. N se liga a los
 // cores disponibles (cap razonable para no agotar memoria con los modelos cargados).
 
-const OCR_POOL_LANGUAGE = 'spa';
-const OCR_POOL_SIZE = Math.max(1, Math.min(Number(process.env.OCR_POOL_SIZE) || os.cpus().length, 4));
+const OCR_POOL_LANGUAGE = "spa";
+const OCR_POOL_SIZE = Math.max(
+  1,
+  Math.min(Number(process.env.OCR_POOL_SIZE) || os.cpus().length, 4),
+);
 
 let _schedulerPromise: Promise<ReturnType<typeof createScheduler>> | null = null;
 
@@ -103,7 +109,7 @@ export async function shutdownOcrPool(): Promise<void> {
  */
 export async function performOcrOnImage(
   imageBuffer: Buffer,
-  language: string = 'spa' // Spanish
+  language: string = "spa", // Spanish
 ): Promise<OcrResult> {
   const startTime = Date.now();
 
@@ -130,11 +136,11 @@ export async function performOcrOnImage(
     }
 
     const scheduler = await getOcrScheduler();
-    const { data } = await scheduler.addJob('recognize', imageBuffer);
+    const { data } = await scheduler.addJob("recognize", imageBuffer);
     return toResult(data);
   } catch (error) {
-    console.error('[OCR] Error performing OCR:', error);
-    throw new Error('Error al procesar OCR. Intenta con un archivo más claro.');
+    console.error("[OCR] Error performing OCR:", error);
+    throw new Error("Error al procesar OCR. Intenta con un archivo más claro.");
   }
 }
 
@@ -165,7 +171,7 @@ async function rasterizeWithNapiCanvas(
   pageNumber: number,
   scale: number,
 ): Promise<Buffer> {
-  const { createCanvas: createNapiCanvas } = await import('@napi-rs/canvas');
+  const { createCanvas: createNapiCanvas } = await import("@napi-rs/canvas");
   const pdf = await pdfjs.getDocument({ data: new Uint8Array(pdfBuffer) }).promise;
   if (pageNumber > pdf.numPages) {
     throw new Error(`El PDF solo tiene ${pdf.numPages} página(s)`);
@@ -173,10 +179,10 @@ async function rasterizeWithNapiCanvas(
   const page = await pdf.getPage(pageNumber);
   const viewport = page.getViewport({ scale });
   const canvas = createNapiCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
-  const context = canvas.getContext('2d');
+  const context = canvas.getContext("2d");
   await page.render({ canvasContext: context as unknown as object, viewport } as any).promise;
-  const png = canvas.toBuffer('image/png');
-  if (!png || png.length === 0) throw new Error('@napi-rs/canvas devolvió un PNG vacío');
+  const png = canvas.toBuffer("image/png");
+  if (!png || png.length === 0) throw new Error("@napi-rs/canvas devolvió un PNG vacío");
   return png;
 }
 
@@ -189,10 +195,10 @@ async function rasterizeWithMupdf(
   // Specifier indirecto: mupdf trae sus tipos pero no resuelven bajo el
   // moduleResolution actual del proyecto. En runtime sí resuelve (lo cubre el
   // test). Evita tocar tsconfig globalmente.
-  const mupdfSpecifier = 'mupdf';
+  const mupdfSpecifier = "mupdf";
   const mupdfMod = await import(mupdfSpecifier);
   const mupdf: any = (mupdfMod as any).default ?? mupdfMod;
-  const doc = mupdf.Document.openDocument(new Uint8Array(pdfBuffer), 'application/pdf');
+  const doc = mupdf.Document.openDocument(new Uint8Array(pdfBuffer), "application/pdf");
   const pageCount = doc.countPages();
   if (pageNumber > pageCount) {
     throw new Error(`El PDF solo tiene ${pageCount} página(s)`);
@@ -200,7 +206,7 @@ async function rasterizeWithMupdf(
   const page = doc.loadPage(pageNumber - 1); // mupdf es 0-indexed
   const pixmap = page.toPixmap(mupdf.Matrix.scale(scale, scale), mupdf.ColorSpace.DeviceRGB, false);
   const png = Buffer.from(pixmap.asPNG());
-  if (!png || png.length === 0) throw new Error('mupdf devolvió un PNG vacío');
+  if (!png || png.length === 0) throw new Error("mupdf devolvió un PNG vacío");
   return png;
 }
 
@@ -217,7 +223,7 @@ export async function rasterizePdfPageToPng(
     return await rasterizeWithMupdf(pdfBuffer, pageNumber, scale);
   } catch (mupdfErr) {
     console.warn(
-      '[OCR] mupdf falló, reintentando con pdfjs+@napi-rs/canvas:',
+      "[OCR] mupdf falló, reintentando con pdfjs+@napi-rs/canvas:",
       mupdfErr instanceof Error ? mupdfErr.message : mupdfErr,
     );
     return await rasterizeWithNapiCanvas(pdfBuffer, pageNumber, scale);
@@ -229,15 +235,15 @@ export async function rasterizePdfPageToPng(
  */
 export async function performOcrOnPdfPage(
   pdfBuffer: Buffer,
-  pageNumber: number = 1
+  pageNumber: number = 1,
 ): Promise<OcrResult> {
   try {
     const imageBuffer = await rasterizePdfPageToPng(pdfBuffer, pageNumber);
     // Perform OCR on the rasterized page
     return await performOcrOnImage(imageBuffer);
   } catch (error) {
-    console.error('[OCR] Error processing PDF page:', error);
-    throw new Error('Error al extraer imagen del PDF para OCR.');
+    console.error("[OCR] Error processing PDF page:", error);
+    throw new Error("Error al extraer imagen del PDF para OCR.");
   }
 }
 
@@ -246,10 +252,10 @@ export async function performOcrOnPdfPage(
  */
 export async function performOcrOnFullPdf(
   pdfBuffer: Buffer,
-  maxPages: number = 10
+  maxPages: number = 10,
 ): Promise<OcrResult> {
   const startTime = Date.now();
-  
+
   try {
     // pdfjs-dist requires a Uint8Array (not a Node Buffer); copy to be safe.
     const loadingTask = pdfjs.getDocument({ data: new Uint8Array(pdfBuffer) });
@@ -258,7 +264,7 @@ export async function performOcrOnFullPdf(
     const pagesToProcess = Math.min(pdf.numPages, maxPages);
     const texts: string[] = [];
     const confidences: number[] = [];
-    
+
     // Resiliente por página: una página que no renderiza (incompatibilidad
     // pdfjs/canvas con ciertas imágenes) no debe abortar el OCR completo.
     for (let pageNum = 1; pageNum <= pagesToProcess; pageNum++) {
@@ -271,7 +277,7 @@ export async function performOcrOnFullPdf(
       }
     }
 
-    const combinedText = texts.join('\n\n');
+    const combinedText = texts.join("\n\n");
     const avgConfidence = confidences.length
       ? confidences.reduce((sum, c) => sum + c, 0) / confidences.length
       : 0;
@@ -283,8 +289,8 @@ export async function performOcrOnFullPdf(
       needsManualReview: avgConfidence < 0.7,
     };
   } catch (error) {
-    console.error('[OCR] Error processing full PDF:', error);
-    throw new Error('Error al procesar PDF con OCR.');
+    console.error("[OCR] Error processing full PDF:", error);
+    throw new Error("Error al procesar PDF con OCR.");
   }
 }
 
@@ -294,11 +300,11 @@ export async function performOcrOnFullPdf(
 export async function smartOcr(
   buffer: Buffer,
   extractedText: string,
-  mimeType: string
+  mimeType: string,
 ): Promise<{ text: string; usedOcr: boolean; ocrResult?: OcrResult }> {
   // If it's an image, always use OCR
-  if (mimeType.startsWith('image/')) {
-    console.log('[OCR] Image detected, using OCR...');
+  if (mimeType.startsWith("image/")) {
+    console.log("[OCR] Image detected, using OCR...");
     const ocrResult = await performOcrOnImage(buffer);
     return {
       text: ocrResult.text,
@@ -306,13 +312,13 @@ export async function smartOcr(
       ocrResult,
     };
   }
-  
+
   // If extracted text is too short, try OCR
   if (extractedText.length < 100) {
-    console.log('[OCR] Insufficient text extracted, attempting OCR...');
+    console.log("[OCR] Insufficient text extracted, attempting OCR...");
     try {
       const ocrResult = await performOcrOnPdfPage(buffer, 1);
-      
+
       // If OCR finds more text, use it
       if (ocrResult.text.length > extractedText.length) {
         return {
@@ -322,10 +328,10 @@ export async function smartOcr(
         };
       }
     } catch (error) {
-      console.error('[OCR] OCR failed, using original text:', error);
+      console.error("[OCR] OCR failed, using original text:", error);
     }
   }
-  
+
   // Use original extracted text
   return {
     text: extractedText,
@@ -347,28 +353,28 @@ export async function enhanceImageForOcr(imageBuffer: Buffer): Promise<Buffer> {
 
     // Create canvas with higher resolution
     const canvas = createCanvas(img.width * 1.5, img.height * 1.5);
-    const ctx = canvas.getContext('2d');
-    
+    const ctx = canvas.getContext("2d");
+
     // Draw with smoothing
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    
+
     // Apply simple contrast enhancement
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
-    
+
     const factor = 1.2; // Contrast multiplier
     for (let i = 0; i < data.length; i += 4) {
       data[i] = Math.min(255, data[i] * factor); // R
       data[i + 1] = Math.min(255, data[i + 1] * factor); // G
       data[i + 2] = Math.min(255, data[i + 2] * factor); // B
     }
-    
+
     ctx.putImageData(imageData, 0, 0);
-    
-    return canvas.toBuffer('image/png');
+
+    return canvas.toBuffer("image/png");
   } catch (error) {
-    console.error('[OCR] Error enhancing image:', error);
+    console.error("[OCR] Error enhancing image:", error);
     // Return original if enhancement fails
     return imageBuffer;
   }

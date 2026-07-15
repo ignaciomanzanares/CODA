@@ -18,7 +18,8 @@ export function generateReferralCode(userId: string): string {
 
 /** Build the full referral URL for sharing. */
 export function getReferralUrl(code: string): string {
-  const base = typeof window !== "undefined" ? window.location.origin : "https://www.codafinance.cl";
+  const base =
+    typeof window !== "undefined" ? window.location.origin : "https://www.codafinance.cl";
   return `${base}/registro?${REFERRAL_PARAM}=${encodeURIComponent(code)}`;
 }
 
@@ -45,7 +46,9 @@ export function getRefFromUrl(): string | null {
 export function storeReferralCode(code: string): void {
   try {
     sessionStorage.setItem(REFERRAL_STORAGE_KEY, code);
-  } catch { /* storage full / unavailable */ }
+  } catch {
+    /* storage full / unavailable */
+  }
 }
 
 /** Retrieve the stored referral code (used during signup). */
@@ -61,5 +64,7 @@ export function getStoredReferralCode(): string | null {
 export function clearStoredReferralCode(): void {
   try {
     sessionStorage.removeItem(REFERRAL_STORAGE_KEY);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }

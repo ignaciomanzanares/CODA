@@ -1,14 +1,14 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { db, sql, empresasCompanies } from '../../db/index.js';
-import type { AuthenticatedRequest } from '../../middleware/auth.js';
-import type { Response } from 'express';
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { db, sql, empresasCompanies } from "../../db/index.js";
+import type { AuthenticatedRequest } from "../../middleware/auth.js";
+import type { Response } from "express";
 import {
   resolveEmpresasUserId,
   isMember,
   listMemberCompanyIds,
   grantMembership,
   requireMembership,
-} from '../membership.js';
+} from "../membership.js";
 
 /**
  * #G: aislamiento multi-tenancy. El usuario A no puede acceder a la empresa del usuario B.
@@ -48,7 +48,7 @@ function fakeRes() {
   return r as Response & { statusCode: number; body: any };
 }
 
-describe('Empresas multi-tenancy (#G)', () => {
+describe("Empresas multi-tenancy (#G)", () => {
   const unique = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const emailA = `owner-a-${unique}@example.com`;
   const emailB = `intruder-b-${unique}@example.com`;
@@ -57,11 +57,11 @@ describe('Empresas multi-tenancy (#G)', () => {
   beforeAll(async () => {
     const [c] = await db
       .insert(empresasCompanies)
-      .values({ name: `ACME ${unique}`, rut: '76.000.000-0' })
+      .values({ name: `ACME ${unique}`, rut: "76.000.000-0" })
       .returning({ id: empresasCompanies.id });
     companyId = c.id;
     // A es dueño; B no tiene membresía.
-    await grantMembership(fakeReq(emailA), companyId, 'owner');
+    await grantMembership(fakeReq(emailA), companyId, "owner");
   });
 
   afterAll(async () => {
@@ -70,19 +70,19 @@ describe('Empresas multi-tenancy (#G)', () => {
     await db.run(sql`DELETE FROM empresas_users WHERE email IN (${emailA}, ${emailB})`);
   });
 
-  it('crea/resuelve empresas_user por email (puente SSO)', async () => {
+  it("crea/resuelve empresas_user por email (puente SSO)", async () => {
     const idA = await resolveEmpresasUserId(fakeReq(emailA));
     expect(idA).toBeTruthy();
     // Idempotente: segunda resolución devuelve el mismo id.
     expect(await resolveEmpresasUserId(fakeReq(emailA))).toBe(idA);
   });
 
-  it('el dueño A es miembro; el intruso B NO', async () => {
+  it("el dueño A es miembro; el intruso B NO", async () => {
     expect(await isMember(fakeReq(emailA), companyId)).toBe(true);
     expect(await isMember(fakeReq(emailB), companyId)).toBe(false);
   });
 
-  it('requireMembership responde 403 al intruso y deja pasar al dueño', async () => {
+  it("requireMembership responde 403 al intruso y deja pasar al dueño", async () => {
     const resB = fakeRes();
     const okB = await requireMembership(fakeReq(emailB), resB, companyId);
     expect(okB).toBe(false);
@@ -94,7 +94,7 @@ describe('Empresas multi-tenancy (#G)', () => {
     expect(resA.statusCode).toBe(0); // no escribió error
   });
 
-  it('listMemberCompanyIds solo devuelve las empresas del usuario', async () => {
+  it("listMemberCompanyIds solo devuelve las empresas del usuario", async () => {
     expect(await listMemberCompanyIds(fakeReq(emailA))).toContain(companyId);
     expect(await listMemberCompanyIds(fakeReq(emailB))).not.toContain(companyId);
   });

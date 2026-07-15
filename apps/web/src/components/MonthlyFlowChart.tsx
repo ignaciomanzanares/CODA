@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useApi } from "@/lib/api";
 import { useCurrency } from "@/lib/CurrencyContext";
-import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp } from "lucide-react";
@@ -44,7 +43,9 @@ function CustomTooltip({ active, payload, label }: any) {
       <p className="font-semibold text-foreground mb-1">{label}</p>
       <div className="flex justify-between gap-4">
         <span className="text-muted-foreground">Ingresos</span>
-        <span className="font-medium text-emerald-600 dark:text-emerald-400">{CLP.format(ingresos)}</span>
+        <span className="font-medium text-emerald-600 dark:text-emerald-400">
+          {CLP.format(ingresos)}
+        </span>
       </div>
       <div className="flex justify-between gap-4">
         <span className="text-muted-foreground">Egresos</span>
@@ -52,15 +53,21 @@ function CustomTooltip({ active, payload, label }: any) {
       </div>
       <div className="flex justify-between gap-4 border-t border-border pt-1 mt-1">
         <span className="text-muted-foreground">Balance</span>
-        <span className={`font-semibold ${balance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
-          {balance >= 0 ? "+" : ""}{CLP.format(balance)}
+        <span
+          className={`font-semibold ${balance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}
+        >
+          {balance >= 0 ? "+" : ""}
+          {CLP.format(balance)}
         </span>
       </div>
       {typeof balanceReal === "number" && balanceReal !== balance && (
         <div className="flex justify-between gap-4">
           <span className="text-muted-foreground">Balance real</span>
-          <span className={`font-semibold ${balanceReal >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
-            {balanceReal >= 0 ? "+" : ""}{CLP.format(balanceReal)}
+          <span
+            className={`font-semibold ${balanceReal >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}
+          >
+            {balanceReal >= 0 ? "+" : ""}
+            {CLP.format(balanceReal)}
           </span>
         </div>
       )}
@@ -115,15 +122,21 @@ export default function MonthlyFlowChart() {
           <div className="flex gap-3 text-xs text-muted-foreground">
             <span>
               Balance promedio:{" "}
-              <span className={`font-semibold ${avgBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
-                {avgBalance >= 0 ? "+" : ""}{CLP.format(avgBalance)}
+              <span
+                className={`font-semibold ${avgBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}
+              >
+                {avgBalance >= 0 ? "+" : ""}
+                {CLP.format(avgBalance)}
               </span>
             </span>
             {showRealBalance && (
               <span className="hidden sm:inline">
                 Real:{" "}
-                <span className={`font-semibold ${avgRealBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
-                  {avgRealBalance >= 0 ? "+" : ""}{CLP.format(avgRealBalance)}
+                <span
+                  className={`font-semibold ${avgRealBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}
+                >
+                  {avgRealBalance >= 0 ? "+" : ""}
+                  {CLP.format(avgRealBalance)}
                 </span>
               </span>
             )}
@@ -133,7 +146,12 @@ export default function MonthlyFlowChart() {
       </CardHeader>
       <CardContent className="pt-0">
         <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={months} barCategoryGap="30%" barGap={2} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+          <BarChart
+            data={months}
+            barCategoryGap="30%"
+            barGap={2}
+            margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
             <XAxis
               dataKey="label"
@@ -148,10 +166,13 @@ export default function MonthlyFlowChart() {
               tickFormatter={(v) => CLP.format(v)}
               width={58}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--muted))", radius: 6 }} />
+            <Tooltip
+              content={<CustomTooltip />}
+              cursor={{ fill: "hsl(var(--muted))", radius: 6 }}
+            />
             <Legend
               wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-              formatter={(value) => value === "ingresos" ? "Ingresos" : "Egresos"}
+              formatter={(value) => (value === "ingresos" ? "Ingresos" : "Egresos")}
             />
             <ReferenceLine y={0} stroke="hsl(var(--border))" />
             <Bar dataKey="ingresos" fill="hsl(142 71% 45%)" radius={[4, 4, 0, 0]} maxBarSize={40} />

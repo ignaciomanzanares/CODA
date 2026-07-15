@@ -60,15 +60,14 @@ export default class ErrorBoundary extends Component<Props, State> {
             <Button
               variant="outline"
               className="gap-2"
-              onClick={() => { window.location.href = "/panel"; }}
+              onClick={() => {
+                window.location.href = "/panel";
+              }}
             >
               <Home className="h-4 w-4" />
               Ir al panel
             </Button>
-            <Button
-              className="gap-2"
-              onClick={() => window.location.reload()}
-            >
+            <Button className="gap-2" onClick={() => window.location.reload()}>
               <RefreshCw className="h-4 w-4" />
               Recargar
             </Button>

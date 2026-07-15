@@ -10,10 +10,10 @@
  * Si una migración falla, se PROPAGA → el arranque aborta (fail-fast): mejor no
  * servir con un esquema incorrecto. Render reinicia y reintenta.
  */
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import postgres from 'postgres';
-import { logger } from '../logger.js';
+import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import postgres from "postgres";
+import { logger } from "../logger.js";
 
 /**
  * Busca el directorio `migrations/` subiendo desde el cwd (robusto a cwd=raíz o
@@ -23,8 +23,8 @@ import { logger } from '../logger.js';
 function findMigrationsDir(): string | null {
   let dir = process.cwd();
   for (let i = 0; i < 10; i++) {
-    const candidate = join(dir, 'migrations');
-    if (existsSync(candidate) && readdirSync(candidate).some((f) => f.endsWith('.sql'))) {
+    const candidate = join(dir, "migrations");
+    if (existsSync(candidate) && readdirSync(candidate).some((f) => f.endsWith(".sql"))) {
       return candidate;
     }
     const parent = dirname(dir);
@@ -36,13 +36,13 @@ function findMigrationsDir(): string | null {
 
 export async function runPendingMigrations(): Promise<void> {
   const url = process.env.DATABASE_URL;
-  if (!url || !url.startsWith('postgres')) {
-    logger.info('migrate-on-boot: DATABASE_URL no es Postgres → se omite');
+  if (!url || !url.startsWith("postgres")) {
+    logger.info("migrate-on-boot: DATABASE_URL no es Postgres → se omite");
     return;
   }
   const dir = findMigrationsDir();
   if (!dir) {
-    logger.warn('migrate-on-boot: no se encontró el directorio migrations/ → se omite');
+    logger.warn("migrate-on-boot: no se encontró el directorio migrations/ → se omite");
     return;
   }
 
@@ -57,14 +57,14 @@ export async function runPendingMigrations(): Promise<void> {
     const appliedRows = await sql<{ filename: string }[]>`SELECT filename FROM _migrations`;
     const applied = new Set(appliedRows.map((r) => r.filename));
     const files = readdirSync(dir)
-      .filter((f) => f.endsWith('.sql'))
+      .filter((f) => f.endsWith(".sql"))
       .sort();
 
     let n = 0;
     for (const file of files) {
       if (applied.has(file)) continue;
       logger.info(`migrate-on-boot: aplicando ${file}…`);
-      await sql.unsafe(readFileSync(join(dir, file), 'utf-8'));
+      await sql.unsafe(readFileSync(join(dir, file), "utf-8"));
       await sql`INSERT INTO _migrations (filename) VALUES (${file})`;
       n++;
     }

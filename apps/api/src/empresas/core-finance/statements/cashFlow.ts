@@ -1,15 +1,15 @@
 /**
  * Cash Flow Statement Generator
- * 
+ *
  * Generates cash flow statements using the direct method.
  * Categorizes cash movements into operating, investing, and financing.
- * 
+ *
  * ASSUMPTIONS:
  * - Direct method (uses actual cash transactions)
  * - Categories based on transaction descriptions and types
  */
 
-import type { CashFlowStatement, CashFlowSection, LineItem } from '../types.js';
+import type { CashFlowStatement, CashFlowSection, LineItem } from "../types.js";
 
 // =============================================================================
 // INPUT TYPES
@@ -32,33 +32,59 @@ export interface CashFlowOptions {
 // CASH FLOW CATEGORIZATION
 // =============================================================================
 
-type CashFlowCategory = 'operating' | 'investing' | 'financing';
+type CashFlowCategory = "operating" | "investing" | "financing";
 
 const CATEGORY_KEYWORDS: Record<CashFlowCategory, string[]> = {
   operating: [
-    'customer', 'client', 'payment', 'invoice', 'revenue', 'income',
-    'salary', 'payroll', 'rent', 'utilities', 'supplier', 'vendor',
-    'expense', 'service', 'subscription'
+    "customer",
+    "client",
+    "payment",
+    "invoice",
+    "revenue",
+    "income",
+    "salary",
+    "payroll",
+    "rent",
+    "utilities",
+    "supplier",
+    "vendor",
+    "expense",
+    "service",
+    "subscription",
   ],
   investing: [
-    'equipment', 'asset', 'investment', 'acquisition', 'property',
-    'software', 'license', 'capital', 'purchase fixed'
+    "equipment",
+    "asset",
+    "investment",
+    "acquisition",
+    "property",
+    "software",
+    "license",
+    "capital",
+    "purchase fixed",
   ],
   financing: [
-    'loan', 'credit', 'debt', 'dividend', 'equity', 'capital contribution',
-    'interest', 'repayment', 'borrowing'
+    "loan",
+    "credit",
+    "debt",
+    "dividend",
+    "equity",
+    "capital contribution",
+    "interest",
+    "repayment",
+    "borrowing",
   ],
 };
 
 function categorizeTransaction(txn: CashTransactionInput): CashFlowCategory {
   if (txn.category) {
-    if (['operating', 'investing', 'financing'].includes(txn.category)) {
+    if (["operating", "investing", "financing"].includes(txn.category)) {
       return txn.category as CashFlowCategory;
     }
   }
 
-  const desc = (txn.description || '').toLowerCase();
-  const type = (txn.transactionType || '').toLowerCase();
+  const desc = (txn.description || "").toLowerCase();
+  const type = (txn.transactionType || "").toLowerCase();
   const combined = `${desc} ${type}`;
 
   for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
@@ -70,7 +96,7 @@ function categorizeTransaction(txn: CashTransactionInput): CashFlowCategory {
   }
 
   // Default to operating
-  return 'operating';
+  return "operating";
 }
 
 // =============================================================================
@@ -84,11 +110,11 @@ export function generateCashFlowStatement(
   transactions: CashTransactionInput[],
   periodStart: string,
   periodEnd: string,
-  options: CashFlowOptions
+  options: CashFlowOptions,
 ): CashFlowStatement {
   // Filter by period
-  const periodTxns = transactions.filter(t =>
-    t.transactionDate >= periodStart && t.transactionDate <= periodEnd
+  const periodTxns = transactions.filter(
+    (t) => t.transactionDate >= periodStart && t.transactionDate <= periodEnd,
   );
 
   // Categorize transactions
@@ -99,13 +125,13 @@ export function generateCashFlowStatement(
   for (const txn of periodTxns) {
     const category = categorizeTransaction(txn);
     switch (category) {
-      case 'operating':
+      case "operating":
         operating.push(txn);
         break;
-      case 'investing':
+      case "investing":
         investing.push(txn);
         break;
-      case 'financing':
+      case "financing":
         financing.push(txn);
         break;
     }
@@ -139,13 +165,13 @@ function buildSection(transactions: CashTransactionInput[]): CashFlowSection {
   const byType = new Map<string, number>();
 
   for (const txn of transactions) {
-    const key = normalizeDescription(txn.description || txn.transactionType || 'Other');
+    const key = normalizeDescription(txn.description || txn.transactionType || "Other");
     const existing = byType.get(key) || 0;
     byType.set(key, existing + txn.amount);
   }
 
   const items: LineItem[] = Array.from(byType.entries()).map(([key, amount]) => ({
-    accountCode: '',
+    accountCode: "",
     accountName: key,
     amount,
   }));

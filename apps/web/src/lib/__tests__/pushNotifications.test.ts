@@ -14,7 +14,7 @@ describe("pushNotifications", () => {
       new Response(JSON.stringify({ success: true, devicesSent: 1 }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      })
+      }),
     );
 
     await expect(sendTestPush()).resolves.toEqual({ ok: true, devicesSent: 1 });
@@ -28,7 +28,7 @@ describe("pushNotifications", () => {
           "Content-Type": "application/json",
           "X-CSRF-Token": "csrf123",
         },
-      })
+      }),
     );
   });
 
@@ -37,7 +37,7 @@ describe("pushNotifications", () => {
       new Response(JSON.stringify({ success: true, devicesSent: 0 }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      })
+      }),
     );
 
     await expect(sendTestPush()).resolves.toEqual({ ok: true, devicesSent: 0 });

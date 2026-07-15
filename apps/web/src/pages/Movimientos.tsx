@@ -1,8 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearch } from "wouter";
 import {
-  ArrowLeftRight, Receipt, TrendingUp, TrendingDown,
-  Wallet, CreditCard, PiggyBank, BarChart3, Users, Info, CheckCircle2,
+  ArrowLeftRight,
+  Receipt,
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+  CreditCard,
+  PiggyBank,
+  BarChart3,
+  Users,
+  Info,
+  CheckCircle2,
 } from "lucide-react";
 import { PastelIcon } from "@/components/ui/pastel-icon";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -92,7 +101,8 @@ function AccountChip({
       <div className="min-w-0">
         <p className="text-[10px] text-muted-foreground leading-none mb-0.5">{label}</p>
         <p className={cn("text-sm font-semibold tabular-nums leading-none", color)}>
-          {sign}{CLP.format(Math.abs(amount))}
+          {sign}
+          {CLP.format(Math.abs(amount))}
         </p>
       </div>
     </div>
@@ -118,8 +128,7 @@ export default function Movimientos() {
   const initialTab = (params.get("tab") as TabId | null) ?? "transacciones";
 
   const markReviewed = useMutation({
-    mutationFn: () =>
-      apiFetch(`/api/user/documents/${reviewDocId}/review`, { method: "POST" }),
+    mutationFn: () => apiFetch(`/api/user/documents/${reviewDocId}/review`, { method: "POST" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/documents"] });
       toast({ title: "Movimientos marcados como revisados" });
@@ -204,12 +213,12 @@ export default function Movimientos() {
     : "Saldo al cierre de cartola";
 
   // Account chips: pull from financial-summary if available, fall back to tx summary
-  const hasAccounts = f && (f.checkingTotal || f.savingsTotal || f.creditCardDebt || f.investmentsTotal);
+  const hasAccounts =
+    f && (f.checkingTotal || f.savingsTotal || f.creditCardDebt || f.investmentsTotal);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-
         {/* Header */}
         <div className="flex items-center gap-3">
           <PastelIcon icon={ArrowLeftRight} color="blue" />
@@ -226,8 +235,8 @@ export default function Movimientos() {
           <div className="flex items-start gap-3 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/20 px-4 py-3">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground leading-snug">
-              <span className="font-medium text-foreground">Movimientos revisados.</span>{" "}
-              Esta importación ya fue marcada como revisada.
+              <span className="font-medium text-foreground">Movimientos revisados.</span> Esta
+              importación ya fue marcada como revisada.
             </p>
           </div>
         ) : fromReview ? (
@@ -235,9 +244,12 @@ export default function Movimientos() {
             <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground leading-snug">
-                <span className="font-medium text-foreground">Revisa los movimientos importados.</span>{" "}
+                <span className="font-medium text-foreground">
+                  Revisa los movimientos importados.
+                </span>{" "}
                 Confirma que las fechas, montos y descripciones estén correctos. Si algo se ve raro,
-                puedes eliminar el documento y subir una cartola digital directamente desde tu banco.
+                puedes eliminar el documento y subir una cartola digital directamente desde tu
+                banco.
               </p>
               {reviewDoc?.reviewStatus === "required" && (
                 <Button
@@ -267,32 +279,68 @@ export default function Movimientos() {
             {hasAccounts ? (
               <>
                 {(f!.checkingTotal ?? 0) > 0 && (
-                  <AccountChip label="Cuenta corriente" amount={f!.checkingTotal!} icon={Wallet} color="text-blue-600 dark:text-blue-400" />
+                  <AccountChip
+                    label="Cuenta corriente"
+                    amount={f!.checkingTotal!}
+                    icon={Wallet}
+                    color="text-blue-600 dark:text-blue-400"
+                  />
                 )}
                 {(f!.savingsTotal ?? 0) > 0 && (
-                  <AccountChip label="Ahorro" amount={f!.savingsTotal!} icon={PiggyBank} color="text-emerald-600 dark:text-emerald-400" />
+                  <AccountChip
+                    label="Ahorro"
+                    amount={f!.savingsTotal!}
+                    icon={PiggyBank}
+                    color="text-emerald-600 dark:text-emerald-400"
+                  />
                 )}
                 {(f!.investmentsTotal ?? 0) > 0 && (
-                  <AccountChip label="Inversiones" amount={f!.investmentsTotal!} icon={BarChart3} color="text-violet-600 dark:text-violet-400" />
+                  <AccountChip
+                    label="Inversiones"
+                    amount={f!.investmentsTotal!}
+                    icon={BarChart3}
+                    color="text-violet-600 dark:text-violet-400"
+                  />
                 )}
                 {(f!.creditCardDebt ?? 0) > 0 && (
-                  <AccountChip label="Tarjeta crédito" amount={f!.creditCardDebt!} icon={CreditCard} color="text-red-500 dark:text-red-400" negative />
+                  <AccountChip
+                    label="Tarjeta crédito"
+                    amount={f!.creditCardDebt!}
+                    icon={CreditCard}
+                    color="text-red-500 dark:text-red-400"
+                    negative
+                  />
                 )}
               </>
             ) : s && s.transactionCount > 0 ? (
               <>
-                <AccountChip label="Ingresos" amount={s.totalIncome} icon={TrendingUp} color="text-emerald-600 dark:text-emerald-400" />
-                <AccountChip label="Egresos" amount={s.totalExpenses} icon={TrendingDown} color="text-red-500 dark:text-red-400" negative />
+                <AccountChip
+                  label="Ingresos"
+                  amount={s.totalIncome}
+                  icon={TrendingUp}
+                  color="text-emerald-600 dark:text-emerald-400"
+                />
+                <AccountChip
+                  label="Egresos"
+                  amount={s.totalExpenses}
+                  icon={TrendingDown}
+                  color="text-red-500 dark:text-red-400"
+                  negative
+                />
                 {s.currentBalance !== null && (
                   <AccountChip
                     label={balanceLabel}
                     amount={s.currentBalance}
                     icon={Wallet}
-                    color={s.currentBalance >= 0 ? "text-blue-600 dark:text-blue-400" : "text-orange-500"}
+                    color={
+                      s.currentBalance >= 0 ? "text-blue-600 dark:text-blue-400" : "text-orange-500"
+                    }
                   />
                 )}
                 <div className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 shrink-0">
-                  <span className="text-xs text-muted-foreground">{s.transactionCount} transacciones</span>
+                  <span className="text-xs text-muted-foreground">
+                    {s.transactionCount} transacciones
+                  </span>
                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                     {s.documentCount} cartola{s.documentCount !== 1 ? "s" : ""}
                   </Badge>
@@ -326,12 +374,14 @@ export default function Movimientos() {
 
         {/* Tab content */}
         {activeTab === "transacciones" && (
-          <ParsedTransactionsTable mode="movimientos" initialCategory={initialCategory} initialReviewOnly={initialReviewOnly} />
+          <ParsedTransactionsTable
+            mode="movimientos"
+            initialCategory={initialCategory}
+            initialReviewOnly={initialReviewOnly}
+          />
         )}
 
-        {activeTab === "dividir" && (
-          <BillSplit embedded />
-        )}
+        {activeTab === "dividir" && <BillSplit embedded />}
       </div>
     </div>
   );

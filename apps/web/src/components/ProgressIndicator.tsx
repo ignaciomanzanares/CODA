@@ -1,7 +1,7 @@
 interface ProgressStep {
   id: number;
   label: string;
-  state: 'locked' | 'active' | 'done';
+  state: "locked" | "active" | "done";
 }
 
 interface ProgressIndicatorProps {
@@ -14,8 +14,8 @@ export default function ProgressIndicator({ steps, onSelect }: ProgressIndicator
     <div className="mb-8">
       <div className="flex items-center">
         {steps.map((step, index) => {
-          const isEnabled = step.state !== 'locked';
-          const isActiveOrDone = step.state === 'active' || step.state === 'done';
+          const isEnabled = step.state !== "locked";
+          const isActiveOrDone = step.state === "active" || step.state === "done";
           return (
             <div key={step.id} className="flex items-center">
               <div className="relative">
@@ -24,9 +24,9 @@ export default function ProgressIndicator({ steps, onSelect }: ProgressIndicator
                   disabled={!isEnabled}
                   onClick={() => isEnabled && onSelect?.(step.id)}
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors
-                    ${isEnabled ? 'bg-primary hover:brightness-110' : 'bg-muted text-muted-foreground'}`}
+                    ${isEnabled ? "bg-primary hover:brightness-110" : "bg-muted text-muted-foreground"}`}
                 >
-                  {step.state === 'done' ? (
+                  {step.state === "done" ? (
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       className="h-5 w-5"
@@ -45,7 +45,7 @@ export default function ProgressIndicator({ steps, onSelect }: ProgressIndicator
                 </button>
                 <div
                   className={`absolute -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap text-sm font-medium
-                    ${isActiveOrDone ? 'text-primary' : 'text-muted-foreground'}`}
+                    ${isActiveOrDone ? "text-primary" : "text-muted-foreground"}`}
                 >
                   {step.label}
                 </div>
@@ -53,7 +53,7 @@ export default function ProgressIndicator({ steps, onSelect }: ProgressIndicator
               {index < steps.length - 1 && (
                 <div
                   className={`flex-grow h-1 mx-4 ${
-                    steps[index + 1].state !== 'locked' ? 'bg-primary' : 'bg-muted'
+                    steps[index + 1].state !== "locked" ? "bg-primary" : "bg-muted"
                   }`}
                 />
               )}

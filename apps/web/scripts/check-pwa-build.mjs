@@ -77,7 +77,8 @@ function parseStartupImageLinks(markup) {
 }
 
 function assertVercelStaticExclusions(configPath, config) {
-  const rewriteSource = config.rewrites?.find((rewrite) => rewrite.destination === "/index.html")?.source || "";
+  const rewriteSource =
+    config.rewrites?.find((rewrite) => rewrite.destination === "/index.html")?.source || "";
   const requiredExclusions = [
     "robots\\.txt$",
     "sitemap\\.xml$",
@@ -103,30 +104,54 @@ const sw = readText("sw.js");
 const rootVercelConfig = readRepoJson("vercel.json");
 const appVercelConfig = readRepoJson("apps/web/vercel.json");
 
-assert(!existsSync(join(publicDir, "sw.js")), "public/sw.js must not exist; Workbox injectManifest owns /sw.js");
+assert(
+  !existsSync(join(publicDir, "sw.js")),
+  "public/sw.js must not exist; Workbox injectManifest owns /sw.js",
+);
 assertVercelStaticExclusions("vercel.json", rootVercelConfig);
 assertVercelStaticExclusions("apps/web/vercel.json", appVercelConfig);
 
-assert(html.includes('<link rel="manifest" href="/manifest.json"'), "index.html must link /manifest.json");
-assert(html.includes('name="theme-color" content="#FF5C35"'), "index.html theme-color must match orange brand");
-assert(!html.includes("REPLACE_WITH_GSC_VERIFICATION_CODE"), "index.html contains the old GSC placeholder");
+assert(
+  html.includes('<link rel="manifest" href="/manifest.json"'),
+  "index.html must link /manifest.json",
+);
+assert(
+  html.includes('name="theme-color" content="#FF5C35"'),
+  "index.html theme-color must match orange brand",
+);
+assert(
+  !html.includes("REPLACE_WITH_GSC_VERIFICATION_CODE"),
+  "index.html contains the old GSC placeholder",
+);
 assert(!html.includes("vendor-charts"), "index.html must not preload vendor-charts");
-assert(!html.includes("UniversalUploadDrawer"), "index.html must not preload UniversalUploadDrawer");
-assert(html.includes('name="apple-mobile-web-app-capable" content="yes"'), "index.html must enable iOS standalone mode");
-assert(html.includes('name="apple-mobile-web-app-status-bar-style" content="black-translucent"'), "index.html must set iOS status bar style");
+assert(
+  !html.includes("UniversalUploadDrawer"),
+  "index.html must not preload UniversalUploadDrawer",
+);
+assert(
+  html.includes('name="apple-mobile-web-app-capable" content="yes"'),
+  "index.html must enable iOS standalone mode",
+);
+assert(
+  html.includes('name="apple-mobile-web-app-status-bar-style" content="black-translucent"'),
+  "index.html must set iOS status bar style",
+);
 
 const startupImages = parseStartupImageLinks(html);
 assert(startupImages.length >= 12, `expected iOS startup images, found ${startupImages.length}`);
 for (const image of startupImages) {
   assert(Boolean(image.href), "startup image link missing href");
-  assert(Boolean(image.width && image.height && image.ratio), `startup image media is incomplete: ${image.media}`);
+  assert(
+    Boolean(image.width && image.height && image.ratio),
+    `startup image media is incomplete: ${image.media}`,
+  );
   const file = image.href ? distPathFromUrl(image.href) : "";
   assert(existsSync(file), `startup image missing in dist: ${image.href}`);
   const dims = existsSync(file) ? pngDimensions(file) : null;
   assert(dims !== null, `startup image is not a valid PNG: ${image.href}`);
   assert(
     dims?.width === image.width * image.ratio && dims?.height === image.height * image.ratio,
-    `startup image size mismatch for ${image.href}: expected ${image.width * image.ratio}x${image.height * image.ratio}, got ${dims?.width}x${dims?.height}`
+    `startup image size mismatch for ${image.href}: expected ${image.width * image.ratio}x${image.height * image.ratio}, got ${dims?.width}x${dims?.height}`,
   );
 }
 
@@ -139,41 +164,80 @@ assert(manifest.display === "standalone", "manifest.display must be standalone")
 assert(manifest.theme_color === "#FF5C35", "manifest.theme_color must match orange brand");
 assert(manifest.lang === "es-CL", "manifest.lang must be es-CL");
 assert(Array.isArray(manifest.icons), "manifest.icons must be present");
-assert(manifest.icons?.some((icon) => icon.sizes === "192x192"), "manifest must include a 192x192 icon");
-assert(manifest.icons?.some((icon) => icon.sizes === "512x512"), "manifest must include a 512x512 icon");
-assert(manifest.icons?.some((icon) => String(icon.purpose).includes("maskable")), "manifest must include a maskable icon");
-assert(manifest.shortcuts?.some((shortcut) => shortcut.url === "/panel"), "manifest shortcut /panel missing");
-assert(manifest.shortcuts?.some((shortcut) => shortcut.url === "/movimientos"), "manifest shortcut /movimientos missing");
+assert(
+  manifest.icons?.some((icon) => icon.sizes === "192x192"),
+  "manifest must include a 192x192 icon",
+);
+assert(
+  manifest.icons?.some((icon) => icon.sizes === "512x512"),
+  "manifest must include a 512x512 icon",
+);
+assert(
+  manifest.icons?.some((icon) => String(icon.purpose).includes("maskable")),
+  "manifest must include a maskable icon",
+);
+assert(
+  manifest.shortcuts?.some((shortcut) => shortcut.url === "/panel"),
+  "manifest shortcut /panel missing",
+);
+assert(
+  manifest.shortcuts?.some((shortcut) => shortcut.url === "/movimientos"),
+  "manifest shortcut /movimientos missing",
+);
 
 for (const icon of manifest.icons || []) {
   assert(existsSync(distPathFromUrl(icon.src)), `manifest icon missing in dist: ${icon.src}`);
 }
 
 assert(Array.isArray(manifest.screenshots), "manifest.screenshots must be present");
-assert(manifest.screenshots?.some((shot) => shot.form_factor === "narrow"), "manifest must include a narrow screenshot");
-assert(manifest.screenshots?.some((shot) => shot.form_factor === "wide"), "manifest must include a wide screenshot");
+assert(
+  manifest.screenshots?.some((shot) => shot.form_factor === "narrow"),
+  "manifest must include a narrow screenshot",
+);
+assert(
+  manifest.screenshots?.some((shot) => shot.form_factor === "wide"),
+  "manifest must include a wide screenshot",
+);
 
 for (const shot of manifest.screenshots || []) {
   const file = distPathFromUrl(shot.src);
   assert(existsSync(file), `manifest screenshot missing in dist: ${shot.src}`);
   const dims = existsSync(file) ? pngDimensions(file) : null;
   assert(dims !== null, `manifest screenshot is not a valid PNG: ${shot.src}`);
-  assert(`${dims?.width}x${dims?.height}` === shot.sizes, `manifest screenshot size mismatch for ${shot.src}`);
+  assert(
+    `${dims?.width}x${dims?.height}` === shot.sizes,
+    `manifest screenshot size mismatch for ${shot.src}`,
+  );
   if (shot.form_factor === "narrow") {
-    assert((dims?.height ?? 0) > (dims?.width ?? 0), `narrow screenshot must be portrait: ${shot.src}`);
+    assert(
+      (dims?.height ?? 0) > (dims?.width ?? 0),
+      `narrow screenshot must be portrait: ${shot.src}`,
+    );
   }
   if (shot.form_factor === "wide") {
-    assert((dims?.width ?? 0) > (dims?.height ?? 0), `wide screenshot must be landscape: ${shot.src}`);
+    assert(
+      (dims?.width ?? 0) > (dims?.height ?? 0),
+      `wide screenshot must be landscape: ${shot.src}`,
+    );
   }
 }
 
 assert(sw.includes('self.addEventListener("push"'), "sw.js must include push handler");
-assert(sw.includes('self.addEventListener("notificationclick"'), "sw.js must include notificationclick handler");
+assert(
+  sw.includes('self.addEventListener("notificationclick"'),
+  "sw.js must include notificationclick handler",
+);
 assert(sw.includes("showNotification"), "sw.js must show push notifications");
 assert(sw.includes("openWindow"), "sw.js must handle notification click navigation");
-assert(sw.includes("caches.delete") && sw.includes("api-cache"), "sw.js must purge legacy api-cache");
+assert(
+  sw.includes("caches.delete") && sw.includes("api-cache"),
+  "sw.js must purge legacy api-cache",
+);
 assert(!sw.includes("NetworkFirst"), "sw.js must not use NetworkFirst runtime cache");
-assert(!sw.includes('cacheName:"api-cache"') && !sw.includes("cacheName:'api-cache'"), "sw.js must not recreate api-cache");
+assert(
+  !sw.includes('cacheName:"api-cache"') && !sw.includes("cacheName:'api-cache'"),
+  "sw.js must not recreate api-cache",
+);
 assert(!sw.includes("vendor-charts"), "sw.js must not precache vendor-charts");
 assert(!sw.includes("UniversalUploadDrawer"), "sw.js must not precache UniversalUploadDrawer");
 
@@ -183,12 +247,30 @@ assert(precacheUrls.length <= 30, `sw.js precache has too many entries: ${precac
 assert(precacheUrls.includes("index.html"), "precache must include index.html");
 assert(precacheUrls.includes("manifest.json"), "precache must include manifest.json");
 assert(precacheUrls.includes("favicon.svg"), "precache must include favicon.svg");
-assert(precacheUrls.some((url) => /^assets\/index-.*\.js$/.test(url)), "precache must include the app shell JS");
-assert(precacheUrls.some((url) => /^assets\/index-.*\.css$/.test(url)), "precache must include the app shell CSS");
-assert(precacheUrls.some((url) => /^assets\/vendor-react-.*\.js$/.test(url)), "precache must include vendor-react");
-assert(precacheUrls.some((url) => /^assets\/workbox-window.*\.js$/.test(url)), "precache must include workbox-window");
+assert(
+  precacheUrls.some((url) => /^assets\/index-.*\.js$/.test(url)),
+  "precache must include the app shell JS",
+);
+assert(
+  precacheUrls.some((url) => /^assets\/index-.*\.css$/.test(url)),
+  "precache must include the app shell CSS",
+);
+assert(
+  precacheUrls.some((url) => /^assets\/vendor-react-.*\.js$/.test(url)),
+  "precache must include vendor-react",
+);
+assert(
+  precacheUrls.some((url) => /^assets\/workbox-window.*\.js$/.test(url)),
+  "precache must include workbox-window",
+);
 
-const forbiddenPrecache = [/^api\//, /^screenshots\//, /^splash\//, /vendor-charts/, /UniversalUploadDrawer/];
+const forbiddenPrecache = [
+  /^api\//,
+  /^screenshots\//,
+  /^splash\//,
+  /vendor-charts/,
+  /UniversalUploadDrawer/,
+];
 for (const url of precacheUrls) {
   for (const pattern of forbiddenPrecache) {
     assert(!pattern.test(url), `forbidden precache entry: ${url}`);
@@ -208,7 +290,7 @@ for (const url of precacheUrls) {
 const maxPrecacheBytes = 1.2 * 1024 * 1024;
 assert(
   precacheBytes <= maxPrecacheBytes,
-  `precache too large: ${(precacheBytes / 1024).toFixed(1)} KiB > ${(maxPrecacheBytes / 1024).toFixed(0)} KiB`
+  `precache too large: ${(precacheBytes / 1024).toFixed(1)} KiB > ${(maxPrecacheBytes / 1024).toFixed(0)} KiB`,
 );
 
 if (errors.length) {
@@ -218,5 +300,5 @@ if (errors.length) {
 }
 
 console.log(
-  `[pwa-smoke] OK: ${precacheUrls.length} precache entries, ${(precacheBytes / 1024).toFixed(1)} KiB`
+  `[pwa-smoke] OK: ${precacheUrls.length} precache entries, ${(precacheBytes / 1024).toFixed(1)} KiB`,
 );

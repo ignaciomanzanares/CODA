@@ -4,7 +4,7 @@ export {
   CREDIT_SCORE_EXCELLENT,
   CREDIT_SCORE_MAX,
   type UploadResult,
-} from './documentUploadService.js';
+} from "./documentUploadService.js";
 export {
   extractPdfText,
   parseCmfInformeDeudas,
@@ -15,4 +15,4 @@ export {
   type CmfInformeDeudas,
   type CartolaExtraida,
   type DocumentoExtraido,
-} from './pdfAnalysis.js';
+} from "./pdfAnalysis.js";

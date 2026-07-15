@@ -1,4 +1,4 @@
-export type AssetType = 'property' | 'vehicle' | 'crypto' | 'investment' | 'other';
+export type AssetType = "property" | "vehicle" | "crypto" | "investment" | "other";
 
 export interface UserAsset {
   id: string;
@@ -23,7 +23,7 @@ export function effectiveAssetValueClp(asset: UserAsset): number {
 
 /** Descripción normalizada para comparar activos: trim + minúsculas + espacios colapsados. */
 export function normalizeAssetDescription(name: string): string {
-  return (name ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return (name ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 /**
@@ -47,13 +47,13 @@ export function assetSignature(a: {
     normalizeAssetDescription(a.name),
     a.acquisitionCostClp ?? 0,
     a.lienAmountClp ?? 0,
-  ].join('|');
+  ].join("|");
 }
 
 export const ASSET_TYPE_LABELS: Record<AssetType, string> = {
-  property: 'Propiedad',
-  vehicle: 'Vehículo',
-  crypto: 'Criptoactivo',
-  investment: 'Inversión',
-  other: 'Otro',
+  property: "Propiedad",
+  vehicle: "Vehículo",
+  crypto: "Criptoactivo",
+  investment: "Inversión",
+  other: "Otro",
 };

@@ -223,7 +223,6 @@ export default function Landing() {
 
         <div className="relative container mx-auto px-4 py-24 md:py-32 lg:py-40">
           <div className="grid lg:grid-cols-2 gap-16 items-center max-w-6xl mx-auto">
-
             {/* Left: Copy */}
             <div className="space-y-8">
               {/* Badge */}
@@ -270,7 +269,12 @@ export default function Landing() {
 
               {/* Trust line */}
               <div className="flex flex-wrap items-center gap-5 text-sm text-slate-400">
-                {["Gratuito para siempre", "Sin tarjeta de crédito", "Datos reales", "Privacidad garantizada"].map((item) => (
+                {[
+                  "Gratuito para siempre",
+                  "Sin tarjeta de crédito",
+                  "Datos reales",
+                  "Privacidad garantizada",
+                ].map((item) => (
                   <span key={item} className="flex items-center gap-1.5">
                     <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
                     {item}
@@ -288,14 +292,23 @@ export default function Landing() {
 
         {/* Wave */}
         <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-            <path d="M0 60L480 20C720 0 960 0 1440 20V60H0Z" fill="white"/>
+          <svg
+            viewBox="0 0 1440 60"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="none"
+          >
+            <path d="M0 60L480 20C720 0 960 0 1440 20V60H0Z" fill="white" />
           </svg>
         </div>
       </section>
 
       {/* ── NUESTROS SERVICIOS (regulados — Ley N° 21.521 · NCG N° 502) ──── */}
-      <section ref={serviciosRef} id="servicios" className="py-20 md:py-24 bg-white fade-section scroll-mt-20">
+      <section
+        ref={serviciosRef}
+        id="servicios"
+        className="py-20 md:py-24 bg-white fade-section scroll-mt-20"
+      >
         <div className="container mx-auto px-4">
           <div className="text-center mb-12 max-w-2xl mx-auto">
             <p className="text-orange-600 font-semibold text-xs sm:text-sm uppercase tracking-widest mb-3">
@@ -305,8 +318,8 @@ export default function Landing() {
               Nuestros Servicios
             </h2>
             <p className="text-sm md:text-base text-gray-500 leading-relaxed">
-              Servicios prestados bajo el marco de la Ley N° 21.521 (Ley Fintec) y la
-              NCG N° 502 de la Comisión para el Mercado Financiero.
+              Servicios prestados bajo el marco de la Ley N° 21.521 (Ley Fintec) y la NCG N° 502 de
+              la Comisión para el Mercado Financiero.
             </p>
           </div>
 
@@ -319,12 +332,8 @@ export default function Landing() {
                 <div className="w-11 h-11 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center mb-4">
                   <Icon className="h-5 w-5" />
                 </div>
-                <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-3">
-                  {title}
-                </h3>
-                <p className="text-sm md:text-[15px] text-gray-600 leading-relaxed">
-                  {body}
-                </p>
+                <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-3">{title}</h3>
+                <p className="text-sm md:text-[15px] text-gray-600 leading-relaxed">{body}</p>
               </article>
             ))}
           </div>
@@ -339,7 +348,9 @@ export default function Landing() {
       <section ref={featuresRef} id="features" className="py-24 bg-white fade-section">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16 max-w-2xl mx-auto">
-            <p className="text-orange-600 font-semibold text-sm uppercase tracking-widest mb-3">Funcionalidades</p>
+            <p className="text-orange-600 font-semibold text-sm uppercase tracking-widest mb-3">
+              Funcionalidades
+            </p>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
               {t("landing.featuresTitle")}
             </h2>
@@ -348,12 +359,42 @@ export default function Landing() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {[
-              { icon: BarChart3, title: t("landing.feature1Title"), desc: t("landing.feature1Desc"), color: "cyan" },
-              { icon: Activity, title: t("landing.feature2Title"), desc: t("landing.feature2Desc"), color: "emerald" },
-              { icon: Store, title: t("landing.feature3Title"), desc: t("landing.feature3Desc"), color: "violet" },
-              { icon: Target, title: t("landing.feature4Title"), desc: t("landing.feature4Desc"), color: "orange" },
-              { icon: Bell, title: t("landing.feature5Title"), desc: t("landing.feature5Desc"), color: "pink" },
-              { icon: Lock, title: t("landing.feature6Title"), desc: t("landing.feature6Desc"), color: "slate" },
+              {
+                icon: BarChart3,
+                title: t("landing.feature1Title"),
+                desc: t("landing.feature1Desc"),
+                color: "cyan",
+              },
+              {
+                icon: Activity,
+                title: t("landing.feature2Title"),
+                desc: t("landing.feature2Desc"),
+                color: "emerald",
+              },
+              {
+                icon: Store,
+                title: t("landing.feature3Title"),
+                desc: t("landing.feature3Desc"),
+                color: "violet",
+              },
+              {
+                icon: Target,
+                title: t("landing.feature4Title"),
+                desc: t("landing.feature4Desc"),
+                color: "orange",
+              },
+              {
+                icon: Bell,
+                title: t("landing.feature5Title"),
+                desc: t("landing.feature5Desc"),
+                color: "pink",
+              },
+              {
+                icon: Lock,
+                title: t("landing.feature6Title"),
+                desc: t("landing.feature6Desc"),
+                color: "slate",
+              },
             ].map(({ icon: Icon, title, desc, color }) => {
               const bg: Record<string, string> = {
                 cyan: "bg-cyan-50 text-cyan-600",
@@ -364,8 +405,13 @@ export default function Landing() {
                 slate: "bg-slate-100 text-slate-600",
               };
               return (
-                <div key={title} className="group p-6 rounded-2xl border border-gray-100 hover:border-orange-100 hover:shadow-md hover:-translate-y-0.5 transition-all bg-white">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-4 ${bg[color]}`}>
+                <div
+                  key={title}
+                  className="group p-6 rounded-2xl border border-gray-100 hover:border-orange-100 hover:shadow-md hover:-translate-y-0.5 transition-all bg-white"
+                >
+                  <div
+                    className={`w-11 h-11 rounded-xl flex items-center justify-center mb-4 ${bg[color]}`}
+                  >
                     <Icon className="h-5 w-5" />
                   </div>
                   <h3 className="text-base font-semibold text-gray-900 mb-2">{title}</h3>
@@ -378,18 +424,30 @@ export default function Landing() {
       </section>
 
       {/* ── SCORE PREVIEW ────────────────────────────────────────────────── */}
-      <section ref={scoreRef} className="py-16 bg-gradient-to-br from-orange-600 via-orange-700 to-orange-800 text-white overflow-hidden relative fade-section">
-        <div className="absolute inset-0 opacity-[0.06]"
-          style={{ backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)", backgroundSize: "40px 40px" }} />
+      <section
+        ref={scoreRef}
+        className="py-16 bg-gradient-to-br from-orange-600 via-orange-700 to-orange-800 text-white overflow-hidden relative fade-section"
+      >
+        <div
+          className="absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)",
+            backgroundSize: "40px 40px",
+          }}
+        />
         <div className="relative container mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
             <div className="space-y-5">
-              <p className="text-orange-200 font-semibold text-sm uppercase tracking-widest">Score dual</p>
+              <p className="text-orange-200 font-semibold text-sm uppercase tracking-widest">
+                Score dual
+              </p>
               <h2 className="text-3xl md:text-4xl font-bold leading-tight">
                 Tu salud financiera, medida con dos lentes complementarios
               </h2>
               <p className="text-orange-100 leading-relaxed">
-                El <strong>score crediticio tradicional</strong> (0–850) basado en el historial CMF, y el <strong>score transaccional</strong> (0–100) basado en tus comportamientos reales de gasto y ahorro. Juntos dan el panorama completo.
+                El <strong>score crediticio tradicional</strong> (0–850) basado en el historial CMF,
+                y el <strong>score transaccional</strong> (0–100) basado en tus comportamientos
+                reales de gasto y ahorro. Juntos dan el panorama completo.
               </p>
               <Link href={ROUTES.infoScoreCredito}>
                 <Button className="bg-white text-orange-700 hover:bg-orange-50 font-semibold gap-2 mt-2">
@@ -399,22 +457,53 @@ export default function Landing() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               {[
-                { label: "Score crediticio", value: "720", max: "850", color: "from-emerald-400 to-teal-400", tag: "Muy bueno", pct: 85 },
-                { label: "Score transaccional", value: "78", max: "100", color: "from-orange-300 to-orange-300", tag: "Bueno", pct: 78 },
+                {
+                  label: "Score crediticio",
+                  value: "720",
+                  max: "850",
+                  color: "from-emerald-400 to-teal-400",
+                  tag: "Muy bueno",
+                  pct: 85,
+                },
+                {
+                  label: "Score transaccional",
+                  value: "78",
+                  max: "100",
+                  color: "from-orange-300 to-orange-300",
+                  tag: "Bueno",
+                  pct: 78,
+                },
               ].map(({ label, value, max, color, tag, pct }) => (
-                <div key={label} className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-5 text-center">
+                <div
+                  key={label}
+                  className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-5 text-center"
+                >
                   <p className="text-xs text-orange-200 mb-3">{label}</p>
                   <div className="relative w-20 h-20 mx-auto mb-3">
                     <svg viewBox="0 0 80 80" className="w-20 h-20 -rotate-90">
-                      <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="7"/>
-                      <circle cx="40" cy="40" r="32" fill="none" stroke="url(#grad)" strokeWidth="7"
+                      <circle
+                        cx="40"
+                        cy="40"
+                        r="32"
+                        fill="none"
+                        stroke="rgba(255,255,255,0.15)"
+                        strokeWidth="7"
+                      />
+                      <circle
+                        cx="40"
+                        cy="40"
+                        r="32"
+                        fill="none"
+                        stroke="url(#grad)"
+                        strokeWidth="7"
                         strokeDasharray={`${2 * Math.PI * 32}`}
                         strokeDashoffset={`${2 * Math.PI * 32 * (1 - pct / 100)}`}
-                        strokeLinecap="round"/>
+                        strokeLinecap="round"
+                      />
                       <defs>
                         <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="white" stopOpacity="0.9"/>
-                          <stop offset="100%" stopColor="white"/>
+                          <stop offset="0%" stopColor="white" stopOpacity="0.9" />
+                          <stop offset="100%" stopColor="white" />
                         </linearGradient>
                       </defs>
                     </svg>
@@ -423,7 +512,11 @@ export default function Landing() {
                       <span className="text-[9px] text-orange-200">/{max}</span>
                     </div>
                   </div>
-                  <span className={`inline-block text-xs font-semibold bg-gradient-to-r ${color} bg-clip-text text-transparent`}>{tag}</span>
+                  <span
+                    className={`inline-block text-xs font-semibold bg-gradient-to-r ${color} bg-clip-text text-transparent`}
+                  >
+                    {tag}
+                  </span>
                 </div>
               ))}
             </div>
@@ -435,7 +528,9 @@ export default function Landing() {
       <section ref={howRef} id="como-funciona" className="py-24 bg-slate-50 fade-section">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16 max-w-2xl mx-auto">
-            <p className="text-orange-600 font-semibold text-sm uppercase tracking-widest mb-3">Proceso</p>
+            <p className="text-orange-600 font-semibold text-sm uppercase tracking-widest mb-3">
+              Proceso
+            </p>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
               {t("landing.howItWorksTitle")}
             </h2>
@@ -444,16 +539,28 @@ export default function Landing() {
 
           <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             {[
-              { n: "01", icon: FileText, title: t("landing.step1Title"), desc: t("landing.step1Desc") },
+              {
+                n: "01",
+                icon: FileText,
+                title: t("landing.step1Title"),
+                desc: t("landing.step1Desc"),
+              },
               { n: "02", icon: Zap, title: t("landing.step2Title"), desc: t("landing.step2Desc") },
-              { n: "03", icon: TrendingUp, title: t("landing.step3Title"), desc: t("landing.step3Desc") },
+              {
+                n: "03",
+                icon: TrendingUp,
+                title: t("landing.step3Title"),
+                desc: t("landing.step3Desc"),
+              },
             ].map(({ n, icon: Icon, title, desc }, i) => (
               <div key={n} className="relative flex flex-col items-center text-center">
                 {i < 2 && (
                   <div className="hidden md:block absolute top-8 left-[calc(50%+40px)] right-0 h-px border-t-2 border-dashed border-orange-200" />
                 )}
                 <div className="relative mb-6">
-                  <span className="absolute -top-3 -right-3 text-6xl font-black text-orange-50 select-none leading-none">{n}</span>
+                  <span className="absolute -top-3 -right-3 text-6xl font-black text-orange-50 select-none leading-none">
+                    {n}
+                  </span>
                   <div className="relative w-16 h-16 bg-white rounded-2xl shadow-md border border-gray-100 flex items-center justify-center">
                     <Icon className="h-7 w-7 text-orange-600" />
                   </div>
@@ -470,7 +577,9 @@ export default function Landing() {
       <section ref={categoriesRef} className="py-24 bg-white fade-section">
         <div className="container mx-auto px-4">
           <div className="text-center mb-14 max-w-2xl mx-auto">
-            <p className="text-orange-600 font-semibold text-sm uppercase tracking-widest mb-3">Marketplace</p>
+            <p className="text-orange-600 font-semibold text-sm uppercase tracking-widest mb-3">
+              Marketplace
+            </p>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
               {t("landing.categoriesTitle")}
             </h2>
@@ -480,15 +589,38 @@ export default function Landing() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-w-5xl mx-auto">
             {[
               { icon: Landmark, title: t("landing.catCuentas"), desc: t("landing.catCuentasDesc") },
-              { icon: CreditCard, title: t("landing.catTarjetas"), desc: t("landing.catTarjetasDesc") },
-              { icon: Banknote, title: t("landing.catCreditos"), desc: t("landing.catCreditosDesc") },
+              {
+                icon: CreditCard,
+                title: t("landing.catTarjetas"),
+                desc: t("landing.catTarjetasDesc"),
+              },
+              {
+                icon: Banknote,
+                title: t("landing.catCreditos"),
+                desc: t("landing.catCreditosDesc"),
+              },
               { icon: Wallet, title: t("landing.catLineas"), desc: t("landing.catLineasDesc") },
-              { icon: Home, title: t("landing.catHipotecarios"), desc: t("landing.catHipotecariosDesc") },
-              { icon: PiggyBank, title: t("landing.catDepositos"), desc: t("landing.catDepositosDesc") },
+              {
+                icon: Home,
+                title: t("landing.catHipotecarios"),
+                desc: t("landing.catHipotecariosDesc"),
+              },
+              {
+                icon: PiggyBank,
+                title: t("landing.catDepositos"),
+                desc: t("landing.catDepositosDesc"),
+              },
               { icon: TrendingUp, title: t("landing.catFondos"), desc: t("landing.catFondosDesc") },
-              { icon: ArrowLeftRight, title: t("landing.catPortabilidad"), desc: t("landing.catPortabilidadDesc") },
+              {
+                icon: ArrowLeftRight,
+                title: t("landing.catPortabilidad"),
+                desc: t("landing.catPortabilidadDesc"),
+              },
             ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="group flex flex-col items-center text-center p-4 rounded-xl border border-gray-100 hover:border-orange-200 hover:bg-orange-50/30 hover:shadow-sm transition-all cursor-default">
+              <div
+                key={title}
+                className="group flex flex-col items-center text-center p-4 rounded-xl border border-gray-100 hover:border-orange-200 hover:bg-orange-50/30 hover:shadow-sm transition-all cursor-default"
+              >
                 <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center mb-3 group-hover:bg-orange-100 transition-colors">
                   <Icon className="h-5 w-5" />
                 </div>
@@ -504,24 +636,54 @@ export default function Landing() {
       <section ref={whyRef} className="py-24 bg-[#0c0a09] text-white fade-section">
         <div className="container mx-auto px-4">
           <div className="text-center mb-14 max-w-2xl mx-auto">
-            <p className="text-orange-400 font-semibold text-sm uppercase tracking-widest mb-3">Diferencial</p>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              {t("landing.whyChooseTitle")}
-            </h2>
+            <p className="text-orange-400 font-semibold text-sm uppercase tracking-widest mb-3">
+              Diferencial
+            </p>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">{t("landing.whyChooseTitle")}</h2>
             <p className="text-slate-400 text-lg leading-relaxed">
-              Creamos CODA porque los chilenos merecen entender y optimizar sus finanzas con las mismas herramientas que usan los expertos.
+              Creamos CODA porque los chilenos merecen entender y optimizar sus finanzas con las
+              mismas herramientas que usan los expertos.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-5 max-w-4xl mx-auto">
             {[
-              { icon: DollarSign, title: t("landing.whyFreeTitle"), desc: t("landing.whyFreeDesc"), accent: "text-green-400", bg: "bg-green-400/10 border-green-400/20" },
-              { icon: BarChart3, title: t("landing.whyRealDataTitle"), desc: t("landing.whyRealDataDesc"), accent: "text-orange-400", bg: "bg-orange-400/10 border-orange-400/20" },
-              { icon: Shield, title: t("landing.whyNeutralTitle"), desc: t("landing.whyNeutralDesc"), accent: "text-violet-400", bg: "bg-violet-400/10 border-violet-400/20" },
-              { icon: Landmark, title: t("landing.whyRegulatedTitle"), desc: t("landing.whyRegulatedDesc"), accent: "text-orange-400", bg: "bg-orange-400/10 border-orange-400/20" },
+              {
+                icon: DollarSign,
+                title: t("landing.whyFreeTitle"),
+                desc: t("landing.whyFreeDesc"),
+                accent: "text-green-400",
+                bg: "bg-green-400/10 border-green-400/20",
+              },
+              {
+                icon: BarChart3,
+                title: t("landing.whyRealDataTitle"),
+                desc: t("landing.whyRealDataDesc"),
+                accent: "text-orange-400",
+                bg: "bg-orange-400/10 border-orange-400/20",
+              },
+              {
+                icon: Shield,
+                title: t("landing.whyNeutralTitle"),
+                desc: t("landing.whyNeutralDesc"),
+                accent: "text-violet-400",
+                bg: "bg-violet-400/10 border-violet-400/20",
+              },
+              {
+                icon: Landmark,
+                title: t("landing.whyRegulatedTitle"),
+                desc: t("landing.whyRegulatedDesc"),
+                accent: "text-orange-400",
+                bg: "bg-orange-400/10 border-orange-400/20",
+              },
             ].map(({ icon: Icon, title, desc, accent, bg }) => (
-              <div key={title} className="p-6 rounded-2xl bg-slate-800/50 border border-slate-700/50 hover:border-slate-600/50 transition-colors flex gap-5">
-                <div className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 ${bg}`}>
+              <div
+                key={title}
+                className="p-6 rounded-2xl bg-slate-800/50 border border-slate-700/50 hover:border-slate-600/50 transition-colors flex gap-5"
+              >
+                <div
+                  className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 ${bg}`}
+                >
                   <Icon className={`h-5 w-5 ${accent}`} />
                 </div>
                 <div>
@@ -535,15 +697,18 @@ export default function Landing() {
           {/* Team/mission note */}
           <div className="mt-14 text-center max-w-xl mx-auto">
             <p className="text-slate-500 text-sm leading-relaxed">
-              Desarrollado por un equipo de ingenieros, economistas y diseñadores chilenos apasionados por democratizar las finanzas personales en Latinoamérica.
+              Desarrollado por un equipo de ingenieros, economistas y diseñadores chilenos
+              apasionados por democratizar las finanzas personales en Latinoamérica.
             </p>
             <div className="flex items-center justify-center gap-6 mt-6">
-              {["Sin comisiones ocultas", "Sin venta de datos", "Privacidad garantizada"].map(t => (
-                <span key={t} className="flex items-center gap-1.5 text-xs text-slate-500">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
-                  {t}
-                </span>
-              ))}
+              {["Sin comisiones ocultas", "Sin venta de datos", "Privacidad garantizada"].map(
+                (t) => (
+                  <span key={t} className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                    {t}
+                  </span>
+                ),
+              )}
             </div>
           </div>
         </div>
@@ -572,9 +737,7 @@ export default function Landing() {
                   <AccordionTrigger className="text-left text-gray-900 font-semibold text-sm md:text-base hover:no-underline">
                     {q}
                   </AccordionTrigger>
-                  <AccordionContent className="text-gray-500 leading-relaxed">
-                    {a}
-                  </AccordionContent>
+                  <AccordionContent className="text-gray-500 leading-relaxed">{a}</AccordionContent>
                 </AccordionItem>
               ))}
             </Accordion>
@@ -588,7 +751,10 @@ export default function Landing() {
       </div>
 
       {/* ── CTA ──────────────────────────────────────────────────────────── */}
-      <section ref={ctaRef} className="py-24 bg-gradient-to-br from-orange-600 via-orange-700 to-orange-700 text-white fade-section">
+      <section
+        ref={ctaRef}
+        className="py-24 bg-gradient-to-br from-orange-600 via-orange-700 to-orange-700 text-white fade-section"
+      >
         <div className="container mx-auto px-4 text-center max-w-2xl">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
             {t("landing.ctaTitle")}
@@ -606,9 +772,7 @@ export default function Landing() {
               <ChevronRight className="ml-2 h-5 w-5" />
             </Button>
           </Link>
-          <p className="mt-5 text-orange-200 text-sm">
-            {t("landing.noPaymentRequired")}
-          </p>
+          <p className="mt-5 text-orange-200 text-sm">{t("landing.noPaymentRequired")}</p>
         </div>
       </section>
     </div>

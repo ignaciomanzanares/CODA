@@ -25,8 +25,8 @@ export default function OnboardingChecklist() {
   const { apiRequest } = useApi();
   const { openWithFilePicker } = useUploadDrawer();
   const [, navigate] = useLocation();
-  const [dismissed, setDismissed] = useState(() =>
-    localStorage.getItem("onboarding-dismissed") === "1"
+  const [dismissed, setDismissed] = useState(
+    () => localStorage.getItem("onboarding-dismissed") === "1",
   );
 
   const { data } = useQuery<HealthResponse>({
@@ -91,9 +91,7 @@ export default function OnboardingChecklist() {
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-1">
-          <p className="text-sm font-semibold text-foreground">
-            Configura tu perfil financiero
-          </p>
+          <p className="text-sm font-semibold text-foreground">Configura tu perfil financiero</p>
           <p className="text-xs text-muted-foreground">
             {doneCount}/{steps.length} pasos completados
           </p>
@@ -126,16 +124,26 @@ export default function OnboardingChecklist() {
               className={cn(
                 "flex items-start gap-3 rounded-xl p-3 transition-colors",
                 step.done && "opacity-60",
-                isNext && "bg-background border border-border shadow-sm"
+                isNext && "bg-background border border-border shadow-sm",
               )}
             >
               {step.done ? (
                 <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
               ) : (
-                <Circle className={cn("h-5 w-5 shrink-0 mt-0.5", isNext ? "text-primary" : "text-muted-foreground/40")} />
+                <Circle
+                  className={cn(
+                    "h-5 w-5 shrink-0 mt-0.5",
+                    isNext ? "text-primary" : "text-muted-foreground/40",
+                  )}
+                />
               )}
               <div className="flex-1 min-w-0">
-                <p className={cn("text-sm font-medium", step.done ? "line-through text-muted-foreground" : "text-foreground")}>
+                <p
+                  className={cn(
+                    "text-sm font-medium",
+                    step.done ? "line-through text-muted-foreground" : "text-foreground",
+                  )}
+                >
                   {step.label}
                 </p>
                 {!step.done && (

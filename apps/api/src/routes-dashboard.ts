@@ -27,7 +27,8 @@ export function registerDashboardRoutes(app: Express): void {
       const userId = authReq.user?.userId;
       if (!userId) return res.status(401).json({ message: "No autorizado." });
 
-      const { getReportedBalance, getUserNormalizedTransactions } = await import("./services/normalizedTransactions.js");
+      const { getReportedBalance, getUserNormalizedTransactions } =
+        await import("./services/normalizedTransactions.js");
       const { isInternalTransferTx } = await import("./services/assistantContext.js");
       const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
       const { transactions } = await getUserNormalizedTransactions(userId);
@@ -60,15 +61,12 @@ export function registerDashboardRoutes(app: Express): void {
       const totalAbono = months.reduce((s, m) => s + m.abono, 0);
       const totalCargo = months.reduce((s, m) => s + m.cargo, 0);
 
-      const ingresos_promedio = monthCount > 0
-        ? Math.round(totalAbono / monthCount)
-        : 0;
-      const gastos_promedio = monthCount > 0
-        ? Math.round(totalCargo / monthCount)
-        : 0;
-      const tasa_ahorro = ingresos_promedio > 0
-        ? Math.round(((ingresos_promedio - gastos_promedio) / ingresos_promedio) * 100)
-        : 0;
+      const ingresos_promedio = monthCount > 0 ? Math.round(totalAbono / monthCount) : 0;
+      const gastos_promedio = monthCount > 0 ? Math.round(totalCargo / monthCount) : 0;
+      const tasa_ahorro =
+        ingresos_promedio > 0
+          ? Math.round(((ingresos_promedio - gastos_promedio) / ingresos_promedio) * 100)
+          : 0;
 
       // ── saldo_actual: saldoFinal reportado por la cartola más reciente ─────
       const saldo_actual = Math.round((await getReportedBalance(userId)) ?? 0);

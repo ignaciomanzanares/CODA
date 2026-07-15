@@ -1,8 +1,9 @@
-import type { UserAsset } from '../assets/types.js';
-import type { CMFParseResult } from '../../parsers/cmf-parser.js';
+import type { UserAsset } from "../assets/types.js";
+import type { CMFParseResult } from "../../parsers/cmf-parser.js";
 
-export type HealthZone = 'critica' | 'intermedia';
-export type HealthSalida = 'ahorro_inversion' | 'refinanciamiento' | 'reestructuracion' | 'concursal';
+export type HealthZone = "critica" | "intermedia";
+export type HealthSalida =
+  "ahorro_inversion" | "refinanciamiento" | "reestructuracion" | "concursal";
 export type HealthLevel = -2 | -1 | 0 | 1 | 2 | 3 | 4 | 5;
 
 export interface HealthEvaluationInput {
@@ -40,7 +41,10 @@ export interface HealthEvaluationResult {
   scoreInterno: number;
   scoreCompuesto: number;
   nivelBruto: number;
-  ratios: Pick<HealthEvaluationInput, 'deudaFlujo' | 'deudaActivos' | 'ahorroIngreso' | 'moraActiva' | 'diasMora'>;
+  ratios: Pick<
+    HealthEvaluationInput,
+    "deudaFlujo" | "deudaActivos" | "ahorroIngreso" | "moraActiva" | "diasMora"
+  >;
   productos: RecommendedProduct[];
   insights: string[];
 }

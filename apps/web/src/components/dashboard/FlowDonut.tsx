@@ -10,7 +10,7 @@ const fmtCLP = (n: number) =>
 
 interface FlowDonutProps {
   segments: FlowSegment[];
-  pctIncomeSpent: number;   // 0-100, displayed in center
+  pctIncomeSpent: number; // 0-100, displayed in center
   totalExpenses: number;
 }
 
@@ -74,7 +74,10 @@ export default function FlowDonut({ segments, pctIncomeSpent, totalExpenses }: F
           ))}
           <div className="border-t border-border pt-2 mt-1">
             <p className="text-xs text-muted-foreground">
-              Total: <span className="font-semibold text-foreground tabular-nums">{fmtCLP(totalExpenses)}</span>
+              Total:{" "}
+              <span className="font-semibold text-foreground tabular-nums">
+                {fmtCLP(totalExpenses)}
+              </span>
             </p>
           </div>
         </div>

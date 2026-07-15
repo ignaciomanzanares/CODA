@@ -1,9 +1,9 @@
 /**
  * Payment Link Service
- * 
+ *
  * Generates unique payment/collection links for bill splits.
  * Structure aligned with SFA "Iniciación de Pagos" (NCG 514).
- * 
+ *
  * Flow:
  * 1. Creator generates a cobro link with their bank details
  * 2. Link is shared via WhatsApp/Web Share API
@@ -11,21 +11,21 @@
  * 4. System watches for matching deposits (reconciliation)
  */
 
-import { formatRut, isValidRut, type SfaPaymentInitiation } from './sfaCodes.js';
-import { logger } from '../../logger.js';
-import crypto from 'crypto';
+import { formatRut, isValidRut, type SfaPaymentInitiation } from "./sfaCodes.js";
+import { logger } from "../../logger.js";
+import crypto from "crypto";
 
 /**
  * Transfer details for the payment recipient (cobrador)
  */
 export interface TransferDetails {
   banco: string;
-  tipoCuenta: string;         // 'corriente' | 'vista' | 'rut' | 'ahorro'
+  tipoCuenta: string; // 'corriente' | 'vista' | 'rut' | 'ahorro'
   numeroCuenta: string;
   rut: string;
   nombre: string;
   email: string;
-  sfaTipoCuenta?: string;     // SFA product code (A001, A002, A003)
+  sfaTipoCuenta?: string; // SFA product code (A001, A002, A003)
 }
 
 /**
@@ -42,7 +42,7 @@ export interface PaymentLink {
   transferDetails: TransferDetails;
   createdAt: string;
   expiresAt: string;
-  status: 'active' | 'paid' | 'expired' | 'cancelled';
+  status: "active" | "paid" | "expired" | "cancelled";
 }
 
 /**
@@ -50,12 +50,13 @@ export interface PaymentLink {
  */
 function mapAccountTypeToSfa(tipoCuenta: string): string {
   const type = tipoCuenta.toLowerCase();
-  if (type.includes('corriente') || type === 'corriente') return 'A001';
-  if (type.includes('vista') || type === 'vista') return 'A002';
-  if (type.includes('rut') || type === 'rut') return 'A003';
-  if (type.includes('provisión') || type.includes('provision') || type === 'provision') return 'A004';
-  if (type.includes('ahorro')) return 'A007';
-  return 'A002';
+  if (type.includes("corriente") || type === "corriente") return "A001";
+  if (type.includes("vista") || type === "vista") return "A002";
+  if (type.includes("rut") || type === "rut") return "A003";
+  if (type.includes("provisión") || type.includes("provision") || type === "provision")
+    return "A004";
+  if (type.includes("ahorro")) return "A007";
+  return "A002";
 }
 
 /**
@@ -63,7 +64,7 @@ function mapAccountTypeToSfa(tipoCuenta: string): string {
  */
 function generatePaymentLinkId(): string {
   const timestamp = Date.now().toString(36);
-  const random = crypto.randomBytes(4).toString('hex');
+  const random = crypto.randomBytes(4).toString("hex");
   return `pay-${timestamp}-${random}`;
 }
 
@@ -79,11 +80,22 @@ export function createPaymentLink(params: {
   transferDetails: TransferDetails;
   expiryDays?: number;
 }): PaymentLink {
-  const { billSplitId, participantId, shareCode, amount, concept, transferDetails, expiryDays = 30 } = params;
+  const {
+    billSplitId,
+    participantId,
+    shareCode,
+    amount,
+    concept,
+    transferDetails,
+    expiryDays = 30,
+  } = params;
 
   // Validate RUT if provided
-  if (transferDetails.rut && !isValidRut(transferDetails.rut.replace(/\./g, '').replace(/-/g, ''))) {
-    logger.warn({ rut: transferDetails.rut }, 'Invalid RUT in transfer details');
+  if (
+    transferDetails.rut &&
+    !isValidRut(transferDetails.rut.replace(/\./g, "").replace(/-/g, ""))
+  ) {
+    logger.warn({ rut: transferDetails.rut }, "Invalid RUT in transfer details");
   }
 
   const now = new Date();
@@ -95,7 +107,7 @@ export function createPaymentLink(params: {
     participantId,
     shareCode,
     amount,
-    currency: 'CLP',
+    currency: "CLP",
     concept,
     transferDetails: {
       ...transferDetails,
@@ -104,14 +116,17 @@ export function createPaymentLink(params: {
     },
     createdAt: now.toISOString(),
     expiresAt: expiresAt.toISOString(),
-    status: 'active',
+    status: "active",
   };
 
-  logger.info({
-    paymentLinkId: link.id,
-    billSplitId,
-    amount,
-  }, 'Payment link created');
+  logger.info(
+    {
+      paymentLinkId: link.id,
+      billSplitId,
+      amount,
+    },
+    "Payment link created",
+  );
 
   return link;
 }
@@ -136,9 +151,9 @@ export function generateWhatsAppMessage(params: {
 }): string {
   const { amount, concept, creatorName, shareCode, baseUrl, transferDetails } = params;
 
-  const formattedAmount = new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
+  const formattedAmount = new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
     minimumFractionDigits: 0,
   }).format(amount);
 
@@ -162,7 +177,7 @@ export function generateWhatsAppMessage(params: {
     paymentUrl,
     ``,
     `_Enviado desde CODA_`,
-  ].join('\n');
+  ].join("\n");
 
   return message;
 }
@@ -179,9 +194,9 @@ export function generateShareData(params: {
 }): { title: string; text: string; url: string } {
   const { amount, concept, creatorName, shareCode, baseUrl } = params;
 
-  const formattedAmount = new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
+  const formattedAmount = new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
     minimumFractionDigits: 0,
   }).format(amount);
 
@@ -204,10 +219,10 @@ export function buildSfaPaymentInitiation(
     banco: string;
     cuenta: string;
     tipoCuenta: string;
-  }
+  },
 ): SfaPaymentInitiation {
   return {
-    tipoOperacion: 'tef',
+    tipoOperacion: "tef",
     institucionOrigen: payerDetails.banco,
     cuentaOrigen: payerDetails.cuenta,
     tipoCuentaOrigen: mapAccountTypeToSfa(payerDetails.tipoCuenta),
@@ -215,11 +230,11 @@ export function buildSfaPaymentInitiation(
     nombrePagador: payerDetails.nombre,
     institucionDestino: paymentLink.transferDetails.banco,
     cuentaDestino: paymentLink.transferDetails.numeroCuenta,
-    tipoCuentaDestino: paymentLink.transferDetails.sfaTipoCuenta || 'A002',
+    tipoCuentaDestino: paymentLink.transferDetails.sfaTipoCuenta || "A002",
     rutReceptor: paymentLink.transferDetails.rut,
     nombreReceptor: paymentLink.transferDetails.nombre,
     monto: paymentLink.amount,
-    moneda: 'CLP',
+    moneda: "CLP",
     fechaHoraOperacion: new Date().toISOString(),
   };
 }

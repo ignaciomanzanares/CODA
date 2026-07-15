@@ -12,8 +12,7 @@ import { registerHealthEvaluationRoutes } from "./routes-health-evaluation.js";
 import { registerAssetsRoutes } from "./routes-assets.js";
 import { registerInstitutionRoutes } from "./routes-institutions.js";
 import { registerDataSourceRoutes } from "./routes-data-sources.js";
-import { checkDatabaseConnection } from "./db/index.js";
-import { logger, httpLogger } from "./logger.js";
+import { logger } from "./logger.js";
 import { initializeTraceabilitySystem } from "./services/audit/algorithmicTraceability.js";
 import { ensureSeedTraceabilityModels } from "./services/audit/traceabilityPersistence.js";
 import {
@@ -24,13 +23,9 @@ import {
   registerMetricsEndpoint,
 } from "./services/observability/index.js";
 
-
-
 const app = express();
 // Required for correct client IPs and secure cookies on Render
 app.set("trust proxy", 1);
-
-
 
 // CORS: defaults siempre incluyen dominio propio; CORS_ORIGINS en Render *añade* más (no reemplaza).
 // Evita Access-Control-Allow-Origin vacío ("") que rompe el login desde el navegador.
@@ -42,7 +37,9 @@ const defaultOrigins = [
 ];
 
 const extraOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
+  ? process.env.CORS_ORIGINS.split(",")
+      .map((o) => o.trim())
+      .filter(Boolean)
   : [];
 
 const allowedOrigins = [...new Set([...defaultOrigins, ...extraOrigins])];
@@ -92,7 +89,7 @@ app.use(
     frameguard: { action: "deny" },
     // El front (Vercel, otro origen) consume esta API solo vía fetch/JSON — no
     // hay <img>/<script> cross-origin que dependan de CORP/COEP relajado.
-  })
+  }),
 );
 app.use((_req: Request, res: Response, next: NextFunction) => {
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
@@ -168,7 +165,10 @@ registerMetricsEndpoint(app);
       await ensureSeedTraceabilityModels();
     } catch (seedErr) {
       // Non-fatal: traceability seed can fail if DB is cold-starting — routes still work
-      logger.warn({ err: seedErr }, "⚠️ Traceability seed failed (non-fatal, will retry on first request)");
+      logger.warn(
+        { err: seedErr },
+        "⚠️ Traceability seed failed (non-fatal, will retry on first request)",
+      );
     }
 
     // Promoción sin redeploy (#5): si hay un modelo 'production' registrado en
@@ -177,7 +177,9 @@ registerMetricsEndpoint(app);
     // bloquear el arranque.
     void import("./services/modelRegistry.js")
       .then(({ PDModelRegistry }) => PDModelRegistry.instance().loadProductionFromRegistry())
-      .catch((err) => logger.warn({ err }, "loadProductionFromRegistry (boot) falló; usando modelo local"));
+      .catch((err) =>
+        logger.warn({ err }, "loadProductionFromRegistry (boot) falló; usando modelo local"),
+      );
 
     // Job de retención (#21): borra los originales (PDF/imagen) vencidos del blob store. Corre al
     // boot y luego cada 24h. Desactivado en test. RETENTION_JOB_ENABLED=false para apagarlo.
@@ -199,7 +201,8 @@ registerMetricsEndpoint(app);
       if (process.env.RANKING_WEIGHTS_JOB_ENABLED !== "false") {
         const runReweight = async () => {
           try {
-            const { recomputeProductRankingWeights } = await import("./services/products/productRankingWeights.js");
+            const { recomputeProductRankingWeights } =
+              await import("./services/products/productRankingWeights.js");
             await recomputeProductRankingWeights();
           } catch (err) {
             logger.warn({ err }, "[ranking-weights] recompute falló");
@@ -239,27 +242,34 @@ registerMetricsEndpoint(app);
   // Then register main routes
   const server = await registerRoutes(app);
 
-  app.use((err: Error & { status?: number; statusCode?: number }, req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+  app.use(
+    (
+      err: Error & { status?: number; statusCode?: number },
+      req: Request,
+      res: Response,
+      _next: NextFunction,
+    ) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
 
-    // Log the error
-    if (status >= 500) {
-      captureError(err, {
-        environment: process.env.NODE_ENV ?? "development",
-        method: req.method,
-        route: getNormalizedRoute(req),
-        status,
-      });
-    } else {
-      logger.warn({ status, message }, "Client error occurred");
-    }
+      // Log the error
+      if (status >= 500) {
+        captureError(err, {
+          environment: process.env.NODE_ENV ?? "development",
+          method: req.method,
+          route: getNormalizedRoute(req),
+          status,
+        });
+      } else {
+        logger.warn({ status, message }, "Client error occurred");
+      }
 
-    // Don't send response if headers already sent
-    if (!res.headersSent) {
-      res.status(status).json({ message });
-    }
-  });
+      // Don't send response if headers already sent
+      if (!res.headersSent) {
+        res.status(status).json({ message });
+      }
+    },
+  );
 
   // CODA serves API only (like CODA-Empresas)
   // Frontend runs separately on apps/web with its own dev server
@@ -267,14 +277,17 @@ registerMetricsEndpoint(app);
 
   // ALWAYS serve the app on port 5000
   const port = Number(process.env.PORT) || 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-  }, () => {
-    logger.info(`🌐 API Server listening on port ${port}`);
-    logger.info(`📊 Environment: ${process.env.NODE_ENV}`);
-    logger.info(`🔗 Health check: http://localhost:${port}/health`);
-  });
+  server.listen(
+    {
+      port,
+      host: "0.0.0.0",
+    },
+    () => {
+      logger.info(`🌐 API Server listening on port ${port}`);
+      logger.info(`📊 Environment: ${process.env.NODE_ENV}`);
+      logger.info(`🔗 Health check: http://localhost:${port}/health`);
+    },
+  );
 
   // Graceful shutdown
   const shutdown = async (signal: string) => {

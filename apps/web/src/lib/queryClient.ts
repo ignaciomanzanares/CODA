@@ -13,13 +13,13 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
-  options?: { headers?: Record<string, string> }
+  options?: { headers?: Record<string, string> },
 ): Promise<Response> {
   assertBrowserOnline();
 
   const headers = {
     ...(data ? { "Content-Type": "application/json" } : {}),
-    ...(options?.headers || {})
+    ...(options?.headers || {}),
   };
 
   const res = await fetch(url, {
@@ -34,9 +34,7 @@ export async function apiRequest(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options: {
-  on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
+export const getQueryFn: <T>(options: { on401: UnauthorizedBehavior }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     assertBrowserOnline();

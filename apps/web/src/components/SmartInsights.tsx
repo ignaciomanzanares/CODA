@@ -4,14 +4,28 @@ import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Calendar, PieChart, Repeat, TrendingUp,
-  AlertTriangle, AlertCircle, Info,
-  PiggyBank, Lightbulb, Shield,
+  Calendar,
+  PieChart,
+  Repeat,
+  TrendingUp,
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  PiggyBank,
+  Lightbulb,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface Insight { type: string; title: string; body: string; icon: string }
-interface InsightsData { insights: Insight[] }
+interface Insight {
+  type: string;
+  title: string;
+  body: string;
+  icon: string;
+}
+interface InsightsData {
+  insights: Insight[];
+}
 
 const ICON_MAP: Record<string, React.ElementType> = {
   calendar: Calendar,
@@ -27,11 +41,31 @@ const ICON_MAP: Record<string, React.ElementType> = {
 };
 
 const TYPE_STYLES: Record<string, { bg: string; icon: string; border: string }> = {
-  positive: { bg: "bg-emerald-50 dark:bg-emerald-950/30", icon: "text-emerald-600", border: "border-emerald-200 dark:border-emerald-800" },
-  alert:    { bg: "bg-red-50 dark:bg-red-950/30",         icon: "text-red-600",     border: "border-red-200 dark:border-red-800" },
-  warning:  { bg: "bg-amber-50 dark:bg-amber-950/30",     icon: "text-amber-600",   border: "border-amber-200 dark:border-amber-800" },
-  pattern:  { bg: "bg-blue-50 dark:bg-blue-950/30",       icon: "text-blue-600",    border: "border-blue-200 dark:border-blue-800" },
-  info:     { bg: "bg-slate-50 dark:bg-slate-800/40",     icon: "text-slate-500",   border: "border-slate-200 dark:border-slate-700" },
+  positive: {
+    bg: "bg-emerald-50 dark:bg-emerald-950/30",
+    icon: "text-emerald-600",
+    border: "border-emerald-200 dark:border-emerald-800",
+  },
+  alert: {
+    bg: "bg-red-50 dark:bg-red-950/30",
+    icon: "text-red-600",
+    border: "border-red-200 dark:border-red-800",
+  },
+  warning: {
+    bg: "bg-amber-50 dark:bg-amber-950/30",
+    icon: "text-amber-600",
+    border: "border-amber-200 dark:border-amber-800",
+  },
+  pattern: {
+    bg: "bg-blue-50 dark:bg-blue-950/30",
+    icon: "text-blue-600",
+    border: "border-blue-200 dark:border-blue-800",
+  },
+  info: {
+    bg: "bg-slate-50 dark:bg-slate-800/40",
+    icon: "text-slate-500",
+    border: "border-slate-200 dark:border-slate-700",
+  },
 };
 
 function InsightCard({ insight }: { insight: Insight }) {
@@ -58,7 +92,13 @@ export default function SmartInsights() {
     queryKey: ["/api/transactions/insights"],
     queryFn: () => {
       const token = getPersonalToken();
-      if (!token && !hasPersonalSession()) return Promise.resolve({ insights: [], spendingByCategory: [], totalEgresos: 0, totalIngresos: 0 });
+      if (!token && !hasPersonalSession())
+        return Promise.resolve({
+          insights: [],
+          spendingByCategory: [],
+          totalEgresos: 0,
+          totalIngresos: 0,
+        });
       return apiFetch("/api/transactions/insights");
     },
     enabled: isAuthenticated,
@@ -68,7 +108,9 @@ export default function SmartInsights() {
   if (isLoading) {
     return (
       <div className="space-y-2">
-        {[1, 2].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
+        {[1, 2].map((i) => (
+          <Skeleton key={i} className="h-20 w-full rounded-xl" />
+        ))}
       </div>
     );
   }

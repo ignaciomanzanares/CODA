@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import {
   Pagination,
@@ -19,13 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { 
-  CreditCard,
-  PiggyBank,
-  Landmark,
-  Sparkles,
-  ExternalLink
-} from "lucide-react";
+import { CreditCard, PiggyBank, Landmark, Sparkles } from "lucide-react";
 import type { FinancialProduct, LoanProduct } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
@@ -44,19 +38,19 @@ export default function ProductsTable({
   products,
   category,
   isLoading,
-  error
+  error,
 }: ProductsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 4;
   const { trackProductEvent } = useApi();
   const { isAuthenticated } = useAuth();
-  
+
   // Calculate pagination
   const indexOfLastProduct = currentPage * productsPerPage;
   const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
   const currentProducts = products.slice(indexOfFirstProduct, indexOfLastProduct);
   const totalPages = Math.ceil(products.length / productsPerPage);
-  
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
@@ -74,13 +68,14 @@ export default function ProductsTable({
 
     // Track click event
     if (isAuthenticated && product.id && product.matchScore) {
-      trackProductEvent(product.id, 'click', product.matchScore, { category })
-        .catch(err => console.warn('Failed to track click:', err));
+      trackProductEvent(product.id, "click", product.matchScore, { category }).catch((err) =>
+        console.warn("Failed to track click:", err),
+      );
     }
 
     // Open external URL
     if (product.externalUrl) {
-      window.open(product.externalUrl, '_blank', 'noopener,noreferrer');
+      window.open(product.externalUrl, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -140,7 +135,7 @@ export default function ProductsTable({
 
   // Type guards
   const isLoanProduct = (product: FinancialProduct): product is LoanProduct => {
-    return 'monthlyPayment' in product && 'loanAmount' in product;
+    return "monthlyPayment" in product && "loanAmount" in product;
   };
 
   // Function to render cell content based on column key and product data
@@ -169,7 +164,9 @@ export default function ProductsTable({
         if (category === "savings") {
           return (
             <>
-              <div className={`text-sm font-medium ${(product.interestRate ?? 0) >= 4 ? "text-green-600" : "text-yellow-600"}`}>
+              <div
+                className={`text-sm font-medium ${(product.interestRate ?? 0) >= 4 ? "text-green-600" : "text-yellow-600"}`}
+              >
                 {product.interestRate}%
               </div>
               <div className="text-xs text-muted-foreground">APY</div>
@@ -178,7 +175,9 @@ export default function ProductsTable({
         }
         return (
           <>
-            <div className={`text-sm font-medium ${(product.interestRate ?? 0) < 8 ? "text-green-600" : "text-yellow-600"}`}>
+            <div
+              className={`text-sm font-medium ${(product.interestRate ?? 0) < 8 ? "text-green-600" : "text-yellow-600"}`}
+            >
               {product.interestRate}%
             </div>
             <div className="text-xs text-muted-foreground">
@@ -190,9 +189,7 @@ export default function ProductsTable({
         if (isLoanProduct(product)) {
           return (
             <>
-              <div className="text-sm font-medium text-foreground">
-                ${product.monthlyPayment}
-              </div>
+              <div className="text-sm font-medium text-foreground">${product.monthlyPayment}</div>
               <div className="text-xs text-muted-foreground">
                 Por {formatCurrencyFn(product.loanAmount)}
               </div>
@@ -237,8 +234,8 @@ export default function ProductsTable({
         const productFeatures = product.features || {};
         const featuresList = Object.entries(productFeatures)
           .filter(([_key, value]) => value === true)
-          .map(([key]) => key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()));
-        
+          .map(([key]) => key.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase()));
+
         return (
           <div className="text-sm text-foreground">
             {featuresList.length > 0 ? featuresList.slice(0, 2).join(", ") : "Estándar"}
@@ -253,11 +250,7 @@ export default function ProductsTable({
           </div>
         );
       case "premium":
-        return (
-          <div className="text-sm text-foreground">
-            Varía según perfil
-          </div>
-        );
+        return <div className="text-sm text-foreground">Varía según perfil</div>;
       case "action":
         return (
           <Button variant="link" className="text-primary hover:text-primary-dark font-medium">
@@ -280,7 +273,10 @@ export default function ProductsTable({
               <TableHeader>
                 <TableRow>
                   {columns.map((column) => (
-                    <TableHead key={column.key} className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <TableHead
+                      key={column.key}
+                      className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                    >
                       {column.label}
                     </TableHead>
                   ))}
@@ -320,7 +316,9 @@ export default function ProductsTable({
   if (products.length === 0) {
     return (
       <Card className="p-6 text-center">
-        <p className="text-muted-foreground">No hay productos que coincidan con tus criterios. Prueba a ajustar los filtros.</p>
+        <p className="text-muted-foreground">
+          No hay productos que coincidan con tus criterios. Prueba a ajustar los filtros.
+        </p>
       </Card>
     );
   }
@@ -332,7 +330,10 @@ export default function ProductsTable({
           <TableHeader>
             <TableRow>
               {columns.map((column) => (
-                <TableHead key={column.key} className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                <TableHead
+                  key={column.key}
+                  className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                >
                   {column.label}
                 </TableHead>
               ))}
@@ -342,7 +343,10 @@ export default function ProductsTable({
             {currentProducts.map((product) => (
               <TableRow key={product.id} className="hover:bg-muted/50">
                 {columns.map((column) => (
-                  <TableCell key={`${product.id}-${column.key}`} className="px-6 py-4 whitespace-nowrap">
+                  <TableCell
+                    key={`${product.id}-${column.key}`}
+                    className="px-6 py-4 whitespace-nowrap"
+                  >
                     {renderCellContent(product, column.key)}
                   </TableCell>
                 ))}
@@ -351,23 +355,24 @@ export default function ProductsTable({
           </TableBody>
         </Table>
       </div>
-      
+
       <div className="px-6 py-4 bg-muted/50">
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Mostrando {indexOfFirstProduct + 1} a {Math.min(indexOfLastProduct, products.length)} de {products.length} productos
+            Mostrando {indexOfFirstProduct + 1} a {Math.min(indexOfLastProduct, products.length)} de{" "}
+            {products.length} productos
           </div>
-          
+
           {totalPages > 1 && (
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
-                  <PaginationPrevious 
+                  <PaginationPrevious
                     onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                     className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
                   />
                 </PaginationItem>
-                
+
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                   <PaginationItem key={page}>
                     <PaginationLink
@@ -378,9 +383,9 @@ export default function ProductsTable({
                     </PaginationLink>
                   </PaginationItem>
                 ))}
-                
+
                 <PaginationItem>
-                  <PaginationNext 
+                  <PaginationNext
                     onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                     className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
                   />

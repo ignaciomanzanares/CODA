@@ -12,13 +12,18 @@
 /** Contrato de transporte/seguridad común a todas las APIs (FAPI 2.0). */
 export const SFA_CONTRACT = {
   headers: {
-    authorization: 'Authorization', // Bearer JWT emitido por el AS registrado ante la CMF
-    interactionId: 'x-fapi-interaction-id', // UUID de correlación generado por el PSBI/PSIP
-    jwsSignature: 'x-jws-signature', // firma JWS del cuerpo (compact serialization)
+    authorization: "Authorization", // Bearer JWT emitido por el AS registrado ante la CMF
+    interactionId: "x-fapi-interaction-id", // UUID de correlación generado por el PSBI/PSIP
+    jwsSignature: "x-jws-signature", // firma JWS del cuerpo (compact serialization)
   },
-  accept: 'application/json',
-  pagination: { pageParam: 'page', pageSizeParam: 'pageSize', defaultPageSize: 25, maxPageSize: 1000 },
-  dateRangeParams: { from: 'fromDate', to: 'toDate' }, // YYYY-MM-DD
+  accept: "application/json",
+  pagination: {
+    pageParam: "page",
+    pageSizeParam: "pageSize",
+    defaultPageSize: 25,
+    maxPageSize: 1000,
+  },
+  dateRangeParams: { from: "fromDate", to: "toDate" }, // YYYY-MM-DD
 } as const;
 
 /**
@@ -29,33 +34,33 @@ export const SFA_CONTRACT = {
  */
 export const SFA_ENDPOINTS = {
   accounts: {
-    base: '/accounts/v1', // confirmado
-    list: '/accounts',
-    detail: '/accounts/{accountID}',
-    balance: '/accounts/{accountID}/balance',
-    overdraftLimit: '/accounts/{accountID}/current-overdraft-limit',
-    overdraft: '/accounts/{accountID}/overdraft',
-    transactions: '/accounts/{accountID}/transactions', // schema confirmado (sfaTypes.ts)
+    base: "/accounts/v1", // confirmado
+    list: "/accounts",
+    detail: "/accounts/{accountID}",
+    balance: "/accounts/{accountID}/balance",
+    overdraftLimit: "/accounts/{accountID}/current-overdraft-limit",
+    overdraft: "/accounts/{accountID}/overdraft",
+    transactions: "/accounts/{accountID}/transactions", // schema confirmado (sfaTypes.ts)
   },
   creditCards: {
-    base: '/credit-card-accounts/v1', // confirmado (self link de los ejemplos)
-    list: '/accounts',
-    detail: '/accounts/{creditCardAccountID}',
-    balance: '/accounts/{creditCardAccountID}/balance', // schema confirmado (SfaCreditCardBalance)
-    currentBalance: '/accounts/{creditCardAccountID}/current-balance',
-    limit: '/accounts/{creditCardAccountID}/limit', // schema confirmado (SfaCreditCardLimit)
-    transactions: '/accounts/{creditCardAccountID}/transactions', // mismo schema de movimientos
+    base: "/credit-card-accounts/v1", // confirmado (self link de los ejemplos)
+    list: "/accounts",
+    detail: "/accounts/{creditCardAccountID}",
+    balance: "/accounts/{creditCardAccountID}/balance", // schema confirmado (SfaCreditCardBalance)
+    currentBalance: "/accounts/{creditCardAccountID}/current-balance",
+    limit: "/accounts/{creditCardAccountID}/limit", // schema confirmado (SfaCreditCardLimit)
+    transactions: "/accounts/{creditCardAccountID}/transactions", // mismo schema de movimientos
   },
   investments: {
-    base: '/investments/v1', // confirmado
-    detail: '/investments/{investmentID}', // schema confirmado (SfaInvestment)
-    balance: '/investments/{investmentID}/balance', // schema confirmado (SfaInvestmentBalance)
+    base: "/investments/v1", // confirmado
+    detail: "/investments/{investmentID}", // schema confirmado (SfaInvestment)
+    balance: "/investments/{investmentID}/balance", // schema confirmado (SfaInvestmentBalance)
   },
   loans: {
-    base: '/loans/v1', // confirmado (self link de los ejemplos oficiales)
-    list: '/loans',
-    detail: '/loans/{loanID}', // schema confirmado (sfaTypes.SfaLoan)
-    balance: '/loans/{loanID}/balance', // schema confirmado (sfaTypes.SfaLoanBalance)
-    currentTransactions: '/loans/{loanID}/current-transactions', // mismo schema de movimientos
+    base: "/loans/v1", // confirmado (self link de los ejemplos oficiales)
+    list: "/loans",
+    detail: "/loans/{loanID}", // schema confirmado (sfaTypes.SfaLoan)
+    balance: "/loans/{loanID}/balance", // schema confirmado (sfaTypes.SfaLoanBalance)
+    currentTransactions: "/loans/{loanID}/current-transactions", // mismo schema de movimientos
   },
 } as const;

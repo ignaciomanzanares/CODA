@@ -16,7 +16,7 @@ describe("XgbTreeModel.explain", () => {
       return;
     }
     const fixture: { features: string[]; vectors: number[][]; margins: number[] } = JSON.parse(
-      fs.readFileSync(fixturePath, "utf-8")
+      fs.readFileSync(fixturePath, "utf-8"),
     );
     const model = XgbTreeModel.loadFromFile(xgbJsonPath);
 
@@ -33,7 +33,7 @@ describe("XgbTreeModel.explain", () => {
   it("predictProba matches the booster's predict_proba (paridad de scoring, #9)", () => {
     if (!fs.existsSync(xgbJsonPath)) return;
     const fixture: { features: string[]; vectors: number[][]; probs?: number[] } = JSON.parse(
-      fs.readFileSync(fixturePath, "utf-8")
+      fs.readFileSync(fixturePath, "utf-8"),
     );
     if (!fixture.probs) return; // fixtures antiguos sin columna de probabilidades
     const model = XgbTreeModel.loadFromFile(xgbJsonPath);
@@ -45,7 +45,9 @@ describe("XgbTreeModel.explain", () => {
 
   it("attributes contributions per-instance (varies with the input, unlike a global ranking)", () => {
     if (!fs.existsSync(xgbJsonPath)) return;
-    const fixture: { features: string[]; vectors: number[][] } = JSON.parse(fs.readFileSync(fixturePath, "utf-8"));
+    const fixture: { features: string[]; vectors: number[][] } = JSON.parse(
+      fs.readFileSync(fixturePath, "utf-8"),
+    );
     const model = XgbTreeModel.loadFromFile(xgbJsonPath);
 
     const a = model.topReasons(fixture.vectors[0], fixture.features, 5);

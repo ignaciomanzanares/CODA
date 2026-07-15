@@ -12,11 +12,7 @@ import {
   type PdfLine,
 } from "../services/documents/pdfAnalysis.js";
 import { parseCLP } from "../utils/clp.js";
-import {
-  categorize,
-  TAXONOMY,
-  type CategoryLabel,
-} from "./merchantCategorizer.js";
+import { categorize, TAXONOMY, type CategoryLabel } from "./merchantCategorizer.js";
 
 export type TransactionCategory =
   | "vivienda"
@@ -114,7 +110,8 @@ function extractTitular(text: string): string {
     }
   }
   const nameLine = lines.find(
-    (x) => /^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{8,}/.test(x) && !/CARTOLA|CUENTA|BANCO|SANTANDER|CHILE/i.test(x)
+    (x) =>
+      /^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{8,}/.test(x) && !/CARTOLA|CUENTA|BANCO|SANTANDER|CHILE/i.test(x),
   );
   if (nameLine) return nameLine.slice(0, 120);
   return "";
@@ -132,7 +129,7 @@ function inferYearFromText(text: string): number {
   const desdeFull = text.match(/DESDE\s*(\d{2})\/(\d{2})\/(\d{4})/i);
   const alFull = text.match(/\bAL\s+(\d{2})\/(\d{2})\/(\d{4})/i);
   const periodoFull = text.match(
-    /[Pp]er[ií]odo[:\s]+(?:\d{2}\/\d{2}\/\d{4}\s*[-–a]\s*)?(\d{2})\/(\d{2})\/(\d{4})/
+    /[Pp]er[ií]odo[:\s]+(?:\d{2}\/\d{2}\/\d{4}\s*[-–a]\s*)?(\d{2})\/(\d{2})\/(\d{4})/,
   );
   for (const match of [hastaFull, desdeFull, alFull, periodoFull]) {
     if (!match) continue;
@@ -150,7 +147,7 @@ function inferYearFromText(text: string): number {
     }
   }
   const monthYear = text.match(
-    /(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(202[0-9]|201[5-9])/i
+    /(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(202[0-9]|201[5-9])/i,
   );
   if (monthYear) {
     const y = parseInt(monthYear[1]!, 10);
@@ -201,7 +198,9 @@ function extractPeriodo(text: string): { desde: Date; hasta: Date; dias: number 
       const dd = parseInt(anyDate[1]!, 10);
       const mm = parseInt(anyDate[2]!, 10);
       const yy = anyDate[3]
-        ? (anyDate[3].length === 2 ? 2000 + parseInt(anyDate[3], 10) : parseInt(anyDate[3], 10))
+        ? anyDate[3].length === 2
+          ? 2000 + parseInt(anyDate[3], 10)
+          : parseInt(anyDate[3], 10)
         : year;
       const mid = toDate(Math.min(28, dd), Math.min(12, mm), yy);
       desde = new Date(mid.getFullYear(), mid.getMonth(), 1, 12, 0, 0, 0);
@@ -245,39 +244,39 @@ function extractResumenMontos(text: string): {
         // Classic 4-column: saldoInicial, cargos, abonos, saldoFinal
         return {
           saldo_inicial: parseChileAmount(nums[0]!),
-          total_cargos:  parseChileAmount(nums[1]!),
-          total_abonos:  parseChileAmount(nums[2]!),
-          saldo_final:   parseChileAmount(nums[3]!),
+          total_cargos: parseChileAmount(nums[1]!),
+          total_abonos: parseChileAmount(nums[2]!),
+          saldo_final: parseChileAmount(nums[3]!),
         };
       } else if (nums.length >= 5) {
         // Extended multi-column format: first=saldoInicial, last=saldoFinal.
         // Leave totals null — enrichCartola will compute them from transactions.
         return {
           saldo_inicial: parseChileAmount(nums[0]!),
-          total_cargos:  null,
-          total_abonos:  null,
-          saldo_final:   parseChileAmount(nums[nums.length - 1]!),
+          total_cargos: null,
+          total_abonos: null,
+          saldo_final: parseChileAmount(nums[nums.length - 1]!),
         };
       }
     }
   }
   // Strategy 2 — fallback: old inline 4-number pattern
   const saldoHeaderMatch = text.match(
-    /Saldo\s+Inicial.*?Saldo\s+Final.*?([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/is
+    /Saldo\s+Inicial.*?Saldo\s+Final.*?([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/is,
   );
   if (saldoHeaderMatch) {
     return {
       saldo_inicial: parseChileAmount(saldoHeaderMatch[1]!),
-      total_cargos:  parseChileAmount(saldoHeaderMatch[2]!),
-      total_abonos:  parseChileAmount(saldoHeaderMatch[3]!),
-      saldo_final:   parseChileAmount(saldoHeaderMatch[4]!),
+      total_cargos: parseChileAmount(saldoHeaderMatch[2]!),
+      total_abonos: parseChileAmount(saldoHeaderMatch[3]!),
+      saldo_final: parseChileAmount(saldoHeaderMatch[4]!),
     };
   }
   return {
     saldo_inicial: null,
-    total_cargos:  null,
-    total_abonos:  null,
-    saldo_final:   null,
+    total_cargos: null,
+    total_abonos: null,
+    saldo_final: null,
   };
 }
 
@@ -304,73 +303,147 @@ function normalizeDescKey(d: string): string {
 export function categorizeTransaction(
   descripcion: string,
   monto: number,
-  tipo: "cargo" | "abono"
+  tipo: "cargo" | "abono",
 ): TransactionCategory {
   const u = descripcion.toUpperCase();
 
   // ── Transferencias (más específico primero) ──────────────────────────────
   // Outgoing transfers (expenses) - transfers TO someone
-  if (/TRANSF(?:E?R)?\.?\s+A\s+|TRANS(?:F|E)?\s+A\s+|TRASPASO\s+A\s+|TEF\s+A\s+|GIRO\s+A\s+|PAGO\s+A\s+|TRANSF(?:E?R)?\s+DESDE|TRANSFERENCIA\s+A/i.test(u))
+  if (
+    /TRANSF(?:E?R)?\.?\s+A\s+|TRANS(?:F|E)?\s+A\s+|TRASPASO\s+A\s+|TEF\s+A\s+|GIRO\s+A\s+|PAGO\s+A\s+|TRANSF(?:E?R)?\s+DESDE|TRANSFERENCIA\s+A/i.test(
+      u,
+    )
+  )
     return "transferencia_enviada";
   // Incoming transfers (income) - transfers FROM someone
-  if (/TRANSF(?:E?R)?\.?\s+DE\s+|TRANS(?:F|E)?\s+DE\s+|TRASPASO\s+DE\s+|TEF\s+DE\s+|TEF\s+CR|TRASPASO\s+AUTOM|ABONO\s+TEF|ABONO\s+TRANSF|TRANSF(?:E?R)?ENCIA\s+RECIBIDA|TRANSF(?:E?R)?\s+RECIB|ABONO\s+POR\s+TRANSF/i.test(u))
+  if (
+    /TRANSF(?:E?R)?\.?\s+DE\s+|TRANS(?:F|E)?\s+DE\s+|TRASPASO\s+DE\s+|TEF\s+DE\s+|TEF\s+CR|TRASPASO\s+AUTOM|ABONO\s+TEF|ABONO\s+TRANSF|TRANSF(?:E?R)?ENCIA\s+RECIBIDA|TRANSF(?:E?R)?\s+RECIB|ABONO\s+POR\s+TRANSF/i.test(
+      u,
+    )
+  )
     return "transferencia_recibida";
 
   // ── Ingresos (sueldos, remuneraciones) ───────────────────────────────────
   if (
     tipo === "abono" &&
-    /REMUNERACI[OÓ]N|SUELDO|LIQUIDACI[OÓ]N|HONORARIO|PAGO\s+SUELDO|PLANILLA|BONIFICACI[OÓ]N|GRATIFICACI[OÓ]N|AGUINALDO|SUBSIDIO|DEVOLUCI[OÓ]N\s+SII|DEVOLUCI[OÓ]N\s+IMPUESTO|RENTA|PAGOS?\s+DESDE\s+BANCO/i.test(u)
+    /REMUNERACI[OÓ]N|SUELDO|LIQUIDACI[OÓ]N|HONORARIO|PAGO\s+SUELDO|PLANILLA|BONIFICACI[OÓ]N|GRATIFICACI[OÓ]N|AGUINALDO|SUBSIDIO|DEVOLUCI[OÓ]N\s+SII|DEVOLUCI[OÓ]N\s+IMPUESTO|RENTA|PAGOS?\s+DESDE\s+BANCO/i.test(
+      u,
+    )
   )
     return "ingreso_principal";
-  if (tipo === "abono" && monto >= 300_000 && /EMPRESA|S\.A\.|LTDA|SPA\b|EIRL|CORP|CORPORACION|LIMITADA/i.test(u))
+  if (
+    tipo === "abono" &&
+    monto >= 300_000 &&
+    /EMPRESA|S\.A\.|LTDA|SPA\b|EIRL|CORP|CORPORACION|LIMITADA/i.test(u)
+  )
     return "ingreso_principal";
 
   // ── Educación ────────────────────────────────────────────────────────────
-  if (/PONTIFICIA|UNIVERSIDAD|COLEGIO|LICEO|JARD[IÍ]N|JARDIN\s+INFANTIL|U\.\s*CHILE|UTFSM|DUOC|INACAP|CFT\b|PREUNIVERSITARIO|ACADEMIA|INSTITUTO\s+PROF|BRITANICO|NIDO|ESCUELA|KINDER|MATRICULA|ARANCEL|UNIVERSITARIA/i.test(u))
+  if (
+    /PONTIFICIA|UNIVERSIDAD|COLEGIO|LICEO|JARD[IÍ]N|JARDIN\s+INFANTIL|U\.\s*CHILE|UTFSM|DUOC|INACAP|CFT\b|PREUNIVERSITARIO|ACADEMIA|INSTITUTO\s+PROF|BRITANICO|NIDO|ESCUELA|KINDER|MATRICULA|ARANCEL|UNIVERSITARIA/i.test(
+      u,
+    )
+  )
     return "educacion";
 
   // ── Salud ────────────────────────────────────────────────────────────────
-  if (/FONASA|ISAPRE|BANM[EÉ]DICA|CONSALUD|COLMENA|MASVIDA|VIDA\s+TRES|ESENCIAL\s+SALUD|FARMACIA|FARMACIAS\s+AHUMADA|SALCO\s*BRAND|CRUZ\s+VERDE|DR\s+SIMI|MEDIC|DENTAL|DENTISTA|CLINICA|CL[IÍ]NICA|HOSPITAL|BUPA|ACHS|MUTUAL\s+DE\s+SEG|C[OÓ]NSULT|POLICL[IÍ]NICO|EX[AÁ]MENES|EXAMEN\s+MEDICO|URGENCIA|EMERGENCIA|CONSULTA\s+MEDICA/i.test(u))
+  if (
+    /FONASA|ISAPRE|BANM[EÉ]DICA|CONSALUD|COLMENA|MASVIDA|VIDA\s+TRES|ESENCIAL\s+SALUD|FARMACIA|FARMACIAS\s+AHUMADA|SALCO\s*BRAND|CRUZ\s+VERDE|DR\s+SIMI|MEDIC|DENTAL|DENTISTA|CLINICA|CL[IÍ]NICA|HOSPITAL|BUPA|ACHS|MUTUAL\s+DE\s+SEG|C[OÓ]NSULT|POLICL[IÍ]NICO|EX[AÁ]MENES|EXAMEN\s+MEDICO|URGENCIA|EMERGENCIA|CONSULTA\s+MEDICA/i.test(
+      u,
+    )
+  )
     return "salud";
 
   // ── Supermercados / alimentación (groceries — esenciales) ────────────────
-  if (/\bL[IÍ]DER\b|WALMART|JUMBO\b|TOTTUS|SANTA\s+ISABEL|UNIMARC|EKONO|COOP\b|BIGGER|ACUENTA|DECA\b|LA\s+DEHESA\s+MARKET|MARKET\s+CENTER|SUPERMERCADO|MAYORISTA\s+10|BIGBOX|CENTRAL\s+MAYOR/i.test(u))
+  if (
+    /\bL[IÍ]DER\b|WALMART|JUMBO\b|TOTTUS|SANTA\s+ISABEL|UNIMARC|EKONO|COOP\b|BIGGER|ACUENTA|DECA\b|LA\s+DEHESA\s+MARKET|MARKET\s+CENTER|SUPERMERCADO|MAYORISTA\s+10|BIGBOX|CENTRAL\s+MAYOR/i.test(
+      u,
+    )
+  )
     return "alimentacion";
-  if (/VINOS|VINOTECA|BOTILLER[IÍ]A|CERVECER[IÍ]A|CERVECERIA|DESPENSA|ALMAC[EÉ]N|MINIMARKET|MINI\s+MARKET|KIOSKO|KIOSCO|MERKADERIA|ABARROTES/i.test(u))
+  if (
+    /VINOS|VINOTECA|BOTILLER[IÍ]A|CERVECER[IÍ]A|CERVECERIA|DESPENSA|ALMAC[EÉ]N|MINIMARKET|MINI\s+MARKET|KIOSKO|KIOSCO|MERKADERIA|ABARROTES/i.test(
+      u,
+    )
+  )
     return "alimentacion";
 
   // ── Restaurantes / comida fuera (eating out — ocio) ────────────────────
-  if (/MC\s*DONALD|MCDONALD|MCDO|ARCOS\s+DORADOS|BURGER\s+KING|KFC\b|SUBWAY\b|PIZZA\s+HUT|DOMINO|DOMINO\s+PIZZA|PAPA\s+JOHN|SUSHI|SUSHITIME|TELEPIZZA|LOMITO|EMPANADA|PANADER[IÍ]A|CONFITER[IÍ]A|PASTELER[IÍ]A|RESTAURANT|RESTOBAR|PICADA|COMIDA\s+RAPIDA|STARBUCKS|JUAN\s+VALDEZ|CAF[EÉ]|CAFETER[IÍ]A|DELIVERY|RAPPI|PEDIDOS\s+YA|UBER\s*EATS|IFOOD|JUST\s+EAT|DIDI\s+FOOD|APP\s+DELIVERY|BAR\b|PUB\b|DISCOTECA|KARAOKE|BOWLING/i.test(u))
+  if (
+    /MC\s*DONALD|MCDONALD|MCDO|ARCOS\s+DORADOS|BURGER\s+KING|KFC\b|SUBWAY\b|PIZZA\s+HUT|DOMINO|DOMINO\s+PIZZA|PAPA\s+JOHN|SUSHI|SUSHITIME|TELEPIZZA|LOMITO|EMPANADA|PANADER[IÍ]A|CONFITER[IÍ]A|PASTELER[IÍ]A|RESTAURANT|RESTOBAR|PICADA|COMIDA\s+RAPIDA|STARBUCKS|JUAN\s+VALDEZ|CAF[EÉ]|CAFETER[IÍ]A|DELIVERY|RAPPI|PEDIDOS\s+YA|UBER\s*EATS|IFOOD|JUST\s+EAT|DIDI\s+FOOD|APP\s+DELIVERY|BAR\b|PUB\b|DISCOTECA|KARAOKE|BOWLING/i.test(
+      u,
+    )
+  )
     return "restaurantes";
 
   // ── Transporte ───────────────────────────────────────────────────────────
-  if (/\bBIP\b|\bBIPO\b|TNE\b|TRANSANTIAGO|RED\s+METROPOLITANA|RED\s+MOVILIDAD|METRO\s+DE\s+STGO|METRO\b.*SANTIAGO|METRO\s+SANTIAGO|BUSES|LOCOMOCION|\bALSACIA\b|\bEXPRESS\s+SANTIAGO/i.test(u))
+  if (
+    /\bBIP\b|\bBIPO\b|TNE\b|TRANSANTIAGO|RED\s+METROPOLITANA|RED\s+MOVILIDAD|METRO\s+DE\s+STGO|METRO\b.*SANTIAGO|METRO\s+SANTIAGO|BUSES|LOCOMOCION|\bALSACIA\b|\bEXPRESS\s+SANTIAGO/i.test(
+      u,
+    )
+  )
     return "transporte";
-  if (/COPEC\b|SHELL\b|PETROBRAS|ENAP\b|ENEX\b|TERPEL|PETRONOR|BENCINA|COMBUSTIBLE|NAFTA|GASOLINA|DIESEL|ESTACI[OÓ]N\s+DE\s+SERVICIO|GASOLINERA|PETRO|\bFULL\s+COPEC/i.test(u))
+  if (
+    /COPEC\b|SHELL\b|PETROBRAS|ENAP\b|ENEX\b|TERPEL|PETRONOR|BENCINA|COMBUSTIBLE|NAFTA|GASOLINA|DIESEL|ESTACI[OÓ]N\s+DE\s+SERVICIO|GASOLINERA|PETRO|\bFULL\s+COPEC/i.test(
+      u,
+    )
+  )
     return "transporte";
-  if (/AUTOPISTA|AUTOEXPR[EÉ]S|AUTOEXPRES|RUTA\s+5|VESPUCIO|COSTANERA\s+NORTE|SUR|AMERICO\s+VESPUCIO|\bAMB\b|TAG\b|TELEPASS|TELE\s+PASS|PEAJE|PASAJE\s+URBANO/i.test(u))
+  if (
+    /AUTOPISTA|AUTOEXPR[EÉ]S|AUTOEXPRES|RUTA\s+5|VESPUCIO|COSTANERA\s+NORTE|SUR|AMERICO\s+VESPUCIO|\bAMB\b|TAG\b|TELEPASS|TELE\s+PASS|PEAJE|PASAJE\s+URBANO/i.test(
+      u,
+    )
+  )
     return "transporte";
-  if (/UBER\b(?!\s*EATS)|CABIFY|DIDI\b(?!\s*FOOD)|\bBOLT\b|LIFT\b|LYFT\b|EASY\s+TAXI|TAXI|RADIO\s+TAXI|RECO/i.test(u))
+  if (
+    /UBER\b(?!\s*EATS)|CABIFY|DIDI\b(?!\s*FOOD)|\bBOLT\b|LIFT\b|LYFT\b|EASY\s+TAXI|TAXI|RADIO\s+TAXI|RECO/i.test(
+      u,
+    )
+  )
     return "transporte";
-  if (/LATAM\b|SKY\s*AIRLINE|JET\s*SMART|JETSMART|AEROL[IÍ]NEA|VUELO|PASAJE\s+A[EÉ]REO|AEROPUERTO|AVION|DESPEGAR|BOOKING\s+VOO|KAYAK/i.test(u))
+  if (
+    /LATAM\b|SKY\s*AIRLINE|JET\s*SMART|JETSMART|AEROL[IÍ]NEA|VUELO|PASAJE\s+A[EÉ]REO|AEROPUERTO|AVION|DESPEGAR|BOOKING\s+VOO|KAYAK/i.test(
+      u,
+    )
+  )
     return "transporte";
   if (/PARKING|AUTOPARKING|ESTACIONAMIENTO|PLAYA\s+DE\s+ESTAC|PLAYA\s+ESTACIONAMIENTO/i.test(u))
     return "transporte";
-  if (/CHILEXPRESS|STARKEN|DHL\b|FEDEX|CORREO\s+CHILE|CORREOS|BLUE\s+EXPRESS|SERVICIO\s+COURIER|ENV[IÍ]O/i.test(u))
+  if (
+    /CHILEXPRESS|STARKEN|DHL\b|FEDEX|CORREO\s+CHILE|CORREOS|BLUE\s+EXPRESS|SERVICIO\s+COURIER|ENV[IÍ]O/i.test(
+      u,
+    )
+  )
     return "transporte";
 
   // ── Telecomunicaciones ───────────────────────────────────────────────────
-  if (/\bENTEL\b|CLARO\s*CHILE|CLARO\s*VTR|\bWOM\b|MOVISTAR|\bVTR\b|\bGTD\b|TELSUR|TELEF[OÓ]NICA|TELEFONICA|TELMEX|MUNDO\s*PAC[IÍ]FICO|PAQUETE\s+CELULAR|PLAN\s+M[OÓ]VIL|INTERNET\s+HOGAR|FIBRA\s+[OÓ]PTICA|TELECOM/i.test(u))
+  if (
+    /\bENTEL\b|CLARO\s*CHILE|CLARO\s*VTR|\bWOM\b|MOVISTAR|\bVTR\b|\bGTD\b|TELSUR|TELEF[OÓ]NICA|TELEFONICA|TELMEX|MUNDO\s*PAC[IÍ]FICO|PAQUETE\s+CELULAR|PLAN\s+M[OÓ]VIL|INTERNET\s+HOGAR|FIBRA\s+[OÓ]PTICA|TELECOM/i.test(
+      u,
+    )
+  )
     return "telecomunicaciones";
 
   // ── Entretenimiento / streaming ──────────────────────────────────────────
-  if (/NETFLIX|SPOTIFY|PRIME\s+VIDEO|AMAZON\s+PRIME|HBO\s*MAX|HBO\s+MAX|DISNEY\+|DISNEY\s+PLUS|PARAMOUNT|STAR\s+PLUS|APPLE\s+TV|APPLE\s+MUSIC|YOUTUBE\s+PREMIUM|TWITCH|STEAM\b|EPIC\s+GAMES|PLAY\s*STATION|PLAYSTATION|XBOX\s+LIVE|XBOX\b|NINTENDO|DIRECTV|DIRECT\s+TV|CINEMARK|CINE\s+H[OA]YTS|CINEHOYTS|MOVIELAND|HOYTS|CIN[ÉE]POLIS|ENTRADA\s+AL\s+CINE|TEATRO|CONCIERTO|EVENTO|ENTRETENIMIENTO/i.test(u))
+  if (
+    /NETFLIX|SPOTIFY|PRIME\s+VIDEO|AMAZON\s+PRIME|HBO\s*MAX|HBO\s+MAX|DISNEY\+|DISNEY\s+PLUS|PARAMOUNT|STAR\s+PLUS|APPLE\s+TV|APPLE\s+MUSIC|YOUTUBE\s+PREMIUM|TWITCH|STEAM\b|EPIC\s+GAMES|PLAY\s*STATION|PLAYSTATION|XBOX\s+LIVE|XBOX\b|NINTENDO|DIRECTV|DIRECT\s+TV|CINEMARK|CINE\s+H[OA]YTS|CINEHOYTS|MOVIELAND|HOYTS|CIN[ÉE]POLIS|ENTRADA\s+AL\s+CINE|TEATRO|CONCIERTO|EVENTO|ENTRETENIMIENTO/i.test(
+      u,
+    )
+  )
     return "entretenimiento";
-  if (/GIMNASIO|GYM\b|SMART\s*FIT|FITNESS|FITPASS|CLUB\s+DE\s+DEPORTES|PISCINA|ESTADIO|CANCHA|DEPORTE|ACTIVIDAD\s+F[IÍ]SICA|YOGA|PILATES/i.test(u))
+  if (
+    /GIMNASIO|GYM\b|SMART\s*FIT|FITNESS|FITPASS|CLUB\s+DE\s+DEPORTES|PISCINA|ESTADIO|CANCHA|DEPORTE|ACTIVIDAD\s+F[IÍ]SICA|YOGA|PILATES/i.test(
+      u,
+    )
+  )
     return "entretenimiento";
 
   // ── Servicios básicos / utilities ────────────────────────────────────────
-  if (/ENEL\b|CGE\b|CHILECTRA|ELECTRA|LUZ\s+OSORNO|FRONTEL|SAESA|CONAFE|\bAGUA\b.*POTABLE|ESVAL|AGUAS\s+ANDINAS|AGUAS\s+ANTOFAGASTA|ESSBIO|AGUAS\s+DEL\s+VALLE|AGUAS\s+CHA[ÑN]AR|EMEL|EL[IÉ]CTRICA|SMAPA/i.test(u))
+  if (
+    /ENEL\b|CGE\b|CHILECTRA|ELECTRA|LUZ\s+OSORNO|FRONTEL|SAESA|CONAFE|\bAGUA\b.*POTABLE|ESVAL|AGUAS\s+ANDINAS|AGUAS\s+ANTOFAGASTA|ESSBIO|AGUAS\s+DEL\s+VALLE|AGUAS\s+CHA[ÑN]AR|EMEL|EL[IÉ]CTRICA|SMAPA/i.test(
+      u,
+    )
+  )
     return "servicios";
   if (/GAS\s+NATURAL|METROGAS|LIPIGAS|ABASTIBLE|GASVAL|GAS\s+ENERGY|GASCO|GLP/i.test(u))
     return "servicios";
@@ -378,19 +451,35 @@ export function categorizeTransaction(
     return "servicios";
 
   // ── Vivienda / arriendo ──────────────────────────────────────────────────
-  if (/ARRIENDO|ARRENDAMIENTO|DIVIDENDO|HIPOTECARIO|MUTUARIA|ADMINISTRACI[OÓ]N\s+EDIFICIO|ADMINISTRACI[OÓ]N|CONDOMINIO|INMOBILIARIA|CORREDORA\s+PROP|PROPIEDAD|INMUEBLE/i.test(u))
+  if (
+    /ARRIENDO|ARRENDAMIENTO|DIVIDENDO|HIPOTECARIO|MUTUARIA|ADMINISTRACI[OÓ]N\s+EDIFICIO|ADMINISTRACI[OÓ]N|CONDOMINIO|INMOBILIARIA|CORREDORA\s+PROP|PROPIEDAD|INMUEBLE/i.test(
+      u,
+    )
+  )
     return "vivienda";
 
   // ── Comercio general / retail ────────────────────────────────────────────
-  if (/FALABELLA|RIPLEY|PARIS\b|LA\s+POLAR|H&M\b|ZARA\b|FOREVER\s+21|CORONA\b|HITES\b|ABC\s+DIN|EASY\b|HOMECENTER|SODIMAC|IKEA\b|ABCDIN|TIENDA|RETAIL|COMERCIO/i.test(u))
+  if (
+    /FALABELLA|RIPLEY|PARIS\b|LA\s+POLAR|H&M\b|ZARA\b|FOREVER\s+21|CORONA\b|HITES\b|ABC\s+DIN|EASY\b|HOMECENTER|SODIMAC|IKEA\b|ABCDIN|TIENDA|RETAIL|COMERCIO/i.test(
+      u,
+    )
+  )
     return "comercio";
-  if (/AMAZON\b|EBAY\b|ALIEXPRESS|SHEIN\b|WISH\b|SHOPEE|MERCADOLIBRE|MERCADO\s+LIBRE|LINIO\b|PARIS\.CL|FALABELLA\.COM|RIPLEY\.COM|TIENDA|COMPRA\s+ONLINE|ECOMMERCE|E-COMMERCE/i.test(u))
+  if (
+    /AMAZON\b|EBAY\b|ALIEXPRESS|SHEIN\b|WISH\b|SHOPEE|MERCADOLIBRE|MERCADO\s+LIBRE|LINIO\b|PARIS\.CL|FALABELLA\.COM|RIPLEY\.COM|TIENDA|COMPRA\s+ONLINE|ECOMMERCE|E-COMMERCE/i.test(
+      u,
+    )
+  )
     return "comercio";
   if (/PAYU\b|KUSHKI\b|STRIPE\b|TRANSBANK|GETNET|PAYPAL\b|PAY\s+GOOGLE|APPLE\s+PAY/i.test(u))
     return "comercio";
 
   // ── Seguros ──────────────────────────────────────────────────────────────
-  if (/SEGURO|PRIMA\b|P[OÓ]LIZA|ASEGURADORA|MAPFRE|SURA\b|BCI\s+SEGUROS|HDI\b|LIBERTY|METLIFE|PRINCIPAL|CHILENA\s+CONSOLIDADA/i.test(u))
+  if (
+    /SEGURO|PRIMA\b|P[OÓ]LIZA|ASEGURADORA|MAPFRE|SURA\b|BCI\s+SEGUROS|HDI\b|LIBERTY|METLIFE|PRINCIPAL|CHILENA\s+CONSOLIDADA/i.test(
+      u,
+    )
+  )
     return "seguros";
 
   // ── Servicios básicos (complementa "servicios" existente) ───────────────
@@ -402,48 +491,59 @@ export function categorizeTransaction(
     return "salud_bienestar";
 
   // ── Cuidado personal ────────────────────────────────────────────────────
-  if (/PELUQUER[IÍ]A|SAL[OÓ]N\s+DE\s+BELLEZA|COSM[EÉ]TICO|MANICURE|PEDICURE|SPA\b|BARBER[IÍ]A/i.test(u))
+  if (
+    /PELUQUER[IÍ]A|SAL[OÓ]N\s+DE\s+BELLEZA|COSM[EÉ]TICO|MANICURE|PEDICURE|SPA\b|BARBER[IÍ]A/i.test(
+      u,
+    )
+  )
     return "cuidado_personal";
 
   // ── Diversión (merged into restaurantes/entretenimiento) ─────────────────
-  if (/PARQUE\s+DIVERSI/i.test(u))
-    return "entretenimiento";
+  if (/PARQUE\s+DIVERSI/i.test(u)) return "entretenimiento";
 
   // ── Suscripciones ───────────────────────────────────────────────────────
   if (/SUSCRIPCI[OÓ]N|MEMBERSHIP|MEMBRES[IÍ]A|PATREON|CHATGPT|OPENAI|NOTION|CANVA|ADOBE/i.test(u))
     return "suscripciones";
 
   // ── Deudas ──────────────────────────────────────────────────────────────
-  if (/CUOTA\s+CR[EÉ]DITO|CUOTA\s+CONSUMO|PAGO\s+TARJETA|INTER[EÉ]S|GASTO\s+BANCARIO|COBRO\s+CUENTA|MANTENCION\s+CUENTA|COMISI[OÓ]N\s+BANCARIA|CR[EÉ]DITO\s+HIPOTECARIO/i.test(u))
+  if (
+    /CUOTA\s+CR[EÉ]DITO|CUOTA\s+CONSUMO|PAGO\s+TARJETA|INTER[EÉ]S|GASTO\s+BANCARIO|COBRO\s+CUENTA|MANTENCION\s+CUENTA|COMISI[OÓ]N\s+BANCARIA|CR[EÉ]DITO\s+HIPOTECARIO/i.test(
+      u,
+    )
+  )
     return "deudas";
 
   // ── Inversiones ─────────────────────────────────────────────────────────
-  if (/AFP\b|APV\b|FONDO\s+MUTUO|INVERSI[OÓ]N|BURS[AÁ]TIL|CORREDORA\s+DE\s+BOLSA|RENTA\s+VARIABLE|RENTA\s+FIJA|ETF\b|FINTUAL|RACIONAL/i.test(u))
+  if (
+    /AFP\b|APV\b|FONDO\s+MUTUO|INVERSI[OÓ]N|BURS[AÁ]TIL|CORREDORA\s+DE\s+BOLSA|RENTA\s+VARIABLE|RENTA\s+FIJA|ETF\b|FINTUAL|RACIONAL/i.test(
+      u,
+    )
+  )
     return "inversiones";
 
   // ── Ahorros ─────────────────────────────────────────────────────────────
-  if (/AHORRO|CUENTA\s+2|CUENTA\s+AHORRO|DEPOSITO\s+A\s+PLAZO|DAP\b/i.test(u))
-    return "ahorros";
+  if (/AHORRO|CUENTA\s+2|CUENTA\s+AHORRO|DEPOSITO\s+A\s+PLAZO|DAP\b/i.test(u)) return "ahorros";
 
   // ── Regalos ─────────────────────────────────────────────────────────────
-  if (/REGALO|GIFT|FLOWER|FLORISTER[IÍ]A|JUGUETER[IÍ]A/i.test(u))
-    return "regalos";
+  if (/REGALO|GIFT|FLOWER|FLORISTER[IÍ]A|JUGUETER[IÍ]A/i.test(u)) return "regalos";
 
   // ── Reparaciones y mantenimiento ────────────────────────────────────────
   if (/REPARACI[OÓ]N|MANTENCI[OÓ]N|GASFITER|ELECTRICISTA|MAESTRO|PINTUR|FERRET|TECNI/i.test(u))
     return "reparaciones";
 
   // ── Hobbies ─────────────────────────────────────────────────────────────
-  if (/CAMPING|ESCALADA|BICICLETA|CICL|OUTDOOR|MONTAÑA|DECO\s+HOGAR|MANUALIDAD|LIBRO|LIBRER[IÍ]A/i.test(u))
+  if (
+    /CAMPING|ESCALADA|BICICLETA|CICL|OUTDOOR|MONTAÑA|DECO\s+HOGAR|MANUALIDAD|LIBRO|LIBRER[IÍ]A/i.test(
+      u,
+    )
+  )
     return "hobbies";
 
   // ── Financiero genérico (fallback) ──────────────────────────────────────
-  if (/CMF\b|SBIF\b|BANCO\s+CENTRAL|COMISI[OÓ]N/i.test(u))
-    return "otro";
+  if (/CMF\b|SBIF\b|BANCO\s+CENTRAL|COMISI[OÓ]N/i.test(u)) return "otro";
 
   // Fallback según tipo (abono sin clasificar → ingreso menor)
-  if (tipo === "abono" && monto >= 100_000)
-    return "ingreso_principal";
+  if (tipo === "abono" && monto >= 100_000) return "ingreso_principal";
 
   return "otro";
 }
@@ -487,7 +587,7 @@ function buildSaldosDiarios(
   desde: Date,
   hasta: Date,
   saldoInicialPeriodo: number,
-  txs: Array<{ fecha: Date; saldo_despues: number }>
+  txs: Array<{ fecha: Date; saldo_despues: number }>,
 ): Array<{ fecha: Date; saldo: number }> {
   const byDay = new Map<string, number>();
   for (const tx of txs) {
@@ -523,7 +623,15 @@ function parseCartolaDate(fechaStr: string): Date {
   // First try ISO format: YYYY-MM-DD
   const iso = fechaStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) {
-    return new Date(parseInt(iso[1]!, 10), parseInt(iso[2]!, 10) - 1, parseInt(iso[3]!, 10), 12, 0, 0, 0);
+    return new Date(
+      parseInt(iso[1]!, 10),
+      parseInt(iso[2]!, 10) - 1,
+      parseInt(iso[3]!, 10),
+      12,
+      0,
+      0,
+      0,
+    );
   }
   // Try DD/MM/YYYY format (common in Chilean bank statements)
   const ddmmyyyy = fechaStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
@@ -603,7 +711,7 @@ function enrichCartola(
     total_cargos: number | null;
     total_abonos: number | null;
     saldo_final: number | null;
-  }
+  },
 ): CartolaParseResult {
   const descCounts = new Map<string, number>();
   for (const t of cartola.transacciones) {
@@ -612,8 +720,7 @@ function enrichCartola(
     descCounts.set(k, (descCounts.get(k) ?? 0) + 1);
   }
 
-  let saldoInicial =
-    resumen.saldo_inicial ?? cartola.saldoInicial ?? null;
+  let saldoInicial = resumen.saldo_inicial ?? cartola.saldoInicial ?? null;
   const saldoFinalReported = resumen.saldo_final ?? cartola.saldoFinal ?? null;
 
   let sumCargos = 0;
@@ -693,8 +800,7 @@ function enrichCartola(
     });
   }
 
-  let saldo_final =
-    saldoFinalReported != null ? saldoFinalReported : running;
+  const saldo_final = saldoFinalReported != null ? saldoFinalReported : running;
 
   const total_cargos = resumen.total_cargos ?? sumCargos;
   const total_abonos = resumen.total_abonos ?? sumAbonos;
@@ -703,7 +809,7 @@ function enrichCartola(
     periodo.desde,
     periodo.hasta,
     Math.round(saldoInicial),
-    transacciones
+    transacciones,
   );
 
   return {

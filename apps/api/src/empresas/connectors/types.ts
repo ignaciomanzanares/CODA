@@ -1,13 +1,13 @@
 /**
  * Common types for all connectors
- * 
+ *
  * Design Principles:
  * - All connectors are idempotent (re-running produces same result)
  * - All connectors store raw payloads for audit
  * - All connectors support incremental sync via cursor
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // =============================================================================
 // SYNC RESULT TYPES
@@ -60,8 +60,8 @@ export const OpenBankingAccountSchema = z.object({
   externalId: z.string(),
   bankName: z.string(),
   accountNumber: z.string(),
-  accountType: z.enum(['checking', 'savings', 'credit']),
-  currency: z.string().default('CLP'),
+  accountType: z.enum(["checking", "savings", "credit"]),
+  currency: z.string().default("CLP"),
   isActive: z.boolean().default(true),
 });
 
@@ -73,12 +73,12 @@ export const OpenBankingTransactionSchema = z.object({
   transactionDate: z.string(), // ISO date
   postedDate: z.string().nullable(),
   amount: z.number(),
-  currency: z.string().default('CLP'),
+  currency: z.string().default("CLP"),
   description: z.string().nullable(),
   counterpartyName: z.string().nullable(),
   counterpartyRut: z.string().nullable(),
   reference: z.string().nullable(),
-  status: z.enum(['pending', 'posted', 'reversed']),
+  status: z.enum(["pending", "posted", "reversed"]),
   category: z.string().nullable(),
 });
 
@@ -104,8 +104,8 @@ export interface OpenBankingData {
 // =============================================================================
 
 export const DTEDocumentSchema = z.object({
-  documentType: z.enum(['invoice', 'credit_note', 'debit_note']),
-  direction: z.enum(['issued', 'received']),
+  documentType: z.enum(["invoice", "credit_note", "debit_note"]),
+  direction: z.enum(["issued", "received"]),
   folio: z.number(),
   emitterRut: z.string(),
   emitterName: z.string().nullable(),
@@ -115,8 +115,8 @@ export const DTEDocumentSchema = z.object({
   netAmount: z.number(),
   vatAmount: z.number().default(0),
   totalAmount: z.number(),
-  currency: z.string().default('CLP'),
-  status: z.enum(['valid', 'cancelled', 'pending']).default('valid'),
+  currency: z.string().default("CLP"),
+  status: z.enum(["valid", "cancelled", "pending"]).default("valid"),
   references: z.string().nullable(),
 });
 
@@ -130,11 +130,11 @@ export const PurchaseOrderSchema = z.object({
   poNumber: z.string(),
   customerRut: z.string(),
   customerName: z.string().nullable(),
-  currency: z.string().default('CLP'),
+  currency: z.string().default("CLP"),
   totalAmount: z.number(),
   invoicedAmount: z.number().default(0),
   expectedInvoiceDate: z.string().nullable(), // ISO date
-  status: z.enum(['open', 'partially_invoiced', 'fully_invoiced', 'cancelled']).default('open'),
+  status: z.enum(["open", "partially_invoiced", "fully_invoiced", "cancelled"]).default("open"),
   notes: z.string().nullable(),
 });
 
@@ -146,8 +146,8 @@ export type PurchaseOrder = z.infer<typeof PurchaseOrderSchema>;
 
 export interface RawPayload {
   companyId: number;
-  source: 'openbanking' | 'sii' | 'purchase_orders';
-  syncType: 'full' | 'incremental';
+  source: "openbanking" | "sii" | "purchase_orders";
+  syncType: "full" | "incremental";
   cursor: string | null;
   payload: string; // JSON stringified
   syncedAt: string;

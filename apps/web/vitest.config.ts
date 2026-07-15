@@ -1,5 +1,5 @@
-import { defineConfig } from 'vitest/config';
-import path from 'path';
+import { defineConfig } from "vitest/config";
+import path from "path";
 
 /**
  * #16: harness de tests del frontend. Hoy con `environment: 'node'` para tests de lógica pura
@@ -10,10 +10,10 @@ import path from 'path';
  */
 export default defineConfig({
   resolve: {
-    alias: { '@': path.resolve(import.meta.dirname, 'src') },
+    alias: { "@": path.resolve(import.meta.dirname, "src") },
   },
   test: {
-    environment: 'node',
-    include: ['src/**/*.test.{ts,tsx}'],
+    environment: "node",
+    include: ["src/**/*.test.{ts,tsx}"],
   },
 });

@@ -4,8 +4,8 @@
  * razones (top features). Si no hay señal suficiente devuelve `available:false` con motivo — nunca
  * un número inventado (el heurístico `sfaScoringEngine` fue eliminado por no estar respaldado).
  */
-import { logger } from '../../logger.js';
-import type { UserRiskProfile } from './userRiskProfile.js';
+import { logger } from "../../logger.js";
+import type { UserRiskProfile } from "./userRiskProfile.js";
 
 /** Meses mínimos de transacciones para que el modelo tenga señal. */
 const MIN_TRANSACTION_MONTHS = 3;
@@ -16,7 +16,7 @@ const MIN_TRANSACTION_MONTHS = 3;
  */
 const SCORE100 = { offset: 40, factor: 11, min: 0, max: 100 } as const;
 
-export type TransactionalBand = 'Excelente' | 'Bueno' | 'Regular' | 'Bajo';
+export type TransactionalBand = "Excelente" | "Bueno" | "Regular" | "Bajo";
 
 export interface TransactionalScoreResult {
   available: boolean;
@@ -31,10 +31,10 @@ export interface TransactionalScoreResult {
 }
 
 function bandFor(score: number): TransactionalBand {
-  if (score >= 70) return 'Excelente';
-  if (score >= 55) return 'Bueno';
-  if (score >= 35) return 'Regular';
-  return 'Bajo';
+  if (score >= 70) return "Excelente";
+  if (score >= 55) return "Bueno";
+  if (score >= 35) return "Regular";
+  return "Bajo";
 }
 
 function pdToScore100(pd: number): number {
@@ -44,7 +44,9 @@ function pdToScore100(pd: number): number {
   return Math.round(Math.max(SCORE100.min, Math.min(SCORE100.max, raw)));
 }
 
-export async function computeTransactionalScore(profile: UserRiskProfile): Promise<TransactionalScoreResult> {
+export async function computeTransactionalScore(
+  profile: UserRiskProfile,
+): Promise<TransactionalScoreResult> {
   if (profile.meta.transactionMonths < MIN_TRANSACTION_MONTHS) {
     return {
       available: false,
@@ -54,13 +56,17 @@ export async function computeTransactionalScore(profile: UserRiskProfile): Promi
   }
 
   try {
-    const { PDModelRegistry } = await import('../modelRegistry.js');
+    const { PDModelRegistry } = await import("../modelRegistry.js");
     const reg = PDModelRegistry.instance();
     if (!reg.isReady) {
       await new Promise((r) => setTimeout(r, 150)); // ventana de warm-up (lazy load)
     }
     if (!reg.isReady) {
-      return { available: false, isBeta: true, reason: 'El modelo transaccional no está disponible en este momento.' };
+      return {
+        available: false,
+        isBeta: true,
+        reason: "El modelo transaccional no está disponible en este momento.",
+      };
     }
 
     const fv = profile.transactional as any;
@@ -79,7 +85,14 @@ export async function computeTransactionalScore(profile: UserRiskProfile): Promi
       reasons: instanceReasons.map((r) => r.feature),
     };
   } catch (e) {
-    logger.warn({ err: e, userId: profile.userId }, '[transactionalScore] scoreXGB failed (non-fatal)');
-    return { available: false, isBeta: true, reason: 'No se pudo calcular el score transaccional.' };
+    logger.warn(
+      { err: e, userId: profile.userId },
+      "[transactionalScore] scoreXGB failed (non-fatal)",
+    );
+    return {
+      available: false,
+      isBeta: true,
+      reason: "No se pudo calcular el score transaccional.",
+    };
   }
 }

@@ -7,19 +7,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Plus, 
-  Target, 
-  PiggyBank, 
-  Home, 
-  GraduationCap, 
+import {
+  Plus,
+  Target,
+  PiggyBank,
+  Home,
+  GraduationCap,
   CreditCard,
   Briefcase,
-  MoreHorizontal,
   ChevronRight,
   Calendar,
   TrendingUp,
-  Info
+  Info,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
@@ -42,8 +41,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format, formatDistanceToNow } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { format } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -78,24 +83,36 @@ type GoalFormValues = z.infer<typeof goalFormSchema>;
 // Get icon for category
 function getCategoryIcon(category: string) {
   switch (category) {
-    case 'savings': return PiggyBank;
-    case 'debt_repayment': return CreditCard;
-    case 'retirement': return Briefcase;
-    case 'home': return Home;
-    case 'education': return GraduationCap;
-    default: return Target;
+    case "savings":
+      return PiggyBank;
+    case "debt_repayment":
+      return CreditCard;
+    case "retirement":
+      return Briefcase;
+    case "home":
+      return Home;
+    case "education":
+      return GraduationCap;
+    default:
+      return Target;
   }
 }
 
 // Get color for category
 function getCategoryColor(category: string) {
   switch (category) {
-    case 'savings': return 'bg-green-500';
-    case 'debt_repayment': return 'bg-red-500';
-    case 'retirement': return 'bg-purple-500';
-    case 'home': return 'bg-blue-500';
-    case 'education': return 'bg-orange-500';
-    default: return 'bg-gray-500';
+    case "savings":
+      return "bg-green-500";
+    case "debt_repayment":
+      return "bg-red-500";
+    case "retirement":
+      return "bg-purple-500";
+    case "home":
+      return "bg-blue-500";
+    case "education":
+      return "bg-orange-500";
+    default:
+      return "bg-gray-500";
   }
 }
 
@@ -118,23 +135,28 @@ function GoalItem({ goal }: { goal: FinancialGoal }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-1">
             <p className="font-medium truncate">{goal.name}</p>
-            <Badge 
-              variant="secondary" 
+            <Badge
+              variant="secondary"
               className={cn(
                 "text-xs",
-                progress >= 100 ? "bg-green-100 text-green-700" :
-                isOverdue ? "bg-red-100 text-red-700" :
-                "bg-blue-100 text-blue-700"
+                progress >= 100
+                  ? "bg-green-100 text-green-700"
+                  : isOverdue
+                    ? "bg-red-100 text-red-700"
+                    : "bg-blue-100 text-blue-700",
               )}
             >
-              {progress >= 100 ? '¡Completada!' : isOverdue ? 'Vencida' : `${progress}%`}
+              {progress >= 100 ? "¡Completada!" : isOverdue ? "Vencida" : `${progress}%`}
             </Badge>
           </div>
-          
+
           <Progress value={progress} className="h-2 mb-2" />
-          
+
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{formatCurrency(goal.currentAmount, currency)} de {formatCurrency(goal.targetAmount, currency)}</span>
+            <span>
+              {formatCurrency(goal.currentAmount, currency)} de{" "}
+              {formatCurrency(goal.targetAmount, currency)}
+            </span>
             <span className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
               {format(targetDate, "MMM yyyy")}
@@ -150,10 +172,14 @@ export default function FinancialGoalsCard() {
   const [isAddGoalOpen, setIsAddGoalOpen] = useState(false);
   const { toast } = useToast();
   const { getFinancialGoals, createFinancialGoal } = useFinancialGoals();
-  
-  const { data: goals, isLoading, error } = useQuery({
+
+  const {
+    data: goals,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["/api/financial-goals"],
-    queryFn: getFinancialGoals
+    queryFn: getFinancialGoals,
   });
 
   // Add goal mutation
@@ -230,9 +256,7 @@ export default function FinancialGoalsCard() {
               <Info className="h-6 w-6 text-red-600" />
             </div>
             <p className="text-muted-foreground mb-4">
-              {error instanceof Error
-                ? error.message
-                : "Error al cargar las metas financieras"}
+              {error instanceof Error ? error.message : "Error al cargar las metas financieras"}
             </p>
             <Button
               variant="outline"
@@ -247,8 +271,10 @@ export default function FinancialGoalsCard() {
   }
 
   // Calculate total progress
-  const totalTarget = goals?.reduce((sum: number, g: FinancialGoal) => sum + g.targetAmount, 0) || 0;
-  const totalCurrent = goals?.reduce((sum: number, g: FinancialGoal) => sum + g.currentAmount, 0) || 0;
+  const totalTarget =
+    goals?.reduce((sum: number, g: FinancialGoal) => sum + g.targetAmount, 0) || 0;
+  const totalCurrent =
+    goals?.reduce((sum: number, g: FinancialGoal) => sum + g.currentAmount, 0) || 0;
   const overallProgress = totalTarget > 0 ? Math.round((totalCurrent / totalTarget) * 100) : 0;
 
   return (
@@ -296,10 +322,7 @@ export default function FinancialGoalsCard() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Categoría</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Elegir categoría" />
@@ -364,17 +387,10 @@ export default function FinancialGoalsCard() {
                   />
 
                   <DialogFooter>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsAddGoalOpen(false)}
-                    >
+                    <Button type="button" variant="outline" onClick={() => setIsAddGoalOpen(false)}>
                       Cancelar
                     </Button>
-                    <Button 
-                      type="submit"
-                      disabled={addGoalMutation.isPending}
-                    >
+                    <Button type="submit" disabled={addGoalMutation.isPending}>
                       {addGoalMutation.isPending ? "Añadiendo..." : "Añadir meta"}
                     </Button>
                   </DialogFooter>
@@ -397,7 +413,8 @@ export default function FinancialGoalsCard() {
             <Progress value={overallProgress} className="h-2" />
             <p className="text-xs text-muted-foreground mt-2">
               <TrendingUp className="h-3 w-3 inline mr-1" />
-              Vas bien con {goals.length} meta{goals.length !== 1 ? 's' : ''} activa{goals.length !== 1 ? 's' : ''}
+              Vas bien con {goals.length} meta{goals.length !== 1 ? "s" : ""} activa
+              {goals.length !== 1 ? "s" : ""}
             </p>
           </div>
         )}
@@ -405,9 +422,7 @@ export default function FinancialGoalsCard() {
         {/* Goals List */}
         <div className="space-y-2 flex-1 overflow-auto">
           {goals && goals.length > 0 ? (
-            goals.slice(0, 3).map((goal: FinancialGoal) => (
-              <GoalItem key={goal.id} goal={goal} />
-            ))
+            goals.slice(0, 3).map((goal: FinancialGoal) => <GoalItem key={goal.id} goal={goal} />)
           ) : (
             <div className="text-center py-8">
               <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -424,7 +439,7 @@ export default function FinancialGoalsCard() {
         <Link href={ROUTES.metas}>
           <Button className="w-full mt-4 group">
             <Target className="h-4 w-4 mr-2" />
-            {goals && goals.length > 3 ? `Ver las ${goals.length} metas` : 'Gestionar metas'}
+            {goals && goals.length > 3 ? `Ver las ${goals.length} metas` : "Gestionar metas"}
             <ChevronRight className="h-4 w-4 ml-auto group-hover:translate-x-1 transition-transform" />
           </Button>
         </Link>

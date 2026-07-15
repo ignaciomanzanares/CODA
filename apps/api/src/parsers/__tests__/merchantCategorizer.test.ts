@@ -97,7 +97,11 @@ describe("categorize — real cartola corpus", () => {
   });
 
   it("honours the internalTransfer flag from the caller", () => {
-    const r = categorize({ descripcion: "Transf a Juan Perez", tipo: "cargo", internalTransfer: true });
+    const r = categorize({
+      descripcion: "Transf a Juan Perez",
+      tipo: "cargo",
+      internalTransfer: true,
+    });
     expect(r.category).toBe("Transferencia interna");
     expect(r.excluded).toBe(true);
   });
@@ -136,8 +140,12 @@ describe("categorize — real cartola corpus", () => {
   });
 
   it("foreign merchants with clear hints avoid low-confidence Otro", () => {
-    expect(categorize({ descripcion: "WOW Cinema Frankfurt am", tipo: "cargo" }).category).toBe("Entretenimiento");
-    expect(categorize({ descripcion: "WOW Entertai Frankfurt am", tipo: "cargo" }).category).toBe("Entretenimiento");
+    expect(categorize({ descripcion: "WOW Cinema Frankfurt am", tipo: "cargo" }).category).toBe(
+      "Entretenimiento",
+    );
+    expect(categorize({ descripcion: "WOW Entertai Frankfurt am", tipo: "cargo" }).category).toBe(
+      "Entretenimiento",
+    );
 
     const zettle = categorize({ descripcion: "Zettle *Local Dealer Frankfurt am", tipo: "cargo" });
     expect(zettle.category).toBe("Retail y compras");
@@ -155,11 +163,19 @@ describe("categorize — real cartola corpus", () => {
   });
 
   it("frequent Santander rules map to informative legacy categories for Movimientos", () => {
-    expect(categorize({ descripcion: "PAGO EN LINEA T.G.R.", tipo: "cargo" }).category).toBe("Impuestos y servicios públicos");
-    expect(categorize({ descripcion: "PAGO EN LINEA T.G.R.", tipo: "cargo" }).confidence).toBeGreaterThan(0.5);
-    expect(categorize({ descripcion: "COM.MANT.PROD.OPC.CTA.CTE.", tipo: "cargo" }).category).toBe("Comisiones bancarias");
+    expect(categorize({ descripcion: "PAGO EN LINEA T.G.R.", tipo: "cargo" }).category).toBe(
+      "Impuestos y servicios públicos",
+    );
+    expect(
+      categorize({ descripcion: "PAGO EN LINEA T.G.R.", tipo: "cargo" }).confidence,
+    ).toBeGreaterThan(0.5);
+    expect(categorize({ descripcion: "COM.MANT.PROD.OPC.CTA.CTE.", tipo: "cargo" }).category).toBe(
+      "Comisiones bancarias",
+    );
     expect(categorize({ descripcion: "MERPAGO*LATAM", tipo: "cargo" }).category).toBe("Transporte");
-    expect(categorize({ descripcion: "Amazon", tipo: "cargo" }).category).toBe("Suscripciones y software");
+    expect(categorize({ descripcion: "Amazon", tipo: "cargo" }).category).toBe(
+      "Suscripciones y software",
+    );
   });
 });
 

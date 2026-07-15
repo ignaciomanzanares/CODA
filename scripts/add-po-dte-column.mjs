@@ -27,7 +27,9 @@ try {
   const tableInfo = db.prepare("PRAGMA table_info(empresas_purchase_orders)").all();
   const hasColumn = tableInfo.some((c) => c.name === "dte_document_id");
   if (hasColumn) {
-    console.log("La columna dte_document_id ya existe en empresas_purchase_orders. Nada que hacer.");
+    console.log(
+      "La columna dte_document_id ya existe en empresas_purchase_orders. Nada que hacer.",
+    );
   } else {
     db.exec("ALTER TABLE empresas_purchase_orders ADD COLUMN dte_document_id INTEGER");
     console.log("Columna dte_document_id añadida a empresas_purchase_orders.");

@@ -18,7 +18,7 @@ const REGISTRY: Record<string, ParserFn> = {
   BCI: parseBci,
   "Banco de Chile": parseBancoDeChile,
   BancoEstado: parseBancoEstado,
-  "Itaú": parseItau,
+  Itaú: parseItau,
   Scotiabank: parseScotiabank,
 };
 

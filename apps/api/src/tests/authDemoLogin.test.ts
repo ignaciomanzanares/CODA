@@ -7,7 +7,7 @@ import {
   isDemoAllowedEmail,
 } from "../middleware/auth.js";
 import { storage } from "../storage.js";
-import { db, eq, users, privacyConsentEvents } from "../db/index.js";
+import { db, eq, privacyConsentEvents } from "../db/index.js";
 
 /**
  * PR A — restrict demo login to allowlisted accounts.
@@ -167,7 +167,7 @@ describe("demo login allowlist (DEMO_MODE hardening)", () => {
         consents: { data_processing: true, scoring: true, recommendations: true },
         policyVersion: "1.0",
       }),
-      res
+      res,
     );
 
     expect(res.statusCode).toBe(201);

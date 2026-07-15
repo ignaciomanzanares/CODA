@@ -12,7 +12,8 @@ function redisStoreOrDefault(prefix: string): Store | undefined {
   if (!client) return undefined;
   return new RedisStore({
     prefix,
-    sendCommand: (command: string, ...args: string[]) => client.call(command, ...args) as ReturnType<RedisStore['sendCommand']>,
+    sendCommand: (command: string, ...args: string[]) =>
+      client.call(command, ...args) as ReturnType<RedisStore["sendCommand"]>,
   });
 }
 
@@ -70,7 +71,7 @@ export const uploadLimiter = rateLimit({
   keyGenerator: (req) => {
     // Use userId from JWT payload if available, fall back to IP
     const authReq = req as { user?: { userId?: string } };
-    return authReq.user?.userId ?? ipKeyGenerator(req.ip ?? '127.0.0.1');
+    return authReq.user?.userId ?? ipKeyGenerator(req.ip ?? "127.0.0.1");
   },
   message: "Límite de subida de documentos alcanzado. Intenta de nuevo en una hora.",
   standardHeaders: true,

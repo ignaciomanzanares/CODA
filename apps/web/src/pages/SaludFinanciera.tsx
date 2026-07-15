@@ -11,13 +11,17 @@ import { useToast } from "@/hooks/use-toast";
 import { useUserDocuments } from "@/hooks/useUserDocuments";
 import HealthLevelCard from "@/components/health/HealthLevelCard";
 import EvaluationBreakdown from "@/components/health/EvaluationBreakdown";
-import { useHealthEvaluation, type HealthResponse, type HealthSalida } from "@/hooks/useHealthEvaluation";
+import {
+  useHealthEvaluation,
+  type HealthResponse,
+  type HealthSalida,
+} from "@/hooks/useHealthEvaluation";
 
 const SALIDA_LABEL: Record<HealthSalida, string> = {
-  ahorro_inversion: 'Ahorro e Inversión',
-  refinanciamiento: 'Refinanciamiento',
-  reestructuracion: 'Reestructuración',
-  concursal: 'Asesoría legal',
+  ahorro_inversion: "Ahorro e Inversión",
+  refinanciamiento: "Refinanciamiento",
+  reestructuracion: "Reestructuración",
+  concursal: "Asesoría legal",
 };
 
 export default function SaludFinanciera() {
@@ -30,14 +34,15 @@ export default function SaludFinanciera() {
   const { data, isLoading, isError, error } = useHealthEvaluation();
 
   const recalcMutation = useMutation({
-    mutationFn: () => apiRequest<HealthResponse>('GET', '/api/health-evaluation/me'),
+    mutationFn: () => apiRequest<HealthResponse>("GET", "/api/health-evaluation/me"),
     onSuccess: (result) => {
-      queryClient.setQueryData(['health-evaluation'], result);
+      queryClient.setQueryData(["health-evaluation"], result);
     },
     onError: () => {
       toast({
         title: "No pudimos recalcular tu salud financiera",
-        description: "Inténtalo nuevamente en unos segundos. Si el problema persiste, vuelve a cargar la página.",
+        description:
+          "Inténtalo nuevamente en unos segundos. Si el problema persiste, vuelve a cargar la página.",
         variant: "destructive",
       });
     },
@@ -54,7 +59,7 @@ export default function SaludFinanciera() {
   }
 
   if (isError) {
-    const msg = error instanceof Error ? error.message : 'Error desconocido';
+    const msg = error instanceof Error ? error.message : "Error desconocido";
     return (
       <div className="container max-w-2xl mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-6">Salud financiera</h1>
@@ -62,11 +67,15 @@ export default function SaludFinanciera() {
           <CardContent className="p-8 text-center space-y-4">
             <h2 className="text-lg font-semibold">No pudimos cargar tu salud financiera</h2>
             <p className="text-gray-600 text-sm leading-relaxed">
-              Hubo un problema al obtener tu evaluación. Intenta recargar la página o recalcular
-              más tarde.
+              Hubo un problema al obtener tu evaluación. Intenta recargar la página o recalcular más
+              tarde.
             </p>
             {msg && <p className="text-xs text-muted-foreground">Detalle: {msg}</p>}
-            <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['health-evaluation'] })}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => queryClient.invalidateQueries({ queryKey: ["health-evaluation"] })}
+            >
               Reintentar
             </Button>
           </CardContent>
@@ -88,11 +97,12 @@ export default function SaludFinanciera() {
           : cartolaMissing
             ? "Ya tenemos tu información CMF, pero falta una cartola bancaria para analizar tus movimientos."
             : "Necesitamos algunos documentos adicionales para calcular tu salud financiera.";
-    const ctaLabel = cmfMissing && !cartolaMissing
-      ? "Subir informe CMF"
-      : cartolaMissing && !cmfMissing
-        ? "Subir cartola bancaria"
-        : "Subir documentos";
+    const ctaLabel =
+      cmfMissing && !cartolaMissing
+        ? "Subir informe CMF"
+        : cartolaMissing && !cmfMissing
+          ? "Subir cartola bancaria"
+          : "Subir documentos";
 
     return (
       <div className="container max-w-2xl mx-auto px-4 py-8">
@@ -161,7 +171,9 @@ export default function SaludFinanciera() {
                 onClick={() => recalcMutation.mutate()}
                 disabled={recalcMutation.isPending}
               >
-                <RefreshCw className={`w-4 h-4 ${recalcMutation.isPending ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`w-4 h-4 ${recalcMutation.isPending ? "animate-spin" : ""}`}
+                />
                 Reintentar
               </Button>
               <Button variant="outline" className="gap-2" onClick={openWithFilePicker}>
@@ -186,63 +198,66 @@ export default function SaludFinanciera() {
           onClick={() => recalcMutation.mutate()}
           disabled={recalcMutation.isPending}
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${recalcMutation.isPending ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${recalcMutation.isPending ? "animate-spin" : ""}`} />
           Recalcular
         </Button>
       </div>
 
       {/* Indicador de confianza de datos según el estado de revisión de las cartolas
           importadas (#36/#37). No cambia el score; solo contextualiza su confiabilidad. */}
-      {documents.length > 0 && (() => {
-        const hasRequired = documents.some((d) => d.reviewStatus === "required");
-        const hasReviewed = documents.some((d) => d.reviewStatus === "reviewed");
+      {documents.length > 0 &&
+        (() => {
+          const hasRequired = documents.some((d) => d.reviewStatus === "required");
+          const hasReviewed = documents.some((d) => d.reviewStatus === "reviewed");
 
-        if (hasRequired) {
-          return (
-            <div className="flex items-start gap-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20 px-4 py-3">
-              <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">Revisión recomendada</p>
-                <p className="text-xs text-muted-foreground leading-snug">
-                  Tu score usa movimientos importados que aún no marcaste como revisados.
-                  Revísalos para aumentar la confianza del análisis.
-                </p>
-                <Link
-                  href="/movimientos?review=1"
-                  className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                >
-                  Revisar movimientos
-                  <ArrowRight className="h-3 w-3" />
-                </Link>
+          if (hasRequired) {
+            return (
+              <div className="flex items-start gap-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20 px-4 py-3">
+                <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">Revisión recomendada</p>
+                  <p className="text-xs text-muted-foreground leading-snug">
+                    Tu score usa movimientos importados que aún no marcaste como revisados.
+                    Revísalos para aumentar la confianza del análisis.
+                  </p>
+                  <Link
+                    href="/movimientos?review=1"
+                    className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    Revisar movimientos
+                    <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </div>
               </div>
-            </div>
-          );
-        }
-        if (hasReviewed) {
+            );
+          }
+          if (hasReviewed) {
+            return (
+              <div className="flex items-start gap-3 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/20 px-4 py-3">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Datos revisados</p>
+                  <p className="text-xs text-muted-foreground leading-snug">
+                    Tus movimientos importados fueron marcados como revisados.
+                  </p>
+                </div>
+              </div>
+            );
+          }
           return (
-            <div className="flex items-start gap-3 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/20 px-4 py-3">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
+              <CheckCircle2 className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-foreground">Datos revisados</p>
+                <p className="text-sm font-medium text-foreground">
+                  Datos procesados correctamente
+                </p>
                 <p className="text-xs text-muted-foreground leading-snug">
-                  Tus movimientos importados fueron marcados como revisados.
+                  No hay revisión pendiente para tus cartolas importadas.
                 </p>
               </div>
             </div>
           );
-        }
-        return (
-          <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
-            <CheckCircle2 className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-foreground">Datos procesados correctamente</p>
-              <p className="text-xs text-muted-foreground leading-snug">
-                No hay revisión pendiente para tus cartolas importadas.
-              </p>
-            </div>
-          </div>
-        );
-      })()}
+        })()}
 
       <HealthLevelCard
         nivel={evaluation.nivel}
@@ -267,21 +282,28 @@ export default function SaludFinanciera() {
 
       {evaluation.ratios && <EvaluationBreakdown ratios={evaluation.ratios} />}
 
-      {evaluation.salida !== 'concursal' && (evaluation.productos ?? []).length > 0 && (
+      {evaluation.salida !== "concursal" && (evaluation.productos ?? []).length > 0 && (
         <div>
           <h2 className="text-lg font-semibold mb-3">
             Plan de acción — {SALIDA_LABEL[evaluation.salida]}
           </h2>
           <div className="space-y-2">
             {evaluation.productos.map((p, i) => (
-              <Card key={i} className="border border-gray-100 hover:border-blue-200 transition-colors">
+              <Card
+                key={i}
+                className="border border-gray-100 hover:border-blue-200 transition-colors"
+              >
                 <CardContent className="p-3 flex items-center justify-between">
                   <div>
                     <div className="font-medium text-sm">{p.productName}</div>
                     <div className="text-xs text-gray-500">{p.provider}</div>
                   </div>
                   <Link href={`${ROUTES.productos}?categoria=${p.category}`}>
-                    <Button variant="ghost" size="sm" className="gap-1 text-blue-600 hover:text-blue-700">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-blue-600 hover:text-blue-700"
+                    >
                       Ver <ArrowRight className="w-3 h-3" />
                     </Button>
                   </Link>
@@ -292,7 +314,7 @@ export default function SaludFinanciera() {
         </div>
       )}
 
-      {evaluation.salida === 'concursal' && (
+      {evaluation.salida === "concursal" && (
         <Card className="border-red-200 bg-red-50">
           <CardContent className="p-4">
             <p className="text-sm text-red-700 font-medium mb-1">Situación de insolvencia activa</p>

@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getEmpresasCompaniesWithSummary, getEmpresasTransactions } from "@/lib/empresasApi";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
-import { Building2, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 
 export default function EmpresasTransactions() {
   const { currency } = useCurrency();
@@ -24,7 +24,11 @@ export default function EmpresasTransactions() {
 
   if (!companies?.length) {
     return (
-      <Card><CardContent className="py-12 text-center text-muted-foreground">No hay empresas. Selecciona una desde Empresas.</CardContent></Card>
+      <Card>
+        <CardContent className="py-12 text-center text-muted-foreground">
+          No hay empresas. Selecciona una desde Empresas.
+        </CardContent>
+      </Card>
     );
   }
   const firstId = companyId ?? (companies as { id: number }[])[0]?.id;
@@ -61,25 +65,48 @@ export default function EmpresasTransactions() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(transactions ?? []).map((t: { id: number; transactionDate: string; description: string | null; counterpartyName: string | null; amount: number; accountType?: string | null }) => (
-                    <tr key={t.id} className="border-b">
-                      <td className="p-3">{t.transactionDate}</td>
-                      <td className="p-3 text-muted-foreground">
-                        {t.accountType === "credit" ? "Tarjeta/línea" : t.accountType === "savings" ? "Ahorro" : t.accountType === "checking" ? "Corriente" : "—"}
-                      </td>
-                      <td className="p-3">{t.description ?? "—"}</td>
-                      <td className="p-3">{t.counterpartyName ?? "—"}</td>
-                      <td className={`p-3 text-right font-medium ${t.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        {t.amount >= 0 ? <ArrowDownLeft className="inline h-3 w-3 mr-0.5" /> : <ArrowUpRight className="inline h-3 w-3 mr-0.5" />}
-                        {formatCurrency(t.amount, currency, { sourceCurrency: "CLP" })}
-                      </td>
-                    </tr>
-                  ))}
+                  {(transactions ?? []).map(
+                    (t: {
+                      id: number;
+                      transactionDate: string;
+                      description: string | null;
+                      counterpartyName: string | null;
+                      amount: number;
+                      accountType?: string | null;
+                    }) => (
+                      <tr key={t.id} className="border-b">
+                        <td className="p-3">{t.transactionDate}</td>
+                        <td className="p-3 text-muted-foreground">
+                          {t.accountType === "credit"
+                            ? "Tarjeta/línea"
+                            : t.accountType === "savings"
+                              ? "Ahorro"
+                              : t.accountType === "checking"
+                                ? "Corriente"
+                                : "—"}
+                        </td>
+                        <td className="p-3">{t.description ?? "—"}</td>
+                        <td className="p-3">{t.counterpartyName ?? "—"}</td>
+                        <td
+                          className={`p-3 text-right font-medium ${t.amount >= 0 ? "text-green-600" : "text-red-600"}`}
+                        >
+                          {t.amount >= 0 ? (
+                            <ArrowDownLeft className="inline h-3 w-3 mr-0.5" />
+                          ) : (
+                            <ArrowUpRight className="inline h-3 w-3 mr-0.5" />
+                          )}
+                          {formatCurrency(t.amount, currency, { sourceCurrency: "CLP" })}
+                        </td>
+                      </tr>
+                    ),
+                  )}
                 </tbody>
               </table>
             </div>
             {(!transactions || transactions.length === 0) && (
-              <p className="p-6 text-center text-muted-foreground">Sin transacciones para esta empresa.</p>
+              <p className="p-6 text-center text-muted-foreground">
+                Sin transacciones para esta empresa.
+              </p>
             )}
           </CardContent>
         </Card>

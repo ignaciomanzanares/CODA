@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Building2, ArrowRight, ExternalLink } from "lucide-react";
+import { Building2, ExternalLink } from "lucide-react";
 
 /**
  * Página de transición para rutas de CODA Empresas.
@@ -20,20 +20,13 @@ export default function EmpresasTransition() {
               <Building2 className="h-12 w-12 text-primary" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-center mb-2">
-            CODA Empresas
-          </h1>
+          <h1 className="text-2xl font-bold text-center mb-2">CODA Empresas</h1>
           <p className="text-muted-foreground text-center mb-6">
-            La sección empresarial se está integrando en esta plataforma. 
-            Mientras tanto, puedes acceder a todas las funciones en la aplicación actual.
+            La sección empresarial se está integrando en esta plataforma. Mientras tanto, puedes
+            acceder a todas las funciones en la aplicación actual.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
-            <a 
-              href={EMPRESAS_APP_URL} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="flex-1"
-            >
+            <a href={EMPRESAS_APP_URL} target="_blank" rel="noopener noreferrer" className="flex-1">
               <Button className="w-full" size="lg">
                 Ir a CODA Empresas
                 <ExternalLink className="ml-2 h-4 w-4" />

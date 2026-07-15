@@ -1,10 +1,8 @@
 // Centralized Drizzle ORM database initialization for CODA
 // Uses PostgreSQL in production (DATABASE_URL), SQLite locally
 
-
-
-import { eq, and, inArray, isNull, isNotNull, lt, desc, sql } from 'drizzle-orm';
-import * as schema from '@coda/db/schema';
+import { eq, and, inArray, isNull, isNotNull, lt, desc, sql } from "drizzle-orm";
+import * as schema from "@coda/db/schema";
 // Re-export tables and helper schemas for consumption by other modules
 export const {
   users,
@@ -76,22 +74,24 @@ export const {
   productConversionEvents,
   parserDiagnostics,
 } = schema as any;
-import postgres from 'postgres';
-import { ensurePostgresSslMode } from './postgresUrl.js';
+import postgres from "postgres";
+import { ensurePostgresSslMode } from "./postgresUrl.js";
 
 let db: any;
-let dialect: 'postgres' | 'sqlite';
+let dialect: "postgres" | "sqlite";
 
 const rawDbUrl = process.env.DATABASE_URL;
 const dbUrl =
-  rawDbUrl && (rawDbUrl.startsWith('postgres://') || rawDbUrl.startsWith('postgresql://'))
+  rawDbUrl && (rawDbUrl.startsWith("postgres://") || rawDbUrl.startsWith("postgresql://"))
     ? ensurePostgresSslMode(rawDbUrl)
     : rawDbUrl;
 // In production, DATABASE_URL must be set. Fail early with a clear message instead
-if (process.env.NODE_ENV === 'production' && !dbUrl) {
-  throw new Error('DATABASE_URL is required in production. Set the DATABASE_URL environment variable to your Postgres connection string.');
+if (process.env.NODE_ENV === "production" && !dbUrl) {
+  throw new Error(
+    "DATABASE_URL is required in production. Set the DATABASE_URL environment variable to your Postgres connection string.",
+  );
 }
-if (dbUrl && (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://'))) {
+if (dbUrl && (dbUrl.startsWith("postgres://") || dbUrl.startsWith("postgresql://"))) {
   // Production: PostgreSQL (Render, etc.). Pool pequeño pero >1 evita colgarse en picos; timeout explícito.
   // Si la BD exige SSL, incluye ?sslmode=require en DATABASE_URL (recomendado en Render).
   const poolMax = Math.min(20, Math.max(2, Number(process.env.PG_POOL_MAX) || 8));
@@ -101,15 +101,15 @@ if (dbUrl && (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://
     connect_timeout: Number(process.env.PG_CONNECT_TIMEOUT_SEC) || 15,
   });
   // Import the postgres-specific drizzle adapter which exports `drizzle`
-  const { drizzle: drizzleFn } = await import('drizzle-orm/postgres-js');
+  const { drizzle: drizzleFn } = await import("drizzle-orm/postgres-js");
   db = drizzleFn(client, { schema });
-  dialect = 'postgres';
+  dialect = "postgres";
 } else {
   // Local: only import the package's SQLite-based DB instance when DATABASE_URL is absent.
   // This avoids loading sqlite-related modules in production.
-    const pkg = await import('@coda/db');
-    db = pkg.db;
-    dialect = 'sqlite';
+  const pkg = await import("@coda/db");
+  db = pkg.db;
+  dialect = "sqlite";
 }
 
 /**
@@ -126,7 +126,7 @@ if (dbUrl && (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://
  * que deba compartir la transacción.
  */
 async function withTransaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
-  if (dialect === 'postgres') {
+  if (dialect === "postgres") {
     return db.transaction(fn);
   }
   return fn(db);
@@ -134,7 +134,7 @@ async function withTransaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
 
 // Export only db, dialect, and all tables from schema
 export { db, dialect, withTransaction, eq, and, inArray, isNull, isNotNull, lt, desc, sql };
-export * from '@coda/db/schema';
+export * from "@coda/db/schema";
 
 export function checkDatabaseConnection(): boolean {
   return !!db;

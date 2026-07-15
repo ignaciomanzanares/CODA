@@ -1,25 +1,25 @@
 /**
  * Lead Tracking Service
- * 
+ *
  * Records all user interactions with financial products:
  * - VIEW: User sees the product in the list
  * - CLICK: User clicks for details
  * - APPLICATION: User submits application
  * - APPROVAL: Institution approves the application
  * - REJECTION: Institution rejects the application
- * 
+ *
  * Used for:
  * 1. Funnel analytics (conversion rates)
  * 2. Revenue tracking (lead fees + success fees)
  * 3. Algorithm optimization (which recommendations convert best)
  */
 
-import { db, leadTracking, productApplications, eq, and, desc, sql } from '../../db/index.js';
-import { logger } from '../../logger.js';
-import type { ProductCatalogItem } from './productCatalog.js';
-import { calculateProductRevenue } from './productCatalog.js';
+import { db, leadTracking, productApplications, eq, desc, sql } from "../../db/index.js";
+import { logger } from "../../logger.js";
+import type { ProductCatalogItem } from "./productCatalog.js";
+import { calculateProductRevenue } from "./productCatalog.js";
 
-export type LeadEventType = 'view' | 'click' | 'application' | 'approval' | 'rejection';
+export type LeadEventType = "view" | "click" | "application" | "approval" | "rejection";
 
 /**
  * Máquina de estados de un lead (productApplications.status):
@@ -31,13 +31,7 @@ export type LeadEventType = 'view' | 'click' | 'application' | 'approval' | 'rej
  *   expired / withdrawn → ciclo cerrado sin originación.
  */
 export type ApplicationStatus =
-  | 'pending'
-  | 'delivered'
-  | 'accepted'
-  | 'approved'
-  | 'rejected'
-  | 'expired'
-  | 'withdrawn';
+  "pending" | "delivered" | "accepted" | "approved" | "rejected" | "expired" | "withdrawn";
 
 export interface TrackLeadEventParams {
   userId: string;
@@ -69,17 +63,20 @@ export async function trackLeadEvent(params: TrackLeadEventParams): Promise<void
       userCreditScore: params.userCreditScore ?? null,
       userTransactionalScore: params.userTransactionalScore ?? null,
       metadata: params.metadata ? JSON.stringify(params.metadata) : null,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
-    logger.info({
-      userId: params.userId,
-      productId: params.productId,
-      eventType: params.eventType,
-      matchScore: params.matchScore
-    }, 'Lead event tracked');
+    logger.info(
+      {
+        userId: params.userId,
+        productId: params.productId,
+        eventType: params.eventType,
+        matchScore: params.matchScore,
+      },
+      "Lead event tracked",
+    );
   } catch (error) {
-    logger.error({ error, params }, 'Failed to track lead event');
+    logger.error({ error, params }, "Failed to track lead event");
     // Don't throw - tracking failures shouldn't break user flow
   }
 }
@@ -93,26 +90,26 @@ export async function trackProductViews(
   productIds: number[],
   matchScores: Map<number, number>,
   userCreditScore?: number,
-  userTransactionalScore?: number
+  userTransactionalScore?: number,
 ): Promise<void> {
   try {
-    const events = productIds.map(productId => ({
+    const events = productIds.map((productId) => ({
       userId,
       productId,
-      eventType: 'view' as const,
+      eventType: "view" as const,
       matchScore: matchScores.get(productId) ?? null,
       userCreditScore: userCreditScore ?? null,
       userTransactionalScore: userTransactionalScore ?? null,
-      metadata: JSON.stringify({ source: 'product_page' }),
-      timestamp: new Date().toISOString()
+      metadata: JSON.stringify({ source: "product_page" }),
+      timestamp: new Date().toISOString(),
     }));
 
     if (events.length > 0) {
       await db.insert(leadTracking).values(events);
-      logger.info({ userId, productCount: events.length }, 'Bulk product views tracked');
+      logger.info({ userId, productCount: events.length }, "Bulk product views tracked");
     }
   } catch (error) {
-    logger.error({ error, userId }, 'Failed to track product views');
+    logger.error({ error, userId }, "Failed to track product views");
   }
 }
 
@@ -123,51 +120,62 @@ export async function createProductApplication(
   userId: string,
   productId: number,
   applicationData: ApplicationData,
-  product: ProductCatalogItem
+  product: ProductCatalogItem,
 ): Promise<number> {
   try {
     // Calculate lead fee revenue
     const leadFeeRevenue = product.leadFee ?? 0;
 
-    const [result] = await db.insert(productApplications).values({
-      userId,
-      productId,
-      status: 'pending',
-      applicationData: JSON.stringify(applicationData),
-      appliedAt: new Date().toISOString(),
-      revenueEarned: leadFeeRevenue > 0 ? leadFeeRevenue : null,
-      revenueType: leadFeeRevenue > 0 ? 'lead_fee' : null,
-      notes: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }).returning({ id: productApplications.id });
+    const [result] = await db
+      .insert(productApplications)
+      .values({
+        userId,
+        productId,
+        status: "pending",
+        applicationData: JSON.stringify(applicationData),
+        appliedAt: new Date().toISOString(),
+        revenueEarned: leadFeeRevenue > 0 ? leadFeeRevenue : null,
+        revenueType: leadFeeRevenue > 0 ? "lead_fee" : null,
+        notes: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+      .returning({ id: productApplications.id });
 
     // Also track as lead event
     await trackLeadEvent({
       userId,
       productId,
-      eventType: 'application',
-      metadata: { applicationId: result.id, requestedAmount: applicationData.requestedAmount }
+      eventType: "application",
+      metadata: { applicationId: result.id, requestedAmount: applicationData.requestedAmount },
     });
 
-    logger.info({
-      userId,
-      productId,
-      applicationId: result.id,
-      leadFeeRevenue
-    }, 'Product application created');
+    logger.info(
+      {
+        userId,
+        productId,
+        applicationId: result.id,
+        leadFeeRevenue,
+      },
+      "Product application created",
+    );
 
     // Fase G: congela el snapshot de riesgo al aplicar (anti-leakage), fire-and-forget.
-    import('../risk/decisionOutcomes.js')
+    import("../risk/decisionOutcomes.js")
       .then(({ captureDecisionSnapshot }) =>
-        captureDecisionSnapshot({ userId, applicationId: result.id, provider: (product as any).provider ?? null, productId }),
+        captureDecisionSnapshot({
+          userId,
+          applicationId: result.id,
+          provider: (product as any).provider ?? null,
+          productId,
+        }),
       )
       .catch(() => {});
 
     return result.id;
   } catch (error) {
-    logger.error({ error, userId, productId }, 'Failed to create product application');
-    throw new Error('Failed to create product application');
+    logger.error({ error, userId, productId }, "Failed to create product application");
+    throw new Error("Failed to create product application");
   }
 }
 
@@ -180,7 +188,7 @@ export async function updateApplicationStatus(
   status: ApplicationStatus,
   product: ProductCatalogItem,
   loanAmount?: number,
-  externalApplicationId?: string
+  externalApplicationId?: string,
 ): Promise<void> {
   try {
     // Get existing application
@@ -191,17 +199,17 @@ export async function updateApplicationStatus(
       .limit(1);
 
     if (!application) {
-      throw new Error('Application not found');
+      throw new Error("Application not found");
     }
 
     // Calculate additional revenue for approvals
     let additionalRevenue = 0;
     let revenueType = application.revenueType;
 
-    if (status === 'approved') {
-      const successFee = calculateProductRevenue(product, loanAmount, 'approval');
+    if (status === "approved") {
+      const successFee = calculateProductRevenue(product, loanAmount, "approval");
       additionalRevenue = successFee;
-      revenueType = 'success_fee';
+      revenueType = "success_fee";
     }
 
     const totalRevenue = (application.revenueEarned ?? 0) + additionalRevenue;
@@ -215,38 +223,45 @@ export async function updateApplicationStatus(
         externalApplicationId: externalApplicationId ?? null,
         revenueEarned: totalRevenue > 0 ? totalRevenue : null,
         revenueType,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(productApplications.id, applicationId));
 
     // Track event solo en los estados terminales que alimentan el funnel (aprobación/rechazo).
     // 'delivered'/'accepted' son intermedios y no deben contarse como conversión ni pérdida.
-    if (status === 'approved' || status === 'rejected') {
+    if (status === "approved" || status === "rejected") {
       await trackLeadEvent({
         userId: application.userId,
         productId: application.productId,
-        eventType: status === 'approved' ? 'approval' : 'rejection',
-        metadata: { applicationId, externalApplicationId, loanAmount, revenue: totalRevenue }
+        eventType: status === "approved" ? "approval" : "rejection",
+        metadata: { applicationId, externalApplicationId, loanAmount, revenue: totalRevenue },
       });
     }
 
     // Fase G: registra el outcome real de la institución (label para reentrenar), fire-and-forget.
-    if (status === 'approved' || status === 'rejected' || status === 'accepted') {
-      import('../risk/decisionOutcomes.js')
+    if (status === "approved" || status === "rejected" || status === "accepted") {
+      import("../risk/decisionOutcomes.js")
         .then(({ recordDecisionOutcome }) =>
-          recordDecisionOutcome({ applicationId, outcome: status, originatedAmountClp: loanAmount ?? null }),
+          recordDecisionOutcome({
+            applicationId,
+            outcome: status,
+            originatedAmountClp: loanAmount ?? null,
+          }),
         )
         .catch(() => {});
     }
 
-    logger.info({
-      applicationId,
-      status,
-      totalRevenue,
-      externalApplicationId
-    }, 'Application status updated');
+    logger.info(
+      {
+        applicationId,
+        status,
+        totalRevenue,
+        externalApplicationId,
+      },
+      "Application status updated",
+    );
   } catch (error) {
-    logger.error({ error, applicationId, status }, 'Failed to update application status');
+    logger.error({ error, applicationId, status }, "Failed to update application status");
     throw error;
   }
 }
@@ -256,7 +271,7 @@ export async function updateApplicationStatus(
  */
 export async function recordActivationBonus(
   applicationId: number,
-  product: ProductCatalogItem
+  product: ProductCatalogItem,
 ): Promise<void> {
   try {
     const bonus = product.activationBonus ?? 0;
@@ -276,15 +291,15 @@ export async function recordActivationBonus(
       .update(productApplications)
       .set({
         revenueEarned: newRevenue,
-        revenueType: 'activation_bonus',
-        notes: `Bonus de activación aplicado: CLP ${bonus.toLocaleString('es-CL')}`,
-        updatedAt: new Date().toISOString()
+        revenueType: "activation_bonus",
+        notes: `Bonus de activación aplicado: CLP ${bonus.toLocaleString("es-CL")}`,
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(productApplications.id, applicationId));
 
-    logger.info({ applicationId, bonus, newRevenue }, 'Activation bonus recorded');
+    logger.info({ applicationId, bonus, newRevenue }, "Activation bonus recorded");
   } catch (error) {
-    logger.error({ error, applicationId }, 'Failed to record activation bonus');
+    logger.error({ error, applicationId }, "Failed to record activation bonus");
   }
 }
 
@@ -308,7 +323,7 @@ export async function getProductFunnelMetrics(productId: number): Promise<{
     const eventCounts = await db
       .select({
         eventType: leadTracking.eventType,
-        count: sql<number>`CAST(count(*) AS INTEGER)`
+        count: sql<number>`CAST(count(*) AS INTEGER)`,
       })
       .from(leadTracking)
       .where(eq(leadTracking.productId, productId))
@@ -319,7 +334,7 @@ export async function getProductFunnelMetrics(productId: number): Promise<{
       click: 0,
       application: 0,
       approval: 0,
-      rejection: 0
+      rejection: 0,
     };
 
     eventCounts.forEach((row: { eventType: string; count: number }) => {
@@ -329,13 +344,14 @@ export async function getProductFunnelMetrics(productId: number): Promise<{
     // Calculate conversion rates
     const viewToClickRate = counts.view > 0 ? (counts.click / counts.view) * 100 : 0;
     const clickToApplicationRate = counts.click > 0 ? (counts.application / counts.click) * 100 : 0;
-    const applicationToApprovalRate = counts.application > 0 ? (counts.approval / counts.application) * 100 : 0;
+    const applicationToApprovalRate =
+      counts.application > 0 ? (counts.approval / counts.application) * 100 : 0;
     const overallConversionRate = counts.view > 0 ? (counts.approval / counts.view) * 100 : 0;
 
     // Calculate total revenue from applications
     const revenueResult = await db
       .select({
-        total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`
+        total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`,
       })
       .from(productApplications)
       .where(eq(productApplications.productId, productId));
@@ -352,10 +368,10 @@ export async function getProductFunnelMetrics(productId: number): Promise<{
       clickToApplicationRate,
       applicationToApprovalRate,
       overallConversionRate,
-      totalRevenue
+      totalRevenue,
     };
   } catch (error) {
-    logger.error({ error, productId }, 'Failed to get product funnel metrics');
+    logger.error({ error, productId }, "Failed to get product funnel metrics");
     return {
       views: 0,
       clicks: 0,
@@ -366,7 +382,7 @@ export async function getProductFunnelMetrics(productId: number): Promise<{
       clickToApplicationRate: 0,
       applicationToApprovalRate: 0,
       overallConversionRate: 0,
-      totalRevenue: 0
+      totalRevenue: 0,
     };
   }
 }
@@ -384,7 +400,7 @@ export async function getUserApplications(userId: string): Promise<any[]> {
 
     return applications;
   } catch (error) {
-    logger.error({ error, userId }, 'Failed to get user applications');
+    logger.error({ error, userId }, "Failed to get user applications");
     return [];
   }
 }
@@ -404,7 +420,7 @@ export async function getTotalRevenueMetrics(): Promise<{
     // Total revenue
     const totalResult = await db
       .select({
-        total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`
+        total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`,
       })
       .from(productApplications);
 
@@ -414,7 +430,7 @@ export async function getTotalRevenueMetrics(): Promise<{
     const revenueByTypeResult = await db
       .select({
         revenueType: productApplications.revenueType,
-        total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`
+        total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`,
       })
       .from(productApplications)
       .where(sql`${productApplications.revenueType} IS NOT NULL`)
@@ -431,7 +447,7 @@ export async function getTotalRevenueMetrics(): Promise<{
     const revenueByProductResult = await db
       .select({
         productId: productApplications.productId,
-        total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`
+        total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`,
       })
       .from(productApplications)
       .groupBy(productApplications.productId);
@@ -445,7 +461,7 @@ export async function getTotalRevenueMetrics(): Promise<{
     const countsResult = await db
       .select({
         total: sql<number>`CAST(count(*) AS INTEGER)`,
-        approved: sql<number>`CAST(count(*) FILTER (WHERE ${productApplications.status} = 'approved') AS INTEGER)`
+        approved: sql<number>`CAST(count(*) FILTER (WHERE ${productApplications.status} = 'approved') AS INTEGER)`,
       })
       .from(productApplications);
 
@@ -459,17 +475,17 @@ export async function getTotalRevenueMetrics(): Promise<{
       revenueByProduct,
       applicationsCount,
       approvalsCount,
-      avgRevenuePerApproval
+      avgRevenuePerApproval,
     };
   } catch (error) {
-    logger.error({ error }, 'Failed to get total revenue metrics');
+    logger.error({ error }, "Failed to get total revenue metrics");
     return {
       totalRevenue: 0,
       revenueByType: {},
       revenueByProduct: {},
       applicationsCount: 0,
       approvalsCount: 0,
-      avgRevenuePerApproval: 0
+      avgRevenuePerApproval: 0,
     };
   }
 }
@@ -493,7 +509,7 @@ export async function getOverallFunnelMetrics(): Promise<{
       .select({
         eventType: leadTracking.eventType,
         count: sql<number>`CAST(count(*) AS INTEGER)`,
-        avgMatchScore: sql<number>`AVG(${leadTracking.matchScore})`
+        avgMatchScore: sql<number>`AVG(${leadTracking.matchScore})`,
       })
       .from(leadTracking)
       .groupBy(leadTracking.eventType);
@@ -503,18 +519,20 @@ export async function getOverallFunnelMetrics(): Promise<{
       click: 0,
       application: 0,
       approval: 0,
-      rejection: 0
+      rejection: 0,
     };
     let totalMatchScoreSum = 0;
     let matchScoreCount = 0;
 
-    eventCounts.forEach((row: { eventType: string; count: number; avgMatchScore: number | null }) => {
-      counts[row.eventType] = row.count;
-      if (row.avgMatchScore) {
-        totalMatchScoreSum += row.avgMatchScore * row.count;
-        matchScoreCount += row.count;
-      }
-    });
+    eventCounts.forEach(
+      (row: { eventType: string; count: number; avgMatchScore: number | null }) => {
+        counts[row.eventType] = row.count;
+        if (row.avgMatchScore) {
+          totalMatchScoreSum += row.avgMatchScore * row.count;
+          matchScoreCount += row.count;
+        }
+      },
+    );
 
     const overallConversionRate = counts.view > 0 ? (counts.approval / counts.view) * 100 : 0;
     const avgMatchScore = matchScoreCount > 0 ? totalMatchScoreSum / matchScoreCount : 0;
@@ -524,7 +542,7 @@ export async function getOverallFunnelMetrics(): Promise<{
       .select({
         productId: leadTracking.productId,
         views: sql<number>`CAST(count(*) FILTER (WHERE ${leadTracking.eventType} = 'view') AS INTEGER)`,
-        approvals: sql<number>`CAST(count(*) FILTER (WHERE ${leadTracking.eventType} = 'approval') AS INTEGER)`
+        approvals: sql<number>`CAST(count(*) FILTER (WHERE ${leadTracking.eventType} = 'approval') AS INTEGER)`,
       })
       .from(leadTracking)
       .groupBy(leadTracking.productId)
@@ -534,23 +552,23 @@ export async function getOverallFunnelMetrics(): Promise<{
     const topPerformingProducts = await Promise.all(
       topProducts.map(async (p: { productId: number; views: number; approvals: number }) => {
         const conversionRate = p.views > 0 ? (p.approvals / p.views) * 100 : 0;
-        
+
         // Get revenue for this product
         const revenueResult = await db
           .select({
-            total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`
+            total: sql<number>`CAST(COALESCE(SUM(${productApplications.revenueEarned}), 0) AS INTEGER)`,
           })
           .from(productApplications)
           .where(eq(productApplications.productId, p.productId));
-        
+
         const revenue = revenueResult[0]?.total ?? 0;
 
         return {
           productId: p.productId,
           conversionRate,
-          revenue
+          revenue,
         };
-      })
+      }),
     );
 
     return {
@@ -561,10 +579,10 @@ export async function getOverallFunnelMetrics(): Promise<{
       totalRejections: counts.rejection,
       overallConversionRate,
       avgMatchScore,
-      topPerformingProducts
+      topPerformingProducts,
     };
   } catch (error) {
-    logger.error({ error }, 'Failed to get overall funnel metrics');
+    logger.error({ error }, "Failed to get overall funnel metrics");
     return {
       totalViews: 0,
       totalClicks: 0,
@@ -573,7 +591,7 @@ export async function getOverallFunnelMetrics(): Promise<{
       totalRejections: 0,
       overallConversionRate: 0,
       avgMatchScore: 0,
-      topPerformingProducts: []
+      topPerformingProducts: [],
     };
   }
 }
@@ -583,14 +601,14 @@ export async function getOverallFunnelMetrics(): Promise<{
  */
 export async function getUserRecentInteractions(
   userId: string,
-  limit: number = 20
+  limit: number = 20,
 ): Promise<Array<{ productId: number; eventType: string; timestamp: string }>> {
   try {
     const interactions = await db
       .select({
         productId: leadTracking.productId,
         eventType: leadTracking.eventType,
-        timestamp: leadTracking.timestamp
+        timestamp: leadTracking.timestamp,
       })
       .from(leadTracking)
       .where(eq(leadTracking.userId, userId))
@@ -599,7 +617,7 @@ export async function getUserRecentInteractions(
 
     return interactions;
   } catch (error) {
-    logger.error({ error, userId }, 'Failed to get user interactions');
+    logger.error({ error, userId }, "Failed to get user interactions");
     return [];
   }
 }

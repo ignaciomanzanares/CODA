@@ -8,22 +8,24 @@
  * activarlo: `npm i @sentry/react` y setear `VITE_SENTRY_DSN` (ver INTEGRATION_GUIDE.md).
  */
 export async function initWebObservability(): Promise<void> {
-  const dsn = (import.meta as unknown as { env?: { VITE_SENTRY_DSN?: string; MODE?: string } }).env?.VITE_SENTRY_DSN;
+  const dsn = (import.meta as unknown as { env?: { VITE_SENTRY_DSN?: string; MODE?: string } }).env
+    ?.VITE_SENTRY_DSN;
   if (!dsn) return;
   try {
-    const pkg = '@sentry/react';
+    const pkg = "@sentry/react";
     const Sentry: any = await import(/* @vite-ignore */ pkg);
     Sentry.init({
       dsn,
-      environment: (import.meta as unknown as { env?: { MODE?: string } }).env?.MODE ?? 'production',
+      environment:
+        (import.meta as unknown as { env?: { MODE?: string } }).env?.MODE ?? "production",
       tracesSampleRate: 0,
       // No enviar PII por defecto.
       sendDefaultPii: false,
     });
   } catch {
     // Paquete no instalado o init falló → seguimos sin Sentry (no romper la app).
-    if (typeof console !== 'undefined') {
-      console.warn('[observability] VITE_SENTRY_DSN seteado pero @sentry/react no está instalado.');
+    if (typeof console !== "undefined") {
+      console.warn("[observability] VITE_SENTRY_DSN seteado pero @sentry/react no está instalado.");
     }
   }
 }

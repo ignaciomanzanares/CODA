@@ -107,7 +107,8 @@ export function evaluateGovernmentPrograms(input: FinancialHealthInput): {
   });
 
   // ── Subsidio DS19 (crédito hipotecario con subsidio) ─────────────────
-  const ds19Eligible = income >= 400_000 && (input.creditScore === null || input.creditScore >= 550);
+  const ds19Eligible =
+    income >= 400_000 && (input.creditScore === null || input.creditScore >= 550);
   programs.push({
     id: "ds19",
     name: "Crédito Hipotecario DS19 (BancoEstado)",
@@ -168,7 +169,8 @@ export function evaluateGovernmentPrograms(input: FinancialHealthInput): {
   });
 
   // ── Subsidio Empleo Joven (18-25 años) ──────────────────────────────
-  const sejEligible = (input.age === null || (input.age >= 18 && input.age <= 25)) && income > 0 && income <= 600_000;
+  const sejEligible =
+    (input.age === null || (input.age >= 18 && input.age <= 25)) && income > 0 && income <= 600_000;
   programs.push({
     id: "sej",
     name: "Subsidio Empleo Joven (18-25 años)",

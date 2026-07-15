@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FileUp, Loader2 } from "lucide-react";
 import { useApi } from "@/lib/api";
 
-type AssetType = 'property' | 'vehicle' | 'crypto' | 'investment' | 'other';
+type AssetType = "property" | "vehicle" | "crypto" | "investment" | "other";
 
 interface AssetFormData {
   type: AssetType;
@@ -35,31 +35,35 @@ interface AssetFormProps {
 }
 
 const ASSET_TYPES: { value: AssetType; label: string }[] = [
-  { value: 'property',   label: 'Propiedad (departamento, casa, terreno)' },
-  { value: 'vehicle',    label: 'Vehículo (auto, moto, camión)' },
-  { value: 'crypto',     label: 'Criptoactivo (Bitcoin, ETH, etc.)' },
-  { value: 'investment', label: 'Inversión (acciones, fondos, bonos)' },
-  { value: 'other',      label: 'Otro activo' },
+  { value: "property", label: "Propiedad (departamento, casa, terreno)" },
+  { value: "vehicle", label: "Vehículo (auto, moto, camión)" },
+  { value: "crypto", label: "Criptoactivo (Bitcoin, ETH, etc.)" },
+  { value: "investment", label: "Inversión (acciones, fondos, bonos)" },
+  { value: "other", label: "Otro activo" },
 ];
 
 function parseMonto(raw: string): number | null {
-  const n = parseInt(raw.replace(/\D/g, ''), 10);
+  const n = parseInt(raw.replace(/\D/g, ""), 10);
   return isNaN(n) ? null : n;
 }
 
 function formatMonto(n: number | null): string {
-  if (n == null) return '';
-  return n.toLocaleString('es-CL');
+  if (n == null) return "";
+  return n.toLocaleString("es-CL");
 }
 
 export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }: AssetFormProps) {
-  const [type, setType] = useState<AssetType>(initialData?.type ?? 'property');
-  const [name, setName] = useState(initialData?.name ?? '');
-  const [acquisitionRaw, setAcquisitionRaw] = useState(formatMonto(initialData?.acquisitionCostClp ?? null));
-  const [estimatedRaw, setEstimatedRaw] = useState(formatMonto(initialData?.estimatedValueClp ?? null));
+  const [type, setType] = useState<AssetType>(initialData?.type ?? "property");
+  const [name, setName] = useState(initialData?.name ?? "");
+  const [acquisitionRaw, setAcquisitionRaw] = useState(
+    formatMonto(initialData?.acquisitionCostClp ?? null),
+  );
+  const [estimatedRaw, setEstimatedRaw] = useState(
+    formatMonto(initialData?.estimatedValueClp ?? null),
+  );
   const [hasLien, setHasLien] = useState(initialData?.hasLien ?? false);
   const [lienRaw, setLienRaw] = useState(formatMonto(initialData?.lienAmountClp ?? null));
-  const [notes, setNotes] = useState(initialData?.notes ?? '');
+  const [notes, setNotes] = useState(initialData?.notes ?? "");
   const [error, setError] = useState<string | null>(null);
 
   const { extractInscripcion, getInscripcionJob } = useApi();
@@ -69,17 +73,22 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
   const [uploadNotice, setUploadNotice] = useState<string | null>(null);
   // Cancelación del polling (cancelar manualmente o al desmontar el form).
   const pollCancelledRef = useRef(false);
-  useEffect(() => () => { pollCancelledRef.current = true; }, []);
+  useEffect(
+    () => () => {
+      pollCancelledRef.current = true;
+    },
+    [],
+  );
 
   /** Aplica un prefill leído (capa de texto o OCR) a los campos del form. */
   function applyResult(res: import("@/lib/api").ExtractInscripcionResponse) {
     if (!res.ok || !res.prefill) {
       // Escaneo ilegible / OCR no disponible → ingreso manual.
-      setUploadNotice(res.message ?? 'No pudimos leer el PDF. Ingresa los datos manualmente.');
+      setUploadNotice(res.message ?? "No pudimos leer el PDF. Ingresa los datos manualmente.");
       return;
     }
     const p = res.prefill;
-    setType(p.type ?? 'property');
+    setType(p.type ?? "property");
     if (p.name) setName(p.name);
     setAcquisitionRaw(formatMonto(p.acquisitionCostClp));
     setEstimatedRaw(formatMonto(p.estimatedValueClp));
@@ -88,8 +97,8 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
     if (p.notes) setNotes(p.notes);
     setUploadNotice(
       p.fxPending
-        ? 'Inscripción leída. No pudimos resolver el valor de la UF — revisa e ingresa los montos en CLP antes de guardar.'
-        : `Inscripción leída${res.usedOcr ? ' (vía OCR)' : ''}. Revisa los datos y guarda.`,
+        ? "Inscripción leída. No pudimos resolver el valor de la UF — revisa e ingresa los montos en CLP antes de guardar."
+        : `Inscripción leída${res.usedOcr ? " (vía OCR)" : ""}. Revisa los datos y guarda.`,
     );
   }
 
@@ -107,27 +116,31 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
         continue; // error transitorio de red → reintentar en el próximo tick
       }
       if (pollCancelledRef.current) return;
-      if (job.status === 'done') {
+      if (job.status === "done") {
         setProcessing(false);
         if (job.result) applyResult(job.result);
-        else setUploadNotice('No pudimos leer el PDF. Ingresa los datos manualmente.');
+        else setUploadNotice("No pudimos leer el PDF. Ingresa los datos manualmente.");
         return;
       }
-      if (job.status === 'error') {
+      if (job.status === "error") {
         setProcessing(false);
-        setUploadNotice(job.message ?? 'No pudimos procesar la inscripción. Ingresa los datos manualmente.');
+        setUploadNotice(
+          job.message ?? "No pudimos procesar la inscripción. Ingresa los datos manualmente.",
+        );
         return;
       }
       // status 'processing' → seguir esperando
     }
     // Se agotó el tiempo: dejar continuar a mano.
     setProcessing(false);
-    setUploadNotice('El procesamiento está tardando más de lo normal. Puedes ingresar los datos manualmente.');
+    setUploadNotice(
+      "El procesamiento está tardando más de lo normal. Puedes ingresar los datos manualmente.",
+    );
   }
 
   async function handleInscripcionFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    e.target.value = ''; // permite re-subir el mismo archivo
+    e.target.value = ""; // permite re-subir el mismo archivo
     if (!file) return;
     setError(null);
     setUploadNotice(null);
@@ -138,14 +151,18 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
       // 202 → escaneado: el OCR corre async. Mostrar "Procesando…" y hacer polling.
       if (res.jobId) {
         setProcessing(true);
-        setUploadNotice('Procesando inscripción… Esto puede tardar un par de minutos. Puedes cancelar y cargar a mano.');
+        setUploadNotice(
+          "Procesando inscripción… Esto puede tardar un par de minutos. Puedes cancelar y cargar a mano.",
+        );
         void pollInscripcionJob(res.jobId);
         return;
       }
       // 200 → capa de texto: prefill inmediato (como hoy).
       applyResult(res);
     } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : 'No se pudo procesar la inscripción.');
+      setError(
+        err instanceof Error && err.message ? err.message : "No se pudo procesar la inscripción.",
+      );
     } finally {
       setUploading(false);
     }
@@ -154,7 +171,7 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
   function cancelProcessing() {
     pollCancelledRef.current = true;
     setProcessing(false);
-    setUploadNotice('Procesamiento cancelado. Ingresa los datos de la propiedad manualmente.');
+    setUploadNotice("Procesamiento cancelado. Ingresa los datos de la propiedad manualmente.");
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -163,11 +180,11 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
 
     const acquisitionCostClp = parseMonto(acquisitionRaw);
     if (!acquisitionCostClp || acquisitionCostClp <= 0) {
-      setError('Ingresa un costo de adquisición válido.');
+      setError("Ingresa un costo de adquisición válido.");
       return;
     }
     if (!name.trim()) {
-      setError('Ingresa un nombre para el activo.');
+      setError("Ingresa un nombre para el activo.");
       return;
     }
 
@@ -179,12 +196,16 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
         estimatedValueClp: parseMonto(estimatedRaw),
         hasLien,
         lienAmountClp: hasLien ? parseMonto(lienRaw) : null,
-        currency: 'CLP',
+        currency: "CLP",
         notes: notes.trim() || null,
       });
     } catch (err) {
       // Mostrar el mensaje específico del backend (qué campo, por qué) en vez de uno genérico.
-      setError(err instanceof Error && err.message ? err.message : 'No se pudo guardar el activo. Inténtalo de nuevo.');
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "No se pudo guardar el activo. Inténtalo de nuevo.",
+      );
     }
   }
 
@@ -194,8 +215,8 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
       <div className="rounded-md border border-dashed border-blue-200 bg-blue-50/60 p-3 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <div className="text-sm text-blue-800">
-            <span className="font-medium">¿Tienes la inscripción de la propiedad?</span>{' '}
-            Súbela y completamos los datos por ti.
+            <span className="font-medium">¿Tienes la inscripción de la propiedad?</span> Súbela y
+            completamos los datos por ti.
           </div>
           {processing ? (
             <Button
@@ -217,8 +238,12 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
             >
-              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
-              {uploading ? 'Leyendo…' : 'Subir inscripción (PDF)'}
+              {uploading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileUp className="w-4 h-4" />
+              )}
+              {uploading ? "Leyendo…" : "Subir inscripción (PDF)"}
             </Button>
           )}
           <input
@@ -240,7 +265,9 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
           </SelectTrigger>
           <SelectContent>
             {ASSET_TYPES.map((t) => (
-              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+              <SelectItem key={t.value} value={t.value}>
+                {t.label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -315,7 +342,7 @@ export default function AssetForm({ initialData, onSubmit, onCancel, isLoading }
 
       <div className="flex gap-2 pt-1">
         <Button type="submit" disabled={isLoading} className="flex-1">
-          {isLoading ? 'Guardando...' : 'Guardar activo'}
+          {isLoading ? "Guardando..." : "Guardar activo"}
         </Button>
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancelar

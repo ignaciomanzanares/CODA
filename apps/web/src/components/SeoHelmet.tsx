@@ -16,9 +16,7 @@ function getRouteSeo(pathname: string): RouteSeoEntry & { canonical: string } {
 
   // Direct match: public, alias, or private
   const direct =
-    PUBLIC_ROUTES[normalized] ??
-    ALIAS_ROUTES[normalized] ??
-    PRIVATE_ROUTES[normalized];
+    PUBLIC_ROUTES[normalized] ?? ALIAS_ROUTES[normalized] ?? PRIVATE_ROUTES[normalized];
 
   if (direct) {
     const canonicalPath = direct.canonicalPath ?? normalized;

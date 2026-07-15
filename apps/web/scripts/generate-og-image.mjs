@@ -33,9 +33,6 @@ const svg = `<?xml version="1.0" encoding="UTF-8"?>
 
 mkdirSync(outDir, { recursive: true });
 
-await sharp(Buffer.from(svg))
-  .resize(W, H)
-  .png()
-  .toFile(outFile);
+await sharp(Buffer.from(svg)).resize(W, H).png().toFile(outFile);
 
 console.log("OK:", outFile);

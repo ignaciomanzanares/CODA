@@ -4,10 +4,10 @@ import type { FeatureVector } from "../ml/features.js";
 // Credit score factors and weights
 const CREDIT_FACTORS = {
   PAYMENT_HISTORY: 0.35,
-  CREDIT_UTILIZATION: 0.30,
+  CREDIT_UTILIZATION: 0.3,
   CREDIT_AGE: 0.15,
-  ACCOUNT_MIX: 0.10,
-  INQUIRIES: 0.10
+  ACCOUNT_MIX: 0.1,
+  INQUIRIES: 0.1,
 };
 
 // Rating thresholds for each factor
@@ -15,7 +15,7 @@ const FACTOR_RATINGS = {
   EXCELLENT: 0.9,
   GOOD: 0.8,
   AVERAGE: 0.65,
-  POOR: 0.5
+  POOR: 0.5,
 };
 
 interface CreditScoreResult {
@@ -31,7 +31,10 @@ interface CreditScoreResult {
  * - Uses PD (lower is better) + utilization/income regularity + activity
  * - Returns a 300–850 score and factor labels to fit the existing UI
  */
-export function computeCreditScoreFromFeatures(features: FeatureVector, pd: number): CreditScoreResult {
+export function computeCreditScoreFromFeatures(
+  features: FeatureVector,
+  pd: number,
+): CreditScoreResult {
   const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 
   // Map debit/credit ratio to a 0..1 "utilization score" (higher is better)
@@ -75,45 +78,45 @@ export function computeCreditScoreFromFeatures(features: FeatureVector, pd: numb
 export function calculateCreditScore(bankConnections: BankConnection[]): CreditScoreResult {
   // In a production app, we would analyze actual financial data from the bank connections
   // For this demo, we'll simulate scores based on the number and type of connections
-  
+
   // Analyze payment history (simulated)
   const paymentHistoryScore = simulatePaymentHistory(bankConnections);
   const paymentHistoryRating = getRatingFromScore(paymentHistoryScore);
-  
+
   // Analyze credit utilization (simulated)
   const utilizationScore = simulateCreditUtilization(bankConnections);
   const utilizationRating = getRatingFromScore(utilizationScore);
-  
+
   // Analyze credit age (simulated)
   const creditAgeScore = simulateCreditAge(bankConnections);
   const creditAgeRating = getRatingFromScore(creditAgeScore);
-  
+
   // Analyze account mix (simulated)
   const accountMixScore = simulateAccountMix(bankConnections);
-  
+
   // Analyze inquiries (simulated)
   const inquiriesScore = simulateInquiries(bankConnections);
-  
+
   // Calculate weighted score
-  const weightedScore = 
+  const weightedScore =
     paymentHistoryScore * CREDIT_FACTORS.PAYMENT_HISTORY +
     utilizationScore * CREDIT_FACTORS.CREDIT_UTILIZATION +
     creditAgeScore * CREDIT_FACTORS.CREDIT_AGE +
     accountMixScore * CREDIT_FACTORS.ACCOUNT_MIX +
     inquiriesScore * CREDIT_FACTORS.INQUIRIES;
-  
+
   // Convert to credit score range (300-850)
   const minScore = 300;
   const maxScore = 850;
   const range = maxScore - minScore;
-  const actualScore = Math.round(minScore + (weightedScore * range));
-  
+  const actualScore = Math.round(minScore + weightedScore * range);
+
   return {
     score: actualScore,
     maxScore: 850,
     paymentHistory: paymentHistoryRating,
     utilization: utilizationRating,
-    ageOfCredit: creditAgeRating
+    ageOfCredit: creditAgeRating,
   };
 }
 
@@ -121,68 +124,68 @@ export function calculateCreditScore(bankConnections: BankConnection[]): CreditS
 
 function simulatePaymentHistory(connections: BankConnection[]): number {
   // In a real app, we'd analyze payment history from transaction data
-  
-  // For demo, simulate a score between 0.6 and 1.0 
+
+  // For demo, simulate a score between 0.6 and 1.0
   // More connections = potentially better history
   const baseScore = 0.6;
   const maxBonus = 0.4;
   const connectionFactor = Math.min(connections.length / 5, 1); // Cap at 5 connections
-  
-  return baseScore + (maxBonus * connectionFactor);
+
+  return baseScore + maxBonus * connectionFactor;
 }
 
 function simulateCreditUtilization(connections: BankConnection[]): number {
   // In a real app, we'd analyze balance vs. credit limit
-  
+
   // For demo, use a random value with some influence from connections
   // More credit_card type connections = potentially worse utilization
-  const creditCards = connections.filter(conn => conn.accountType === 'credit_card');
-  const otherAccounts = connections.filter(conn => conn.accountType !== 'credit_card');
-  
+  const creditCards = connections.filter((conn) => conn.accountType === "credit_card");
+  const otherAccounts = connections.filter((conn) => conn.accountType !== "credit_card");
+
   // Base utilization score - higher is better (lower utilization)
-  const baseScore = 0.7 + (Math.random() * 0.2); // Between 0.7 and 0.9
-  
+  const baseScore = 0.7 + Math.random() * 0.2; // Between 0.7 and 0.9
+
   // Credit cards typically increase utilization (decrease score)
   const creditCardPenalty = creditCards.length * 0.05;
-  
+
   // Other accounts may help balance utilization (increase score)
   const otherAccountsBonus = otherAccounts.length * 0.03;
-  
+
   // Calculate final score, ensuring it stays between 0 and 1
   return Math.max(0, Math.min(1, baseScore - creditCardPenalty + otherAccountsBonus));
 }
 
 function simulateCreditAge(connections: BankConnection[]): number {
   // In a real app, we'd analyze account age
-  
+
   // For this demo, we'll use connection lastUpdated time as a proxy
   // and add some randomness for demonstration
-  
+
   // Base score between 0.6 and 0.85
-  const baseScore = 0.6 + (Math.random() * 0.25);
-  
+  const baseScore = 0.6 + Math.random() * 0.25;
+
   // Slight bonus for having multiple accounts (diversification)
   const diversificationBonus = Math.min(connections.length * 0.02, 0.1);
-  
+
   return Math.min(1, baseScore + diversificationBonus);
 }
 
 function simulateAccountMix(connections: BankConnection[]): number {
   // In a real app, we'd analyze the mix of different account types
-  
+
   // For this demo, we'll check unique account types
-  const accountTypes = new Set(connections.map(conn => conn.accountType));
-  
+  const accountTypes = new Set(connections.map((conn) => conn.accountType));
+
   // More diverse account types = better score
-  return Math.min(1, 0.7 + (accountTypes.size * 0.08));
+  return Math.min(1, 0.7 + accountTypes.size * 0.08);
 }
 
 function simulateInquiries(_connections: BankConnection[]): number {
   // In a real app, we'd analyze recent credit inquiries
-  
+
   // For this demo, use random value between 0.8 and 1.0
   // (assuming relatively few inquiries)
-  return 0.8 + (Math.random() * 0.2);
+  return 0.8 + Math.random() * 0.2;
 }
 
 function getRatingFromScore(score: number): string {

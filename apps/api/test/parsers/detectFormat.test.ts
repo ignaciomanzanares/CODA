@@ -63,7 +63,7 @@ describe("detectFormat", () => {
     const result = detectFormat(text);
     // Debe detectar Santander pero con confianza reducida por falta de contenido transaccional
     expect(result.banco).toBe("Santander");
-    expect(result.confidence).toBeLessThan(0.90);
+    expect(result.confidence).toBeLessThan(0.9);
   });
 
   it("no confunde BancoEstado con texto que dice 'estado'", () => {
@@ -86,7 +86,7 @@ describe("assertFormatDetected", () => {
   it("lanza ParseError FORMAT_UNKNOWN cuando confianza < 0.85", () => {
     const detected = {
       banco: "Desconocido",
-      confidence: 0.40,
+      confidence: 0.4,
       markers: [],
     };
     expect(() => assertFormatDetected(detected)).toThrowError(ParseError);
@@ -100,7 +100,7 @@ describe("assertFormatDetected", () => {
   });
 
   it("el mensaje de error está en español", () => {
-    const detected = { banco: "Desconocido", confidence: 0.20, markers: [] };
+    const detected = { banco: "Desconocido", confidence: 0.2, markers: [] };
     try {
       assertFormatDetected(detected);
     } catch (e) {

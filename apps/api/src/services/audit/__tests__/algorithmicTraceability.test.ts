@@ -1,17 +1,17 @@
 /**
  * Unit Tests for Algorithmic Traceability Service
- * 
+ *
  * Tests:
  * - Model version registration
  * - Prediction logging
  * - Audit trail export
  * - Statistics computation
- * 
+ *
  * @author AI Assistant (Cursor)
  * @date 2026-03-02
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll } from "vitest";
 import {
   logCreditScorePrediction,
   registerModelVersion,
@@ -22,21 +22,21 @@ import {
   getAllAlgorithmChanges,
   getAuditStats,
   exportAuditTrail,
-} from '../algorithmicTraceability';
-import { db, users } from '../../../db/index';
+} from "../algorithmicTraceability";
+import { db, users } from "../../../db/index";
 
 /** `algorithm_prediction_logs.user_id` tiene FK a `users.id` — logCreditScorePrediction ya
  * persiste de forma síncrona, así que la fila debe existir antes del insert. */
 const TEST_USER_IDS = [
-  'user-123',
-  'user-789',
-  'user-limit-test',
-  'user-stats-1',
-  'user-stats-2',
-  'user-export-test',
+  "user-123",
+  "user-789",
+  "user-limit-test",
+  "user-stats-1",
+  "user-stats-2",
+  "user-export-test",
 ];
 
-describe('Algorithmic Traceability', () => {
+describe("Algorithmic Traceability", () => {
   beforeAll(async () => {
     for (const id of TEST_USER_IDS) {
       await db
@@ -45,97 +45,97 @@ describe('Algorithmic Traceability', () => {
           id,
           username: id,
           email: `${id}@test.local`,
-          passwordHash: 'test-hash',
+          passwordHash: "test-hash",
         })
         .onConflictDoNothing();
     }
   });
 
-  describe('Model Version Management', () => {
-    it('should register a new model version', () => {
+  describe("Model Version Management", () => {
+    it("should register a new model version", () => {
       const versionId = registerModelVersion({
-        modelType: 'xgboost',
-        version: 'v2.0.0',
+        modelType: "xgboost",
+        version: "v2.0.0",
         deployedAt: new Date(),
-        deployedBy: 'data-science-team',
+        deployedBy: "data-science-team",
         isActive: true,
         trainingMetrics: {
           auc: 0.85,
-          gini: 0.70,
+          gini: 0.7,
         },
-        changelog: 'Initial XGBoost model',
+        changelog: "Initial XGBoost model",
       });
-      
+
       expect(versionId).toBeTruthy();
-      expect(typeof versionId).toBe('string');
+      expect(typeof versionId).toBe("string");
     });
-    
-    it('should retrieve active model version', () => {
+
+    it("should retrieve active model version", () => {
       registerModelVersion({
-        modelType: 'ensemble',
-        version: 'v2.1.0',
+        modelType: "ensemble",
+        version: "v2.1.0",
         deployedAt: new Date(),
-        deployedBy: 'test',
+        deployedBy: "test",
         isActive: true,
-        changelog: 'Test model',
+        changelog: "Test model",
       });
-      
+
       const activeModel = getActiveModelVersion();
-      
+
       expect(activeModel).toBeDefined();
-      expect(activeModel?.version).toBe('v2.1.0');
+      expect(activeModel?.version).toBe("v2.1.0");
       expect(activeModel?.isActive).toBe(true);
     });
-    
-    it('should deactivate previous model when new one is activated', () => {
+
+    it("should deactivate previous model when new one is activated", () => {
       const oldModelId = registerModelVersion({
-        modelType: 'logistic_regression',
-        version: 'v1.0.0',
+        modelType: "logistic_regression",
+        version: "v1.0.0",
         deployedAt: new Date(),
-        deployedBy: 'test',
+        deployedBy: "test",
         isActive: true,
-        changelog: 'Old model',
+        changelog: "Old model",
       });
-      
+
       const newModelId = registerModelVersion({
-        modelType: 'logistic_regression',
-        version: 'v2.0.0',
+        modelType: "logistic_regression",
+        version: "v2.0.0",
         deployedAt: new Date(),
-        deployedBy: 'test',
+        deployedBy: "test",
         isActive: true,
-        changelog: 'New model',
+        changelog: "New model",
       });
-      
+
       const activeModel = getActiveModelVersion();
-      
+
       expect(activeModel?.id).toBe(newModelId);
-      expect(activeModel?.version).toBe('v2.0.0');
+      expect(activeModel?.version).toBe("v2.0.0");
     });
   });
-  
-  describe('Prediction Logging', () => {
-    it('should log a credit score prediction', async () => {
+
+  describe("Prediction Logging", () => {
+    it("should log a credit score prediction", async () => {
       const predictionId = await logCreditScorePrediction(
-        'user-123',
-        'request-456',
+        "user-123",
+        "request-456",
         {
           creditScore: 720,
           probabilityDefault: 0.08,
-          riskCategory: 'GOOD',
+          riskCategory: "GOOD",
           confidence: 0.87,
           topFactors: [
             {
-              name: 'Deuda Total',
+              name: "Deuda Total",
               value: 0,
               impact: 100,
-              explanation: 'Sin deudas vigentes',
-            }
-          ]
+              explanation: "Sin deudas vigentes",
+            },
+          ],
         },
         {
           cmfData: {
-            tipo: 'cmf_informe_deudas',
-            rutDocumento: '12.345.678-9',
+            tipo: "cmf_informe_deudas",
+            rutDocumento: "12.345.678-9",
             deudaTotalVigente: 0,
             deudaIndirecta: 0,
             numeroInstituciones: 0,
@@ -144,33 +144,33 @@ describe('Algorithmic Traceability', () => {
             deudaTotalVigente: 0,
             deudaIndirecta: 0,
             numeroInstituciones: 0,
-          }
+          },
         },
         {
           processingTimeMs: 234,
-          ipAddress: '192.168.1.1',
-        }
+          ipAddress: "192.168.1.1",
+        },
       );
-      
+
       expect(predictionId).toBeTruthy();
-      
+
       const prediction = getPrediction(predictionId);
-      
+
       expect(prediction).toBeDefined();
-      expect(prediction?.userId).toBe('user-123');
+      expect(prediction?.userId).toBe("user-123");
       expect(prediction?.creditScore).toBe(720);
-      expect(prediction?.riskCategory).toBe('GOOD');
+      expect(prediction?.riskCategory).toBe("GOOD");
       expect(prediction?.topFactors).toHaveLength(1);
     });
-    
-    it('should retrieve user prediction history', async () => {
-      const userId = 'user-789';
+
+    it("should retrieve user prediction history", async () => {
+      const userId = "user-789";
 
       await logCreditScorePrediction(
         userId,
-        'req-1',
-        { creditScore: 680, probabilityDefault: 0.12, riskCategory: 'GOOD', confidence: 0.8 },
-        { features: {} }
+        "req-1",
+        { creditScore: 680, probabilityDefault: 0.12, riskCategory: "GOOD", confidence: 0.8 },
+        { features: {} },
       );
 
       // Garantiza decisionTimestamp distinto entre ambas predicciones (ms de resolución de Date).
@@ -178,108 +178,108 @@ describe('Algorithmic Traceability', () => {
 
       await logCreditScorePrediction(
         userId,
-        'req-2',
-        { creditScore: 720, probabilityDefault: 0.08, riskCategory: 'GOOD', confidence: 0.85 },
-        { features: {} }
+        "req-2",
+        { creditScore: 720, probabilityDefault: 0.08, riskCategory: "GOOD", confidence: 0.85 },
+        { features: {} },
       );
-      
+
       const history = getUserPredictionHistory(userId);
-      
+
       expect(history).toHaveLength(2);
-      expect(history.map(p => p.creditScore)).toEqual(expect.arrayContaining([680, 720]));
+      expect(history.map((p) => p.creditScore)).toEqual(expect.arrayContaining([680, 720]));
     });
-    
-    it('should limit prediction history results', async () => {
-      const userId = 'user-limit-test';
+
+    it("should limit prediction history results", async () => {
+      const userId = "user-limit-test";
 
       for (let i = 0; i < 150; i++) {
         await logCreditScorePrediction(
           userId,
           `req-${i}`,
-          { creditScore: 700 + i, probabilityDefault: 0.1, riskCategory: 'GOOD', confidence: 0.8 },
-          { features: {} }
+          { creditScore: 700 + i, probabilityDefault: 0.1, riskCategory: "GOOD", confidence: 0.8 },
+          { features: {} },
         );
       }
-      
+
       const history = getUserPredictionHistory(userId, 50);
-      
+
       expect(history).toHaveLength(50);
     });
   });
-  
-  describe('Algorithm Changes', () => {
-    it('should register algorithm change', () => {
+
+  describe("Algorithm Changes", () => {
+    it("should register algorithm change", () => {
       const changeId = registerAlgorithmChange({
-        changeType: 'feature_addition',
-        component: 'credit_score',
-        title: 'Add SFA transactional features',
-        description: 'Integrate bank transaction patterns into credit scoring',
-        oldVersion: 'v1.0.0',
-        newVersion: 'v2.0.0',
-        status: 'pending',
-        requestedBy: 'data-team',
+        changeType: "feature_addition",
+        component: "credit_score",
+        title: "Add SFA transactional features",
+        description: "Integrate bank transaction patterns into credit scoring",
+        oldVersion: "v1.0.0",
+        newVersion: "v2.0.0",
+        status: "pending",
+        requestedBy: "data-team",
       });
-      
+
       expect(changeId).toBeTruthy();
-      
+
       const changes = getAllAlgorithmChanges();
-      
+
       expect(changes.length).toBeGreaterThan(0);
-      expect(changes[0].title).toBe('Add SFA transactional features');
+      expect(changes[0].title).toBe("Add SFA transactional features");
     });
   });
-  
-  describe('Audit Statistics', () => {
-    it('should compute audit statistics', async () => {
+
+  describe("Audit Statistics", () => {
+    it("should compute audit statistics", async () => {
       await logCreditScorePrediction(
-        'user-stats-1',
-        'req-stats-1',
-        { creditScore: 720, probabilityDefault: 0.08, riskCategory: 'GOOD', confidence: 0.9 },
-        { features: {} }
+        "user-stats-1",
+        "req-stats-1",
+        { creditScore: 720, probabilityDefault: 0.08, riskCategory: "GOOD", confidence: 0.9 },
+        { features: {} },
       );
 
       await logCreditScorePrediction(
-        'user-stats-2',
-        'req-stats-2',
-        { creditScore: 650, probabilityDefault: 0.18, riskCategory: 'AVERAGE', confidence: 0.75 },
-        { features: {} }
+        "user-stats-2",
+        "req-stats-2",
+        { creditScore: 650, probabilityDefault: 0.18, riskCategory: "AVERAGE", confidence: 0.75 },
+        { features: {} },
       );
-      
+
       const stats = getAuditStats();
-      
+
       expect(stats.totalPredictions).toBeGreaterThanOrEqual(2);
       expect(stats.avgCreditScore).toBeGreaterThan(0);
       expect(stats.totalModelVersions).toBeGreaterThan(0);
     });
   });
-  
-  describe('Audit Trail Export', () => {
-    it('should export audit trail for date range', async () => {
+
+  describe("Audit Trail Export", () => {
+    it("should export audit trail for date range", async () => {
       const now = new Date();
       const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
       await logCreditScorePrediction(
-        'user-export-test',
-        'req-export',
-        { creditScore: 700, probabilityDefault: 0.1, riskCategory: 'GOOD', confidence: 0.8 },
-        { features: {} }
+        "user-export-test",
+        "req-export",
+        { creditScore: 700, probabilityDefault: 0.1, riskCategory: "GOOD", confidence: 0.8 },
+        { features: {} },
       );
-      
+
       const auditTrail = exportAuditTrail(yesterday, tomorrow);
-      
+
       expect(auditTrail.predictions.length).toBeGreaterThan(0);
       expect(auditTrail.modelVersions).toBeDefined();
       expect(auditTrail.algorithmChanges).toBeDefined();
       expect(auditTrail.stats).toBeDefined();
     });
-    
-    it('should filter predictions by date range', () => {
-      const farPast = new Date('2020-01-01');
-      const past = new Date('2020-12-31');
-      
+
+    it("should filter predictions by date range", () => {
+      const farPast = new Date("2020-01-01");
+      const past = new Date("2020-12-31");
+
       const auditTrail = exportAuditTrail(farPast, past);
-      
+
       // Should have 0 predictions from 2020
       expect(auditTrail.predictions).toHaveLength(0);
     });

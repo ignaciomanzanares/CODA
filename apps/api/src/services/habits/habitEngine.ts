@@ -1,5 +1,5 @@
-import type { HealthEvaluationResult } from '../healthEvaluation/types.js';
-import { HABIT_CATALOG, type HabitCategory } from './habitCatalog.js';
+import type { HealthEvaluationResult } from "../healthEvaluation/types.js";
+import { HABIT_CATALOG, type HabitCategory } from "./habitCatalog.js";
 
 export interface HabitRecommendation {
   key: string;
@@ -20,8 +20,7 @@ export function generateHabitRecommendations(
   excludedKeys: ReadonlySet<string> = new Set(),
   limit = 5,
 ): HabitRecommendation[] {
-  return HABIT_CATALOG
-    .filter((h) => !excludedKeys.has(h.key) && h.matches(result))
+  return HABIT_CATALOG.filter((h) => !excludedKeys.has(h.key) && h.matches(result))
     .sort((a, b) => b.priority - a.priority)
     .slice(0, limit)
     .map((h) => ({

@@ -3,10 +3,10 @@
  * clasificador incremental. Inserta la corrección en `transaction_category_corrections` y
  * actualiza el modelo en memoria de inmediato (aprendizaje incremental).
  */
-import { randomUUID } from 'node:crypto';
-import { db, transactionCategoryCorrections } from '../../db/index.js';
-import { categoryClassifier, tokenize } from './categoryClassifier.js';
-import { logger } from '../../logger.js';
+import { randomUUID } from "node:crypto";
+import { db, transactionCategoryCorrections } from "../../db/index.js";
+import { categoryClassifier, tokenize } from "./categoryClassifier.js";
+import { logger } from "../../logger.js";
 
 export async function recordCategoryCorrection(params: {
   userId: string;
@@ -14,7 +14,7 @@ export async function recordCategoryCorrection(params: {
   correctedCategory: string;
   originalCategory?: string | null;
 }): Promise<{ ok: boolean }> {
-  const normalizedText = tokenize(params.text).join(' ');
+  const normalizedText = tokenize(params.text).join(" ");
   if (!normalizedText || !params.correctedCategory.trim()) {
     return { ok: false };
   }
@@ -30,7 +30,10 @@ export async function recordCategoryCorrection(params: {
   // Aprendizaje incremental: el modelo se actualiza y se persiste en blob store (cada 10 ejemplos).
   await categoryClassifier.ensureLoaded();
   categoryClassifier.learnAndPersist(normalizedText, params.correctedCategory.trim());
-  logger.info({ userId: params.userId, correctedCategory: params.correctedCategory }, '[categoryCorrections] corrección registrada');
+  logger.info(
+    { userId: params.userId, correctedCategory: params.correctedCategory },
+    "[categoryCorrections] corrección registrada",
+  );
 
   return { ok: true };
 }

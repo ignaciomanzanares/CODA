@@ -7,7 +7,7 @@
  * dato lo omite o devuelve ok=false con un mensaje, nunca lanza. Recalibrar al incorporar más
  * muestras (p. ej. otras AFP, carpetas con renta de sueldos código 1098).
  */
-import type { GovParseResult, GovSource } from './types.js';
+import type { GovParseResult, GovSource } from "./types.js";
 
 /** Rango razonable de una renta mensual en CLP, para filtrar montos espurios del PDF. */
 const MIN_RENTA_MENSUAL = 100_000;
@@ -23,7 +23,7 @@ export function extractMontosClp(text: string): number[] {
   const re = /\$?\s*(\d{1,3}(?:\.\d{3})+|\d{4,})/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text)) !== null) {
-    const n = parseInt(m[1].replace(/\./g, ''), 10);
+    const n = parseInt(m[1].replace(/\./g, ""), 10);
     if (Number.isFinite(n) && n > 0) montos.push(n);
   }
   return montos;
@@ -33,7 +33,7 @@ export function extractMontosClp(text: string): number[] {
 function firstMontoConMiles(line: string): number | null {
   const m = line.match(/(\d{1,3}(?:\.\d{3})+)/);
   if (!m) return null;
-  const n = parseInt(m[1].replace(/\./g, ''), 10);
+  const n = parseInt(m[1].replace(/\./g, ""), 10);
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
@@ -45,7 +45,7 @@ function codigoF22(text: string, codigo: number): number | null {
   const re = new RegExp(`\\b${codigo}\\b\\D{0,80}?(\\d{1,3}(?:\\.\\d{3})+|\\d{4,})`);
   const m = text.match(re);
   if (!m) return null;
-  const n = parseInt(m[1].replace(/\./g, ''), 10);
+  const n = parseInt(m[1].replace(/\./g, ""), 10);
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
@@ -83,19 +83,25 @@ export function detectGovSource(text: string): GovSource | null {
 
   const score: Record<GovSource, number> = {
     sii:
-      2 * count(/servicio de impuestos internos|carpeta tributaria|formulario 22|impuestos anuales a la renta/g) +
+      2 *
+        count(
+          /servicio de impuestos internos|carpeta tributaria|formulario 22|impuestos anuales a la renta/g,
+        ) +
       count(/base imponible|boletas de honorarios|declaraci[oó]n de renta|declaraci[oó]n mensual/g),
     afp:
       2 * count(/certificado\s+cotizaciones|cuenta obligatoria|a\.?f\.?p\.?\s/g) +
       count(/cotizaci[oó]n normal|renta imponible|remuneraci[oó]n imponible/g),
     tgr:
-      2 * count(/tesorer[íi]a general|servicio de tesorer[íi]a|certificado de deuda|cuenta [uú]nica tributaria/g) +
+      2 *
+        count(
+          /tesorer[íi]a general|servicio de tesorer[íi]a|certificado de deuda|cuenta [uú]nica tributaria/g,
+        ) +
       count(/no registra deuda|deuda fiscal|deuda tributaria/g),
   };
 
   let best: GovSource | null = null;
   let bestScore = 0;
-  for (const src of ['sii', 'afp', 'tgr'] as const) {
+  for (const src of ["sii", "afp", "tgr"] as const) {
     if (score[src] > bestScore) {
       bestScore = score[src];
       best = src;
@@ -112,7 +118,9 @@ export function detectGovSource(text: string): GovSource | null {
  */
 export function parseAfp(text: string): GovParseResult {
   const lines = text.split(/\r?\n/);
-  const cotizacionLines = lines.filter((l) => /cotizaci[oó]n\s+(normal|rezagad|obligatori)/i.test(l));
+  const cotizacionLines = lines.filter((l) =>
+    /cotizaci[oó]n\s+(normal|rezagad|obligatori)/i.test(l),
+  );
   const contributionMonths = cotizacionLines.length || null;
 
   // 1) Renta imponible explícita, si el certificado la trae en alguna línea.
@@ -141,14 +149,22 @@ export function parseAfp(text: string): GovParseResult {
   }
 
   if (verifiedMonthlyIncomeClp == null && contributionMonths == null) {
-    return { source: 'afp', ok: false, raw: {}, message: 'No se pudo leer el certificado de cotizaciones AFP.' };
+    return {
+      source: "afp",
+      ok: false,
+      raw: {},
+      message: "No se pudo leer el certificado de cotizaciones AFP.",
+    };
   }
   return {
-    source: 'afp',
+    source: "afp",
     ok: true,
     verifiedMonthlyIncomeClp,
     contributionMonths,
-    raw: { periodosCotizados: contributionMonths, ingresoEstimadoDeCotizacion: estimadaDeCotizacion },
+    raw: {
+      periodosCotizados: contributionMonths,
+      ingresoEstimadoDeCotizacion: estimadaDeCotizacion,
+    },
   };
 }
 
@@ -173,21 +189,22 @@ export function parseSii(text: string): GovParseResult {
 
   if (rentaAnual <= 0) {
     return {
-      source: 'sii',
+      source: "sii",
       ok: false,
       raw: { f22Encontrado: f22Start >= 0 },
-      message: 'No se pudo leer la renta en el Formulario 22 de la carpeta tributaria.',
+      message: "No se pudo leer la renta en el Formulario 22 de la carpeta tributaria.",
     };
   }
 
   const verifiedMonthlyIncomeClp = Math.round(rentaAnual / 12);
-  const ok = verifiedMonthlyIncomeClp >= MIN_RENTA_MENSUAL && verifiedMonthlyIncomeClp <= MAX_RENTA_MENSUAL;
+  const ok =
+    verifiedMonthlyIncomeClp >= MIN_RENTA_MENSUAL && verifiedMonthlyIncomeClp <= MAX_RENTA_MENSUAL;
   return {
-    source: 'sii',
+    source: "sii",
     ok,
     verifiedMonthlyIncomeClp: ok ? verifiedMonthlyIncomeClp : null,
     raw: { rentaAnual, sueldos, honorarios },
-    message: ok ? undefined : 'La renta extraída quedó fuera de rango; revisa el documento.',
+    message: ok ? undefined : "La renta extraída quedó fuera de rango; revisa el documento.",
   };
 }
 
@@ -195,25 +212,30 @@ export function parseSii(text: string): GovParseResult {
 export function parseTgr(text: string): GovParseResult {
   const t = text.toLowerCase();
   if (/no registra deuda|sin deuda|no presenta deuda|no mantiene deuda/.test(t)) {
-    return { source: 'tgr', ok: true, fiscalDebtClp: 0, raw: { sinDeuda: true } };
+    return { source: "tgr", ok: true, fiscalDebtClp: 0, raw: { sinDeuda: true } };
   }
   const montos = extractMontosClp(text);
   if (montos.length === 0) {
-    return { source: 'tgr', ok: false, raw: {}, message: 'No se pudo leer el monto de deuda fiscal.' };
+    return {
+      source: "tgr",
+      ok: false,
+      raw: {},
+      message: "No se pudo leer el monto de deuda fiscal.",
+    };
   }
   // El total adeudado suele ser el mayor monto del certificado.
   const fiscalDebtClp = Math.max(...montos);
-  return { source: 'tgr', ok: true, fiscalDebtClp, raw: { montosDetectados: montos.length } };
+  return { source: "tgr", ok: true, fiscalDebtClp, raw: { montosDetectados: montos.length } };
 }
 
 /** Dispatcher por fuente. */
 export function parseGovDocument(source: GovSource, text: string): GovParseResult {
   switch (source) {
-    case 'afp':
+    case "afp":
       return parseAfp(text);
-    case 'sii':
+    case "sii":
       return parseSii(text);
-    case 'tgr':
+    case "tgr":
       return parseTgr(text);
   }
 }

@@ -131,7 +131,11 @@ export const ALIAS_ROUTES: Record<string, RouteSeoEntry> = {
 // ──────────────────────────────────────────────────────────────────────────────
 
 export const PRIVATE_ROUTES: Record<string, RouteSeoEntry> = {
-  "/restablecer-contrasena": { title: "Restablecer contraseña | CODA", description: "", noIndex: true },
+  "/restablecer-contrasena": {
+    title: "Restablecer contraseña | CODA",
+    description: "",
+    noIndex: true,
+  },
   "/panel": { title: "Mi Panel | CODA", description: "", noIndex: true },
   "/gastos": { title: "Gastos | CODA", description: "", noIndex: true },
   "/movimientos": { title: "Movimientos | CODA", description: "", noIndex: true },

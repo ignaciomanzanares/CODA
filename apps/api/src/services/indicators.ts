@@ -11,15 +11,15 @@
  * el monto en moneda nativa + marcar `fxPending=true`. NUNCA bloquea la ingesta.
  */
 
-import { db, indicatorValues, eq } from '../db/index.js';
-import { logger } from '../logger.js';
+import { db, indicatorValues, eq } from "../db/index.js";
+import { logger } from "../logger.js";
 
-export type IndicatorKind = 'uf' | 'usd';
+export type IndicatorKind = "uf" | "usd";
 
 /** Endpoint de mindicador.cl por tipo de indicador. */
 const ENDPOINT: Record<IndicatorKind, string> = {
-  uf: 'uf',
-  usd: 'dolar',
+  uf: "uf",
+  usd: "dolar",
 };
 
 const FETCH_TIMEOUT_MS = 8_000;
@@ -27,16 +27,16 @@ const FETCH_TIMEOUT_MS = 8_000;
 /** Fecha → ISO yyyy-mm-dd (clave de caché, en hora local del servidor). */
 export function toIsoDate(date: Date): string {
   const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
 
 /** Fecha → dd-mm-yyyy (formato que exige la URL de mindicador.cl). */
 export function toMindicadorDate(date: Date): string {
   const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
   return `${d}-${m}-${y}`;
 }
 
@@ -46,11 +46,11 @@ export function toMindicadorDate(date: Date): string {
  * Exportada para tests sin red.
  */
 export function parseMindicadorValue(json: unknown): number | null {
-  if (!json || typeof json !== 'object') return null;
+  if (!json || typeof json !== "object") return null;
   const serie = (json as { serie?: unknown }).serie;
   if (!Array.isArray(serie) || serie.length === 0) return null;
   const valor = (serie[0] as { valor?: unknown })?.valor;
-  return typeof valor === 'number' && Number.isFinite(valor) && valor > 0 ? valor : null;
+  return typeof valor === "number" && Number.isFinite(valor) && valor > 0 ? valor : null;
 }
 
 /** Lee el valor cacheado para (kind, isoDate), o null si no está. */
@@ -59,10 +59,10 @@ async function readCache(kind: IndicatorKind, isoDate: string): Promise<number |
     const id = `${kind}:${isoDate}`;
     const rows = await db.select().from(indicatorValues).where(eq(indicatorValues.id, id));
     const v = rows[0]?.valueClp;
-    return typeof v === 'number' ? v : null;
+    return typeof v === "number" ? v : null;
   } catch (e) {
     // Una falla de lectura de caché no debe romper la ingesta: tratamos como miss.
-    logger.warn({ err: e, kind, isoDate }, 'indicators: cache read failed');
+    logger.warn({ err: e, kind, isoDate }, "indicators: cache read failed");
     return null;
   }
 }
@@ -76,7 +76,7 @@ async function writeCache(kind: IndicatorKind, isoDate: string, value: number): 
       .values({ id, kind, date: isoDate, valueClp: value, fetchedAt: new Date().toISOString() })
       .onConflictDoNothing();
   } catch (e) {
-    logger.warn({ err: e, kind, isoDate }, 'indicators: cache write failed');
+    logger.warn({ err: e, kind, isoDate }, "indicators: cache write failed");
   }
 }
 
@@ -95,28 +95,28 @@ async function getIndicator(kind: IndicatorKind, date: Date): Promise<number | n
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (!res.ok) {
-      logger.warn({ kind, isoDate, status: res.status }, 'indicators: fetch non-ok');
+      logger.warn({ kind, isoDate, status: res.status }, "indicators: fetch non-ok");
       return null;
     }
     const value = parseMindicadorValue(await res.json());
     if (value == null) {
-      logger.warn({ kind, isoDate }, 'indicators: no value for date');
+      logger.warn({ kind, isoDate }, "indicators: no value for date");
       return null;
     }
     await writeCache(kind, isoDate, value);
     return value;
   } catch (e) {
-    logger.warn({ err: e, kind, isoDate, url }, 'indicators: fetch failed');
+    logger.warn({ err: e, kind, isoDate, url }, "indicators: fetch failed");
     return null;
   }
 }
 
 /** Valor en CLP de 1 UF en la fecha dada, o null si no disponible. */
 export function getUf(date: Date): Promise<number | null> {
-  return getIndicator('uf', date);
+  return getIndicator("uf", date);
 }
 
 /** Valor en CLP de 1 USD (dólar observado) en la fecha dada, o null si no disponible. */
 export function getUsd(date: Date): Promise<number | null> {
-  return getIndicator('usd', date);
+  return getIndicator("usd", date);
 }

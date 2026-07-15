@@ -43,11 +43,13 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         properties: {
           merchant_contains: {
             type: "string",
-            description: "Substring case-insensitive a buscar en la descripción de la transacción. Ej: 'Falabella', 'Netflix', 'Uber'.",
+            description:
+              "Substring case-insensitive a buscar en la descripción de la transacción. Ej: 'Falabella', 'Netflix', 'Uber'.",
           },
           category: {
             type: "string",
-            description: "Categoría exacta de la transacción (p. ej. 'Restaurantes', 'Transporte', 'Suscripciones').",
+            description:
+              "Categoría exacta de la transacción (p. ej. 'Restaurantes', 'Transporte', 'Suscripciones').",
           },
           from: {
             type: "string",
@@ -59,7 +61,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           },
           limit: {
             type: "number",
-            description: "Máximo de transacciones a devolver en el detalle (default 20, máx 100). El resumen agregado siempre cubre todas las transacciones del filtro.",
+            description:
+              "Máximo de transacciones a devolver en el detalle (default 20, máx 100). El resumen agregado siempre cubre todas las transacciones del filtro.",
           },
         },
       },
@@ -84,7 +87,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           },
           annual_rate_percent: {
             type: "number",
-            description: "Tasa de interés anual en porcentaje (no decimal). Si se omite, se usa 28% como aproximación promedio de mercado para crédito de consumo (la tasa máxima convencional CMF ronda 36%).",
+            description:
+              "Tasa de interés anual en porcentaje (no decimal). Si se omite, se usa 28% como aproximación promedio de mercado para crédito de consumo (la tasa máxima convencional CMF ronda 36%).",
           },
         },
         required: ["amount_clp", "term_months"],
@@ -111,10 +115,7 @@ function parseDateOr(value: string | undefined, fallback: Date): Date {
 
 async function queryTransactions(args: QueryTxArgs, userId: string): Promise<string> {
   const to = parseDateOr(args.to, new Date());
-  const from = parseDateOr(
-    args.from,
-    new Date(to.getTime() - 90 * 24 * 60 * 60 * 1000),
-  );
+  const from = parseDateOr(args.from, new Date(to.getTime() - 90 * 24 * 60 * 60 * 1000));
   const limit = Math.max(1, Math.min(100, Math.floor(args.limit ?? 20)));
   const merchant = args.merchant_contains?.trim().toLowerCase();
   const category = args.category?.trim().toLowerCase();
@@ -127,14 +128,16 @@ async function queryTransactions(args: QueryTxArgs, userId: string): Promise<str
   const accountIds = accounts.map((a: { id: number }) => a.id);
   const all = await storage.getTransactionsForAccounts(accountIds, { from });
 
-  const filtered = all.filter((t: { postedAt?: string; description?: string; category?: string }) => {
-    if (!t?.postedAt) return false;
-    const d = new Date(t.postedAt);
-    if (d < from || d > to) return false;
-    if (merchant && !(t.description ?? "").toLowerCase().includes(merchant)) return false;
-    if (category && (t.category ?? "").toLowerCase() !== category) return false;
-    return true;
-  });
+  const filtered = all.filter(
+    (t: { postedAt?: string; description?: string; category?: string }) => {
+      if (!t?.postedAt) return false;
+      const d = new Date(t.postedAt);
+      if (d < from || d > to) return false;
+      if (merchant && !(t.description ?? "").toLowerCase().includes(merchant)) return false;
+      if (category && (t.category ?? "").toLowerCase() !== category) return false;
+      return true;
+    },
+  );
 
   let totalIncome = 0;
   let totalExpense = 0;
@@ -220,11 +223,7 @@ function simulateLoan(args: SimulateLoanArgs): string {
 
 // ── Dispatcher ───────────────────────────────────────────────────────────────
 
-export async function executeTool(
-  name: string,
-  argsJson: string,
-  userId: string,
-): Promise<string> {
+export async function executeTool(name: string, argsJson: string, userId: string): Promise<string> {
   let args: Record<string, unknown>;
   try {
     args = argsJson ? JSON.parse(argsJson) : {};

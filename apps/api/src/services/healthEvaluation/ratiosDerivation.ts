@@ -1,6 +1,6 @@
-import type { RatioDerivationInput, HealthEvaluationInput } from './types.js';
-import { effectiveAssetValueClp } from '../assets/types.js';
-import { logger } from '../../logger.js';
+import type { RatioDerivationInput, HealthEvaluationInput } from "./types.js";
+import { effectiveAssetValueClp } from "../assets/types.js";
+import { logger } from "../../logger.js";
 
 /**
  * Deriva los 8 inputs del motor v2 a partir de los outputs de scoring existentes.
@@ -20,15 +20,13 @@ export function deriveHealthInput(input: RatioDerivationInput): HealthEvaluation
 
   // ── Activos ───────────────────────────────────────────────────────────────
   // Preferencia: saldos reales SFA > balance anualizado > default 3 sueldos
-  const liquidosClp = sfaProductBalancesClp
-    ?? (sfaAvgMonthlyBalanceClp != null ? sfaAvgMonthlyBalanceClp * 12 : ingresoMensualClp * 3);
+  const liquidosClp =
+    sfaProductBalancesClp ??
+    (sfaAvgMonthlyBalanceClp != null ? sfaAvgMonthlyBalanceClp * 12 : ingresoMensualClp * 3);
 
   // Valor canónico por activo: estimatedValue ?? acquisitionCost. NUNCA se suman
   // ambas columnas del mismo activo (eso duplicaba la base y mostraba la mitad del ratio).
-  const declaradosClp = userAssets.reduce(
-    (sum, a) => sum + effectiveAssetValueClp(a),
-    0,
-  );
+  const declaradosClp = userAssets.reduce((sum, a) => sum + effectiveAssetValueClp(a), 0);
 
   const activosClp = Math.max(liquidosClp + declaradosClp, 1);
 
@@ -49,15 +47,19 @@ export function deriveHealthInput(input: RatioDerivationInput): HealthEvaluation
       asset_count: userAssets.length,
       ratio_deuda_activos: Number(deudaActivos.toFixed(4)),
     },
-    'health-evaluation: Deuda/Activos breakdown',
+    "health-evaluation: Deuda/Activos breakdown",
   );
 
   // ── Mora activa ──────────────────────────────────────────────────────────
   let diasMora = 0;
   for (const deuda of cmf.deuda_directa) {
-    if (deuda.atraso_90_mas > 0) { diasMora = Math.max(diasMora, 90); }
-    else if (deuda.atraso_60_89 > 0) { diasMora = Math.max(diasMora, 75); }
-    else if (deuda.atraso_30_59 > 0) { diasMora = Math.max(diasMora, 45); }
+    if (deuda.atraso_90_mas > 0) {
+      diasMora = Math.max(diasMora, 90);
+    } else if (deuda.atraso_60_89 > 0) {
+      diasMora = Math.max(diasMora, 75);
+    } else if (deuda.atraso_30_59 > 0) {
+      diasMora = Math.max(diasMora, 45);
+    }
   }
   const moraActiva = diasMora > 0;
 
@@ -70,7 +72,7 @@ export function deriveHealthInput(input: RatioDerivationInput): HealthEvaluation
   // TODO: mejorar cuando cmf-parser exponga fecha de origen de cada deuda.
   const antiguedadMeses = cmf.lineas_credito.length > 0 ? 60 : 0;
 
-  const tiposCredito = new Set(cmf.deuda_directa.map(d => d.tipo_credito)).size;
+  const tiposCredito = new Set(cmf.deuda_directa.map((d) => d.tipo_credito)).size;
 
   return {
     deudaFlujo,

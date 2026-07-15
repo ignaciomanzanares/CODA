@@ -48,7 +48,9 @@ export function useBrowserNotifications() {
     }
 
     // Update last seen to highest id
-    const maxId = Math.max(...notifications.map((n) => (typeof n.id === "number" ? n.id : Number(n.id))));
+    const maxId = Math.max(
+      ...notifications.map((n) => (typeof n.id === "number" ? n.id : Number(n.id))),
+    );
     if (maxId > lastSeenIdRef.current) {
       lastSeenIdRef.current = maxId;
     }

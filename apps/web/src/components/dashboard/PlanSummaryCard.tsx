@@ -195,12 +195,9 @@ export default function PlanSummaryCard() {
             {" · "}
             <span className="text-violet-600 dark:text-violet-400">Gustos</span>
             {" · "}
-            <span className="text-emerald-600 dark:text-emerald-400">Ahorro</span>
-            {" "}(meta 20%)
+            <span className="text-emerald-600 dark:text-emerald-400">Ahorro</span> (meta 20%)
           </p>
-          <p className="text-[11px] text-muted-foreground">
-            Ingreso mensual: {CLP.format(income)}
-          </p>
+          <p className="text-[11px] text-muted-foreground">Ingreso mensual: {CLP.format(income)}</p>
         </div>
       )}
 

@@ -1,6 +1,6 @@
-import Redis from 'ioredis';
-import { env } from './env.js';
-import { logger } from './logger.js';
+import Redis from "ioredis";
+import { env } from "./env.js";
+import { logger } from "./logger.js";
 
 /**
  * Cliente Redis compartido (Render add-on). `null` si `REDIS_URL` no está definida — en ese caso
@@ -14,5 +14,5 @@ export const redis: Redis | null = env.redisUrl
   : null;
 
 if (redis) {
-  redis.on('error', (err) => logger.error({ err }, 'Redis connection error'));
+  redis.on("error", (err) => logger.error({ err }, "Redis connection error"));
 }

@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useApi } from "@/lib/api";
 
-export type HealthSalida = 'ahorro_inversion' | 'refinanciamiento' | 'reestructuracion' | 'concursal';
-export type HealthZone = 'critica' | 'intermedia';
+export type HealthSalida =
+  "ahorro_inversion" | "refinanciamiento" | "reestructuracion" | "concursal";
+export type HealthZone = "critica" | "intermedia";
 export type HealthLevel = -2 | -1 | 0 | 1 | 2 | 3 | 4 | 5;
 
 export interface HealthEvaluation {
@@ -48,8 +49,8 @@ export function useHealthEvaluation() {
   const { apiRequest } = useApi();
 
   return useQuery<HealthResponse>({
-    queryKey: ['health-evaluation'],
-    queryFn: () => apiRequest<HealthResponse>('GET', '/api/health-evaluation/me'),
+    queryKey: ["health-evaluation"],
+    queryFn: () => apiRequest<HealthResponse>("GET", "/api/health-evaluation/me"),
     retry: 1,
   });
 }

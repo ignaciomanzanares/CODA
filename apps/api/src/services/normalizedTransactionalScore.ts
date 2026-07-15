@@ -57,7 +57,9 @@ export async function getNormalizedTransactionalScoreForUser(
   if (metrics.transactionCount === 0) return null;
 
   const profile = await buildUserRiskProfile(userId);
-  const tx = profile ? await computeTransactionalScore(profile) : { available: false as const, isBeta: true as const };
+  const tx = profile
+    ? await computeTransactionalScore(profile)
+    : { available: false as const, isBeta: true as const };
 
   return {
     transactionalScore: tx.available ? (tx.score ?? null) : null,

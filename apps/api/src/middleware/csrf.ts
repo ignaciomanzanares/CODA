@@ -93,7 +93,7 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
       origin: req.headers.origin ?? null,
       referer: req.headers.referer ?? null,
     },
-    "csrf: blocked cookie-auth mutation (origin not allowlisted)"
+    "csrf: blocked cookie-auth mutation (origin not allowlisted)",
   );
   res.status(403).json({ message: "CSRF validation failed" });
 }

@@ -59,9 +59,9 @@ function completeness(a: AssetRow): number {
 function pickKeeper(group: AssetRow[]): AssetRow {
   return [...group].sort((a, b) => {
     const c = completeness(b) - completeness(a);
-    if (c !== 0) return c;                       // primero la más completa
+    if (c !== 0) return c; // primero la más completa
     if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? -1 : 1; // luego la más antigua
-    return a.id < b.id ? -1 : 1;                 // desempate estable por id
+    return a.id < b.id ? -1 : 1; // desempate estable por id
   })[0];
 }
 
@@ -72,7 +72,9 @@ async function main() {
   const userFlagIdx = argv.indexOf("--user");
   const onlyUser = userFlagIdx >= 0 ? argv[userFlagIdx + 1] : undefined;
 
-  console.log(`🧹 Dedup de activos — ${SCRIPT_VERSION} — ${dryRun ? "DRY-RUN (no borra nada)" : "APPLY (elimina + audita)"}`);
+  console.log(
+    `🧹 Dedup de activos — ${SCRIPT_VERSION} — ${dryRun ? "DRY-RUN (no borra nada)" : "APPLY (elimina + audita)"}`,
+  );
   if (onlyUser) console.log(`   Limitado al usuario: ${onlyUser}`);
 
   // Import dinámico: el .env ya está cargado antes de inicializar db/index.
@@ -94,18 +96,24 @@ async function main() {
       storage.listDocumentUploadsByType(userId, "cartola"),
     ]);
     const cmfDocs = [...cmfNew, ...cmfLegacy].sort(
-      (a: any, b: any) => new Date(b.uploadedAt ?? 0).getTime() - new Date(a.uploadedAt ?? 0).getTime(),
+      (a: any, b: any) =>
+        new Date(b.uploadedAt ?? 0).getTime() - new Date(a.uploadedAt ?? 0).getTime(),
     );
     if (cmfDocs.length === 0) return null;
     const raw = (cmfDocs[0] as any)?.parsedData;
-    const deudaTotalClp: number = typeof raw?.deuda_total === "number" ? raw.deuda_total : (raw?.deudaTotalVigente ?? 0);
+    const deudaTotalClp: number =
+      typeof raw?.deuda_total === "number" ? raw.deuda_total : (raw?.deudaTotalVigente ?? 0);
 
     const pd = (cartolas[0] as any)?.parsedData as { transacciones?: any[] } | null;
-    let ingresos = 0, gastos = 0;
+    let ingresos = 0,
+      gastos = 0;
     for (const t of pd?.transacciones ?? []) {
       if (t.tipo === "abono" && typeof t.monto === "number") ingresos += t.monto;
       else if (t.tipo === "cargo" && typeof t.monto === "number") gastos += t.monto;
-      else { ingresos += t.abono ?? 0; gastos += t.cargo ?? 0; }
+      else {
+        ingresos += t.abono ?? 0;
+        gastos += t.cargo ?? 0;
+      }
     }
 
     const out = deriveHealthInput({
@@ -113,9 +121,24 @@ async function main() {
       deudaMensualClp: deudaTotalClp / 36,
       deudaTotalClp,
       ahorroMensualClp: ingresos - gastos,
-      cmf: { deuda_total: deudaTotalClp, deuda_directa: [], deuda_indirecta: [], lineas_credito: [], metricas: { porcentaje_al_dia: 100, score_cmf: 85, tiene_mora: false, credito_disponible_total: 0, utilizacion_promedio: 0 } } as any,
+      cmf: {
+        deuda_total: deudaTotalClp,
+        deuda_directa: [],
+        deuda_indirecta: [],
+        lineas_credito: [],
+        metricas: {
+          porcentaje_al_dia: 100,
+          score_cmf: 85,
+          tiene_mora: false,
+          credito_disponible_total: 0,
+          utilizacion_promedio: 0,
+        },
+      } as any,
       sfaAvgMonthlyBalanceClp: txScore?.metrics?.averageMonthlyBalanceClp ?? undefined,
-      userAssets: assets.map((a) => ({ ...a, hasLien: a.hasLien === 1 || a.hasLien === true })) as any,
+      userAssets: assets.map((a) => ({
+        ...a,
+        hasLien: a.hasLien === 1 || a.hasLien === true,
+      })) as any,
     });
     return out.deudaActivos;
   }
@@ -130,11 +153,16 @@ async function main() {
   }
   console.log(`👤 ${userIds.length} usuario(s) con activos a revisar.\n`);
 
-  let totalGroups = 0, totalRemovable = 0, totalRemoved = 0;
+  let totalGroups = 0,
+    totalRemovable = 0,
+    totalRemoved = 0;
   const removedAtIso = new Date().toISOString();
 
   for (const userId of userIds) {
-    const assets = (await db.select().from(userAssets).where(eq(userAssets.userId, userId))) as AssetRow[];
+    const assets = (await db
+      .select()
+      .from(userAssets)
+      .where(eq(userAssets.userId, userId))) as AssetRow[];
     if (assets.length === 0) continue;
 
     // Agrupar por firma de identidad.
@@ -147,25 +175,38 @@ async function main() {
     if (dupGroups.length === 0) continue;
 
     const toRemove: AssetRow[] = [];
-    console.log(`── Usuario ${userId} — ${assets.length} activos, ${dupGroups.length} grupo(s) duplicado(s):`);
+    console.log(
+      `── Usuario ${userId} — ${assets.length} activos, ${dupGroups.length} grupo(s) duplicado(s):`,
+    );
     for (const g of dupGroups) {
       totalGroups++;
       const keeper = pickKeeper(g);
       const remove = g.filter((a) => a.id !== keeper.id);
       toRemove.push(...remove);
-      console.log(`   • "${keeper.name}" (${keeper.type}, costo ${fmt(keeper.acquisitionCostClp)}) ×${g.length}`);
-      console.log(`       KEEP   ${keeper.id}  valor=${fmt(effectiveAssetValueClp({ ...keeper, hasLien: false } as any))}`);
+      console.log(
+        `   • "${keeper.name}" (${keeper.type}, costo ${fmt(keeper.acquisitionCostClp)}) ×${g.length}`,
+      );
+      console.log(
+        `       KEEP   ${keeper.id}  valor=${fmt(effectiveAssetValueClp({ ...keeper, hasLien: false } as any))}`,
+      );
       for (const r of remove) console.log(`       REMOVE ${r.id}  (creado ${r.createdAt})`);
     }
     totalRemovable += toRemove.length;
 
     // BEFORE/AFTER: total_assets declarados + ratio Deuda/Activos.
-    const declaredBefore = assets.reduce((s, a) => s + effectiveAssetValueClp({ ...a, hasLien: false } as any), 0);
+    const declaredBefore = assets.reduce(
+      (s, a) => s + effectiveAssetValueClp({ ...a, hasLien: false } as any),
+      0,
+    );
     const keptAssets = assets.filter((a) => !toRemove.some((r) => r.id === a.id));
-    const declaredAfter = keptAssets.reduce((s, a) => s + effectiveAssetValueClp({ ...a, hasLien: false } as any), 0);
+    const declaredAfter = keptAssets.reduce(
+      (s, a) => s + effectiveAssetValueClp({ ...a, hasLien: false } as any),
+      0,
+    );
     const ratioBefore = await deudaActivosFor(userId, assets);
     const ratioAfter = await deudaActivosFor(userId, keptAssets);
-    const pct = (r: number | null) => (r == null ? "n/a (faltan docs CMF)" : `${(r * 100).toFixed(1)}%`);
+    const pct = (r: number | null) =>
+      r == null ? "n/a (faltan docs CMF)" : `${(r * 100).toFixed(1)}%`;
     console.log(`   total_assets declarados: ${fmt(declaredBefore)} → ${fmt(declaredAfter)}`);
     console.log(`   Deuda/Activos:           ${pct(ratioBefore)} → ${pct(ratioAfter)}`);
 
@@ -182,7 +223,14 @@ async function main() {
             reason: "duplicate_of",
             keptId: pickKeeper(groups.get(assetSignature(r))!).id,
             signature: assetSignature(r),
-            removedRow: { name: r.name, type: r.type, acquisitionCostClp: r.acquisitionCostClp, estimatedValueClp: r.estimatedValueClp, lienAmountClp: r.lienAmountClp, createdAt: r.createdAt },
+            removedRow: {
+              name: r.name,
+              type: r.type,
+              acquisitionCostClp: r.acquisitionCostClp,
+              estimatedValueClp: r.estimatedValueClp,
+              lienAmountClp: r.lienAmountClp,
+              createdAt: r.createdAt,
+            },
             script: SCRIPT_VERSION,
           }),
           ip: null,
@@ -196,10 +244,14 @@ async function main() {
 
   console.log("──────────────────────────────────────────");
   if (dryRun) {
-    console.log(`DRY-RUN: ${totalGroups} grupo(s) duplicado(s); ${totalRemovable} fila(s) se eliminarían. Nada fue borrado.`);
+    console.log(
+      `DRY-RUN: ${totalGroups} grupo(s) duplicado(s); ${totalRemovable} fila(s) se eliminarían. Nada fue borrado.`,
+    );
     console.log(`Para aplicar: repetir con --apply.`);
   } else {
-    console.log(`APPLY: ${totalRemoved} fila(s) eliminada(s) y auditada(s) en ${totalGroups} grupo(s).`);
+    console.log(
+      `APPLY: ${totalRemoved} fila(s) eliminada(s) y auditada(s) en ${totalGroups} grupo(s).`,
+    );
   }
   process.exit(0);
 }

@@ -10,9 +10,9 @@
  * Idempotente: las cuentas se deduplican por `(userId, providerAccountId)` y las transacciones
  * por `externalId` dentro de la cuenta, así que re-ingestar el mismo origen no duplica filas.
  */
-import { storage } from '../../storage.js';
-import type { OBProvider } from '../../connectors/openbanking/mockProvider.js';
-import { mlLogger as logger } from '../../logger.js';
+import { storage } from "../../storage.js";
+import type { OBProvider } from "../../connectors/openbanking/mockProvider.js";
+import { mlLogger as logger } from "../../logger.js";
 
 export interface IngestSummary {
   accountsCreated: number;
@@ -74,7 +74,10 @@ export async function ingestFromProvider(
         summary.balancesWritten += 1;
       }
     } catch (e) {
-      logger.warn({ err: e, providerAccountId: ob.providerAccountId }, 'ingestFromProvider: getBalance falló (no fatal)');
+      logger.warn(
+        { err: e, providerAccountId: ob.providerAccountId },
+        "ingestFromProvider: getBalance falló (no fatal)",
+      );
     }
 
     // Transacciones, deduplicadas por externalId.

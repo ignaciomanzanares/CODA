@@ -1,4 +1,9 @@
-import type { OBAccount, OBBalance, OBProvider, OBTransaction } from "../connectors/openbanking/mockProvider.js";
+import type {
+  OBAccount,
+  OBBalance,
+  OBProvider,
+  OBTransaction,
+} from "../connectors/openbanking/mockProvider.js";
 
 /**
  * Generador de datos Open Banking sintéticos para entrenamiento del modelo de scoring,
@@ -83,9 +88,8 @@ export function sampleProfile(userId: string): ChileanProfile {
 
   // Carga financiera: 0 si no tiene deuda (49% de los hogares), si no, normal truncada
   // centrada en 0.26 (BCCh EFH 2024).
-  const debtBurdenRatio = rng() < HAS_DEBT_PROB
-    ? clamp(DEBT_BURDEN_MEAN + randNormal(rng) * DEBT_BURDEN_SD, 0, 0.9)
-    : 0;
+  const debtBurdenRatio =
+    rng() < HAS_DEBT_PROB ? clamp(DEBT_BURDEN_MEAN + randNormal(rng) * DEBT_BURDEN_SD, 0, 0.9) : 0;
 
   // Volatilidad de ingreso: sesgada hacia regular (la mayoría de los asalariados formales
   // tiene ingreso estable); rng()^2 concentra la masa cerca de 0 sin descartar la cola alta.
@@ -194,7 +198,11 @@ export class SyntheticChileanProvider implements OBProvider {
     return { current, available: current, currency: "CLP", asOf: new Date() };
   }
 
-  async listTransactions(_providerAccountId: string, from: Date, to: Date): Promise<OBTransaction[]> {
+  async listTransactions(
+    _providerAccountId: string,
+    from: Date,
+    to: Date,
+  ): Promise<OBTransaction[]> {
     const p = this.profile!;
     const items: OBTransaction[] = [];
     const windowDays = Math.max(1, Math.ceil((to.getTime() - from.getTime()) / 86400000));
@@ -202,7 +210,9 @@ export class SyntheticChileanProvider implements OBProvider {
 
     // Remuneración: ~mensual, con ruido proporcional a la volatilidad del perfil.
     for (let m = 0; m < months; m++) {
-      const day = new Date(from.getTime() + m * 30 * 86400000 + (1 + Math.floor(this.rng() * 3)) * 86400000);
+      const day = new Date(
+        from.getTime() + m * 30 * 86400000 + (1 + Math.floor(this.rng() * 3)) * 86400000,
+      );
       if (day > to) continue;
       const noise = 1 + (this.rng() * 2 - 1) * p.incomeVolatility * 0.5;
       items.push({

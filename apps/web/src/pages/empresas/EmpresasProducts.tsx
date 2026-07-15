@@ -53,18 +53,35 @@ export default function EmpresasProducts() {
             )}
             {!loansLoading && loanList.length > 0 && (
               <ul className="space-y-2 text-sm">
-                {(loanList as { productName?: string; provider?: string; interestRate?: number; loanAmount?: number; description?: string }[]).slice(0, 8).map((p, i) => (
-                  <li key={i} className="flex justify-between items-start border-b pb-2 last:border-0">
-                    <div>
-                      <span className="font-medium">{p.productName ?? "Crédito"}</span>
-                      <span className="text-muted-foreground ml-1">— {p.provider ?? ""}</span>
-                    </div>
-                    <div className="text-right">
-                      {p.interestRate != null && <span className="text-muted-foreground">{p.interestRate}%</span>}
-                      {p.loanAmount != null && <div>{formatCurrency(p.loanAmount, currency)}</div>}
-                    </div>
-                  </li>
-                ))}
+                {(
+                  loanList as {
+                    productName?: string;
+                    provider?: string;
+                    interestRate?: number;
+                    loanAmount?: number;
+                    description?: string;
+                  }[]
+                )
+                  .slice(0, 8)
+                  .map((p, i) => (
+                    <li
+                      key={i}
+                      className="flex justify-between items-start border-b pb-2 last:border-0"
+                    >
+                      <div>
+                        <span className="font-medium">{p.productName ?? "Crédito"}</span>
+                        <span className="text-muted-foreground ml-1">— {p.provider ?? ""}</span>
+                      </div>
+                      <div className="text-right">
+                        {p.interestRate != null && (
+                          <span className="text-muted-foreground">{p.interestRate}%</span>
+                        )}
+                        {p.loanAmount != null && (
+                          <div>{formatCurrency(p.loanAmount, currency)}</div>
+                        )}
+                      </div>
+                    </li>
+                  ))}
               </ul>
             )}
           </CardContent>
@@ -80,19 +97,28 @@ export default function EmpresasProducts() {
           </CardHeader>
           <CardContent>
             {cardList.length === 0 && (
-              <p className="text-sm text-muted-foreground">No hay tarjetas empresariales cargadas.</p>
+              <p className="text-sm text-muted-foreground">
+                No hay tarjetas empresariales cargadas.
+              </p>
             )}
             {cardList.length > 0 && (
               <ul className="space-y-2 text-sm">
-                {(cardList as { productName?: string; provider?: string; interestRate?: number }[]).slice(0, 8).map((p, i) => (
-                  <li key={i} className="flex justify-between items-start border-b pb-2 last:border-0">
-                    <div>
-                      <span className="font-medium">{p.productName ?? "Tarjeta"}</span>
-                      <span className="text-muted-foreground ml-1">— {p.provider ?? ""}</span>
-                    </div>
-                    {p.interestRate != null && <span className="text-muted-foreground">{p.interestRate}%</span>}
-                  </li>
-                ))}
+                {(cardList as { productName?: string; provider?: string; interestRate?: number }[])
+                  .slice(0, 8)
+                  .map((p, i) => (
+                    <li
+                      key={i}
+                      className="flex justify-between items-start border-b pb-2 last:border-0"
+                    >
+                      <div>
+                        <span className="font-medium">{p.productName ?? "Tarjeta"}</span>
+                        <span className="text-muted-foreground ml-1">— {p.provider ?? ""}</span>
+                      </div>
+                      {p.interestRate != null && (
+                        <span className="text-muted-foreground">{p.interestRate}%</span>
+                      )}
+                    </li>
+                  ))}
               </ul>
             )}
           </CardContent>
@@ -100,7 +126,8 @@ export default function EmpresasProducts() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Los productos se obtienen del catálogo compartido con CODA Personal. Para ofertas específicas PYME, integrar con proveedores o API de productos empresariales.
+        Los productos se obtienen del catálogo compartido con CODA Personal. Para ofertas
+        específicas PYME, integrar con proveedores o API de productos empresariales.
       </p>
     </div>
   );

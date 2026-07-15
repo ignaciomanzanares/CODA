@@ -61,14 +61,18 @@ export default function FinancialTimeline({ goals }: FinancialTimelineProps) {
           {index < goals.length - 1 && (
             <div className="absolute left-0 top-0 h-full w-px bg-muted"></div>
           )}
-          
+
           {/* Timeline dot */}
-          <div className={`absolute left-0 top-1 w-6 h-6 rounded-full ${getStatusColor(goal.status)} flex items-center justify-center`}>
+          <div
+            className={`absolute left-0 top-1 w-6 h-6 rounded-full ${getStatusColor(goal.status)} flex items-center justify-center`}
+          >
             {getStatusIcon(goal.status)}
           </div>
-          
+
           <div>
-            <div className="text-sm font-medium text-muted-foreground">{getTimeLabel(goal.timeframe)}</div>
+            <div className="text-sm font-medium text-muted-foreground">
+              {getTimeLabel(goal.timeframe)}
+            </div>
             <div className="font-bold mb-1">{goal.name}</div>
             <div className="text-muted-foreground text-xs">{goal.progress}% Complete</div>
           </div>

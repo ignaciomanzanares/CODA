@@ -102,7 +102,11 @@ export class PDModelRegistry {
   explainInstance(
     featureMap: Record<string, number>,
     limit = 5,
-  ): Array<{ feature: string; contribution: number; direction: "increases_risk" | "decreases_risk" }> {
+  ): Array<{
+    feature: string;
+    contribution: number;
+    direction: "increases_risk" | "decreases_risk";
+  }> {
     if (this.treeModel && this.featureMeta) {
       const feats = this.featureMeta.features.map((k) => Number(featureMap[k] ?? 0));
       return this.treeModel.topReasons(feats, this.featureMeta.features, limit);
@@ -116,7 +120,8 @@ export class PDModelRegistry {
 
   getTopFeatures(limit = 5): string[] {
     // 1) Prefer explicit top features in manifest
-    const mf = this.manifest as (ModelManifest & { shap_top?: string[]; shap_summary_path?: string | null }) | null;
+    const mf = this.manifest as
+      (ModelManifest & { shap_top?: string[]; shap_summary_path?: string | null }) | null;
     const top = mf?.shap_top;
     if (Array.isArray(top) && top.length) {
       return top.slice(0, limit);
@@ -128,7 +133,9 @@ export class PDModelRegistry {
       try {
         const abs = path.join(this.baseDir, summaryPath);
         if (fs.existsSync(abs)) {
-          const parsed: Array<{ feature: string; mean_abs_shap?: number }> = JSON.parse(fs.readFileSync(abs, "utf-8"));
+          const parsed: Array<{ feature: string; mean_abs_shap?: number }> = JSON.parse(
+            fs.readFileSync(abs, "utf-8"),
+          );
           if (Array.isArray(parsed) && parsed.length) {
             parsed.sort((a, b) => (b.mean_abs_shap || 0) - (a.mean_abs_shap || 0));
             return parsed.slice(0, limit).map((p) => p.feature);
@@ -164,8 +171,10 @@ export class PDModelRegistry {
       if (p <= pts[0].x) return pts[0].y;
       for (let i = 1; i < pts.length; i++) {
         if (p <= pts[i].x) {
-          const x0 = pts[i - 1].x, y0 = pts[i - 1].y;
-          const x1 = pts[i].x, y1 = pts[i].y;
+          const x0 = pts[i - 1].x,
+            y0 = pts[i - 1].y;
+          const x1 = pts[i].x,
+            y1 = pts[i].y;
           const t = (p - x0) / (x1 - x0 || 1e-6);
           return y0 + t * (y1 - y0);
         }
@@ -182,7 +191,10 @@ export class PDModelRegistry {
       const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
       this.manifest = manifest;
 
-      const featureMetaPath = path.join(this.baseDir, manifest.feature_meta_path || "feature_meta.json");
+      const featureMetaPath = path.join(
+        this.baseDir,
+        manifest.feature_meta_path || "feature_meta.json",
+      );
       if (!fs.existsSync(featureMetaPath)) return;
       this.featureMeta = JSON.parse(fs.readFileSync(featureMetaPath, "utf-8"));
 
@@ -227,11 +239,16 @@ export class PDModelRegistry {
       const { db, dialect, algorithmModelVersions, eq, and } = await import("../db/index.js");
       // El blob store solo existe en Postgres (producción). En SQLite (dev/test) no hay
       // artefactos remotos — usar siempre artifacts/current local.
-      if (dialect !== 'postgres') return false;
+      if (dialect !== "postgres") return false;
       const rows = await db
         .select()
         .from(algorithmModelVersions)
-        .where(and(eq(algorithmModelVersions.lifecycle, "production"), eq(algorithmModelVersions.modelType, modelType)))
+        .where(
+          and(
+            eq(algorithmModelVersions.lifecycle, "production"),
+            eq(algorithmModelVersions.modelType, modelType),
+          ),
+        )
         .limit(1);
       const row = rows?.[0] as { artifactUri?: string | null } | undefined;
       if (!row?.artifactUri) return false;
@@ -244,7 +261,10 @@ export class PDModelRegistry {
       for (const name of ["xgb.json", "feature_meta.json", "manifest.json"]) {
         const buf = await store.getObject(`${row.artifactUri}/${name}`);
         if (!buf) {
-          logger.warn({ artifactUri: row.artifactUri, name }, "loadProductionFromRegistry: artefacto faltante en blob store; uso artifacts/current local");
+          logger.warn(
+            { artifactUri: row.artifactUri, name },
+            "loadProductionFromRegistry: artefacto faltante en blob store; uso artifacts/current local",
+          );
           return false;
         }
         fs.writeFileSync(path.join(cacheDir, name), buf);
@@ -255,7 +275,10 @@ export class PDModelRegistry {
       this.featureMeta = null;
       this.tryLoad();
       const ok = Boolean(this.treeModel && this.featureMeta);
-      logger.info({ artifactUri: row.artifactUri, ok, auc: this.manifest?.metrics?.auc }, "loadProductionFromRegistry: modelo de producción cargado desde blob store");
+      logger.info(
+        { artifactUri: row.artifactUri, ok, auc: this.manifest?.metrics?.auc },
+        "loadProductionFromRegistry: modelo de producción cargado desde blob store",
+      );
       return ok;
     } catch (e) {
       logger.warn({ err: e }, "loadProductionFromRegistry falló; usando artifacts/current local");

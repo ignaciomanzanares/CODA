@@ -15,14 +15,12 @@ export default function RecommendationCard({
   title,
   description,
   actionText,
-  actionLink
+  actionLink,
 }: RecommendationCardProps) {
   return (
     <div className="border border-border rounded-lg p-4 hover:border-primary transition-colors">
       <div className="flex items-start">
-        <div className="bg-primary bg-opacity-10 p-2 rounded-full mr-4 text-primary">
-          {icon}
-        </div>
+        <div className="bg-primary bg-opacity-10 p-2 rounded-full mr-4 text-primary">{icon}</div>
         <div>
           <h4 className="font-bold mb-1 font-sans">{title}</h4>
           <p className="text-muted-foreground text-sm mb-2">{description}</p>

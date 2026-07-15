@@ -3,20 +3,30 @@
 // Credit score history
 export const creditScoreHistory = pgTable("credit_score_history", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
   score: integer("score").notNull(),
   maxScore: integer("max_score").notNull().default(850),
-  calculatedAt: text("calculated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  calculatedAt: text("calculated_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
   factors: text("factors"), // JSON string for SHAP/factor breakdown
 });
 
 // Goal progress
 export const goalProgress = pgTable("goal_progress", {
   id: serial("id").primaryKey(),
-  goalId: integer("goal_id").notNull().references(() => financialGoals.id),
-  userId: text("user_id").notNull().references(() => users.id),
+  goalId: integer("goal_id")
+    .notNull()
+    .references(() => financialGoals.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
   amount: integer("amount").notNull(),
-  progressDate: text("progress_date").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  progressDate: text("progress_date")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 
 // Audit logs
@@ -26,7 +36,9 @@ export const auditLogs = pgTable("audit_logs", {
   action: text("action").notNull(),
   entity: text("entity"),
   entityId: text("entity_id"),
-  timestamp: text("timestamp").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  timestamp: text("timestamp")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
   details: text("details"), // JSON string
   ip: text("ip"),
 });
@@ -46,15 +58,23 @@ export const riskFactors = pgTable("risk_factors", {
   type: text("type").notNull(),
   value: text("value").notNull(),
   score: integer("score"),
-  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: text("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 
 // Product recommendations
 export const productRecommendations = pgTable("product_recommendations", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id),
-  productId: integer("product_id").notNull().references(() => financialProducts.id),
-  recommendedAt: text("recommended_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  productId: integer("product_id")
+    .notNull()
+    .references(() => financialProducts.id),
+  recommendedAt: text("recommended_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
   reason: text("reason"),
   status: text("status").default("pending"), // pending, applied, rejected
 });
@@ -62,31 +82,47 @@ export const productRecommendations = pgTable("product_recommendations", {
 // Lead tracking: records all user interactions with products (views, clicks, applications)
 export const leadTracking = pgTable("lead_tracking", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id),
-  productId: integer("product_id").notNull().references(() => financialProducts.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  productId: integer("product_id")
+    .notNull()
+    .references(() => financialProducts.id),
   eventType: text("event_type").notNull(), // 'view' | 'click' | 'application' | 'approval' | 'rejection'
   matchScore: real("match_score"), // 0-100: how well the product matches user profile
   userCreditScore: integer("user_credit_score"), // Credit score at time of event
   userTransactionalScore: integer("user_transactional_score"), // Transactional score at time of event
   metadata: text("metadata"), // JSON: additional context (source page, filters applied, etc.)
-  timestamp: text("timestamp").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  timestamp: text("timestamp")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 
 // Product applications: formal applications submitted by users
 export const productApplications = pgTable("product_applications", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id),
-  productId: integer("product_id").notNull().references(() => financialProducts.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  productId: integer("product_id")
+    .notNull()
+    .references(() => financialProducts.id),
   status: text("status").notNull().default("pending"), // 'pending' | 'approved' | 'rejected' | 'expired' | 'withdrawn'
   applicationData: text("application_data"), // JSON: form data submitted
   externalApplicationId: text("external_application_id"), // ID from financial institution
-  appliedAt: text("applied_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  appliedAt: text("applied_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
   respondedAt: text("responded_at"),
   revenueEarned: integer("revenue_earned"), // CLP earned from this application (lead fee + success fee)
   revenueType: text("revenue_type"), // 'lead_fee' | 'success_fee' | 'activation_bonus'
   notes: text("notes"),
-  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: text("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  updatedAt: text("updated_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 import { pgTable, text, integer, real, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -118,8 +154,12 @@ export const users = pgTable("users", {
   kycStatus: text("kyc_status"),
   /** 0/1 — flujo de primer ingreso (consentimiento + KYC + 2FA) finalizado. */
   onboardingCompleted: integer("onboarding_completed").notNull().default(0),
-  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: text("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  updatedAt: text("updated_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 
 // -----------------------------------------------------------------------------
@@ -128,7 +168,9 @@ export const users = pgTable("users", {
 
 export const accounts = pgTable("accounts", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
   bankConnectionId: integer("bank_connection_id"), // Add references if bankConnections is defined as pgTable
   providerAccountId: text("provider_account_id"), // external provider ID
   name: text("name"),
@@ -139,14 +181,22 @@ export const accounts = pgTable("accounts", {
   mask: text("mask"),
   status: text("status").default("active"),
   openedAt: text("opened_at"),
-  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: text("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  updatedAt: text("updated_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 
 export const balances = pgTable("balances", {
   id: serial("id").primaryKey(),
-  accountId: integer("account_id").notNull().references(() => accounts.id),
-  asOf: text("as_of").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  accountId: integer("account_id")
+    .notNull()
+    .references(() => accounts.id),
+  asOf: text("as_of")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
   current: real("current").notNull(),
   available: real("available"),
   creditLimit: real("credit_limit"),
@@ -155,7 +205,9 @@ export const balances = pgTable("balances", {
 
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
-  accountId: integer("account_id").notNull().references(() => accounts.id),
+  accountId: integer("account_id")
+    .notNull()
+    .references(() => accounts.id),
   externalId: text("external_id"),
   postedAt: text("posted_at").notNull(),
   description: text("description"),
@@ -178,53 +230,71 @@ export const transactions = pgTable("transactions", {
   originalCurrency: text("original_currency"),
   amountClp: real("amount_clp"),
   fxRate: real("fx_rate"),
-  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: text("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 
 // Bank connections table
 export const bankConnections = pgTable("bank_connections", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
   bankName: text("bank_name").notNull(),
   accountType: text("account_type").notNull(),
   status: text("status").notNull().default("connected"),
   connectionData: text("connection_data"), // JSON string
-  lastUpdated: text("last_updated").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  lastUpdated: text("last_updated")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 
 // Credit scores table
 export const creditScores = pgTable("credit_scores", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
   score: integer("score").notNull(),
   maxScore: integer("max_score").notNull().default(850),
   paymentHistory: text("payment_history").notNull(),
   utilization: text("utilization").notNull(),
   ageOfCredit: text("age_of_credit").notNull(),
-  lastUpdated: text("last_updated").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  lastUpdated: text("last_updated")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 
 // Insurance risks table
 export const insuranceRisks = pgTable("insurance_risks", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
   riskLevel: text("risk_level").notNull(),
   healthRisk: text("health_risk").notNull(),
   propertyRisk: text("property_risk").notNull(),
   autoRisk: text("auto_risk").notNull(),
-  lastUpdated: text("last_updated").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  lastUpdated: text("last_updated")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 
 // Financial goals table
 export const financialGoals = pgTable("financial_goals", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
   name: text("name").notNull(),
   targetAmount: integer("target_amount").notNull(),
   currentAmount: integer("current_amount").notNull().default(0),
   targetDate: text("target_date").notNull(),
   category: text("category").notNull(),
-  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: text("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 
 // Financial products table
@@ -262,14 +332,20 @@ export const financialProducts = pgTable("financial_products", {
   priority: integer("priority").default(50), // Higher = shown first (0-100)
   externalUrl: text("external_url"), // Link to institution's application page
   logoUrl: text("logo_url"),
-  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: text("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  updatedAt: text("updated_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 
 // Expenses table
 export const expenses = pgTable("expenses", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").references(() => users.id).notNull(),
+  userId: text("user_id")
+    .references(() => users.id)
+    .notNull(),
   name: text("name"), // optional label for the expense
   amount: real("amount").notNull(),
   description: text("description").notNull(),
@@ -283,7 +359,9 @@ export const expenses = pgTable("expenses", {
   notes: text("notes"),
   isAutoClassified: integer("is_auto_classified").default(1),
   confidence: real("confidence"),
-  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: text("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 
 // Bill splits table
@@ -293,29 +371,39 @@ export const billSplits = pgTable("bill_splits", {
   totalAmount: real("total_amount").notNull(),
   description: text("description"),
   date: text("date").notNull(),
-  createdBy: text("created_by").references(() => users.id).notNull(),
+  createdBy: text("created_by")
+    .references(() => users.id)
+    .notNull(),
   status: text("status").default("active"), // active, settled, deleted
   shareCode: text("share_code"), // Unique code for shareable links
-  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: text("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 
 // Bill split participants table
 export const billSplitParticipants = pgTable("bill_split_participants", {
   id: serial("id").primaryKey(),
-  billSplitId: integer("bill_split_id").references(() => billSplits.id).notNull(),
+  billSplitId: integer("bill_split_id")
+    .references(() => billSplits.id)
+    .notNull(),
   userId: text("user_id").references(() => users.id),
   name: text("name").notNull(),
   email: text("email"),
   amountOwed: real("amount_owed").notNull(),
   amountPaid: real("amount_paid").default(0),
   isPaid: integer("is_paid").default(0),
-  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: text("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 
 // Notifications table
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").references(() => users.id).notNull(),
+  userId: text("user_id")
+    .references(() => users.id)
+    .notNull(),
   title: text("title").notNull(),
   message: text("message").notNull(),
   type: text("type").notNull(), // info, warning, success, error
@@ -323,7 +411,9 @@ export const notifications = pgTable("notifications", {
   isRead: integer("is_read").default(0),
   actionUrl: text("action_url"), // Optional URL for click actions
   metadata: text("metadata"), // JSON string for additional data
-  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: text("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
   readAt: text("read_at"),
 });
 
@@ -368,7 +458,7 @@ export const bankConnectionsRelations = relations(bankConnections, ({ one, many 
     fields: [bankConnections.userId],
     references: [users.id],
   }),
-  accounts: many(accounts)
+  accounts: many(accounts),
 }));
 
 export const creditScoresRelations = relations(creditScores, ({ one }) => ({
@@ -398,17 +488,20 @@ export const expensesRelations = relations(expenses, ({ one }) => ({
 
 export const accountsRelations = relations(accounts, ({ one, many }) => ({
   user: one(users, { fields: [accounts.userId], references: [users.id] }),
-  bankConnection: one(bankConnections, { fields: [accounts.bankConnectionId], references: [bankConnections.id] }),
+  bankConnection: one(bankConnections, {
+    fields: [accounts.bankConnectionId],
+    references: [bankConnections.id],
+  }),
   balances: many(balances),
   transactions: many(transactions),
 }));
 
 export const balancesRelations = relations(balances, ({ one }) => ({
-  account: one(accounts, { fields: [balances.accountId], references: [accounts.id] })
+  account: one(accounts, { fields: [balances.accountId], references: [accounts.id] }),
 }));
 
 export const transactionsRelations = relations(transactions, ({ one }) => ({
-  account: one(accounts, { fields: [transactions.accountId], references: [accounts.id] })
+  account: one(accounts, { fields: [transactions.accountId], references: [accounts.id] }),
 }));
 
 export const billSplitsRelations = relations(billSplits, ({ one, many }) => ({
@@ -417,7 +510,10 @@ export const billSplitsRelations = relations(billSplits, ({ one, many }) => ({
 }));
 
 export const billSplitParticipantsRelations = relations(billSplitParticipants, ({ one }) => ({
-  billSplit: one(billSplits, { fields: [billSplitParticipants.billSplitId], references: [billSplits.id] }),
+  billSplit: one(billSplits, {
+    fields: [billSplitParticipants.billSplitId],
+    references: [billSplits.id],
+  }),
   user: one(users, { fields: [billSplitParticipants.userId], references: [users.id] }),
 }));
 
@@ -502,7 +598,7 @@ export type BillSplitParticipantWithUser = BillSplitParticipant & {
 
 export type BillSplitWithParticipants = BillSplit & {
   participants: BillSplitParticipantWithUser[];
-  userRole?: 'creator' | 'participant' | 'none';
+  userRole?: "creator" | "participant" | "none";
   createdByName?: string;
 };
 

@@ -125,7 +125,7 @@ function endeudamientoPoints(cmf: CMFParseResult, ingresoMensual: number): numbe
   if (deuda <= 0) return 850;
   const annualIncome = Math.max(1, ingresoMensual) * 12;
   const ratio = deuda / annualIncome;
-  if (ratio < 0.3) return 750 + Math.min(99, (0.3 - ratio) / 0.3 * 99);
+  if (ratio < 0.3) return 750 + Math.min(99, ((0.3 - ratio) / 0.3) * 99);
   if (ratio <= 0.5) return 600 + ((0.5 - ratio) / 0.2) * 149;
   if (ratio <= 0.8) return 400 + ((0.8 - ratio) / 0.3) * 199;
   return Math.max(0, Math.min(399, 400 - ratio * 200));
@@ -138,7 +138,9 @@ function comportamientoPoints850(txScore: number): number {
 
 /** Capacidad de pago en escala 0–850 (referencia interna 0–127 → 850). */
 function capacidadPagoPoints850(cartola: CartolaParseResult): number {
-  const abonos = cartola.transacciones.filter((t) => t.tipo === "abono").reduce((s, t) => s + t.monto, 0);
+  const abonos = cartola.transacciones
+    .filter((t) => t.tipo === "abono")
+    .reduce((s, t) => s + t.monto, 0);
   const cargosFijos = cartola.transacciones
     .filter((t) => t.tipo === "cargo" && t.es_pago_recurrente)
     .reduce((s, t) => s + t.monto, 0);
@@ -156,7 +158,7 @@ function capacidadPagoPoints850(cartola: CartolaParseResult): number {
 export function calculateCreditScore(
   cmf: CMFParseResult,
   cartola: CartolaParseResult,
-  transactional: TransactionalScoreResult
+  transactional: TransactionalScoreResult,
 ): CreditScoreResult {
   const sumAbonos = cartola.transacciones
     .filter((t) => t.tipo === "abono")

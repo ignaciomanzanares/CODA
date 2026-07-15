@@ -2,7 +2,12 @@ import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getEmpresasCompaniesWithSummary, getEmpresasDashboard, type CompanyWithSummary, type DashboardMetrics } from "@/lib/empresasApi";
+import {
+  getEmpresasCompaniesWithSummary,
+  getEmpresasDashboard,
+  type CompanyWithSummary,
+  type DashboardMetrics,
+} from "@/lib/empresasApi";
 import { Building2, TrendingUp, TrendingDown, DollarSign, Wallet, ArrowRight } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
@@ -10,19 +15,18 @@ import { Analytics } from "@/lib/analytics";
 
 export default function EmpresasDashboard() {
   const { currency } = useCurrency();
-  const { data: companies, isLoading, error } = useQuery({
+  const {
+    data: companies,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["empresas", "companies-summary"],
     queryFn: getEmpresasCompaniesWithSummary,
   });
   const empresaDashboardTracked = useRef(false);
 
   useEffect(() => {
-    if (
-      !isLoading &&
-      companies &&
-      companies.length > 0 &&
-      !empresaDashboardTracked.current
-    ) {
+    if (!isLoading && companies && companies.length > 0 && !empresaDashboardTracked.current) {
       empresaDashboardTracked.current = true;
       Analytics.empresaDashboardViewed();
     }
@@ -33,8 +37,12 @@ export default function EmpresasDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {[1, 2, 3].map((i) => (
           <Card key={i}>
-            <CardHeader><div className="h-6 bg-muted animate-pulse rounded" /></CardHeader>
-            <CardContent><div className="h-20 bg-muted animate-pulse rounded" /></CardContent>
+            <CardHeader>
+              <div className="h-6 bg-muted animate-pulse rounded" />
+            </CardHeader>
+            <CardContent>
+              <div className="h-20 bg-muted animate-pulse rounded" />
+            </CardContent>
           </Card>
         ))}
       </div>
@@ -47,7 +55,8 @@ export default function EmpresasDashboard() {
           <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-lg font-semibold mb-2">Sin empresas</h2>
           <p className="text-muted-foreground text-sm max-w-md mx-auto">
-            No hay empresas asociadas a tu cuenta. El alta de empresas estará disponible cuando activemos el módulo en producción.
+            No hay empresas asociadas a tu cuenta. El alta de empresas estará disponible cuando
+            activemos el módulo en producción.
           </p>
         </CardContent>
       </Card>
@@ -70,7 +79,11 @@ export default function EmpresasDashboard() {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Caja</span>
-                  <span className="font-medium">{formatCurrency(company.summary?.cashBalance ?? 0, currency, { sourceCurrency: "CLP" })}</span>
+                  <span className="font-medium">
+                    {formatCurrency(company.summary?.cashBalance ?? 0, currency, {
+                      sourceCurrency: "CLP",
+                    })}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Transacciones</span>
@@ -78,7 +91,11 @@ export default function EmpresasDashboard() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Riesgo</span>
-                  <span className={company.summary?.riskRating ? "font-medium" : "text-muted-foreground"}>
+                  <span
+                    className={
+                      company.summary?.riskRating ? "font-medium" : "text-muted-foreground"
+                    }
+                  >
                     {company.summary?.riskRating ?? "—"}
                   </span>
                 </div>
@@ -93,7 +110,11 @@ export default function EmpresasDashboard() {
 
 export function EmpresasDashboardCompany({ companyId }: { companyId: number }) {
   const { currency } = useCurrency();
-  const { data: metrics, isLoading, error } = useQuery({
+  const {
+    data: metrics,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["empresas", "dashboard", companyId],
     queryFn: () => getEmpresasDashboard(companyId),
   });
@@ -110,7 +131,9 @@ export function EmpresasDashboardCompany({ companyId }: { companyId: number }) {
           <TrendingUp className="h-4 w-4 text-green-600" />
         </CardHeader>
         <CardContent>
-          <p className="text-2xl font-bold">{formatCurrency(m.revenue, currency, { sourceCurrency: "CLP" })}</p>
+          <p className="text-2xl font-bold">
+            {formatCurrency(m.revenue, currency, { sourceCurrency: "CLP" })}
+          </p>
         </CardContent>
       </Card>
       <Card>
@@ -119,7 +142,9 @@ export function EmpresasDashboardCompany({ companyId }: { companyId: number }) {
           <TrendingDown className="h-4 w-4 text-red-600" />
         </CardHeader>
         <CardContent>
-          <p className="text-2xl font-bold">{formatCurrency(m.expenses, currency, { sourceCurrency: "CLP" })}</p>
+          <p className="text-2xl font-bold">
+            {formatCurrency(m.expenses, currency, { sourceCurrency: "CLP" })}
+          </p>
         </CardContent>
       </Card>
       <Card>
@@ -128,7 +153,9 @@ export function EmpresasDashboardCompany({ companyId }: { companyId: number }) {
           <Wallet className="h-4 w-4 text-primary" />
         </CardHeader>
         <CardContent>
-          <p className="text-2xl font-bold">{formatCurrency(m.cashBalance, currency, { sourceCurrency: "CLP" })}</p>
+          <p className="text-2xl font-bold">
+            {formatCurrency(m.cashBalance, currency, { sourceCurrency: "CLP" })}
+          </p>
         </CardContent>
       </Card>
       <Card>

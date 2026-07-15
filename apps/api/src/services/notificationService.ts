@@ -168,7 +168,10 @@ class NotificationServiceImpl implements NotificationService {
     return created;
   }
 
-  async getNotifications(userId: string, options: GetNotificationsOptions = {}): Promise<Notification[]> {
+  async getNotifications(
+    userId: string,
+    options: GetNotificationsOptions = {},
+  ): Promise<Notification[]> {
     return await storage.getNotifications(userId, options);
   }
 
@@ -188,7 +191,12 @@ class NotificationServiceImpl implements NotificationService {
     return await storage.getUnreadNotificationCount(userId);
   }
 
-  async notifyBillSplitCreated(userId: string, billName: string, amount: number, billSplitId?: number): Promise<Notification> {
+  async notifyBillSplitCreated(
+    userId: string,
+    billName: string,
+    amount: number,
+    billSplitId?: number,
+  ): Promise<Notification> {
     const template = NotificationTemplates.BILL_SPLIT_CREATED(billName, amount);
     return await this.createNotification({
       userId,
@@ -197,7 +205,12 @@ class NotificationServiceImpl implements NotificationService {
     });
   }
 
-  async notifyPaymentReminder(userId: string, billName: string, amount: number, billSplitId?: number): Promise<Notification> {
+  async notifyPaymentReminder(
+    userId: string,
+    billName: string,
+    amount: number,
+    billSplitId?: number,
+  ): Promise<Notification> {
     const template = NotificationTemplates.BILL_SPLIT_PAYMENT_REMINDER(billName, amount);
     return await this.createNotification({
       userId,
@@ -206,7 +219,13 @@ class NotificationServiceImpl implements NotificationService {
     });
   }
 
-  async notifyBillSplitPaymentReceived(userId: string, payerName: string, amount: number, billName: string, billSplitId?: number): Promise<Notification> {
+  async notifyBillSplitPaymentReceived(
+    userId: string,
+    payerName: string,
+    amount: number,
+    billName: string,
+    billSplitId?: number,
+  ): Promise<Notification> {
     return await this.createNotification({
       userId,
       title: "Pago recibido",
@@ -218,7 +237,11 @@ class NotificationServiceImpl implements NotificationService {
     });
   }
 
-  async notifyCreditScoreChange(userId: string, newScore: number, oldScore: number): Promise<Notification> {
+  async notifyCreditScoreChange(
+    userId: string,
+    newScore: number,
+    oldScore: number,
+  ): Promise<Notification> {
     const change = newScore - oldScore;
     const template = NotificationTemplates.CREDIT_SCORE_UPDATED(newScore, change);
     return await this.createNotification({
@@ -228,7 +251,12 @@ class NotificationServiceImpl implements NotificationService {
     });
   }
 
-  async notifyGoalMilestone(userId: string, goalName: string, progress: number, goalId?: number): Promise<Notification> {
+  async notifyGoalMilestone(
+    userId: string,
+    goalName: string,
+    progress: number,
+    goalId?: number,
+  ): Promise<Notification> {
     const template = NotificationTemplates.GOAL_MILESTONE(goalName, progress);
     return await this.createNotification({
       userId,
@@ -237,7 +265,11 @@ class NotificationServiceImpl implements NotificationService {
     });
   }
 
-  async notifyGoalCreated(userId: string, goalName: string, goalId?: number): Promise<Notification> {
+  async notifyGoalCreated(
+    userId: string,
+    goalName: string,
+    goalId?: number,
+  ): Promise<Notification> {
     const template = NotificationTemplates.GOAL_CREATED(goalName);
     return await this.createNotification({
       userId,
@@ -246,8 +278,16 @@ class NotificationServiceImpl implements NotificationService {
     });
   }
 
-  async notifyUnusualExpense(userId: string, amount: number, category: string, expenseId?: number): Promise<Notification> {
-    const template = NotificationTemplates.EXPENSE_UNUSUAL(amount, expenseCategoryLabelEs(category));
+  async notifyUnusualExpense(
+    userId: string,
+    amount: number,
+    category: string,
+    expenseId?: number,
+  ): Promise<Notification> {
+    const template = NotificationTemplates.EXPENSE_UNUSUAL(
+      amount,
+      expenseCategoryLabelEs(category),
+    );
     return await this.createNotification({
       userId,
       ...template,

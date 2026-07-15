@@ -8,10 +8,10 @@ const fmtCLP = (n: number) =>
   }).format(n);
 
 interface SavingsProgressProps {
-  savingsNet: number;     // CLP (income - expenses)
-  savingsRate: number;    // 0-100 percentage
-  goalPct: number;        // 0-100 progress toward savings goal
-  goalAmount: number;     // CLP target
+  savingsNet: number; // CLP (income - expenses)
+  savingsRate: number; // 0-100 percentage
+  goalPct: number; // 0-100 progress toward savings goal
+  goalAmount: number; // CLP target
 }
 
 export default function SavingsProgress({
@@ -21,11 +21,7 @@ export default function SavingsProgress({
   goalAmount,
 }: SavingsProgressProps) {
   const barColor =
-    goalPct >= 100
-      ? "bg-emerald-500"
-      : goalPct >= 50
-        ? "bg-amber-500"
-        : "bg-red-500";
+    goalPct >= 100 ? "bg-emerald-500" : goalPct >= 50 ? "bg-amber-500" : "bg-red-500";
 
   const labelColor =
     goalPct >= 100
@@ -69,13 +65,23 @@ export default function SavingsProgress({
       {/* Dual metric */}
       <div className="flex items-baseline gap-4">
         <div>
-          <p className={cn("text-2xl font-bold tabular-nums", savingsNet >= 0 ? "text-foreground" : "text-red-600 dark:text-red-400")}>
+          <p
+            className={cn(
+              "text-2xl font-bold tabular-nums",
+              savingsNet >= 0 ? "text-foreground" : "text-red-600 dark:text-red-400",
+            )}
+          >
             {fmtCLP(savingsNet)}
           </p>
           <p className="text-xs text-muted-foreground">Ahorro neto</p>
         </div>
         <div className="border-l border-border pl-4">
-          <p className={cn("text-xl font-bold tabular-nums", savingsRate >= 20 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground")}>
+          <p
+            className={cn(
+              "text-xl font-bold tabular-nums",
+              savingsRate >= 20 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground",
+            )}
+          >
             {savingsRate}%
           </p>
           <p className="text-xs text-muted-foreground">Tasa de ahorro</p>

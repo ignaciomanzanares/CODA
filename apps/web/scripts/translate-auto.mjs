@@ -23,7 +23,9 @@ const sourceLang = args.includes("--source") ? args[args.indexOf("--source") + 1
 const targetLang = args.includes("--target") ? args[args.indexOf("--target") + 1] : "en";
 
 const DEEPL_KEY = process.env.DEEPL_AUTH_KEY;
-const DEEPL_API = DEEPL_KEY?.startsWith(":") ? "https://api.deepl.com/v2/translate" : "https://api-free.deepl.com/v2/translate";
+const DEEPL_API = DEEPL_KEY?.startsWith(":")
+  ? "https://api.deepl.com/v2/translate"
+  : "https://api-free.deepl.com/v2/translate";
 
 function flatten(obj, prefix = "") {
   const out = {};
@@ -54,8 +56,18 @@ function unflatten(flat) {
 }
 
 async function translateText(text, sourceLangCode, targetLangCode) {
-  const source = sourceLangCode.toUpperCase() === "EN" ? "EN" : sourceLangCode.toUpperCase() === "ES" ? "ES" : sourceLangCode.toUpperCase();
-  const target = targetLangCode.toUpperCase() === "EN" ? "EN" : targetLangCode.toUpperCase() === "ES" ? "ES" : targetLangCode.toUpperCase();
+  const source =
+    sourceLangCode.toUpperCase() === "EN"
+      ? "EN"
+      : sourceLangCode.toUpperCase() === "ES"
+        ? "ES"
+        : sourceLangCode.toUpperCase();
+  const target =
+    targetLangCode.toUpperCase() === "EN"
+      ? "EN"
+      : targetLangCode.toUpperCase() === "ES"
+        ? "ES"
+        : targetLangCode.toUpperCase();
   const form = new URLSearchParams({
     text: text,
     source_lang: source,
@@ -79,7 +91,9 @@ async function translateText(text, sourceLangCode, targetLangCode) {
 
 async function main() {
   if (!DEEPL_KEY) {
-    console.error("Falta DEEPL_AUTH_KEY. Uso: DEEPL_AUTH_KEY=tu_key node scripts/translate-auto.mjs");
+    console.error(
+      "Falta DEEPL_AUTH_KEY. Uso: DEEPL_AUTH_KEY=tu_key node scripts/translate-auto.mjs",
+    );
     console.error("API key gratuita: https://www.deepl.com/pro-api");
     process.exit(1);
   }

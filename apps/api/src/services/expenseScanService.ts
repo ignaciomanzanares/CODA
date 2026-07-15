@@ -29,7 +29,10 @@ export interface ScanExpenseResult {
   confidence: number;
 }
 
-export async function scanExpenseFromImage(imageBuffer: Buffer, mimeType: string): Promise<ScanExpenseResult> {
+export async function scanExpenseFromImage(
+  imageBuffer: Buffer,
+  mimeType: string,
+): Promise<ScanExpenseResult> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     logger.warn("GROQ_API_KEY not set, returning mock scan result");
@@ -98,14 +101,13 @@ Confidence should reflect how clear the receipt is (0.9+ if amount and merchant 
     confidence?: number;
   };
 
-  const category = parsed.category && CATEGORIES.includes(parsed.category)
-    ? parsed.category
-    : "Other";
+  const category =
+    parsed.category && CATEGORIES.includes(parsed.category) ? parsed.category : "Other";
   const amount = typeof parsed.amount === "number" && parsed.amount >= 0 ? parsed.amount : 0;
-  const merchant = typeof parsed.merchant === "string" ? parsed.merchant.trim() || "Desconocido" : "Desconocido";
-  const confidence = typeof parsed.confidence === "number"
-    ? Math.max(0, Math.min(1, parsed.confidence))
-    : 0.7;
+  const merchant =
+    typeof parsed.merchant === "string" ? parsed.merchant.trim() || "Desconocido" : "Desconocido";
+  const confidence =
+    typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : 0.7;
 
   logger.info({ amount, merchant, category, confidence }, "Expense scan result (Groq Vision)");
 

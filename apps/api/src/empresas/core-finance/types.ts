@@ -1,6 +1,6 @@
 /**
  * Core Finance Types
- * 
+ *
  * Type definitions for the finance engine.
  */
 
@@ -39,10 +39,10 @@ export interface ReconciliationMatch {
   bankTransactionId: number;
   dteDocumentId: number;
   score: number; // 0-100
-  matchType: 'exact' | 'fuzzy' | 'manual';
+  matchType: "exact" | "fuzzy" | "manual";
   matchedFields: string[];
   amountDifference: number;
-  status: 'proposed' | 'confirmed' | 'rejected';
+  status: "proposed" | "confirmed" | "rejected";
 }
 
 export interface ReconciliationResult {
@@ -123,7 +123,7 @@ export interface JournalEntry {
   entryDate: string;
   description: string;
   reference: string | null;
-  sourceType: 'bank' | 'dte' | 'manual' | 'adjustment';
+  sourceType: "bank" | "dte" | "manual" | "adjustment";
   sourceId: number | null;
   lines: JournalLine[];
   isPosted: boolean;

@@ -7,11 +7,11 @@
  * otros factores (match, prioridad, aprobación). Cada corrida inserta una fila por producto en
  * `product_ranking_weights` → historial versionado y auditable (no se sobrescribe).
  */
-import { randomUUID } from 'node:crypto';
-import { db, productRankingWeights, financialProducts, desc } from '../../db/index.js';
-import { getProductFunnelMetrics } from './leadTrackingService.js';
-import { mlLogger as logger } from '../../logger.js';
-import { sql } from 'drizzle-orm';
+import { randomUUID } from "node:crypto";
+import { db, productRankingWeights, financialProducts, desc } from "../../db/index.js";
+import { getProductFunnelMetrics } from "./leadTrackingService.js";
+import { mlLogger as logger } from "../../logger.js";
+import { sql } from "drizzle-orm";
 
 const WEIGHT_MIN = 0.5;
 const WEIGHT_MAX = 1.5;
@@ -37,7 +37,9 @@ export function computeConversionWeight(productRate: number, meanRate: number): 
 type MetricsFetcher = (productId: number) => Promise<{ overallConversionRate: number }>;
 
 /** Lee CTR y conversion rate desde product_conversion_events para todos los productos activos. */
-async function getConversionMetricsFromEvents(productIds: string[]): Promise<Record<string, { ctr: number; conversionRate: number; hasData: boolean }>> {
+async function getConversionMetricsFromEvents(
+  productIds: string[],
+): Promise<Record<string, { ctr: number; conversionRate: number; hasData: boolean }>> {
   if (productIds.length === 0) return {};
   try {
     const rows = (await db.execute(sql`
@@ -47,7 +49,10 @@ async function getConversionMetricsFromEvents(productIds: string[]): Promise<Rec
         COUNT(*) FILTER (WHERE event_type = 'click') AS clicks,
         COUNT(*) FILTER (WHERE event_type = 'convert') AS conversions
       FROM product_conversion_events
-      WHERE product_id IN (${sql.join(productIds.map((id) => sql`${id}`), sql`, `)})
+      WHERE product_id IN (${sql.join(
+        productIds.map((id) => sql`${id}`),
+        sql`, `,
+      )})
       GROUP BY product_id
     `)) as Array<{ product_id: string; views: number; clicks: number; conversions: number }>;
 
@@ -122,7 +127,10 @@ export async function recomputeProductRankingWeights(opts?: {
     });
   }
 
-  logger.info({ version, products: rates.length, meanRate }, '[productRankingWeights] pesos recalculados');
+  logger.info(
+    { version, products: rates.length, meanRate },
+    "[productRankingWeights] pesos recalculados",
+  );
   return { version, products: rates.length };
 }
 
@@ -132,12 +140,15 @@ export async function getLatestRankingWeights(): Promise<Record<number, number>>
     const rows = (await db
       .select()
       .from(productRankingWeights)
-      .orderBy(desc(productRankingWeights.computedAt))) as Array<{ productId: number; weight: number }>;
+      .orderBy(desc(productRankingWeights.computedAt))) as Array<{
+      productId: number;
+      weight: number;
+    }>;
     const latest: Record<number, number> = {};
     for (const r of rows) if (latest[r.productId] === undefined) latest[r.productId] = r.weight;
     return latest;
   } catch (e) {
-    logger.warn({ err: e }, '[productRankingWeights] no se pudieron leer pesos (se usa neutro)');
+    logger.warn({ err: e }, "[productRankingWeights] no se pudieron leer pesos (se usa neutro)");
     return {};
   }
 }

@@ -12,12 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL } from "@/lib/api";
@@ -98,10 +93,7 @@ interface UniversalUploadDrawerProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export default function UniversalUploadDrawer({
-  open,
-  onOpenChange,
-}: UniversalUploadDrawerProps) {
+export default function UniversalUploadDrawer({ open, onOpenChange }: UniversalUploadDrawerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [files, setFiles] = useState<FileStatus[]>([]);
@@ -133,7 +125,7 @@ export default function UniversalUploadDrawer({
         f.name.endsWith(".pdf") ||
         f.name.endsWith(".png") ||
         f.name.endsWith(".jpg") ||
-        f.name.endsWith(".jpeg")
+        f.name.endsWith(".jpeg"),
     );
     if (!accepted.length) return;
     setFiles((prev) => {
@@ -152,7 +144,7 @@ export default function UniversalUploadDrawer({
       setIsDragging(false);
       addFiles(e.dataTransfer.files);
     },
-    [addFiles]
+    [addFiles],
   );
 
   const removeFile = (idx: number) => {
@@ -209,7 +201,11 @@ export default function UniversalUploadDrawer({
       }
       if (j.state === "failed") {
         // Job realmente fallido en el worker → terminal, conservar failedReason del backend.
-        return { ok: false, status: 500, json: { message: (j.message as string) ?? "No pudimos procesar el documento." } };
+        return {
+          ok: false,
+          status: 500,
+          json: { message: (j.message as string) ?? "No pudimos procesar el documento." },
+        };
       }
       if (r.status >= 500) {
         // 5xx SIN state="failed" = error transitorio consultando el estado (hiccup de
@@ -217,14 +213,21 @@ export default function UniversalUploadDrawer({
         continue;
       }
       if (r.status === 404) {
-        return { ok: false, status: 404, json: { message: "El procesamiento del documento no está disponible." } };
+        return {
+          ok: false,
+          status: 404,
+          json: { message: "El procesamiento del documento no está disponible." },
+        };
       }
       // step === "queued" → seguir polleando
     }
     return {
       ok: false,
       status: 408,
-      json: { message: "El documento sigue procesándose. Aparecerá en tus movimientos cuando termine; puedes cerrar esta ventana." },
+      json: {
+        message:
+          "El documento sigue procesándose. Aparecerá en tus movimientos cuando termine; puedes cerrar esta ventana.",
+      },
     };
   };
 
@@ -256,7 +259,10 @@ export default function UniversalUploadDrawer({
           Number.isFinite(retryAfter) && retryAfter > 0 && retryAfter <= 10
             ? retryAfter * 1000
             : 2000 + attempt * 1000;
-        setStatus("uploading", "Estamos procesando varios documentos. Espera unos segundos y reintentamos automáticamente.");
+        setStatus(
+          "uploading",
+          "Estamos procesando varios documentos. Espera unos segundos y reintentamos automáticamente.",
+        );
         await new Promise((r) => setTimeout(r, waitMs));
         continue;
       }
@@ -280,9 +286,7 @@ export default function UniversalUploadDrawer({
 
   const uploadAll = async () => {
     if (isUploading) return; // guard: no arrancar un segundo batch con doble click
-    const pending = files.filter(
-      (f) => f.status === "pending" || f.status === "error"
-    );
+    const pending = files.filter((f) => f.status === "pending" || f.status === "error");
     if (!pending.length) return;
 
     setIsUploading(true);
@@ -298,9 +302,7 @@ export default function UniversalUploadDrawer({
       for (let i = 0; i < pending.length; i++) {
         const fs = pending[i];
         const setStatus = (status: FileState, message?: string) =>
-          setFiles((prev) =>
-            prev.map((f) => (f.file === fs.file ? { ...f, status, message } : f))
-          );
+          setFiles((prev) => prev.map((f) => (f.file === fs.file ? { ...f, status, message } : f)));
 
         try {
           const { ok, status, json } = await uploadOne(fs, setStatus);
@@ -308,7 +310,7 @@ export default function UniversalUploadDrawer({
             if (status === 429) {
               // Reintentos agotados: el límite es temporal, no un error del documento.
               throw new Error(
-                "No pudimos subir este documento por el límite temporal de subidas. Espera un momento e inténtalo nuevamente."
+                "No pudimos subir este documento por el límite temporal de subidas. Espera un momento e inténtalo nuevamente.",
               );
             }
             if (status >= 500) {
@@ -316,12 +318,12 @@ export default function UniversalUploadDrawer({
               // el genérico queda solo para 5xx opacos (cold-start del proxy, body no-JSON) (#43).
               throw new Error(
                 (json as { message?: string }).message ??
-                  "El servidor tardó más de lo esperado. Espera unos segundos e intenta nuevamente. Si el documento aparece como fallido, puedes eliminarlo y volver a subirlo."
+                  "El servidor tardó más de lo esperado. Espera unos segundos e intenta nuevamente. Si el documento aparece como fallido, puedes eliminarlo y volver a subirlo.",
               );
             }
             // 4xx (validación/parse): conservar el mensaje específico del backend.
             throw new Error(
-              (json as { message?: string }).message ?? "No pudimos procesar el documento."
+              (json as { message?: string }).message ?? "No pudimos procesar el documento.",
             );
           }
 
@@ -371,9 +373,7 @@ export default function UniversalUploadDrawer({
     }
   };
 
-  const hasPending = files.some(
-    (f) => f.status === "pending" || f.status === "error"
-  );
+  const hasPending = files.some((f) => f.status === "pending" || f.status === "error");
   const total = files.length;
   const successTotal = files.filter((f) => f.status === "success").length;
 
@@ -398,31 +398,28 @@ export default function UniversalUploadDrawer({
               "relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-8 text-center transition-all cursor-pointer select-none",
               isDragging
                 ? "border-primary bg-primary/5 scale-[1.01]"
-                : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/30"
+                : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/30",
             )}
           >
             <div
               className={cn(
                 "rounded-full p-3 transition-colors",
-                isDragging ? "bg-primary/10" : "bg-muted"
+                isDragging ? "bg-primary/10" : "bg-muted",
               )}
             >
               <Upload
                 className={cn(
                   "h-6 w-6 transition-colors",
-                  isDragging ? "text-primary" : "text-muted-foreground"
+                  isDragging ? "text-primary" : "text-muted-foreground",
                 )}
               />
             </div>
             <div>
               <p className="text-sm font-medium">
-                {isDragging
-                  ? "Suelta los archivos aquí"
-                  : "Arrastra tus documentos aquí"}
+                {isDragging ? "Suelta los archivos aquí" : "Arrastra tus documentos aquí"}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                o haz clic para seleccionar · PDF, PNG o JPG · Múltiples
-                archivos
+                o haz clic para seleccionar · PDF, PNG o JPG · Múltiples archivos
               </p>
             </div>
             <input
@@ -437,10 +434,7 @@ export default function UniversalUploadDrawer({
 
           {/* File list */}
           {files.length > 0 && (
-            <div
-              className="space-y-2 max-h-56 overflow-y-auto pr-1"
-              aria-live="polite"
-            >
+            <div className="space-y-2 max-h-56 overflow-y-auto pr-1" aria-live="polite">
               {files.map((fs, idx) => (
                 <div
                   key={fs.file.name + idx}
@@ -452,55 +446,46 @@ export default function UniversalUploadDrawer({
                       "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20",
                     (fs.status === "uploading" || fs.status === "parsing") &&
                       "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20",
-                    fs.status === "pending" && "border-muted bg-muted/30"
+                    fs.status === "pending" && "border-muted bg-muted/30",
                   )}
                 >
                   <div className="flex items-center gap-3">
-                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="flex-1 truncate text-xs font-medium">
-                    {fs.file.name}
-                  </span>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {(fs.file.size / 1024).toFixed(0)} KB
-                  </span>
+                    <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="flex-1 truncate text-xs font-medium">{fs.file.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {(fs.file.size / 1024).toFixed(0)} KB
+                    </span>
 
-                  {/* State chip */}
-                  <span
-                    className={cn(
-                      "text-xs shrink-0 flex items-center gap-1",
-                      fs.status === "success" && "text-emerald-600",
-                      fs.status === "error" && "text-red-600",
-                      (fs.status === "uploading" ||
-                        fs.status === "parsing") &&
-                        "text-blue-600",
-                      fs.status === "pending" && "text-muted-foreground"
-                    )}
-                  >
-                    {(fs.status === "uploading" ||
-                      fs.status === "parsing") && (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    )}
-                    {fs.status === "success" && (
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                    )}
-                    {fs.status === "error" && (
-                      <XCircle className="h-3.5 w-3.5" />
-                    )}
-                    <span>{LABEL[fs.status]}</span>
-                  </span>
-
-                  {fs.status === "pending" && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeFile(idx);
-                      }}
-                      className="text-muted-foreground hover:text-foreground shrink-0"
-                      aria-label="Quitar archivo"
+                    {/* State chip */}
+                    <span
+                      className={cn(
+                        "text-xs shrink-0 flex items-center gap-1",
+                        fs.status === "success" && "text-emerald-600",
+                        fs.status === "error" && "text-red-600",
+                        (fs.status === "uploading" || fs.status === "parsing") && "text-blue-600",
+                        fs.status === "pending" && "text-muted-foreground",
+                      )}
                     >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
+                      {(fs.status === "uploading" || fs.status === "parsing") && (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      )}
+                      {fs.status === "success" && <CheckCircle2 className="h-3.5 w-3.5" />}
+                      {fs.status === "error" && <XCircle className="h-3.5 w-3.5" />}
+                      <span>{LABEL[fs.status]}</span>
+                    </span>
+
+                    {fs.status === "pending" && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeFile(idx);
+                        }}
+                        className="text-muted-foreground hover:text-foreground shrink-0"
+                        aria-label="Quitar archivo"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                   {fs.status === "error" && fs.message && (
                     <p className="text-xs text-red-600 dark:text-red-400 leading-snug break-words">
@@ -526,200 +511,204 @@ export default function UniversalUploadDrawer({
           )}
 
           {/* Post-upload results panel */}
-          {uploadResult && doneCount !== null && doneCount > 0 && (() => {
-            const isCmf = uploadResult.documentType === 'cmf' || uploadResult.documentType === 'cmf_informe_deudas';
-            const tabs = [...new Set(
-              (uploadResult.recommendedProducts ?? [])
-                .map(getTabFromCode)
-                .filter((t): t is string => t !== null)
-            )].slice(0, 3);
+          {uploadResult &&
+            doneCount !== null &&
+            doneCount > 0 &&
+            (() => {
+              const isCmf =
+                uploadResult.documentType === "cmf" ||
+                uploadResult.documentType === "cmf_informe_deudas";
+              const tabs = [
+                ...new Set(
+                  (uploadResult.recommendedProducts ?? [])
+                    .map(getTabFromCode)
+                    .filter((t): t is string => t !== null),
+                ),
+              ].slice(0, 3);
 
-            const movementCount = uploadResult.movementCount;
-            // Fuente de verdad: el backend ya persiste review_status (#36). Si no viene,
-            // fallback a la heurística por parser/tier (banco genérico o detección no HIGH).
-            const reviewRecommended =
-              !isCmf &&
-              (uploadResult.reviewStatus != null
-                ? uploadResult.reviewStatus === "required"
-                : uploadResult.detectedBanco === "Genérico" ||
-                  (uploadResult.detectionTier != null &&
-                    uploadResult.detectionTier !== "HIGH"));
-            const reviewHref =
-              reviewRecommended && uploadResult.documentId
-                ? `/movimientos?review=1&documentId=${uploadResult.documentId}`
-                : reviewRecommended
-                  ? "/movimientos?review=1"
-                  : "/movimientos";
+              const movementCount = uploadResult.movementCount;
+              // Fuente de verdad: el backend ya persiste review_status (#36). Si no viene,
+              // fallback a la heurística por parser/tier (banco genérico o detección no HIGH).
+              const reviewRecommended =
+                !isCmf &&
+                (uploadResult.reviewStatus != null
+                  ? uploadResult.reviewStatus === "required"
+                  : uploadResult.detectedBanco === "Genérico" ||
+                    (uploadResult.detectionTier != null && uploadResult.detectionTier !== "HIGH"));
+              const reviewHref =
+                reviewRecommended && uploadResult.documentId
+                  ? `/movimientos?review=1&documentId=${uploadResult.documentId}`
+                  : reviewRecommended
+                    ? "/movimientos?review=1"
+                    : "/movimientos";
 
-            return (
-              <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 space-y-3">
-                {/* Cartola: aviso de revisión (parser genérico/confianza media) o conteo */}
-                {!isCmf && reviewRecommended && (
-                  <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
-                      <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              return (
+                <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 space-y-3">
+                  {/* Cartola: aviso de revisión (parser genérico/confianza media) o conteo */}
+                  {!isCmf && reviewRecommended && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                        <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          Revisa tus movimientos
+                        </p>
+                        <p className="text-xs text-muted-foreground leading-snug">
+                          {movementCount != null
+                            ? `Leímos ${movementCount} movimiento${movementCount !== 1 ? "s" : ""} de tu cartola con una extracción general. `
+                            : "Leímos tu cartola con una extracción general. "}
+                          Revisa que los montos y las fechas estén correctos antes de confiar en tu
+                          score.
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">Revisa tus movimientos</p>
-                      <p className="text-xs text-muted-foreground leading-snug">
-                        {movementCount != null
-                          ? `Leímos ${movementCount} movimiento${movementCount !== 1 ? "s" : ""} de tu cartola con una extracción general. `
-                          : "Leímos tu cartola con una extracción general. "}
-                        Revisa que los montos y las fechas estén correctos antes de confiar en tu score.
-                      </p>
+                  )}
+                  {!isCmf && !reviewRecommended && movementCount != null && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <FileText className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Cartola procesada</p>
+                        <p className="text-xs text-muted-foreground">
+                          Detectamos {movementCount} movimiento{movementCount !== 1 ? "s" : ""}.
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
-                {!isCmf && !reviewRecommended && movementCount != null && (
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-                      <FileText className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">Cartola procesada</p>
-                      <p className="text-xs text-muted-foreground">
-                        Detectamos {movementCount} movimiento{movementCount !== 1 ? "s" : ""}.
-                      </p>
-                    </div>
-                  </div>
-                )}
+                  )}
 
-                {/* CMF credit score */}
-                {isCmf && uploadResult.creditScore != null && (
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-                      <TrendingUp className="h-5 w-5 text-primary" />
+                  {/* CMF credit score */}
+                  {isCmf && uploadResult.creditScore != null && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <TrendingUp className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          Tu score crediticio CMF: {uploadResult.creditScore}/100
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Basado en tu informe de deudas CMF
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">
-                        Tu score crediticio CMF: {uploadResult.creditScore}/100
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Basado en tu informe de deudas CMF
-                      </p>
-                    </div>
-                  </div>
-                )}
+                  )}
 
-                {/* CMF without score — generic success */}
-                {isCmf && uploadResult.creditScore == null && (
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-                      <TrendingUp className="h-5 w-5 text-primary" />
+                  {/* CMF without score — generic success */}
+                  {isCmf && uploadResult.creditScore == null && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <TrendingUp className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          Informe CMF procesado
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Tu salud financiera se ha actualizado
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">
-                        Informe CMF procesado
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Tu salud financiera se ha actualizado
-                      </p>
-                    </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Transactional score (cartola) */}
-                {!isCmf && uploadResult.transactionalScore != null && (
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-                      <TrendingUp className="h-5 w-5 text-primary" />
+                  {/* Transactional score (cartola) */}
+                  {!isCmf && uploadResult.transactionalScore != null && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <TrendingUp className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          Tu score transaccional: {uploadResult.transactionalScore}/100
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Basado en los movimientos de tu cartola
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">
-                        Tu score transaccional: {uploadResult.transactionalScore}/100
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Basado en los movimientos de tu cartola
-                      </p>
-                    </div>
-                  </div>
-                )}
+                  )}
 
-                {/* CMF main CTA — go to salud financiera */}
-                {isCmf && (
-                  <Button
-                    size="sm"
-                    className="w-full gap-2"
-                    onClick={() => {
-                      onOpenChange(false);
-                      navigate("/salud-financiera");
-                    }}
-                  >
-                    <TrendingUp className="h-3.5 w-3.5" />
-                    Ver salud financiera
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-
-                {/* Cartola: recommended categories */}
-                {!isCmf && tabs.length > 0 && (
-                  <div>
-                    <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1.5">
-                      <Sparkles className="h-3.5 w-3.5 text-primary" />
-                      Productos recomendados para tu perfil:
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {tabs.map((tab) => (
-                        <button
-                          key={tab}
-                          onClick={() => {
-                            onOpenChange(false);
-                            navigate(`/productos?tab=${tab}`);
-                          }}
-                          className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                        >
-                          {TAB_LABELS[tab] ?? tab}
-                          <ArrowRight className="h-3 w-3" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Cartola: main CTAs */}
-                {!isCmf && (
-                  <>
+                  {/* CMF main CTA — go to salud financiera */}
+                  {isCmf && (
                     <Button
                       size="sm"
                       className="w-full gap-2"
                       onClick={() => {
                         onOpenChange(false);
-                        navigate(tabs.length > 0 ? `/productos?tab=${tabs[0]}` : "/productos");
+                        navigate("/salud-financiera");
                       }}
                     >
-                      <Sparkles className="h-3.5 w-3.5" />
-                      Ver recomendaciones personalizadas
+                      <TrendingUp className="h-3.5 w-3.5" />
+                      Ver salud financiera
                       <ArrowRight className="h-3.5 w-3.5" />
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full gap-2"
-                      onClick={() => {
-                        onOpenChange(false);
-                        navigate(reviewHref);
-                      }}
-                    >
-                      <FileText className="h-3.5 w-3.5" />
-                      {reviewRecommended ? "Revisar movimientos" : "Ver mis movimientos"}
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Button>
-                  </>
-                )}
-              </div>
-            );
-          })()}
+                  )}
+
+                  {/* Cartola: recommended categories */}
+                  {!isCmf && tabs.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-primary" />
+                        Productos recomendados para tu perfil:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {tabs.map((tab) => (
+                          <button
+                            key={tab}
+                            onClick={() => {
+                              onOpenChange(false);
+                              navigate(`/productos?tab=${tab}`);
+                            }}
+                            className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                          >
+                            {TAB_LABELS[tab] ?? tab}
+                            <ArrowRight className="h-3 w-3" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cartola: main CTAs */}
+                  {!isCmf && (
+                    <>
+                      <Button
+                        size="sm"
+                        className="w-full gap-2"
+                        onClick={() => {
+                          onOpenChange(false);
+                          navigate(tabs.length > 0 ? `/productos?tab=${tabs[0]}` : "/productos");
+                        }}
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Ver recomendaciones personalizadas
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-2"
+                        onClick={() => {
+                          onOpenChange(false);
+                          navigate(reviewHref);
+                        }}
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        {reviewRecommended ? "Revisar movimientos" : "Ver mis movimientos"}
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
         </div>
 
         {/* Actions — footer fijo, fuera del área scrolleable (siempre visible) */}
         <div className="flex gap-2 justify-end pt-3 border-t border-border">
           {!isUploading && files.length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={reset}
-              className="text-xs"
-            >
+            <Button variant="ghost" size="sm" onClick={reset} className="text-xs">
               Limpiar lista
             </Button>
           )}
@@ -732,11 +721,7 @@ export default function UniversalUploadDrawer({
             Cerrar
           </Button>
           {hasPending && (
-            <Button
-              size="sm"
-              onClick={uploadAll}
-              disabled={isUploading}
-            >
+            <Button size="sm" onClick={uploadAll} disabled={isUploading}>
               {isUploading ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
@@ -747,17 +732,11 @@ export default function UniversalUploadDrawer({
               ) : (
                 <>
                   <Upload className="h-3.5 w-3.5 mr-1.5" />
-                  Subir{" "}
-                  {
-                    files.filter(
-                      (f) =>
-                        f.status === "pending" || f.status === "error"
-                    ).length
+                  Subir {
+                    files.filter((f) => f.status === "pending" || f.status === "error").length
                   }{" "}
                   archivo
-                  {files.filter(
-                    (f) => f.status === "pending" || f.status === "error"
-                  ).length !== 1
+                  {files.filter((f) => f.status === "pending" || f.status === "error").length !== 1
                     ? "s"
                     : ""}
                 </>

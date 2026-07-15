@@ -88,11 +88,7 @@ export default function ScoreHistoryChart() {
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-            <XAxis
-              dataKey="label"
-              tick={{ fontSize: 11 }}
-              className="text-muted-foreground"
-            />
+            <XAxis dataKey="label" tick={{ fontSize: 11 }} className="text-muted-foreground" />
             <YAxis
               domain={[minScore, maxScore]}
               tick={{ fontSize: 11 }}

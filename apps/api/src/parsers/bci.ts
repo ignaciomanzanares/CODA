@@ -12,10 +12,7 @@ import { runBankParser } from "./bankParser.js";
 
 export const BANCO = "BCI";
 
-export async function parse(
-  buffer: Buffer,
-  banco_confidence: number
-): Promise<ParseResult> {
+export async function parse(buffer: Buffer, banco_confidence: number): Promise<ParseResult> {
   return runBankParser(buffer, {
     banco: BANCO,
     banco_confidence,

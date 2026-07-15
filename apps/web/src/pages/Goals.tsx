@@ -4,7 +4,7 @@ import { useApi } from "@/lib/api";
 import { mapUserFacingApiError } from "@/lib/userFacingErrors";
 import { Analytics } from "@/lib/analytics";
 import { useToast } from "@/hooks/use-toast";
-import { format, formatDistanceToNow, differenceInDays } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -13,30 +13,30 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
-import { 
-  Form, 
-  FormControl, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
   AlertDialog,
@@ -49,25 +49,22 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { 
-  Plus, 
-  Pencil, 
-  Trash2, 
-  Target, 
-  PiggyBank, 
-  GraduationCap, 
-  Home, 
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Target,
+  PiggyBank,
+  GraduationCap,
+  Home,
   CreditCard,
   Briefcase,
-  MoreHorizontal,
   Calendar,
   TrendingUp,
   CheckCircle,
   Clock,
   AlertTriangle,
-  Sparkles,
-  ChevronRight,
-  DollarSign
+  DollarSign,
 } from "lucide-react";
 import { PastelIcon } from "@/components/ui/pastel-icon";
 import { useAuth } from "@/lib/auth";
@@ -101,21 +98,21 @@ export default function Goals() {
   const queryClient = useQueryClient();
 
   // Get API functions from useApi
-  const { 
-    getFinancialGoals, 
-    createFinancialGoal, 
-    updateFinancialGoal, 
-    deleteFinancialGoal 
-  } = useApi();
+  const { getFinancialGoals, createFinancialGoal, updateFinancialGoal, deleteFinancialGoal } =
+    useApi();
 
   // Only fetch goals if authenticated and not loading
-  const { data: realGoals, isLoading, error } = useQuery({
+  const {
+    data: realGoals,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["/api/financial-goals"],
     queryFn: getFinancialGoals,
     enabled: isAuthenticated && !authLoading,
     staleTime: 0, // Ensure we always get fresh data from cache
   });
-  
+
   const goals = isAuthenticated ? realGoals : [];
 
   // Add goal mutation
@@ -123,18 +120,21 @@ export default function Goals() {
     mutationFn: createFinancialGoal,
     onMutate: async (newGoal) => {
       await queryClient.cancelQueries({ queryKey: ["/api/financial-goals"] });
-      
+
       const previousGoals = queryClient.getQueryData<Goal[]>(["/api/financial-goals"]);
-      
+
       if (previousGoals) {
         const optimisticGoal: Goal = {
           id: Date.now(), // Temporary ID
           ...newGoal,
           createdAt: new Date(),
         };
-        queryClient.setQueryData<Goal[]>(["/api/financial-goals"], [...previousGoals, optimisticGoal]);
+        queryClient.setQueryData<Goal[]>(
+          ["/api/financial-goals"],
+          [...previousGoals, optimisticGoal],
+        );
       }
-      
+
       return { previousGoals };
     },
     onSuccess: async (newGoal) => {
@@ -175,30 +175,34 @@ export default function Goals() {
 
   // Edit goal mutation
   const editGoalMutation = useMutation({
-    mutationFn: (data: { id: string; goal: UpdateGoalData }) => 
+    mutationFn: (data: { id: string; goal: UpdateGoalData }) =>
       updateFinancialGoal(data.id, data.goal),
     onMutate: async ({ id, goal }) => {
       await queryClient.cancelQueries({ queryKey: ["/api/financial-goals"] });
-      
+
       const previousGoals = queryClient.getQueryData<Goal[]>(["/api/financial-goals"]);
-      
+
       if (previousGoals) {
-        const updatedGoals = previousGoals.map(existingGoal => 
-          existingGoal.id === Number(id) ? {
-            ...existingGoal,
-            ...goal,
-          } : existingGoal
+        const updatedGoals = previousGoals.map((existingGoal) =>
+          existingGoal.id === Number(id)
+            ? {
+                ...existingGoal,
+                ...goal,
+              }
+            : existingGoal,
         );
         queryClient.setQueryData<Goal[]>(["/api/financial-goals"], updatedGoals);
       }
-      
+
       return { previousGoals };
     },
     onSuccess: async (data) => {
       if (data) {
         queryClient.setQueryData<Goal[]>(["/api/financial-goals"], (old) => {
           const list = old ?? [];
-          return list.map((goal) => (Number(goal.id) === Number(data.id) ? { ...goal, ...data } : goal));
+          return list.map((goal) =>
+            Number(goal.id) === Number(data.id) ? { ...goal, ...data } : goal,
+          );
         });
       }
       await queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
@@ -229,14 +233,14 @@ export default function Goals() {
     mutationFn: (goalId: string) => deleteFinancialGoal(goalId),
     onMutate: async (goalId) => {
       await queryClient.cancelQueries({ queryKey: ["/api/financial-goals"] });
-      
+
       const previousGoals = queryClient.getQueryData<Goal[]>(["/api/financial-goals"]);
-      
+
       if (previousGoals) {
-        const filteredGoals = previousGoals.filter(goal => goal.id !== Number(goalId));
+        const filteredGoals = previousGoals.filter((goal) => goal.id !== Number(goalId));
         queryClient.setQueryData<Goal[]>(["/api/financial-goals"], filteredGoals);
       }
-      
+
       return { previousGoals };
     },
     onSuccess: async () => {
@@ -285,9 +289,9 @@ export default function Goals() {
 
   const handleAddSubmit = (values: GoalFormValues) => {
     // Create a Date object that treats the date as local time, not UTC
-    const [year, month, day] = values.targetDate.split('-').map(Number);
+    const [year, month, day] = values.targetDate.split("-").map(Number);
     const localDate = new Date(year, month - 1, day); // month is 0-indexed
-    
+
     addGoalMutation.mutate({
       ...values,
       targetDate: localDate,
@@ -297,15 +301,15 @@ export default function Goals() {
   const handleEditSubmit = (values: GoalFormValues) => {
     if (selectedGoal) {
       // Create a Date object that treats the date as local time, not UTC
-      const [year, month, day] = values.targetDate.split('-').map(Number);
+      const [year, month, day] = values.targetDate.split("-").map(Number);
       const localDate = new Date(year, month - 1, day); // month is 0-indexed
-      
+
       editGoalMutation.mutate({
         id: String(selectedGoal.id),
         goal: {
           ...values,
           targetDate: localDate,
-        }
+        },
       });
     }
   };
@@ -393,17 +397,17 @@ export default function Goals() {
     const progress = calculateProgress(goal.currentAmount, goal.targetAmount);
     const targetDate = new Date(goal.targetDate);
     const daysLeft = differenceInDays(targetDate, new Date());
-    
+
     if (progress >= 100) {
-      return { label: '¡Completada!', color: 'bg-green-100 text-green-700', icon: CheckCircle };
+      return { label: "¡Completada!", color: "bg-green-100 text-green-700", icon: CheckCircle };
     }
     if (daysLeft < 0) {
-      return { label: 'Vencida', color: 'bg-red-100 text-red-700', icon: AlertTriangle };
+      return { label: "Vencida", color: "bg-red-100 text-red-700", icon: AlertTriangle };
     }
     if (daysLeft < 30) {
-      return { label: 'Próxima', color: 'bg-yellow-100 text-yellow-700', icon: Clock };
+      return { label: "Próxima", color: "bg-yellow-100 text-yellow-700", icon: Clock };
     }
-    return { label: 'En curso', color: 'bg-blue-100 text-blue-700', icon: TrendingUp };
+    return { label: "En curso", color: "bg-blue-100 text-blue-700", icon: TrendingUp };
   };
 
   if (authLoading || (isAuthenticated && isLoading)) {
@@ -440,7 +444,9 @@ export default function Goals() {
           <p className="text-muted-foreground mb-6">
             {error instanceof Error ? error.message : "Ha ocurrido un error"}
           </p>
-          <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] })}>
+          <Button
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] })}
+          >
             Reintentar
           </Button>
         </div>
@@ -465,7 +471,7 @@ export default function Goals() {
             actionText="Iniciar sesión"
           />
         )}
-        
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -473,7 +479,9 @@ export default function Goals() {
               <PastelIcon icon={Target} color="green" />
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">Metas financieras</h1>
-                <p className="text-sm text-muted-foreground">Sigue tu avance hacia la libertad financiera</p>
+                <p className="text-sm text-muted-foreground">
+                  Sigue tu avance hacia la libertad financiera
+                </p>
               </div>
             </div>
           </div>
@@ -484,62 +492,21 @@ export default function Goals() {
                 Añadir meta
               </Button>
             </DialogTrigger>
-          <DialogContent className="max-w-md max-h-modal-viewport scroll-touch-momentum overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Añadir meta financiera</DialogTitle>
-              <DialogDescription>
-                Crea una nueva meta para seguir tu progreso.
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...addForm}>
-              <form onSubmit={addForm.handleSubmit(handleAddSubmit)} className="space-y-4">
-                <FormField
-                  control={addForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nombre de la meta</FormLabel>
-                      <FormControl>
-                        <Input placeholder="ej. Fondo de emergencia" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={addForm.control}
-                  name="category"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Categoría</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Elegir categoría" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="savings">Ahorro</SelectItem>
-                          <SelectItem value="debt_repayment">Pago de deudas</SelectItem>
-                          <SelectItem value="retirement">Jubilación</SelectItem>
-                          <SelectItem value="home">Vivienda</SelectItem>
-                          <SelectItem value="education">Educación</SelectItem>
-                          <SelectItem value="other">Otros</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
+            <DialogContent className="max-w-md max-h-modal-viewport scroll-touch-momentum overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Añadir meta financiera</DialogTitle>
+                <DialogDescription>Crea una nueva meta para seguir tu progreso.</DialogDescription>
+              </DialogHeader>
+              <Form {...addForm}>
+                <form onSubmit={addForm.handleSubmit(handleAddSubmit)} className="space-y-4">
                   <FormField
                     control={addForm.control}
-                    name="targetAmount"
+                    name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Monto objetivo</FormLabel>
+                        <FormLabel>Nombre de la meta</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="0" {...field} />
+                          <Input placeholder="ej. Fondo de emergencia" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -547,43 +514,82 @@ export default function Goals() {
                   />
                   <FormField
                     control={addForm.control}
-                    name="currentAmount"
+                    name="category"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Monto actual</FormLabel>
+                        <FormLabel>Categoría</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Elegir categoría" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="savings">Ahorro</SelectItem>
+                            <SelectItem value="debt_repayment">Pago de deudas</SelectItem>
+                            <SelectItem value="retirement">Jubilación</SelectItem>
+                            <SelectItem value="home">Vivienda</SelectItem>
+                            <SelectItem value="education">Educación</SelectItem>
+                            <SelectItem value="other">Otros</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={addForm.control}
+                      name="targetAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Monto objetivo</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="0" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={addForm.control}
+                      name="currentAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Monto actual</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="0" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={addForm.control}
+                    name="targetDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fecha objetivo</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="0" {...field} />
+                          <Input type="date" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
-                <FormField
-                  control={addForm.control}
-                  name="targetDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Fecha objetivo</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsAddGoalOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={addGoalMutation.isPending}>
-                    {addGoalMutation.isPending ? "Creando..." : "Crear meta"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsAddGoalOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit" disabled={addGoalMutation.isPending}>
+                      {addGoalMutation.isPending ? "Creando..." : "Crear meta"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Summary Stats */}
@@ -594,7 +600,9 @@ export default function Goals() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total ahorrado</p>
                   <p className="text-2xl font-bold mt-1">{formatCurrency(totalCurrent)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">de {formatCurrency(totalTarget)} objetivo</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    de {formatCurrency(totalTarget)} objetivo
+                  </p>
                 </div>
                 <PastelIcon icon={DollarSign} color="green" />
               </div>
@@ -649,7 +657,7 @@ export default function Goals() {
               const StatusIcon = status.icon;
               const targetDate = new Date(goal.targetDate);
               const daysLeft = differenceInDays(targetDate, new Date());
-              
+
               return (
                 <Card key={goal.id} className="overflow-hidden hover:shadow-md transition-shadow">
                   <div className={cn("h-1", colorClass)} />
@@ -679,7 +687,7 @@ export default function Goals() {
                       </div>
                       <Progress value={progress} className="h-2" />
                     </div>
-                    
+
                     {/* Amounts */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="p-3 rounded-lg bg-muted/50">
@@ -691,25 +699,31 @@ export default function Goals() {
                         <p className="text-lg font-bold">{formatCurrency(goal.targetAmount)}</p>
                       </div>
                     </div>
-                    
+
                     {/* Target Date */}
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Calendar className="h-4 w-4" />
                         <span>{format(targetDate, "MMM dd, yyyy")}</span>
                       </div>
-                      <span className={cn(
-                        "font-medium",
-                        daysLeft < 0 ? "text-red-600" : 
-                        daysLeft < 30 ? "text-yellow-600" : 
-                        "text-muted-foreground"
-                      )}>
-                        {daysLeft < 0 ? `${Math.abs(daysLeft)} días de retraso` :
-                         daysLeft === 0 ? "Vence hoy" :
-                         `${daysLeft} días restantes`}
+                      <span
+                        className={cn(
+                          "font-medium",
+                          daysLeft < 0
+                            ? "text-red-600"
+                            : daysLeft < 30
+                              ? "text-yellow-600"
+                              : "text-muted-foreground",
+                        )}
+                      >
+                        {daysLeft < 0
+                          ? `${Math.abs(daysLeft)} días de retraso`
+                          : daysLeft === 0
+                            ? "Vence hoy"
+                            : `${daysLeft} días restantes`}
                       </span>
                     </div>
-                    
+
                     {/* Actions */}
                     <div className="flex gap-2 pt-2">
                       <Button
@@ -724,8 +738,8 @@ export default function Goals() {
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             className="text-red-500 hover:text-red-600 hover:bg-red-50"
                             disabled={!isAuthenticated}
@@ -737,7 +751,8 @@ export default function Goals() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Eliminar meta</AlertDialogTitle>
                             <AlertDialogDescription>
-                              ¿Estás seguro de que quieres eliminar &quot;{goal.name}&quot;? Esta acción no se puede deshacer.
+                              ¿Estás seguro de que quieres eliminar &quot;{goal.name}&quot;? Esta
+                              acción no se puede deshacer.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -765,8 +780,8 @@ export default function Goals() {
               </div>
               <h3 className="text-xl font-semibold mb-2">Define tu primera meta</h3>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                Comienza tu camino hacia la libertad financiera creando una meta SMART: 
-                Específica, Medible, Alcanzable, Relevante y con plazos.
+                Comienza tu camino hacia la libertad financiera creando una meta SMART: Específica,
+                Medible, Alcanzable, Relevante y con plazos.
               </p>
               <Button onClick={() => setIsAddGoalOpen(true)} disabled={!isAuthenticated} size="lg">
                 <Plus className="h-4 w-4 mr-2" />
@@ -777,63 +792,22 @@ export default function Goals() {
         )}
 
         {/* Edit Goal Dialog */}
-      <Dialog open={isEditGoalOpen} onOpenChange={setIsEditGoalOpen}>
-        <DialogContent className="max-w-md max-h-modal-viewport scroll-touch-momentum overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Editar meta financiera</DialogTitle>
-            <DialogDescription>
-              Actualiza los datos de tu meta financiera.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(handleEditSubmit)} className="space-y-4">
-              <FormField
-                control={editForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nombre de la meta</FormLabel>
-                    <FormControl>
-                      <Input placeholder="ej. Fondo de emergencia" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Categoría</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Elegir categoría" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="savings">Ahorro</SelectItem>
-                        <SelectItem value="debt_repayment">Pago de deudas</SelectItem>
-                        <SelectItem value="retirement">Jubilación</SelectItem>
-                        <SelectItem value="home">Vivienda</SelectItem>
-                        <SelectItem value="education">Educación</SelectItem>
-                        <SelectItem value="other">Otros</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="grid grid-cols-2 gap-4">
+        <Dialog open={isEditGoalOpen} onOpenChange={setIsEditGoalOpen}>
+          <DialogContent className="max-w-md max-h-modal-viewport scroll-touch-momentum overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Editar meta financiera</DialogTitle>
+              <DialogDescription>Actualiza los datos de tu meta financiera.</DialogDescription>
+            </DialogHeader>
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(handleEditSubmit)} className="space-y-4">
                 <FormField
                   control={editForm.control}
-                  name="targetAmount"
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Monto objetivo</FormLabel>
+                      <FormLabel>Nombre de la meta</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="0" {...field} />
+                        <Input placeholder="ej. Fondo de emergencia" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -841,43 +815,82 @@ export default function Goals() {
                 />
                 <FormField
                   control={editForm.control}
-                  name="currentAmount"
+                  name="category"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Monto actual</FormLabel>
+                      <FormLabel>Categoría</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Elegir categoría" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="savings">Ahorro</SelectItem>
+                          <SelectItem value="debt_repayment">Pago de deudas</SelectItem>
+                          <SelectItem value="retirement">Jubilación</SelectItem>
+                          <SelectItem value="home">Vivienda</SelectItem>
+                          <SelectItem value="education">Educación</SelectItem>
+                          <SelectItem value="other">Otros</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="targetAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Monto objetivo</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="0" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="currentAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Monto actual</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="0" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={editForm.control}
+                  name="targetDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Fecha objetivo</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="0" {...field} />
+                        <Input type="date" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
-              <FormField
-                control={editForm.control}
-                name="targetDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Fecha objetivo</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsEditGoalOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={editGoalMutation.isPending}>
-                  {editGoalMutation.isPending ? "Guardando..." : "Actualizar meta"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setIsEditGoalOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={editGoalMutation.isPending}>
+                    {editGoalMutation.isPending ? "Guardando..." : "Actualizar meta"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

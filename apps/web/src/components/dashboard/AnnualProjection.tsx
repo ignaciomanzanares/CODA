@@ -1,13 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  TrendingUp,
-  TrendingDown,
-  Calendar,
-  Target,
-  PiggyBank,
-  Wallet,
-} from "lucide-react";
+import { TrendingDown, Calendar, Target, PiggyBank, Wallet } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -52,8 +45,7 @@ export default function AnnualProjection({
   const annualIncome = monthlyIncome * 12;
   const projectedAnnualExpenses = monthlyExpenses * 12;
   const projectedAnnualSavings = monthlySavings * 12;
-  const savingsRate =
-    monthlyIncome > 0 ? (monthlySavings / monthlyIncome) * 100 : 0;
+  const savingsRate = monthlyIncome > 0 ? (monthlySavings / monthlyIncome) * 100 : 0;
 
   const goal = savingsGoal != null && savingsGoal > 0 ? savingsGoal : null;
   const remainingToGoal = goal != null ? goal - currentSavings : null;
@@ -92,7 +84,11 @@ export default function AnnualProjection({
       maximumFractionDigits: 0,
     }).format(Math.round(value));
 
-  const CustomTooltip = ({ active, payload, label }: {
+  const CustomTooltip = ({
+    active,
+    payload,
+    label,
+  }: {
     active?: boolean;
     payload?: { value: number; name: string; color: string }[];
     label?: string;
@@ -113,10 +109,7 @@ export default function AnnualProjection({
   };
 
   const hasAnyData =
-    monthlyIncome > 0 ||
-    monthlyExpenses > 0 ||
-    currentSavings > 0 ||
-    (goal != null && goal > 0);
+    monthlyIncome > 0 || monthlyExpenses > 0 || currentSavings > 0 || (goal != null && goal > 0);
 
   if (!hasAnyData) {
     return (
@@ -125,7 +118,8 @@ export default function AnnualProjection({
           <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
           <p className="font-medium text-foreground">Sin datos para proyectar</p>
           <p className="text-sm mt-2">
-            Cuando tengas ingresos y gastos estimados (movimientos o gastos registrados), aquí verás una proyección anual sin cifras inventadas.
+            Cuando tengas ingresos y gastos estimados (movimientos o gastos registrados), aquí verás
+            una proyección anual sin cifras inventadas.
           </p>
         </CardContent>
       </Card>
@@ -141,7 +135,9 @@ export default function AnnualProjection({
               <div className="p-2 bg-green-500 rounded-lg">
                 <Wallet className="h-4 w-4 text-white" />
               </div>
-              <span className="text-sm font-medium text-green-800 dark:text-green-300">Ingresos anuales (proy.)</span>
+              <span className="text-sm font-medium text-green-800 dark:text-green-300">
+                Ingresos anuales (proy.)
+              </span>
             </div>
             <p className="text-2xl font-bold text-green-900 dark:text-green-100">
               {formatFullCurrency(annualIncome)}
@@ -158,7 +154,9 @@ export default function AnnualProjection({
               <div className="p-2 bg-red-500 rounded-lg">
                 <TrendingDown className="h-4 w-4 text-white" />
               </div>
-              <span className="text-sm font-medium text-red-800 dark:text-red-300">Gastos anuales (proy.)</span>
+              <span className="text-sm font-medium text-red-800 dark:text-red-300">
+                Gastos anuales (proy.)
+              </span>
             </div>
             <p className="text-2xl font-bold text-red-900 dark:text-red-100">
               {formatFullCurrency(projectedAnnualExpenses)}
@@ -175,7 +173,9 @@ export default function AnnualProjection({
               <div className="p-2 bg-blue-500 rounded-lg">
                 <PiggyBank className="h-4 w-4 text-white" />
               </div>
-              <span className="text-sm font-medium text-blue-800 dark:text-blue-300">Ahorro anual (proy.)</span>
+              <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                Ahorro anual (proy.)
+              </span>
             </div>
             <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
               {formatFullCurrency(projectedAnnualSavings)}
@@ -192,19 +192,15 @@ export default function AnnualProjection({
               <div className="p-2 bg-purple-500 rounded-lg">
                 <Target className="h-4 w-4 text-white" />
               </div>
-              <span className="text-sm font-medium text-purple-800 dark:text-purple-300">Meta de ahorro</span>
+              <span className="text-sm font-medium text-purple-800 dark:text-purple-300">
+                Meta de ahorro
+              </span>
             </div>
             <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
-              {goal != null
-                ? monthsToGoal < 200
-                  ? `${monthsToGoal} mes`
-                  : "—"
-                : "—"}
+              {goal != null ? (monthsToGoal < 200 ? `${monthsToGoal} mes` : "—") : "—"}
             </p>
             <p className="text-xs text-purple-700 dark:text-purple-400 mt-1">
-              {goal != null
-                ? `hasta ${formatFullCurrency(goal)}`
-                : "Define una meta en Metas"}
+              {goal != null ? `hasta ${formatFullCurrency(goal)}` : "Define una meta en Metas"}
             </p>
           </CardContent>
         </Card>
@@ -216,7 +212,8 @@ export default function AnnualProjection({
             <div>
               <CardTitle>Flujo mensual proyectado ({new Date().getFullYear()})</CardTitle>
               <CardDescription>
-                Basado en ingresos y gastos recientes (cuentas / movimientos), sin variación aleatoria.
+                Basado en ingresos y gastos recientes (cuentas / movimientos), sin variación
+                aleatoria.
               </CardDescription>
             </div>
             <Badge variant="secondary" className="text-xs">
@@ -255,7 +252,9 @@ export default function AnnualProjection({
                 <Tooltip content={<CustomTooltip />} />
                 <Legend
                   wrapperStyle={{ paddingTop: "20px" }}
-                  formatter={(value) => <span className="text-sm text-muted-foreground">{value}</span>}
+                  formatter={(value) => (
+                    <span className="text-sm text-muted-foreground">{value}</span>
+                  )}
                 />
                 <ReferenceLine
                   x={MONTHS_ES[currentMonth]}
@@ -304,7 +303,8 @@ export default function AnnualProjection({
               Avance hacia la meta
             </CardTitle>
             <CardDescription>
-              Meta: {formatFullCurrency(goal)} · Actual estimado en cuentas: {formatFullCurrency(currentSavings)}
+              Meta: {formatFullCurrency(goal)} · Actual estimado en cuentas:{" "}
+              {formatFullCurrency(currentSavings)}
             </CardDescription>
           </CardHeader>
           <CardContent>

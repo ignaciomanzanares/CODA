@@ -6,13 +6,13 @@
  * `document_parse_outcomes` con banco/tier/confianza/error, y el fallo devuelve al usuario un
  * mensaje accionable.
  */
-import { randomUUID } from 'node:crypto';
-import { db, documentParseOutcomes } from '../../db/index.js';
-import { logger } from '../../logger.js';
+import { randomUUID } from "node:crypto";
+import { db, documentParseOutcomes } from "../../db/index.js";
+import { logger } from "../../logger.js";
 
 export interface ParseOutcome {
-  status: 'success' | 'failed' | 'partial';
-  documentType?: 'cartola' | 'cmf' | 'unknown';
+  status: "success" | "failed" | "partial";
+  documentType?: "cartola" | "cmf" | "unknown";
   banco?: string | null;
   detectionTier?: string | null;
   parseConfidence?: number | null;
@@ -35,7 +35,7 @@ export async function recordParseOutcome(userId: string, outcome: ParseOutcome):
     });
   } catch (e) {
     // No fatal: registrar el outcome nunca debe romper el flujo de upload.
-    logger.warn({ err: e, userId }, '[parseOutcomes] no se pudo registrar el outcome (no fatal)');
+    logger.warn({ err: e, userId }, "[parseOutcomes] no se pudo registrar el outcome (no fatal)");
   }
 }
 
@@ -46,7 +46,7 @@ export async function recordParseOutcome(userId: string, outcome: ParseOutcome):
 export function userFacingParseError(banco?: string | null): string {
   const base = banco
     ? `No pudimos leer tu cartola de ${banco}.`
-    : 'No pudimos leer el documento que subiste.';
+    : "No pudimos leer el documento que subiste.";
   return (
     `${base} Asegúrate de subir el PDF original del banco (no una foto ni una captura de pantalla), ` +
     `con el detalle de movimientos visible. Si el problema persiste, prueba descargar la cartola ` +

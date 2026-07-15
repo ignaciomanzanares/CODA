@@ -15,11 +15,11 @@
  *  - is_internal_transfer SÓLO por patrones de glosa claros (no por categoría genérica).
  *  - TC internacional: metadata USD (original_amount/currency, fx_rate, amount_clp).
  */
-import { and, eq, like } from 'drizzle-orm';
-import { db, transactions, accounts } from '../../db/index.js';
-import { storage } from '../../storage.js';
-import { logger } from '../../logger.js';
-import { isInternalTransferDesc } from '../../parsers/merchantCategorizer.js';
+import { and, eq, like } from "drizzle-orm";
+import { db, transactions, accounts } from "../../db/index.js";
+import { storage } from "../../storage.js";
+import { logger } from "../../logger.js";
+import { isInternalTransferDesc } from "../../parsers/merchantCategorizer.js";
 
 export interface NormalizeTx {
   fecha?: string;
@@ -38,9 +38,9 @@ export interface NormalizeTx {
 
 export interface NormalizeCartolaInput {
   userId: string;
-  documentId: string;            // id del score_document_uploads
+  documentId: string; // id del score_document_uploads
   banco: string | null;
-  periodoDesde: string | null;   // 'YYYY-MM-DD'
+  periodoDesde: string | null; // 'YYYY-MM-DD'
   periodoHasta: string | null;
   transacciones: NormalizeTx[];
 }
@@ -51,19 +51,19 @@ export interface NormalizeCartolaInput {
 // entre productos propios / pago de tarjeta / divisas; NO marca "PAGO COOPEUCH"
 // (dividendo hipotecario = gasto real) ni transferencias a terceros.
 export function isInternalByDescription(desc: string): boolean {
-  return isInternalTransferDesc(desc ?? '');
+  return isInternalTransferDesc(desc ?? "");
 }
 
 /** Tipo/subtipo de cuenta a partir del nombre del banco. */
 export function accountKindForBanco(banco: string): { type: string; subtype: string } {
   if (/tarjeta\s+(nacional|internacional)/i.test(banco)) {
-    return { type: 'credit', subtype: 'credit_card' };
+    return { type: "credit", subtype: "credit_card" };
   }
-  return { type: 'depository', subtype: 'checking' };
+  return { type: "depository", subtype: "checking" };
 }
 
 function pad(n: number): string {
-  return String(n).padStart(2, '0');
+  return String(n).padStart(2, "0");
 }
 
 /**
@@ -106,7 +106,7 @@ async function getOrCreateAccount(userId: string, banco: string): Promise<number
   const existing = await storage.getAccounts(userId);
   const match = existing.find(
     (a: { name?: string | null; type?: string | null; subtype?: string | null }) =>
-      (a.name ?? '') === banco && a.type === kind.type && a.subtype === kind.subtype,
+      (a.name ?? "") === banco && a.type === kind.type && a.subtype === kind.subtype,
   );
   if (match) return match.id as number;
   const created = await storage.createAccount({
@@ -117,9 +117,9 @@ async function getOrCreateAccount(userId: string, banco: string): Promise<number
     officialName: banco,
     type: kind.type,
     subtype: kind.subtype,
-    currency: 'CLP',
+    currency: "CLP",
     mask: null,
-    status: 'active',
+    status: "active",
     openedAt: null,
   } as never);
   return created.id as number;
@@ -141,7 +141,7 @@ export function buildCartolaTransactionRows(
   accountId: number,
   banco: string,
 ): Record<string, unknown>[] {
-  const isCredit = accountKindForBanco(banco).subtype === 'credit_card';
+  const isCredit = accountKindForBanco(banco).subtype === "credit_card";
   return input.transacciones.map((t, idx) => {
     const dm = dayMonth(t.fecha);
     const postedAt = dm
@@ -153,7 +153,7 @@ export function buildCartolaTransactionRows(
     // Monto firmado: cargo (salida) negativo, abono (entrada) positivo.
     const amount = abono > 0 ? abono : -Math.abs(cargo);
 
-    const desc = t.descripcion ?? '';
+    const desc = t.descripcion ?? "";
     const internal = isInternalByDescription(desc) ? 1 : 0;
 
     const base: Record<string, unknown> = {
@@ -164,7 +164,7 @@ export function buildCartolaTransactionRows(
       description: desc,
       merchantName: null,
       amount,
-      currency: 'CLP',
+      currency: "CLP",
       amountClp: amount,
       category: t.categoria ?? null,
       categoryConfidence: t.category_confidence ?? null,
@@ -176,7 +176,7 @@ export function buildCartolaTransactionRows(
     // Metadata USD para tarjeta internacional (no mezclar USD/CLP sin metadata).
     if (isCredit && /internacional/i.test(banco) && t.montoUsd != null) {
       base.originalAmount = t.montoUsd;
-      base.originalCurrency = 'USD';
+      base.originalCurrency = "USD";
       base.fxRate = t.fxRate ?? null;
     }
     return base;
@@ -187,21 +187,29 @@ export function buildCartolaTransactionRows(
  * Normaliza un documento de cartola a accounts/transactions. Idempotente: borra
  * las transacciones previas de este documentId antes de reinsertar.
  */
-export async function normalizeCartolaDoc(input: NormalizeCartolaInput): Promise<NormalizeResult | null> {
+export async function normalizeCartolaDoc(
+  input: NormalizeCartolaInput,
+): Promise<NormalizeResult | null> {
   if (!db) return null;
-  const banco = (input.banco ?? '').trim();
-  if (!banco || !Array.isArray(input.transacciones) || input.transacciones.length === 0) return null;
+  const banco = (input.banco ?? "").trim();
+  if (!banco || !Array.isArray(input.transacciones) || input.transacciones.length === 0)
+    return null;
 
   const accountId = await getOrCreateAccount(input.userId, banco);
 
   // Idempotencia: borrar lo derivado de este documento por external_id determinístico
   // (cubre tanto runs previos como el backfill manual, que no llenó source_document_id).
-  await db.delete(transactions).where(like(transactions.externalId, `score_upload:${input.documentId}:%`));
+  await db
+    .delete(transactions)
+    .where(like(transactions.externalId, `score_upload:${input.documentId}:%`));
 
   const items = buildCartolaTransactionRows(input, accountId, banco);
 
   await storage.createTransactionsBulk(items as never);
-  logger.info({ userId: input.userId, documentId: input.documentId, banco, count: items.length }, '[normalizeCartola] normalizado');
+  logger.info(
+    { userId: input.userId, documentId: input.documentId, banco, count: items.length },
+    "[normalizeCartola] normalizado",
+  );
   return { accountId, inserted: items.length };
 }
 
@@ -216,7 +224,10 @@ export async function countTransactionsForDocument(documentId: string): Promise<
   return rows.length;
 }
 
-export async function deleteTransactionsForDocument(userId: string, documentId: string): Promise<number> {
+export async function deleteTransactionsForDocument(
+  userId: string,
+  documentId: string,
+): Promise<number> {
   if (!db) return 0;
   // Cuentas afectadas (para revisar si quedan vacías).
   const prefix = `score_upload:${documentId}:%`;
@@ -224,15 +235,26 @@ export async function deleteTransactionsForDocument(userId: string, documentId: 
     .select({ accountId: transactions.accountId })
     .from(transactions)
     .where(like(transactions.externalId, prefix));
-  const accountIds = [...new Set(affected.map((r: { accountId: number }) => r.accountId as number))];
+  const accountIds = [
+    ...new Set(affected.map((r: { accountId: number }) => r.accountId as number)),
+  ];
 
-  const deleted = await db.delete(transactions).where(like(transactions.externalId, prefix)).returning();
+  const deleted = await db
+    .delete(transactions)
+    .where(like(transactions.externalId, prefix))
+    .returning();
 
   // Si una cuenta del usuario queda sin transacciones, marcarla inactiva (no borrar).
   for (const accId of accountIds) {
-    const [remain] = await db.select({ id: transactions.id }).from(transactions).where(eq(transactions.accountId, accId)).limit(1);
+    const [remain] = await db
+      .select({ id: transactions.id })
+      .from(transactions)
+      .where(eq(transactions.accountId, accId))
+      .limit(1);
     if (!remain) {
-      await db.update(accounts).set({ status: 'inactive', updatedAt: new Date().toISOString() })
+      await db
+        .update(accounts)
+        .set({ status: "inactive", updatedAt: new Date().toISOString() })
         .where(and(eq(accounts.id, accId), eq(accounts.userId, userId)));
     }
   }

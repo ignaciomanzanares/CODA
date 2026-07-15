@@ -25,10 +25,7 @@ function clamp(v: number, min: number, max: number) {
 }
 
 /** Estima el beneficio anual en CLP según la categoría del producto */
-function estimateBenefitClp(
-  product: Product,
-  profile: UserFinancialProfile
-): number | null {
+function estimateBenefitClp(product: Product, profile: UserFinancialProfile): number | null {
   const cat = product.category;
 
   // Depósitos y DAP: rentabilidad sobre ahorro mensual * 12
@@ -73,10 +70,7 @@ interface EligibilityResult {
   eligibilityScore: number; // 0 - 40
 }
 
-function assessEligibility(
-  product: Product,
-  profile: UserFinancialProfile
-): EligibilityResult {
+function assessEligibility(product: Product, profile: UserFinancialProfile): EligibilityResult {
   const reasons: RankingReason[] = [];
   let blockers = 0;
   let warnings = 0;
@@ -157,7 +151,7 @@ function assessEligibility(
 // ──────────────────────────────────────────────────────────────
 
 const BENEFIT_SCALE_BY_CATEGORY: Record<string, number> = {
-  creditos_consumo: 500_000,      // ahorro anual de 500k = 30 pts
+  creditos_consumo: 500_000, // ahorro anual de 500k = 30 pts
   lineas_credito: 300_000,
   creditos_hipotecarios: 1_000_000,
   depositos_plazo: 200_000,
@@ -167,7 +161,10 @@ const BENEFIT_SCALE_BY_CATEGORY: Record<string, number> = {
   portabilidad: 800_000,
 };
 
-function benefitScore(product: Product, benefitClp: number | null): { score: number; reasons: RankingReason[] } {
+function benefitScore(
+  product: Product,
+  benefitClp: number | null,
+): { score: number; reasons: RankingReason[] } {
   const reasons: RankingReason[] = [];
   if (benefitClp === null) return { score: 15, reasons }; // neutral cuando no calculable
 
@@ -222,11 +219,14 @@ function costScore(product: Product): { score: number; reasons: RankingReason[] 
 // Módulo de tags / perfil (0 - 10 pts)
 // ──────────────────────────────────────────────────────────────
 
-function tagScore(product: Product, profile: UserFinancialProfile): { score: number; reasons: RankingReason[] } {
+function tagScore(
+  product: Product,
+  profile: UserFinancialProfile,
+): { score: number; reasons: RankingReason[] } {
   const reasons: RankingReason[] = [];
   let pts = 5; // base neutral
 
-  const tags = product.tags.map(t => t.toLowerCase());
+  const tags = product.tags.map((t) => t.toLowerCase());
 
   // Sin renta mínima + usuario sin ingreso conocido
   if (profile.monthly_income_clp === null && tags.includes("sin renta mínima")) {
@@ -239,7 +239,7 @@ function tagScore(product: Product, profile: UserFinancialProfile): { score: num
   }
 
   // Sin costo
-  if (tags.some(t => t.includes("sin costo") || t.includes("sin anualidad"))) {
+  if (tags.some((t) => t.includes("sin costo") || t.includes("sin anualidad"))) {
     pts += 2;
     reasons.push({
       type: "tag_free",
@@ -249,7 +249,7 @@ function tagScore(product: Product, profile: UserFinancialProfile): { score: num
   }
 
   // Digital / app
-  if (tags.some(t => t.includes("digital") || t.includes("online") || t.includes("app"))) {
+  if (tags.some((t) => t.includes("digital") || t.includes("online") || t.includes("app"))) {
     pts += 1;
     reasons.push({
       type: "tag_digital",
@@ -291,13 +291,14 @@ function formatClp(n: number): string {
 // Función principal
 // ──────────────────────────────────────────────────────────────
 
-export function rankProducts(
-  products: Product[],
-  profile: UserFinancialProfile
-): RankedProduct[] {
+export function rankProducts(products: Product[], profile: UserFinancialProfile): RankedProduct[] {
   return products
     .map((product): RankedProduct => {
-      const { status, reasons: eligReasons, eligibilityScore } = assessEligibility(product, profile);
+      const {
+        status,
+        reasons: eligReasons,
+        eligibilityScore,
+      } = assessEligibility(product, profile);
 
       const benefitClp = estimateBenefitClp(product, profile);
       const { score: bScore, reasons: bReasons } = benefitScore(product, benefitClp);
@@ -311,7 +312,7 @@ export function rankProducts(
         ...bReasons,
         ...cReasons,
         ...tReasons,
-      ].filter(r => r.weight !== 0);
+      ].filter((r) => r.weight !== 0);
 
       // Mostrar solo las 3 razones más relevantes (por peso absoluto)
       const topReasons = [...reasons]
@@ -341,11 +342,9 @@ export function rankProducts(
 export function rankProductsByCategory(
   products: Product[],
   category: string | "all",
-  profile: UserFinancialProfile
+  profile: UserFinancialProfile,
 ): RankedProduct[] {
-  const filtered = category === "all"
-    ? products
-    : products.filter(p => p.category === category);
+  const filtered = category === "all" ? products : products.filter((p) => p.category === category);
 
   return rankProducts(filtered, profile);
 }

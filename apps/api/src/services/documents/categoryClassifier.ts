@@ -11,28 +11,30 @@
  * Se sirve como segundo modelo de la plataforma del Frente C: artefacto reproducible desde datos
  * versionados (la tabla de correcciones), con fallback determinístico.
  */
-import { db, transactionCategoryCorrections } from '../../db/index.js';
-import { mlLogger as logger } from '../../logger.js';
-import { getBlobStore } from '../storage/blobStore.js';
+import { db, transactionCategoryCorrections } from "../../db/index.js";
+import { mlLogger as logger } from "../../logger.js";
+import { getBlobStore } from "../storage/blobStore.js";
 
 /** Mínimo de ejemplos para que el clasificador opere (debajo de esto, siempre fallback). */
 const MIN_EXAMPLES = 5;
 /** Confianza mínima (posterior de la clase top) para usar la predicción en vez del fallback. */
 const MIN_CONFIDENCE = 0.6;
 
-const BLOB_KEY = 'category_classifier_model_v1';
+const BLOB_KEY = "category_classifier_model_v1";
 
 export function tokenize(text: string): string[] {
-  return text
-    .toUpperCase()
-    // NFD separa "Á" en "A" + marca de acento; quitamos la marca con '' (no con espacio, que
-    // partiría la palabra) y luego colapsamos el resto del ruido a espacios. Así "FARMÀCIA"
-    // tokeniza como "FARMACIA", no "FARMA CIA".
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .replace(/[^A-Z0-9 ]+/g, ' ')
-    .split(/\s+/)
-    .filter((t) => t.length >= 3 && t.length <= 24);
+  return (
+    text
+      .toUpperCase()
+      // NFD separa "Á" en "A" + marca de acento; quitamos la marca con '' (no con espacio, que
+      // partiría la palabra) y luego colapsamos el resto del ruido a espacios. Así "FARMÀCIA"
+      // tokeniza como "FARMACIA", no "FARMA CIA".
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .replace(/[^A-Z0-9 ]+/g, " ")
+      .split(/\s+/)
+      .filter((t) => t.length >= 3 && t.length <= 24)
+  );
 }
 
 class CategoryClassifier {
@@ -75,7 +77,7 @@ class CategoryClassifier {
     return JSON.stringify({
       classDocs: Object.fromEntries(this.classDocs),
       tokenCounts: Object.fromEntries(
-        Array.from(this.tokenCounts.entries()).map(([cls, m]) => [cls, Object.fromEntries(m)])
+        Array.from(this.tokenCounts.entries()).map(([cls, m]) => [cls, Object.fromEntries(m)]),
       ),
       classTotalTokens: Object.fromEntries(this.classTotalTokens),
       vocab: Array.from(this.vocab),
@@ -88,7 +90,10 @@ class CategoryClassifier {
     const s = JSON.parse(json);
     this.classDocs = new Map(Object.entries(s.classDocs));
     this.tokenCounts = new Map(
-      Object.entries(s.tokenCounts).map(([cls, m]) => [cls, new Map(Object.entries(m as Record<string, number>))])
+      Object.entries(s.tokenCounts).map(([cls, m]) => [
+        cls,
+        new Map(Object.entries(m as Record<string, number>)),
+      ]),
     );
     this.classTotalTokens = new Map(Object.entries(s.classTotalTokens));
     this.vocab = new Set(s.vocab);
@@ -101,9 +106,11 @@ class CategoryClassifier {
     try {
       const store = getBlobStore();
       const json = this.serialize();
-      await store.putObject(BLOB_KEY, Buffer.from(json, 'utf8'), { contentType: 'application/json' });
+      await store.putObject(BLOB_KEY, Buffer.from(json, "utf8"), {
+        contentType: "application/json",
+      });
     } catch (e) {
-      logger.warn({ err: e }, '[categoryClassifier] no se pudo persistir el modelo en blob store');
+      logger.warn({ err: e }, "[categoryClassifier] no se pudo persistir el modelo en blob store");
     }
   }
 
@@ -114,8 +121,11 @@ class CategoryClassifier {
       const store = getBlobStore();
       const existing = await store.getObject(BLOB_KEY);
       if (existing) {
-        this.deserialize(existing.toString('utf8'));
-        logger.info({ examples: this.totalDocs, classes: this.classDocs.size }, '[categoryClassifier] modelo restaurado desde blob');
+        this.deserialize(existing.toString("utf8"));
+        logger.info(
+          { examples: this.totalDocs, classes: this.classDocs.size },
+          "[categoryClassifier] modelo restaurado desde blob",
+        );
         return;
       }
     } catch {
@@ -129,16 +139,25 @@ class CategoryClassifier {
           normalizedText: transactionCategoryCorrections.normalizedText,
           correctedCategory: transactionCategoryCorrections.correctedCategory,
         })
-        .from(transactionCategoryCorrections)) as Array<{ normalizedText: string; correctedCategory: string }>;
+        .from(transactionCategoryCorrections)) as Array<{
+        normalizedText: string;
+        correctedCategory: string;
+      }>;
       for (const r of rows) this.learn(r.normalizedText, r.correctedCategory);
       this.loaded = true;
-      logger.info({ examples: this.totalDocs, classes: this.classDocs.size }, '[categoryClassifier] modelo cargado desde DB');
+      logger.info(
+        { examples: this.totalDocs, classes: this.classDocs.size },
+        "[categoryClassifier] modelo cargado desde DB",
+      );
       // Persistir para próximos arranques
       if (this.totalDocs >= MIN_EXAMPLES) void this.saveToBlob();
     } catch (e) {
       // Tabla ausente (migración no corrida) u otro fallo → clasificador inactivo, solo fallback.
       this.loaded = true;
-      logger.warn({ err: e }, '[categoryClassifier] no se pudo cargar (se usará solo el fallback de reglas)');
+      logger.warn(
+        { err: e },
+        "[categoryClassifier] no se pudo cargar (se usará solo el fallback de reglas)",
+      );
     }
   }
 

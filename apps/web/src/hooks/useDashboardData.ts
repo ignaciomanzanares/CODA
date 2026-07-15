@@ -37,9 +37,9 @@ import type {
 
 interface RawParsedTx {
   id: string;
-  fecha: string;           // YYYY-MM-DD
+  fecha: string; // YYYY-MM-DD
   descripcion: string;
-  monto: number;           // SIGNED: positive = ingreso, negative = egreso
+  monto: number; // SIGNED: positive = ingreso, negative = egreso
   tipo: "ingreso" | "egreso";
   saldo: number | null;
   banco: string | null;
@@ -192,8 +192,10 @@ function filterByPeriod(
       const endDate = new Date(target.year, target.month + 1, 0);
       const monthEnd = endDate.toISOString().slice(0, 10);
       const filtered = txs.filter((t) => t.fecha >= monthStart && t.fecha <= monthEnd);
-      const label = new Date(target.year, target.month, 15)
-        .toLocaleDateString("es-CL", { month: "long", year: "numeric" });
+      const label = new Date(target.year, target.month, 15).toLocaleDateString("es-CL", {
+        month: "long",
+        year: "numeric",
+      });
       return { filtered, label: label.charAt(0).toUpperCase() + label.slice(1), totalMonths };
     }
     case "week": {
@@ -206,7 +208,8 @@ function filterByPeriod(
       start.setDate(start.getDate() - 6);
       const startStr = start.toISOString().slice(0, 10);
       const filtered = txs.filter((t) => t.fecha >= startStr && t.fecha <= latestDate);
-      const fmtShort = (d: Date) => d.toLocaleDateString("es-CL", { day: "numeric", month: "short" });
+      const fmtShort = (d: Date) =>
+        d.toLocaleDateString("es-CL", { day: "numeric", month: "short" });
       return { filtered, label: `${fmtShort(start)} – ${fmtShort(end)}`, totalMonths };
     }
     case "today": {
@@ -216,7 +219,11 @@ function filterByPeriod(
       }
       const filtered = txs.filter((t) => t.fecha === latestDate);
       const d = new Date(latestDate + "T12:00:00");
-      const label = d.toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" });
+      const label = d.toLocaleDateString("es-CL", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      });
       return { filtered, label: label.charAt(0).toUpperCase() + label.slice(1), totalMonths };
     }
     default:
@@ -261,9 +268,7 @@ function pickInsight(insights: DashboardInsight[]): DashboardInsight | null {
   };
 
   // Sort by priority (most urgent first)
-  const sorted = [...insights].sort(
-    (a, b) => (priority[a.type] ?? 9) - (priority[b.type] ?? 9),
-  );
+  const sorted = [...insights].sort((a, b) => (priority[a.type] ?? 9) - (priority[b.type] ?? 9));
 
   // Pick from the top-priority group, rotating by hour
   const topType = sorted[0].type;
@@ -273,7 +278,10 @@ function pickInsight(insights: DashboardInsight[]): DashboardInsight | null {
 
 // ── Main Hook ───────────────────────────────────────────────────────────────
 
-export function useDashboardData(period: DashboardPeriod = "month", monthOffset: number = 0): {
+export function useDashboardData(
+  period: DashboardPeriod = "month",
+  monthOffset: number = 0,
+): {
   data: DashboardData | null;
   isLoading: boolean;
   error: Error | null;
@@ -350,12 +358,12 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
       data: {
         hasData: false,
         periodLabel: "",
-	        score: null,
-	        scoreDelta: null,
-	        scoreMaxHistory: [],
-	        scoreInsights: [],
-	        scoreConfidence: null,
-	        scoreObservedMonths: null,
+        score: null,
+        scoreDelta: null,
+        scoreMaxHistory: [],
+        scoreInsights: [],
+        scoreConfidence: null,
+        scoreObservedMonths: null,
         creditScore: null,
         creditScoreAvailable: false,
         creditScoreUnavailableReason: "missing_cmf_report",
@@ -393,13 +401,15 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
   // Movimientos muestra la vista bruta; el Panel usa flujo REAL, excluyendo
   // traspasos internos entre productos propios para no inflar ingresos/gastos.
   const realTx = allTx.filter((t) => !t.isInternalTransfer);
-  const { filtered: periodTx, label: periodLabel, totalMonths } = filterByPeriod(realTx, period, monthOffset);
+  const {
+    filtered: periodTx,
+    label: periodLabel,
+    totalMonths,
+  } = filterByPeriod(realTx, period, monthOffset);
 
   // ── Capa 1: Hero ──────────────────────────────────────────────────────
 
-  const totalIncome = periodTx
-    .filter((t) => t.tipo === "ingreso")
-    .reduce((s, t) => s + t.monto, 0);
+  const totalIncome = periodTx.filter((t) => t.tipo === "ingreso").reduce((s, t) => s + t.monto, 0);
   const totalExpenses = periodTx
     .filter((t) => t.tipo === "egreso")
     .reduce((s, t) => s + t.monto, 0);
@@ -414,14 +424,16 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
   const availableUntilEndOfMonth = Math.max(0, availableRaw);
 
   // ── Score (transactional only, 0-100) ──────────────────────────────────
-	  const currentScore = score.data?.transactionalScore ?? null;
-	  const scoreConfidenceValue = score.data?.metrics?.scoreConfidence;
-	  const scoreConfidence =
-	    scoreConfidenceValue === "baja" || scoreConfidenceValue === "media" || scoreConfidenceValue === "alta"
-	      ? scoreConfidenceValue
-	      : null;
-	  const observedMonthsValue = score.data?.metrics?.observedMonths;
-	  const scoreObservedMonths = typeof observedMonthsValue === "number" ? observedMonthsValue : null;
+  const currentScore = score.data?.transactionalScore ?? null;
+  const scoreConfidenceValue = score.data?.metrics?.scoreConfidence;
+  const scoreConfidence =
+    scoreConfidenceValue === "baja" ||
+    scoreConfidenceValue === "media" ||
+    scoreConfidenceValue === "alta"
+      ? scoreConfidenceValue
+      : null;
+  const observedMonthsValue = score.data?.metrics?.observedMonths;
+  const scoreObservedMonths = typeof observedMonthsValue === "number" ? observedMonthsValue : null;
 
   // Delta: only compare against OTHER transactional score entries (maxScore=100).
   // The credit_score_history table mixes both transactional (max=100) and
@@ -445,7 +457,8 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
 
   // ── Credit score (CMF, from /api/credit-score, separate table) ──────
   const rawCreditScore = creditScoreQuery.data;
-  const creditScoreAvailable = rawCreditScore?.available === true && typeof rawCreditScore.score === "number";
+  const creditScoreAvailable =
+    rawCreditScore?.available === true && typeof rawCreditScore.score === "number";
   const creditScore = creditScoreAvailable ? rawCreditScore.score : null;
   const creditScoreSource = rawCreditScore?.source
     ? {
@@ -495,8 +508,7 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
   const pctIncomeSpent =
     totalIncome > 0 ? Math.min(999, Math.round((totalExpenses / totalIncome) * 100)) : 0;
   const savingsNet = totalIncome - totalExpenses;
-  const savingsRate =
-    totalIncome > 0 ? Math.round((savingsNet / totalIncome) * 100) : 0;
+  const savingsRate = totalIncome > 0 ? Math.round((savingsNet / totalIncome) * 100) : 0;
   const savingsGoalProgress =
     savingsGoalAmount > 0
       ? Math.min(100, Math.round((Math.max(0, savingsNet) / savingsGoalAmount) * 100))
@@ -505,9 +517,8 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
   // ── Capa 3: Category Groups ───────────────────────────────────────────
 
   // Previous month data for month-over-month comparison
-  const prevMonthResult = period === "month" && totalMonths > 1
-    ? filterByPeriod(realTx, "month", monthOffset - 1)
-    : null;
+  const prevMonthResult =
+    period === "month" && totalMonths > 1 ? filterByPeriod(realTx, "month", monthOffset - 1) : null;
   const prevMonthTx = prevMonthResult?.filtered ?? [];
 
   // Group previous month expenses by taxonomy group
@@ -531,9 +542,12 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
     const total = txs.reduce((s, t) => s + t.monto, 0);
 
     // Previous month total for comparison
-    const prevMonthTotal = prevMonthTx.length > 0
-      ? (key === "ingresos" ? prevMonthIncome : (prevGroupedExpenses.get(key) ?? 0))
-      : null;
+    const prevMonthTotal =
+      prevMonthTx.length > 0
+        ? key === "ingresos"
+          ? prevMonthIncome
+          : (prevGroupedExpenses.get(key) ?? 0)
+        : null;
 
     // Subcategories
     const subMap = new Map<string, DashboardTransaction[]>();
@@ -558,9 +572,7 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
     const allGroupTx =
       key === "ingresos"
         ? realTx.filter((t) => t.tipo === "ingreso")
-        : realTx.filter(
-            (t) => t.tipo === "egreso" && resolveGroupKey(t.categoria) === key,
-          );
+        : realTx.filter((t) => t.tipo === "egreso" && resolveGroupKey(t.categoria) === key);
     const sparklineData = buildSparkline(allGroupTx);
 
     return {
@@ -586,32 +598,35 @@ export function useDashboardData(period: DashboardPeriod = "month", monthOffset:
   // cuentas is misleading and useless.
   const fs = financialSummary.data;
   const hasLinkedAccounts = (fs?.summary?.accountCount ?? 0) > 0;
-  const patrimonio = hasLinkedAccounts && fs
-    ? {
-        inversionesLiquidas: fs.accountsByType?.investments?.total ?? 0,
-        cuentasVista:
-          (fs.accountsByType?.checking?.total ?? 0) +
-          (fs.accountsByType?.savings?.total ?? 0),
-        totalPatrimonioNeto: fs.summary?.netWorth ?? 0,
-      }
-    : null;
+  const patrimonio =
+    hasLinkedAccounts && fs
+      ? {
+          inversionesLiquidas: fs.accountsByType?.investments?.total ?? 0,
+          cuentasVista:
+            (fs.accountsByType?.checking?.total ?? 0) + (fs.accountsByType?.savings?.total ?? 0),
+          totalPatrimonioNeto: fs.summary?.netWorth ?? 0,
+        }
+      : null;
 
   return {
     data: {
       hasData: true,
       periodLabel,
       score: currentScore,
-	      scoreDelta,
-	      scoreMaxHistory,
-	      scoreInsights: score.data?.mainInsights ?? [],
-	      scoreConfidence,
-	      scoreObservedMonths,
+      scoreDelta,
+      scoreMaxHistory,
+      scoreInsights: score.data?.mainInsights ?? [],
+      scoreConfidence,
+      scoreObservedMonths,
       creditScore,
       creditScoreAvailable,
-      creditScoreUnavailableReason: creditScoreAvailable ? null : (rawCreditScore?.reason ?? "missing_cmf_report"),
+      creditScoreUnavailableReason: creditScoreAvailable
+        ? null
+        : (rawCreditScore?.reason ?? "missing_cmf_report"),
       creditScoreMessage: creditScoreAvailable
         ? null
-        : (rawCreditScore?.message ?? "Sube tu Informe de Deudas CMF para calcular tu score crediticio."),
+        : (rawCreditScore?.message ??
+          "Sube tu Informe de Deudas CMF para calcular tu score crediticio."),
       creditScoreSource,
       creditScoreDelta,
       creditScoreDate,

@@ -1,9 +1,12 @@
 // Credit score utility functions
 
-export function calculateCreditScoreCircleDashoffset(score: number, maxScore: number = 850): number {
+export function calculateCreditScoreCircleDashoffset(
+  score: number,
+  maxScore: number = 850,
+): number {
   const circumference = 2 * Math.PI * 70;
   const percentage = score / maxScore;
-  return circumference - (circumference * percentage);
+  return circumference - circumference * percentage;
 }
 
 export function getCreditScoreStatus(score: number): {

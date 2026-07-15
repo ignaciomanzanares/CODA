@@ -9,15 +9,15 @@
  * Formato de salida: `iv:authTag:ciphertext`, cada segmento en base64.
  */
 
-import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto';
-import { env } from '../../env.js';
+import { createCipheriv, createDecipheriv, randomBytes, createHash } from "crypto";
+import { env } from "../../env.js";
 
-const ALGORITHM = 'aes-256-gcm';
+const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12; // recomendado para GCM
 
 /** Deriva una llave de 32 bytes desde un secreto sin importar su longitud/encoding original. */
 function deriveKey(secret: string): Buffer {
-  return createHash('sha256').update(secret).digest();
+  return createHash("sha256").update(secret).digest();
 }
 
 const key = deriveKey(env.fieldEncryptionKey);
@@ -28,15 +28,17 @@ const prevKey = env.fieldEncryptionKeyPrev ? deriveKey(env.fieldEncryptionKeyPre
 export function encryptField(plaintext: string): string {
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, key, iv);
-  const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const authTag = cipher.getAuthTag();
-  return [iv.toString('base64'), authTag.toString('base64'), ciphertext.toString('base64')].join(':');
+  return [iv.toString("base64"), authTag.toString("base64"), ciphertext.toString("base64")].join(
+    ":",
+  );
 }
 
 function decryptWith(k: Buffer, iv: Buffer, authTag: Buffer, ciphertext: Buffer): string {
   const decipher = createDecipheriv(ALGORITHM, k, iv);
   decipher.setAuthTag(authTag);
-  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
 }
 
 /**
@@ -46,14 +48,14 @@ function decryptWith(k: Buffer, iv: Buffer, authTag: Buffer, ciphertext: Buffer)
  * authTag, así que el fallback no es ambiguo.
  */
 export function decryptField(value: string): string {
-  const parts = value.split(':');
+  const parts = value.split(":");
   if (parts.length !== 3) {
-    throw new Error('decryptField: formato inválido (esperado iv:authTag:ciphertext)');
+    throw new Error("decryptField: formato inválido (esperado iv:authTag:ciphertext)");
   }
   const [ivB64, authTagB64, ciphertextB64] = parts;
-  const iv = Buffer.from(ivB64, 'base64');
-  const authTag = Buffer.from(authTagB64, 'base64');
-  const ciphertext = Buffer.from(ciphertextB64, 'base64');
+  const iv = Buffer.from(ivB64, "base64");
+  const authTag = Buffer.from(authTagB64, "base64");
+  const ciphertext = Buffer.from(ciphertextB64, "base64");
 
   try {
     return decryptWith(key, iv, authTag, ciphertext);
@@ -69,11 +71,16 @@ export function decryptField(value: string): string {
 /** True si el valor se cifró con la llave ANTERIOR (necesita re-cifrado en la rotación). */
 export function needsReencryption(value: string): boolean {
   if (!prevKey) return false;
-  const parts = value.split(':');
+  const parts = value.split(":");
   if (parts.length !== 3) return false;
   const [ivB64, authTagB64, ciphertextB64] = parts;
   try {
-    decryptWith(key, Buffer.from(ivB64, 'base64'), Buffer.from(authTagB64, 'base64'), Buffer.from(ciphertextB64, 'base64'));
+    decryptWith(
+      key,
+      Buffer.from(ivB64, "base64"),
+      Buffer.from(authTagB64, "base64"),
+      Buffer.from(ciphertextB64, "base64"),
+    );
     return false; // la llave actual ya lo autentica → no necesita re-cifrado
   } catch {
     return true; // solo descifrable con la anterior
@@ -93,7 +100,7 @@ export function decryptFieldOrNull(value: string | null | undefined): string | n
 
 /** Heurística para distinguir valores ya cifrados de texto plano (migración / lecturas mixtas). */
 export function looksEncrypted(value: string): boolean {
-  const parts = value.split(':');
+  const parts = value.split(":");
   if (parts.length !== 3) return false;
   return parts.every((p) => /^[A-Za-z0-9+/]*=*$/.test(p) && p.length > 0);
 }

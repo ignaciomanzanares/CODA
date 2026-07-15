@@ -16,10 +16,8 @@ import {
   X,
   LayoutDashboard,
   Receipt,
-  Users,
   Store,
   Package,
-  Target,
   FileText,
   LogOut,
   User,
@@ -54,9 +52,7 @@ const navItems = [
 ];
 
 // Items visibles solo para usuarios con role === 'admin' (se agregan al nav personal).
-const adminNavItems = [
-  { href: ROUTES.admin, label: "Admin", icon: Shield },
-];
+const adminNavItems = [{ href: ROUTES.admin, label: "Admin", icon: Shield }];
 
 const empresasNavItems = [
   { href: "/empresas/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -73,7 +69,7 @@ const empresasNavItems = [
 export default function Header() {
   const [location, setLocation] = useLocation();
   const isEmpresas = location.startsWith("/empresas");
-  const authContext = isEmpresas ? 'empresas' : 'personal';
+  const authContext = isEmpresas ? "empresas" : "personal";
   const { isAuthenticated, user, logout } = useAuth(authContext);
   const { theme, toggle: toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -89,12 +85,12 @@ export default function Header() {
   };
 
   // Nombre para mostrar (normalizar "Investor" → "Inversor")
-  const displayName = user?.name === 'Investor' ? 'Inversor' : (user?.name || user?.email || '');
+  const displayName = user?.name === "Investor" ? "Inversor" : user?.name || user?.email || "";
 
   const getInitials = () => {
     if (!user) return "U";
     if (displayName) {
-      const parts = displayName.split(' ');
+      const parts = displayName.split(" ");
       if (parts.length >= 2) {
         return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
       }
@@ -147,7 +143,7 @@ export default function Header() {
                       "flex items-center gap-1.5 px-2.5 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all whitespace-nowrap shrink-0",
                       isActive
                         ? "bg-primary/10 text-primary border border-primary/20 shadow-sm shadow-primary/5"
-                        : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                        : "text-muted-foreground hover:bg-muted/80 hover:text-foreground",
                     )}
                   >
                     <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
@@ -174,10 +170,14 @@ export default function Header() {
 
         {/* Derecha: CODA Personal/Empresas, notificaciones, usuario — lo más a la derecha */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
-          {FEATURES.codaEmpresas && (
-            isEmpresas ? (
+          {FEATURES.codaEmpresas &&
+            (isEmpresas ? (
               <Link href={ROUTES.panel}>
-                <Button variant="outline" size="sm" className="hidden md:flex items-center gap-1.5 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="hidden md:flex items-center gap-1.5 shrink-0"
+                >
                   <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   <span className="xl:hidden">Personal</span>
                   <span className="hidden xl:inline">CODA Personal</span>
@@ -185,14 +185,17 @@ export default function Header() {
               </Link>
             ) : (
               <Link href="/empresas">
-                <Button variant="outline" size="sm" className="hidden md:flex items-center gap-1.5 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="hidden md:flex items-center gap-1.5 shrink-0"
+                >
                   <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   <span className="xl:hidden">Empresas</span>
                   <span className="hidden xl:inline">CODA Empresas</span>
                 </Button>
               </Link>
-            )
-          )}
+            ))}
           {isAuthenticated && user ? (
             <>
               <div className="hidden sm:flex items-center gap-3">
@@ -227,7 +230,11 @@ export default function Header() {
             </>
           ) : (
             <div className="flex items-center gap-2">
-              <Button onClick={() => setLocation(isEmpresas ? "/empresas/login" : ROUTES.iniciarSesion)}>Iniciar sesión</Button>
+              <Button
+                onClick={() => setLocation(isEmpresas ? "/empresas/login" : ROUTES.iniciarSesion)}
+              >
+                Iniciar sesión
+              </Button>
             </div>
           )}
 
@@ -249,7 +256,9 @@ export default function Header() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{displayName || user.email}</p>
+                      <p className="text-sm font-semibold text-foreground truncate">
+                        {displayName || user.email}
+                      </p>
                       <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                     </div>
                   </div>
@@ -260,7 +269,8 @@ export default function Header() {
                   <nav className="flex flex-col gap-0.5">
                     {currentNavItems.map((item) => {
                       const Icon = item.icon;
-                      const isActive = location === item.href || location.startsWith(`${item.href}/`);
+                      const isActive =
+                        location === item.href || location.startsWith(`${item.href}/`);
                       return (
                         <button
                           key={item.href}
@@ -268,7 +278,7 @@ export default function Header() {
                             "flex items-center gap-3 px-3 py-3 text-sm font-medium rounded-xl transition-colors text-left",
                             isActive
                               ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground",
                           )}
                           onClick={() => {
                             setMobileMenuOpen(false);
@@ -293,7 +303,11 @@ export default function Header() {
                         setLocation(isEmpresas ? ROUTES.panel : "/empresas");
                       }}
                     >
-                      {isEmpresas ? <Wallet className="h-5 w-5 shrink-0" /> : <Building2 className="h-5 w-5 shrink-0" />}
+                      {isEmpresas ? (
+                        <Wallet className="h-5 w-5 shrink-0" />
+                      ) : (
+                        <Building2 className="h-5 w-5 shrink-0" />
+                      )}
                       {isEmpresas ? "CODA Personal" : "CODA Empresas"}
                     </button>
                   </div>

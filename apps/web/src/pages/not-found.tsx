@@ -7,7 +7,12 @@ const suggestions = [
   { icon: Home, label: "Inicio", href: "/", desc: "Volver a la página principal" },
   { icon: Search, label: "Mi Panel", href: ROUTES.panel, desc: "Ver tu dashboard financiero" },
   { icon: Store, label: "Productos", href: ROUTES.productos, desc: "Explorar el marketplace" },
-  { icon: HelpCircle, label: "Acerca de CODA", href: ROUTES.acerca, desc: "Conoce nuestra plataforma" },
+  {
+    icon: HelpCircle,
+    label: "Acerca de CODA",
+    href: ROUTES.acerca,
+    desc: "Conoce nuestra plataforma",
+  },
 ];
 
 export default function NotFound() {
@@ -34,7 +39,8 @@ export default function NotFound() {
         {/* Message */}
         <p className="text-xl font-semibold text-white mb-2">Página no encontrada</p>
         <p className="text-sm text-slate-400 mb-10 leading-relaxed max-w-sm mx-auto">
-          La página que buscas no existe, fue movida o el enlace está incorrecto. Prueba con alguna de estas opciones:
+          La página que buscas no existe, fue movida o el enlace está incorrecto. Prueba con alguna
+          de estas opciones:
         </p>
 
         {/* Quick links */}

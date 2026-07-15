@@ -15,31 +15,34 @@ import {
   type SfaProductoVigenteCuenta,
   type SfaProductoVigenteTarjeta,
   SFA_UPDATE_TRANSACTIONS_MONTHS,
-} from '../../sfa/types.js';
-import { toClp, DEFAULT_EXCHANGE_RATES_CLP, type ExchangeRatesToClp } from '../scoring/currency.js';
+} from "../../sfa/types.js";
+import { toClp, DEFAULT_EXCHANGE_RATES_CLP, type ExchangeRatesToClp } from "../scoring/currency.js";
 
 function isSfaTransaccionCuenta(t: SfaTransaccion): t is SfaTransaccionCuenta {
-  return 'idInternoTransaccion' in t && 'fechaContableOperacion' in t && 'tipoOperacion' in t;
+  return "idInternoTransaccion" in t && "fechaContableOperacion" in t && "tipoOperacion" in t;
 }
 function isSfaProductoVigenteCuenta(p: SfaProductoVigente): p is SfaProductoVigenteCuenta {
-  return 'lineaCreditoSobregiroTotal' in p && 'saldo' in p;
+  return "lineaCreditoSobregiroTotal" in p && "saldo" in p;
 }
 function isSfaProductoVigenteTarjeta(p: SfaProductoVigente): p is SfaProductoVigenteTarjeta {
-  return 'lineaTotalAprobada' in p && 'saldo' in p;
+  return "lineaTotalAprobada" in p && "saldo" in p;
 }
 
 function parseSfaDate(s: string): number {
   const part = s.slice(0, 10);
-  const d = new Date(part + 'T12:00:00Z');
+  const d = new Date(part + "T12:00:00Z");
   return Number.isNaN(d.getTime()) ? 0 : d.getTime();
 }
 function monthKey(ts: number): string {
   const d = new Date(ts);
   const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
   return `${y}-${m}`;
 }
-function getWindowMonths(referenceDate: Date, months: number = SFA_UPDATE_TRANSACTIONS_MONTHS): string[] {
+function getWindowMonths(
+  referenceDate: Date,
+  months: number = SFA_UPDATE_TRANSACTIONS_MONTHS,
+): string[] {
   const keys: string[] = [];
   const ref = new Date(referenceDate);
   for (let i = 0; i < months; i++) {
@@ -71,19 +74,21 @@ function computeLiquidity(
     return ts >= twelveMonthsAgo.getTime() && ts <= referenceDate.getTime();
   });
 
-  inWindow.sort((a, b) => parseSfaDate(a.fechaContableOperacion) - parseSfaDate(b.fechaContableOperacion));
+  inWindow.sort(
+    (a, b) => parseSfaDate(a.fechaContableOperacion) - parseSfaDate(b.fechaContableOperacion),
+  );
 
   let runningBalance = 0;
   const balanceByMonth = new Map<string, number>();
   const abonosByMonth = new Set<string>();
 
   for (const t of inWindow) {
-    const sign = t.tipoOperacion === 'abono' ? 1 : -1;
+    const sign = t.tipoOperacion === "abono" ? 1 : -1;
     const montoClp = Math.abs(toClp(t.montoOperacion, t.monedaOperacion, rates));
     runningBalance += sign * montoClp;
     const m = monthKey(parseSfaDate(t.fechaContableOperacion));
     balanceByMonth.set(m, runningBalance);
-    if (t.tipoOperacion === 'abono') abonosByMonth.add(m);
+    if (t.tipoOperacion === "abono") abonosByMonth.add(m);
   }
 
   const sortedMonths = [...windowMonths].sort();
@@ -113,7 +118,10 @@ function computeLiquidity(
   };
 }
 
-function computeOverdraftRatio(products: SfaProductoVigente[], rates: ExchangeRatesToClp): { ratio: number; count: number } {
+function computeOverdraftRatio(
+  products: SfaProductoVigente[],
+  rates: ExchangeRatesToClp,
+): { ratio: number; count: number } {
   const cuentas = products.filter(isSfaProductoVigenteCuenta);
   let totalUtilizada = 0;
   let totalLinea = 0;
@@ -129,7 +137,10 @@ function computeOverdraftRatio(products: SfaProductoVigente[], rates: ExchangeRa
   return { ratio: Math.round(ratio * 1000) / 1000, count: cuentas.length };
 }
 
-function detectOptimizationOpportunity(products: SfaProductoVigente[], rates: ExchangeRatesToClp): boolean {
+function detectOptimizationOpportunity(
+  products: SfaProductoVigente[],
+  rates: ExchangeRatesToClp,
+): boolean {
   const cuentas = products.filter(isSfaProductoVigenteCuenta);
   const tarjetas = products.filter(isSfaProductoVigenteTarjeta);
   const hasPositiveBalance = cuentas.some((c) => toClp(c.saldo, c.moneda, rates) > 0);
@@ -145,7 +156,7 @@ export interface LiquidityMetrics {
   monthsWithGap?: number;
   overdraftUsageRatio?: number;
   hasOptimizationOpportunity: boolean;
-  scoreConfidence: 'baja' | 'media' | 'alta';
+  scoreConfidence: "baja" | "media" | "alta";
 }
 
 export interface LiquidityInput {
@@ -155,11 +166,17 @@ export interface LiquidityInput {
 }
 
 /** Computa las métricas de liquidez a partir de transacciones/productos SFA (normalizados a CLP). */
-export function computeLiquidityMetrics(input: LiquidityInput, referenceDate: Date = new Date()): LiquidityMetrics {
+export function computeLiquidityMetrics(
+  input: LiquidityInput,
+  referenceDate: Date = new Date(),
+): LiquidityMetrics {
   const rates = input.exchangeRates ?? DEFAULT_EXCHANGE_RATES_CLP;
   const transaccionesCuenta = input.transactions.filter(isSfaTransaccionCuenta);
   const liquidity = computeLiquidity(transaccionesCuenta, referenceDate, rates);
-  const { ratio: overdraftRatio, count: overdraftCount } = computeOverdraftRatio(input.products, rates);
+  const { ratio: overdraftRatio, count: overdraftCount } = computeOverdraftRatio(
+    input.products,
+    rates,
+  );
   const hasOptimization = detectOptimizationOpportunity(input.products, rates);
 
   return {
@@ -169,6 +186,7 @@ export function computeLiquidityMetrics(input: LiquidityInput, referenceDate: Da
     monthsWithGap: liquidity.monthsWithGap > 0 ? liquidity.monthsWithGap : undefined,
     overdraftUsageRatio: overdraftCount > 0 ? overdraftRatio : undefined,
     hasOptimizationOpportunity: hasOptimization,
-    scoreConfidence: liquidity.observedMonths < 3 ? 'baja' : liquidity.observedMonths < 6 ? 'media' : 'alta',
+    scoreConfidence:
+      liquidity.observedMonths < 3 ? "baja" : liquidity.observedMonths < 6 ? "media" : "alta",
   };
 }

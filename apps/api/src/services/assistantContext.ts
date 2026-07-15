@@ -32,20 +32,20 @@ function txAmount(t: { amount?: unknown }): number {
 //     real y el cargo recurrente "PAGO COOPEUCH" (dividendo hipotecario) es
 //     gasto real → NO se netean (no calzan ninguno de los patrones de abajo).
 export function isInternalTransfer(t: { description?: string; category?: string }): boolean {
-  const desc = (t.description ?? '').toLowerCase();
-  const cat = (t.category ?? '').toLowerCase();
-  if (cat.includes('transfer') || cat.includes('traspaso')) return true;
+  const desc = (t.description ?? "").toLowerCase();
+  const cat = (t.category ?? "").toLowerCase();
+  if (cat.includes("transfer") || cat.includes("traspaso")) return true;
   // Detección por glosa: fuente ÚNICA con el categorizador (pago de tarjeta /
   // MONTO CANCELADO, divisas, fondeo/pago "a T. Crédito", TRASPASO DEUDA, …),
   // para que ingesta, backfill y exclusión usen exactamente los mismos patrones.
-  if (isInternalTransferDesc(t.description ?? '')) return true;
+  if (isInternalTransferDesc(t.description ?? "")) return true;
   return (
-    desc.includes('transferencia a cuenta propia') ||
-    desc.includes('traspaso entre cuentas') ||
-    desc.includes('tef a propia') ||
-    desc.includes('abono cuenta propia') ||
-    desc.includes('cargo cuenta propia') ||
-    desc.includes('traspaso a cuenta propia')
+    desc.includes("transferencia a cuenta propia") ||
+    desc.includes("traspaso entre cuentas") ||
+    desc.includes("tef a propia") ||
+    desc.includes("abono cuenta propia") ||
+    desc.includes("cargo cuenta propia") ||
+    desc.includes("traspaso a cuenta propia")
   );
 }
 
@@ -85,14 +85,15 @@ export function isInternalTransferTx(t: {
   // Señal autoritativa de la tabla normalizada (la marca normalizeCartola por glosa).
   if (t.is_internal_transfer === 1 || t.is_internal_transfer === true) return true;
   if (t.isInternalTransfer === 1 || t.isInternalTransfer === true) return true;
-  const description = t.descripcion ?? t.description ?? '';
+  const description = t.descripcion ?? t.description ?? "";
   // Etiqueta exacta de la taxonomía: `category` (motor nuevo) o `categoria`
   // (slug persistido en la cartola). La ingesta persiste 'Transferencia interna'.
-  if (t.category === 'Transferencia interna' || t.categoria === 'Transferencia interna') return true;
+  if (t.category === "Transferencia interna" || t.categoria === "Transferencia interna")
+    return true;
   if (isInternalTransfer({ description })) return true;
   if (
     t.es_transferencia === true &&
-    t.category !== 'Transferencias' &&
+    t.category !== "Transferencias" &&
     !THIRD_PARTY_TRANSFER_RE.test(description)
   ) {
     return true;
@@ -123,14 +124,17 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
   const userAccounts = await storage.getAccounts(userId);
   const accountIds = userAccounts.map((account) => account.id);
   const latestBalanceByAccount = await storage.getLatestBalancesForAccounts(accountIds);
-  const accountsWithBalances: AccountWithBalance[] = userAccounts.map((account) => ({
-    ...account,
-    balance: latestBalanceByAccount[account.id] ?? null,
-  } as AccountWithBalance));
+  const accountsWithBalances: AccountWithBalance[] = userAccounts.map(
+    (account) =>
+      ({
+        ...account,
+        balance: latestBalanceByAccount[account.id] ?? null,
+      }) as AccountWithBalance,
+  );
 
   const totalBalance = accountsWithBalances.reduce(
     (sum, a) => sum + parseFloat(a.balance?.current || "0"),
-    0
+    0,
   );
 
   const thirtyDaysAgo = new Date();
@@ -138,12 +142,12 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-  const transactions = (await storage.getTransactionsForAccounts(accountIds, { from: ninetyDaysAgo })).filter(
-    (t) => t != null && t.postedAt && new Date(t.postedAt) >= ninetyDaysAgo
-  );
+  const transactions = (
+    await storage.getTransactionsForAccounts(accountIds, { from: ninetyDaysAgo })
+  ).filter((t) => t != null && t.postedAt && new Date(t.postedAt) >= ninetyDaysAgo);
 
   const recentTransactions = transactions.filter(
-    (t) => t != null && t.postedAt && new Date(t.postedAt) >= thirtyDaysAgo
+    (t) => t != null && t.postedAt && new Date(t.postedAt) >= thirtyDaysAgo,
   );
 
   // Filtramos transferencias entre cuentas propias para que no inflen ingreso
@@ -155,23 +159,18 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
     .reduce((sum, t) => sum + txAmount(t), 0);
 
   const monthlyExpenses = Math.abs(
-    realRecent
-      .filter((t) => txAmount(t) < 0)
-      .reduce((sum, t) => sum + txAmount(t), 0)
+    realRecent.filter((t) => txAmount(t) < 0).reduce((sum, t) => sum + txAmount(t), 0),
   );
 
   const savingsRate =
-    monthlyIncome > 0
-      ? Math.round(((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100)
-      : 0;
+    monthlyIncome > 0 ? Math.round(((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100) : 0;
 
   const spendingByCategory: Record<string, number> = {};
   realRecent
     .filter((t) => txAmount(t) < 0)
     .forEach((t) => {
       const category = (t as { category?: string }).category || "Otro";
-      spendingByCategory[category] =
-        (spendingByCategory[category] || 0) + Math.abs(txAmount(t));
+      spendingByCategory[category] = (spendingByCategory[category] || 0) + Math.abs(txAmount(t));
     });
 
   const topSpendingCategories = Object.entries(spendingByCategory)
@@ -196,12 +195,12 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
   const creditCardDebt = Math.abs(
     accountsWithBalances
       .filter((a) => a.type === "credit")
-      .reduce((s, a) => s + parseFloat(a.balance?.current || "0"), 0)
+      .reduce((s, a) => s + parseFloat(a.balance?.current || "0"), 0),
   );
   const loansTotal = Math.abs(
     accountsWithBalances
       .filter((a) => a.type === "loan")
-      .reduce((s, a) => s + parseFloat(a.balance?.current || "0"), 0)
+      .reduce((s, a) => s + parseFloat(a.balance?.current || "0"), 0),
   );
 
   const totalAssets = checkingTotal + savingsTotal + investmentsTotal;
@@ -214,19 +213,19 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
     .sort((a, b) => new Date(b.postedAt!).getTime() - new Date(a.postedAt!).getTime())
     .slice(0, 10)
     .map((t) => ({
-      description: (t as { description?: string }).description || 'Transacción',
+      description: (t as { description?: string }).description || "Transacción",
       amount: Math.abs(txAmount(t)),
-      category: (t as { category?: string }).category || 'Otro',
-      date: t.postedAt ? new Date(t.postedAt).toLocaleDateString('es-CL') : undefined,
+      category: (t as { category?: string }).category || "Otro",
+      date: t.postedAt ? new Date(t.postedAt).toLocaleDateString("es-CL") : undefined,
     }));
 
   // ── Debts breakdown ──
   const debts: { type: string; balance: number; rate?: number }[] = [];
   if (creditCardDebt > 0) {
-    debts.push({ type: 'Tarjeta de crédito', balance: creditCardDebt });
+    debts.push({ type: "Tarjeta de crédito", balance: creditCardDebt });
   }
   if (loansTotal > 0) {
-    debts.push({ type: 'Préstamos', balance: loansTotal });
+    debts.push({ type: "Préstamos", balance: loansTotal });
   }
 
   // ── Enrich with cartola data when fintoc is sparse ──
@@ -239,7 +238,8 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
   try {
     // Fuente de verdad: tabla `transactions` (no parsed_data). El saldo reportado
     // sigue siendo el único origen para "saldo actual" (snapshot del banco).
-    const { getUserNormalizedTransactions, getReportedBalance } = await import("./normalizedTransactions.js");
+    const { getUserNormalizedTransactions, getReportedBalance } =
+      await import("./normalizedTransactions.js");
     const { transactions: cartolaTxs } = await getUserNormalizedTransactions(userId);
     if (cartolaTxs.length > 0) {
       let cartolaIncome = 0;
@@ -304,9 +304,8 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
     // Non-critical: continue without cartola enrichment
   }
 
-  const finalSavingsRate = finalIncome > 0
-    ? Math.round(((finalIncome - finalExpenses) / finalIncome) * 100)
-    : savingsRate;
+  const finalSavingsRate =
+    finalIncome > 0 ? Math.round(((finalIncome - finalExpenses) / finalIncome) * 100) : savingsRate;
 
   return {
     totalBalance: Math.round(finalBalance),
@@ -317,14 +316,22 @@ async function buildFinancialContextUncached(userId: string): Promise<FinancialC
     creditScore: creditScoreData?.score ?? undefined,
     topSpendingCategories: finalSpendingCategories,
     recentTransactions: recentTxForAI,
-    financialGoals: goals.slice(0, 5).map((g: { name?: string; currentAmount?: number; targetAmount?: number }) => ({
-      name: g?.name ?? "Meta",
-      progress: Math.round(((g?.currentAmount ?? 0) / (g?.targetAmount || 1)) * 100),
-    })),
+    financialGoals: goals
+      .slice(0, 5)
+      .map((g: { name?: string; currentAmount?: number; targetAmount?: number }) => ({
+        name: g?.name ?? "Meta",
+        progress: Math.round(((g?.currentAmount ?? 0) / (g?.targetAmount || 1)) * 100),
+      })),
     debts: debts.length > 0 ? debts : undefined,
-    accountSummary: (checkingTotal > 0 || savingsTotal > 0 || creditCardDebt > 0 || investmentsTotal > 0)
-      ? { checking: Math.round(checkingTotal), savings: Math.round(savingsTotal), credit: Math.round(creditCardDebt), investment: Math.round(investmentsTotal) }
-      : undefined,
+    accountSummary:
+      checkingTotal > 0 || savingsTotal > 0 || creditCardDebt > 0 || investmentsTotal > 0
+        ? {
+            checking: Math.round(checkingTotal),
+            savings: Math.round(savingsTotal),
+            credit: Math.round(creditCardDebt),
+            investment: Math.round(investmentsTotal),
+          }
+        : undefined,
     userSummary: memorySummary?.summary,
   };
 }

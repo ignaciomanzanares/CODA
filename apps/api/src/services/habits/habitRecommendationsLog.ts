@@ -5,29 +5,29 @@
  * ciclo posterior, `getHabitProgress` compara el snapshot contra el estado actual para el
  * MÉTRICO que cada hábito busca mover (deuda, ahorro, mora), y reporta si mejoró.
  */
-import { randomUUID } from 'node:crypto';
-import { db, habitRecommendationsLog, eq, desc } from '../../db/index.js';
-import type { HealthEvaluationResult } from '../healthEvaluation/types.js';
-import type { HabitRecommendation } from './habitEngine.js';
-import { mlLogger as logger } from '../../logger.js';
+import { randomUUID } from "node:crypto";
+import { db, habitRecommendationsLog, eq, desc } from "../../db/index.js";
+import type { HealthEvaluationResult } from "../healthEvaluation/types.js";
+import type { HabitRecommendation } from "./habitEngine.js";
+import { mlLogger as logger } from "../../logger.js";
 
 /** Métrica objetivo de cada hábito y la dirección que cuenta como mejora. */
-type Metric = 'deudaFlujo' | 'deudaActivos' | 'ahorroIngreso' | 'diasMora' | 'nivel';
-const HABIT_TARGET: Record<string, { metric: Metric; betterWhen: 'lower' | 'higher' }> = {
-  atender_mora: { metric: 'diasMora', betterWhen: 'lower' },
-  reducir_deuda_activos: { metric: 'deudaActivos', betterWhen: 'lower' },
-  reducir_deuda_alta: { metric: 'deudaFlujo', betterWhen: 'lower' },
-  reducir_deuda_moderada: { metric: 'deudaFlujo', betterWhen: 'lower' },
-  aumentar_ahorro: { metric: 'ahorroIngreso', betterWhen: 'higher' },
-  mantener_ahorro: { metric: 'ahorroIngreso', betterWhen: 'higher' },
-  fondo_emergencia: { metric: 'nivel', betterWhen: 'higher' },
-  diversificar_inversion: { metric: 'nivel', betterWhen: 'higher' },
-  mantener_buen_habito: { metric: 'nivel', betterWhen: 'higher' },
-  reducir_deuda: { metric: 'deudaFlujo', betterWhen: 'lower' },
+type Metric = "deudaFlujo" | "deudaActivos" | "ahorroIngreso" | "diasMora" | "nivel";
+const HABIT_TARGET: Record<string, { metric: Metric; betterWhen: "lower" | "higher" }> = {
+  atender_mora: { metric: "diasMora", betterWhen: "lower" },
+  reducir_deuda_activos: { metric: "deudaActivos", betterWhen: "lower" },
+  reducir_deuda_alta: { metric: "deudaFlujo", betterWhen: "lower" },
+  reducir_deuda_moderada: { metric: "deudaFlujo", betterWhen: "lower" },
+  aumentar_ahorro: { metric: "ahorroIngreso", betterWhen: "higher" },
+  mantener_ahorro: { metric: "ahorroIngreso", betterWhen: "higher" },
+  fondo_emergencia: { metric: "nivel", betterWhen: "higher" },
+  diversificar_inversion: { metric: "nivel", betterWhen: "higher" },
+  mantener_buen_habito: { metric: "nivel", betterWhen: "higher" },
+  reducir_deuda: { metric: "deudaFlujo", betterWhen: "lower" },
 };
 
 function metricValue(metric: Metric, result: HealthEvaluationResult): number {
-  if (metric === 'nivel') return result.nivel;
+  if (metric === "nivel") return result.nivel;
   return result.ratios[metric] as number;
 }
 
@@ -53,7 +53,10 @@ export async function logHabitRecommendations(
       })),
     );
   } catch (e) {
-    logger.warn({ err: e, userId }, '[habitRecommendationsLog] no se pudo registrar snapshot (no fatal)');
+    logger.warn(
+      { err: e, userId },
+      "[habitRecommendationsLog] no se pudo registrar snapshot (no fatal)",
+    );
   }
 }
 
@@ -97,12 +100,20 @@ export async function getHabitProgress(
     const target = HABIT_TARGET[habitKey];
     if (!target) continue;
     const before =
-      target.metric === 'nivel'
-        ? snap.nivel ?? 0
-        : (snap[target.metric as 'deudaFlujo' | 'deudaActivos' | 'ahorroIngreso' | 'diasMora'] ?? 0);
+      target.metric === "nivel"
+        ? (snap.nivel ?? 0)
+        : (snap[target.metric as "deudaFlujo" | "deudaActivos" | "ahorroIngreso" | "diasMora"] ??
+          0);
     const after = metricValue(target.metric, current);
-    const improved = target.betterWhen === 'lower' ? after < before : after > before;
-    progress.push({ habitKey, metric: target.metric, before, after, improved, recommendedAt: snap.createdAt });
+    const improved = target.betterWhen === "lower" ? after < before : after > before;
+    progress.push({
+      habitKey,
+      metric: target.metric,
+      before,
+      after,
+      improved,
+      recommendedAt: snap.createdAt,
+    });
   }
   return progress;
 }

@@ -1,9 +1,9 @@
 /**
  * Balance Sheet Generator
- * 
+ *
  * Generates balance sheet from journal entries and account balances.
  * Groups into assets, liabilities, and equity.
- * 
+ *
  * ASSUMPTIONS:
  * - Chilean IFRS-based chart of accounts
  * - Account codes:
@@ -16,7 +16,7 @@
  *   - 3xxx: Equity
  */
 
-import type { BalanceSheet, BalanceSheetSection, LineItem } from '../types.js';
+import type { BalanceSheet, BalanceSheetSection, LineItem } from "../types.js";
 
 // =============================================================================
 // INPUT TYPES
@@ -37,12 +37,12 @@ export interface AccountBalanceInput {
  */
 export function generateBalanceSheet(
   accounts: AccountBalanceInput[],
-  asOfDate: string
+  asOfDate: string,
 ): BalanceSheet {
   // Separate by type
-  const assets = accounts.filter(a => a.accountCode.startsWith('1'));
-  const liabilities = accounts.filter(a => a.accountCode.startsWith('2'));
-  const equity = accounts.filter(a => a.accountCode.startsWith('3'));
+  const assets = accounts.filter((a) => a.accountCode.startsWith("1"));
+  const liabilities = accounts.filter((a) => a.accountCode.startsWith("2"));
+  const equity = accounts.filter((a) => a.accountCode.startsWith("3"));
 
   // Build sections
   const assetsSection = buildAssetSection(assets);
@@ -64,11 +64,11 @@ export function generateBalanceSheet(
  */
 function buildAssetSection(accounts: AccountBalanceInput[]): BalanceSheetSection {
   const current = accounts
-    .filter(a => parseInt(a.accountCode.substring(0, 2)) <= 14)
+    .filter((a) => parseInt(a.accountCode.substring(0, 2)) <= 14)
     .map(toLineItem);
 
   const nonCurrent = accounts
-    .filter(a => parseInt(a.accountCode.substring(0, 2)) > 14)
+    .filter((a) => parseInt(a.accountCode.substring(0, 2)) > 14)
     .map(toLineItem);
 
   const totalCurrent = sumBalances(current);
@@ -88,11 +88,11 @@ function buildAssetSection(accounts: AccountBalanceInput[]): BalanceSheetSection
  */
 function buildLiabilitySection(accounts: AccountBalanceInput[]): BalanceSheetSection {
   const current = accounts
-    .filter(a => parseInt(a.accountCode.substring(0, 2)) <= 24)
+    .filter((a) => parseInt(a.accountCode.substring(0, 2)) <= 24)
     .map(toLineItem);
 
   const nonCurrent = accounts
-    .filter(a => parseInt(a.accountCode.substring(0, 2)) > 24)
+    .filter((a) => parseInt(a.accountCode.substring(0, 2)) > 24)
     .map(toLineItem);
 
   const totalCurrent = sumBalances(current);

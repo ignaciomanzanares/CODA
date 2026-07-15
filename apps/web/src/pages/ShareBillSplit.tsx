@@ -1,26 +1,39 @@
-import { useState } from 'react';
-import { useParams, useLocation } from 'wouter';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/lib/auth';
-import { useApi } from '@/lib/api.tsx';
-import { apiFetch } from '@/lib/api';
-import { ROUTES, rutaDividirPublico } from '@/lib/routes';
-import { formatCurrency } from '@/lib/utils';
-import { 
-  Receipt, 
-  Users, 
-  Check, 
-  Clock, 
-  CreditCard, 
+import { useState } from "react";
+import { useParams, useLocation } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
+import { apiFetch } from "@/lib/api";
+import { ROUTES, rutaDividirPublico } from "@/lib/routes";
+import { formatCurrency } from "@/lib/utils";
+import {
+  Receipt,
+  Users,
+  Check,
+  Clock,
+  CreditCard,
   DollarSign,
   ExternalLink,
   CheckCircle,
@@ -28,8 +41,8 @@ import {
   AlertCircle,
   PartyPopper,
   UserPlus,
-  LogIn
-} from 'lucide-react';
+  LogIn,
+} from "lucide-react";
 
 interface Participant {
   id: number;
@@ -57,54 +70,70 @@ interface SharedBillSplit {
   };
 }
 
-
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric',
-    year: 'numeric'
+  return new Date(dateString).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
   });
 };
 
 const getInitials = (name: string) => {
-  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 };
 
 // Payment method buttons with external links
 const PaymentMethods = [
-  { id: 'venmo', name: 'Venmo', icon: '💸', color: 'bg-blue-500', url: 'https://venmo.com/' },
-  { id: 'paypal', name: 'PayPal', icon: '🅿️', color: 'bg-blue-600', url: 'https://paypal.me/' },
-  { id: 'zelle', name: 'Zelle', icon: '⚡', color: 'bg-purple-600', url: 'https://www.zellepay.com/' },
-  { id: 'cashapp', name: 'Cash App', icon: '💵', color: 'bg-green-500', url: 'https://cash.app/' },
-  { id: 'cash', name: 'Cash', icon: '💰', color: 'bg-gray-600', url: null },
+  { id: "venmo", name: "Venmo", icon: "💸", color: "bg-blue-500", url: "https://venmo.com/" },
+  { id: "paypal", name: "PayPal", icon: "🅿️", color: "bg-blue-600", url: "https://paypal.me/" },
+  {
+    id: "zelle",
+    name: "Zelle",
+    icon: "⚡",
+    color: "bg-purple-600",
+    url: "https://www.zellepay.com/",
+  },
+  { id: "cashapp", name: "Cash App", icon: "💵", color: "bg-green-500", url: "https://cash.app/" },
+  { id: "cash", name: "Cash", icon: "💰", color: "bg-gray-600", url: null },
 ];
 
 export default function ShareBillSplit() {
   const params = useParams<{ codigo?: string; code?: string }>();
-  const code = params.codigo ?? params.code ?? '';
+  const code = params.codigo ?? params.code ?? "";
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isAuthenticated, user } = useAuth();
   // Montos del backend están en CLP; en el link de pago siempre mostramos CLP (sin conversión a USD)
-  const formatAmount = (amount: number) => formatCurrency(amount, 'CLP', { sourceCurrency: 'CLP' });
-  
+  const formatAmount = (amount: number) => formatCurrency(amount, "CLP", { sourceCurrency: "CLP" });
+
   const [payingParticipant, setPayingParticipant] = useState<Participant | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
-  const [identifyName, setIdentifyName] = useState('');
+  const [identifyName, setIdentifyName] = useState("");
   const [showIdentifyDialog, setShowIdentifyDialog] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showJoinDialog, setShowJoinDialog] = useState(false);
-  const [selectedParticipantToJoin, setSelectedParticipantToJoin] = useState<Participant | null>(null);
+  const [selectedParticipantToJoin, setSelectedParticipantToJoin] = useState<Participant | null>(
+    null,
+  );
 
   // Fetch bill split data
-  const { data: billSplit, isLoading, error } = useQuery<SharedBillSplit>({
-    queryKey: ['shared-bill', code],
+  const {
+    data: billSplit,
+    isLoading,
+    error,
+  } = useQuery<SharedBillSplit>({
+    queryKey: ["shared-bill", code],
     queryFn: async () => {
       try {
         return await apiFetch(`/api/share/${code}`);
       } catch {
-        throw new Error('Cuenta dividida no encontrada');
+        throw new Error("Cuenta dividida no encontrada");
       }
     },
     refetchInterval: 5000, // Refresh every 5 seconds for real-time updates
@@ -112,32 +141,40 @@ export default function ShareBillSplit() {
 
   // Pay mutation
   const payMutation = useMutation({
-    mutationFn: async ({ participantId, name, paymentMethod }: { participantId: number; name: string; paymentMethod: string }) => {
+    mutationFn: async ({
+      participantId,
+      name,
+      paymentMethod,
+    }: {
+      participantId: number;
+      name: string;
+      paymentMethod: string;
+    }) => {
       try {
         return await apiFetch(`/api/share/${code}/pay`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ participantId, name, paymentMethod }),
         });
       } catch (error: any) {
-        throw new Error(error?.message || 'Error al registrar el pago');
+        throw new Error(error?.message || "Error al registrar el pago");
       }
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['shared-bill', code] });
+      queryClient.invalidateQueries({ queryKey: ["shared-bill", code] });
       setPayingParticipant(null);
       setSelectedPaymentMethod(null);
       setShowSuccessDialog(true);
       toast({
-        title: '¡Pago confirmado!',
+        title: "¡Pago confirmado!",
         description: data.message,
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error al registrar el pago',
+        title: "Error al registrar el pago",
         description: error.message,
-        variant: 'destructive',
+        variant: "destructive",
       });
     },
   });
@@ -147,31 +184,31 @@ export default function ShareBillSplit() {
     mutationFn: async ({ participantId }: { participantId: number }) => {
       try {
         return await apiFetch(`/api/share/${code}/join`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json'
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({ participantId }),
         });
       } catch (error: any) {
-        throw new Error(error?.message || 'Error al unir la cuenta');
+        throw new Error(error?.message || "Error al unir la cuenta");
       }
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['shared-bill', code] });
-      queryClient.invalidateQueries({ queryKey: ['/api/bill-splits'] });
+      queryClient.invalidateQueries({ queryKey: ["shared-bill", code] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bill-splits"] });
       setShowJoinDialog(false);
       setSelectedParticipantToJoin(null);
       toast({
-        title: '✅ ¡Unido correctamente!',
-        description: 'Esta cuenta se ha añadido a tu panel.',
+        title: "✅ ¡Unido correctamente!",
+        description: "Esta cuenta se ha añadido a tu panel.",
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error al unir',
+        title: "Error al unir",
         description: error.message,
-        variant: 'destructive',
+        variant: "destructive",
       });
     },
   });
@@ -193,7 +230,7 @@ export default function ShareBillSplit() {
 
   const handleConfirmPayment = () => {
     if (!payingParticipant || !selectedPaymentMethod) return;
-    
+
     payMutation.mutate({
       participantId: payingParticipant.id,
       name: identifyName || payingParticipant.name,
@@ -201,10 +238,10 @@ export default function ShareBillSplit() {
     });
   };
 
-  const handlePaymentMethodClick = (method: typeof PaymentMethods[0]) => {
+  const handlePaymentMethodClick = (method: (typeof PaymentMethods)[0]) => {
     setSelectedPaymentMethod(method.id);
     if (method.url) {
-      window.open(method.url, '_blank');
+      window.open(method.url, "_blank");
     }
   };
 
@@ -227,7 +264,8 @@ export default function ShareBillSplit() {
             <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
             <h2 className="text-xl font-bold mb-2">Cuenta dividida no encontrada</h2>
             <p className="text-muted-foreground">
-              Este enlace puede ser inválido o haber caducado. Pide al creador del gasto un nuevo enlace.
+              Este enlace puede ser inválido o haber caducado. Pide al creador del gasto un nuevo
+              enlace.
             </p>
           </CardContent>
         </Card>
@@ -288,7 +326,8 @@ export default function ShareBillSplit() {
               </div>
               <Progress value={billSplit.progress.percentPaid} className="h-3" />
               <p className="text-sm text-muted-foreground mt-2">
-                {formatAmount(billSplit.progress.totalPaid)} de {formatAmount(billSplit.totalAmount)} cobrado
+                {formatAmount(billSplit.progress.totalPaid)} de{" "}
+                {formatAmount(billSplit.totalAmount)} cobrado
               </p>
             </div>
 
@@ -300,35 +339,50 @@ export default function ShareBillSplit() {
               </h3>
               <div className="space-y-3">
                 {billSplit.participants.map((participant) => (
-                  <div 
-                    key={participant.id} 
+                  <div
+                    key={participant.id}
                     className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
-                      participant.isPaid 
-                        ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' 
-                        : 'bg-card border-border hover:border-primary/50'
+                      participant.isPaid
+                        ? "bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800"
+                        : "bg-card border-border hover:border-primary/50"
                     }`}
                   >
                     <div className="flex items-center gap-4">
-                      <Avatar className={`h-12 w-12 ${participant.isPaid ? 'ring-2 ring-green-500' : ''}`}>
-                        <AvatarFallback className={participant.isPaid ? 'bg-green-100 text-green-700' : 'bg-primary/10 text-primary'}>
-                          {participant.isPaid ? <Check className="h-5 w-5" /> : getInitials(participant.name)}
+                      <Avatar
+                        className={`h-12 w-12 ${participant.isPaid ? "ring-2 ring-green-500" : ""}`}
+                      >
+                        <AvatarFallback
+                          className={
+                            participant.isPaid
+                              ? "bg-green-100 text-green-700"
+                              : "bg-primary/10 text-primary"
+                          }
+                        >
+                          {participant.isPaid ? (
+                            <Check className="h-5 w-5" />
+                          ) : (
+                            getInitials(participant.name)
+                          )}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <p className="font-semibold text-lg">{participant.name}</p>
-                        <p className={`text-sm ${participant.isPaid ? 'text-green-600' : 'text-muted-foreground'}`}>
-                          {participant.isPaid ? '✓ Pagado' : 'Debe'} {formatAmount(participant.amountOwed)}
+                        <p
+                          className={`text-sm ${participant.isPaid ? "text-green-600" : "text-muted-foreground"}`}
+                        >
+                          {participant.isPaid ? "✓ Pagado" : "Debe"}{" "}
+                          {formatAmount(participant.amountOwed)}
                         </p>
                       </div>
                     </div>
-                    
+
                     {participant.isPaid ? (
                       <Badge className="bg-green-500 text-white px-4 py-2">
                         <CheckCircle className="h-4 w-4 mr-1" />
                         Pagado
                       </Badge>
                     ) : (
-                      <Button 
+                      <Button
                         size="lg"
                         onClick={() => handlePayClick(participant)}
                         className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
@@ -359,19 +413,19 @@ export default function ShareBillSplit() {
                       </p>
                     </div>
                   </div>
-                  <Button 
+                  <Button
                     variant="default"
                     onClick={() => {
                       // Find unpaid participant that matches user or let them choose
-                      const unpaidParticipants = billSplit.participants.filter(p => !p.isPaid);
+                      const unpaidParticipants = billSplit.participants.filter((p) => !p.isPaid);
                       if (unpaidParticipants.length === 1) {
                         handleJoinClick(unpaidParticipants[0]);
                       } else if (unpaidParticipants.length > 1) {
                         setShowJoinDialog(true);
                       } else {
                         toast({
-                          title: 'Ya está completo',
-                          description: 'Todos los participantes ya han pagado.',
+                          title: "Ya está completo",
+                          description: "Todos los participantes ya han pagado.",
                         });
                       }
                     }}
@@ -395,11 +449,11 @@ export default function ShareBillSplit() {
                       </p>
                     </div>
                   </div>
-                  <Button 
+                  <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      localStorage.setItem('redirectAfterLogin', `${rutaDividirPublico(code)}`);
+                      localStorage.setItem("redirectAfterLogin", `${rutaDividirPublico(code)}`);
                       navigate(ROUTES.iniciarSesion);
                     }}
                   >
@@ -409,7 +463,7 @@ export default function ShareBillSplit() {
                 </div>
               </div>
             )}
-            
+
             <p className="text-sm text-muted-foreground text-center">
               Haz clic en tu nombre arriba para marcar tu pago como completado.
               <br />
@@ -435,7 +489,8 @@ export default function ShareBillSplit() {
             <DialogDescription>
               {payingParticipant && (
                 <>
-                  Vas a pagar <strong>{formatAmount(payingParticipant.amountOwed)}</strong> por "{billSplit.name}"
+                  Vas a pagar <strong>{formatAmount(payingParticipant.amountOwed)}</strong> por "
+                  {billSplit.name}"
                 </>
               )}
             </DialogDescription>
@@ -453,7 +508,8 @@ export default function ShareBillSplit() {
                 className="mt-1"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Debe coincidir con el nombre en la cuenta: <strong>{payingParticipant?.name}</strong>
+                Debe coincidir con el nombre en la cuenta:{" "}
+                <strong>{payingParticipant?.name}</strong>
               </p>
             </div>
 
@@ -464,9 +520,9 @@ export default function ShareBillSplit() {
                 {PaymentMethods.map((method) => (
                   <Button
                     key={method.id}
-                    variant={selectedPaymentMethod === method.id ? 'default' : 'outline'}
+                    variant={selectedPaymentMethod === method.id ? "default" : "outline"}
                     className={`flex items-center justify-start gap-2 h-12 ${
-                      selectedPaymentMethod === method.id ? method.color + ' text-white' : ''
+                      selectedPaymentMethod === method.id ? method.color + " text-white" : ""
                     }`}
                     onClick={() => handlePaymentMethodClick(method)}
                   >
@@ -483,12 +539,20 @@ export default function ShareBillSplit() {
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setPayingParticipant(null)} className="w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={() => setPayingParticipant(null)}
+              className="w-full sm:w-auto"
+            >
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={handleConfirmPayment}
-              disabled={!selectedPaymentMethod || payMutation.isPending || identifyName.toLowerCase() !== payingParticipant?.name.toLowerCase()}
+              disabled={
+                !selectedPaymentMethod ||
+                payMutation.isPending ||
+                identifyName.toLowerCase() !== payingParticipant?.name.toLowerCase()
+              }
               className="w-full sm:w-auto"
             >
               {payMutation.isPending ? (
@@ -539,29 +603,31 @@ export default function ShareBillSplit() {
           </DialogHeader>
 
           <div className="space-y-3 py-4">
-            {billSplit?.participants.filter(p => !p.isPaid).map((participant) => (
-              <Button
-                key={participant.id}
-                variant={selectedParticipantToJoin?.id === participant.id ? 'default' : 'outline'}
-                className="w-full justify-start h-auto p-4"
-                onClick={() => setSelectedParticipantToJoin(participant)}
-              >
-                <Avatar className="h-10 w-10 mr-3">
-                  <AvatarFallback>{getInitials(participant.name)}</AvatarFallback>
-                </Avatar>
-                <div className="text-left">
-                  <p className="font-semibold">{participant.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Debe {formatAmount(participant.amountOwed)}
-                  </p>
-                </div>
-                {selectedParticipantToJoin?.id === participant.id && (
-                  <Check className="h-5 w-5 ml-auto" />
-                )}
-              </Button>
-            ))}
-            
-            {billSplit?.participants.filter(p => !p.isPaid).length === 0 && (
+            {billSplit?.participants
+              .filter((p) => !p.isPaid)
+              .map((participant) => (
+                <Button
+                  key={participant.id}
+                  variant={selectedParticipantToJoin?.id === participant.id ? "default" : "outline"}
+                  className="w-full justify-start h-auto p-4"
+                  onClick={() => setSelectedParticipantToJoin(participant)}
+                >
+                  <Avatar className="h-10 w-10 mr-3">
+                    <AvatarFallback>{getInitials(participant.name)}</AvatarFallback>
+                  </Avatar>
+                  <div className="text-left">
+                    <p className="font-semibold">{participant.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Debe {formatAmount(participant.amountOwed)}
+                    </p>
+                  </div>
+                  {selectedParticipantToJoin?.id === participant.id && (
+                    <Check className="h-5 w-5 ml-auto" />
+                  )}
+                </Button>
+              ))}
+
+            {billSplit?.participants.filter((p) => !p.isPaid).length === 0 && (
               <p className="text-center text-muted-foreground py-4">
                 Todos los participantes ya han pagado. Nada que unir.
               </p>
@@ -569,10 +635,14 @@ export default function ShareBillSplit() {
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setShowJoinDialog(false)} className="w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={() => setShowJoinDialog(false)}
+              className="w-full sm:w-auto"
+            >
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={handleConfirmJoin}
               disabled={!selectedParticipantToJoin || joinMutation.isPending}
               className="w-full sm:w-auto"

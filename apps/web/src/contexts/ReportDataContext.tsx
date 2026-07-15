@@ -36,7 +36,11 @@ interface ReportDataContextValue {
     documentRut?: string;
     cmfDeudaTotalVigente?: number;
   }) => void;
-  setReportIdentity: (data: { userName?: string; documentRut?: string; cmfDeudaTotalVigente?: number }) => void;
+  setReportIdentity: (data: {
+    userName?: string;
+    documentRut?: string;
+    cmfDeudaTotalVigente?: number;
+  }) => void;
 }
 
 const defaultContext: ReportDataContextValue = {
@@ -57,11 +61,7 @@ export function ReportDataProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const setTransactionalResult = useCallback(
-    (data: {
-      transactionalScore: number;
-      mainInsights: string[];
-      metrics?: ReportMetrics;
-    }) => {
+    (data: { transactionalScore: number; mainInsights: string[]; metrics?: ReportMetrics }) => {
       setReportData((prev) => ({
         ...prev,
         transactionalScore: data.transactionalScore,
@@ -69,7 +69,7 @@ export function ReportDataProvider({ children }: { children: React.ReactNode }) 
         metrics: data.metrics ?? prev.metrics,
       }));
     },
-    []
+    [],
   );
 
   const setUploadResult = useCallback(
@@ -88,10 +88,12 @@ export function ReportDataProvider({ children }: { children: React.ReactNode }) 
         }),
         ...(data.mainInsights != null && { mainInsights: data.mainInsights }),
         ...(data.documentRut != null && { documentRut: data.documentRut }),
-        ...(data.cmfDeudaTotalVigente != null && { cmfDeudaTotalVigente: data.cmfDeudaTotalVigente }),
+        ...(data.cmfDeudaTotalVigente != null && {
+          cmfDeudaTotalVigente: data.cmfDeudaTotalVigente,
+        }),
       }));
     },
-    []
+    [],
   );
 
   const setReportIdentity = useCallback(
@@ -100,10 +102,12 @@ export function ReportDataProvider({ children }: { children: React.ReactNode }) 
         ...prev,
         ...(data.userName != null && { userName: data.userName }),
         ...(data.documentRut != null && { documentRut: data.documentRut }),
-        ...(data.cmfDeudaTotalVigente != null && { cmfDeudaTotalVigente: data.cmfDeudaTotalVigente }),
+        ...(data.cmfDeudaTotalVigente != null && {
+          cmfDeudaTotalVigente: data.cmfDeudaTotalVigente,
+        }),
       }));
     },
-    []
+    [],
   );
 
   return (

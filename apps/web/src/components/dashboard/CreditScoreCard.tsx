@@ -2,15 +2,10 @@ import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, ShieldCheck, Info, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CreditScoreCardProps {
-  score: number | null;      // 0-850
+  score: number | null; // 0-850
   available: boolean;
   unavailableReason?: string | null;
   message?: string | null;
@@ -126,13 +121,17 @@ export default function CreditScoreCard({
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button type="button" className="text-muted-foreground/60 hover:text-muted-foreground transition-colors">
+                <button
+                  type="button"
+                  className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                >
                   <Info className="h-3.5 w-3.5" />
                   <span className="sr-only">Más información sobre el Score Crediticio</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[260px] text-xs leading-relaxed">
-                Basado en tu Informe de Deudas de la CMF. Refleja tu historial crediticio formal: deudas vigentes, morosidad y cantidad de acreedores. Escala de 0 a 850.
+                Basado en tu Informe de Deudas de la CMF. Refleja tu historial crediticio formal:
+                deudas vigentes, morosidad y cantidad de acreedores. Escala de 0 a 850.
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -146,11 +145,7 @@ export default function CreditScoreCard({
                 : "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400",
             )}
           >
-            {delta > 0 ? (
-              <TrendingUp className="h-3 w-3" />
-            ) : (
-              <TrendingDown className="h-3 w-3" />
-            )}
+            {delta > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
             {delta > 0 ? "+" : ""}
             {delta}
           </div>
@@ -158,13 +153,9 @@ export default function CreditScoreCard({
       </div>
 
       <div className="flex items-baseline gap-2">
-        <span className={cn("text-2xl font-bold tabular-nums", scoreColor(score))}>
-          {score}
-        </span>
+        <span className={cn("text-2xl font-bold tabular-nums", scoreColor(score))}>{score}</span>
         <span className="text-xs text-muted-foreground">/ 850</span>
-        <span className={cn("text-xs font-medium", scoreColor(score))}>
-          {scoreLabel(score)}
-        </span>
+        <span className={cn("text-xs font-medium", scoreColor(score))}>{scoreLabel(score)}</span>
       </div>
 
       {/* Mini progress bar */}
@@ -176,13 +167,12 @@ export default function CreditScoreCard({
       </div>
 
       {updatedLabel && (
-        <p className="text-[11px] text-muted-foreground">
-          Última actualización: {updatedLabel}
-        </p>
+        <p className="text-[11px] text-muted-foreground">Última actualización: {updatedLabel}</p>
       )}
       {sourceLabel && (
         <p className="text-[11px] text-muted-foreground">
-          Fuente: {sourceLabel}{sourceDateLabel ? ` · ${sourceDateLabel}` : ""}
+          Fuente: {sourceLabel}
+          {sourceDateLabel ? ` · ${sourceDateLabel}` : ""}
         </p>
       )}
     </div>

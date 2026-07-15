@@ -7,14 +7,32 @@ import { useHealthEvaluation, type HealthLevel } from "@/hooks/useHealthEvaluati
 
 // Misma paleta que el termómetro de components/health/HealthLevelCard.tsx
 const NIVEL_STYLE: Record<HealthLevel, { bar: string; chip: string }> = {
-  5:    { bar: "bg-emerald-700", chip: "bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300" },
-  4:    { bar: "bg-emerald-600", chip: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" },
-  3:    { bar: "bg-emerald-500", chip: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" },
-  2:    { bar: "bg-green-400",   chip: "bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400" },
-  1:    { bar: "bg-yellow-400",  chip: "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400" },
-  0:    { bar: "bg-orange-400",  chip: "bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400" },
-  [-1]: { bar: "bg-red-400",     chip: "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400" },
-  [-2]: { bar: "bg-red-700",     chip: "bg-red-50 text-red-800 dark:bg-red-500/10 dark:text-red-300" },
+  5: {
+    bar: "bg-emerald-700",
+    chip: "bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300",
+  },
+  4: {
+    bar: "bg-emerald-600",
+    chip: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
+  },
+  3: {
+    bar: "bg-emerald-500",
+    chip: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
+  },
+  2: {
+    bar: "bg-green-400",
+    chip: "bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400",
+  },
+  1: {
+    bar: "bg-yellow-400",
+    chip: "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400",
+  },
+  0: {
+    bar: "bg-orange-400",
+    chip: "bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400",
+  },
+  [-1]: { bar: "bg-red-400", chip: "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400" },
+  [-2]: { bar: "bg-red-700", chip: "bg-red-50 text-red-800 dark:bg-red-500/10 dark:text-red-300" },
 };
 
 function CardChrome({ children }: { children: React.ReactNode }) {
@@ -67,13 +85,14 @@ export default function HealthSummaryCard() {
 
   if (!data?.hasData) {
     const missing = data?.missingData;
-    const copy = missing?.cartola && missing?.cmf
-      ? "Sube tu cartola e informe CMF para evaluar tu salud financiera."
-      : missing?.cmf
-        ? "Falta tu informe CMF para evaluar tu salud financiera."
-        : missing?.cartola
-          ? "Falta una cartola bancaria para evaluar tu salud financiera."
-          : "Necesitamos algunos documentos para evaluar tu salud financiera.";
+    const copy =
+      missing?.cartola && missing?.cmf
+        ? "Sube tu cartola e informe CMF para evaluar tu salud financiera."
+        : missing?.cmf
+          ? "Falta tu informe CMF para evaluar tu salud financiera."
+          : missing?.cartola
+            ? "Falta una cartola bancaria para evaluar tu salud financiera."
+            : "Necesitamos algunos documentos para evaluar tu salud financiera.";
     return (
       <CardChrome>
         <Header
@@ -116,7 +135,12 @@ export default function HealthSummaryCard() {
     <CardChrome>
       <Header
         chip={
-          <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap", style.chip)}>
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+              style.chip,
+            )}
+          >
             Nivel {nivel > 0 ? `+${nivel}` : nivel}
           </span>
         }

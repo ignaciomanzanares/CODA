@@ -43,8 +43,7 @@ function parseMaxAgeMs(): number {
   const m = /^(\d+)\s*([smhd])$/.exec(raw);
   if (!m) return DEFAULT_MAX_AGE_MS;
   const n = Number(m[1]);
-  const mult =
-    m[2] === "s" ? 1000 : m[2] === "m" ? 60_000 : m[2] === "h" ? 3_600_000 : 86_400_000;
+  const mult = m[2] === "s" ? 1000 : m[2] === "m" ? 60_000 : m[2] === "h" ? 3_600_000 : 86_400_000;
   return n * mult;
 }
 

@@ -66,10 +66,7 @@ import i18n from "@/i18n";
 // Constants
 // ──────────────────────────────────────────────────────────────
 
-const PRIVACY_LABELS: Record<
-  PrivacyPurposeKey,
-  { title: string; description: string }
-> = {
+const PRIVACY_LABELS: Record<PrivacyPurposeKey, { title: string; description: string }> = {
   data_processing: {
     title: "Tratamiento de datos personales",
     description: "Uso de tus datos de cuenta y perfil para operar el servicio.",
@@ -170,13 +167,24 @@ export default function Profile() {
         const ok = await subscribeToPush();
         if (ok) {
           setPushSubscribed(true);
-          toast({ title: "Notificaciones push activadas", description: "Recibirás alertas incluso con la app cerrada." });
+          toast({
+            title: "Notificaciones push activadas",
+            description: "Recibirás alertas incluso con la app cerrada.",
+          });
         } else {
           const perm = getPushPermission();
           if (perm === "denied") {
-            toast({ title: "Permiso denegado", description: "Habilita las notificaciones desde la configuración de tu navegador.", variant: "destructive" });
+            toast({
+              title: "Permiso denegado",
+              description: "Habilita las notificaciones desde la configuración de tu navegador.",
+              variant: "destructive",
+            });
           } else {
-            toast({ title: "No se pudo activar", description: "Intenta nuevamente.", variant: "destructive" });
+            toast({
+              title: "No se pudo activar",
+              description: "Intenta nuevamente.",
+              variant: "destructive",
+            });
           }
         }
       }
@@ -190,7 +198,10 @@ export default function Profile() {
     try {
       const result = await sendTestPush();
       if (result.ok && result.devicesSent > 0) {
-        toast({ title: "Push de prueba enviado", description: "Deberías recibir una notificación en breve." });
+        toast({
+          title: "Push de prueba enviado",
+          description: "Deberías recibir una notificación en breve.",
+        });
       } else if (result.ok) {
         setPushSubscribed(false);
         toast({
@@ -218,7 +229,7 @@ export default function Profile() {
           email: profile.email || "",
           timezone: profile.timezone || "America/Santiago",
           language: lang,
-          createdAt: (profile as Record<string, unknown>).createdAt as string | null ?? null,
+          createdAt: ((profile as Record<string, unknown>).createdAt as string | null) ?? null,
         });
         void i18n.changeLanguage(lang === "English" ? "en" : "es");
       } catch {
@@ -247,7 +258,9 @@ export default function Profile() {
       setPrivacyPanel(p);
       privacyLoadedRef.current = true;
     } catch (e) {
-      setPrivacyConsentError(e instanceof Error ? e.message : "No se pudieron cargar los consentimientos");
+      setPrivacyConsentError(
+        e instanceof Error ? e.message : "No se pudieron cargar los consentimientos",
+      );
     } finally {
       setPrivacyLoading(false);
     }
@@ -265,9 +278,15 @@ export default function Profile() {
     if (!isAuthenticated) return;
     let cancelled = false;
     getMFAStatus()
-      .then((s) => { if (!cancelled) setMfaEnrolled(!!s.enrolled); })
-      .catch(() => { if (!cancelled) setMfaEnrolled(false); });
-    return () => { cancelled = true; };
+      .then((s) => {
+        if (!cancelled) setMfaEnrolled(!!s.enrolled);
+      })
+      .catch(() => {
+        if (!cancelled) setMfaEnrolled(false);
+      });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
@@ -277,7 +296,9 @@ export default function Profile() {
     async (purpose: PrivacyPurposeKey, checked: boolean) => {
       setPrivacyBusy(purpose);
       try {
-        const r = checked ? await acceptPrivacyPurpose(purpose) : await revokePrivacyPurpose(purpose);
+        const r = checked
+          ? await acceptPrivacyPurpose(purpose)
+          : await revokePrivacyPurpose(purpose);
         setPrivacyPanel(r);
         toast({
           title: checked ? "Consentimiento registrado" : "Revocación registrada",
@@ -293,7 +314,7 @@ export default function Profile() {
         setPrivacyBusy(null);
       }
     },
-    [acceptPrivacyPurpose, revokePrivacyPurpose, toast]
+    [acceptPrivacyPurpose, revokePrivacyPurpose, toast],
   );
 
   const handleProfileUpdate = async () => {
@@ -312,7 +333,11 @@ export default function Profile() {
       setIsEditing(false);
       toast({ title: "Perfil actualizado", description: "Tus datos se guardaron correctamente." });
     } catch {
-      toast({ title: "Error al actualizar", description: "No se pudo guardar. Intenta de nuevo.", variant: "destructive" });
+      toast({
+        title: "Error al actualizar",
+        description: "No se pudo guardar. Intenta de nuevo.",
+        variant: "destructive",
+      });
     } finally {
       setSavingProfile(false);
     }
@@ -341,7 +366,8 @@ export default function Profile() {
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "No se pudieron guardar las preferencias.",
+        description:
+          error instanceof Error ? error.message : "No se pudieron guardar las preferencias.",
         variant: "destructive",
       });
     } finally {
@@ -353,7 +379,10 @@ export default function Profile() {
     try {
       const result = await changePassword();
       const msg =
-        result && typeof result === "object" && "message" in result && typeof (result as { message?: string }).message === "string"
+        result &&
+        typeof result === "object" &&
+        "message" in result &&
+        typeof (result as { message?: string }).message === "string"
           ? (result as { message: string }).message
           : undefined;
       toast({
@@ -373,11 +402,18 @@ export default function Profile() {
     setMfaBusy(true);
     try {
       const r = await enableTwoFactor();
-      toast({ title: "2FA activado", description: r?.message ?? "La autenticación en dos pasos quedó habilitada." });
+      toast({
+        title: "2FA activado",
+        description: r?.message ?? "La autenticación en dos pasos quedó habilitada.",
+      });
       const s = await getMFAStatus();
       setMfaEnrolled(!!s.enrolled);
     } catch (error) {
-      toast({ title: "Error", description: error instanceof Error ? error.message : "No se pudo activar 2FA.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo activar 2FA.",
+        variant: "destructive",
+      });
     } finally {
       setMfaBusy(false);
     }
@@ -387,10 +423,17 @@ export default function Profile() {
     setMfaBusy(true);
     try {
       const r = await disableTwoFactor();
-      toast({ title: "2FA desactivado", description: r?.message ?? "Ya no se pedirá segundo factor al iniciar sesión." });
+      toast({
+        title: "2FA desactivado",
+        description: r?.message ?? "Ya no se pedirá segundo factor al iniciar sesión.",
+      });
       setMfaEnrolled(false);
     } catch (error) {
-      toast({ title: "Error", description: error instanceof Error ? error.message : "No se pudo desactivar 2FA.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo desactivar 2FA.",
+        variant: "destructive",
+      });
     } finally {
       setMfaBusy(false);
     }
@@ -409,7 +452,11 @@ export default function Profile() {
       });
       setTimeout(() => logout("personal"), localOnly ? 1500 : 2000);
     } catch {
-      toast({ title: "Error", description: "No se pudo eliminar la cuenta. Intenta de nuevo.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la cuenta. Intenta de nuevo.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -454,7 +501,10 @@ export default function Profile() {
   };
 
   const memberSince = profileData.createdAt
-    ? new Date(profileData.createdAt).toLocaleDateString("es-CL", { month: "long", year: "numeric" })
+    ? new Date(profileData.createdAt).toLocaleDateString("es-CL", {
+        month: "long",
+        year: "numeric",
+      })
     : null;
 
   // ── Render ──
@@ -462,14 +512,11 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background">
       <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
-
         {/* ── Header ── */}
         <div className="flex items-start gap-4">
           <PastelIcon icon={User} color="indigo" size="md" />
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Configuración
-            </h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Configuración</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Gestiona tu cuenta, seguridad y preferencias
             </p>
@@ -518,7 +565,6 @@ export default function Profile() {
 
         {/* ── Body: sidebar nav + content ── */}
         <div className="flex flex-col lg:flex-row gap-6">
-
           {/* Sidebar nav */}
           <nav className="lg:w-56 shrink-0 relative">
             <div className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 scrollbar-none scroll-smooth">
@@ -543,15 +589,18 @@ export default function Profile() {
 
           {/* Content */}
           <div className="flex-1 min-w-0 space-y-6">
-
             {/* ────── PROFILE ────── */}
             {activeSection === "profile" && (
               <Card className="rounded-2xl">
                 <CardContent className="p-6 space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-semibold text-foreground">Información personal</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">Tu nombre y datos de contacto</p>
+                      <h3 className="text-lg font-semibold text-foreground">
+                        Información personal
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Tu nombre y datos de contacto
+                      </p>
                     </div>
                     <Button
                       variant={isEditing ? "default" : "outline"}
@@ -568,7 +617,9 @@ export default function Profile() {
                       <Input
                         id="displayName"
                         value={profileData.displayName}
-                        onChange={(e) => setProfileData({ ...profileData, displayName: e.target.value })}
+                        onChange={(e) =>
+                          setProfileData({ ...profileData, displayName: e.target.value })
+                        }
                         disabled={!isEditing}
                         className="rounded-xl"
                       />
@@ -589,8 +640,16 @@ export default function Profile() {
                   </div>
 
                   {isEditing && (
-                    <Button onClick={handleProfileUpdate} disabled={savingProfile} className="gap-2">
-                      {savingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    <Button
+                      onClick={handleProfileUpdate}
+                      disabled={savingProfile}
+                      className="gap-2"
+                    >
+                      {savingProfile ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4" />
+                      )}
                       Guardar cambios
                     </Button>
                   )}
@@ -606,7 +665,9 @@ export default function Profile() {
                   <CardContent className="p-6 space-y-5">
                     <div>
                       <h3 className="text-lg font-semibold text-foreground">Contraseña</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">Gestiona tu contraseña de acceso</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Gestiona tu contraseña de acceso
+                      </p>
                     </div>
                     <div className="flex items-center justify-between rounded-xl border border-border p-4">
                       <div className="flex items-center gap-3">
@@ -615,7 +676,9 @@ export default function Profile() {
                         </div>
                         <div>
                           <p className="text-sm font-medium text-foreground">••••••••</p>
-                          <p className="text-xs text-muted-foreground">Última actualización desconocida</p>
+                          <p className="text-xs text-muted-foreground">
+                            Última actualización desconocida
+                          </p>
                         </div>
                       </div>
                       <Button variant="outline" size="sm" onClick={handlePasswordChange}>
@@ -629,21 +692,27 @@ export default function Profile() {
                 <Card className="rounded-2xl">
                   <CardContent className="p-6 space-y-5">
                     <div>
-                      <h3 className="text-lg font-semibold text-foreground">Autenticación en dos pasos</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">Añade una capa extra de seguridad a tu cuenta</p>
+                      <h3 className="text-lg font-semibold text-foreground">
+                        Autenticación en dos pasos
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Añade una capa extra de seguridad a tu cuenta
+                      </p>
                     </div>
                     <div className="flex items-center justify-between rounded-xl border border-border p-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                          mfaEnrolled
-                            ? "bg-emerald-50 dark:bg-emerald-500/10"
-                            : "bg-muted"
-                        }`}>
-                          <Shield className={`h-4 w-4 ${
-                            mfaEnrolled
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-muted-foreground"
-                          }`} />
+                        <div
+                          className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+                            mfaEnrolled ? "bg-emerald-50 dark:bg-emerald-500/10" : "bg-muted"
+                          }`}
+                        >
+                          <Shield
+                            className={`h-4 w-4 ${
+                              mfaEnrolled
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-muted-foreground"
+                            }`}
+                          />
                         </div>
                         <div>
                           <p className="text-sm font-medium text-foreground">
@@ -676,7 +745,8 @@ export default function Profile() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>¿Desactivar 2FA?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Tu cuenta será menos segura. Solo hazlo si reconoces este dispositivo.
+                                Tu cuenta será menos segura. Solo hazlo si reconoces este
+                                dispositivo.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -697,7 +767,9 @@ export default function Profile() {
                   <CardContent className="p-6 space-y-5">
                     <div>
                       <h3 className="text-lg font-semibold text-foreground">Sesiones activas</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">Dispositivos conectados a tu cuenta</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Dispositivos conectados a tu cuenta
+                      </p>
                     </div>
                     <div className="flex items-center justify-between rounded-xl border border-border p-4">
                       <div className="flex items-center gap-3">
@@ -728,8 +800,12 @@ export default function Profile() {
                 <Card className="rounded-2xl">
                   <CardContent className="p-6 space-y-5">
                     <div>
-                      <h3 className="text-lg font-semibold text-foreground">Idioma y zona horaria</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">Personaliza cómo ves la información</p>
+                      <h3 className="text-lg font-semibold text-foreground">
+                        Idioma y zona horaria
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Personaliza cómo ves la información
+                      </p>
                     </div>
 
                     <div className="grid gap-5 sm:grid-cols-2">
@@ -747,7 +823,9 @@ export default function Profile() {
                             <SelectItem value="English">English (parcial)</SelectItem>
                           </SelectContent>
                         </Select>
-                        <p className="text-xs text-muted-foreground">La app está principalmente en español</p>
+                        <p className="text-xs text-muted-foreground">
+                          La app está principalmente en español
+                        </p>
                       </div>
                       <div className="space-y-2">
                         <Label>Zona horaria</Label>
@@ -762,7 +840,9 @@ export default function Profile() {
                             <SelectItem value="America/Santiago">Chile (Santiago)</SelectItem>
                             <SelectItem value="America/Punta_Arenas">Chile (Magallanes)</SelectItem>
                             <SelectItem value="Pacific/Easter">Chile (Isla de Pascua)</SelectItem>
-                            <SelectItem value="America/Argentina/Buenos_Aires">Argentina</SelectItem>
+                            <SelectItem value="America/Argentina/Buenos_Aires">
+                              Argentina
+                            </SelectItem>
                             <SelectItem value="America/Bogota">Colombia</SelectItem>
                             <SelectItem value="America/Lima">Perú</SelectItem>
                             <SelectItem value="America/Mexico_City">México</SelectItem>
@@ -784,12 +864,22 @@ export default function Profile() {
                             <SelectItem value="USD">Dólares (USD)</SelectItem>
                           </SelectContent>
                         </Select>
-                        <p className="text-xs text-muted-foreground">Se aplica a todos los montos en la app</p>
+                        <p className="text-xs text-muted-foreground">
+                          Se aplica a todos los montos en la app
+                        </p>
                       </div>
                     </div>
 
-                    <Button onClick={() => void handleSavePreferences()} disabled={savingPrefs} className="gap-2">
-                      {savingPrefs ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    <Button
+                      onClick={() => void handleSavePreferences()}
+                      disabled={savingPrefs}
+                      className="gap-2"
+                    >
+                      {savingPrefs ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4" />
+                      )}
                       Guardar preferencias
                     </Button>
                   </CardContent>
@@ -800,22 +890,26 @@ export default function Profile() {
                   <CardContent className="p-6 space-y-5">
                     <div>
                       <h3 className="text-lg font-semibold text-foreground">Notificaciones</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">Controla cómo y cuándo te avisamos</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Controla cómo y cuándo te avisamos
+                      </p>
                     </div>
 
                     {/* Push */}
                     <div className="flex items-center justify-between rounded-xl border border-border p-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                          pushSubscribed
-                            ? "bg-blue-50 dark:bg-blue-500/10"
-                            : "bg-muted"
-                        }`}>
-                          <Bell className={`h-4 w-4 ${
-                            pushSubscribed
-                              ? "text-blue-600 dark:text-blue-400"
-                              : "text-muted-foreground"
-                          }`} />
+                        <div
+                          className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+                            pushSubscribed ? "bg-blue-50 dark:bg-blue-500/10" : "bg-muted"
+                          }`}
+                        >
+                          <Bell
+                            className={`h-4 w-4 ${
+                              pushSubscribed
+                                ? "text-blue-600 dark:text-blue-400"
+                                : "text-muted-foreground"
+                            }`}
+                          />
                         </div>
                         <div>
                           <p className="text-sm font-medium text-foreground">Notificaciones push</p>
@@ -862,7 +956,9 @@ export default function Profile() {
                 <Card className="rounded-2xl">
                   <CardContent className="p-6 space-y-5">
                     <div>
-                      <h3 className="text-lg font-semibold text-foreground">Consentimientos y privacidad</h3>
+                      <h3 className="text-lg font-semibold text-foreground">
+                        Consentimientos y privacidad
+                      </h3>
                       <p className="text-sm text-muted-foreground mt-0.5">
                         Finalidades según Ley 19.628 / CMF. Versión de política:{" "}
                         <span className="font-medium">{privacyPanel?.policyVersion ?? "—"}</span>
@@ -879,8 +975,12 @@ export default function Profile() {
                           <Globe className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-foreground">Conexiones bancarias (SFA)</p>
-                          <p className="text-xs text-muted-foreground">Consentimientos OAuth con tu banco</p>
+                          <p className="text-sm font-medium text-foreground">
+                            Conexiones bancarias (SFA)
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Consentimientos OAuth con tu banco
+                          </p>
                         </div>
                       </div>
                       <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
@@ -889,9 +989,15 @@ export default function Profile() {
                     {/* Error */}
                     {privacyConsentError && (
                       <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 space-y-2">
-                        <p className="text-sm text-destructive font-medium">No se pudieron cargar los consentimientos</p>
+                        <p className="text-sm text-destructive font-medium">
+                          No se pudieron cargar los consentimientos
+                        </p>
                         <p className="text-xs text-muted-foreground">{privacyConsentError}</p>
-                        <Button variant="outline" size="sm" onClick={() => void loadPrivacyConsents()}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void loadPrivacyConsents()}
+                        >
                           Reintentar
                         </Button>
                       </div>
@@ -909,15 +1015,20 @@ export default function Profile() {
                           const meta = PRIVACY_LABELS[row.purpose];
                           const busy = privacyBusy === row.purpose;
                           const isRequired =
-                            REGISTRATION_REQUIRED_PRIVACY_PURPOSES.includes(row.purpose) && row.accepted;
+                            REGISTRATION_REQUIRED_PRIVACY_PURPOSES.includes(row.purpose) &&
+                            row.accepted;
                           return (
                             <div
                               key={row.purpose}
                               className="flex items-center justify-between rounded-xl border border-border p-4 gap-4"
                             >
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-foreground">{meta?.title ?? row.purpose}</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">{meta?.description}</p>
+                                <p className="text-sm font-medium text-foreground">
+                                  {meta?.title ?? row.purpose}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {meta?.description}
+                                </p>
                                 {row.updatedAt && (
                                   <p className="text-[10px] text-muted-foreground mt-1">
                                     Último cambio:{" "}
@@ -935,11 +1046,15 @@ export default function Profile() {
                                 )}
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                {busy && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                                {busy && (
+                                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                )}
                                 <Switch
                                   checked={row.accepted}
                                   disabled={busy || isRequired}
-                                  onCheckedChange={(c) => handlePrivacyToggle(row.purpose, c === true)}
+                                  onCheckedChange={(c) =>
+                                    handlePrivacyToggle(row.purpose, c === true)
+                                  }
                                   aria-label={meta?.title ?? row.purpose}
                                 />
                               </div>
@@ -950,7 +1065,8 @@ export default function Profile() {
                     )}
 
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      Los cambios quedan registrados en servidor con versión de política, canal e IP.
+                      Los cambios quedan registrados en servidor con versión de política, canal e
+                      IP.
                     </p>
                   </CardContent>
                 </Card>
@@ -965,14 +1081,20 @@ export default function Profile() {
                   <CardContent className="p-6 space-y-5">
                     <div>
                       <h3 className="text-lg font-semibold text-foreground">Tu plan</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">Información sobre tu suscripción</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Información sobre tu suscripción
+                      </p>
                     </div>
                     <div className="rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 p-4 flex items-center justify-between">
                       <div>
                         <p className="font-semibold text-foreground">Plan Gratuito</p>
-                        <p className="text-sm text-muted-foreground mt-0.5">Acceso completo a todas las funciones</p>
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                          Acceso completo a todas las funciones
+                        </p>
                       </div>
-                      <Badge className="bg-primary/10 text-primary border-0 hover:bg-primary/10">Activo</Badge>
+                      <Badge className="bg-primary/10 text-primary border-0 hover:bg-primary/10">
+                        Activo
+                      </Badge>
                     </div>
                   </CardContent>
                 </Card>
@@ -983,7 +1105,8 @@ export default function Profile() {
                     <div>
                       <h3 className="text-lg font-semibold text-foreground">Exportar datos</h3>
                       <p className="text-sm text-muted-foreground mt-0.5">
-                        Descarga una copia de tus datos personales (derecho de portabilidad, Ley 19.628)
+                        Descarga una copia de tus datos personales (derecho de portabilidad, Ley
+                        19.628)
                       </p>
                     </div>
                     <Button
@@ -1007,7 +1130,9 @@ export default function Profile() {
                   <CardContent className="p-6 space-y-5">
                     <div>
                       <h3 className="text-lg font-semibold text-foreground">Acciones de cuenta</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">Cerrar sesión o eliminar tu cuenta</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Cerrar sesión o eliminar tu cuenta
+                      </p>
                     </div>
                     <div className="space-y-3">
                       <Button
@@ -1021,7 +1146,10 @@ export default function Profile() {
 
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="outline" className="w-full justify-start gap-2 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/20 hover:bg-red-50 dark:hover:bg-red-500/10">
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start gap-2 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/20 hover:bg-red-50 dark:hover:bg-red-500/10"
+                          >
                             <Trash2 className="h-4 w-4" />
                             Eliminar cuenta
                           </Button>
@@ -1030,8 +1158,8 @@ export default function Profile() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Eliminar cuenta</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Esta acción no se puede deshacer. Se eliminará tu cuenta de forma permanente
-                              y todos tus datos de nuestros servidores.
+                              Esta acción no se puede deshacer. Se eliminará tu cuenta de forma
+                              permanente y todos tus datos de nuestros servidores.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>

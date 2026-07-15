@@ -1,29 +1,28 @@
 /**
  * Algorithmic Traceability Service
- * 
+ *
  * Implements full audit trail for all credit scoring decisions.
  * Required for CMF compliance (NCG 502 Section IV - Risk Management).
- * 
+ *
  * Features:
  * - Log every credit score prediction
  * - Track model versions
  * - Store SHAP explainability
  * - Monitor model drift
  * - Handle user disputes
- * 
+ *
  * @author AI Assistant (Cursor)
  * @date 2026-03-02
  */
 
-import { randomUUID } from 'crypto';
-import type { CmfInformeDeudas } from '../documents/pdfAnalysis.js';
-import { db } from '../../db/index.js';
+import { randomUUID } from "crypto";
+import type { CmfInformeDeudas } from "../documents/pdfAnalysis.js";
+import { db } from "../../db/index.js";
 import {
   persistCreditPredictionFromLog,
-  ensureSeedTraceabilityModels,
   DEFAULT_CREDIT_MODEL_VERSION_ID,
   listActiveModelVersionsByType,
-} from './traceabilityPersistence.js';
+} from "./traceabilityPersistence.js";
 
 // ============================================================================
 // TYPES
@@ -31,7 +30,7 @@ import {
 
 export interface ModelVersion {
   id: string;
-  modelType: 'logistic_regression' | 'xgboost' | 'ensemble' | 'simple_rules';
+  modelType: "logistic_regression" | "xgboost" | "ensemble" | "simple_rules";
   version: string;
   deployedAt: Date;
   deployedBy: string;
@@ -52,28 +51,28 @@ export interface CreditScorePredictionLog {
   id: string;
   userId: string;
   requestId: string;
-  
+
   // Model used
   modelVersionId: string;
   modelVersion: string;
-  
+
   // Input data
   inputFeatures: Record<string, any>;
   cmfData?: Partial<CmfInformeDeudas>;
   sfaData?: any;
-  
+
   // Prediction output
   creditScore: number;
   probabilityDefault: number;
   riskCategory: string;
   confidence: number;
-  
+
   // Explainability
   shapValues?: Array<{
     feature: string;
     value: number;
     impact: number;
-    direction: 'positive' | 'negative';
+    direction: "positive" | "negative";
   }>;
   topFactors?: Array<{
     name: string;
@@ -81,7 +80,7 @@ export interface CreditScorePredictionLog {
     impact: number;
     explanation: string;
   }>;
-  
+
   // Metadata
   decisionTimestamp: Date;
   processingTimeMs?: number;
@@ -91,21 +90,21 @@ export interface CreditScorePredictionLog {
 
 export interface AlgorithmChange {
   id: string;
-  changeType: 'feature_addition' | 'model_update' | 'config_change' | 'bugfix';
-  component: 'credit_score' | 'transactional_score' | 'ensemble' | 'feature_engineering';
+  changeType: "feature_addition" | "model_update" | "config_change" | "bugfix";
+  component: "credit_score" | "transactional_score" | "ensemble" | "feature_engineering";
   title: string;
   description: string;
   technicalDetails?: string;
-  
+
   oldVersion?: string;
   newVersion: string;
-  
+
   expectedImpact?: string;
   affectedUsers?: number;
-  
+
   changesDiff?: Record<string, any>;
-  
-  status: 'pending' | 'approved' | 'rejected' | 'deployed' | 'rolled_back';
+
+  status: "pending" | "approved" | "rejected" | "deployed" | "rolled_back";
   requestedBy: string;
   approvedBy?: string;
   approvedAt?: Date;
@@ -126,31 +125,31 @@ class TraceabilityStore {
   private modelVersions: Map<string, ModelVersion> = new Map();
   private predictions: Map<string, CreditScorePredictionLog> = new Map();
   private algorithmChanges: Map<string, AlgorithmChange> = new Map();
-  
+
   // Current active model version
   private activeModelVersionId: string | null = null;
-  
+
   constructor() {
     // Initialize with default simple model version (ID fijo = fila en algorithm_model_versions)
     const defaultVersion: ModelVersion = {
       id: DEFAULT_CREDIT_MODEL_VERSION_ID,
-      modelType: 'simple_rules',
-      version: 'v1.0.0',
-      deployedAt: new Date('2026-01-01'),
-      deployedBy: 'system',
+      modelType: "simple_rules",
+      version: "v1.0.0",
+      deployedAt: new Date("2026-01-01"),
+      deployedBy: "system",
       isActive: true,
-      changelog: 'Initial simple rule-based credit scoring (CMF-only)',
+      changelog: "Initial simple rule-based credit scoring (CMF-only)",
     };
     this.modelVersions.set(defaultVersion.id, defaultVersion);
     this.activeModelVersionId = defaultVersion.id;
   }
-  
+
   // ========== MODEL VERSIONS ==========
-  
-  registerModelVersion(version: Omit<ModelVersion, 'id'>): string {
+
+  registerModelVersion(version: Omit<ModelVersion, "id">): string {
     const id = randomUUID();
     const modelVersion: ModelVersion = { id, ...version };
-    
+
     // Deactivate previous active version if new one is active
     if (modelVersion.isActive) {
       for (const [vId, v] of this.modelVersions.entries()) {
@@ -160,82 +159,82 @@ class TraceabilityStore {
       }
       this.activeModelVersionId = id;
     }
-    
+
     this.modelVersions.set(id, modelVersion);
     return id;
   }
-  
+
   getModelVersion(id: string): ModelVersion | undefined {
     return this.modelVersions.get(id);
   }
-  
+
   getActiveModelVersion(type?: string): ModelVersion | undefined {
     if (this.activeModelVersionId) {
       return this.modelVersions.get(this.activeModelVersionId);
     }
-    
+
     // Fallback: find any active version
     for (const version of this.modelVersions.values()) {
       if (version.isActive && (!type || version.modelType === type)) {
         return version;
       }
     }
-    
+
     return undefined;
   }
-  
+
   getAllModelVersions(): ModelVersion[] {
-    return Array.from(this.modelVersions.values())
-      .sort((a, b) => b.deployedAt.getTime() - a.deployedAt.getTime());
+    return Array.from(this.modelVersions.values()).sort(
+      (a, b) => b.deployedAt.getTime() - a.deployedAt.getTime(),
+    );
   }
-  
+
   // ========== PREDICTIONS ==========
-  
+
   /** El id ya viene persistido en Postgres (ver logCreditScorePrediction); aquí solo se cachea para lecturas rápidas. */
-  cachePrediction(id: string, log: Omit<CreditScorePredictionLog, 'id'>): void {
+  cachePrediction(id: string, log: Omit<CreditScorePredictionLog, "id">): void {
     const prediction: CreditScorePredictionLog = { id, ...log };
     this.predictions.set(id, prediction);
   }
-  
+
   getPrediction(id: string): CreditScorePredictionLog | undefined {
     return this.predictions.get(id);
   }
-  
+
   getUserPredictions(userId: string, limit: number = 100): CreditScorePredictionLog[] {
     return Array.from(this.predictions.values())
-      .filter(p => p.userId === userId)
+      .filter((p) => p.userId === userId)
       .sort((a, b) => b.decisionTimestamp.getTime() - a.decisionTimestamp.getTime())
       .slice(0, limit);
   }
-  
+
   getAllPredictions(limit: number = 1000): CreditScorePredictionLog[] {
     return Array.from(this.predictions.values())
       .sort((a, b) => b.decisionTimestamp.getTime() - a.decisionTimestamp.getTime())
       .slice(0, limit);
   }
-  
+
   // ========== ALGORITHM CHANGES ==========
-  
-  registerAlgorithmChange(change: Omit<AlgorithmChange, 'id'>): string {
+
+  registerAlgorithmChange(change: Omit<AlgorithmChange, "id">): string {
     const id = randomUUID();
     const algorithmChange: AlgorithmChange = { id, ...change };
     this.algorithmChanges.set(id, algorithmChange);
     return id;
   }
-  
+
   getAlgorithmChange(id: string): AlgorithmChange | undefined {
     return this.algorithmChanges.get(id);
   }
-  
+
   getAllAlgorithmChanges(): AlgorithmChange[] {
-    return Array.from(this.algorithmChanges.values())
-      .sort((a, b) => {
-        const aTime = a.deployedAt?.getTime() || a.approvedAt?.getTime() || 0;
-        const bTime = b.deployedAt?.getTime() || b.approvedAt?.getTime() || 0;
-        return bTime - aTime;
-      });
+    return Array.from(this.algorithmChanges.values()).sort((a, b) => {
+      const aTime = a.deployedAt?.getTime() || a.approvedAt?.getTime() || 0;
+      const bTime = b.deployedAt?.getTime() || b.approvedAt?.getTime() || 0;
+      return bTime - aTime;
+    });
   }
-  
+
   /**
    * Inserta una nueva fila versionada con el nuevo status en vez de mutar la existente
    * (inmutabilidad del historial de cambios de algoritmo, requerido para auditoría NCG 502).
@@ -243,8 +242,8 @@ class TraceabilityStore {
    */
   updateAlgorithmChangeStatus(
     id: string,
-    status: AlgorithmChange['status'],
-    metadata?: { approvedBy?: string; deployedAt?: Date; rollbackReason?: string }
+    status: AlgorithmChange["status"],
+    metadata?: { approvedBy?: string; deployedAt?: Date; rollbackReason?: string },
   ): string | null {
     const change = this.algorithmChanges.get(id);
     if (!change) return null;
@@ -263,25 +262,27 @@ class TraceabilityStore {
     this.algorithmChanges.set(newId, updated);
     return newId;
   }
-  
+
   // ========== STATS ==========
-  
+
   getStats() {
     const totalPredictions = this.predictions.size;
-    const predictionsLast24h = Array.from(this.predictions.values())
-      .filter(p => p.decisionTimestamp.getTime() > Date.now() - 24 * 60 * 60 * 1000)
-      .length;
-    
-    const avgScore = totalPredictions > 0
-      ? Array.from(this.predictions.values())
-          .reduce((sum, p) => sum + p.creditScore, 0) / totalPredictions
-      : 0;
-    
-    const avgPd = totalPredictions > 0
-      ? Array.from(this.predictions.values())
-          .reduce((sum, p) => sum + p.probabilityDefault, 0) / totalPredictions
-      : 0;
-    
+    const predictionsLast24h = Array.from(this.predictions.values()).filter(
+      (p) => p.decisionTimestamp.getTime() > Date.now() - 24 * 60 * 60 * 1000,
+    ).length;
+
+    const avgScore =
+      totalPredictions > 0
+        ? Array.from(this.predictions.values()).reduce((sum, p) => sum + p.creditScore, 0) /
+          totalPredictions
+        : 0;
+
+    const avgPd =
+      totalPredictions > 0
+        ? Array.from(this.predictions.values()).reduce((sum, p) => sum + p.probabilityDefault, 0) /
+          totalPredictions
+        : 0;
+
     return {
       totalPredictions,
       predictionsLast24h,
@@ -329,7 +330,9 @@ export async function logCreditScorePrediction(
   // Selección de modelo con sampleo A/B si hay múltiples versiones activas del mismo tipo.
   let activeModel = traceabilityStore.getActiveModelVersion();
   try {
-    const activeVersions = await listActiveModelVersionsByType(activeModel?.modelType ?? 'simple_rules');
+    const activeVersions = await listActiveModelVersionsByType(
+      activeModel?.modelType ?? "simple_rules",
+    );
     if (activeVersions.length >= 2) {
       const totalWeight = activeVersions.reduce((s, v) => s + (v.abTrafficPct ?? 100), 0);
       const rand = Math.random() * totalWeight;
@@ -347,24 +350,24 @@ export async function logCreditScorePrediction(
     // DB no disponible en test/dev — seguir con el modelo del cache
   }
 
-  const log: Omit<CreditScorePredictionLog, 'id'> = {
+  const log: Omit<CreditScorePredictionLog, "id"> = {
     userId,
     requestId,
     modelVersionId: activeModel?.id || DEFAULT_CREDIT_MODEL_VERSION_ID,
-    modelVersion: activeModel?.version || 'v1.0.0',
-    
+    modelVersion: activeModel?.version || "v1.0.0",
+
     inputFeatures: input.features,
     cmfData: input.cmfData,
     sfaData: input.sfaData,
-    
+
     creditScore: prediction.creditScore,
     probabilityDefault: prediction.probabilityDefault,
     riskCategory: prediction.riskCategory,
     confidence: prediction.confidence,
-    
+
     shapValues: prediction.shapValues,
     topFactors: prediction.topFactors,
-    
+
     decisionTimestamp: new Date(),
     processingTimeMs: metadata?.processingTimeMs,
     ipAddress: metadata?.ipAddress,
@@ -375,25 +378,28 @@ export async function logCreditScorePrediction(
   // Persistencia en Postgres ANTES de responder: un crash del proceso ya no pierde la decisión
   // (antes era fire-and-forget vía persistCreditPredictionAsync). El Map queda como cache de lectura.
   // `exec` permite que el insert comparta la transacción del caller (atomicidad score+traza, #14).
-  await persistCreditPredictionFromLog({
-    id: predictionId,
-    userId: log.userId,
-    requestId: log.requestId,
-    modelVersionId: log.modelVersionId,
-    modelVersion: log.modelVersion,
-    modelType: activeModel?.modelType ?? 'simple_rules',
-    inputFeatures: log.inputFeatures,
-    creditScore: log.creditScore,
-    probabilityDefault: log.probabilityDefault,
-    riskCategory: log.riskCategory,
-    confidence: log.confidence,
-    cmfData: log.cmfData,
-    sfaData: log.sfaData,
-    topFactors: log.topFactors,
-    processingTimeMs: log.processingTimeMs,
-    ipAddress: log.ipAddress,
-    userAgent: log.userAgent,
-  }, exec);
+  await persistCreditPredictionFromLog(
+    {
+      id: predictionId,
+      userId: log.userId,
+      requestId: log.requestId,
+      modelVersionId: log.modelVersionId,
+      modelVersion: log.modelVersion,
+      modelType: activeModel?.modelType ?? "simple_rules",
+      inputFeatures: log.inputFeatures,
+      creditScore: log.creditScore,
+      probabilityDefault: log.probabilityDefault,
+      riskCategory: log.riskCategory,
+      confidence: log.confidence,
+      cmfData: log.cmfData,
+      sfaData: log.sfaData,
+      topFactors: log.topFactors,
+      processingTimeMs: log.processingTimeMs,
+      ipAddress: log.ipAddress,
+      userAgent: log.userAgent,
+    },
+    exec,
+  );
   traceabilityStore.cachePrediction(predictionId, log);
   return predictionId;
 }
@@ -401,9 +407,7 @@ export async function logCreditScorePrediction(
 /**
  * Register a new model version
  */
-export function registerModelVersion(
-  version: Omit<ModelVersion, 'id'>
-): string {
+export function registerModelVersion(version: Omit<ModelVersion, "id">): string {
   return traceabilityStore.registerModelVersion(version);
 }
 
@@ -424,16 +428,17 @@ export function getPrediction(predictionId: string): CreditScorePredictionLog | 
 /**
  * Get user's prediction history
  */
-export function getUserPredictionHistory(userId: string, limit?: number): CreditScorePredictionLog[] {
+export function getUserPredictionHistory(
+  userId: string,
+  limit?: number,
+): CreditScorePredictionLog[] {
   return traceabilityStore.getUserPredictions(userId, limit);
 }
 
 /**
  * Register algorithm change
  */
-export function registerAlgorithmChange(
-  change: Omit<AlgorithmChange, 'id'>
-): string {
+export function registerAlgorithmChange(change: Omit<AlgorithmChange, "id">): string {
   return traceabilityStore.registerAlgorithmChange(change);
 }
 
@@ -443,8 +448,8 @@ export function registerAlgorithmChange(
  */
 export function updateAlgorithmChangeStatus(
   id: string,
-  status: AlgorithmChange['status'],
-  metadata?: { approvedBy?: string; deployedAt?: Date; rollbackReason?: string }
+  status: AlgorithmChange["status"],
+  metadata?: { approvedBy?: string; deployedAt?: Date; rollbackReason?: string },
 ): string | null {
   return traceabilityStore.updateAlgorithmChangeStatus(id, status, metadata);
 }
@@ -468,7 +473,7 @@ export function getAuditStats() {
  */
 export function exportAuditTrail(
   startDate: Date,
-  endDate: Date
+  endDate: Date,
 ): {
   predictions: CreditScorePredictionLog[];
   modelVersions: ModelVersion[];
@@ -477,13 +482,13 @@ export function exportAuditTrail(
 } {
   const allPredictions = traceabilityStore.getAllPredictions();
   const predictions = allPredictions.filter(
-    p => p.decisionTimestamp >= startDate && p.decisionTimestamp <= endDate
+    (p) => p.decisionTimestamp >= startDate && p.decisionTimestamp <= endDate,
   );
-  
+
   const modelVersions = traceabilityStore.getAllModelVersions();
   const algorithmChanges = traceabilityStore.getAllAlgorithmChanges();
   const stats = traceabilityStore.getStats();
-  
+
   return {
     predictions,
     modelVersions,
@@ -501,14 +506,14 @@ export function exportAuditTrail(
  * Registers the current simple model as v1.0.0
  */
 export function initializeTraceabilitySystem() {
-  console.log('🔍 Initializing Algorithmic Traceability System...');
-  
+  console.log("🔍 Initializing Algorithmic Traceability System...");
+
   // The default simple model is already registered in the constructor
   const activeModel = getActiveModelVersion();
-  
+
   console.log(`✅ Traceability system initialized`);
   console.log(`   Active model: ${activeModel?.modelType} ${activeModel?.version}`);
-  
+
   return {
     activeModelVersion: activeModel,
     stats: getAuditStats(),

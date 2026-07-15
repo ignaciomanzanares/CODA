@@ -38,7 +38,20 @@ const clpFmt = new Intl.NumberFormat("es-CL", {
 
 function formatMonth(ym: string): string {
   const [y, m] = ym.split("-");
-  const names = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  const names = [
+    "Ene",
+    "Feb",
+    "Mar",
+    "Abr",
+    "May",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dic",
+  ];
   return `${names[parseInt(m, 10) - 1]} ${y}`;
 }
 
@@ -66,7 +79,7 @@ export default function MonthlyComparisonCard() {
   const prevMonth = data.months[data.months.length - 2];
 
   // Only show categories with activity
-  const rows = data.comparison.filter(c => c.lastMonth > 0 || c.previousMonth > 0);
+  const rows = data.comparison.filter((c) => c.lastMonth > 0 || c.previousMonth > 0);
 
   if (rows.length === 0) return null;
 
@@ -103,7 +116,7 @@ export default function MonthlyComparisonCard() {
                         ? "text-rose-600 dark:text-rose-400"
                         : row.changePct < 0
                           ? "text-emerald-600 dark:text-emerald-400"
-                          : "text-muted-foreground"
+                          : "text-muted-foreground",
                     )}
                   >
                     {row.changePct > 0 ? (
@@ -117,7 +130,9 @@ export default function MonthlyComparisonCard() {
                     {row.changePct}%
                   </span>
                 ) : (
-                  <span className="text-xs text-muted-foreground min-w-[4rem] text-right">Nuevo</span>
+                  <span className="text-xs text-muted-foreground min-w-[4rem] text-right">
+                    Nuevo
+                  </span>
                 )}
               </div>
             </div>

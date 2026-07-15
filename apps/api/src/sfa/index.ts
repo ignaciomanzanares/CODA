@@ -5,4 +5,4 @@
  * Provee tipos para integración IPI (bancos) y lógica PSBI.
  */
 
-export * from './types.js';
+export * from "./types.js";

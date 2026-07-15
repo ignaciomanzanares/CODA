@@ -36,7 +36,8 @@ const SOURCES: SourceConfig[] = [
     id: "sii",
     title: "SII — Renta",
     icon: FileText,
-    description: "Verifica tus ingresos con tu carpeta tributaria del Servicio de Impuestos Internos.",
+    description:
+      "Verifica tus ingresos con tu carpeta tributaria del Servicio de Impuestos Internos.",
     officialUrl: "https://www.sii.cl",
     officialLabel: "Ir a sii.cl",
     instructions:
@@ -76,19 +77,30 @@ export default function ConectarDatos() {
       <div>
         <h1 className="text-2xl font-semibold">Conecta tus datos</h1>
         <p className="text-muted-foreground">
-          Sube los certificados oficiales que descargas con tu Clave Única. Nunca te pedimos tu clave:
-          tú los descargas en el sitio de cada institución y los subes aquí.
+          Sube los certificados oficiales que descargas con tu Clave Única. Nunca te pedimos tu
+          clave: tú los descargas en el sitio de cada institución y los subes aquí.
         </p>
       </div>
       {SOURCES.map((cfg) => (
-        <SourceCard key={cfg.id} config={cfg} status={statuses.find((s) => s.source === cfg.id)} onDone={refetch} />
+        <SourceCard
+          key={cfg.id}
+          config={cfg}
+          status={statuses.find((s) => s.source === cfg.id)}
+          onDone={refetch}
+        />
       ))}
     </div>
   );
 }
 
-function SourceCard({ config, status, onDone }: {
-  config: SourceConfig; status?: SourceStatus; onDone: () => void;
+function SourceCard({
+  config,
+  status,
+  onDone,
+}: {
+  config: SourceConfig;
+  status?: SourceStatus;
+  onDone: () => void;
 }) {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
@@ -106,10 +118,18 @@ function SourceCard({ config, status, onDone }: {
         toast({ title: "Documento procesado", description: "Tus datos se actualizaron." });
         onDone();
       } else {
-        toast({ title: "No se pudo procesar", description: res?.message ?? "Revisa el archivo.", variant: "destructive" });
+        toast({
+          title: "No se pudo procesar",
+          description: res?.message ?? "Revisa el archivo.",
+          variant: "destructive",
+        });
       }
     } catch (e: any) {
-      toast({ title: "Error", description: e?.message ?? "No se pudo subir el documento.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: e?.message ?? "No se pudo subir el documento.",
+        variant: "destructive",
+      });
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -121,7 +141,9 @@ function SourceCard({ config, status, onDone }: {
       <CardContent className="space-y-3 p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-muted p-2"><Icon className="h-5 w-5" /></div>
+            <div className="rounded-xl bg-muted p-2">
+              <Icon className="h-5 w-5" />
+            </div>
             <div>
               <p className="font-medium">{config.title}</p>
               <p className="text-sm text-muted-foreground">{config.description}</p>
@@ -137,13 +159,24 @@ function SourceCard({ config, status, onDone }: {
         {connected && (
           <div className="rounded-lg bg-muted/50 p-3 text-sm">
             {status!.verifiedMonthlyIncomeClp != null && (
-              <p>Ingreso verificado: <span className="font-medium">{formatCurrency(status!.verifiedMonthlyIncomeClp, "CLP")}/mes</span></p>
+              <p>
+                Ingreso verificado:{" "}
+                <span className="font-medium">
+                  {formatCurrency(status!.verifiedMonthlyIncomeClp, "CLP")}/mes
+                </span>
+              </p>
             )}
             {status!.fiscalDebtClp != null && (
-              <p>Deuda fiscal: <span className="font-medium">{formatCurrency(status!.fiscalDebtClp, "CLP")}</span></p>
+              <p>
+                Deuda fiscal:{" "}
+                <span className="font-medium">{formatCurrency(status!.fiscalDebtClp, "CLP")}</span>
+              </p>
             )}
             {status!.contributionMonths != null && (
-              <p>Meses cotizados detectados: <span className="font-medium">{status!.contributionMonths}</span></p>
+              <p>
+                Meses cotizados detectados:{" "}
+                <span className="font-medium">{status!.contributionMonths}</span>
+              </p>
             )}
           </div>
         )}
@@ -166,7 +199,8 @@ function SourceCard({ config, status, onDone }: {
             onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
           />
           <Button size="sm" disabled={busy} onClick={() => inputRef.current?.click()}>
-            <Upload className="mr-1.5 h-4 w-4" /> {busy ? "Procesando…" : connected ? "Actualizar PDF" : "Subir PDF"}
+            <Upload className="mr-1.5 h-4 w-4" />{" "}
+            {busy ? "Procesando…" : connected ? "Actualizar PDF" : "Subir PDF"}
           </Button>
         </div>
       </CardContent>

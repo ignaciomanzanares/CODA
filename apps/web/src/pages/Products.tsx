@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch, useApi } from "@/lib/api";
 import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
@@ -11,12 +11,18 @@ import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 // Data & ranking
 import { rankProductsByCategory } from "@/lib/product-ranking";
 import { PRODUCT_CATEGORIES } from "@/types/products";
-import type { Product, ProductCategory, UserFinancialProfile, RankedProduct, RankingReason, EligibilityStatus } from "@/types/products";
+import type {
+  Product,
+  ProductCategory,
+  UserFinancialProfile,
+  RankedProduct,
+  RankingReason,
+  EligibilityStatus,
+} from "@/types/products";
 
 // UI
 import { PastelIcon } from "@/components/ui/pastel-icon";
 import { EyebrowLabel } from "@/components/ui/eyebrow-label";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -64,11 +70,14 @@ const TABS: { id: TabKey; label: string; icon: React.ElementType }[] = [
   { id: "portabilidad", label: "Portabilidad", icon: Repeat2 },
 ];
 
-const ELIGIBILITY_CONFIG: Record<EligibilityStatus, {
-  label: string;
-  icon: React.ElementType;
-  badgeClass: string;
-}> = {
+const ELIGIBILITY_CONFIG: Record<
+  EligibilityStatus,
+  {
+    label: string;
+    icon: React.ElementType;
+    badgeClass: string;
+  }
+> = {
   eligible: {
     label: "Elegible",
     icon: CheckCircle2,
@@ -178,7 +187,7 @@ function LeadCaptureDialog({
   const [submitted, setSubmitted] = useState(false);
 
   const needsAmount = ["creditos_consumo", "creditos_hipotecarios", "lineas_credito"].includes(
-    product.category
+    product.category,
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -220,15 +229,21 @@ function LeadCaptureDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => {
-      onOpenChange(v);
-      if (!v) setTimeout(() => { setSubmitted(false); setPurpose(""); setAmount(""); }, 300);
-    }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v);
+        if (!v)
+          setTimeout(() => {
+            setSubmitted(false);
+            setPurpose("");
+            setAmount("");
+          }, 300);
+      }}
+    >
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg">
-            Solicitar {product.name}
-          </DialogTitle>
+          <DialogTitle className="text-lg">Solicitar {product.name}</DialogTitle>
         </DialogHeader>
 
         {submitted ? (
@@ -267,7 +282,8 @@ function LeadCaptureDialog({
               </div>
               {product.annual_rate_pct !== null && (
                 <p className="text-xs text-muted-foreground">
-                  CAE/Tasa: <strong className="text-foreground">{product.annual_rate_pct.toFixed(2)}%</strong>
+                  CAE/Tasa:{" "}
+                  <strong className="text-foreground">{product.annual_rate_pct.toFixed(2)}%</strong>
                 </p>
               )}
             </div>
@@ -282,7 +298,9 @@ function LeadCaptureDialog({
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                 />
-                <p className="text-[11px] text-muted-foreground">Opcional. Ayuda a evaluar tu solicitud.</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Opcional. Ayuda a evaluar tu solicitud.
+                </p>
               </div>
             )}
 
@@ -307,8 +325,8 @@ function LeadCaptureDialog({
             </div>
 
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Al solicitar, registramos tu interés para conectarte con {product.institution}.
-              CODA no comparte datos personales sin tu consentimiento explícito.
+              Al solicitar, registramos tu interés para conectarte con {product.institution}. CODA
+              no comparte datos personales sin tu consentimiento explícito.
             </p>
 
             <div className="flex gap-2 pt-1">
@@ -322,9 +340,13 @@ function LeadCaptureDialog({
               </Button>
               <Button type="submit" className="flex-1 gap-2" disabled={submitting}>
                 {submitting ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Enviando...</>
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Enviando...
+                  </>
                 ) : (
-                  <><Send className="h-4 w-4" /> Solicitar</>
+                  <>
+                    <Send className="h-4 w-4" /> Solicitar
+                  </>
                 )}
               </Button>
             </div>
@@ -357,13 +379,17 @@ function MatchRing({ score }: { score: number }) {
       <div className="relative w-14 h-14 flex items-center justify-center">
         <svg className="w-14 h-14 -rotate-90" viewBox="0 0 48 48">
           <circle
-            cx="24" cy="24" r={radius}
+            cx="24"
+            cy="24"
+            r={radius}
             fill="none"
             className="stroke-muted/40"
             strokeWidth="3"
           />
           <circle
-            cx="24" cy="24" r={radius}
+            cx="24"
+            cy="24"
+            r={radius}
             fill="none"
             className={strokeColor}
             strokeWidth="3"
@@ -373,9 +399,7 @@ function MatchRing({ score }: { score: number }) {
             style={{ transition: "stroke-dashoffset 0.6s ease" }}
           />
         </svg>
-        <span className={cn("absolute text-sm font-bold tabular-nums", color)}>
-          {score}
-        </span>
+        <span className={cn("absolute text-sm font-bold tabular-nums", color)}>{score}</span>
       </div>
       <span className="text-[10px] font-medium text-muted-foreground">match</span>
     </div>
@@ -409,7 +433,7 @@ function TopReason({ reason }: { reason: RankingReason }) {
         "flex items-center gap-2 text-xs rounded-lg px-3 py-2",
         isPositive
           ? "bg-emerald-50/60 text-emerald-700 dark:bg-emerald-500/5 dark:text-emerald-300"
-          : "bg-red-50/60 text-red-600 dark:bg-red-500/5 dark:text-red-400"
+          : "bg-red-50/60 text-red-600 dark:bg-red-500/5 dark:text-red-400",
       )}
     >
       {isPositive ? (
@@ -430,7 +454,7 @@ function ProductCard({ product, currency }: { product: RankedProduct; currency: 
   const EligIcon = cfg.icon;
 
   const hasBenefit = product.expected_benefit_clp !== null && product.expected_benefit_clp > 0;
-  const topPositiveReason = product.reasons.find(r => r.weight > 0);
+  const topPositiveReason = product.reasons.find((r) => r.weight > 0);
   const remainingReasons = expanded ? product.reasons.slice(1) : [];
 
   return (
@@ -450,7 +474,7 @@ function ProductCard({ product, currency }: { product: RankedProduct; currency: 
                 <span
                   className={cn(
                     "inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full",
-                    cfg.badgeClass
+                    cfg.badgeClass,
                   )}
                 >
                   <EligIcon className="h-3 w-3" />
@@ -458,9 +482,7 @@ function ProductCard({ product, currency }: { product: RankedProduct; currency: 
                 </span>
               </div>
 
-              <h3 className="font-semibold text-foreground leading-snug mb-1">
-                {product.name}
-              </h3>
+              <h3 className="font-semibold text-foreground leading-snug mb-1">{product.name}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed mb-3">
                 {product.short_description}
               </p>
@@ -505,11 +527,13 @@ function ProductCard({ product, currency }: { product: RankedProduct; currency: 
           <div className="mt-3 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
             {product.reasons.length > 1 ? (
               <button
-                onClick={() => setExpanded(v => !v)}
+                onClick={() => setExpanded((v) => !v)}
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Info className="h-3.5 w-3.5" />
-                {expanded ? "Ocultar detalles" : `Ver ${product.reasons.length - 1} razón${product.reasons.length - 1 > 1 ? "es" : ""} más`}
+                {expanded
+                  ? "Ocultar detalles"
+                  : `Ver ${product.reasons.length - 1} razón${product.reasons.length - 1 > 1 ? "es" : ""} más`}
                 {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
               </button>
             ) : (
@@ -548,7 +572,7 @@ function ProductCard({ product, currency }: { product: RankedProduct; currency: 
                     "flex items-start gap-2 text-xs rounded-lg px-3 py-2",
                     r.weight > 0
                       ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
-                      : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
+                      : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
                   )}
                 >
                   {r.weight > 0 ? (
@@ -652,7 +676,11 @@ export default function Products() {
   // Build user profile
   const profile = useMemo(() => {
     if (!isAuthenticated) return emptyProfile;
-    return buildProfile(financialSummary ?? null, creditScoreData ?? null, transactionalData ?? null);
+    return buildProfile(
+      financialSummary ?? null,
+      creditScoreData ?? null,
+      transactionalData ?? null,
+    );
   }, [isAuthenticated, financialSummary, creditScoreData, transactionalData]);
 
   // Rank products for the active tab
@@ -660,7 +688,7 @@ export default function Products() {
     return rankProductsByCategory(products, activeTab, profile);
   }, [products, activeTab, profile]);
 
-  const eligibleCount = rankedProducts.filter(p => p.eligibility === "eligible").length;
+  const eligibleCount = rankedProducts.filter((p) => p.eligibility === "eligible").length;
   const hasProfile = profile.has_real_data;
   // Tiene perfil por cartola (ingresos) pero aún no hay score crediticio (falta CMF):
   // el ranking de crédito se calcula sin la señal de deuda. Avisamos sin bloquear.
@@ -669,7 +697,6 @@ export default function Products() {
   return (
     <div className="min-h-screen bg-background">
       <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
-
         {/* Option A conversion hook: stay on page, invite personalisation */}
         {!isAuthenticated && (
           <div className="rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -678,7 +705,8 @@ export default function Products() {
                 Ranking personalizado disponible
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Inicia sesión para ver qué productos se adaptan a tu perfil real de ingresos y score.
+                Inicia sesión para ver qué productos se adaptan a tu perfil real de ingresos y
+                score.
               </p>
             </div>
             <a
@@ -729,15 +757,11 @@ export default function Products() {
             <div className="flex items-start gap-3 flex-1 min-w-0">
               <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
               <p className="text-sm text-foreground">
-                Estas recomendaciones usan tus movimientos bancarios. Para recomendaciones de crédito
-                más precisas, sube tu informe CMF y calculamos tu score crediticio.
+                Estas recomendaciones usan tus movimientos bancarios. Para recomendaciones de
+                crédito más precisas, sube tu informe CMF y calculamos tu score crediticio.
               </p>
             </div>
-            <Button
-              size="sm"
-              className="shrink-0 gap-1.5"
-              onClick={() => openUploadDrawer(true)}
-            >
+            <Button size="sm" className="shrink-0 gap-1.5" onClick={() => openUploadDrawer(true)}>
               Subir informe CMF
             </Button>
           </div>
@@ -746,7 +770,7 @@ export default function Products() {
         {/* Category tabs — scrollable on mobile with fade hint */}
         <div className="-mx-4 sm:mx-0 relative">
           <div className="flex gap-2 overflow-x-auto px-4 sm:px-0 pb-2 scrollbar-none scroll-smooth">
-            {TABS.map(tab => {
+            {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
@@ -757,7 +781,7 @@ export default function Products() {
                     "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-medium transition-all shrink-0",
                     isActive
                       ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                      : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80",
                   )}
                 >
                   <Icon className="h-3.5 w-3.5" />
@@ -782,7 +806,7 @@ export default function Products() {
           <EmptyCategory />
         ) : (
           <div className="space-y-4">
-            {rankedProducts.map(product => (
+            {rankedProducts.map((product) => (
               <ProductCard key={product.id} product={product} currency={currency} />
             ))}
           </div>

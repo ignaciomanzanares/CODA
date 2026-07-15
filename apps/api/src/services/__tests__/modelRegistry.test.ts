@@ -8,14 +8,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const currentDir = path.join(__dirname, "..", "..", "ml", "artifacts", "current");
 const featureMetaPath = path.join(currentDir, "feature_meta.json");
 
-const haveModel = fs.existsSync(path.join(currentDir, "xgb.json")) && fs.existsSync(featureMetaPath);
+const haveModel =
+  fs.existsSync(path.join(currentDir, "xgb.json")) && fs.existsSync(featureMetaPath);
 
 describe.skipIf(!haveModel)("PDModelRegistry.scoreXGB (serving desde xgb.json, sin ONNX)", () => {
   const features: string[] = haveModel
     ? JSON.parse(fs.readFileSync(featureMetaPath, "utf-8")).features
     : [];
-  const fullVector = (): Record<string, number> =>
-    Object.fromEntries(features.map((f) => [f, 1]));
+  const fullVector = (): Record<string, number> => Object.fromEntries(features.map((f) => [f, 1]));
 
   it("está listo sin depender de onnxruntime", () => {
     const reg = PDModelRegistry.instance();

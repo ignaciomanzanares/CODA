@@ -20,18 +20,30 @@ import {
 import { ROUTES } from "@/lib/routes";
 import { mapUserFacingApiError } from "@/lib/userFacingErrors";
 import { Analytics } from "@/lib/analytics";
-import { getRefFromUrl, storeReferralCode, getStoredReferralCode, clearStoredReferralCode } from "@/lib/referral";
+import {
+  getRefFromUrl,
+  storeReferralCode,
+  getStoredReferralCode,
+  clearStoredReferralCode,
+} from "@/lib/referral";
 
 const brandFeatures = [
   { icon: BarChart3, text: "Score crediticio dual basado en tus datos reales" },
-  { icon: Store, text: "Marketplace de productos financieros (créditos, tarjetas, depósitos, fondos)" },
+  {
+    icon: Store,
+    text: "Marketplace de productos financieros (créditos, tarjetas, depósitos, fondos)",
+  },
   { icon: Shield, text: "Diseñado bajo la normativa CMF y Ley Fintec" },
 ];
 
 function PasswordRequirement({ met, text }: { met: boolean; text: string }) {
   return (
-    <div className={`flex items-center gap-2 text-xs ${met ? "text-green-600" : "text-muted-foreground"}`}>
-      <CheckCircle2 className={`h-3 w-3 shrink-0 ${met ? "text-green-500" : "text-muted-foreground/60"}`} />
+    <div
+      className={`flex items-center gap-2 text-xs ${met ? "text-green-600" : "text-muted-foreground"}`}
+    >
+      <CheckCircle2
+        className={`h-3 w-3 shrink-0 ${met ? "text-green-500" : "text-muted-foreground/60"}`}
+      />
       {text}
     </div>
   );
@@ -84,9 +96,18 @@ export default function SignUp() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!isPasswordValid) { setError("La contraseña debe cumplir todos los requisitos"); return; }
-    if (!passwordsMatch) { setError("Las contraseñas no coinciden"); return; }
-    if (!acceptedLegal) { setError("Debes aceptar los términos para crear tu cuenta."); return; }
+    if (!isPasswordValid) {
+      setError("La contraseña debe cumplir todos los requisitos");
+      return;
+    }
+    if (!passwordsMatch) {
+      setError("Las contraseñas no coinciden");
+      return;
+    }
+    if (!acceptedLegal) {
+      setError("Debes aceptar los términos para crear tu cuenta.");
+      return;
+    }
     setIsLoading(true);
     try {
       await register(name, email, password, {
@@ -116,11 +137,17 @@ export default function SignUp() {
         <div className="absolute bottom-0 right-0 w-[300px] h-[300px] rounded-full bg-orange-500/10 blur-[80px] pointer-events-none" />
 
         {/* Logo — siempre lleva al inicio */}
-        <Link href="/" className="relative flex items-center gap-3 w-fit group" aria-label="Ir al inicio">
+        <Link
+          href="/"
+          className="relative flex items-center gap-3 w-fit group"
+          aria-label="Ir al inicio"
+        >
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
             <Wallet className="h-5 w-5 text-white" />
           </div>
-          <span className="text-xl font-bold tracking-tight group-hover:text-primary transition-colors">CODA</span>
+          <span className="text-xl font-bold tracking-tight group-hover:text-primary transition-colors">
+            CODA
+          </span>
         </Link>
 
         <div className="relative space-y-8">
@@ -132,8 +159,8 @@ export default function SignUp() {
               </span>
             </h2>
             <p className="text-slate-400 leading-relaxed">
-              Crea tu cuenta gratis y recibe tu primer diagnóstico financiero
-              en minutos, basado en tus documentos reales.
+              Crea tu cuenta gratis y recibe tu primer diagnóstico financiero en minutos, basado en
+              tus documentos reales.
             </p>
           </div>
           <ul className="space-y-4">
@@ -157,7 +184,11 @@ export default function SignUp() {
       {/* Right: Form */}
       <div className="flex-1 lg:w-1/2 flex flex-col justify-center bg-background px-6 py-12 sm:px-12 lg:px-16 overflow-y-auto">
         {/* Mobile logo — siempre lleva al inicio */}
-        <Link href="/" className="lg:hidden flex items-center gap-2 mb-10 w-fit" aria-label="Ir al inicio">
+        <Link
+          href="/"
+          className="lg:hidden flex items-center gap-2 mb-10 w-fit"
+          aria-label="Ir al inicio"
+        >
           <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center">
             <Wallet className="h-5 w-5 text-white" />
           </div>
@@ -169,14 +200,20 @@ export default function SignUp() {
             <h1 className="text-3xl font-bold text-foreground">Crear cuenta</h1>
             <p className="mt-2 text-muted-foreground">
               ¿Ya tienes cuenta?{" "}
-              <Link href={ROUTES.iniciarSesion} className="text-primary hover:underline font-medium">
+              <Link
+                href={ROUTES.iniciarSesion}
+                className="text-primary hover:underline font-medium"
+              >
                 Iniciar sesión
               </Link>
             </p>
           </div>
 
           {error && (
-            <div role="alert" className="rounded-xl border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+            <div
+              role="alert"
+              className="rounded-xl border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400"
+            >
               {error}
             </div>
           )}
@@ -267,7 +304,10 @@ export default function SignUp() {
 
             {/* Confirm password */}
             <div className="space-y-1.5">
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-foreground"
+              >
                 Confirmar contraseña
               </label>
               <div className="relative">
@@ -291,13 +331,19 @@ export default function SignUp() {
                   onClick={() => setShowConfirmPassword((v) => !v)}
                   tabIndex={-1}
                 >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
               {confirmPassword.length > 0 && (
                 <PasswordRequirement
                   met={passwordsMatch}
-                  text={passwordsMatch ? "Las contraseñas coinciden" : "Las contraseñas no coinciden"}
+                  text={
+                    passwordsMatch ? "Las contraseñas coinciden" : "Las contraseñas no coinciden"
+                  }
                 />
               )}
             </div>
@@ -307,17 +353,30 @@ export default function SignUp() {
               <input
                 type="checkbox"
                 checked={acceptedLegal}
-                onChange={(e) => { setAcceptedLegal(e.target.checked); if (e.target.checked) setError(""); }}
+                onChange={(e) => {
+                  setAcceptedLegal(e.target.checked);
+                  if (e.target.checked) setError("");
+                }}
                 disabled={isLoading}
                 className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-primary accent-[#FF5C35]"
               />
               <span className="text-xs text-muted-foreground leading-relaxed">
                 He leído y acepto los{" "}
-                <a href={ROUTES.terminos} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:no-underline">
+                <a
+                  href={ROUTES.terminos}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline hover:no-underline"
+                >
                   Términos y Condiciones
                 </a>{" "}
                 y la{" "}
-                <a href={ROUTES.privacidad} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:no-underline">
+                <a
+                  href={ROUTES.privacidad}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline hover:no-underline"
+                >
                   Política de Privacidad
                 </a>{" "}
                 de CODA.
@@ -330,14 +389,19 @@ export default function SignUp() {
               disabled={isLoading || !isPasswordValid || !passwordsMatch || !acceptedLegal}
             >
               {isLoading ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creando cuenta...</>
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creando cuenta...
+                </>
               ) : (
                 "Crear cuenta gratis"
               )}
             </Button>
           </form>
 
-          <Link href="/" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft className="h-3.5 w-3.5" /> Volver al inicio
           </Link>
         </div>

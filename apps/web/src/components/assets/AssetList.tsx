@@ -1,19 +1,14 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Trash2, Pencil } from "lucide-react";
 import AssetTypeBadge from "./AssetTypeBadge";
 import AssetForm from "./AssetForm";
 
-type AssetType = 'property' | 'vehicle' | 'crypto' | 'investment' | 'other';
+type AssetType = "property" | "vehicle" | "crypto" | "investment" | "other";
 
 interface UserAsset {
   id: string;
@@ -33,7 +28,11 @@ interface AssetListProps {
 }
 
 function clpFormat(n: number): string {
-  return n.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+  return n.toLocaleString("es-CL", {
+    style: "currency",
+    currency: "CLP",
+    maximumFractionDigits: 0,
+  });
 }
 
 export default function AssetList({ assets }: AssetListProps) {
@@ -44,24 +43,24 @@ export default function AssetList({ assets }: AssetListProps) {
   // Editar/eliminar requieren sesión: apiRequest envía la cookie personal.
   // apiFetch es para rutas sin sesión y devolvía 401 aquí ("no se puede editar").
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest('DELETE', `/api/assets/${id}`),
-    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['assets'] }); },
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/assets/${id}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["assets"] });
+    },
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: object }) =>
-      apiRequest('PUT', `/api/assets/${id}`, data),
+      apiRequest("PUT", `/api/assets/${id}`, data),
     onSuccess: () => {
       setEditingAsset(null);
-      void queryClient.invalidateQueries({ queryKey: ['assets'] });
+      void queryClient.invalidateQueries({ queryKey: ["assets"] });
     },
   });
 
   if (assets.length === 0) {
     return (
-      <p className="text-sm text-gray-500 text-center py-8">
-        No tienes activos registrados aún.
-      </p>
+      <p className="text-sm text-gray-500 text-center py-8">No tienes activos registrados aún.</p>
     );
   }
 
@@ -78,14 +77,19 @@ export default function AssetList({ assets }: AssetListProps) {
                     <div className="flex items-center gap-2 mb-1">
                       <AssetTypeBadge type={asset.type} />
                       {asset.hasLien && (
-                        <span className="text-xs text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">Con garantía</span>
+                        <span className="text-xs text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
+                          Con garantía
+                        </span>
                       )}
                     </div>
                     <div className="font-medium text-sm text-gray-900 truncate">{asset.name}</div>
                     <div className="text-sm text-gray-600">{clpFormat(valor)}</div>
-                    {asset.estimatedValueClp != null && asset.estimatedValueClp !== asset.acquisitionCostClp && (
-                      <div className="text-xs text-gray-400">Adquisición: {clpFormat(asset.acquisitionCostClp)}</div>
-                    )}
+                    {asset.estimatedValueClp != null &&
+                      asset.estimatedValueClp !== asset.acquisitionCostClp && (
+                        <div className="text-xs text-gray-400">
+                          Adquisición: {clpFormat(asset.acquisitionCostClp)}
+                        </div>
+                      )}
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     <Button

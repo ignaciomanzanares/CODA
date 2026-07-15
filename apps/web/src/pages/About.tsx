@@ -54,12 +54,12 @@ export default function About() {
                 <div className="text-gray-600 text-lg leading-relaxed space-y-4">
                   <p>
                     Somos una plataforma de salud financiera que combina datos financieros reales,
-                    modelos de scoring propios y un marketplace de productos financieros para entregar
-                    diagnóstico, plan de mejora y ejecución en un solo lugar.
+                    modelos de scoring propios y un marketplace de productos financieros para
+                    entregar diagnóstico, plan de mejora y ejecución en un solo lugar.
                   </p>
                   <p>
-                    No somos un comparador estático que muestra opciones y delega la decisión. CODA es
-                    un asistente que diagnostica, proyecta, prioriza y acompaña al usuario en la
+                    No somos un comparador estático que muestra opciones y delega la decisión. CODA
+                    es un asistente que diagnostica, proyecta, prioriza y acompaña al usuario en la
                     ejecución de su plan financiero.
                   </p>
                 </div>
@@ -79,14 +79,14 @@ export default function About() {
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">Modelo de negocio</h2>
                 <div className="text-gray-600 text-lg leading-relaxed space-y-4">
                   <p>
-                    CODA es gratuito para las personas. Generamos ingresos por comisiones de originación
-                    y revenue sharing con instituciones financieras cuando un usuario contrata un producto
-                    a través de nuestra plataforma.
+                    CODA es gratuito para las personas. Generamos ingresos por comisiones de
+                    originación y revenue sharing con instituciones financieras cuando un usuario
+                    contrata un producto a través de nuestra plataforma.
                   </p>
                   <p>
-                    Nuestras recomendaciones se ordenan siempre por valor neto para el usuario, no por la
-                    comisión que generan para CODA. Cuando dos productos son comparables, priorizamos el
-                    de menor costo para ti.
+                    Nuestras recomendaciones se ordenan siempre por valor neto para el usuario, no
+                    por la comisión que generan para CODA. Cuando dos productos son comparables,
+                    priorizamos el de menor costo para ti.
                   </p>
                 </div>
               </div>
@@ -157,7 +157,8 @@ export default function About() {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <p className="text-gray-500 text-sm">
-              Chile Open-Data Analytics SpA — RUT 78.389.632-K — Sociedad 100% propiedad de We-Group Holding SpA (RUT 78.389.629-K)
+              Chile Open-Data Analytics SpA — RUT 78.389.632-K — Sociedad 100% propiedad de We-Group
+              Holding SpA (RUT 78.389.629-K)
             </p>
           </div>
         </div>
@@ -166,16 +167,20 @@ export default function About() {
       {/* CTA */}
       <section className="py-20 bg-orange-600 text-white">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            ¿Quieres saber más?
-          </h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">¿Quieres saber más?</h2>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">
             <Link href={ROUTES.registro}>
-              <Button size="lg" className="bg-white text-orange-700 hover:bg-orange-50 font-semibold px-8 py-6 text-lg">
+              <Button
+                size="lg"
+                className="bg-white text-orange-700 hover:bg-orange-50 font-semibold px-8 py-6 text-lg"
+              >
                 Crear cuenta gratis
               </Button>
             </Link>
-            <a href="mailto:info@codafinance.cl" className="text-orange-100 hover:text-white underline">
+            <a
+              href="mailto:info@codafinance.cl"
+              className="text-orange-100 hover:text-white underline"
+            >
               Contáctanos → info@codafinance.cl
             </a>
           </div>
@@ -185,12 +190,24 @@ export default function About() {
   );
 }
 
-function TeamMember({ name, role, description }: { name: string; role: string; description: string }) {
+function TeamMember({
+  name,
+  role,
+  description,
+}: {
+  name: string;
+  role: string;
+  description: string;
+}) {
   return (
     <div className="bg-white rounded-xl p-6 shadow-sm border">
       <div className="w-14 h-14 rounded-full bg-orange-100 flex items-center justify-center mb-4">
         <span className="text-orange-600 font-bold text-lg">
-          {name.split(" ").map(n => n[0]).slice(0, 2).join("")}
+          {name
+            .split(" ")
+            .map((n) => n[0])
+            .slice(0, 2)
+            .join("")}
         </span>
       </div>
       <h3 className="text-lg font-semibold text-gray-900 mb-1">{name}</h3>

@@ -13,8 +13,8 @@ export default function Footer() {
               <h3 className="text-white font-bold text-lg font-sans">CODA</h3>
             </div>
             <p className="text-gray-300 text-sm">
-              Tu asistente financiero inteligente. Diagnóstico, scoring,
-              plan de mejora y marketplace de productos financieros.
+              Tu asistente financiero inteligente. Diagnóstico, scoring, plan de mejora y
+              marketplace de productos financieros.
             </p>
           </div>
 
@@ -32,7 +32,10 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href={ROUTES.infoComparacionProductos} className="text-gray-300 hover:text-white">
+                <Link
+                  href={ROUTES.infoComparacionProductos}
+                  className="text-gray-300 hover:text-white"
+                >
                   Comparación de productos
                 </Link>
               </li>
@@ -76,22 +79,35 @@ export default function Footer() {
         <div className="mt-8 pt-6 border-t border-gray-700">
           {/* Fila 1: Links */}
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400 mb-4">
-            <Link href="/" className="hover:text-white">Inicio</Link>
+            <Link href="/" className="hover:text-white">
+              Inicio
+            </Link>
             <span className="text-gray-600">&middot;</span>
-            <Link href={ROUTES.acerca} className="hover:text-white">Nosotros</Link>
+            <Link href={ROUTES.acerca} className="hover:text-white">
+              Nosotros
+            </Link>
             <span className="text-gray-600">&middot;</span>
-            <Link href={ROUTES.infoScoreCredito} className="hover:text-white">Score crediticio</Link>
+            <Link href={ROUTES.infoScoreCredito} className="hover:text-white">
+              Score crediticio
+            </Link>
             <span className="text-gray-600">&middot;</span>
-            <Link href={ROUTES.productos} className="hover:text-white">Productos</Link>
+            <Link href={ROUTES.productos} className="hover:text-white">
+              Productos
+            </Link>
             <span className="text-gray-600">&middot;</span>
-            <Link href={ROUTES.privacidad} className="hover:text-white">Privacidad</Link>
+            <Link href={ROUTES.privacidad} className="hover:text-white">
+              Privacidad
+            </Link>
             <span className="text-gray-600">&middot;</span>
-            <Link href={ROUTES.terminos} className="hover:text-white">Términos</Link>
+            <Link href={ROUTES.terminos} className="hover:text-white">
+              Términos
+            </Link>
           </div>
 
           {/* Fila 2: Identificación */}
           <p className="text-gray-400 text-xs mb-1">
-            <strong className="text-gray-300">Chile Open-Data Analytics SpA</strong> &middot; RUT 78.389.632-K
+            <strong className="text-gray-300">Chile Open-Data Analytics SpA</strong> &middot; RUT
+            78.389.632-K
           </p>
           <p className="text-gray-500 text-xs mb-4">
             Inscripción como prestador Fintec ante la CMF en trámite.
@@ -100,8 +116,8 @@ export default function Footer() {
           {/* Fila 3: Disclaimers regulatorios */}
           <div className="text-gray-500 text-[11px] leading-relaxed space-y-2 mb-4">
             <p>
-              CODA no capta recursos del público, no custodia fondos, no asume riesgo crediticio
-              y no concede crédito en cuenta propia. Las recomendaciones generadas por la plataforma
+              CODA no capta recursos del público, no custodia fondos, no asume riesgo crediticio y
+              no concede crédito en cuenta propia. Las recomendaciones generadas por la plataforma
               no garantizan aprobación ni condiciones específicas por parte de las instituciones
               financieras. La decisión final de otorgamiento corresponde al proveedor del producto.
             </p>

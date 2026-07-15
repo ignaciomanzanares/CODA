@@ -10,10 +10,10 @@ interface SignInBannerProps {
   actionText?: string;
 }
 
-export default function SignInBanner({ 
-  title, 
-  description, 
-  actionText = "Iniciar sesión para comenzar" 
+export default function SignInBanner({
+  title,
+  description,
+  actionText = "Iniciar sesión para comenzar",
 }: SignInBannerProps) {
   const [, setLocation] = useLocation();
 
@@ -24,10 +24,8 @@ export default function SignInBanner({
           <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
           <div className="flex-1">
             <h3 className="font-semibold text-blue-900 mb-1">{title}</h3>
-            <p className="text-blue-700 text-sm mb-3">
-              {description}
-            </p>
-            <Button 
+            <p className="text-blue-700 text-sm mb-3">{description}</p>
+            <Button
               onClick={() => setLocation(ROUTES.iniciarSesion)}
               size="sm"
               className="bg-blue-600 hover:bg-blue-700"

@@ -8,7 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
   Dialog,
@@ -66,12 +70,18 @@ type SortDir = "asc" | "desc";
 const PAGE_SIZE = 40;
 
 // ── Formatting ──────────────────────────────────────────────────────────────
-const clpFmt = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
-const formatClp  = (n: number) => clpFmt.format(Math.abs(n));
+const clpFmt = new Intl.NumberFormat("es-CL", {
+  style: "currency",
+  currency: "CLP",
+  maximumFractionDigits: 0,
+});
+const formatClp = (n: number) => clpFmt.format(Math.abs(n));
 const formatDate = (s: string) => {
   if (!s) return "—";
   const d = new Date(s + "T12:00:00");
-  return isNaN(d.getTime()) ? s : d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return isNaN(d.getTime())
+    ? s
+    : d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
 };
 
 // ── Category meta (single source of truth: categoryTaxonomy.ts) ──────────────
@@ -80,43 +90,54 @@ const ALL_CATEGORIES = CATEGORY_TAXONOMY.flatMap((g) => g.parserCategories);
 
 const CAT_COLORS: Record<string, string> = {
   // Gastos esenciales
-  vivienda:               "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  alimentacion:           "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
-  transporte:             "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  seguros:                "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400",
-  servicios_basicos:      "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
+  vivienda: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  alimentacion: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  transporte: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  seguros: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400",
+  servicios_basicos: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
   // Gastos personales
-  salud_bienestar:        "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  educacion:              "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
-  cuidado_personal:       "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-400",
+  salud_bienestar: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  educacion: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+  cuidado_personal: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-400",
   // Ocio y entretenimiento
-  restaurantes:           "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
-  diversion:              "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400",
-  hobbies:                "bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-400",
-  suscripciones:          "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
+  restaurantes: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  diversion: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400",
+  hobbies: "bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-400",
+  suscripciones: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
   // Gastos financieros
-  deudas:                 "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
-  inversiones:            "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  ahorros:                "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  deudas: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
+  inversiones: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  ahorros: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
   // Gastos ocasionales
-  regalos:                "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-  reparaciones:           "bg-stone-100 text-stone-700 dark:bg-stone-900/30 dark:text-stone-400",
-  imprevistos:            "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  regalos: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+  reparaciones: "bg-stone-100 text-stone-700 dark:bg-stone-900/30 dark:text-stone-400",
+  imprevistos: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
   // Legacy
-  telecomunicaciones:     "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400",
-  transferencia_enviada:  "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-  transferencia_recibida: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
-  comercio:               "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-  entretenimiento:        "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400",
-  salud:                  "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  ingreso_principal:      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  servicios:              "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
-  otro:                   "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+  telecomunicaciones: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400",
+  transferencia_enviada: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  transferencia_recibida:
+    "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
+  comercio: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+  entretenimiento: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400",
+  salud: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  ingreso_principal: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  servicios: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
+  otro: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
 };
 
 // ── Sort header ──────────────────────────────────────────────────────────────
-function SortHeader({ label, field, sortField, sortDir, onSort, align = "left" }: {
-  label: string; field: SortField; sortField: SortField; sortDir: SortDir;
+function SortHeader({
+  label,
+  field,
+  sortField,
+  sortDir,
+  onSort,
+  align = "left",
+}: {
+  label: string;
+  field: SortField;
+  sortField: SortField;
+  sortDir: SortDir;
   onSort: (f: SortField) => void;
   align?: "left" | "right";
 }) {
@@ -125,14 +146,20 @@ function SortHeader({ label, field, sortField, sortDir, onSort, align = "left" }
     <button
       className={cn(
         "flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground uppercase tracking-wide w-full",
-        align === "right" && "justify-end"
+        align === "right" && "justify-end",
       )}
       onClick={() => onSort(field)}
     >
       {label}
-      {active
-        ? sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-        : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+      {active ? (
+        sortDir === "asc" ? (
+          <ArrowUp className="h-3 w-3" />
+        ) : (
+          <ArrowDown className="h-3 w-3" />
+        )
+      ) : (
+        <ArrowUpDown className="h-3 w-3 opacity-40" />
+      )}
     </button>
   );
 }
@@ -151,7 +178,13 @@ interface ParsedTransactionsTableProps {
   initialReviewOnly?: boolean;
 }
 
-export default function ParsedTransactionsTable({ mode = "movimientos", title, subtitle, initialCategory, initialReviewOnly }: ParsedTransactionsTableProps) {
+export default function ParsedTransactionsTable({
+  mode = "movimientos",
+  title,
+  subtitle,
+  initialCategory,
+  initialReviewOnly,
+}: ParsedTransactionsTableProps) {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -159,16 +192,18 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
   const isGastos = mode === "gastos";
   const cartolaCount = documents.filter((doc) => doc.tipo === "cartola").length;
 
-  const [search, setSearch]         = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "ingreso" | "egreso">(isGastos ? "egreso" : "all");
-  const [catFilter, setCatFilter]   = useState<string>(initialCategory ?? "all");
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | "ingreso" | "egreso">(
+    isGastos ? "egreso" : "all",
+  );
+  const [catFilter, setCatFilter] = useState<string>(initialCategory ?? "all");
   const [productFilter, setProductFilter] = useState<string>("all");
   const [reviewOnly, setReviewOnly] = useState(initialReviewOnly ?? false);
-  const [dateFrom, setDateFrom]     = useState("");
-  const [dateTo, setDateTo]         = useState("");
-  const [sortField, setSortField]   = useState<SortField>("fecha");
-  const [sortDir, setSortDir]       = useState<SortDir>("desc");
-  const [page, setPage]             = useState(1);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [sortField, setSortField] = useState<SortField>("fecha");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery<{ transactions: ParsedTransaction[]; count: number }>({
     queryKey: ["/api/transactions/parsed"],
@@ -184,45 +219,49 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
 
   // In gastos mode, pre-filter to only egresos before any user filters
   const rawTxs = data?.transactions ?? [];
-  const allTxs = isGastos ? rawTxs.filter(t => t.tipo === "egreso") : rawTxs;
+  const allTxs = isGastos ? rawTxs.filter((t) => t.tipo === "egreso") : rawTxs;
 
   // Productos presentes (para mostrar sólo los filtros relevantes).
   const presentProducts = useMemo(() => {
     const set = new Set<string>();
-    allTxs.forEach(t => { if (t.product) set.add(t.product); });
+    allTxs.forEach((t) => {
+      if (t.product) set.add(t.product);
+    });
     return set;
   }, [allTxs]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
-    allTxs.forEach(t => { if (t.categoria) set.add(t.categoria); });
+    allTxs.forEach((t) => {
+      if (t.categoria) set.add(t.categoria);
+    });
     return Array.from(set).sort();
   }, [allTxs]);
 
   // Pendientes por revisar (misma lógica que el badge: flag del backend).
-  const pendingReviewCount = useMemo(
-    () => allTxs.filter(t => t.requiresReview).length,
-    [allTxs],
-  );
+  const pendingReviewCount = useMemo(() => allTxs.filter((t) => t.requiresReview).length, [allTxs]);
 
   const handleSort = (field: SortField) => {
-    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
-    else { setSortField(field); setSortDir("desc"); }
+    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortField(field);
+      setSortDir("desc");
+    }
     setPage(1);
   };
 
   const filtered = useMemo(() => {
     let txs = allTxs;
-    if (reviewOnly) txs = txs.filter(t => t.requiresReview);
-    if (typeFilter !== "all") txs = txs.filter(t => t.tipo === typeFilter);
-    if (catFilter !== "all")  txs = txs.filter(t => t.categoria === catFilter);
-    if (productFilter !== "all") txs = txs.filter(t => t.product === productFilter);
+    if (reviewOnly) txs = txs.filter((t) => t.requiresReview);
+    if (typeFilter !== "all") txs = txs.filter((t) => t.tipo === typeFilter);
+    if (catFilter !== "all") txs = txs.filter((t) => t.categoria === catFilter);
+    if (productFilter !== "all") txs = txs.filter((t) => t.product === productFilter);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      txs = txs.filter(t => t.descripcion.toLowerCase().includes(q));
+      txs = txs.filter((t) => t.descripcion.toLowerCase().includes(q));
     }
-    if (dateFrom) txs = txs.filter(t => t.fecha >= dateFrom);
-    if (dateTo)   txs = txs.filter(t => t.fecha <= dateTo);
+    if (dateFrom) txs = txs.filter((t) => t.fecha >= dateFrom);
+    if (dateTo) txs = txs.filter((t) => t.fecha <= dateTo);
 
     return [...txs].sort((a, b) => {
       let cmp = 0;
@@ -231,18 +270,32 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
       else if (sortField === "monto") cmp = Math.abs(a.monto) - Math.abs(b.monto);
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [allTxs, reviewOnly, typeFilter, catFilter, productFilter, search, dateFrom, dateTo, sortField, sortDir]);
+  }, [
+    allTxs,
+    reviewOnly,
+    typeFilter,
+    catFilter,
+    productFilter,
+    search,
+    dateFrom,
+    dateTo,
+    sortField,
+    sortDir,
+  ]);
 
   // ── Infinite scroll sentinel ─────────────────────────────────────────────
   const sentinelRef = useRef<HTMLDivElement>(null);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const visibleItems = filtered.slice(0, page * PAGE_SIZE);
 
-  const onIntersect = useCallback((entries: IntersectionObserverEntry[]) => {
-    if (entries[0]?.isIntersecting && page < totalPages) {
-      setPage(p => p + 1);
-    }
-  }, [page, totalPages]);
+  const onIntersect = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      if (entries[0]?.isIntersecting && page < totalPages) {
+        setPage((p) => p + 1);
+      }
+    },
+    [page, totalPages],
+  );
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -253,40 +306,33 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
   }, [onIntersect]);
 
   // Reset page when filters change
-  useEffect(() => { setPage(1); }, [search, typeFilter, catFilter, productFilter, reviewOnly, dateFrom, dateTo, sortField, sortDir]);
+  useEffect(() => {
+    setPage(1);
+  }, [
+    search,
+    typeFilter,
+    catFilter,
+    productFilter,
+    reviewOnly,
+    dateFrom,
+    dateTo,
+    sortField,
+    sortDir,
+  ]);
 
-  const hasActiveFilter = search || typeFilter !== "all" || catFilter !== "all" || productFilter !== "all" || reviewOnly || dateFrom || dateTo;
+  const hasActiveFilter =
+    search ||
+    typeFilter !== "all" ||
+    catFilter !== "all" ||
+    productFilter !== "all" ||
+    reviewOnly ||
+    dateFrom ||
+    dateTo;
 
   // ── Category inline edit ────────────────────────────────────────────────
-  const updateCategory = useCallback(async (txId: string, newCategory: string, oldCategory: string) => {
-    // Optimistic update
-    queryClient.setQueryData<{ transactions: ParsedTransaction[]; count: number }>(
-      ["/api/transactions/parsed"],
-      (prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          transactions: prev.transactions.map((t) =>
-            t.id === txId
-              ? { ...t, categoria: newCategory, requiresReview: false, isManual: true }
-              : t
-          ),
-        };
-      }
-    );
-    try {
-      const apiBase = (API_URL || "").replace(/\/$/, "");
-      const res = await fetch(`${apiBase}/api/transactions/${txId}/category`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: newCategory }),
-      });
-      if (!res.ok) throw new Error(`Error ${res.status}`);
-      // Recategorizing affects dashboard totals, flow chart, insights, etc.
-      queryClient.invalidateQueries();
-    } catch {
-      // Revert on error
+  const updateCategory = useCallback(
+    async (txId: string, newCategory: string, oldCategory: string) => {
+      // Optimistic update
       queryClient.setQueryData<{ transactions: ParsedTransaction[]; count: number }>(
         ["/api/transactions/parsed"],
         (prev) => {
@@ -294,18 +340,47 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
           return {
             ...prev,
             transactions: prev.transactions.map((t) =>
-              t.id === txId ? { ...t, categoria: oldCategory } : t
+              t.id === txId
+                ? { ...t, categoria: newCategory, requiresReview: false, isManual: true }
+                : t,
             ),
           };
-        }
+        },
       );
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar la categoría. Intenta de nuevo.",
-        variant: "destructive",
-      });
-    }
-  }, [queryClient, toast]);
+      try {
+        const apiBase = (API_URL || "").replace(/\/$/, "");
+        const res = await fetch(`${apiBase}/api/transactions/${txId}/category`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category: newCategory }),
+        });
+        if (!res.ok) throw new Error(`Error ${res.status}`);
+        // Recategorizing affects dashboard totals, flow chart, insights, etc.
+        queryClient.invalidateQueries();
+      } catch {
+        // Revert on error
+        queryClient.setQueryData<{ transactions: ParsedTransaction[]; count: number }>(
+          ["/api/transactions/parsed"],
+          (prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              transactions: prev.transactions.map((t) =>
+                t.id === txId ? { ...t, categoria: oldCategory } : t,
+              ),
+            };
+          },
+        );
+        toast({
+          title: "Error",
+          description: "No se pudo actualizar la categoría. Intenta de nuevo.",
+          variant: "destructive",
+        });
+      }
+    },
+    [queryClient, toast],
+  );
 
   // ── CSV export ──────────────────────────────────────────────────────────
   const exportCsv = useCallback(() => {
@@ -340,7 +415,9 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
           <Skeleton className="h-4 w-72 mt-1" />
         </CardHeader>
         <CardContent className="space-y-3">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
         </CardContent>
       </Card>
     );
@@ -351,8 +428,11 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
       <CardHeader className="pb-2">
         <CardDescription>
           {allTxs.length > 0
-            ? `${allTxs.length} ${isGastos ? 'gastos' : 'transacciones'} extraídos · mostrando ${visibleItems.length}`
-            : (subtitle ?? (isGastos ? "Sube una cartola para ver tus gastos categorizados" : "Transacciones extraídas de tus cartolas bancarias"))}
+            ? `${allTxs.length} ${isGastos ? "gastos" : "transacciones"} extraídos · mostrando ${visibleItems.length}`
+            : (subtitle ??
+              (isGastos
+                ? "Sube una cartola para ver tus gastos categorizados"
+                : "Transacciones extraídas de tus cartolas bancarias"))}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -363,11 +443,13 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
             </div>
             <div className="space-y-1">
               <p className="font-medium text-lg">Sin movimientos</p>
-              <p className="text-sm text-muted-foreground max-w-sm mx-auto">Sube una cartola bancaria para ver tus transacciones aquí.</p>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                Sube una cartola bancaria para ver tus transacciones aquí.
+              </p>
             </div>
             <Button
               size="lg"
-              onClick={() => window.dispatchEvent(new CustomEvent('trigger-cartola-upload'))}
+              onClick={() => window.dispatchEvent(new CustomEvent("trigger-cartola-upload"))}
               className="gap-2"
             >
               <Upload className="h-5 w-5" />
@@ -380,7 +462,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
             <div className="flex flex-wrap gap-2 items-center">
               <Button
                 size="sm"
-                onClick={() => window.dispatchEvent(new CustomEvent('trigger-cartola-upload'))}
+                onClick={() => window.dispatchEvent(new CustomEvent("trigger-cartola-upload"))}
                 className="gap-1.5"
               >
                 <Upload className="h-4 w-4" />
@@ -414,7 +496,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
               <Input
                 placeholder="Buscar descripción..."
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
                 className="max-w-[200px] h-8 text-sm"
               />
 
@@ -424,24 +506,28 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                   variant={reviewOnly ? "default" : "outline"}
                   size="sm"
                   className="h-8 gap-1.5"
-                  onClick={() => setReviewOnly(v => !v)}
+                  onClick={() => setReviewOnly((v) => !v)}
                   title="Mostrar solo movimientos con categoría por revisar"
                 >
                   Por revisar
-                  <span className={cn(
-                    "rounded-full px-1.5 text-[10px] leading-5 font-semibold",
-                    reviewOnly
-                      ? "bg-primary-foreground/20 text-primary-foreground"
-                      : "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
-                  )}>
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 text-[10px] leading-5 font-semibold",
+                      reviewOnly
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+                    )}
+                  >
                     {pendingReviewCount}
                   </span>
                 </Button>
               )}
 
               {!isGastos && (
-                <Select value={typeFilter} onValueChange={v => setTypeFilter(v as any)}>
-                  <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
+                <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
+                  <SelectTrigger className="w-28 h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tipo: todos</SelectItem>
                     <SelectItem value="ingreso">Ingresos</SelectItem>
@@ -452,11 +538,15 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
 
               {categories.length > 1 && (
                 <Select value={catFilter} onValueChange={setCatFilter}>
-                  <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-36 h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Categoría: todas</SelectItem>
-                    {categories.map(c => (
-                      <SelectItem key={c} value={c}>{categoryLabel(c)}</SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {categoryLabel(c)}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -464,10 +554,16 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
 
               {presentProducts.size > 1 && (
                 <Select value={productFilter} onValueChange={setProductFilter}>
-                  <SelectTrigger className="w-40 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-40 h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    {PRODUCT_FILTERS.filter(p => p.value === "all" || presentProducts.has(p.value)).map(p => (
-                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                    {PRODUCT_FILTERS.filter(
+                      (p) => p.value === "all" || presentProducts.has(p.value),
+                    ).map((p) => (
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -475,16 +571,38 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
 
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <span>Desde</span>
-                <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-36 h-8 text-xs" />
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-36 h-8 text-xs"
+                />
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <span>Hasta</span>
-                <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-36 h-8 text-xs" />
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-36 h-8 text-xs"
+                />
               </div>
 
               {hasActiveFilter && (
-                <Button variant="ghost" size="sm" className="h-8 text-xs"
-                  onClick={() => { setSearch(""); setTypeFilter("all"); setCatFilter("all"); setProductFilter("all"); setReviewOnly(false); setDateFrom(""); setDateTo(""); }}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => {
+                    setSearch("");
+                    setTypeFilter("all");
+                    setCatFilter("all");
+                    setProductFilter("all");
+                    setReviewOnly(false);
+                    setDateFrom("");
+                    setDateTo("");
+                  }}
+                >
                   Limpiar filtros
                 </Button>
               )}
@@ -496,31 +614,55 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                 <thead>
                   <tr className="border-b bg-muted/40">
                     <th className="px-3 py-2.5 text-left">
-                      <SortHeader label="Fecha" field="fecha" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                      <SortHeader
+                        label="Fecha"
+                        field="fecha"
+                        sortField={sortField}
+                        sortDir={sortDir}
+                        onSort={handleSort}
+                      />
                     </th>
                     <th className="px-3 py-2.5 text-left">
-                      <SortHeader label="Descripción" field="descripcion" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                      <SortHeader
+                        label="Descripción"
+                        field="descripcion"
+                        sortField={sortField}
+                        sortDir={sortDir}
+                        onSort={handleSort}
+                      />
                     </th>
                     <th className="px-3 py-2.5 text-center hidden sm:table-cell">Categoría</th>
                     <th className="px-3 py-2.5 text-right">
-                      <SortHeader label="Monto" field="monto" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                      <SortHeader
+                        label="Monto"
+                        field="monto"
+                        sortField={sortField}
+                        sortDir={sortDir}
+                        onSort={handleSort}
+                        align="right"
+                      />
                     </th>
                     {!isGastos && (
-                      <th className="px-3 py-2.5 text-right hidden md:table-cell text-xs font-medium text-muted-foreground uppercase tracking-wide">Saldo</th>
+                      <th className="px-3 py-2.5 text-right hidden md:table-cell text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Saldo
+                      </th>
                     )}
                   </tr>
                 </thead>
                 <tbody>
                   {visibleItems.length === 0 ? (
                     <tr>
-                      <td colSpan={isGastos ? 4 : 5} className="px-3 py-8 text-center text-muted-foreground text-sm">
+                      <td
+                        colSpan={isGastos ? 4 : 5}
+                        className="px-3 py-8 text-center text-muted-foreground text-sm"
+                      >
                         {reviewOnly
                           ? "Todo al día. No tienes movimientos pendientes por revisar."
                           : "Sin resultados para los filtros aplicados."}
                       </td>
                     </tr>
                   ) : (
-                    visibleItems.map(tx => (
+                    visibleItems.map((tx) => (
                       <tr key={tx.id} className="border-b hover:bg-muted/30 transition-colors">
                         <td className="px-3 py-2 whitespace-nowrap text-muted-foreground text-xs">
                           {formatDate(tx.fecha)}
@@ -536,7 +678,10 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                               </span>
                             )}
                             {tx.isInternalTransfer && (
-                              <span className="text-[10px] font-medium text-sky-600 dark:text-sky-400" title="Transferencia entre productos propios — se excluye de ingresos/gastos reales">
+                              <span
+                                className="text-[10px] font-medium text-sky-600 dark:text-sky-400"
+                                title="Transferencia entre productos propios — se excluye de ingresos/gastos reales"
+                              >
                                 interna
                               </span>
                             )}
@@ -559,7 +704,7 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                             <SelectTrigger
                               className={cn(
                                 "h-6 w-auto min-w-[90px] max-w-[130px] border-0 bg-transparent px-1.5 text-[10px] font-medium rounded-full inline-flex",
-                                CAT_COLORS[tx.categoria] ?? CAT_COLORS.otro
+                                CAT_COLORS[tx.categoria] ?? CAT_COLORS.otro,
                               )}
                             >
                               <SelectValue>{categoryLabel(tx.categoria)}</SelectValue>
@@ -573,13 +718,19 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                             </SelectContent>
                           </Select>
                         </td>
-                        <td className={cn(
-                          "px-3 py-2 text-right font-semibold whitespace-nowrap text-sm",
-                          isGastos
-                            ? "text-foreground"
-                            : tx.tipo === "ingreso" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
-                        )}>
-                          {isGastos ? formatClp(tx.monto) : `${tx.tipo === "ingreso" ? "+" : "−"}${formatClp(tx.monto)}`}
+                        <td
+                          className={cn(
+                            "px-3 py-2 text-right font-semibold whitespace-nowrap text-sm",
+                            isGastos
+                              ? "text-foreground"
+                              : tx.tipo === "ingreso"
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-red-600 dark:text-red-400",
+                          )}
+                        >
+                          {isGastos
+                            ? formatClp(tx.monto)
+                            : `${tx.tipo === "ingreso" ? "+" : "−"}${formatClp(tx.monto)}`}
                         </td>
                         {!isGastos && (
                           <td className="px-3 py-2 text-right text-muted-foreground text-xs whitespace-nowrap hidden md:table-cell">
@@ -602,21 +753,35 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                 <div className="text-center">
                   <p className="text-xs text-muted-foreground">Ingresos</p>
                   <p className="text-sm font-semibold text-emerald-600">
-                    +{formatClp(filtered.filter(t => t.tipo === "ingreso").reduce((sum, t) => sum + Math.abs(t.monto), 0))}
+                    +
+                    {formatClp(
+                      filtered
+                        .filter((t) => t.tipo === "ingreso")
+                        .reduce((sum, t) => sum + Math.abs(t.monto), 0),
+                    )}
                   </p>
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-muted-foreground">Egresos</p>
                   <p className="text-sm font-semibold text-red-600">
-                    −{formatClp(filtered.filter(t => t.tipo === "egreso").reduce((sum, t) => sum + Math.abs(t.monto), 0))}
+                    −
+                    {formatClp(
+                      filtered
+                        .filter((t) => t.tipo === "egreso")
+                        .reduce((sum, t) => sum + Math.abs(t.monto), 0),
+                    )}
                   </p>
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-muted-foreground">Balance</p>
-                  <p className={cn(
-                    "text-sm font-semibold",
-                    filtered.reduce((sum, t) => sum + t.monto, 0) >= 0 ? "text-emerald-600" : "text-red-600"
-                  )}>
+                  <p
+                    className={cn(
+                      "text-sm font-semibold",
+                      filtered.reduce((sum, t) => sum + t.monto, 0) >= 0
+                        ? "text-emerald-600"
+                        : "text-red-600",
+                    )}
+                  >
                     {formatClp(filtered.reduce((sum, t) => sum + t.monto, 0))}
                   </p>
                 </div>
@@ -635,7 +800,9 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
                 <div className="text-center">
                   <p className="text-xs text-muted-foreground">Promedio por Gasto</p>
                   <p className="text-sm font-semibold text-foreground">
-                    {formatClp(filtered.reduce((sum, t) => sum + Math.abs(t.monto), 0) / filtered.length)}
+                    {formatClp(
+                      filtered.reduce((sum, t) => sum + Math.abs(t.monto), 0) / filtered.length,
+                    )}
                   </p>
                 </div>
               </div>
@@ -645,11 +812,18 @@ export default function ParsedTransactionsTable({ mode = "movimientos", title, s
             <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
               <span>
                 {filtered.length} movimiento{filtered.length !== 1 ? "s" : ""}
-                {hasActiveFilter ? " (filtrado" + (filtered.length !== allTxs.length ? `s de ${allTxs.length}` : "") + ")" : ""}
+                {hasActiveFilter
+                  ? " (filtrado" +
+                    (filtered.length !== allTxs.length ? `s de ${allTxs.length}` : "") +
+                    ")"
+                  : ""}
               </span>
               <div className="flex items-center gap-3">
                 {page < totalPages && (
-                  <span className="text-primary cursor-pointer hover:underline" onClick={() => setPage(p => p + 1)}>
+                  <span
+                    className="text-primary cursor-pointer hover:underline"
+                    onClick={() => setPage((p) => p + 1)}
+                  >
                     Cargar más ↓
                   </span>
                 )}

@@ -8,7 +8,7 @@
  */
 
 /** Códigos de moneda según tabla 1 MSI (ejemplos). En producción pueden venir más códigos. */
-export type MsiCurrencyCode = 'CLP' | 'USD' | 'EUR' | 'UF' | string;
+export type MsiCurrencyCode = "CLP" | "USD" | "EUR" | "UF" | string;
 
 /** Tasas de cambio a CLP (1 unidad de moneda = X CLP). Base para desarrollo; en producción inyectar tasas actualizadas. */
 export interface ExchangeRatesToClp {
@@ -34,10 +34,10 @@ export const DEFAULT_EXCHANGE_RATES_CLP: ExchangeRatesToClp = {
 export function toClp(
   amount: number,
   currency: MsiCurrencyCode | null | undefined,
-  rates: ExchangeRatesToClp = DEFAULT_EXCHANGE_RATES_CLP
+  rates: ExchangeRatesToClp = DEFAULT_EXCHANGE_RATES_CLP,
 ): number {
   if (amount == null || Number.isNaN(amount)) return 0;
-  const code = (currency ?? 'CLP').toString().toUpperCase().trim();
+  const code = (currency ?? "CLP").toString().toUpperCase().trim();
   const rate = rates[code] ?? rates.CLP ?? 1;
   return amount * rate;
 }

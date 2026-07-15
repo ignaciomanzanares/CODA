@@ -54,9 +54,12 @@ function statusLabel(status?: string | null) {
 }
 
 function statusClass(status?: string | null) {
-  if (status === "success") return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300";
-  if (status === "failed") return "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300";
-  if (status === "pending") return "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300";
+  if (status === "success")
+    return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300";
+  if (status === "failed")
+    return "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300";
+  if (status === "pending")
+    return "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300";
   return "border-border bg-muted text-muted-foreground";
 }
 
@@ -68,9 +71,10 @@ export default function DocumentManager({
   flat = false,
 }: DocumentManagerProps) {
   const { documents: allDocuments, isLoading } = useUserDocuments();
-  const documents = documentType === "cartola"
-    ? allDocuments.filter((doc) => doc.tipo === "cartola")
-    : allDocuments;
+  const documents =
+    documentType === "cartola"
+      ? allDocuments.filter((doc) => doc.tipo === "cartola")
+      : allDocuments;
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -88,7 +92,10 @@ export default function DocumentManager({
         });
         if (!res.ok) throw new Error("delete failed");
         await queryClient.invalidateQueries();
-        toast({ title: "Documento eliminado", description: "Puedes volver a subirlo cuando quieras." });
+        toast({
+          title: "Documento eliminado",
+          description: "Puedes volver a subirlo cuando quieras.",
+        });
       } catch (error) {
         const description = error instanceof Error ? error.message : "Inténtalo de nuevo.";
         toast({ title: "No se pudo eliminar", description, variant: "destructive" });
@@ -130,7 +137,9 @@ export default function DocumentManager({
   if (documents.length === 0) {
     if (!showEmptyState) return null;
     return (
-      <div className={cn("rounded-lg border border-dashed border-border p-6 text-center", className)}>
+      <div
+        className={cn("rounded-lg border border-dashed border-border p-6 text-center", className)}
+      >
         <FileText className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
         <p className="text-sm font-medium">No hay cartolas para borrar</p>
         <p className="text-xs text-muted-foreground">Sube una cartola y aparecerá en esta lista.</p>
@@ -142,31 +151,42 @@ export default function DocumentManager({
     <div className={cn("space-y-2", className)}>
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-muted-foreground">
-          {documentType === "cartola" ? "Cartolas subidas" : "Documentos subidos"} ({documents.length})
+          {documentType === "cartola" ? "Cartolas subidas" : "Documentos subidos"} (
+          {documents.length})
         </p>
         {showDeleteAll && (
           <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-red-600 hover:text-red-700" disabled={deletingAll}>
-              {deletingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-              Borrar todo
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Borrar todos los documentos?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Se eliminarán tus {documents.length} documento{documents.length !== 1 ? "s" : ""} y los movimientos
-                derivados de ellos. Esta acción no se puede deshacer, pero puedes volver a subirlos.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={deleteAll} className="bg-red-600 hover:bg-red-700">
-                Sí, borrar todo
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 text-red-600 hover:text-red-700"
+                disabled={deletingAll}
+              >
+                {deletingAll ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+                Borrar todo
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Borrar todos los documentos?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Se eliminarán tus {documents.length} documento{documents.length !== 1 ? "s" : ""}{" "}
+                  y los movimientos derivados de ellos. Esta acción no se puede deshacer, pero
+                  puedes volver a subirlos.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={deleteAll} className="bg-red-600 hover:bg-red-700">
+                  Sí, borrar todo
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
           </AlertDialog>
         )}
       </div>
@@ -184,23 +204,38 @@ export default function DocumentManager({
               : null;
           const meta = [periodo, movimientos, `subida ${subida}`].filter(Boolean).join(" · ");
           return (
-            <div key={doc.id} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm">
+            <div
+              key={doc.id}
+              className="flex items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm"
+            >
               <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <p className="truncate text-xs font-medium">{label}</p>
                   {doc.tipo === "cartola" && (
-                    <Badge variant="outline" className={cn("h-5 px-1.5 text-[10px] font-medium", statusClass(doc.normalizationStatus))}>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "h-5 px-1.5 text-[10px] font-medium",
+                        statusClass(doc.normalizationStatus),
+                      )}
+                    >
                       {statusLabel(doc.normalizationStatus)}
                     </Badge>
                   )}
                   {doc.reviewStatus === "required" && (
-                    <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-medium border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                    <Badge
+                      variant="outline"
+                      className="h-5 px-1.5 text-[10px] font-medium border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+                    >
                       Revisión recomendada
                     </Badge>
                   )}
                   {doc.reviewStatus === "reviewed" && (
-                    <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-medium border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
+                    <Badge
+                      variant="outline"
+                      className="h-5 px-1.5 text-[10px] font-medium border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+                    >
                       Revisado
                     </Badge>
                   )}
@@ -208,8 +243,9 @@ export default function DocumentManager({
                 <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
                 {doc.tipo === "cartola" && doc.normalizationStatus === "failed" && (
                   <p className="mt-1 text-[11px] leading-snug text-red-600 dark:text-red-400">
-                    No pudimos extraer los movimientos de este documento. Elimínalo e intenta subir un PDF
-                    digital descargado directamente desde tu banco (evita fotos o escaneos de la cartola).
+                    No pudimos extraer los movimientos de este documento. Elimínalo e intenta subir
+                    un PDF digital descargado directamente desde tu banco (evita fotos o escaneos de
+                    la cartola).
                   </p>
                 )}
               </div>
@@ -220,7 +256,11 @@ export default function DocumentManager({
                 aria-label="Eliminar documento"
                 title="Eliminar documento"
               >
-                {deletingId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                {deletingId === doc.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
               </button>
             </div>
           );

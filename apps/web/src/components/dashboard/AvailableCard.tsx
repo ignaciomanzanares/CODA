@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 
 const fmtCLP = (n: number) =>
   new Intl.NumberFormat("es-CL", {
@@ -29,21 +29,25 @@ export default function AvailableCard({
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           Balance del período
         </p>
-        <div className={cn(
-          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-          isPositive
-            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
-            : "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400",
-        )}>
+        <div
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+            isPositive
+              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+              : "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400",
+          )}
+        >
           {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
           {isPositive ? "Superávit" : "Déficit"}
         </div>
       </div>
 
-      <p className={cn(
-        "text-3xl sm:text-4xl font-bold tabular-nums leading-none",
-        isPositive ? "text-foreground" : "text-red-600 dark:text-red-400",
-      )}>
+      <p
+        className={cn(
+          "text-3xl sm:text-4xl font-bold tabular-nums leading-none",
+          isPositive ? "text-foreground" : "text-red-600 dark:text-red-400",
+        )}
+      >
         {fmtCLP(balance)}
       </p>
 

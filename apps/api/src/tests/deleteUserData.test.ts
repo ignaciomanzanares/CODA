@@ -244,11 +244,27 @@ describe("storage.deleteUserData", () => {
     ]) {
       expect(await countByUser(table, userId)).toBe(0);
     }
-    expect((await db.select().from(billSplits).where(eq(billSplits.createdBy, userId))).length).toBe(0);
+    expect(
+      (await db.select().from(billSplits).where(eq(billSplits.createdBy, userId))).length,
+    ).toBe(0);
 
     // Transitive children (by accountId) are gone too.
-    expect((await db.select().from(transactions).where(inArray(transactions.accountId, [accountId]))).length).toBe(0);
-    expect((await db.select().from(balances).where(inArray(balances.accountId, [accountId]))).length).toBe(0);
+    expect(
+      (
+        await db
+          .select()
+          .from(transactions)
+          .where(inArray(transactions.accountId, [accountId]))
+      ).length,
+    ).toBe(0);
+    expect(
+      (
+        await db
+          .select()
+          .from(balances)
+          .where(inArray(balances.accountId, [accountId]))
+      ).length,
+    ).toBe(0);
   });
 
   it("does not delete another user's data", async () => {
@@ -263,7 +279,14 @@ describe("storage.deleteUserData", () => {
     expect(await storage.getUser(bystanderId)).toBeTruthy();
     expect(await countByUser(transactionalScores, bystanderId)).toBe(1);
     expect(await countByUser(creditScores, bystanderId)).toBe(1);
-    expect((await db.select().from(transactions).where(inArray(transactions.accountId, [bystanderAccountId]))).length).toBe(1);
+    expect(
+      (
+        await db
+          .select()
+          .from(transactions)
+          .where(inArray(transactions.accountId, [bystanderAccountId]))
+      ).length,
+    ).toBe(1);
   });
 
   it("is idempotent: deleting an already-deleted user does not throw", async () => {

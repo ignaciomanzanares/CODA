@@ -43,7 +43,10 @@ async function main() {
   for (const doc of docs) {
     let pd: { transacciones?: unknown[] } | null;
     try {
-      pd = typeof doc.parsedData === "string" ? JSON.parse(doc.parsedData) : (doc.parsedData as { transacciones?: unknown[] } | null);
+      pd =
+        typeof doc.parsedData === "string"
+          ? JSON.parse(doc.parsedData)
+          : (doc.parsedData as { transacciones?: unknown[] } | null);
     } catch {
       console.warn(`  ⚠️  ${doc.id}: parsedData no parseable, se omite.`);
       continue;

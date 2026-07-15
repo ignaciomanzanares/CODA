@@ -1,19 +1,25 @@
-import { useEffect, useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bell, BellOff, Check, CheckCheck, X, Settings } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
-import { formatRelativeTime, truncateText } from '@/lib/utils';
-import type { Notification } from '@/types';
-import { useApi } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
-import { useLocation } from 'wouter';
-import { ROUTES } from '@/lib/routes';
+import { useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Bell, BellOff, Check, CheckCheck, X, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { CheckCircle, AlertCircle, Info, AlertTriangle } from "lucide-react";
+import { formatRelativeTime, truncateText } from "@/lib/utils";
+import type { Notification } from "@/types";
+import { useApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { useLocation } from "wouter";
+import { ROUTES } from "@/lib/routes";
 
 interface NotificationCenterProps {
   className?: string;
@@ -21,58 +27,62 @@ interface NotificationCenterProps {
 
 export default function NotificationCenter({ className }: NotificationCenterProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState("all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
   const {
-    getNotifications, 
-    markNotificationAsRead, 
-    markAllNotificationsAsRead, 
-    deleteNotification
+    getNotifications,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    deleteNotification,
   } = useApi();
 
   // Get all notifications for counting and filtering
-  const { data: allNotifications = [], isLoading: allNotificationsLoading } = useQuery<Notification[]>({
-    queryKey: ['notifications', 'all'],
+  const { data: allNotifications = [], isLoading: allNotificationsLoading } = useQuery<
+    Notification[]
+  >({
+    queryKey: ["notifications", "all"],
     queryFn: () => getNotifications({}),
     enabled: isAuthenticated && !authLoading,
-    refetchOnMount: 'always',
+    refetchOnMount: "always",
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     staleTime: 0,
   });
 
   // Get filtered notifications for the active tab
-  const { data: filteredNotifications = [], isLoading: filteredLoading } = useQuery<Notification[]>({
-    queryKey: ['notifications', activeTab],
-    queryFn: () => {
-      if (activeTab === 'all') {
-        return getNotifications({});
-      } else if (activeTab === 'unread') {
-        return getNotifications({ unreadOnly: true });
-      } else {
-        return getNotifications({ category: activeTab });
-      }
+  const { data: filteredNotifications = [], isLoading: filteredLoading } = useQuery<Notification[]>(
+    {
+      queryKey: ["notifications", activeTab],
+      queryFn: () => {
+        if (activeTab === "all") {
+          return getNotifications({});
+        } else if (activeTab === "unread") {
+          return getNotifications({ unreadOnly: true });
+        } else {
+          return getNotifications({ category: activeTab });
+        }
+      },
+      enabled: isAuthenticated && !authLoading && activeTab !== "all",
+      refetchOnMount: "always",
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      staleTime: 0,
     },
-    enabled: isAuthenticated && !authLoading && activeTab !== 'all',
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    staleTime: 0,
-  });
+  );
 
-  const notifications = activeTab === 'all' ? allNotifications : filteredNotifications;
-  const isLoading = activeTab === 'all' ? allNotificationsLoading : filteredLoading;
+  const notifications = activeTab === "all" ? allNotifications : filteredNotifications;
+  const isLoading = activeTab === "all" ? allNotificationsLoading : filteredLoading;
   const unreadCount = allNotifications.filter((n: Notification) => !n.isRead).length;
 
   // Force a fresh fetch every time the dialog is opened or tab changes
   useEffect(() => {
     if (isOpen) {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       // Also invalidate the active tab specifically for quick refresh
-      queryClient.invalidateQueries({ queryKey: ['notifications', activeTab] });
+      queryClient.invalidateQueries({ queryKey: ["notifications", activeTab] });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, activeTab]);
@@ -81,191 +91,203 @@ export default function NotificationCenter({ className }: NotificationCenterProp
     mutationFn: markNotificationAsRead,
     onMutate: async (notificationId) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['notifications'] });
-      
+      await queryClient.cancelQueries({ queryKey: ["notifications"] });
+
       // Snapshot the previous values
-      const previousAll = queryClient.getQueryData<Notification[]>(['notifications', 'all']);
-      const previousFiltered = queryClient.getQueryData<Notification[]>(['notifications', activeTab]);
-      
+      const previousAll = queryClient.getQueryData<Notification[]>(["notifications", "all"]);
+      const previousFiltered = queryClient.getQueryData<Notification[]>([
+        "notifications",
+        activeTab,
+      ]);
+
       // Optimistically update to the new value in "all"
       if (previousAll) {
-        const updatedAll = previousAll.map(notification => 
+        const updatedAll = previousAll.map((notification) =>
           notification.id === Number(notificationId)
             ? { ...notification, isRead: true, readAt: new Date() }
-            : notification
+            : notification,
         );
-        queryClient.setQueryData<Notification[]>(['notifications', 'all'], updatedAll);
+        queryClient.setQueryData<Notification[]>(["notifications", "all"], updatedAll);
       }
-      
+
       // For filtered tabs, special-case the 'unread' tab by removing the item immediately
-      if (previousFiltered && activeTab !== 'all') {
+      if (previousFiltered && activeTab !== "all") {
         let updatedFiltered: Notification[];
-        if (activeTab === 'unread') {
-          updatedFiltered = previousFiltered.filter(n => n.id !== Number(notificationId));
+        if (activeTab === "unread") {
+          updatedFiltered = previousFiltered.filter((n) => n.id !== Number(notificationId));
         } else {
-          updatedFiltered = previousFiltered.map(notification => 
+          updatedFiltered = previousFiltered.map((notification) =>
             notification.id === Number(notificationId)
               ? { ...notification, isRead: true, readAt: new Date() }
-              : notification
+              : notification,
           );
         }
-        queryClient.setQueryData<Notification[]>(['notifications', activeTab], updatedFiltered);
+        queryClient.setQueryData<Notification[]>(["notifications", activeTab], updatedFiltered);
       }
-      
+
       return { previousAll, previousFiltered };
     },
     onSuccess: () => {
       // No refetch needed; cache already updated optimistically
       toast({
-        title: 'Notificación marcada como leída',
-        variant: 'default'
+        title: "Notificación marcada como leída",
+        variant: "default",
       });
     },
     onError: (error, notificationId, context) => {
       // Rollback optimistic updates on error
       if (context?.previousAll) {
-        queryClient.setQueryData(['notifications', 'all'], context.previousAll);
+        queryClient.setQueryData(["notifications", "all"], context.previousAll);
       }
       if (context?.previousFiltered) {
-        queryClient.setQueryData(['notifications', activeTab], context.previousFiltered);
+        queryClient.setQueryData(["notifications", activeTab], context.previousFiltered);
       }
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'No se pudo marcar la notificación como leída',
-        variant: 'destructive'
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "No se pudo marcar la notificación como leída",
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const markAllAsReadMutation = useMutation({
     mutationFn: markAllNotificationsAsRead,
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['notifications'] });
+      await queryClient.cancelQueries({ queryKey: ["notifications"] });
 
-      const previousAll = queryClient.getQueryData<Notification[]>(['notifications', 'all']);
-      const previousFiltered = queryClient.getQueryData<Notification[]>(['notifications', activeTab]);
+      const previousAll = queryClient.getQueryData<Notification[]>(["notifications", "all"]);
+      const previousFiltered = queryClient.getQueryData<Notification[]>([
+        "notifications",
+        activeTab,
+      ]);
 
       if (previousAll) {
-        const updatedAll = previousAll.map(n => ({ ...n, isRead: true, readAt: new Date() }));
-        queryClient.setQueryData<Notification[]>(['notifications', 'all'], updatedAll);
+        const updatedAll = previousAll.map((n) => ({ ...n, isRead: true, readAt: new Date() }));
+        queryClient.setQueryData<Notification[]>(["notifications", "all"], updatedAll);
       }
-      if (previousFiltered && activeTab === 'unread') {
+      if (previousFiltered && activeTab === "unread") {
         // Clear unread tab immediately for better UX
-        queryClient.setQueryData<Notification[]>(['notifications', 'unread'], []);
+        queryClient.setQueryData<Notification[]>(["notifications", "unread"], []);
       }
       return { previousAll, previousFiltered };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       toast({
-        title: 'Todas las notificaciones marcadas como leídas',
-        variant: 'default'
+        title: "Todas las notificaciones marcadas como leídas",
+        variant: "default",
       });
     },
     onError: (error, _vars, context) => {
       // Roll back optimistic changes
       if (context?.previousAll) {
-        queryClient.setQueryData(['notifications', 'all'], context.previousAll);
+        queryClient.setQueryData(["notifications", "all"], context.previousAll);
       }
       if (context?.previousFiltered) {
-        queryClient.setQueryData(['notifications', activeTab], context.previousFiltered);
+        queryClient.setQueryData(["notifications", activeTab], context.previousFiltered);
       }
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'No se pudo marcar todas como leídas',
-        variant: 'destructive'
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo marcar todas como leídas",
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const deleteNotificationMutation = useMutation({
     mutationFn: deleteNotification,
     onMutate: async (notificationId) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['notifications'] });
-      
+      await queryClient.cancelQueries({ queryKey: ["notifications"] });
+
       // Snapshot the previous values
-      const previousAll = queryClient.getQueryData<Notification[]>(['notifications', 'all']);
-      const previousFiltered = queryClient.getQueryData<Notification[]>(['notifications', activeTab]);
-      
+      const previousAll = queryClient.getQueryData<Notification[]>(["notifications", "all"]);
+      const previousFiltered = queryClient.getQueryData<Notification[]>([
+        "notifications",
+        activeTab,
+      ]);
+
       // Optimistically update to the new value
       if (previousAll) {
-        const updatedAll = previousAll.filter(notification => notification.id !== notificationId);
-        queryClient.setQueryData<Notification[]>(['notifications', 'all'], updatedAll);
+        const updatedAll = previousAll.filter((notification) => notification.id !== notificationId);
+        queryClient.setQueryData<Notification[]>(["notifications", "all"], updatedAll);
       }
-      
-      if (previousFiltered && activeTab !== 'all') {
-        const updatedFiltered = previousFiltered.filter(notification => notification.id !== notificationId);
-        queryClient.setQueryData<Notification[]>(['notifications', activeTab], updatedFiltered);
+
+      if (previousFiltered && activeTab !== "all") {
+        const updatedFiltered = previousFiltered.filter(
+          (notification) => notification.id !== notificationId,
+        );
+        queryClient.setQueryData<Notification[]>(["notifications", activeTab], updatedFiltered);
       }
-      
+
       return { previousAll, previousFiltered };
     },
     onSuccess: () => {
       // No refetch needed; cache already updated optimistically
       toast({
-        title: 'Notificación eliminada',
-        variant: 'default'
+        title: "Notificación eliminada",
+        variant: "default",
       });
     },
     onError: (error, notificationId, context) => {
       // Rollback optimistic updates on error
       if (context?.previousAll) {
-        queryClient.setQueryData(['notifications', 'all'], context.previousAll);
+        queryClient.setQueryData(["notifications", "all"], context.previousAll);
       }
       if (context?.previousFiltered) {
-        queryClient.setQueryData(['notifications', activeTab], context.previousFiltered);
+        queryClient.setQueryData(["notifications", activeTab], context.previousFiltered);
       }
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'No se pudo eliminar la notificación',
-        variant: 'destructive'
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo eliminar la notificación",
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'bill_split':
-        return '🧾';
-      case 'credit_score':
-        return '📊';
-      case 'goal':
-        return '🎯';
-      case 'expense':
-        return '💰';
-      case 'security':
-        return '🔒';
-      case 'product':
-        return '🏦';
+      case "bill_split":
+        return "🧾";
+      case "credit_score":
+        return "📊";
+      case "goal":
+        return "🎯";
+      case "expense":
+        return "💰";
+      case "security":
+        return "🔒";
+      case "product":
+        return "🏦";
       default:
-        return '📩';
+        return "📩";
     }
   };
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'success':
-        return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/20';
-      case 'warning':
-        return 'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-500/10 border-yellow-200 dark:border-yellow-500/20';
-      case 'error':
-        return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20';
-      case 'info':
+      case "success":
+        return "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/20";
+      case "warning":
+        return "text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-500/10 border-yellow-200 dark:border-yellow-500/20";
+      case "error":
+        return "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20";
+      case "info":
       default:
-        return 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20';
+        return "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20";
     }
   };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'success':
+      case "success":
         return <CheckCircle className="h-4 w-4" />;
-      case 'warning':
+      case "warning":
         return <AlertTriangle className="h-4 w-4" />;
-      case 'error':
+      case "error":
         return <AlertCircle className="h-4 w-4" />;
-      case 'info':
+      case "info":
       default:
         return <Info className="h-4 w-4" />;
     }
@@ -277,7 +299,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
     }
     if (notification.actionUrl) {
       // In real app, navigate to the URL
-      window.location.href = String(notification.actionUrl ?? '');
+      window.location.href = String(notification.actionUrl ?? "");
     }
     setIsOpen(false);
   };
@@ -303,12 +325,12 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                 variant="destructive"
                 className="absolute -top-1 -right-1 h-5 min-w-[1.25rem] px-1 flex items-center justify-center text-[10px] font-bold pointer-events-none"
               >
-                {unreadCount > 99 ? '99+' : unreadCount}
+                {unreadCount > 99 ? "99+" : unreadCount}
               </Badge>
             )}
           </div>
         </DialogTrigger>
-        
+
         <DialogContent className="max-w-2xl w-[calc(100vw-1.5rem)] sm:w-full max-h-notification-panel flex flex-col gap-0 overflow-hidden rounded-t-2xl p-0 sm:rounded-lg">
           <DialogHeader className="shrink-0 space-y-3 p-4 pb-3 sm:p-6 sm:pb-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -316,7 +338,9 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                 <Bell className="h-5 w-5 shrink-0" />
                 <span>Notificaciones</span>
                 {unreadCount > 0 && (
-                  <Badge variant="secondary" className="shrink-0">{unreadCount} nuevas</Badge>
+                  <Badge variant="secondary" className="shrink-0">
+                    {unreadCount} nuevas
+                  </Badge>
                 )}
               </DialogTitle>
               <div className="flex flex-wrap items-center justify-end gap-2 sm:min-w-0 sm:flex-1 sm:justify-end">
@@ -341,7 +365,10 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                   size="sm"
                   className="min-h-[44px] shrink-0"
                   aria-label="Ajustes de notificaciones"
-                  onClick={() => { setIsOpen(false); navigate(ROUTES.perfil); }}
+                  onClick={() => {
+                    setIsOpen(false);
+                    navigate(ROUTES.perfil);
+                  }}
                 >
                   <Settings className="h-4 w-4" />
                 </Button>
@@ -369,7 +396,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
               <TabsContent value={activeTab} className="mt-4 pb-2">
                 {isLoading ? (
                   <div className="space-y-4">
-                    {[1, 2, 3].map(i => (
+                    {[1, 2, 3].map((i) => (
                       <Card key={i} className="animate-pulse">
                         <CardContent className="p-4">
                           <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
@@ -382,24 +409,28 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                   <div className="text-center py-12">
                     <BellOff className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <p className="text-muted-foreground">
-                      {activeTab === 'unread' ? 'No hay notificaciones sin leer' : 'Aún no hay notificaciones'}
+                      {activeTab === "unread"
+                        ? "No hay notificaciones sin leer"
+                        : "Aún no hay notificaciones"}
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {displayNotifications.map((notification: Notification) => (
-                      <Card 
+                      <Card
                         key={notification.id}
                         className={`cursor-pointer transition-colors hover:bg-muted/50 ${
-                          !notification.isRead ? 'border-l-4 border-l-primary bg-primary/5' : ''
+                          !notification.isRead ? "border-l-4 border-l-primary bg-primary/5" : ""
                         }`}
                         onClick={() => handleNotificationClick(notification)}
                       >
                         <CardContent className="p-4">
                           <div className="flex items-start gap-3">
                             <div className="flex-shrink-0">
-                              <div className={`p-2 rounded-full ${getTypeColor(String(notification.type ?? 'info'))}`}>
-                                {getNotificationIcon(String(notification.type ?? 'info'))}
+                              <div
+                                className={`p-2 rounded-full ${getTypeColor(String(notification.type ?? "info"))}`}
+                              >
+                                {getNotificationIcon(String(notification.type ?? "info"))}
                               </div>
                             </div>
                             <div className="flex-1 min-w-0">
@@ -409,17 +440,21 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                                 </p>
                                 <div className="flex items-center gap-1 ml-2">
                                   <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                    {notification.createdAt ? formatRelativeTime(notification.createdAt) : 'N/A'}
+                                    {notification.createdAt
+                                      ? formatRelativeTime(notification.createdAt)
+                                      : "N/A"}
                                   </span>
-                                  <span className="text-lg">{getCategoryIcon(String(notification.category ?? ''))}</span>
+                                  <span className="text-lg">
+                                    {getCategoryIcon(String(notification.category ?? ""))}
+                                  </span>
                                 </div>
                               </div>
                               <p className="text-sm text-muted-foreground mb-2">
-                                {truncateText(String(notification.message ?? ''), 100)}
+                                {truncateText(String(notification.message ?? ""), 100)}
                               </p>
                               <div className="flex items-center justify-between">
-                                  <Badge variant="outline" className="text-xs capitalize">
-                                  {(notification.category ?? '').replace('_', ' ')}
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {(notification.category ?? "").replace("_", " ")}
                                 </Badge>
                                 <div className="flex items-center gap-1">
                                   {!notification.isRead && (
@@ -441,7 +476,9 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                                     size="sm"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      deleteNotificationMutation.mutate(Number(notification.id) as any);
+                                      deleteNotificationMutation.mutate(
+                                        Number(notification.id) as any,
+                                      );
                                     }}
                                     disabled={deleteNotificationMutation.isPending}
                                     className="h-6 w-6 p-0 text-muted-foreground hover:text-red-500"
@@ -464,11 +501,14 @@ export default function NotificationCenter({ className }: NotificationCenterProp
           <div className="p-4 sm:p-6 pt-3 sm:pt-4 border-t shrink-0 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
             <div className="text-center">
               <p className="text-sm text-muted-foreground">
-                Gestiona las preferencias de notificaciones en tu{' '}
+                Gestiona las preferencias de notificaciones en tu{" "}
                 <Button
                   variant="link"
                   className="p-0 h-auto text-primary"
-                  onClick={() => { setIsOpen(false); navigate(ROUTES.perfil); }}
+                  onClick={() => {
+                    setIsOpen(false);
+                    navigate(ROUTES.perfil);
+                  }}
                 >
                   configuración de perfil
                 </Button>

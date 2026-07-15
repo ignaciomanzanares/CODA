@@ -1,7 +1,16 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, Target, TrendingUp, PiggyBank, Home, GraduationCap, Heart, ArrowRight } from "lucide-react";
+import {
+  ArrowLeft,
+  Target,
+  TrendingUp,
+  PiggyBank,
+  Home,
+  GraduationCap,
+  Heart,
+  ArrowRight,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { ROUTES } from "@/lib/routes";
 
@@ -25,14 +34,14 @@ export default function FinancialGoalsInfo() {
               Metas Financieras: Tu Hoja de Ruta al Éxito
             </h1>
             <p className="text-xl text-purple-100 leading-relaxed mb-8">
-              Define, planifica y alcanza tus objetivos financieros con seguimiento personalizado 
-              y recomendaciones inteligentes.
+              Define, planifica y alcanza tus objetivos financieros con seguimiento personalizado y
+              recomendaciones inteligentes.
             </p>
-            
+
             {/* CTA for authenticated users */}
             {!isLoading && isAuthenticated && (
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="bg-white text-purple-700 hover:bg-purple-50"
                 onClick={() => navigate(ROUTES.metas)}
               >
@@ -40,10 +49,10 @@ export default function FinancialGoalsInfo() {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             )}
-            
+
             {!isLoading && !isAuthenticated && (
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="bg-white text-purple-700 hover:bg-purple-50"
                 onClick={() => navigate(ROUTES.registro)}
               >
@@ -63,9 +72,9 @@ export default function FinancialGoalsInfo() {
               ¿Qué son las Metas Financieras?
             </h2>
             <p className="text-gray-600 text-lg leading-relaxed mb-6">
-              Las metas financieras son objetivos concretos y medibles que defines para tu futuro económico. 
-              CODA te ayuda a estructurarlas, hacer seguimiento de tu progreso y recibir recomendaciones 
-              personalizadas para alcanzarlas más rápido.
+              Las metas financieras son objetivos concretos y medibles que defines para tu futuro
+              económico. CODA te ayuda a estructurarlas, hacer seguimiento de tu progreso y recibir
+              recomendaciones personalizadas para alcanzarlas más rápido.
             </p>
             <div className="grid md:grid-cols-3 gap-6 mt-12">
               <Card>
@@ -80,7 +89,7 @@ export default function FinancialGoalsInfo() {
                   </ul>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardContent className="p-6">
                   <Home className="h-10 w-10 text-blue-500 mb-4" />
@@ -93,7 +102,7 @@ export default function FinancialGoalsInfo() {
                   </ul>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardContent className="p-6">
                   <GraduationCap className="h-10 w-10 text-purple-500 mb-4" />
@@ -126,8 +135,8 @@ export default function FinancialGoalsInfo() {
                 <div>
                   <h3 className="text-xl font-semibold mb-2">Define Metas Claras</h3>
                   <p className="text-gray-600">
-                    Establece el monto objetivo, fecha límite y categoría. CODA calcula automáticamente 
-                    cuánto necesitas ahorrar mensualmente para alcanzar tu meta.
+                    Establece el monto objetivo, fecha límite y categoría. CODA calcula
+                    automáticamente cuánto necesitas ahorrar mensualmente para alcanzar tu meta.
                   </p>
                 </div>
               </div>
@@ -139,8 +148,9 @@ export default function FinancialGoalsInfo() {
                 <div>
                   <h3 className="text-xl font-semibold mb-2">Seguimiento en Tiempo Real</h3>
                   <p className="text-gray-600">
-                    Ve tu progreso actualizado automáticamente basándose en tus movimientos bancarios 
-                    y ahorros. Gráficos visuales te muestran qué tan cerca estás de tu objetivo.
+                    Ve tu progreso actualizado automáticamente basándose en tus movimientos
+                    bancarios y ahorros. Gráficos visuales te muestran qué tan cerca estás de tu
+                    objetivo.
                   </p>
                 </div>
               </div>
@@ -152,8 +162,9 @@ export default function FinancialGoalsInfo() {
                 <div>
                   <h3 className="text-xl font-semibold mb-3">Recomendaciones Personalizadas</h3>
                   <p className="text-gray-600">
-                    Recibe sugerencias inteligentes para optimizar tu ahorro: áreas donde recortar gastos, 
-                    productos de inversión recomendados según tu perfil, y estrategias para acelerar tu progreso.
+                    Recibe sugerencias inteligentes para optimizar tu ahorro: áreas donde recortar
+                    gastos, productos de inversión recomendados según tu perfil, y estrategias para
+                    acelerar tu progreso.
                   </p>
                 </div>
               </div>
@@ -166,48 +177,38 @@ export default function FinancialGoalsInfo() {
       <section className="py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">
-              Cómo Funciona
-            </h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">Cómo Funciona</h2>
             <div className="grid md:grid-cols-4 gap-8">
               <div className="text-center">
                 <div className="w-16 h-16 bg-purple-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
                   1
                 </div>
                 <h3 className="font-semibold mb-2">Crea tu Meta</h3>
-                <p className="text-sm text-gray-600">
-                  Define monto, fecha y categoría
-                </p>
+                <p className="text-sm text-gray-600">Define monto, fecha y categoría</p>
               </div>
-              
+
               <div className="text-center">
                 <div className="w-16 h-16 bg-purple-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
                   2
                 </div>
                 <h3 className="font-semibold mb-2">Conecta tu Banco</h3>
-                <p className="text-sm text-gray-600">
-                  Sincroniza automáticamente tus ahorros
-                </p>
+                <p className="text-sm text-gray-600">Sincroniza automáticamente tus ahorros</p>
               </div>
-              
+
               <div className="text-center">
                 <div className="w-16 h-16 bg-purple-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
                   3
                 </div>
                 <h3 className="font-semibold mb-2">Haz Seguimiento</h3>
-                <p className="text-sm text-gray-600">
-                  Ve tu progreso en tiempo real
-                </p>
+                <p className="text-sm text-gray-600">Ve tu progreso en tiempo real</p>
               </div>
-              
+
               <div className="text-center">
                 <div className="w-16 h-16 bg-purple-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
                   4
                 </div>
                 <h3 className="font-semibold mb-2">¡Alcánzala!</h3>
-                <p className="text-sm text-gray-600">
-                  Celebra cuando llegues a tu objetivo
-                </p>
+                <p className="text-sm text-gray-600">Celebra cuando llegues a tu objetivo</p>
               </div>
             </div>
           </div>
@@ -221,14 +222,14 @@ export default function FinancialGoalsInfo() {
             {isAuthenticated ? "Empieza a Definir tus Metas" : "Comienza Hoy Mismo"}
           </h2>
           <p className="text-xl text-purple-100 mb-8 max-w-2xl mx-auto">
-            {isAuthenticated 
+            {isAuthenticated
               ? "Crea tu primera meta financiera y comienza a ver tu progreso en tiempo real."
               : "Únete a miles de personas que están alcanzando sus objetivos financieros con CODA."}
           </p>
-          
+
           {!isLoading && isAuthenticated && (
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               className="bg-white text-purple-700 hover:bg-purple-50"
               onClick={() => navigate(ROUTES.metas)}
             >
@@ -236,18 +237,18 @@ export default function FinancialGoalsInfo() {
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           )}
-          
+
           {!isLoading && !isAuthenticated && (
             <div className="flex gap-4 justify-center">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="bg-white text-purple-700 hover:bg-purple-50"
                 onClick={() => navigate(ROUTES.registro)}
               >
                 Crear Cuenta Gratis
               </Button>
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 variant="outline"
                 className="border-white text-white hover:bg-white/10"
                 onClick={() => navigate(ROUTES.iniciarSesion)}

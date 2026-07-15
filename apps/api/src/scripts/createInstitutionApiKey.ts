@@ -17,16 +17,28 @@ config({ path: path.join(__dirname, "../../.env") });
 
 async function main() {
   const args = process.argv.slice(2);
-  const provider = args.find((a) => a.startsWith("--provider="))?.split("=").slice(1).join("=");
-  const label = args.find((a) => a.startsWith("--label="))?.split("=").slice(1).join("=") ?? null;
+  const provider = args
+    .find((a) => a.startsWith("--provider="))
+    ?.split("=")
+    .slice(1)
+    .join("=");
+  const label =
+    args
+      .find((a) => a.startsWith("--label="))
+      ?.split("=")
+      .slice(1)
+      .join("=") ?? null;
 
   if (!provider) {
-    console.error('Falta --provider="Nombre Institución" (debe matchear financial_products.provider).');
+    console.error(
+      'Falta --provider="Nombre Institución" (debe matchear financial_products.provider).',
+    );
     process.exit(1);
   }
 
   const { db, institutionApiKeys } = await import("../db/index.js");
-  const { generateApiKey, hashApiKey } = await import("../services/institutions/institutionAuth.js");
+  const { generateApiKey, hashApiKey } =
+    await import("../services/institutions/institutionAuth.js");
   if (!db) {
     console.error("Base de datos no disponible (falta DATABASE_URL).");
     process.exit(1);

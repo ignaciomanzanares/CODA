@@ -1,22 +1,22 @@
 /**
  * Seed Script: Product Catalog
- * 
+ *
  * Populates financial_products table with real Chilean products
  * Based on productCatalog.ts
- * 
- * Usage: 
+ *
+ * Usage:
  * DATABASE_URL="..." npm run seed:products -w @coda/api
  */
 
-import { db, financialProducts } from '../db/index.js';
-import { productCatalog } from '../services/products/productCatalog.js';
-import { logger } from '../logger.js';
+import { db, financialProducts } from "../db/index.js";
+import { productCatalog } from "../services/products/productCatalog.js";
+import { logger } from "../logger.js";
 
 async function seedProducts() {
   try {
-    console.log('🌱 Seeding financial products...');
+    console.log("🌱 Seeding financial products...");
     console.log(`📦 Found ${productCatalog.length} products in catalog`);
-    console.log('');
+    console.log("");
 
     let insertedCount = 0;
     let skippedCount = 0;
@@ -27,11 +27,15 @@ async function seedProducts() {
         const existing = await db
           .select()
           .from(financialProducts)
-          .where(sql`${financialProducts.productName} = ${product.productName} AND ${financialProducts.provider} = ${product.provider}`)
+          .where(
+            sql`${financialProducts.productName} = ${product.productName} AND ${financialProducts.provider} = ${product.provider}`,
+          )
           .limit(1);
 
         if (existing.length > 0) {
-          console.log(`⏭️  Skipping (already exists): ${product.provider} - ${product.productName}`);
+          console.log(
+            `⏭️  Skipping (already exists): ${product.provider} - ${product.productName}`,
+          );
           skippedCount++;
           continue;
         }
@@ -66,7 +70,7 @@ async function seedProducts() {
           externalUrl: product.externalUrl ?? null,
           logoUrl: product.logoUrl ?? null,
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
         });
 
         console.log(`✅ Inserted: ${product.provider} - ${product.productName}`);
@@ -76,23 +80,23 @@ async function seedProducts() {
       }
     }
 
-    console.log('');
-    console.log('═══════════════════════════════════════');
+    console.log("");
+    console.log("═══════════════════════════════════════");
     console.log(`✅ Inserted: ${insertedCount} products`);
     console.log(`⏭️  Skipped: ${skippedCount} products`);
-    console.log('═══════════════════════════════════════');
-    console.log('');
-    console.log('🎉 Seeding complete!');
+    console.log("═══════════════════════════════════════");
+    console.log("");
+    console.log("🎉 Seeding complete!");
 
     process.exit(0);
   } catch (error) {
-    logger.error({ error }, 'Failed to seed products');
-    console.error('❌ Seeding failed:', error);
+    logger.error({ error }, "Failed to seed products");
+    console.error("❌ Seeding failed:", error);
     process.exit(1);
   }
 }
 
 // Fix import for sql
-import { sql } from 'drizzle-orm';
+import { sql } from "drizzle-orm";
 
 seedProducts();

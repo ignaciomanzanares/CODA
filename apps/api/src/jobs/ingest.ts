@@ -13,7 +13,10 @@ function toDateString(v: Date | string | null | undefined): string | null {
  * Ingest accounts, latest balance, and last 90-day transactions into storage for a given user.
  * Provider-agnostic: any OBProvider will do.
  */
-export async function ingestOpenBankingForUser(userId: string, provider: OBProvider = new MockProvider()) {
+export async function ingestOpenBankingForUser(
+  userId: string,
+  provider: OBProvider = new MockProvider(),
+) {
   // 1) List provider accounts
   const pAccounts = await provider.listAccounts(userId);
 
@@ -54,19 +57,23 @@ export async function ingestOpenBankingForUser(userId: string, provider: OBProvi
     from.setDate(to.getDate() - 90);
     const pTxs = await provider.listTransactions(pa.providerAccountId, from, to);
 
-    const items: InsertTransaction[] = pTxs.map((t: { postedAt: Date | string; [k: string]: unknown }) => ({
-      accountId: created.id as number,
-      externalId: t.externalId,
-      postedAt: toDateString(t.postedAt instanceof Date ? t.postedAt : (t.postedAt as string)) ?? new Date().toISOString(),
-      description: t.description || null,
-      merchantName: t.merchantName || null,
-      amount: String(t.amount),
-      currency: t.currency || null,
-      category: t.category || null,
-      subcategory: t.subcategory || null,
-      pending: (t.pending === true || t.pending === 1) ? 1 : 0,
-      raw: t.raw as any,
-    })) as unknown as InsertTransaction[];
+    const items: InsertTransaction[] = pTxs.map(
+      (t: { postedAt: Date | string; [k: string]: unknown }) => ({
+        accountId: created.id as number,
+        externalId: t.externalId,
+        postedAt:
+          toDateString(t.postedAt instanceof Date ? t.postedAt : (t.postedAt as string)) ??
+          new Date().toISOString(),
+        description: t.description || null,
+        merchantName: t.merchantName || null,
+        amount: String(t.amount),
+        currency: t.currency || null,
+        category: t.category || null,
+        subcategory: t.subcategory || null,
+        pending: t.pending === true || t.pending === 1 ? 1 : 0,
+        raw: t.raw as any,
+      }),
+    ) as unknown as InsertTransaction[];
 
     if (items.length) {
       await storage.createTransactionsBulk(items);
@@ -79,13 +86,15 @@ export async function ingestOpenBankingForUser(userId: string, provider: OBProvi
 // (tsx/ESM import path guard)
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
-if (typeof require !== 'undefined' && require.main === module) {
+if (typeof require !== "undefined" && require.main === module) {
   const userId = process.argv[2] || "demo-user";
-  ingestOpenBankingForUser(userId).then(() => {
-    console.log(`Ingestion completed for ${userId}`);
-    process.exit(0);
-  }).catch((err) => {
-    console.error("Ingestion error", err);
-    process.exit(1);
-  });
+  ingestOpenBankingForUser(userId)
+    .then(() => {
+      console.log(`Ingestion completed for ${userId}`);
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error("Ingestion error", err);
+      process.exit(1);
+    });
 }

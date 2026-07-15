@@ -27,8 +27,14 @@ function makeReq(body: Record<string, unknown>): any {
 }
 function makeRes(): any {
   const res: any = { statusCode: 200, body: undefined };
-  res.status = (c: number) => { res.statusCode = c; return res; };
-  res.json = (p: any) => { res.body = p; return res; };
+  res.status = (c: number) => {
+    res.statusCode = c;
+    return res;
+  };
+  res.json = (p: any) => {
+    res.body = p;
+    return res;
+  };
   return res;
 }
 async function login(email: string, password: string) {

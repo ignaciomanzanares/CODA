@@ -21,7 +21,7 @@ function addWrappedText(
   x: number,
   y: number,
   maxWidth: number,
-  lineHeight: number = LINE_HEIGHT
+  lineHeight: number = LINE_HEIGHT,
 ): number {
   const lines = doc.splitTextToSize(text, maxWidth);
   doc.text(lines, x, y);
@@ -64,9 +64,9 @@ function drawSectionHeader(doc: jsPDF, title: string, y: number): number {
 function scoreLabel(score: number, max: number): string {
   const pct = score / max;
   if (pct >= 0.85) return "Excelente";
-  if (pct >= 0.70) return "Muy bueno";
+  if (pct >= 0.7) return "Muy bueno";
   if (pct >= 0.55) return "Bueno";
-  if (pct >= 0.40) return "Regular";
+  if (pct >= 0.4) return "Regular";
   return "Bajo";
 }
 
@@ -75,11 +75,7 @@ function addFooter(doc: jsPDF, pageNum: number) {
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   setColor(doc, MUTED);
-  doc.text(
-    `Generado por CODA · codafinance.cl · info@codafinance.cl`,
-    MARGIN,
-    y
-  );
+  doc.text(`Generado por CODA · codafinance.cl · info@codafinance.cl`, MARGIN, y);
   doc.text(`Pág. ${pageNum}`, A4_WIDTH_MM - MARGIN, y, { align: "right" });
   setColor(doc, DARK);
 }
@@ -119,7 +115,7 @@ export function generateCodaReportPdf(data: ReportData): void {
     new Date().toLocaleDateString("es-CL", { dateStyle: "long" }),
     A4_WIDTH_MM - MARGIN,
     21,
-    { align: "right" }
+    { align: "right" },
   );
 
   setColor(doc, DARK);
@@ -144,33 +140,41 @@ export function generateCodaReportPdf(data: ReportData): void {
   y = drawDivider(doc, y);
 
   // ── 2. CERTIFICACIÓN DE INGRESOS ──────────────────────────────────────────
-  pageNum.value = checkPageBreak(doc, y, 30, pageNum) === MARGIN + 10 ? pageNum.value : pageNum.value;
+  pageNum.value =
+    checkPageBreak(doc, y, 30, pageNum) === MARGIN + 10 ? pageNum.value : pageNum.value;
   y = checkPageBreak(doc, y, 30, pageNum);
   y = drawSectionHeader(doc, "2. Certificación de Ingresos", y);
 
   const metrics = data.metrics;
   if (metrics?.monthsWithAbonos != null || metrics?.averageMonthlyBalanceClp != null) {
     if (metrics.monthsWithAbonos != null) {
-      y = addWrappedText(
-        doc,
-        `Meses con al menos un abono detectado: ${metrics.monthsWithAbonos} de los últimos 12 meses.`,
-        MARGIN, y, CONTENT_WIDTH
-      ) + 2;
+      y =
+        addWrappedText(
+          doc,
+          `Meses con al menos un abono detectado: ${metrics.monthsWithAbonos} de los últimos 12 meses.`,
+          MARGIN,
+          y,
+          CONTENT_WIDTH,
+        ) + 2;
     }
     if (metrics.averageMonthlyBalanceClp != null) {
       doc.text(
         `Saldo promedio mensual: $${metrics.averageMonthlyBalanceClp.toLocaleString("es-CL")} CLP`,
-        MARGIN, y
+        MARGIN,
+        y,
       );
       y += LINE_HEIGHT;
     }
   } else {
     setColor(doc, MUTED);
-    y = addWrappedText(
-      doc,
-      "Sin cartolas cargadas. Sube una cartola bancaria para certificar tus ingresos.",
-      MARGIN, y, CONTENT_WIDTH
-    ) + 2;
+    y =
+      addWrappedText(
+        doc,
+        "Sin cartolas cargadas. Sube una cartola bancaria para certificar tus ingresos.",
+        MARGIN,
+        y,
+        CONTENT_WIDTH,
+      ) + 2;
     setColor(doc, DARK);
   }
   y += SECTION_GAP;
@@ -189,11 +193,14 @@ export function generateCodaReportPdf(data: ReportData): void {
     y = addWrappedText(doc, textSolvencia, MARGIN, y, CONTENT_WIDTH) + 2;
   } else {
     setColor(doc, MUTED);
-    y = addWrappedText(
-      doc,
-      "Sin Informe CMF cargado. Sube un Informe de Deudas CMF para reflejar el estado de solvencia.",
-      MARGIN, y, CONTENT_WIDTH
-    ) + 2;
+    y =
+      addWrappedText(
+        doc,
+        "Sin Informe CMF cargado. Sube un Informe de Deudas CMF para reflejar el estado de solvencia.",
+        MARGIN,
+        y,
+        CONTENT_WIDTH,
+      ) + 2;
     setColor(doc, DARK);
   }
   y += SECTION_GAP;
@@ -245,13 +252,20 @@ export function generateCodaReportPdf(data: ReportData): void {
 
   // ── 6. SELLO DE VALIDACIÓN ────────────────────────────────────────────────
   y = checkPageBreak(doc, y, 20, pageNum);
-  y = drawSectionHeader(doc, insights.length > 0 ? "6. Sello de Validación" : "5. Sello de Validación", y);
-  setColor(doc, MUTED);
-  y = addWrappedText(
+  y = drawSectionHeader(
     doc,
-    "Datos validados mediante documentos oficiales (Informe CMF / Cartola bancaria). Este reporte es informativo y no constituye asesoría financiera ni garantiza aprobación de productos.",
-    MARGIN, y, CONTENT_WIDTH
-  ) + SECTION_GAP;
+    insights.length > 0 ? "6. Sello de Validación" : "5. Sello de Validación",
+    y,
+  );
+  setColor(doc, MUTED);
+  y =
+    addWrappedText(
+      doc,
+      "Datos validados mediante documentos oficiales (Informe CMF / Cartola bancaria). Este reporte es informativo y no constituye asesoría financiera ni garantiza aprobación de productos.",
+      MARGIN,
+      y,
+      CONTENT_WIDTH,
+    ) + SECTION_GAP;
   setColor(doc, DARK);
 
   addFooter(doc, pageNum.value);

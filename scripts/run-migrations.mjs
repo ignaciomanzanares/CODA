@@ -3,28 +3,28 @@
  * Usage: node scripts/run-migrations.mjs
  */
 
-import { readFileSync, readdirSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import postgres from 'postgres';
-import { config as loadEnv } from 'dotenv';
+import { readFileSync, readdirSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+import postgres from "postgres";
+import { config as loadEnv } from "dotenv";
 
 // Load environment variables from apps/api/.env
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const projectRoot = join(__dirname, '..');
-loadEnv({ path: join(projectRoot, 'apps', 'api', '.env') });
+const projectRoot = join(__dirname, "..");
+loadEnv({ path: join(projectRoot, "apps", "api", ".env") });
 
 async function runMigrations() {
   const dbUrl = process.env.DATABASE_URL;
-  
-  if (!dbUrl || !dbUrl.startsWith('postgres')) {
-    console.log('⚠️  DATABASE_URL not set or not PostgreSQL. Skipping migrations.');
-    console.log('   For local SQLite, use: npm run db:push');
+
+  if (!dbUrl || !dbUrl.startsWith("postgres")) {
+    console.log("⚠️  DATABASE_URL not set or not PostgreSQL. Skipping migrations.");
+    console.log("   For local SQLite, use: npm run db:push");
     return;
   }
 
-  console.log('🔄 Connecting to database...');
+  console.log("🔄 Connecting to database...");
   const sql = postgres(dbUrl, { max: 1 });
 
   try {
@@ -39,12 +39,12 @@ async function runMigrations() {
 
     // Get list of applied migrations
     const appliedMigrations = await sql`SELECT filename FROM _migrations`;
-    const appliedSet = new Set(appliedMigrations.map(row => row.filename));
+    const appliedSet = new Set(appliedMigrations.map((row) => row.filename));
 
     // Read all migration files
-    const migrationsDir = join(projectRoot, 'migrations');
+    const migrationsDir = join(projectRoot, "migrations");
     const files = readdirSync(migrationsDir)
-      .filter(f => f.endsWith('.sql'))
+      .filter((f) => f.endsWith(".sql"))
       .sort();
 
     console.log(`📁 Found ${files.length} migration file(s)`);
@@ -57,20 +57,20 @@ async function runMigrations() {
       }
 
       console.log(`🔄 Applying ${file}...`);
-      const migrationSql = readFileSync(join(migrationsDir, file), 'utf-8');
-      
+      const migrationSql = readFileSync(join(migrationsDir, file), "utf-8");
+
       // Execute migration
       await sql.unsafe(migrationSql);
-      
+
       // Record migration
       await sql`INSERT INTO _migrations (filename) VALUES (${file})`;
-      
+
       console.log(`✅ ${file} - applied successfully`);
     }
 
-    console.log('✅ All migrations applied successfully');
+    console.log("✅ All migrations applied successfully");
   } catch (error) {
-    console.error('❌ Migration failed:', error);
+    console.error("❌ Migration failed:", error);
     process.exit(1);
   } finally {
     await sql.end();

@@ -13,7 +13,7 @@ import type {
   CreateBillSplitData,
   UpdateBillSplitData,
   UpdateBillSplitParticipantData,
-  ProfileData
+  ProfileData,
 } from "@/types";
 
 /** Prefill devuelto por POST /api/assets/extract-inscripcion. */
@@ -35,24 +35,36 @@ export interface ExtractInscripcionResponse {
   prefill?: AssetInscripcionPrefill;
   /** Presente cuando el OCR corre async (escaneado): hay que hacer polling al job. */
   jobId?: string;
-  status?: 'processing' | 'done' | 'error';
+  status?: "processing" | "done" | "error";
 }
 /** Respuesta del polling GET /api/assets/extract-inscripcion/:jobId. */
 export interface InscripcionJobResponse {
-  status: 'processing' | 'done' | 'error';
+  status: "processing" | "done" | "error";
   result?: ExtractInscripcionResponse;
   message?: string;
 }
 
 export type ApiClient = {
-  apiRequest: <T = unknown>(method: string, url: string, data?: unknown, options?: RequestInit) => Promise<T>;
+  apiRequest: <T = unknown>(
+    method: string,
+    url: string,
+    data?: unknown,
+    options?: RequestInit,
+  ) => Promise<T>;
   extractInscripcion: (file: File) => Promise<ExtractInscripcionResponse>;
   getInscripcionJob: (jobId: string) => Promise<InscripcionJobResponse>;
   getBankConnections: () => Promise<import("@/types").BankConnection[]>;
-  connectBank: (bankData: import("@/types").CreateBankConnectionData) => Promise<import("@/types").BankConnection>;
+  connectBank: (
+    bankData: import("@/types").CreateBankConnectionData,
+  ) => Promise<import("@/types").BankConnection>;
   getFinancialGoals: () => Promise<any[]>;
-  createFinancialGoal: (goalData: import("@/types").CreateGoalData) => Promise<import("@/types").Goal>;
-  updateFinancialGoal: (goalId: string, goalData: import("@/types").UpdateGoalData) => Promise<import("@/types").Goal>;
+  createFinancialGoal: (
+    goalData: import("@/types").CreateGoalData,
+  ) => Promise<import("@/types").Goal>;
+  updateFinancialGoal: (
+    goalId: string,
+    goalData: import("@/types").UpdateGoalData,
+  ) => Promise<import("@/types").Goal>;
   deleteFinancialGoal: (goalId: string) => Promise<import("@/types").ApiResponse>;
   getCreditScore: () => Promise<{
     available?: boolean;
@@ -67,22 +79,64 @@ export type ApiClient = {
   }>;
   getFinancialProducts: (category?: string) => Promise<import("@/types").FinancialProduct[]>;
   getProductRecommendations: (category?: string, limit?: number) => Promise<any[]>;
-  trackProductEvent: (productId: number, eventType: 'view' | 'click' | 'application', matchScore?: number, metadata?: Record<string, unknown>) => Promise<{ success: boolean }>;
-  applyToProduct: (productId: number, applicationData: { requestedAmount?: number; term?: number; purpose?: string; additionalInfo?: Record<string, unknown> }) => Promise<{ success: boolean; applicationId: number; message: string; estimatedProcessingDays: number }>;
+  trackProductEvent: (
+    productId: number,
+    eventType: "view" | "click" | "application",
+    matchScore?: number,
+    metadata?: Record<string, unknown>,
+  ) => Promise<{ success: boolean }>;
+  applyToProduct: (
+    productId: number,
+    applicationData: {
+      requestedAmount?: number;
+      term?: number;
+      purpose?: string;
+      additionalInfo?: Record<string, unknown>;
+    },
+  ) => Promise<{
+    success: boolean;
+    applicationId: number;
+    message: string;
+    estimatedProcessingDays: number;
+  }>;
   getUserApplications: () => Promise<any[]>;
   getProductMetrics: () => Promise<any>;
   getExpenses: () => Promise<import("@/types").Expense[]>;
-  createExpense: (expenseData: import("@/types").CreateExpenseData) => Promise<import("@/types").Expense>;
-  updateExpense: (expenseId: string, expenseData: import("@/types").UpdateExpenseData) => Promise<import("@/types").Expense>;
+  createExpense: (
+    expenseData: import("@/types").CreateExpenseData,
+  ) => Promise<import("@/types").Expense>;
+  updateExpense: (
+    expenseId: string,
+    expenseData: import("@/types").UpdateExpenseData,
+  ) => Promise<import("@/types").Expense>;
   deleteExpense: (expenseId: string) => Promise<import("@/types").ApiResponse>;
-  classifyExpense: (description: string, merchantName?: string, amount?: number) => Promise<{category: string; subcategory?: string; confidence: number}>;
-  scanExpense: (imageFile: File) => Promise<{ amount: number; merchant: string; category: string; confidence: number }>;
+  classifyExpense: (
+    description: string,
+    merchantName?: string,
+    amount?: number,
+  ) => Promise<{ category: string; subcategory?: string; confidence: number }>;
+  scanExpense: (
+    imageFile: File,
+  ) => Promise<{ amount: number; merchant: string; category: string; confidence: number }>;
   getBillSplits: () => Promise<any[]>;
-  createBillSplit: (billSplitData: import("@/types").CreateBillSplitData) => Promise<import("@/types").BillSplit>;
-  updateBillSplit: (billSplitId: string, billSplitData: import("@/types").UpdateBillSplitData) => Promise<import("@/types").BillSplit>;
+  createBillSplit: (
+    billSplitData: import("@/types").CreateBillSplitData,
+  ) => Promise<import("@/types").BillSplit>;
+  updateBillSplit: (
+    billSplitId: string,
+    billSplitData: import("@/types").UpdateBillSplitData,
+  ) => Promise<import("@/types").BillSplit>;
   deleteBillSplit: (billSplitId: string) => Promise<import("@/types").ApiResponse>;
-  updateBillSplitParticipant: (billSplitId: string, participantId: string, participantData: import("@/types").UpdateBillSplitParticipantData) => Promise<import("@/types").BillSplitParticipant>;
-  markParticipantAsPaid: (billSplitId: string, participantId: string, amountPaid?: number) => Promise<import("@/types").ApiResponse>;
+  updateBillSplitParticipant: (
+    billSplitId: string,
+    participantId: string,
+    participantData: import("@/types").UpdateBillSplitParticipantData,
+  ) => Promise<import("@/types").BillSplitParticipant>;
+  markParticipantAsPaid: (
+    billSplitId: string,
+    participantId: string,
+    amountPaid?: number,
+  ) => Promise<import("@/types").ApiResponse>;
   archiveBillSplit: (billSplitId: string) => Promise<import("@/types").ApiResponse>;
   updateProfile: (profileData: import("@/types").ProfileData) => Promise<any>;
   getUserProfile: () => Promise<any>;
@@ -91,7 +145,12 @@ export type ApiClient = {
   getMFAStatus: () => Promise<{ enrolled: boolean; methods: string[] }>;
   enableTwoFactor: () => Promise<{ success?: boolean; message?: string }>;
   disableTwoFactor: () => Promise<{ success?: boolean; message?: string }>;
-  getNotifications: (options?: { category?: string; unreadOnly?: boolean; limit?: number; offset?: number }) => Promise<any[]>;
+  getNotifications: (options?: {
+    category?: string;
+    unreadOnly?: boolean;
+    limit?: number;
+    offset?: number;
+  }) => Promise<any[]>;
   markNotificationAsRead: (notificationId: number) => Promise<import("@/types").ApiResponse>;
   markAllNotificationsAsRead: () => Promise<import("@/types").ApiResponse>;
   deleteNotification: (notificationId: number) => Promise<import("@/types").ApiResponse>;
@@ -99,14 +158,24 @@ export type ApiClient = {
   getConsents: () => Promise<import("@/types").ConsentGrant[]>;
   revokeConsent: (grantId: number) => Promise<import("@/types").ConsentGrant>;
   getPrivacyConsents: () => Promise<import("@/types").PrivacyConsentPanelResponse>;
-  acceptPrivacyPurpose: (purpose: import("@/types").PrivacyPurposeKey) => Promise<import("@/types").PrivacyConsentPanelResponse>;
-  revokePrivacyPurpose: (purpose: import("@/types").PrivacyPurposeKey) => Promise<import("@/types").PrivacyConsentPanelResponse>;
+  acceptPrivacyPurpose: (
+    purpose: import("@/types").PrivacyPurposeKey,
+  ) => Promise<import("@/types").PrivacyConsentPanelResponse>;
+  revokePrivacyPurpose: (
+    purpose: import("@/types").PrivacyPurposeKey,
+  ) => Promise<import("@/types").PrivacyConsentPanelResponse>;
   simulateBankFlow: () => Promise<import("@/types").SimulateBankFlowResponse>;
   uploadDocument: (file: File) => Promise<import("@/types").DocumentUploadResult>;
   getTransactionalScore: () => Promise<{
     transactionalScore: number | null;
     mainInsights: string[];
-    metrics?: { averageMonthlyBalanceClp?: number; monthsWithAbonos?: number; monthsWithGap?: number; overdraftUsageRatio?: number; hasOptimizationOpportunity?: boolean };
+    metrics?: {
+      averageMonthlyBalanceClp?: number;
+      monthsWithAbonos?: number;
+      monthsWithGap?: number;
+      overdraftUsageRatio?: number;
+      hasOptimizationOpportunity?: boolean;
+    };
     recommendedProducts?: string[];
   }>;
   parseNotifications: (notifications: string[]) => Promise<any>;
@@ -140,11 +209,11 @@ export function useApi(): ApiClient {
     [key: string]: any;
   };
 
-  const apiRequest = async <T = unknown>(
+  const apiRequest = async <T = unknown,>(
     method: string,
     url: string,
     data?: unknown,
-    options?: RequestInit
+    options?: RequestInit,
   ): Promise<T> => {
     // Personal usa cookie auth. Empresas conserva su Bearer legacy.
     if (!isAuthenticated) {
@@ -153,7 +222,12 @@ export function useApi(): ApiClient {
     assertBrowserOnline();
 
     // No propagar `headers`/`body`/`method` en el spread final.
-    const { headers: optsHeaders, body: optsBody, method: _ignoredMethod, ...restOptions } = options ?? {};
+    const {
+      headers: optsHeaders,
+      body: optsBody,
+      method: _ignoredMethod,
+      ...restOptions
+    } = options ?? {};
 
     let extraHeaders: Record<string, string> = {};
     if (
@@ -231,7 +305,7 @@ export function useApi(): ApiClient {
 
     // Fallback to text
     const text = await res.text();
-    return (text as unknown) as T;
+    return text as unknown as T;
   };
 
   // Example: get bank connections
@@ -240,13 +314,22 @@ export function useApi(): ApiClient {
   };
 
   // Example: connect a bank
-  const connectBank = async (bankData: CreateBankConnectionData): Promise<import("@/types").BankConnection> => {
-    return await apiRequest<import("@/types").BankConnection>("POST", "/api/bank-connections", bankData);
+  const connectBank = async (
+    bankData: CreateBankConnectionData,
+  ): Promise<import("@/types").BankConnection> => {
+    return await apiRequest<import("@/types").BankConnection>(
+      "POST",
+      "/api/bank-connections",
+      bankData,
+    );
   };
 
   // Example: get financial goals
   const getFinancialGoals = async (): Promise<(import("@/types").Goal & { status: string })[]> => {
-    return await apiRequest<(import("@/types").Goal & { status: string })[]>("GET", "/api/financial-goals");
+    return await apiRequest<(import("@/types").Goal & { status: string })[]>(
+      "GET",
+      "/api/financial-goals",
+    );
   };
 
   // Example: create a financial goal
@@ -255,13 +338,23 @@ export function useApi(): ApiClient {
   };
 
   // Example: update a financial goal
-  const updateFinancialGoal = async (goalId: string, goalData: UpdateGoalData): Promise<import("@/types").Goal> => {
-    return await apiRequest<import("@/types").Goal>("PUT", `/api/financial-goals/${goalId}`, goalData);
+  const updateFinancialGoal = async (
+    goalId: string,
+    goalData: UpdateGoalData,
+  ): Promise<import("@/types").Goal> => {
+    return await apiRequest<import("@/types").Goal>(
+      "PUT",
+      `/api/financial-goals/${goalId}`,
+      goalData,
+    );
   };
 
   // Example: delete a financial goal
   const deleteFinancialGoal = async (goalId: string): Promise<import("@/types").ApiResponse> => {
-    return await apiRequest<import("@/types").ApiResponse>("DELETE", `/api/financial-goals/${goalId}`);
+    return await apiRequest<import("@/types").ApiResponse>(
+      "DELETE",
+      `/api/financial-goals/${goalId}`,
+    );
   };
 
   // Example: get credit score
@@ -270,7 +363,9 @@ export function useApi(): ApiClient {
   };
 
   // Example: get financial products (public endpoint)
-  const getFinancialProducts = async (category?: string): Promise<import("@/types").FinancialProduct[]> => {
+  const getFinancialProducts = async (
+    category?: string,
+  ): Promise<import("@/types").FinancialProduct[]> => {
     assertBrowserOnline();
     const url = category
       ? `${API_BASE_URL}/financial-products?category=${encodeURIComponent(category)}`
@@ -280,8 +375,8 @@ export function useApi(): ApiClient {
       method: "GET",
       credentials: "include",
       headers: {
-        "Content-Type": "application/json"
-      }
+        "Content-Type": "application/json",
+      },
     });
     if (!res.ok) {
       throw new Error("Failed to fetch financial products");
@@ -292,24 +387,24 @@ export function useApi(): ApiClient {
   // Get personalized product recommendations
   const getProductRecommendations = async (category?: string, limit?: number): Promise<any[]> => {
     const params = new URLSearchParams();
-    if (category) params.append('category', category);
-    if (limit) params.append('limit', limit.toString());
-    const url = `/api/products/recommendations${params.toString() ? `?${params.toString()}` : ''}`;
+    if (category) params.append("category", category);
+    if (limit) params.append("limit", limit.toString());
+    const url = `/api/products/recommendations${params.toString() ? `?${params.toString()}` : ""}`;
     return await apiRequest<any[]>("GET", url);
   };
 
   // Track product interaction (view, click, application)
   const trackProductEvent = async (
     productId: number,
-    eventType: 'view' | 'click' | 'application',
+    eventType: "view" | "click" | "application",
     matchScore?: number,
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
   ): Promise<{ success: boolean }> => {
     return await apiRequest<{ success: boolean }>("POST", "/api/products/track", {
       productId,
       eventType,
       matchScore,
-      metadata
+      metadata,
     });
   };
 
@@ -321,11 +416,16 @@ export function useApi(): ApiClient {
       term?: number;
       purpose?: string;
       additionalInfo?: Record<string, unknown>;
-    }
-  ): Promise<{ success: boolean; applicationId: number; message: string; estimatedProcessingDays: number }> => {
+    },
+  ): Promise<{
+    success: boolean;
+    applicationId: number;
+    message: string;
+    estimatedProcessingDays: number;
+  }> => {
     return await apiRequest("POST", "/api/products/apply", {
       productId,
-      ...applicationData
+      ...applicationData,
     });
   };
 
@@ -344,27 +444,46 @@ export function useApi(): ApiClient {
     return await apiRequest<import("@/types").Expense[]>("GET", "/api/expenses");
   };
 
-  const createExpense = async (expenseData: CreateExpenseData): Promise<import("@/types").Expense> => {
+  const createExpense = async (
+    expenseData: CreateExpenseData,
+  ): Promise<import("@/types").Expense> => {
     return await apiRequest<import("@/types").Expense>("POST", "/api/expenses", expenseData);
   };
 
-  const updateExpense = async (expenseId: string, expenseData: UpdateExpenseData): Promise<import("@/types").Expense> => {
-    return await apiRequest<import("@/types").Expense>("PUT", `/api/expenses/${expenseId}`, expenseData);
+  const updateExpense = async (
+    expenseId: string,
+    expenseData: UpdateExpenseData,
+  ): Promise<import("@/types").Expense> => {
+    return await apiRequest<import("@/types").Expense>(
+      "PUT",
+      `/api/expenses/${expenseId}`,
+      expenseData,
+    );
   };
 
   const deleteExpense = async (expenseId: string): Promise<import("@/types").ApiResponse> => {
     return await apiRequest<import("@/types").ApiResponse>("DELETE", `/api/expenses/${expenseId}`);
   };
 
-  const classifyExpense = async (description: string, merchantName?: string, amount?: number): Promise<{category: string; subcategory?: string; confidence: number}> => {
-    return await apiRequest<{category: string; subcategory?: string; confidence: number}>("POST", "/api/expenses/classify", {
-      description,
-      merchantName,
-      amount
-    });
+  const classifyExpense = async (
+    description: string,
+    merchantName?: string,
+    amount?: number,
+  ): Promise<{ category: string; subcategory?: string; confidence: number }> => {
+    return await apiRequest<{ category: string; subcategory?: string; confidence: number }>(
+      "POST",
+      "/api/expenses/classify",
+      {
+        description,
+        merchantName,
+        amount,
+      },
+    );
   };
 
-  const scanExpense = async (imageFile: File): Promise<{ amount: number; merchant: string; category: string; confidence: number }> => {
+  const scanExpense = async (
+    imageFile: File,
+  ): Promise<{ amount: number; merchant: string; category: string; confidence: number }> => {
     if (!isAuthenticated) throw new Error("User not authenticated");
     assertBrowserOnline();
     const formData = new FormData();
@@ -377,41 +496,79 @@ export function useApi(): ApiClient {
       body: formData,
     });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error((json as { message?: string }).message || "Error al escanear la imagen");
+    if (!res.ok)
+      throw new Error((json as { message?: string }).message || "Error al escanear la imagen");
     return json as { amount: number; merchant: string; category: string; confidence: number };
   };
 
   // Bill Split API functions (cache: no-store para que el saldo se actualice siempre, sin 304)
-  const getBillSplits = async (): Promise<(import("@/types").BillSplit & { participants?: import("@/types").BillSplitParticipant[] })[]> => {
-    return await apiRequest<(import("@/types").BillSplit & { participants?: import("@/types").BillSplitParticipant[] })[]>("GET", "/api/bill-splits", undefined, { cache: "no-store" });
+  const getBillSplits = async (): Promise<
+    (import("@/types").BillSplit & { participants?: import("@/types").BillSplitParticipant[] })[]
+  > => {
+    return await apiRequest<
+      (import("@/types").BillSplit & { participants?: import("@/types").BillSplitParticipant[] })[]
+    >("GET", "/api/bill-splits", undefined, { cache: "no-store" });
   };
 
-  const createBillSplit = async (billSplitData: CreateBillSplitData): Promise<import("@/types").BillSplit> => {
+  const createBillSplit = async (
+    billSplitData: CreateBillSplitData,
+  ): Promise<import("@/types").BillSplit> => {
     return await apiRequest<import("@/types").BillSplit>("POST", "/api/bill-splits", billSplitData);
   };
 
-  const updateBillSplit = async (billSplitId: string, billSplitData: UpdateBillSplitData): Promise<import("@/types").BillSplit> => {
-    return await apiRequest<import("@/types").BillSplit>("PUT", `/api/bill-splits/${billSplitId}`, billSplitData);
+  const updateBillSplit = async (
+    billSplitId: string,
+    billSplitData: UpdateBillSplitData,
+  ): Promise<import("@/types").BillSplit> => {
+    return await apiRequest<import("@/types").BillSplit>(
+      "PUT",
+      `/api/bill-splits/${billSplitId}`,
+      billSplitData,
+    );
   };
 
   const deleteBillSplit = async (billSplitId: string): Promise<import("@/types").ApiResponse> => {
-    return await apiRequest<import("@/types").ApiResponse>("DELETE", `/api/bill-splits/${billSplitId}`);
+    return await apiRequest<import("@/types").ApiResponse>(
+      "DELETE",
+      `/api/bill-splits/${billSplitId}`,
+    );
   };
 
-  const updateBillSplitParticipant = async (billSplitId: string, participantId: string, participantData: UpdateBillSplitParticipantData): Promise<import("@/types").BillSplitParticipant> => {
-    return await apiRequest<import("@/types").BillSplitParticipant>("PUT", `/api/bill-splits/${billSplitId}/participants/${participantId}`, participantData);
+  const updateBillSplitParticipant = async (
+    billSplitId: string,
+    participantId: string,
+    participantData: UpdateBillSplitParticipantData,
+  ): Promise<import("@/types").BillSplitParticipant> => {
+    return await apiRequest<import("@/types").BillSplitParticipant>(
+      "PUT",
+      `/api/bill-splits/${billSplitId}/participants/${participantId}`,
+      participantData,
+    );
   };
 
-  const markParticipantAsPaid = async (billSplitId: string, participantId: string, amountPaid?: number): Promise<import("@/types").ApiResponse> => {
-    return await apiRequest<import("@/types").ApiResponse>("POST", `/api/bill-splits/${billSplitId}/participants/${participantId}/pay`, { amountPaid });
+  const markParticipantAsPaid = async (
+    billSplitId: string,
+    participantId: string,
+    amountPaid?: number,
+  ): Promise<import("@/types").ApiResponse> => {
+    return await apiRequest<import("@/types").ApiResponse>(
+      "POST",
+      `/api/bill-splits/${billSplitId}/participants/${participantId}/pay`,
+      { amountPaid },
+    );
   };
 
   const archiveBillSplit = async (billSplitId: string): Promise<import("@/types").ApiResponse> => {
-    return await apiRequest<import("@/types").ApiResponse>("POST", `/api/bill-splits/${billSplitId}/archive`);
+    return await apiRequest<import("@/types").ApiResponse>(
+      "POST",
+      `/api/bill-splits/${billSplitId}/archive`,
+    );
   };
 
   // Profile API functions
-  const updateProfile = async (profileData: ProfileData): Promise<import("@/types").ApiResponse> => {
+  const updateProfile = async (
+    profileData: ProfileData,
+  ): Promise<import("@/types").ApiResponse> => {
     return await apiRequest<import("@/types").ApiResponse>("PUT", "/api/profile", profileData);
   };
 
@@ -429,44 +586,63 @@ export function useApi(): ApiClient {
   };
 
   const getMFAStatus = async (): Promise<{ enrolled: boolean; methods: string[] }> => {
-    return await apiRequest<{ enrolled: boolean; methods: string[] }>("GET", "/api/profile/mfa-status");
+    return await apiRequest<{ enrolled: boolean; methods: string[] }>(
+      "GET",
+      "/api/profile/mfa-status",
+    );
   };
 
   const enableTwoFactor = async (): Promise<{ success?: boolean; message?: string }> => {
-    return await apiRequest<{ success?: boolean; message?: string }>("POST", "/api/auth/2fa/enable");
+    return await apiRequest<{ success?: boolean; message?: string }>(
+      "POST",
+      "/api/auth/2fa/enable",
+    );
   };
 
   const disableTwoFactor = async (): Promise<{ success?: boolean; message?: string }> => {
-    return await apiRequest<{ success?: boolean; message?: string }>("POST", "/api/auth/2fa/disable");
+    return await apiRequest<{ success?: boolean; message?: string }>(
+      "POST",
+      "/api/auth/2fa/disable",
+    );
   };
 
   // Notification API functions
-  const getNotifications = async (options?: { 
-    category?: string; 
-    unreadOnly?: boolean; 
-    limit?: number; 
-    offset?: number; 
+  const getNotifications = async (options?: {
+    category?: string;
+    unreadOnly?: boolean;
+    limit?: number;
+    offset?: number;
   }) => {
     const params = new URLSearchParams();
-    if (options?.category) params.append('category', options.category);
-    if (options?.unreadOnly) params.append('unreadOnly', 'true');
-    if (options?.limit) params.append('limit', options.limit.toString());
-    if (options?.offset) params.append('offset', options.offset.toString());
-    
-    const url = `/api/notifications${params.toString() ? `?${params.toString()}` : ''}`;
+    if (options?.category) params.append("category", options.category);
+    if (options?.unreadOnly) params.append("unreadOnly", "true");
+    if (options?.limit) params.append("limit", options.limit.toString());
+    if (options?.offset) params.append("offset", options.offset.toString());
+
+    const url = `/api/notifications${params.toString() ? `?${params.toString()}` : ""}`;
     return await apiRequest<Notification[]>("GET", url);
   };
 
-  const markNotificationAsRead = async (notificationId: number): Promise<import("@/types").ApiResponse> => {
-    return await apiRequest<import("@/types").ApiResponse>("PUT", `/api/notifications/${notificationId}/read`);
+  const markNotificationAsRead = async (
+    notificationId: number,
+  ): Promise<import("@/types").ApiResponse> => {
+    return await apiRequest<import("@/types").ApiResponse>(
+      "PUT",
+      `/api/notifications/${notificationId}/read`,
+    );
   };
 
   const markAllNotificationsAsRead = async (): Promise<import("@/types").ApiResponse> => {
     return await apiRequest<import("@/types").ApiResponse>("PUT", "/api/notifications/read-all");
   };
 
-  const deleteNotification = async (notificationId: number): Promise<import("@/types").ApiResponse> => {
-    return await apiRequest<import("@/types").ApiResponse>("DELETE", `/api/notifications/${notificationId}`);
+  const deleteNotification = async (
+    notificationId: number,
+  ): Promise<import("@/types").ApiResponse> => {
+    return await apiRequest<import("@/types").ApiResponse>(
+      "DELETE",
+      `/api/notifications/${notificationId}`,
+    );
   };
 
   const getUnreadNotificationCount = async (): Promise<number> => {
@@ -478,31 +654,48 @@ export function useApi(): ApiClient {
   };
 
   const revokeConsent = async (grantId: number): Promise<import("@/types").ConsentGrant> => {
-    return await apiRequest<import("@/types").ConsentGrant>("POST", `/api/consent/${grantId}/revoke`);
+    return await apiRequest<import("@/types").ConsentGrant>(
+      "POST",
+      `/api/consent/${grantId}/revoke`,
+    );
   };
 
   const getPrivacyConsents = async (): Promise<import("@/types").PrivacyConsentPanelResponse> => {
-    return await apiRequest<import("@/types").PrivacyConsentPanelResponse>("GET", "/api/privacy-consents");
+    return await apiRequest<import("@/types").PrivacyConsentPanelResponse>(
+      "GET",
+      "/api/privacy-consents",
+    );
   };
 
   const acceptPrivacyPurpose = async (
-    purpose: import("@/types").PrivacyPurposeKey
+    purpose: import("@/types").PrivacyPurposeKey,
   ): Promise<import("@/types").PrivacyConsentPanelResponse> => {
-    return await apiRequest<import("@/types").PrivacyConsentPanelResponse>("POST", "/api/privacy-consents/accept", {
-      purpose,
-    });
+    return await apiRequest<import("@/types").PrivacyConsentPanelResponse>(
+      "POST",
+      "/api/privacy-consents/accept",
+      {
+        purpose,
+      },
+    );
   };
 
   const revokePrivacyPurpose = async (
-    purpose: import("@/types").PrivacyPurposeKey
+    purpose: import("@/types").PrivacyPurposeKey,
   ): Promise<import("@/types").PrivacyConsentPanelResponse> => {
-    return await apiRequest<import("@/types").PrivacyConsentPanelResponse>("POST", "/api/privacy-consents/revoke", {
-      purpose,
-    });
+    return await apiRequest<import("@/types").PrivacyConsentPanelResponse>(
+      "POST",
+      "/api/privacy-consents/revoke",
+      {
+        purpose,
+      },
+    );
   };
 
   const simulateBankFlow = async (): Promise<import("@/types").SimulateBankFlowResponse> => {
-    return await apiRequest<import("@/types").SimulateBankFlowResponse>("POST", "/api/test/simulate-bank-flow");
+    return await apiRequest<import("@/types").SimulateBankFlowResponse>(
+      "POST",
+      "/api/test/simulate-bank-flow",
+    );
   };
 
   const uploadDocument = async (file: File): Promise<import("@/types").DocumentUploadResult> => {
@@ -558,12 +751,20 @@ export function useApi(): ApiClient {
     return await apiRequest<{
       transactionalScore: number | null;
       mainInsights: string[];
-      metrics?: { averageMonthlyBalanceClp?: number; monthsWithAbonos?: number; monthsWithGap?: number; overdraftUsageRatio?: number; hasOptimizationOpportunity?: boolean };
+      metrics?: {
+        averageMonthlyBalanceClp?: number;
+        monthsWithAbonos?: number;
+        monthsWithGap?: number;
+        overdraftUsageRatio?: number;
+        hasOptimizationOpportunity?: boolean;
+      };
       recommendedProducts?: string[];
     }>("GET", "/api/transactional-score");
   };
 
-  const parseNotifications = async (notifications: string[]): Promise<{
+  const parseNotifications = async (
+    notifications: string[],
+  ): Promise<{
     results: Array<{
       original: string;
       parsed: {
@@ -653,6 +854,7 @@ export const useCreditScore = () => {
 };
 
 export const useFinancialGoals = () => {
-  const { getFinancialGoals, createFinancialGoal, updateFinancialGoal, deleteFinancialGoal } = useApi();
+  const { getFinancialGoals, createFinancialGoal, updateFinancialGoal, deleteFinancialGoal } =
+    useApi();
   return { getFinancialGoals, createFinancialGoal, updateFinancialGoal, deleteFinancialGoal };
 };

@@ -24,74 +24,74 @@ interface PaymentOption {
   isPopular?: boolean;
 }
 
-export default function PaymentDialog({ 
-  isOpen, 
-  onClose, 
-  amount, 
-  participantName: _participantName, 
+export default function PaymentDialog({
+  isOpen,
+  onClose,
+  amount,
+  participantName: _participantName,
   billName,
   creatorName,
-  onPaymentComplete 
+  onPaymentComplete,
 }: PaymentDialogProps) {
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
 
   const paymentOptions: PaymentOption[] = [
     {
-      id: 'venmo',
-      name: 'Venmo',
+      id: "venmo",
+      name: "Venmo",
       icon: <Smartphone className="w-5 h-5" />,
-      description: 'Pagos rápidos desde el móvil',
+      description: "Pagos rápidos desde el móvil",
       url: `https://venmo.com/`,
-      color: 'bg-blue-500 hover:bg-blue-600',
-      isPopular: true
+      color: "bg-blue-500 hover:bg-blue-600",
+      isPopular: true,
     },
     {
-      id: 'paypal',
-      name: 'PayPal',
+      id: "paypal",
+      name: "PayPal",
       icon: <CreditCard className="w-5 h-5" />,
-      description: 'Pagos seguros en línea',
+      description: "Pagos seguros en línea",
       url: `https://www.paypal.com/paypalme/`,
-      color: 'bg-blue-600 hover:bg-blue-700',
-      isPopular: true
+      color: "bg-blue-600 hover:bg-blue-700",
+      isPopular: true,
     },
     {
-      id: 'zelle',
-      name: 'Zelle',
+      id: "zelle",
+      name: "Zelle",
       icon: <Smartphone className="w-5 h-5" />,
-      description: 'Transferencia entre bancos',
+      description: "Transferencia entre bancos",
       url: `https://www.zellepay.com/`,
-      color: 'bg-purple-500 hover:bg-purple-600'
+      color: "bg-purple-500 hover:bg-purple-600",
     },
     {
-      id: 'cashapp',
-      name: 'Cash App',
+      id: "cashapp",
+      name: "Cash App",
       icon: <Smartphone className="w-5 h-5" />,
-      description: 'Pagos desde el móvil',
+      description: "Pagos desde el móvil",
       url: `https://cash.app/`,
-      color: 'bg-green-500 hover:bg-green-600'
+      color: "bg-green-500 hover:bg-green-600",
     },
     {
-      id: 'apple-pay',
-      name: 'Apple Pay',
+      id: "apple-pay",
+      name: "Apple Pay",
       icon: <Smartphone className="w-5 h-5" />,
-      description: 'Pagos con dispositivos Apple',
+      description: "Pagos con dispositivos Apple",
       url: `https://www.apple.com/apple-pay/`,
-      color: 'bg-gray-800 hover:bg-gray-900'
+      color: "bg-gray-800 hover:bg-gray-900",
     },
     {
-      id: 'google-pay',
-      name: 'Google Pay',
+      id: "google-pay",
+      name: "Google Pay",
       icon: <Smartphone className="w-5 h-5" />,
-      description: 'Pagos con Android',
+      description: "Pagos con Android",
       url: `https://pay.google.com/`,
-      color: 'bg-red-500 hover:bg-red-600'
-    }
+      color: "bg-red-500 hover:bg-red-600",
+    },
   ];
 
   const handlePaymentClick = (option: PaymentOption) => {
     setSelectedPayment(option.id);
     // Open payment app/website
-    window.open(option.url, '_blank');
+    window.open(option.url, "_blank");
   };
 
   const handleMarkAsPaid = () => {
@@ -103,11 +103,9 @@ export default function PaymentDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center">
-            💰 Paga tu parte
-          </DialogTitle>
+          <DialogTitle className="text-center">💰 Paga tu parte</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           {/* Payment Summary */}
           <div className="bg-muted/50 p-4 rounded-lg text-center">
@@ -118,9 +116,7 @@ export default function PaymentDialog({
             <div className="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">
               ${amount}
             </div>
-            <p className="text-sm text-muted-foreground">
-              Tu parte del gasto
-            </p>
+            <p className="text-sm text-muted-foreground">Tu parte del gasto</p>
           </div>
 
           {/* Payment Options */}
@@ -132,7 +128,7 @@ export default function PaymentDialog({
                   key={option.id}
                   variant="outline"
                   className={`h-auto p-3 flex flex-col items-center gap-2 hover:scale-105 transition-transform ${
-                    selectedPayment === option.id ? 'ring-2 ring-blue-500' : ''
+                    selectedPayment === option.id ? "ring-2 ring-blue-500" : ""
                   }`}
                   onClick={() => handlePaymentClick(option)}
                 >
@@ -156,7 +152,9 @@ export default function PaymentDialog({
             <p className="text-blue-800 dark:text-blue-300 font-medium mb-1">Cómo pagar:</p>
             <ol className="text-blue-700 dark:text-blue-400 space-y-1">
               <li>1. Elige un método de pago arriba</li>
-              <li>2. Envía ${amount} a {creatorName || 'el creador del gasto'}</li>
+              <li>
+                2. Envía ${amount} a {creatorName || "el creador del gasto"}
+              </li>
               <li>3. Incluye &quot;{billName}&quot; en el concepto o nota</li>
               <li>4. Haz clic en &quot;Ya pagué&quot; cuando termines</li>
             </ol>
@@ -164,17 +162,10 @@ export default function PaymentDialog({
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-2">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="flex-1"
-            >
+            <Button variant="outline" onClick={onClose} className="flex-1">
               Cancelar
             </Button>
-            <Button
-              onClick={handleMarkAsPaid}
-              className="flex-1 bg-green-600 hover:bg-green-700"
-            >
+            <Button onClick={handleMarkAsPaid} className="flex-1 bg-green-600 hover:bg-green-700">
               <CreditCard className="w-4 h-4 mr-2" />
               Ya pagué
             </Button>

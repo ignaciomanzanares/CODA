@@ -15,7 +15,7 @@
  * session-expiry redirect is driven by the /me hydration + ProtectedRoute.
  */
 
-import { hasPersonalSession } from './authSession';
+import { hasPersonalSession } from "./authSession";
 
 const AUTH_ENDPOINT_RE = /\/api\/auth\/(login|2fa\/verify)/;
 
@@ -30,5 +30,5 @@ export function dispatchSessionExpired(requestUrl: string): void {
   // sin cookie no debe bloquear el redirect (causaba sesiones "stale").
   if (hasPersonalSession()) return;
 
-  window.dispatchEvent(new CustomEvent('coda:session:expired'));
+  window.dispatchEvent(new CustomEvent("coda:session:expired"));
 }

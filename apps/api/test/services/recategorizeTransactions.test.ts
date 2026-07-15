@@ -121,7 +121,12 @@ describe("recategorizeUserTransactions", () => {
     const before = inserted[0];
     const result = await recategorizeUserTransactions(userId);
 
-    expect(result).toEqual({ scanned: 3, updated: 3, skippedManual: 0, version: CATEGORIZER_VERSION });
+    expect(result).toEqual({
+      scanned: 3,
+      updated: 3,
+      skippedManual: 0,
+      version: CATEGORIZER_VERSION,
+    });
 
     const [tgr] = await db.select().from(transactions).where(eq(transactions.id, inserted[0].id));
     expect(tgr.category).toBe("servicios");
@@ -133,9 +138,10 @@ describe("recategorizeUserTransactions", () => {
     expect(tgr.postedAt).toBe(before.postedAt);
     // `description` se guarda cifrada en reposo; recategorize no debe tocarla.
     // `before` viene de createTransactionsBulk (description en claro), así que se descifra la de la DB.
-    const tgrDesc = typeof tgr.description === "string" && looksEncrypted(tgr.description)
-      ? decryptField(tgr.description)
-      : tgr.description;
+    const tgrDesc =
+      typeof tgr.description === "string" && looksEncrypted(tgr.description)
+        ? decryptField(tgr.description)
+        : tgr.description;
     expect(tgrDesc).toBe(before.description);
     expect(tgr.accountId).toBe(before.accountId);
     expect(tgr.externalId).toBe(before.externalId);
@@ -146,12 +152,18 @@ describe("recategorizeUserTransactions", () => {
     expect(tgr.amountClp).toBe(before.amountClp);
     expect(tgr.fxRate).toBe(before.fxRate);
 
-    const [amazon] = await db.select().from(transactions).where(eq(transactions.id, inserted[1].id));
+    const [amazon] = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, inserted[1].id));
     expect(amazon.category).toBe("suscripciones");
     expect(amazon.categoryRuleId).toBe("cl.suscripciones");
     expect(amazon.categorizerVersion).toBe(CATEGORIZER_VERSION);
 
-    const [internal] = await db.select().from(transactions).where(eq(transactions.id, inserted[2].id));
+    const [internal] = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, inserted[2].id));
     expect(internal.category).toBe("Transferencia interna");
     expect(internal.categoryRuleId).toBe("transfer.interna");
     expect(internal.isInternalTransfer).toBe(1);

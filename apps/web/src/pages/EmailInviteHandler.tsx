@@ -26,8 +26,8 @@ export default function EmailInviteHandler() {
     const checkInvitation = async () => {
       // Get URL parameters
       const urlParams = new URLSearchParams(window.location.search);
-      const billSplitId = urlParams.get('billId');
-      const email = urlParams.get('email');
+      const billSplitId = urlParams.get("billId");
+      const email = urlParams.get("email");
 
       if (!billSplitId || !email) {
         setError("Invalid invitation link. Missing required information.");
@@ -37,17 +37,19 @@ export default function EmailInviteHandler() {
 
       try {
         // Check if user exists for this invitation
-        const result = await apiFetch(`/api/bill-splits/${billSplitId}/check-user/${encodeURIComponent(email)}`);
+        const result = await apiFetch(
+          `/api/bill-splits/${billSplitId}/check-user/${encodeURIComponent(email)}`,
+        );
 
         const finalResult = {
           userExists: !!result?.userExists,
-          billSplitName: result?.billSplitName || 'Demo Bill Split',
+          billSplitName: result?.billSplitName || "Demo Bill Split",
           invitedEmail: result?.invitedEmail || email,
           billSplitId: result?.billSplitId ? Number(result.billSplitId) : parseInt(billSplitId),
         } as InvitationCheckResult;
 
         setCheckResult(finalResult);
-        
+
         // Handle different scenarios based on user existence and authentication status
         if (finalResult.userExists) {
           // User has an account
@@ -59,7 +61,10 @@ export default function EmailInviteHandler() {
             // User has account but is not logged in -> redirect to login
             setIsRedirecting(true);
             // Store the intended destination for after login
-            localStorage.setItem('redirectAfterLogin', `${ROUTES.dividirCuenta}?highlight=${billSplitId}`);
+            localStorage.setItem(
+              "redirectAfterLogin",
+              `${ROUTES.dividirCuenta}?highlight=${billSplitId}`,
+            );
             setTimeout(() => {
               setLocation(ROUTES.iniciarSesion);
             }, 1500); // Show message for 1.5 seconds before redirecting
@@ -69,10 +74,9 @@ export default function EmailInviteHandler() {
           // User doesn't have an account -> show invitation page with options
           // (This will fall through to render the invitation UI)
         }
-        
       } catch (err) {
-        console.error('Error checking invitation:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        console.error("Error checking invitation:", err);
+        setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
         setIsChecking(false);
       }
@@ -86,14 +90,20 @@ export default function EmailInviteHandler() {
 
   const handleSignUp = () => {
     if (checkResult) {
-      localStorage.setItem('redirectAfterLogin', `${ROUTES.dividirCuenta}?highlight=${checkResult.billSplitId}`);
+      localStorage.setItem(
+        "redirectAfterLogin",
+        `${ROUTES.dividirCuenta}?highlight=${checkResult.billSplitId}`,
+      );
       setLocation(ROUTES.registro);
     }
   };
 
   const handleSignIn = () => {
     if (checkResult) {
-      localStorage.setItem('redirectAfterLogin', `${ROUTES.dividirCuenta}?highlight=${checkResult.billSplitId}`);
+      localStorage.setItem(
+        "redirectAfterLogin",
+        `${ROUTES.dividirCuenta}?highlight=${checkResult.billSplitId}`,
+      );
       setLocation(ROUTES.iniciarSesion);
     }
   };
@@ -111,13 +121,12 @@ export default function EmailInviteHandler() {
           <CardContent className="p-8 text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
             <h2 className="text-xl font-semibold mb-2">
-              {isRedirecting ? 'Account Found!' : 'Processing Invitation'}
+              {isRedirecting ? "Account Found!" : "Processing Invitation"}
             </h2>
             <p className="text-gray-600">
-              {isRedirecting 
-                ? 'You have a CODA account. Redirecting you to sign in...' 
-                : 'We\'re checking your invitation details...'
-              }
+              {isRedirecting
+                ? "You have a CODA account. Redirecting you to sign in..."
+                : "We're checking your invitation details..."}
             </p>
           </CardContent>
         </Card>
@@ -137,11 +146,7 @@ export default function EmailInviteHandler() {
           </CardHeader>
           <CardContent className="text-center">
             <p className="text-gray-600 mb-4">{error}</p>
-            <Button 
-              onClick={() => setLocation('/')} 
-              variant="outline" 
-              className="w-full"
-            >
+            <Button onClick={() => setLocation("/")} variant="outline" className="w-full">
               Go to Homepage
             </Button>
           </CardContent>
@@ -184,14 +189,10 @@ export default function EmailInviteHandler() {
                 <span className="font-medium">Account Found!</span>
               </div>
               <p className="text-center text-gray-600">
-                We found your CODA account for {checkResult.invitedEmail}. 
-                Sign in to view and manage this bill split.
+                We found your CODA account for {checkResult.invitedEmail}. Sign in to view and
+                manage this bill split.
               </p>
-              <Button 
-                onClick={handleSignIn} 
-                className="w-full" 
-                size="lg"
-              >
+              <Button onClick={handleSignIn} className="w-full" size="lg">
                 <LogIn className="w-4 h-4 mr-2" />
                 Sign In to View Bill Split
               </Button>
@@ -203,23 +204,15 @@ export default function EmailInviteHandler() {
                 <span className="font-medium">New to CODA?</span>
               </div>
               <p className="text-center text-gray-600">
-                No account found for {checkResult.invitedEmail}. 
-                Create a free account to manage this bill split and track your expenses.
+                No account found for {checkResult.invitedEmail}. Create a free account to manage
+                this bill split and track your expenses.
               </p>
               <div className="space-y-3">
-                <Button 
-                  onClick={handleSignUp} 
-                  className="w-full" 
-                  size="lg"
-                >
+                <Button onClick={handleSignUp} className="w-full" size="lg">
                   <UserPlus className="w-4 h-4 mr-2" />
                   Create Account & View Bill Split
                 </Button>
-                <Button 
-                  onClick={handleSignIn} 
-                  variant="outline" 
-                  className="w-full"
-                >
+                <Button onClick={handleSignIn} variant="outline" className="w-full">
                   <LogIn className="w-4 h-4 mr-2" />
                   Sign In With Different Email
                 </Button>
@@ -232,10 +225,10 @@ export default function EmailInviteHandler() {
             <p className="text-xs text-gray-500 text-center mb-2">
               Want to explore without signing in?
             </p>
-            <Button 
-              onClick={handleViewAnyway} 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              onClick={handleViewAnyway}
+              variant="ghost"
+              size="sm"
               className="w-full text-gray-500"
             >
               View Demo Version

@@ -39,7 +39,12 @@ async function main() {
   const scores = (await db
     .select()
     .from(scoreDocumentUploads)
-    .where(and(eq(scoreDocumentUploads.tipo, "cartola"), isNull(scoreDocumentUploads.sourceDocumentUploadId)))) as ScoreDocRow[];
+    .where(
+      and(
+        eq(scoreDocumentUploads.tipo, "cartola"),
+        isNull(scoreDocumentUploads.sourceDocumentUploadId),
+      ),
+    )) as ScoreDocRow[];
 
   let linked = 0;
   let missing = 0;
@@ -72,7 +77,9 @@ async function main() {
 
     if (matches.length === 0) {
       missing += 1;
-      console.warn(`[missing] score=${scoreDoc.id} user=${scoreDoc.userId} banco=${scoreDoc.banco} periodo=${scoreDoc.periodoDesde}..${scoreDoc.periodoHasta}`);
+      console.warn(
+        `[missing] score=${scoreDoc.id} user=${scoreDoc.userId} banco=${scoreDoc.banco} periodo=${scoreDoc.periodoDesde}..${scoreDoc.periodoHasta}`,
+      );
     } else {
       ambiguous += 1;
       console.warn(
@@ -81,7 +88,9 @@ async function main() {
     }
   }
 
-  console.log(JSON.stringify({ dryRun, scanned: scores.length, linked, missing, ambiguous }, null, 2));
+  console.log(
+    JSON.stringify({ dryRun, scanned: scores.length, linked, missing, ambiguous }, null, 2),
+  );
 }
 
 main().catch((error) => {

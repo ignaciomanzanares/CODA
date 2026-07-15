@@ -9,16 +9,16 @@
  *
  * No cambia la lógica de extracción/OCR — sólo decide CUÁNDO/CÓMO se ejecuta.
  */
-import { randomUUID } from 'crypto';
-import { and, eq } from 'drizzle-orm';
-import { db, inscripcionJobs } from '../../db/index.js';
-import { logger } from '../../logger.js';
+import { randomUUID } from "crypto";
+import { and, eq } from "drizzle-orm";
+import { db, inscripcionJobs } from "../../db/index.js";
+import { logger } from "../../logger.js";
 import {
   extractInscripcionFromBuffer,
   resolveInscripcionPrefill,
   type InscripcionExtractionOutcome,
   type AssetPrefill,
-} from '../../parsers/inscripcionExtractor.js';
+} from "../../parsers/inscripcionExtractor.js";
 
 /** Payload del prefill — MISMA forma para el camino sincrónico (200) y el job. */
 export interface InscripcionResponsePayload {
@@ -65,7 +65,7 @@ export async function buildInscripcionResponse(
   };
 }
 
-export type InscripcionJobStatus = 'processing' | 'done' | 'error';
+export type InscripcionJobStatus = "processing" | "done" | "error";
 
 export interface InscripcionJobView {
   status: InscripcionJobStatus;
@@ -80,7 +80,7 @@ export async function createInscripcionJob(userId: string): Promise<string> {
   await db.insert(inscripcionJobs).values({
     id,
     userId,
-    status: 'processing',
+    status: "processing",
     result: null,
     message: null,
     createdAt: now,
@@ -103,7 +103,10 @@ export async function getInscripcionJob(
   if (row.result != null) {
     // `result` se guarda como JSON en TEXT; defensivo por si algún día es jsonb.
     try {
-      result = typeof row.result === 'string' ? JSON.parse(row.result) : (row.result as InscripcionResponsePayload);
+      result =
+        typeof row.result === "string"
+          ? JSON.parse(row.result)
+          : (row.result as InscripcionResponsePayload);
     } catch {
       result = undefined;
     }
@@ -144,15 +147,15 @@ export function enqueueInscripcionOcr(jobId: string, buffer: Buffer): void {
       const outcome = await extractInscripcionFromBuffer(buffer); // camino completo (con OCR)
       const payload = await buildInscripcionResponse(outcome);
       await updateJob(jobId, {
-        status: 'done',
+        status: "done",
         result: JSON.stringify(payload),
         message: payload.message ?? null,
       });
     } catch (e) {
-      logger.error({ err: e, jobId }, 'inscripcion OCR job failed');
+      logger.error({ err: e, jobId }, "inscripcion OCR job failed");
       await updateJob(jobId, {
-        status: 'error',
-        message: 'No se pudo procesar la inscripción. Ingresa los datos manualmente.',
+        status: "error",
+        message: "No se pudo procesar la inscripción. Ingresa los datos manualmente.",
       }).catch(() => {});
     }
   });

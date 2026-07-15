@@ -32,7 +32,15 @@ import OnboardingChecklist from "@/components/OnboardingChecklist";
 import SignInBanner from "@/components/SignInBanner";
 
 // Icons
-import { RefreshCw, FileText, Upload, ChevronLeft, ChevronRight, RotateCcw, MoreHorizontal } from "lucide-react";
+import {
+  RefreshCw,
+  FileText,
+  Upload,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  MoreHorizontal,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
 import { apiFetch } from "@/lib/apiFetch";
@@ -69,17 +77,18 @@ export default function Dashboard() {
       description: "Estamos actualizando las categorías con el motor más reciente.",
     });
     try {
-      const result = await apiFetch("/api/admin/recategorize", {
+      const result = (await apiFetch("/api/admin/recategorize", {
         method: "POST",
-      }) as { updated: number; scanned?: number; version?: string };
+      })) as { updated: number; scanned?: number; version?: string };
       await queryClient.invalidateQueries();
       const updated = result?.updated ?? 0;
       const scanned = result?.scanned ?? 0;
       toast({
         title: "Categorías actualizadas",
-        description: updated > 0
-          ? `Se recategorizaron ${updated} de ${scanned} transacciones.`
-          : `Todas las ${scanned} transacciones ya tenían la categoría correcta.`,
+        description:
+          updated > 0
+            ? `Se recategorizaron ${updated} de ${scanned} transacciones.`
+            : `Todas las ${scanned} transacciones ya tenían la categoría correcta.`,
       });
     } catch {
       toast({
@@ -172,17 +181,16 @@ export default function Dashboard() {
                   </Button>
                   {showAdminMenu && (
                     <>
-                      <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setShowAdminMenu(false)}
-                      />
+                      <div className="fixed inset-0 z-40" onClick={() => setShowAdminMenu(false)} />
                       <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-xl border border-border bg-popover shadow-lg py-1">
                         <button
                           onClick={handleRecategorizeAll}
                           disabled={isRecategorizing}
                           className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors flex items-center gap-2 disabled:opacity-50"
                         >
-                          <RotateCcw className={cn("h-3 w-3", isRecategorizing && "animate-spin")} />
+                          <RotateCcw
+                            className={cn("h-3 w-3", isRecategorizing && "animate-spin")}
+                          />
                           {isRecategorizing ? "Recategorizando..." : "Recategorizar transacciones"}
                         </button>
                       </div>
@@ -237,9 +245,7 @@ export default function Dashboard() {
             <div className="rounded-2xl border-2 border-dashed border-primary/20 bg-card p-10 text-center space-y-5">
               <PastelIcon icon={FileText} color="blue" size="lg" className="mx-auto" />
               <div>
-                <h3 className="font-bold text-xl mb-2 text-foreground">
-                  Sube tu primer documento
-                </h3>
+                <h3 className="font-bold text-xl mb-2 text-foreground">Sube tu primer documento</h3>
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
                   Arrastra tu cartola bancaria o informe CMF (PDF) y en segundos verás tu score,
                   gastos, ahorro y análisis personalizados.
@@ -269,9 +275,7 @@ export default function Dashboard() {
               ) : (
                 <>
                   {/* Score Hero */}
-                  {data.score !== null && (
-                    <ScoreHero score={data.score} delta={data.scoreDelta} />
-                  )}
+                  {data.score !== null && <ScoreHero score={data.score} delta={data.scoreDelta} />}
 
                   {/* Crediticio (CMF) | Salud financiera — lado a lado en sm+, apilados en mobile */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -292,17 +296,17 @@ export default function Dashboard() {
 
               {/* Score Breakdown — how to improve */}
               {data.score !== null && (
-	                <ScoreBreakdown
-	                  score={data.score}
-	                  insights={data.scoreInsights}
-	                  creditScore={data.creditScore}
-	                  totalIncome={data.totalIncome}
-	                  totalExpenses={data.totalExpenses}
-	                  savingsNet={data.savingsNet}
-	                  savingsRate={data.savingsRate}
-	                  scoreConfidence={data.scoreConfidence}
-	                  scoreObservedMonths={data.scoreObservedMonths}
-	                />
+                <ScoreBreakdown
+                  score={data.score}
+                  insights={data.scoreInsights}
+                  creditScore={data.creditScore}
+                  totalIncome={data.totalIncome}
+                  totalExpenses={data.totalExpenses}
+                  savingsNet={data.savingsNet}
+                  savingsRate={data.savingsRate}
+                  scoreConfidence={data.scoreConfidence}
+                  scoreObservedMonths={data.scoreObservedMonths}
+                />
               )}
 
               {/* Balance del período */}
@@ -356,12 +360,12 @@ export default function Dashboard() {
                 (data.patrimonio.totalPatrimonioNeto !== 0 ||
                   data.patrimonio.inversionesLiquidas !== 0 ||
                   data.patrimonio.cuentasVista !== 0) && (
-                <PatrimonioSidebar
-                  inversionesLiquidas={data.patrimonio.inversionesLiquidas}
-                  cuentasVista={data.patrimonio.cuentasVista}
-                  totalPatrimonioNeto={data.patrimonio.totalPatrimonioNeto}
-                />
-              )}
+                  <PatrimonioSidebar
+                    inversionesLiquidas={data.patrimonio.inversionesLiquidas}
+                    cuentasVista={data.patrimonio.cuentasVista}
+                    totalPatrimonioNeto={data.patrimonio.totalPatrimonioNeto}
+                  />
+                )}
 
               {/* Referral — organic growth */}
               <ReferralShareCard />

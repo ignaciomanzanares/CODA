@@ -1,11 +1,11 @@
 /**
  * Open Banking Connector Interface
- * 
+ *
  * Abstracts bank account, transaction, and balance data ingestion.
  * Implementations can be mock (for development/testing) or real (production).
  */
 
-import type { Connector, SyncResult, OpenBankingData } from '../types.js';
+import type { Connector, SyncResult, OpenBankingData } from "../types.js";
 
 export interface OpenBankingConnector extends Connector<OpenBankingData> {
   /**

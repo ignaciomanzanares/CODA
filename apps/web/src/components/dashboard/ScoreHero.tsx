@@ -1,15 +1,10 @@
 import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, Minus, Info } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ScoreHeroProps {
-  score: number;           // 0-100
-  delta: number | null;    // vs previous period
+  score: number; // 0-100
+  delta: number | null; // vs previous period
 }
 
 /** Large semicircular gauge for the hero score. 0-100 scale. */
@@ -20,20 +15,10 @@ function HeroGauge({ score }: { score: number }) {
   const dashLength = (pct / 100) * arcLength;
 
   const color =
-    score >= 70
-      ? "stroke-emerald-500"
-      : score >= 45
-        ? "stroke-amber-500"
-        : "stroke-rose-500";
+    score >= 70 ? "stroke-emerald-500" : score >= 45 ? "stroke-amber-500" : "stroke-rose-500";
 
   const label =
-    score >= 70
-      ? "Excelente"
-      : score >= 55
-        ? "Bueno"
-        : score >= 35
-          ? "Regular"
-          : "Bajo";
+    score >= 70 ? "Excelente" : score >= 55 ? "Bueno" : score >= 35 ? "Regular" : "Bajo";
 
   return (
     <div className="relative w-48 h-28 sm:w-56 sm:h-32 mx-auto">
@@ -76,13 +61,17 @@ export default function ScoreHero({ score, delta }: ScoreHeroProps) {
         <TooltipProvider delayDuration={200}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button type="button" className="text-muted-foreground/60 hover:text-muted-foreground transition-colors">
+              <button
+                type="button"
+                className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+              >
                 <Info className="h-3.5 w-3.5" />
                 <span className="sr-only">Más información sobre el Score Transaccional</span>
               </button>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-[260px] text-xs leading-relaxed">
-              Mide tu salud financiera en base a tus movimientos bancarios: estabilidad de ingresos, nivel de ahorro, gastos fijos y liquidez. Se calcula a partir de tu cartola.
+              Mide tu salud financiera en base a tus movimientos bancarios: estabilidad de ingresos,
+              nivel de ahorro, gastos fijos y liquidez. Se calcula a partir de tu cartola.
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

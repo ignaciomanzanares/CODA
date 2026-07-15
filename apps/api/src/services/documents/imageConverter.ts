@@ -1,20 +1,20 @@
 /**
  * Image to PDF Converter
- * 
+ *
  * Converts image uploads (PNG, JPG, WEBP) to PDF format
  * for unified processing pipeline.
- * 
+ *
  * @author AI Assistant (Cursor)
  * @date 2026-03-06
  */
 
-import type { Buffer } from 'buffer';
+import type { Buffer } from "buffer";
 
 // Carga diferida del módulo nativo `canvas`: solo se importa al usarse, no al importar este
 // archivo, para que tests/CI sin el binario nativo compilado puedan importar este módulo.
-let _canvasMod: typeof import('canvas') | null = null;
-async function getCanvas(): Promise<typeof import('canvas')> {
-  if (!_canvasMod) _canvasMod = await import('canvas');
+let _canvasMod: typeof import("canvas") | null = null;
+async function getCanvas(): Promise<typeof import("canvas")> {
+  if (!_canvasMod) _canvasMod = await import("canvas");
   return _canvasMod;
 }
 
@@ -24,7 +24,7 @@ async function getCanvas(): Promise<typeof import('canvas')> {
 
 /**
  * Convert image buffer to PDF
- * 
+ *
  * Creates a single-page PDF with the image embedded.
  * The PDF will be compatible with pdfjs for text extraction (if OCR applied).
  */
@@ -36,19 +36,19 @@ export async function convertImageToPdf(imageBuffer: Buffer): Promise<Buffer> {
 
     // Create canvas with image dimensions
     const canvas = createCanvas(img.width, img.height);
-    const ctx = canvas.getContext('2d');
-    
+    const ctx = canvas.getContext("2d");
+
     // Draw image
     ctx.drawImage(img, 0, 0);
-    
+
     // Convert to PDF
     // Note: canvas.toBuffer('application/pdf') creates a PDF with the image embedded
-    const pdfBuffer = canvas.toBuffer('application/pdf');
-    
+    const pdfBuffer = canvas.toBuffer("application/pdf");
+
     return pdfBuffer;
   } catch (error) {
-    console.error('[ImageConverter] Error converting image to PDF:', error);
-    throw new Error('Error al convertir imagen a PDF. Verifica que la imagen sea válida.');
+    console.error("[ImageConverter] Error converting image to PDF:", error);
+    throw new Error("Error al convertir imagen a PDF. Verifica que la imagen sea válida.");
   }
 }
 
@@ -56,7 +56,7 @@ export async function convertImageToPdf(imageBuffer: Buffer): Promise<Buffer> {
  * Check if file is an image
  */
 export function isImage(mimeType: string): boolean {
-  return mimeType.startsWith('image/');
+  return mimeType.startsWith("image/");
 }
 
 /**
@@ -67,14 +67,14 @@ export function getOptimalDimensions(
   width: number,
   height: number,
   maxWidth: number = 2480, // A4 at 300dpi
-  maxHeight: number = 3508
+  maxHeight: number = 3508,
 ): { width: number; height: number } {
   if (width <= maxWidth && height <= maxHeight) {
     return { width, height };
   }
-  
+
   const aspectRatio = width / height;
-  
+
   if (width > height) {
     // Landscape
     return {
@@ -103,26 +103,26 @@ export async function convertImageToPdfOptimized(imageBuffer: Buffer): Promise<B
 
     // Create canvas
     const canvas = createCanvas(width, height);
-    const ctx = canvas.getContext('2d');
-    
+    const ctx = canvas.getContext("2d");
+
     // White background (for transparent PNGs)
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = "white";
     ctx.fillRect(0, 0, width, height);
-    
+
     // Draw image with smoothing
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(img, 0, 0, width, height);
-    
+
     // Convert to PDF
-    const pdfBuffer = canvas.toBuffer('application/pdf');
-    
+    const pdfBuffer = canvas.toBuffer("application/pdf");
+
     console.log(
-      `[ImageConverter] Converted ${img.width}x${img.height} → ${width}x${height} PDF (${pdfBuffer.length} bytes)`
+      `[ImageConverter] Converted ${img.width}x${img.height} → ${width}x${height} PDF (${pdfBuffer.length} bytes)`,
     );
-    
+
     return pdfBuffer;
   } catch (error) {
-    console.error('[ImageConverter] Error in optimized conversion:', error);
+    console.error("[ImageConverter] Error in optimized conversion:", error);
     // Fallback to basic conversion
     return convertImageToPdf(imageBuffer);
   }

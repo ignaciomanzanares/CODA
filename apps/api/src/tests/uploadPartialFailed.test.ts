@@ -59,7 +59,13 @@ describe("processDocumentUpload — no deja documentos 'pending' huérfanos (#41
     const docs = await storage.listAllDocumentUploads(userId);
     expect(docs.length).toBeGreaterThan(0);
     // El documento existe pero NO quedó 'pending' huérfano: el outer catch lo marcó 'failed'.
-    expect(docs.every((d: { normalizationStatus?: string | null }) => d.normalizationStatus !== "pending")).toBe(true);
-    expect(docs.some((d: { normalizationStatus?: string | null }) => d.normalizationStatus === "failed")).toBe(true);
+    expect(
+      docs.every(
+        (d: { normalizationStatus?: string | null }) => d.normalizationStatus !== "pending",
+      ),
+    ).toBe(true);
+    expect(
+      docs.some((d: { normalizationStatus?: string | null }) => d.normalizationStatus === "failed"),
+    ).toBe(true);
   });
 });

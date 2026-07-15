@@ -27,7 +27,9 @@ export const REVIEW_CONFIDENCE_THRESHOLD = 0.5;
 
 /** ¿La categoría fue fijada manualmente por el usuario? (no se vuelve a revisar). */
 export function isManualCategory(tx: ReviewableTx): boolean {
-  return tx.categoryRuleId === MANUAL_RULE_ID || tx.categorizerVersion === MANUAL_CATEGORIZER_VERSION;
+  return (
+    tx.categoryRuleId === MANUAL_RULE_ID || tx.categorizerVersion === MANUAL_CATEGORIZER_VERSION
+  );
 }
 
 /**
@@ -41,10 +43,15 @@ export function isManualCategory(tx: ReviewableTx): boolean {
 export function requiresReview(tx: ReviewableTx): boolean {
   if (isManualCategory(tx)) return false;
 
-  const cat = String(tx.category ?? "").trim().toLowerCase();
+  const cat = String(tx.category ?? "")
+    .trim()
+    .toLowerCase();
   if (cat === "" || cat === "otro" || cat === "otros") return true;
 
-  if (typeof tx.categoryConfidence === "number" && tx.categoryConfidence < REVIEW_CONFIDENCE_THRESHOLD) {
+  if (
+    typeof tx.categoryConfidence === "number" &&
+    tx.categoryConfidence < REVIEW_CONFIDENCE_THRESHOLD
+  ) {
     return true;
   }
 

@@ -21,7 +21,7 @@ ${Object.entries(PUBLIC_ROUTES)
     <lastmod>${today}</lastmod>
     <changefreq>${route.changefreq || "monthly"}</changefreq>
     <priority>${route.priority || "0.5"}</priority>
-  </url>`
+  </url>`,
   )
   .join("\n")}
 </urlset>
@@ -29,4 +29,6 @@ ${Object.entries(PUBLIC_ROUTES)
 
 const outPath = join(__dirname, "..", "public", "sitemap.xml");
 writeFileSync(outPath, xml, "utf8");
-console.log(`Sitemap generated: ${outPath} (lastmod: ${today}, ${Object.keys(PUBLIC_ROUTES).length} URLs)`);
+console.log(
+  `Sitemap generated: ${outPath} (lastmod: ${today}, ${Object.keys(PUBLIC_ROUTES).length} URLs)`,
+);

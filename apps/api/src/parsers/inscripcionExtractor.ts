@@ -20,18 +20,29 @@
  * indicators.getUf(date) (Task 1), con fxPending si no hay tasa.
  */
 
-import { logger } from '../logger.js';
+import { logger } from "../logger.js";
 
 const MESES: Record<string, number> = {
-  enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6,
-  julio: 7, agosto: 8, septiembre: 9, setiembre: 9, octubre: 10, noviembre: 11, diciembre: 12,
+  enero: 1,
+  febrero: 2,
+  marzo: 3,
+  abril: 4,
+  mayo: 5,
+  junio: 6,
+  julio: 7,
+  agosto: 8,
+  septiembre: 9,
+  setiembre: 9,
+  octubre: 10,
+  noviembre: 11,
+  diciembre: 12,
 };
 
 /** UF en forma chilena, preservando decimales: "2.975"→2975, "2.236,82"→2236.82. */
 export function parseUf(input: string | number | null | undefined): number {
   if (input === null || input === undefined) return 0;
-  if (typeof input === 'number') return Number.isFinite(input) ? input : 0;
-  const normalized = String(input).trim().replace(/\./g, '').replace(',', '.');
+  if (typeof input === "number") return Number.isFinite(input) ? input : 0;
+  const normalized = String(input).trim().replace(/\./g, "").replace(",", ".");
   const n = parseFloat(normalized);
   return Number.isFinite(n) ? n : 0;
 }
@@ -39,18 +50,67 @@ export function parseUf(input: string | number | null | undefined): number {
 // Números cardinales en palabras (es-CL) para rescatar montos cuando el OCR
 // mutila los dígitos (p. ej. la compraventa quedó deletreada, no en cifras).
 const CARDINAL_UNIDADES: Record<string, number> = {
-  cero: 0, un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7,
-  ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15,
-  dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19, veinte: 20, veintiun: 21,
-  veintiuno: 21, veintiuna: 21, veintidos: 22, veintitres: 23, veinticuatro: 24, veinticinco: 25,
-  veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29, treinta: 30, cuarenta: 40,
-  cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90,
+  cero: 0,
+  un: 1,
+  uno: 1,
+  una: 1,
+  dos: 2,
+  tres: 3,
+  cuatro: 4,
+  cinco: 5,
+  seis: 6,
+  siete: 7,
+  ocho: 8,
+  nueve: 9,
+  diez: 10,
+  once: 11,
+  doce: 12,
+  trece: 13,
+  catorce: 14,
+  quince: 15,
+  dieciseis: 16,
+  diecisiete: 17,
+  dieciocho: 18,
+  diecinueve: 19,
+  veinte: 20,
+  veintiun: 21,
+  veintiuno: 21,
+  veintiuna: 21,
+  veintidos: 22,
+  veintitres: 23,
+  veinticuatro: 24,
+  veinticinco: 25,
+  veintiseis: 26,
+  veintisiete: 27,
+  veintiocho: 28,
+  veintinueve: 29,
+  treinta: 30,
+  cuarenta: 40,
+  cincuenta: 50,
+  sesenta: 60,
+  setenta: 70,
+  ochenta: 80,
+  noventa: 90,
 };
 const CARDINAL_CIENTOS: Record<string, number> = {
-  cien: 100, ciento: 100, doscientos: 200, doscientas: 200, trescientos: 300, trescientas: 300,
-  cuatrocientos: 400, cuatrocientas: 400, quinientos: 500, quinientas: 500, seiscientos: 600,
-  seiscientas: 600, setecientos: 700, setecientas: 700, ochocientos: 800, ochocientas: 800,
-  novecientos: 900, novecientas: 900,
+  cien: 100,
+  ciento: 100,
+  doscientos: 200,
+  doscientas: 200,
+  trescientos: 300,
+  trescientas: 300,
+  cuatrocientos: 400,
+  cuatrocientas: 400,
+  quinientos: 500,
+  quinientas: 500,
+  seiscientos: 600,
+  seiscientas: 600,
+  setecientos: 700,
+  setecientas: 700,
+  ochocientos: 800,
+  ochocientas: 800,
+  novecientos: 900,
+  novecientas: 900,
 };
 
 /**
@@ -63,17 +123,32 @@ export function parseSpanishCardinal(phrase: string | null | undefined): number 
   if (!phrase) return null;
   const norm = String(phrase)
     .toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '') // sin acentos
-    .replace(/[^a-z\s]/g, ' ')
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // sin acentos
+    .replace(/[^a-z\s]/g, " ")
     .trim();
-  const tokens = norm.split(/\s+/).filter((t) => t && t !== 'y');
-  let total = 0, current = 0, started = false;
+  const tokens = norm.split(/\s+/).filter((t) => t && t !== "y");
+  let total = 0,
+    current = 0,
+    started = false;
   for (const w of tokens) {
-    if (CARDINAL_UNIDADES[w] != null) { current += CARDINAL_UNIDADES[w]; started = true; }
-    else if (CARDINAL_CIENTOS[w] != null) { current += CARDINAL_CIENTOS[w]; started = true; }
-    else if (w === 'mil') { current = (current === 0 ? 1 : current) * 1000; total += current; current = 0; started = true; }
-    else if (w === 'millon' || w === 'millones') { current = (current === 0 ? 1 : current) * 1_000_000; total += current; current = 0; started = true; }
-    else if (started) break; // ya venía un número y apareció ruido → cortar
+    if (CARDINAL_UNIDADES[w] != null) {
+      current += CARDINAL_UNIDADES[w];
+      started = true;
+    } else if (CARDINAL_CIENTOS[w] != null) {
+      current += CARDINAL_CIENTOS[w];
+      started = true;
+    } else if (w === "mil") {
+      current = (current === 0 ? 1 : current) * 1000;
+      total += current;
+      current = 0;
+      started = true;
+    } else if (w === "millon" || w === "millones") {
+      current = (current === 0 ? 1 : current) * 1_000_000;
+      total += current;
+      current = 0;
+      started = true;
+    } else if (started) break; // ya venía un número y apareció ruido → cortar
     // si aún no empezó, se ignora la palabra de relleno
   }
   total += current;
@@ -119,7 +194,7 @@ export interface InscripcionResult {
 
 /** Prefill para el formulario de activos (el usuario revisa y guarda). */
 export interface AssetPrefill {
-  type: 'property';
+  type: "property";
   name: string;
   /** Costo de adquisición = compraventa UF × UF a la fecha de escritura (Dominio). */
   acquisitionCostClp: number | null;
@@ -157,45 +232,55 @@ export function extractInscripcion(text: string): InscripcionResult {
   const tieneProhibicion = /Registro de Prohibiciones/i.test(text);
 
   // ── Dominio: fojas / número / año ───────────────────────────────────────────
-  let fojas: number | null = null, numero: number | null = null, anio: number | null = null;
+  let fojas: number | null = null,
+    numero: number | null = null,
+    anio: number | null = null;
   // OCR-tolerante: espacios flexibles y "correspondiente al" | "del". El ancla
   // "Registro de Propiedad" entre número y año evita confundirlo con el fojas/
   // número de la HIPOTECA ("...del año 2024" SIN "Registro de Propiedad").
-  const fsM = firstMatch(text, /Registro de Propiedad\s+Fs\s+(\d+)\s+Nro\s+(\d+)\s*-\s*(\d{4})/i)
-    ?? firstMatch(text, /fojas\s+(\d+)\s+n[uú]mero\s+(\d+)\s+(?:correspondiente\s+al|del)\s+Registro\s+de\s+Propiedad\s+del\s+a[ñn]o\s+(\d{4})/i);
+  const fsM =
+    firstMatch(text, /Registro de Propiedad\s+Fs\s+(\d+)\s+Nro\s+(\d+)\s*-\s*(\d{4})/i) ??
+    firstMatch(
+      text,
+      /fojas\s+(\d+)\s+n[uú]mero\s+(\d+)\s+(?:correspondiente\s+al|del)\s+Registro\s+de\s+Propiedad\s+del\s+a[ñn]o\s+(\d{4})/i,
+    );
   if (fsM) {
     fojas = parseInt(fsM[1]!, 10);
     numero = parseInt(fsM[2]!, 10);
     anio = parseInt(fsM[3]!, 10);
   } else {
-    warnings.push('No se pudo leer fojas/número/año del Dominio.');
+    warnings.push("No se pudo leer fojas/número/año del Dominio.");
   }
-  const referencia = fojas != null ? `Fs ${fojas} Nº ${numero}-${anio}` : '';
+  const referencia = fojas != null ? `Fs ${fojas} Nº ${numero}-${anio}` : "";
 
   // ── Titular + RUT (comprador) ───────────────────────────────────────────────
   const titularM = firstMatch(text, /vendi[oó]\s+a\s+don[a]?\s+([A-ZÑÁÉÍÓÚ][A-ZÑÁÉÍÓÚ ]+?),/i);
-  const titular = titularM ? titularM[1]!.replace(/\s+/g, ' ').trim() : '';
-  const rutM = firstMatch(text, /c[eé]dula de identidad\s+([\d.]+-[\dkK])/i)
-    ?? firstMatch(text, /\b(\d{1,2}\.\d{3}\.\d{3}-[\dkK])\b/);
-  const rut = rutM ? rutM[1]! : '';
+  const titular = titularM ? titularM[1]!.replace(/\s+/g, " ").trim() : "";
+  const rutM =
+    firstMatch(text, /c[eé]dula de identidad\s+([\d.]+-[\dkK])/i) ??
+    firstMatch(text, /\b(\d{1,2}\.\d{3}\.\d{3}-[\dkK])\b/);
+  const rut = rutM ? rutM[1]! : "";
 
   // ── Comuna ──────────────────────────────────────────────────────────────────
   const comunaM = firstMatch(text, /comuna de\s+([A-ZÑÁÉÍÓÚ][A-ZÑÁÉÍÓÚ]+)/i);
-  const comuna = comunaM ? comunaM[1]!.trim() : '';
+  const comuna = comunaM ? comunaM[1]!.trim() : "";
 
   // ── Unidad / departamento / condominio ──────────────────────────────────────
   const unidadM = firstMatch(text, /UNIDAD[\s\S]{0,40}?\((\d+)\)/i);
-  const unidad = unidadM ? unidadM[1]! : '';
+  const unidad = unidadM ? unidadM[1]! : "";
   const deptoM = firstMatch(text, /DEPARTAMENTO\s+[\s\S]{0,40}?\(([A-Z]\s?\d+)\)/i);
-  const departamento = deptoM ? deptoM[1]!.replace(/\s+/g, ' ').trim() : '';
-  const condoM = firstMatch(text, /Condominio\s+([A-ZÑÁÉÍÓÚ][A-ZÑÁÉÍÓÚ ]+?)(?:,|\bconstruido|\bubicado)/i);
-  const condominio = condoM ? condoM[1]!.replace(/\s+/g, ' ').trim() : '';
+  const departamento = deptoM ? deptoM[1]!.replace(/\s+/g, " ").trim() : "";
+  const condoM = firstMatch(
+    text,
+    /Condominio\s+([A-ZÑÁÉÍÓÚ][A-ZÑÁÉÍÓÚ ]+?)(?:,|\bconstruido|\bubicado)/i,
+  );
+  const condominio = condoM ? condoM[1]!.replace(/\s+/g, " ").trim() : "";
 
   const descParts: string[] = [];
   if (departamento) descParts.push(`Departamento ${departamento}`);
   else if (unidad) descParts.push(`Unidad ${unidad}`);
   if (condominio) descParts.push(`Condominio ${condominio}`);
-  const descripcion = descParts.join(', ');
+  const descripcion = descParts.join(", ");
 
   // ── Precio de compraventa (UF) ──────────────────────────────────────────────
   // 1) Forma dígitos "(2.559) Unidades de Fomento" cerca de "precio".
@@ -211,11 +296,11 @@ export function extractInscripcion(text: string): InscripcionResult {
     const spelled = spelledM ? parseSpanishCardinal(spelledM[1]!) : null;
     if (spelled != null) compraventaUf = spelled;
   }
-  if (compraventaUf === 0) warnings.push('No se pudo leer el precio de compraventa en UF.');
+  if (compraventaUf === 0) warnings.push("No se pudo leer el precio de compraventa en UF.");
 
   // ── Rol de avalúo ───────────────────────────────────────────────────────────
   const rolM = firstMatch(text, /rol\s+de\s+aval[uú]o\s+n[uú]mero\s+([\d]+\s*-\s*[\d]+)/i);
-  const rolAvaluo = rolM ? rolM[1]!.replace(/\s+/g, '') : '';
+  const rolAvaluo = rolM ? rolM[1]!.replace(/\s+/g, "") : "";
 
   // ── Hipoteca ────────────────────────────────────────────────────────────────
   // En la inscripción REAL, los datos de la hipoteca están REPARTIDOS:
@@ -229,7 +314,7 @@ export function extractInscripcion(text: string): InscripcionResult {
   let hipoteca: InscripcionHipoteca | null = null;
   const gravamenM = firstMatch(
     text,
-    /\d+\s*\.?\-?\s*HIPOTECA\s*:?\s*A\s+fojas\s+(\d+)\s+n[uú]mero\s+(\d+)\s+del\s+a[ñn]o\s+(\d{4})\s+en\s+favor\s+de\s+([A-Za-zÑÁÉÍÓÚñáéíóú0-9.&\s]+?)\s*\./i,
+    /\d+\s*\.?-?\s*HIPOTECA\s*:?\s*A\s+fojas\s+(\d+)\s+n[uú]mero\s+(\d+)\s+del\s+a[ñn]o\s+(\d{4})\s+en\s+favor\s+de\s+([A-Za-zÑÁÉÍÓÚñáéíóú0-9.&\s]+?)\s*\./i,
   );
   const constIdx = text.search(/constituy[oó]\s+HIPOTECA/i);
   const tieneHeaderHip = tieneHipoteca; // "Registro de Hipotecas"
@@ -253,11 +338,16 @@ export function extractInscripcion(text: string): InscripcionResult {
 
     // Acreedor: el de la línea de gravámenes (institución real). El "en favor de
     // dicha institución" de la escritura es anafórico → se descarta.
-    let acreedor = gravamenM ? gravamenM[4]!.replace(/\s+/g, ' ').trim() : '';
+    let acreedor = gravamenM ? gravamenM[4]!.replace(/\s+/g, " ").trim() : "";
     if (!acreedor || /dicha\s+instituci/i.test(acreedor)) {
-      const segForLender = tieneHeaderHip ? text.slice(text.search(/Registro de Hipotecas/i)) : text;
-      const fb = firstMatch(segForLender, /(COOPEUCH|BANCO\s+[A-ZÑÁÉÍÓÚ ]+?|CAJA\s+[A-ZÑÁÉÍÓÚ ]+?|MUTUARIA\s+[A-ZÑÁÉÍÓÚ ]+?)(?:,|\.|\bpor\b)/i);
-      acreedor = fb ? fb[1]!.replace(/\s+/g, ' ').trim() : acreedor;
+      const segForLender = tieneHeaderHip
+        ? text.slice(text.search(/Registro de Hipotecas/i))
+        : text;
+      const fb = firstMatch(
+        segForLender,
+        /(COOPEUCH|BANCO\s+[A-ZÑÁÉÍÓÚ ]+?|CAJA\s+[A-ZÑÁÉÍÓÚ ]+?|MUTUARIA\s+[A-ZÑÁÉÍÓÚ ]+?)(?:,|\.|\bpor\b)/i,
+      );
+      acreedor = fb ? fb[1]!.replace(/\s+/g, " ").trim() : acreedor;
     }
 
     hipoteca = {
@@ -267,24 +357,34 @@ export function extractInscripcion(text: string): InscripcionResult {
       numero: gravamenM ? parseInt(gravamenM[2]!, 10) : null,
       anio: gravamenM ? parseInt(gravamenM[3]!, 10) : null,
     };
-    if (montoUf === 0) warnings.push('Hipoteca presente pero no se pudo leer el monto UF.');
+    if (montoUf === 0) warnings.push("Hipoteca presente pero no se pudo leer el monto UF.");
   }
 
   // ── Prohibiciones ───────────────────────────────────────────────────────────
   const prohibiciones: string[] = [];
   if (tieneProhibicion || /PROHIBICION/i.test(text)) {
     for (const m of text.matchAll(/PROHIBICION[.\s]+(\d+\s*-\s*\d+\s*-\s*\d{4})/gi)) {
-      prohibiciones.push(m[1]!.replace(/\s+/g, ''));
+      prohibiciones.push(m[1]!.replace(/\s+/g, ""));
     }
   }
 
   // ── Fecha de inscripción ────────────────────────────────────────────────────
   let fechaInscripcion: Date | null = null;
-  const fechaM = firstMatch(text, /Concepci[oó]n,\s+(\d{1,2})\s+de\s+([a-záéíóú]+)\s+de\s+(\d{4})/i)
-    ?? firstMatch(text, /(\d{1,2})\s+de\s+([a-záéíóú]+)\s+de(?:l a[ñn]o[^()]*)?\s*\((\d{4})\)/i);
+  const fechaM =
+    firstMatch(text, /Concepci[oó]n,\s+(\d{1,2})\s+de\s+([a-záéíóú]+)\s+de\s+(\d{4})/i) ??
+    firstMatch(text, /(\d{1,2})\s+de\s+([a-záéíóú]+)\s+de(?:l a[ñn]o[^()]*)?\s*\((\d{4})\)/i);
   if (fechaM) {
     const mes = MESES[fechaM[2]!.toLowerCase()];
-    if (mes) fechaInscripcion = new Date(parseInt(fechaM[3]!, 10), mes - 1, parseInt(fechaM[1]!, 10), 12, 0, 0, 0);
+    if (mes)
+      fechaInscripcion = new Date(
+        parseInt(fechaM[3]!, 10),
+        mes - 1,
+        parseInt(fechaM[1]!, 10),
+        12,
+        0,
+        0,
+        0,
+      );
   }
 
   return {
@@ -301,7 +401,11 @@ export function extractInscripcion(text: string): InscripcionResult {
     hipoteca,
     prohibiciones,
     fechaInscripcion,
-    documentos: { dominio: tieneDominio, hipoteca: hipoteca != null, prohibicion: tieneProhibicion },
+    documentos: {
+      dominio: tieneDominio,
+      hipoteca: hipoteca != null,
+      prohibicion: tieneProhibicion,
+    },
     warnings,
   };
 }
@@ -329,40 +433,48 @@ export function buildAssetPrefill(
   // (este era el crash "reading 'referencia'" cuando dominio venía undefined).
   const compraventaUf = result.compraventaUf ?? 0;
   const hipotecaUf = result.hipoteca?.montoUf ?? null;
-  const referencia = result.dominio?.referencia ?? '';
-  const rolAvaluo = result.rolAvaluo ?? '';
+  const referencia = result.dominio?.referencia ?? "";
+  const rolAvaluo = result.rolAvaluo ?? "";
 
   // Costo de adquisición → sólo si hay compraventa legible (>0); si el OCR no la
   // rescató, queda null (NO 0) y aun así se arma el prefill con la hipoteca.
-  const acquisitionCostClp = haveEscritura && compraventaUf > 0 ? Math.round(compraventaUf * escrituraUfRate) : null;
+  const acquisitionCostClp =
+    haveEscritura && compraventaUf > 0 ? Math.round(compraventaUf * escrituraUfRate) : null;
   // Hipoteca → UF a la fecha de escritura. Independiente de la compraventa.
-  const lienAmountClp = haveEscritura && hipotecaUf != null && hipotecaUf > 0 ? Math.round(hipotecaUf * escrituraUfRate) : null;
+  const lienAmountClp =
+    haveEscritura && hipotecaUf != null && hipotecaUf > 0
+      ? Math.round(hipotecaUf * escrituraUfRate)
+      : null;
   // Valor estimado actual (opcional) → UF de hoy.
-  const estimatedValueClp = haveCurrent && compraventaUf > 0 ? Math.round(compraventaUf * currentUfRate) : null;
+  const estimatedValueClp =
+    haveCurrent && compraventaUf > 0 ? Math.round(compraventaUf * currentUfRate) : null;
 
   const notesParts: string[] = [];
   if (referencia) notesParts.push(`Dominio ${referencia}`);
   if (rolAvaluo) notesParts.push(`Rol ${rolAvaluo}`);
   if (result.comuna) notesParts.push(`Comuna ${result.comuna}`);
   if (compraventaUf > 0) notesParts.push(`Compraventa ${compraventaUf} UF`);
-  if (result.hipoteca) notesParts.push(`Hipoteca ${result.hipoteca.acreedor} ${result.hipoteca.montoUf} UF`);
+  if (result.hipoteca)
+    notesParts.push(`Hipoteca ${result.hipoteca.acreedor} ${result.hipoteca.montoUf} UF`);
 
   return {
-    type: 'property',
-    name: result.descripcion || 'Propiedad',
+    type: "property",
+    name: result.descripcion || "Propiedad",
     acquisitionCostClp,
     estimatedValueClp,
     // tiene_garantia = true si se detectó una hipoteca (header o "en favor de").
     hasLien: result.hipoteca != null,
     lienAmountClp,
-    notes: notesParts.join(' · '),
+    notes: notesParts.join(" · "),
     fxPending: !haveEscritura,
     source: {
       compraventaUf,
       hipotecaUf,
       escrituraUfRate: haveEscritura ? escrituraUfRate : null,
       currentUfRate: haveCurrent ? currentUfRate : null,
-      escrituraDate: result.fechaInscripcion ? result.fechaInscripcion.toISOString().slice(0, 10) : null,
+      escrituraDate: result.fechaInscripcion
+        ? result.fechaInscripcion.toISOString().slice(0, 10)
+        : null,
       dominio: referencia,
       rolAvaluo,
     },
@@ -380,7 +492,7 @@ export async function resolveInscripcionPrefill(
   result: InscripcionResult,
   getUf?: (date: Date) => Promise<number | null>,
 ): Promise<AssetPrefill> {
-  const ufFn = getUf ?? (await import('../services/indicators.js')).getUf;
+  const ufFn = getUf ?? (await import("../services/indicators.js")).getUf;
   // Costo a la fecha de escritura (NO hoy). Sin fecha → no se puede fechar el costo.
   const escrituraUfRate = result.fechaInscripcion ? await ufFn(result.fechaInscripcion) : null;
   const currentUfRate = await ufFn(new Date());
@@ -395,7 +507,7 @@ export async function resolveInscripcionPrefill(
 const MIN_TEXT_LEN = 200;
 
 export const MANUAL_FALLBACK_MSG =
-  'No pudimos leer el PDF escaneado. Ingresa los datos de la propiedad manualmente.';
+  "No pudimos leer el PDF escaneado. Ingresa los datos de la propiedad manualmente.";
 
 export interface InscripcionExtractionOutcome {
   ok: boolean;
@@ -435,17 +547,17 @@ export async function extractInscripcionFromBuffer(
   const extractText =
     deps?.extractText ??
     (async (b: Buffer) => {
-      const { extractPdfText } = await import('../services/documents/pdfAnalysis.js');
+      const { extractPdfText } = await import("../services/documents/pdfAnalysis.js");
       const r = await extractPdfText(b);
-      return r.text ?? '';
+      return r.text ?? "";
     });
 
-  let text = '';
+  let text = "";
   try {
     text = await extractText(buffer);
   } catch (e) {
-    logger.warn({ err: e }, 'inscripcion: text-layer extraction failed');
-    text = '';
+    logger.warn({ err: e }, "inscripcion: text-layer extraction failed");
+    text = "";
   }
 
   let usedOcr = false;
@@ -460,9 +572,9 @@ export async function extractInscripcionFromBuffer(
       const ocr =
         deps?.ocr ??
         (async (b: Buffer) => {
-          const { performOcrOnFullPdf } = await import('../services/documents/ocrService.js');
+          const { performOcrOnFullPdf } = await import("../services/documents/ocrService.js");
           const r = await performOcrOnFullPdf(b);
-          return r.text ?? '';
+          return r.text ?? "";
         });
       const ocrText = await ocr(buffer);
       if (ocrText.trim().length > text.trim().length) {
@@ -471,7 +583,7 @@ export async function extractInscripcionFromBuffer(
       }
     } catch (e) {
       // OCR no instalado/fallido → fallback manual, sin romper el flujo del activo.
-      logger.warn({ err: e }, 'inscripcion: OCR fallback unavailable/failed');
+      logger.warn({ err: e }, "inscripcion: OCR fallback unavailable/failed");
     }
   }
 
@@ -489,13 +601,13 @@ export async function extractInscripcionFromBuffer(
       result.dominio.fojas != null ||
       result.compraventaUf > 0 ||
       result.hipoteca != null ||
-      result.rolAvaluo !== '';
+      result.rolAvaluo !== "";
     if (!hasUsableField) {
       return { ok: false, usedOcr, manualFallback: true, message: MANUAL_FALLBACK_MSG };
     }
     return { ok: true, result, usedOcr, manualFallback: false };
   } catch (e) {
-    logger.warn({ err: e }, 'inscripcion: extraction failed on extracted text');
+    logger.warn({ err: e }, "inscripcion: extraction failed on extracted text");
     return { ok: false, usedOcr, manualFallback: true, message: MANUAL_FALLBACK_MSG };
   }
 }

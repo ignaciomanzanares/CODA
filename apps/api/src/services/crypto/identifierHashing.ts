@@ -8,15 +8,15 @@
  * RUT en texto plano.
  */
 
-import { createHmac } from 'crypto';
-import { env } from '../../env.js';
+import { createHmac } from "crypto";
+import { env } from "../../env.js";
 
 /** Mismo criterio de normalización usado antes en documentUploadService.ts: quita puntos/espacios, mayúsculas, conserva el guion. */
 export function normalizeRut(rut: string): string {
-  return rut.replace(/[.\s]/g, '').toUpperCase();
+  return rut.replace(/[.\s]/g, "").toUpperCase();
 }
 
 /** HMAC-SHA256(rut_normalizado, RUT_HASH_PEPPER), hex. Determinístico: mismo RUT → mismo hash siempre. */
 export function hashRut(rut: string): string {
-  return createHmac('sha256', env.rutHashPepper).update(normalizeRut(rut)).digest('hex');
+  return createHmac("sha256", env.rutHashPepper).update(normalizeRut(rut)).digest("hex");
 }

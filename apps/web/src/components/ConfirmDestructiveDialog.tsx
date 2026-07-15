@@ -42,7 +42,10 @@ export default function ConfirmDestructiveDialog({
         </AlertDialogHeader>
         <AlertDialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <AlertDialogCancel
-            className={cn("mt-0 min-h-[44px] w-full sm:w-auto", "border border-input bg-background")}
+            className={cn(
+              "mt-0 min-h-[44px] w-full sm:w-auto",
+              "border border-input bg-background",
+            )}
             disabled={isPending}
           >
             {cancelLabel}

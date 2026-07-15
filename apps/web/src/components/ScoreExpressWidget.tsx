@@ -13,15 +13,7 @@ import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/routes";
-import {
-  ArrowRight,
-  Info,
-  Lock,
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  Store,
-} from "lucide-react";
+import { ArrowRight, Info, Lock, CheckCircle2, ChevronDown, ChevronUp, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Analytics } from "@/lib/analytics";
 
@@ -35,9 +27,9 @@ import type { Product, UserFinancialProfile, RankedProduct } from "@/types/produ
 // ──────────────────────────────────────────────────────────────
 
 interface ExpressInput {
-  income: number;       // monthly income CLP
-  expenses: number;     // monthly expenses CLP
-  debt: number;         // monthly debt payment CLP
+  income: number; // monthly income CLP
+  expenses: number; // monthly expenses CLP
+  debt: number; // monthly debt payment CLP
 }
 
 function computeExpressScore(input: ExpressInput): number {
@@ -60,7 +52,8 @@ function computeExpressScore(input: ExpressInput): number {
 }
 
 function scoreLabel(score: number): { text: string; color: string; ring: string } {
-  if (score >= 75) return { text: "Excelente", color: "text-emerald-400", ring: "stroke-emerald-400" };
+  if (score >= 75)
+    return { text: "Excelente", color: "text-emerald-400", ring: "stroke-emerald-400" };
   if (score >= 55) return { text: "Bueno", color: "text-lime-400", ring: "stroke-lime-400" };
   if (score >= 35) return { text: "Regular", color: "text-amber-400", ring: "stroke-amber-400" };
   return { text: "Bajo", color: "text-red-400", ring: "stroke-red-400" };
@@ -108,9 +101,7 @@ function Slider({
     <div className="space-y-2">
       <div className="flex justify-between items-baseline">
         <label className="text-sm font-medium text-slate-200">{label}</label>
-        <span className="text-sm font-semibold tabular-nums text-white">
-          {formatValue(value)}
-        </span>
+        <span className="text-sm font-semibold tabular-nums text-white">{formatValue(value)}</span>
       </div>
       <div className="relative h-2">
         <div className="absolute inset-0 rounded-full bg-white/10" />
@@ -124,7 +115,7 @@ function Slider({
           max={max}
           step={step}
           value={value}
-          onChange={e => onChange(Number(e.target.value))}
+          onChange={(e) => onChange(Number(e.target.value))}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           aria-label={label}
         />
@@ -148,17 +139,18 @@ function ScoreGauge({ score }: { score: number }) {
       <svg viewBox="0 0 100 100" className="w-36 h-36 -rotate-90">
         <circle cx="50" cy="50" r={r} fill="none" strokeWidth="9" className="stroke-white/10" />
         <circle
-          cx="50" cy="50" r={r}
-          fill="none" strokeWidth="9"
+          cx="50"
+          cy="50"
+          r={r}
+          fill="none"
+          strokeWidth="9"
           strokeLinecap="round"
           className={cn("transition-all duration-700", ring)}
           strokeDasharray={`${dash} ${circ}`}
         />
       </svg>
       <div className="absolute flex flex-col items-center">
-        <span className={cn("text-4xl font-bold tabular-nums leading-none", color)}>
-          {score}
-        </span>
+        <span className={cn("text-4xl font-bold tabular-nums leading-none", color)}>{score}</span>
         <span className="text-xs text-slate-400 mt-1">/ 100</span>
       </div>
     </div>
@@ -224,7 +216,7 @@ export default function ScoreExpressWidget() {
 
   const score = useMemo(
     () => computeExpressScore({ income, expenses, debt }),
-    [income, expenses, debt]
+    [income, expenses, debt],
   );
   const { text, color } = scoreLabel(score);
 
@@ -233,7 +225,7 @@ export default function ScoreExpressWidget() {
     const profile = buildExpressProfile({ income, expenses, debt }, score);
     const ranked = rankProducts(seedProducts as Product[], profile);
     // Pick the top 3 eligible products (or top 3 overall if none eligible)
-    const eligible = ranked.filter(p => p.eligibility === "eligible");
+    const eligible = ranked.filter((p) => p.eligibility === "eligible");
     return (eligible.length >= 3 ? eligible : ranked).slice(0, 3);
   }, [income, expenses, debt, score]);
 
@@ -249,8 +241,8 @@ export default function ScoreExpressWidget() {
             ¿Cuál sería tu Score Express?
           </h2>
           <p className="text-slate-400 max-w-lg mx-auto">
-            Ajusta los sliders y ve cómo un motor de scoring evalúa tu
-            situación financiera — más las recomendaciones que recibirías.
+            Ajusta los sliders y ve cómo un motor de scoring evalúa tu situación financiera — más
+            las recomendaciones que recibirías.
           </p>
         </div>
 
@@ -266,7 +258,7 @@ export default function ScoreExpressWidget() {
                 max={5_000_000}
                 step={50_000}
                 onChange={setIncome}
-                formatValue={v => CLP.format(v)}
+                formatValue={(v) => CLP.format(v)}
               />
               <Slider
                 label="Gastos mensuales"
@@ -274,8 +266,8 @@ export default function ScoreExpressWidget() {
                 min={100_000}
                 max={income}
                 step={50_000}
-                onChange={v => setExpenses(Math.min(v, income))}
-                formatValue={v => CLP.format(v)}
+                onChange={(v) => setExpenses(Math.min(v, income))}
+                formatValue={(v) => CLP.format(v)}
               />
               <Slider
                 label="Deuda mensual (cuotas)"
@@ -284,7 +276,7 @@ export default function ScoreExpressWidget() {
                 max={Math.round(income * 0.6)}
                 step={10_000}
                 onChange={setDebt}
-                formatValue={v => v === 0 ? "Sin deuda" : CLP.format(v)}
+                formatValue={(v) => (v === 0 ? "Sin deuda" : CLP.format(v))}
               />
             </div>
 
@@ -306,12 +298,16 @@ export default function ScoreExpressWidget() {
 
               {/* Toggle products */}
               <button
-                onClick={() => setShowProducts(v => !v)}
+                onClick={() => setShowProducts((v) => !v)}
                 className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
               >
                 <Store className="h-4 w-4" />
                 {showProducts ? "Ocultar productos" : "Ver productos recomendados"}
-                {showProducts ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                {showProducts ? (
+                  <ChevronUp className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                )}
               </button>
             </div>
           </div>
@@ -321,15 +317,13 @@ export default function ScoreExpressWidget() {
             <div className="mt-8 pt-8 border-t border-white/10 space-y-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-white">
-                    Productos para tu perfil
-                  </h3>
+                  <h3 className="text-lg font-semibold text-white">Productos para tu perfil</h3>
                   <p className="text-sm text-slate-400 mt-0.5">
                     Basado en tus ingresos, ahorro y nivel de deuda
                   </p>
                 </div>
                 <span className="text-xs font-medium text-slate-500 bg-white/5 px-2.5 py-1 rounded-full hidden sm:block">
-                  {topProducts.filter(p => p.eligibility === "eligible").length} elegibles
+                  {topProducts.filter((p) => p.eligibility === "eligible").length} elegibles
                 </span>
               </div>
 
@@ -341,7 +335,10 @@ export default function ScoreExpressWidget() {
 
               {/* Blurred teaser row */}
               <div className="relative">
-                <div className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3 blur-[3px] select-none" aria-hidden="true">
+                <div
+                  className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3 blur-[3px] select-none"
+                  aria-hidden="true"
+                >
                   <div className="w-8 h-8 rounded-lg bg-white/10 shrink-0" />
                   <div className="flex-1">
                     <div className="h-3 w-32 bg-white/10 rounded" />

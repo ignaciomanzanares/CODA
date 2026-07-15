@@ -3,9 +3,9 @@
  * de riesgo, reusa el feature store unificado (`buildUserRiskProfile`): la salud se deriva del mismo
  * profile y el CMF sale de ahí, sin recargar documentos ni desincronizarse con salud/scores.
  */
-import { buildUserRiskProfile } from '../risk/userRiskProfile.js';
-import { evaluateHealthFromProfile } from '../healthEvaluation/userHealthService.js';
-import type { DebtRuleContext } from './types.js';
+import { buildUserRiskProfile } from "../risk/userRiskProfile.js";
+import { evaluateHealthFromProfile } from "../healthEvaluation/userHealthService.js";
+import type { DebtRuleContext } from "./types.js";
 
 export async function buildDebtRuleContext(userId: string): Promise<DebtRuleContext | null> {
   const profile = await buildUserRiskProfile(userId);

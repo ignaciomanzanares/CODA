@@ -16,12 +16,5 @@
     }
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts"],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "ml/.venv",
-    "src/**/*.test.ts",
-    "src/tests/**",
-    "src/vite.ts"
-  ]
+  "exclude": ["node_modules", "dist", "ml/.venv", "src/**/*.test.ts", "src/tests/**", "src/vite.ts"]
 }

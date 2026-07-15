@@ -39,7 +39,10 @@ async function main() {
   }
 
   const email = emailArg.trim().toLowerCase();
-  const [user] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.email, email));
+  const [user] = await db
+    .select({ id: users.id, role: users.role })
+    .from(users)
+    .where(eq(users.email, email));
   if (!user) {
     console.error(`No existe un usuario con email ${email}.`);
     process.exit(1);

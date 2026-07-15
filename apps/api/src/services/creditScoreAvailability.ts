@@ -43,9 +43,10 @@ interface CreditScoreStorage {
 }
 
 function unavailable(reason: CreditScoreUnavailableReason): CreditScoreUnavailableResponse {
-  const message = reason === "missing_cmf_report"
-    ? "Sube tu Informe de Deudas CMF para calcular tu score crediticio."
-    : "Tu Informe de Deudas CMF está cargado, pero el score crediticio aún no está disponible.";
+  const message =
+    reason === "missing_cmf_report"
+      ? "Sube tu Informe de Deudas CMF para calcular tu score crediticio."
+      : "Tu Informe de Deudas CMF está cargado, pero el score crediticio aún no está disponible.";
   return {
     available: false,
     reason,
@@ -67,7 +68,9 @@ function isSuccessfulCmfUpload(doc: any): boolean {
 function newestUpload(docs: any[]): any | null {
   const successful = docs.filter(isSuccessfulCmfUpload);
   if (successful.length === 0) return null;
-  return successful.sort((a, b) => String(b.uploadedAt ?? "").localeCompare(String(a.uploadedAt ?? "")))[0];
+  return successful.sort((a, b) =>
+    String(b.uploadedAt ?? "").localeCompare(String(a.uploadedAt ?? "")),
+  )[0];
 }
 
 export async function getCreditScoreAvailability(

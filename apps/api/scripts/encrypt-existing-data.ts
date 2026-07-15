@@ -30,17 +30,23 @@
  * column) — es seguro porque no hay tráfico concurrente que dependa de leer texto plano.
  */
 
-import { db, users, documentUploads, scoreDocumentUploads, algorithmPredictionLogs } from '../src/db/index.js';
-import { encryptField, looksEncrypted } from '../src/services/crypto/fieldEncryption.js';
+import {
+  db,
+  users,
+  documentUploads,
+  scoreDocumentUploads,
+  algorithmPredictionLogs,
+} from "../src/db/index.js";
+import { encryptField, looksEncrypted } from "../src/services/crypto/fieldEncryption.js";
 
 async function migrateUsers() {
   const rows = await db.select().from(users);
   let migrated = 0;
   for (const row of rows) {
     const update: Record<string, string | null> = {};
-    for (const col of ['firstName', 'lastName', 'totpSecret', 'backupCodes'] as const) {
+    for (const col of ["firstName", "lastName", "totpSecret", "backupCodes"] as const) {
       const value = (row as Record<string, unknown>)[col];
-      if (typeof value === 'string' && value.length > 0 && !looksEncrypted(value)) {
+      if (typeof value === "string" && value.length > 0 && !looksEncrypted(value)) {
         update[col] = encryptField(value);
       }
     }
@@ -57,7 +63,10 @@ async function migrateDocumentUploads() {
   let migrated = 0;
   for (const row of rows) {
     if (row.parsedData && !looksEncrypted(row.parsedData)) {
-      await db.update(documentUploads).set({ parsedData: encryptField(row.parsedData) }).where(eq(documentUploads.id, row.id));
+      await db
+        .update(documentUploads)
+        .set({ parsedData: encryptField(row.parsedData) })
+        .where(eq(documentUploads.id, row.id));
       migrated++;
     }
   }
@@ -69,7 +78,10 @@ async function migrateScoreDocumentUploads() {
   let migrated = 0;
   for (const row of rows) {
     if (row.parsedData && !looksEncrypted(row.parsedData)) {
-      await db.update(scoreDocumentUploads).set({ parsedData: encryptField(row.parsedData) }).where(eq(scoreDocumentUploads.id, row.id));
+      await db
+        .update(scoreDocumentUploads)
+        .set({ parsedData: encryptField(row.parsedData) })
+        .where(eq(scoreDocumentUploads.id, row.id));
       migrated++;
     }
   }
@@ -81,14 +93,23 @@ async function migrateAlgorithmPredictionLogs() {
   let migrated = 0;
   for (const row of rows) {
     const update: Record<string, string | null> = {};
-    for (const col of ['inputFeatures', 'outputSnapshot', 'cmfData', 'sfaData', 'topFactors'] as const) {
+    for (const col of [
+      "inputFeatures",
+      "outputSnapshot",
+      "cmfData",
+      "sfaData",
+      "topFactors",
+    ] as const) {
       const value = (row as Record<string, unknown>)[col];
-      if (typeof value === 'string' && value.length > 0 && !looksEncrypted(value)) {
+      if (typeof value === "string" && value.length > 0 && !looksEncrypted(value)) {
         update[col] = encryptField(value);
       }
     }
     if (Object.keys(update).length > 0) {
-      await db.update(algorithmPredictionLogs).set(update).where(eq(algorithmPredictionLogs.id, row.id));
+      await db
+        .update(algorithmPredictionLogs)
+        .set(update)
+        .where(eq(algorithmPredictionLogs.id, row.id));
       migrated++;
     }
   }
@@ -96,14 +117,14 @@ async function migrateAlgorithmPredictionLogs() {
 }
 
 // drizzle-orm `eq` no está re-exportado arriba en todos los casos; import directo para el script.
-import { eq } from 'drizzle-orm';
+import { eq } from "drizzle-orm";
 
 async function main() {
   await migrateUsers();
   await migrateDocumentUploads();
   await migrateScoreDocumentUploads();
   await migrateAlgorithmPredictionLogs();
-  console.log('Listo.');
+  console.log("Listo.");
 }
 
 main().catch((err) => {

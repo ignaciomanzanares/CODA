@@ -12,7 +12,6 @@ import {
   Lightbulb,
   ArrowRight,
   TrendingUp,
-  TrendingDown,
   ShieldCheck,
   AlertTriangle,
   Banknote,
@@ -148,7 +147,8 @@ function getQuickTips(
 // ── Score label helper ────────────────────────────────────────────────────────
 
 function scoreLabel(score: number): { label: string; colorClass: string } {
-  if (score >= 70) return { label: "Excelente", colorClass: "text-emerald-600 dark:text-emerald-400" };
+  if (score >= 70)
+    return { label: "Excelente", colorClass: "text-emerald-600 dark:text-emerald-400" };
   if (score >= 55) return { label: "Bueno", colorClass: "text-blue-600 dark:text-blue-400" };
   if (score >= 35) return { label: "Regular", colorClass: "text-amber-600 dark:text-amber-400" };
   return { label: "Bajo", colorClass: "text-red-600 dark:text-red-400" };
@@ -198,12 +198,11 @@ export default function ScoreBreakdown({
         <div className="flex items-center gap-3 min-w-0">
           <Lightbulb className="h-4 w-4 text-amber-500 shrink-0" />
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">
-              ¿Cómo mejorar tu score?
-            </p>
+            <p className="text-sm font-semibold text-foreground">¿Cómo mejorar tu score?</p>
             {!expanded && (
               <p className="text-xs text-muted-foreground mt-0.5">
-                Tu score es <span className={colorClass}>{label}</span> — {tips.length} oportunidades de mejora
+                Tu score es <span className={colorClass}>{label}</span> — {tips.length}{" "}
+                oportunidades de mejora
               </p>
             )}
           </div>
@@ -224,7 +223,6 @@ export default function ScoreBreakdown({
       >
         <div className="overflow-hidden">
           <div className="px-4 pb-4 space-y-4 border-t border-border pt-3">
-
             {/* Score scale visualization */}
             <div className="space-y-1.5">
               <div className="flex h-2 rounded-full overflow-hidden gap-0.5">
@@ -255,17 +253,14 @@ export default function ScoreBreakdown({
             </div>
 
             {/* Quick tips */}
-	            <div className="space-y-2">
-	              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-	                Próximos pasos
-	              </p>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Próximos pasos
+              </p>
               {tips.map((tip, i) => {
                 const Icon = tip.icon;
                 return (
-                  <div
-                    key={i}
-                    className="flex items-start gap-2.5 rounded-xl bg-muted/50 p-3"
-                  >
+                  <div key={i} className="flex items-start gap-2.5 rounded-xl bg-muted/50 p-3">
                     <Icon className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-foreground leading-relaxed">{tip.text}</p>
@@ -307,7 +302,10 @@ export default function ScoreBreakdown({
                   Análisis de tu cartola
                 </p>
                 {insights.slice(0, 4).map((text, i) => (
-                  <p key={i} className="text-[11px] text-muted-foreground leading-relaxed pl-2 border-l-2 border-border">
+                  <p
+                    key={i}
+                    className="text-[11px] text-muted-foreground leading-relaxed pl-2 border-l-2 border-border"
+                  >
                     {text}
                   </p>
                 ))}

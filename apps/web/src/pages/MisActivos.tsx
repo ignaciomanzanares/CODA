@@ -5,18 +5,13 @@ import { Link } from "wouter";
 import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, HeartPulse, Info } from "lucide-react";
 import AssetList from "@/components/assets/AssetList";
 import AssetForm from "@/components/assets/AssetForm";
 
-type AssetType = 'property' | 'vehicle' | 'crypto' | 'investment' | 'other';
+type AssetType = "property" | "vehicle" | "crypto" | "investment" | "other";
 
 interface UserAsset {
   id: string;
@@ -43,7 +38,11 @@ interface AssetFormData {
 }
 
 function clpFormat(n: number): string {
-  return n.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+  return n.toLocaleString("es-CL", {
+    style: "currency",
+    currency: "CLP",
+    maximumFractionDigits: 0,
+  });
 }
 
 export default function MisActivos() {
@@ -52,16 +51,15 @@ export default function MisActivos() {
   const { apiRequest } = useApi();
 
   const { data: assets = [], isLoading } = useQuery<UserAsset[]>({
-    queryKey: ['assets'],
-    queryFn: () => apiRequest<UserAsset[]>('GET', '/api/assets'),
+    queryKey: ["assets"],
+    queryFn: () => apiRequest<UserAsset[]>("GET", "/api/assets"),
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: AssetFormData) =>
-      apiRequest('POST', '/api/assets', data),
+    mutationFn: (data: AssetFormData) => apiRequest("POST", "/api/assets", data),
     onSuccess: () => {
       setAddOpen(false);
-      void queryClient.invalidateQueries({ queryKey: ['assets'] });
+      void queryClient.invalidateQueries({ queryKey: ["assets"] });
     },
   });
 
@@ -86,9 +84,9 @@ export default function MisActivos() {
           <CardContent className="p-4 flex gap-3">
             <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-blue-700">
-              Agrega tus propiedades, vehículos u otros activos para que tu diagnóstico
-              financiero sea más preciso. Los activos declarados se usan para calcular
-              el ratio <strong>deuda/activos</strong>.
+              Agrega tus propiedades, vehículos u otros activos para que tu diagnóstico financiero
+              sea más preciso. Los activos declarados se usan para calcular el ratio{" "}
+              <strong>deuda/activos</strong>.
             </p>
           </CardContent>
         </Card>
@@ -103,8 +101,9 @@ export default function MisActivos() {
           <CardContent>
             <div className="text-3xl font-bold text-emerald-600">{clpFormat(totalDeclarado)}</div>
             <p className="text-xs text-gray-500 mt-1">
-              {assets.length} activo{assets.length !== 1 ? 's' : ''} registrado{assets.length !== 1 ? 's' : ''}.
-              Los saldos de tus cuentas bancarias se suman automáticamente desde tu cartola.
+              {assets.length} activo{assets.length !== 1 ? "s" : ""} registrado
+              {assets.length !== 1 ? "s" : ""}. Los saldos de tus cuentas bancarias se suman
+              automáticamente desde tu cartola.
             </p>
           </CardContent>
         </Card>
@@ -138,7 +137,9 @@ export default function MisActivos() {
           </DialogHeader>
           <AssetForm
             isLoading={createMutation.isPending}
-            onSubmit={async (data) => { await createMutation.mutateAsync(data); }}
+            onSubmit={async (data) => {
+              await createMutation.mutateAsync(data);
+            }}
             onCancel={() => setAddOpen(false)}
           />
         </DialogContent>

@@ -35,9 +35,7 @@ const ALL_FIXTURES = [
 ];
 
 // Only run tests against fixtures that are actually present on disk
-const FIXTURES = ALL_FIXTURES.filter((f) =>
-  existsSync(join(fixtureDir, f))
-);
+const FIXTURES = ALL_FIXTURES.filter((f) => existsSync(join(fixtureDir, f)));
 
 /** Normalize whitespace in a description for comparison */
 function normalizeDesc(s: string): string {
@@ -85,8 +83,7 @@ describe("Santander real cartolas — parse + reconciliation", () => {
       // Only assert when both opening AND closing balances were extracted
       // (some PDFs use concatenated-amount formats the parser can't fully parse)
       if (result.saldo_inicial !== 0 && result.saldo_final !== 0) {
-        const expectedFinal =
-          result.saldo_inicial + result.total_abonos - result.total_cargos;
+        const expectedFinal = result.saldo_inicial + result.total_abonos - result.total_cargos;
         const delta = Math.abs(expectedFinal - result.saldo_final);
         const denominator = Math.max(Math.abs(result.saldo_final), 1);
         const deltaPct = (delta / denominator) * 100;
@@ -100,10 +97,7 @@ describe("Santander real cartolas — parse + reconciliation", () => {
 
 describe("Santander real cartolas — snapshots", () => {
   for (const fixture of FIXTURES) {
-    const snapshotFile = join(
-      snapshotDir,
-      fixture.replace(".pdf", ".snapshot.json")
-    );
+    const snapshotFile = join(snapshotDir, fixture.replace(".pdf", ".snapshot.json"));
 
     it(`${fixture}: matches or creates snapshot`, async () => {
       const result = await parseFixture(fixture);
@@ -117,9 +111,7 @@ describe("Santander real cartolas — snapshots", () => {
         total_abonos: result.total_abonos,
         tx_count: result.transacciones.length,
         transacciones: result.transacciones.map((t) => ({
-          fecha: t.fecha instanceof Date
-            ? t.fecha.toISOString().slice(0, 10)
-            : String(t.fecha),
+          fecha: t.fecha instanceof Date ? t.fecha.toISOString().slice(0, 10) : String(t.fecha),
           tipo: t.tipo,
           monto: t.monto,
           descripcion: normalizeDesc(t.descripcion),
@@ -166,9 +158,7 @@ describe("Santander cartola01-26.pdf — detailed expected", () => {
   it("each expected transaction is present with correct type and amount (±1 CLP)", async () => {
     const result = await parseFixture("cartola01-26.pdf");
     const parsed = result.transacciones.map((t) => ({
-      fecha: t.fecha instanceof Date
-        ? t.fecha.toISOString().slice(0, 10)
-        : String(t.fecha),
+      fecha: t.fecha instanceof Date ? t.fecha.toISOString().slice(0, 10) : String(t.fecha),
       tipo: t.tipo,
       monto: t.monto,
       descripcion: normalizeDesc(t.descripcion),
@@ -176,12 +166,12 @@ describe("Santander cartola01-26.pdf — detailed expected", () => {
 
     for (const exp of expected.transacciones) {
       const match = parsed.find(
-        (p) =>
-          p.fecha === exp.fecha &&
-          p.tipo === exp.tipo &&
-          Math.abs(p.monto - exp.monto) <= 1
+        (p) => p.fecha === exp.fecha && p.tipo === exp.tipo && Math.abs(p.monto - exp.monto) <= 1,
       );
-      expect(match, `Missing: ${exp.fecha} ${exp.tipo} ${exp.monto} "${exp.descripcion}"`).toBeDefined();
+      expect(
+        match,
+        `Missing: ${exp.fecha} ${exp.tipo} ${exp.monto} "${exp.descripcion}"`,
+      ).toBeDefined();
     }
   });
 
@@ -194,13 +184,13 @@ describe("Santander cartola01-26.pdf — detailed expected", () => {
     const result = await parseFixture("cartola01-26.pdf");
     const parsedDescs = result.transacciones.map((t) => normalizeDesc(t.descripcion));
     const expectedDescs = expected.transacciones.map((e: { descripcion: string }) =>
-      normalizeDesc(e.descripcion)
+      normalizeDesc(e.descripcion),
     );
     // Every expected description should appear in parsed output
     for (const expDesc of expectedDescs) {
       expect(
         parsedDescs.some((d) => d === expDesc),
-        `Description not found: "${expDesc}"`
+        `Description not found: "${expDesc}"`,
       ).toBe(true);
     }
   });

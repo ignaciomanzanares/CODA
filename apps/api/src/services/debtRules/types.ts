@@ -1,16 +1,16 @@
-import type { HealthEvaluationResult } from '../healthEvaluation/types.js';
-import type { CMFParseResult } from '../../parsers/cmf-parser.js';
+import type { HealthEvaluationResult } from "../healthEvaluation/types.js";
+import type { CMFParseResult } from "../../parsers/cmf-parser.js";
 
 /** Versión del motor de reglas (trazabilidad CMF / NCG 502). */
-export const DEBT_RULES_ENGINE_VERSION = 'v1.0.0';
+export const DEBT_RULES_ENGINE_VERSION = "v1.0.0";
 
 /** Las 3 familias de reglas de optimización de deuda. */
-export type DebtRuleFamily = 'reduccion_deuda' | 'comportamiento' | 'ahorro_capacidad';
+export type DebtRuleFamily = "reduccion_deuda" | "comportamiento" | "ahorro_capacidad";
 
 export const FAMILY_LABELS: Record<DebtRuleFamily, string> = {
-  reduccion_deuda: 'Reducción y reestructuración de deuda',
-  comportamiento: 'Mejora de comportamiento y score',
-  ahorro_capacidad: 'Ahorro y capacidad de pago',
+  reduccion_deuda: "Reducción y reestructuración de deuda",
+  comportamiento: "Mejora de comportamiento y score",
+  ahorro_capacidad: "Ahorro y capacidad de pago",
 };
 
 /**

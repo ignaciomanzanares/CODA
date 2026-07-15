@@ -6,9 +6,20 @@
  * email/nombre/RUT/userId), solo el producto, el monto/plazo solicitados y la fecha — consistente
  * con el principio "no compartimos datos individuales" del expediente CMF.
  */
-import { db, productApplications, financialProducts, eq, and, inArray, desc } from '../../db/index.js';
-import { updateApplicationStatus, type ApplicationStatus } from '../products/leadTrackingService.js';
-import { logger } from '../../logger.js';
+import {
+  db,
+  productApplications,
+  financialProducts,
+  eq,
+  and,
+  inArray,
+  desc,
+} from "../../db/index.js";
+import {
+  updateApplicationStatus,
+  type ApplicationStatus,
+} from "../products/leadTrackingService.js";
+import { logger } from "../../logger.js";
 
 export interface InstitutionLead {
   leadId: number;
@@ -21,7 +32,7 @@ export interface InstitutionLead {
 }
 
 /** Estados de un lead que aún esperan respuesta de la institución. */
-const OPEN_STATUSES = ['pending', 'delivered', 'accepted'];
+const OPEN_STATUSES = ["pending", "delivered", "accepted"];
 
 /**
  * Lista los leads abiertos de los productos de `provider`. Al entregarlos, marca los que estaban
@@ -40,49 +51,69 @@ export async function getLeadsForInstitution(provider: string): Promise<Institut
     })
     .from(productApplications)
     .innerJoin(financialProducts, eq(productApplications.productId, financialProducts.id))
-    .where(and(eq(financialProducts.provider, provider), inArray(productApplications.status, OPEN_STATUSES)))
+    .where(
+      and(
+        eq(financialProducts.provider, provider),
+        inArray(productApplications.status, OPEN_STATUSES),
+      ),
+    )
     .orderBy(desc(productApplications.appliedAt));
 
   // Marcar como 'delivered' los que estaban 'pending' (ya se los llevó la institución).
-  const pendingIds = rows.filter((r: { status: string }) => r.status === 'pending').map((r: { leadId: number }) => r.leadId);
+  const pendingIds = rows
+    .filter((r: { status: string }) => r.status === "pending")
+    .map((r: { leadId: number }) => r.leadId);
   if (pendingIds.length > 0) {
     await db
       .update(productApplications)
-      .set({ status: 'delivered', updatedAt: new Date().toISOString() })
-      .where(and(inArray(productApplications.id, pendingIds), eq(productApplications.status, 'pending')));
+      .set({ status: "delivered", updatedAt: new Date().toISOString() })
+      .where(
+        and(inArray(productApplications.id, pendingIds), eq(productApplications.status, "pending")),
+      );
   }
 
-  return rows.map((r: {
-    leadId: number; status: string; applicationData: string | null; appliedAt: string;
-    productId: number; productName: string; category: string;
-  }) => {
-    let requestedAmount: number | null = null;
-    let term: number | null = null;
-    let purpose: string | null = null;
-    if (r.applicationData) {
-      try {
-        const d = JSON.parse(r.applicationData) as { requestedAmount?: number; term?: number; purpose?: string };
-        requestedAmount = typeof d.requestedAmount === 'number' ? d.requestedAmount : null;
-        term = typeof d.term === 'number' ? d.term : null;
-        purpose = typeof d.purpose === 'string' ? d.purpose : null;
-      } catch {
-        /* applicationData no-JSON: se omite */
+  return rows.map(
+    (r: {
+      leadId: number;
+      status: string;
+      applicationData: string | null;
+      appliedAt: string;
+      productId: number;
+      productName: string;
+      category: string;
+    }) => {
+      let requestedAmount: number | null = null;
+      let term: number | null = null;
+      let purpose: string | null = null;
+      if (r.applicationData) {
+        try {
+          const d = JSON.parse(r.applicationData) as {
+            requestedAmount?: number;
+            term?: number;
+            purpose?: string;
+          };
+          requestedAmount = typeof d.requestedAmount === "number" ? d.requestedAmount : null;
+          term = typeof d.term === "number" ? d.term : null;
+          purpose = typeof d.purpose === "string" ? d.purpose : null;
+        } catch {
+          /* applicationData no-JSON: se omite */
+        }
       }
-    }
-    return {
-      leadId: r.leadId,
-      // Si acabamos de marcarlo delivered, reflejarlo en la respuesta.
-      status: pendingIds.includes(r.leadId) ? 'delivered' : r.status,
-      product: { id: r.productId, name: r.productName, category: r.category },
-      requestedAmount,
-      term,
-      purpose,
-      appliedAt: r.appliedAt,
-    };
-  });
+      return {
+        leadId: r.leadId,
+        // Si acabamos de marcarlo delivered, reflejarlo en la respuesta.
+        status: pendingIds.includes(r.leadId) ? "delivered" : r.status,
+        product: { id: r.productId, name: r.productName, category: r.category },
+        requestedAmount,
+        term,
+        purpose,
+        appliedAt: r.appliedAt,
+      };
+    },
+  );
 }
 
-export type LeadResponseStatus = 'accepted' | 'rejected' | 'originated';
+export type LeadResponseStatus = "accepted" | "rejected" | "originated";
 
 /**
  * Registra la respuesta de la institución a un lead. Verifica que el lead pertenezca a un producto
@@ -97,7 +128,11 @@ export async function respondToLead(
   externalApplicationId?: string,
 ): Promise<boolean> {
   const [row] = await db
-    .select({ appId: productApplications.id, productId: financialProducts.id, provider: financialProducts.provider })
+    .select({
+      appId: productApplications.id,
+      productId: financialProducts.id,
+      provider: financialProducts.provider,
+    })
     .from(productApplications)
     .innerJoin(financialProducts, eq(productApplications.productId, financialProducts.id))
     .where(eq(productApplications.id, leadId))
@@ -107,13 +142,26 @@ export async function respondToLead(
     return false;
   }
 
-  const [product] = await db.select().from(financialProducts).where(eq(financialProducts.id, row.productId)).limit(1);
+  const [product] = await db
+    .select()
+    .from(financialProducts)
+    .where(eq(financialProducts.id, row.productId))
+    .limit(1);
 
   // 'originated' (desembolsado) → 'approved' internamente (dispara el success fee).
-  const internalStatus: ApplicationStatus = status === 'originated' ? 'approved' : status;
-  await updateApplicationStatus(leadId, internalStatus, product, originatedAmount, externalApplicationId);
+  const internalStatus: ApplicationStatus = status === "originated" ? "approved" : status;
+  await updateApplicationStatus(
+    leadId,
+    internalStatus,
+    product,
+    originatedAmount,
+    externalApplicationId,
+  );
 
-  logger.info({ provider, leadId, status, originatedAmount }, '[institutionLeads] respuesta de institución registrada');
+  logger.info(
+    { provider, leadId, status, originatedAmount },
+    "[institutionLeads] respuesta de institución registrada",
+  );
   return true;
 }
 
@@ -161,7 +209,7 @@ export async function getAllLeads(limit = 200): Promise<AdminLead[]> {
     if (r.applicationData) {
       try {
         const d = JSON.parse(r.applicationData) as { requestedAmount?: number };
-        requestedAmount = typeof d.requestedAmount === 'number' ? d.requestedAmount : null;
+        requestedAmount = typeof d.requestedAmount === "number" ? d.requestedAmount : null;
       } catch {
         /* no-JSON */
       }
@@ -194,9 +242,22 @@ export async function adminSetLeadStatus(
     .limit(1);
   if (!app) return false;
 
-  const [product] = await db.select().from(financialProducts).where(eq(financialProducts.id, app.productId)).limit(1);
-  const internalStatus: ApplicationStatus = status === 'originated' ? 'approved' : status;
-  await updateApplicationStatus(leadId, internalStatus, product, originatedAmount, externalApplicationId);
-  logger.info({ leadId, status, originatedAmount }, '[institutionLeads] estado de lead actualizado por admin');
+  const [product] = await db
+    .select()
+    .from(financialProducts)
+    .where(eq(financialProducts.id, app.productId))
+    .limit(1);
+  const internalStatus: ApplicationStatus = status === "originated" ? "approved" : status;
+  await updateApplicationStatus(
+    leadId,
+    internalStatus,
+    product,
+    originatedAmount,
+    externalApplicationId,
+  );
+  logger.info(
+    { leadId, status, originatedAmount },
+    "[institutionLeads] estado de lead actualizado por admin",
+  );
   return true;
 }

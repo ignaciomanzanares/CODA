@@ -5,11 +5,13 @@ import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
 import { ROUTES } from "@/lib/routes";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
-} from "recharts";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
-interface CategorySpend { categoria: string; total: number; pct: number }
+interface CategorySpend {
+  categoria: string;
+  total: number;
+  pct: number;
+}
 interface InsightsData {
   spendingByCategory: CategorySpend[];
   totalEgresos: number;
@@ -17,41 +19,52 @@ interface InsightsData {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  vivienda:               "Vivienda",
-  alimentacion:           "Alimentación",
-  transporte:             "Transporte",
-  seguros:                "Otros pagos recurrentes",
-  servicios_basicos:      "Servicios básicos",
-  salud_bienestar:        "Salud y bienestar",
-  educacion:              "Educación",
-  cuidado_personal:       "Cuidado personal",
-  diversion:              "Diversión",
-  hobbies:                "Hobbies",
-  suscripciones:          "Suscripciones",
-  deudas:                 "Deudas",
-  inversiones:            "Inversiones",
-  ahorros:                "Ahorros",
-  regalos:                "Regalos",
-  reparaciones:           "Reparaciones",
-  imprevistos:            "Imprevistos",
-  telecomunicaciones:     "Telecomunicaciones",
-  transferencia_enviada:  "Transferencias",
+  vivienda: "Vivienda",
+  alimentacion: "Alimentación",
+  transporte: "Transporte",
+  seguros: "Otros pagos recurrentes",
+  servicios_basicos: "Servicios básicos",
+  salud_bienestar: "Salud y bienestar",
+  educacion: "Educación",
+  cuidado_personal: "Cuidado personal",
+  diversion: "Diversión",
+  hobbies: "Hobbies",
+  suscripciones: "Suscripciones",
+  deudas: "Deudas",
+  inversiones: "Inversiones",
+  ahorros: "Ahorros",
+  regalos: "Regalos",
+  reparaciones: "Reparaciones",
+  imprevistos: "Imprevistos",
+  telecomunicaciones: "Telecomunicaciones",
+  transferencia_enviada: "Transferencias",
   transferencia_recibida: "Recibidas",
-  comercio:               "Comercio",
-  entretenimiento:        "Entretenimiento",
-  salud:                  "Salud",
-  ingreso_principal:      "Ingresos",
-  servicios:              "Servicios",
-  otro:                   "Otros",
+  comercio: "Comercio",
+  entretenimiento: "Entretenimiento",
+  salud: "Salud",
+  ingreso_principal: "Ingresos",
+  servicios: "Servicios",
+  otro: "Otros",
 };
 
 const COLORS = [
-  "#3b82f6", "#f59e0b", "#10b981", "#ef4444",
-  "#8b5cf6", "#06b6d4", "#f97316", "#ec4899",
-  "#14b8a6", "#6366f1",
+  "#3b82f6",
+  "#f59e0b",
+  "#10b981",
+  "#ef4444",
+  "#8b5cf6",
+  "#06b6d4",
+  "#f97316",
+  "#ec4899",
+  "#14b8a6",
+  "#6366f1",
 ];
 
-const clpFmt = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+const clpFmt = new Intl.NumberFormat("es-CL", {
+  style: "currency",
+  currency: "CLP",
+  maximumFractionDigits: 0,
+});
 
 function CustomTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
@@ -73,15 +86,16 @@ export default function CategoryPieChart() {
     queryKey: ["/api/transactions/insights"],
     queryFn: () => {
       const token = getPersonalToken();
-      if (!token && !hasPersonalSession()) return Promise.resolve({ spendingByCategory: [], totalEgresos: 0, totalIngresos: 0 });
+      if (!token && !hasPersonalSession())
+        return Promise.resolve({ spendingByCategory: [], totalEgresos: 0, totalIngresos: 0 });
       return apiFetch("/api/transactions/insights");
     },
     enabled: isAuthenticated,
     staleTime: 60_000,
   });
 
-  const cats = (data?.spendingByCategory ?? []).filter(c =>
-    c.categoria !== "ingreso_principal" && c.categoria !== "transferencia_recibida"
+  const cats = (data?.spendingByCategory ?? []).filter(
+    (c) => c.categoria !== "ingreso_principal" && c.categoria !== "transferencia_recibida",
   );
 
   if (isLoading) {
@@ -100,7 +114,7 @@ export default function CategoryPieChart() {
 
   if (cats.length === 0) return null;
 
-  const chartData = cats.map(c => ({
+  const chartData = cats.map((c) => ({
     name: CATEGORY_LABELS[c.categoria] ?? c.categoria,
     categoria: c.categoria,
     value: c.total,
@@ -116,7 +130,9 @@ export default function CategoryPieChart() {
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Gastos por categoría</CardTitle>
-        <CardDescription>Distribución de egresos — haz clic en una categoría para ver detalle</CardDescription>
+        <CardDescription>
+          Distribución de egresos — haz clic en una categoría para ver detalle
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>

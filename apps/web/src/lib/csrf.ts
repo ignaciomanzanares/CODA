@@ -7,14 +7,14 @@
  * el backend ni siquiera la exige.
  */
 
-const CSRF_COOKIE_NAME = 'coda_csrf';
-const CSRF_HEADER_NAME = 'X-CSRF-Token';
-const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+const CSRF_COOKIE_NAME = "coda_csrf";
+const CSRF_HEADER_NAME = "X-CSRF-Token";
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 function readCsrfCookie(): string | null {
-  if (typeof document === 'undefined') return null;
-  for (const part of document.cookie.split(';')) {
-    const idx = part.indexOf('=');
+  if (typeof document === "undefined") return null;
+  for (const part of document.cookie.split(";")) {
+    const idx = part.indexOf("=");
     if (idx === -1) continue;
     if (part.slice(0, idx).trim() === CSRF_COOKIE_NAME) {
       return decodeURIComponent(part.slice(idx + 1).trim());
@@ -24,7 +24,10 @@ function readCsrfCookie(): string | null {
 }
 
 /** Agrega el header CSRF a `headers` si el método muta estado y hay cookie CSRF disponible. */
-export function withCsrfHeader(method: string | undefined, headers: Record<string, string>): Record<string, string> {
+export function withCsrfHeader(
+  method: string | undefined,
+  headers: Record<string, string>,
+): Record<string, string> {
   if (!method || !MUTATING_METHODS.has(method.toUpperCase())) return headers;
   const token = readCsrfCookie();
   if (!token) return headers;

@@ -17,16 +17,18 @@ import {
   type ReconciliationResult,
   buildTransactionConfidence,
   RECONCILIATION_WARN_PCT,
-} from './base.js';
-import { parseCLP } from '../utils/clp.js';
+} from "./base.js";
+import { parseCLP } from "../utils/clp.js";
 
-export const BANCO = 'Santander';
+export const BANCO = "Santander";
 
-export const TC_NACIONAL_DISCRIMINATOR = 'ESTADO DE CUENTA EN MONEDA NACIONAL DE TARJETA DE CRÉDITO';
-export const TC_INTERNACIONAL_DISCRIMINATOR = 'ESTADO DE CUENTA INTERNACIONAL DE TARJETA DE CRÉDITO';
+export const TC_NACIONAL_DISCRIMINATOR =
+  "ESTADO DE CUENTA EN MONEDA NACIONAL DE TARJETA DE CRÉDITO";
+export const TC_INTERNACIONAL_DISCRIMINATOR =
+  "ESTADO DE CUENTA INTERNACIONAL DE TARJETA DE CRÉDITO";
 
 /** Movimiento de tarjeta. `kind` distingue gasto real de plomería interna. */
-export type TarjetaMovimientoKind = 'purchase' | 'payment';
+export type TarjetaMovimientoKind = "purchase" | "payment";
 
 export interface TarjetaMovimiento {
   fecha: Date;
@@ -42,7 +44,7 @@ export interface TarjetaMovimiento {
 
 export interface TarjetaNacionalResult {
   banco: typeof BANCO;
-  tipoDocumento: 'tc_nacional';
+  tipoDocumento: "tc_nacional";
   titular: string;
   /** Sólo los últimos 4 dígitos enmascarados de la tarjeta. */
   tarjetaMascara: string;
@@ -68,14 +70,14 @@ export interface TarjetaNacionalResult {
 
 /** Filas de sección/subtotal que NUNCA son line items (se excluyen de la suma). */
 const SECTION_MARKERS = [
-  'TOTAL OPERACIONES',
-  'MOVIMIENTOS TARJETA',
-  'PRODUCTOS O SERVICIOS',
-  'CARGOS, COMISIONES',
-  'INFORMACION COMPRAS',
-  'INFORMACIÓN COMPRAS',
-  'TOTAL DE COMPRAS Y CARGOS',
-  'MONTO TOTAL FACTURADO',
+  "TOTAL OPERACIONES",
+  "MOVIMIENTOS TARJETA",
+  "PRODUCTOS O SERVICIOS",
+  "CARGOS, COMISIONES",
+  "INFORMACION COMPRAS",
+  "INFORMACIÓN COMPRAS",
+  "TOTAL DE COMPRAS Y CARGOS",
+  "MONTO TOTAL FACTURADO",
 ];
 
 function isSectionRow(line: string): boolean {
@@ -149,16 +151,16 @@ export function parseTarjetaNacional(text: string): TarjetaNacionalResult {
   // comprobante de pago, el label queda sobre una línea y el monto en la siguiente
   // (capturaba "10" de "10/11/2025"). [^\n]*? exige label y monto en la misma fila.
   const montoTotalFacturado = parseCLP(
-    text.match(/MONTO TOTAL FACTURADO A PAGAR[^\n]*?\$\s*(-?[\d.]+)/i)?.[1] ?? '0',
+    text.match(/MONTO TOTAL FACTURADO A PAGAR[^\n]*?\$\s*(-?[\d.]+)/i)?.[1] ?? "0",
   );
   const totalOperaciones = parseCLP(
-    text.match(/1\.\s*TOTAL OPERACIONES[^\n]*?\$\s*(-?[\d.]+)/i)?.[1] ?? '0',
+    text.match(/1\.\s*TOTAL OPERACIONES[^\n]*?\$\s*(-?[\d.]+)/i)?.[1] ?? "0",
   );
 
   // ── Line items ──────────────────────────────────────────────────────────────
   const movimientos: TarjetaMovimiento[] = [];
   for (const raw of lines) {
-    const line = raw.replace(/\s+$/g, '');
+    const line = raw.replace(/\s+$/g, "");
     if (!line.trim()) continue;
     if (isSectionRow(line)) continue;
 
@@ -169,20 +171,22 @@ export function parseTarjetaNacional(text: string): TarjetaNacionalResult {
 
     const lugar = line.slice(0, dateM.index).trim();
     const afterDate = line.slice(dateM.index + dateM[0].length);
-    const descripcion = afterDate.replace(CLP_AMOUNT_RE, '').replace(/\s+/g, ' ').trim();
+    const descripcion = afterDate.replace(CLP_AMOUNT_RE, "").replace(/\s+/g, " ").trim();
     const fecha = parseShortDate(dateM[1]!, dateM[2]!, dateM[3]!);
 
     const esPago = /MONTO CANCELADO/i.test(descripcion) || monto < 0;
-    const kind: TarjetaMovimientoKind = esPago ? 'payment' : 'purchase';
+    const kind: TarjetaMovimientoKind = esPago ? "payment" : "purchase";
     // Compra en cuotas: el layout muestra "n de m" o "n/m" en la zona NºCUOTA.
     const cuotaM = descripcion.match(/CUOTA\s*(\d{1,2})\s*(?:DE|\/)\s*(\d{1,2})/i);
-    const cuota = cuotaM ? { n: parseInt(cuotaM[1]!, 10), de: parseInt(cuotaM[2]!, 10) } : undefined;
+    const cuota = cuotaM
+      ? { n: parseInt(cuotaM[1]!, 10), de: parseInt(cuotaM[2]!, 10) }
+      : undefined;
 
     movimientos.push({
       fecha,
       lugar,
       descripcion,
-      montoClp: kind === 'payment' ? -Math.abs(monto) : Math.abs(monto),
+      montoClp: kind === "payment" ? -Math.abs(monto) : Math.abs(monto),
       kind,
       cuota,
       confidence: buildTransactionConfidence({
@@ -197,10 +201,10 @@ export function parseTarjetaNacional(text: string): TarjetaNacionalResult {
   }
 
   const totalCompras = movimientos
-    .filter((m) => m.kind === 'purchase')
+    .filter((m) => m.kind === "purchase")
     .reduce((a, m) => a + m.montoClp, 0);
   const totalPagos = movimientos
-    .filter((m) => m.kind === 'payment')
+    .filter((m) => m.kind === "payment")
     .reduce((a, m) => a + Math.abs(m.montoClp), 0);
 
   // Conciliación: las compras deben sumar el "1. TOTAL OPERACIONES" declarado
@@ -212,11 +216,11 @@ export function parseTarjetaNacional(text: string): TarjetaNacionalResult {
       `Compras suman ${totalCompras} vs total declarado ${expected} (delta ${reconciliation.delta_pct}%).`,
     );
   }
-  if (movimientos.length === 0) warnings.push('No se detectaron movimientos.');
+  if (movimientos.length === 0) warnings.push("No se detectaron movimientos.");
 
   return {
     banco: BANCO,
-    tipoDocumento: 'tc_nacional',
+    tipoDocumento: "tc_nacional",
     titular,
     tarjetaMascara,
     periodo: { desde, hasta, dias: diasEntre(desde, hasta) },
@@ -251,12 +255,17 @@ function parseCardHeader(text: string): CardHeader {
   // Titular SÓLO en la misma línea del label ([ \t], no \s que cruza saltos) —
   // así no captura el disclaimer "Consideramos aprobado…" de la línea siguiente.
   const tM = text.match(/NOMBRE DEL TITULAR[ \t]+([^\n]+)/i);
-  const titular = tM ? tM[1]!.replace(/\s{2,}.*$/, '').trim().slice(0, 120) : '';
+  const titular = tM
+    ? tM[1]!
+        .replace(/\s{2,}.*$/, "")
+        .trim()
+        .slice(0, 120)
+    : "";
 
   const tarjetaMascara =
-    (text.match(/N[º°]\s*DE TARJETA DE CR[ÉE]DITO[ \t]*[\dX\s]*?(\d{4})\b/i)?.[1]) ??
-    (text.match(/MOVIMIENTOS TARJETA\s*[X\d-]*?(\d{4})\b/i)?.[1]) ??
-    '';
+    text.match(/N[º°]\s*DE TARJETA DE CR[ÉE]DITO[ \t]*[\dX\s]*?(\d{4})\b/i)?.[1] ??
+    text.match(/MOVIMIENTOS TARJETA\s*[X\d-]*?(\d{4})\b/i)?.[1] ??
+    "";
 
   // FECHA ESTADO DE CUENTA: fecha DESPUÉS (pdfjs) o ANTES pegada (pdf-parse).
   const feM =
@@ -273,10 +282,14 @@ function parseCardHeader(text: string): CardHeader {
 
   let desde: Date | null = dM
     ? parseFullDate(dM[1]!, dM[2]!, dM[3]!)
-    : bothM ? parseFullDate(bothM[1]!, bothM[2]!, bothM[3]!) : null;
+    : bothM
+      ? parseFullDate(bothM[1]!, bothM[2]!, bothM[3]!)
+      : null;
   let hasta: Date | null = hM
     ? parseFullDate(hM[1]!, hM[2]!, hM[3]!)
-    : bothM ? parseFullDate(bothM[4]!, bothM[5]!, bothM[6]!) : null;
+    : bothM
+      ? parseFullDate(bothM[4]!, bothM[5]!, bothM[6]!)
+      : null;
 
   // Fallbacks deterministas (alimentan dedup por período): FECHA ESTADO como cierre,
   // inicio un mes antes cuando el layout esconde las fechas del período.
@@ -300,10 +313,13 @@ function parseCardHeader(text: string): CardHeader {
  */
 export function parseDecimalCl(input: string | number | null | undefined): number {
   if (input === null || input === undefined) return 0;
-  if (typeof input === 'number') return Number.isFinite(input) ? input : 0;
-  const s = String(input).replace(/US\$|\$/g, '').replace(/\s/g, '').trim();
+  if (typeof input === "number") return Number.isFinite(input) ? input : 0;
+  const s = String(input)
+    .replace(/US\$|\$/g, "")
+    .replace(/\s/g, "")
+    .trim();
   if (!s) return 0;
-  const normalized = s.replace(/\./g, '').replace(',', '.');
+  const normalized = s.replace(/\./g, "").replace(",", ".");
   const n = parseFloat(normalized);
   return Number.isFinite(n) ? n : 0;
 }
@@ -313,7 +329,7 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-export type TarjetaIntlKind = 'purchase' | 'payment' | 'transfer';
+export type TarjetaIntlKind = "purchase" | "payment" | "transfer";
 
 export interface TarjetaIntlMovimiento {
   fecha: Date;
@@ -332,7 +348,7 @@ export interface TarjetaIntlMovimiento {
 
 export interface TarjetaInternacionalResult {
   banco: typeof BANCO;
-  tipoDocumento: 'tc_internacional';
+  tipoDocumento: "tc_internacional";
   titular: string;
   tarjetaMascara: string;
   periodo: { desde: Date; hasta: Date; dias: number };
@@ -383,16 +399,22 @@ export function parseTarjetaInternacional(text: string): TarjetaInternacionalRes
 
   const saldoAnteriorUsd = usdLabel(text, /SALDO ANTERIOR FACTURADO[^\n]*?US\$\s*(-?[\d.,]+)/i);
   const abonoRealizadoUsd = usdLabel(text, /ABONO REALIZADO[^\n]*?US\$\s*(-?[\d.,]+)/i);
-  const totalComprasYCargosUsd = usdLabel(text, /TOTAL DE COMPRAS Y CARGOS[^\n]*?US\$\s*(-?[\d.,]+)/i);
-  const traspasoDeudaNacionalUsd = usdLabel(text, /TRASPASO DEUDA NACIONAL[^\n]*?US\$\s*(-?[\d.,]+)/i);
+  const totalComprasYCargosUsd = usdLabel(
+    text,
+    /TOTAL DE COMPRAS Y CARGOS[^\n]*?US\$\s*(-?[\d.,]+)/i,
+  );
+  const traspasoDeudaNacionalUsd = usdLabel(
+    text,
+    /TRASPASO DEUDA NACIONAL[^\n]*?US\$\s*(-?[\d.,]+)/i,
+  );
   const deudaTotalUsd = usdLabel(text, /DEUDA TOTAL[^\n]*?US\$\s*(-?[\d.,]+)/i);
   const totalOperacionesUsd = parseDecimalCl(
-    text.match(/1\.\s*TOTAL OPERACIONES[^\n]*?(-?\d[\d.,]*,\d{2})/i)?.[1] ?? '0',
+    text.match(/1\.\s*TOTAL OPERACIONES[^\n]*?(-?\d[\d.,]*,\d{2})/i)?.[1] ?? "0",
   );
 
   const movimientos: TarjetaIntlMovimiento[] = [];
   for (const raw of lines) {
-    const line = raw.replace(/\s+$/g, '');
+    const line = raw.replace(/\s+$/g, "");
     if (!line.trim()) continue;
     if (isSectionRow(line)) continue;
 
@@ -414,29 +436,35 @@ export function parseTarjetaInternacional(text: string): TarjetaInternacionalRes
     const usdStr = glued ? numeric[0]! : numeric[numeric.length - 1]!;
     const origenStr = glued
       ? (numeric[1] ?? null)
-      : (numeric.length >= 2 ? numeric[numeric.length - 2]! : null);
+      : numeric.length >= 2
+        ? numeric[numeric.length - 2]!
+        : null;
     const montoUsd = parseDecimalCl(usdStr);
     const montoOrigen = origenStr != null ? parseDecimalCl(origenStr) : null;
 
     // Glosa = resto sin los números (sirve para clasificar pago/transfer); el país
     // son 2 letras al final (pegadas en pdf-parse, token suelto en pdfjs).
     let descPart = rest;
-    for (const n of numeric) descPart = descPart.replace(n, ' ');
+    for (const n of numeric) descPart = descPart.replace(n, " ");
     const paisM = descPart.match(/([A-Z]{2})\s*$/);
-    const pais = paisM ? paisM[1]! : '';
-    const descripcion = descPart.replace(/[A-Z]{2}\s*$/, '').replace(/\s+/g, ' ').trim();
+    const pais = paisM ? paisM[1]! : "";
+    const descripcion = descPart
+      .replace(/[A-Z]{2}\s*$/, "")
+      .replace(/\s+/g, " ")
+      .trim();
 
     let kind: TarjetaIntlKind;
-    if (/MONTO\s*CANCELADO|ABONO\s*DE\s*DIVISAS/i.test(descripcion)) kind = 'payment';
-    else if (/TRASPASO|EGRESO\s*DE\s*DIVISAS|COMPRA\s*DE\s*DIVISAS/i.test(descripcion)) kind = 'transfer';
-    else if (montoUsd < 0) kind = 'payment';
-    else kind = 'purchase';
+    if (/MONTO\s*CANCELADO|ABONO\s*DE\s*DIVISAS/i.test(descripcion)) kind = "payment";
+    else if (/TRASPASO|EGRESO\s*DE\s*DIVISAS|COMPRA\s*DE\s*DIVISAS/i.test(descripcion))
+      kind = "transfer";
+    else if (montoUsd < 0) kind = "payment";
+    else kind = "purchase";
 
     const fecha = parseShortDate(dateM[1]!, dateM[2]!, dateM[3]!);
     movimientos.push({
       fecha,
       descripcion,
-      ciudad: '',
+      ciudad: "",
       pais,
       montoOrigen,
       montoUsd,
@@ -454,10 +482,10 @@ export function parseTarjetaInternacional(text: string): TarjetaInternacionalRes
   }
 
   const totalComprasUsd = round2(
-    movimientos.filter((m) => m.kind === 'purchase').reduce((a, m) => a + m.montoUsd, 0),
+    movimientos.filter((m) => m.kind === "purchase").reduce((a, m) => a + m.montoUsd, 0),
   );
   const totalPagosUsd = round2(
-    movimientos.filter((m) => m.kind !== 'purchase').reduce((a, m) => a + Math.abs(m.montoUsd), 0),
+    movimientos.filter((m) => m.kind !== "purchase").reduce((a, m) => a + Math.abs(m.montoUsd), 0),
   );
 
   const expected = round2(totalComprasYCargosUsd || totalOperacionesUsd);
@@ -467,11 +495,11 @@ export function parseTarjetaInternacional(text: string): TarjetaInternacionalRes
       `Compras USD suman ${totalComprasUsd} vs TOTAL DE COMPRAS Y CARGOS ${expected} (delta ${reconciliation.delta_pct}%).`,
     );
   }
-  if (movimientos.length === 0) warnings.push('No se detectaron movimientos.');
+  if (movimientos.length === 0) warnings.push("No se detectaron movimientos.");
 
   return {
     banco: BANCO,
-    tipoDocumento: 'tc_internacional',
+    tipoDocumento: "tc_internacional",
     titular,
     tarjetaMascara,
     periodo: { desde, hasta, dias: diasEntre(desde, hasta) },

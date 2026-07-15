@@ -9,72 +9,74 @@
  * Note: the residual "MONTO TOTAL FACTURADO A PAGAR" field is the amount still
  * due — $596.864 for Oct (unpaid), $0 for Sep/Nov (paid in full that period).
  */
-import { describe, it, expect } from 'vitest';
-import { readFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import {
-  parseTarjetaNacional,
-  isTarjetaNacional,
-} from '../../src/parsers/santanderTarjeta.js';
+import { describe, it, expect } from "vitest";
+import { readFileSync, existsSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+import { parseTarjetaNacional, isTarjetaNacional } from "../../src/parsers/santanderTarjeta.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const fxDir = join(__dirname, '../fixtures/cartolas/Santander');
+const fxDir = join(__dirname, "../fixtures/cartolas/Santander");
 
 function load(name: string): string {
-  return readFileSync(join(fxDir, name), 'utf8');
+  return readFileSync(join(fxDir, name), "utf8");
 }
 
 const NACIONAL: Array<{ file: string; totalCargado: number }> = [
-  { file: 'tc-nacional-sep25.txt', totalCargado: 480_947 },
-  { file: 'tc-nacional-oct25.txt', totalCargado: 596_864 },
-  { file: 'tc-nacional-nov25.txt', totalCargado: 483_969 },
+  { file: "tc-nacional-sep25.txt", totalCargado: 480_947 },
+  { file: "tc-nacional-oct25.txt", totalCargado: 596_864 },
+  { file: "tc-nacional-nov25.txt", totalCargado: 483_969 },
 ];
 
-describe('Santander TC nacional (CLP)', () => {
+describe("Santander TC nacional (CLP)", () => {
   for (const { file, totalCargado } of NACIONAL) {
     const present = existsSync(join(fxDir, file));
-    (present ? it : it.skip)(`${file}: line-items reconcile to $${totalCargado.toLocaleString('es-CL')}`, () => {
-      const text = load(file);
-      expect(isTarjetaNacional(text)).toBe(true);
+    (present ? it : it.skip)(
+      `${file}: line-items reconcile to $${totalCargado.toLocaleString("es-CL")}`,
+      () => {
+        const text = load(file);
+        expect(isTarjetaNacional(text)).toBe(true);
 
-      const r = parseTarjetaNacional(text);
+        const r = parseTarjetaNacional(text);
 
-      // Sample-run output for the verification report.
-      // eslint-disable-next-line no-console
-      console.log(
-        `[${file}] movimientos=${r.movimientos.length} compras=${r.totalCompras} ` +
-          `pagos=${r.totalPagos} totalOperaciones=${r.totalOperaciones} ` +
-          `facturadoResidual=${r.montoTotalFacturado} reconΔ=${r.reconciliation.delta_pct}% ` +
-          `conf=${r.parse_confidence}`,
-      );
+        // Sample-run output for the verification report.
 
-      expect(r.movimientos.length).toBeGreaterThan(0);
+        console.log(
+          `[${file}] movimientos=${r.movimientos.length} compras=${r.totalCompras} ` +
+            `pagos=${r.totalPagos} totalOperaciones=${r.totalOperaciones} ` +
+            `facturadoResidual=${r.montoTotalFacturado} reconΔ=${r.reconciliation.delta_pct}% ` +
+            `conf=${r.parse_confidence}`,
+        );
 
-      // Purchase line-items must sum to the declared "1. TOTAL OPERACIONES".
-      expect(r.totalOperaciones).toBe(totalCargado);
-      expect(r.totalCompras).toBe(r.totalOperaciones);
-      expect(r.reconciliation.passed).toBe(true);
+        expect(r.movimientos.length).toBeGreaterThan(0);
 
-      // NOTE: the residual "MONTO TOTAL FACTURADO A PAGAR" is intentionally not
-      // asserted — its value isn't adjacent to its label in the real pdf-parse
-      // layout (scrambled), so it parses as 0 there. The reliable invariant is
-      // line-items == "1. TOTAL OPERACIONES" above.
+        // Purchase line-items must sum to the declared "1. TOTAL OPERACIONES".
+        expect(r.totalOperaciones).toBe(totalCargado);
+        expect(r.totalCompras).toBe(r.totalOperaciones);
+        expect(r.reconciliation.passed).toBe(true);
 
-      // Section/subtotal rows must NOT be counted as line items.
-      expect(r.movimientos.every((m) => !/TOTAL OPERACIONES|MOVIMIENTOS TARJETA/i.test(m.descripcion))).toBe(true);
+        // NOTE: the residual "MONTO TOTAL FACTURADO A PAGAR" is intentionally not
+        // asserted — its value isn't adjacent to its label in the real pdf-parse
+        // layout (scrambled), so it parses as 0 there. The reliable invariant is
+        // line-items == "1. TOTAL OPERACIONES" above.
 
-      // PAGO COOPEUCH (mortgage) is a real purchase, never a payment.
-      const coopeuch = r.movimientos.find((m) => /COOPEUCH/i.test(m.descripcion));
-      if (coopeuch) expect(coopeuch.kind).toBe('purchase');
+        // Section/subtotal rows must NOT be counted as line items.
+        expect(
+          r.movimientos.every((m) => !/TOTAL OPERACIONES|MOVIMIENTOS TARJETA/i.test(m.descripcion)),
+        ).toBe(true);
 
-      // MONTO CANCELADO rows, when present, are payments (negative).
-      for (const m of r.movimientos) {
-        if (/MONTO CANCELADO/i.test(m.descripcion)) {
-          expect(m.kind).toBe('payment');
-          expect(m.montoClp).toBeLessThan(0);
+        // PAGO COOPEUCH (mortgage) is a real purchase, never a payment.
+        const coopeuch = r.movimientos.find((m) => /COOPEUCH/i.test(m.descripcion));
+        if (coopeuch) expect(coopeuch.kind).toBe("purchase");
+
+        // MONTO CANCELADO rows, when present, are payments (negative).
+        for (const m of r.movimientos) {
+          if (/MONTO CANCELADO/i.test(m.descripcion)) {
+            expect(m.kind).toBe("payment");
+            expect(m.montoClp).toBeLessThan(0);
+          }
         }
-      }
-    });
+      },
+    );
   }
 });

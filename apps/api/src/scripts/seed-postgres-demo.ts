@@ -49,13 +49,14 @@ async function main() {
 
   const seedEmail = process.env.SEED_USER_EMAIL?.trim().toLowerCase();
 
-  let userId: string;
   let userRow = seedEmail
     ? (await db.select().from(users).where(eq(users.email, seedEmail)).limit(1))[0]
     : (await db.select().from(users).where(eq(users.id, DEMO_USER_ID)).limit(1))[0];
 
   if (seedEmail && !userRow) {
-    console.error(`❌ No hay usuario con email ${seedEmail}. Regístrate primero o omite SEED_USER_EMAIL para crear el demo.`);
+    console.error(
+      `❌ No hay usuario con email ${seedEmail}. Regístrate primero o omite SEED_USER_EMAIL para crear el demo.`,
+    );
     await client.end({ timeout: 5 });
     process.exit(1);
   }
@@ -77,7 +78,7 @@ async function main() {
     console.log(`  → ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
   }
 
-  userId = userRow.id;
+  const userId = userRow.id;
 
   const existingAccounts = await db.select().from(accounts).where(eq(accounts.userId, userId));
   if (existingAccounts.length > 0) {
@@ -186,7 +187,11 @@ async function main() {
     },
   ]);
 
-  const existingScore = await db.select().from(creditScores).where(eq(creditScores.userId, userId)).limit(1);
+  const existingScore = await db
+    .select()
+    .from(creditScores)
+    .where(eq(creditScores.userId, userId))
+    .limit(1);
   if (existingScore.length === 0) {
     await db.insert(creditScores).values({
       userId,

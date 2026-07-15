@@ -4,12 +4,7 @@ import { useReportData } from "@/contexts/ReportDataContext";
 import { useUserDocuments } from "@/hooks/useUserDocuments";
 import { generateCodaReportPdf } from "@/lib/codaReportPdf";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FileDown } from "lucide-react";
 
 export default function DownloadReporteCodaButton() {
@@ -37,7 +32,8 @@ export default function DownloadReporteCodaButton() {
         const profile = await getUserProfile();
         const name = profile?.displayName ?? profile?.firstName ?? profile?.name;
         if (name) {
-          const fullName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || name;
+          const fullName =
+            [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || name;
           setReportIdentity({ userName: fullName });
           data = { ...data, userName: fullName };
         }

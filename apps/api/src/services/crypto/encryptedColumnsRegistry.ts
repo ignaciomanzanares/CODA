@@ -13,11 +13,11 @@
  * es una disciplina de revisión, no una garantía de compilador.
  */
 export const ENCRYPTED_COLUMNS = [
-  { table: 'users', cols: ['firstName', 'lastName', 'totpSecret', 'backupCodes'] },
-  { table: 'document_uploads', cols: ['parsedData'] },
-  { table: 'score_document_uploads', cols: ['parsedData'] },
-  { table: 'stored_blobs', cols: ['data'] },
-  { table: 'algorithm_prediction_logs', cols: ['inputFeatures', 'outputSnapshot', 'cmfData'] },
-  { table: 'transactions', cols: ['description', 'merchantName', 'raw'] },
-  { table: 'bank_connections', cols: ['connectionData'] },
+  { table: "users", cols: ["firstName", "lastName", "totpSecret", "backupCodes"] },
+  { table: "document_uploads", cols: ["parsedData"] },
+  { table: "score_document_uploads", cols: ["parsedData"] },
+  { table: "stored_blobs", cols: ["data"] },
+  { table: "algorithm_prediction_logs", cols: ["inputFeatures", "outputSnapshot", "cmfData"] },
+  { table: "transactions", cols: ["description", "merchantName", "raw"] },
+  { table: "bank_connections", cols: ["connectionData"] },
 ] as const;

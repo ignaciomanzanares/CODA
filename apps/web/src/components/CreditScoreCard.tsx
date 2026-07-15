@@ -16,33 +16,33 @@ import {
 } from "@/components/ui/dialog";
 import ProgressRing from "./ProgressRing";
 import { getCreditScoreStatus, getCircleColor } from "@/lib/creditScore";
-import { 
-  CreditCard,
-  Clock,
-  Percent,
-  ChevronRight,
-  Sparkles,
-  Info
-} from "lucide-react";
+import { CreditCard, Clock, Percent, ChevronRight, Sparkles, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Analytics, creditScoreRangeLabel } from "@/lib/analytics";
 
-function FactorCard({ 
-  icon: Icon, 
-  label, 
-  value, 
-  status 
-}: { 
-  icon: any; 
-  label: string; 
-  value: string; 
+function FactorCard({
+  icon: Icon,
+  label,
+  value,
+  status,
+}: {
+  icon: any;
+  label: string;
+  value: string;
   status: string;
 }) {
   const getStatusColor = (status: string) => {
     const s = status.toLowerCase();
-    if (s === 'excellent' || s === 'good' || s === 'excelente' || s === 'muy bueno' || s === 'bueno') return 'text-green-600 bg-green-50';
-    if (s === 'fair' || s === 'regular') return 'text-yellow-600 bg-yellow-50';
-    return 'text-red-600 bg-red-50';
+    if (
+      s === "excellent" ||
+      s === "good" ||
+      s === "excelente" ||
+      s === "muy bueno" ||
+      s === "bueno"
+    )
+      return "text-green-600 bg-green-50";
+    if (s === "fair" || s === "regular") return "text-yellow-600 bg-yellow-50";
+    return "text-red-600 bg-red-50";
   };
 
   return (
@@ -67,7 +67,13 @@ export default function CreditScoreCard() {
   const [showReportBreakdown, setShowReportBreakdown] = useState(false);
   const scoreViewTracked = useRef(false);
 
-  const { data: rawData, isLoading, error, refetch, isFetching } = useQuery({
+  const {
+    data: rawData,
+    isLoading,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery({
     queryKey: ["/api/credit-score"],
     queryFn: async () => {
       const res = await getCreditScore();
@@ -87,9 +93,8 @@ export default function CreditScoreCard() {
     refetch();
   };
 
-  const creditScore = (rawData != null && typeof rawData === "object" && "score" in rawData)
-    ? rawData
-    : null;
+  const creditScore =
+    rawData != null && typeof rawData === "object" && "score" in rawData ? rawData : null;
 
   useEffect(() => {
     if (creditScore?.score != null) setCreditScore(creditScore.score);
@@ -159,20 +164,17 @@ export default function CreditScoreCard() {
               {isServerError
                 ? "Hubo un fallo en el servidor al obtener el score. Comprueba que estés autenticado y vuelve a intentar."
                 : unavailable
-                  ? (creditScore?.message ?? "Sube un Informe de Deudas CMF para obtener tu score crediticio.")
+                  ? (creditScore?.message ??
+                    "Sube un Informe de Deudas CMF para obtener tu score crediticio.")
                   : invalidData
-                  ? "El servidor respondió pero sin score válido. Sube un Informe CMF o pulsa Actualizar."
-                  : noScore && !error
-                    ? "Sube un Informe de Deudas CMF en la tarjeta Documentos oficiales para obtener tu score (Deuda $0 = perfil saludable)."
-                    : !rawData && !error
-                      ? ""
-                      : "Revisa tu conexión o vuelve a intentar."}
+                    ? "El servidor respondió pero sin score válido. Sube un Informe CMF o pulsa Actualizar."
+                    : noScore && !error
+                      ? "Sube un Informe de Deudas CMF en la tarjeta Documentos oficiales para obtener tu score (Deuda $0 = perfil saludable)."
+                      : !rawData && !error
+                        ? ""
+                        : "Revisa tu conexión o vuelve a intentar."}
             </p>
-            <Button
-              variant="outline"
-              onClick={handleActualizar}
-              disabled={isFetching}
-            >
+            <Button variant="outline" onClick={handleActualizar} disabled={isFetching}>
               {isFetching ? "Actualizando…" : noScore || invalidData ? "Actualizar" : "Reintentar"}
             </Button>
           </div>
@@ -184,112 +186,44 @@ export default function CreditScoreCard() {
   const scoreStatus = getCreditScoreStatus(scoreValue);
   const circleColor = getCircleColor(scoreValue);
   const progress = (scoreValue / creditScore.maxScore) * 100;
-  
+
   const getStatusBadgeStyle = () => {
     const l = scoreStatus.label.toLowerCase();
-    if (l === 'excelente' || l === 'excellent') return 'bg-green-100 text-green-700 border-green-200';
-    if (l === 'muy bueno' || l === 'bueno' || l === 'good' || l === 'very good') return 'bg-blue-100 text-blue-700 border-blue-200';
-    if (l === 'regular' || l === 'fair') return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-    return 'bg-red-100 text-red-700 border-red-200';
+    if (l === "excelente" || l === "excellent")
+      return "bg-green-100 text-green-700 border-green-200";
+    if (l === "muy bueno" || l === "bueno" || l === "good" || l === "very good")
+      return "bg-blue-100 text-blue-700 border-blue-200";
+    if (l === "regular" || l === "fair") return "bg-yellow-100 text-yellow-700 border-yellow-200";
+    return "bg-red-100 text-red-700 border-red-200";
   };
 
   return (
     <>
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+      <Card className="h-full flex flex-col">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-primary" />
-            Score crediticio
-          </CardTitle>
-          <Badge 
-            variant="outline" 
-            className={cn("font-semibold", getStatusBadgeStyle())}
-          >
-            {scoreStatus.label}
-          </Badge>
-        </div>
-        <CardDescription>Resumen de tu salud crediticia</CardDescription>
-      </CardHeader>
+              <CreditCard className="h-5 w-5 text-primary" />
+              Score crediticio
+            </CardTitle>
+            <Badge variant="outline" className={cn("font-semibold", getStatusBadgeStyle())}>
+              {scoreStatus.label}
+            </Badge>
+          </div>
+          <CardDescription>Resumen de tu salud crediticia</CardDescription>
+        </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col">
-        {/* Score Ring */}
-        <div className="flex justify-center py-2">
-          <ProgressRing progress={progress} color={circleColor}>
-            <div className="text-score-value font-bold">
-              {scoreValue}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              de {creditScore.maxScore}
-            </div>
-          </ProgressRing>
-        </div>
-
-        {/* Factors */}
-        <div className="space-y-2 flex-1">
-          <FactorCard
-            icon={CreditCard}
-            label="Historial de pagos"
-            value={creditScore.paymentHistory || "—"}
-            status={creditScore.paymentHistory}
-          />
-          <FactorCard
-            icon={Percent}
-            label="Utilización de crédito"
-            value={creditScore.utilization || "—"}
-            status={creditScore.utilization}
-          />
-          <FactorCard
-            icon={Clock}
-            label="Antigüedad del crédito"
-            value={creditScore.ageOfCredit || "—"}
-            status={creditScore.ageOfCredit}
-          />
-        </div>
-
-        {/* Disclaimer */}
-        <p className="text-xs text-muted-foreground text-center mt-2">
-          Score calculado desde tu Informe de Deudas CMF. No garantiza aprobación de productos.
-        </p>
-
-        {/* Action Button: abre desglose del reporte */}
-        <Button
-          className="w-full mt-4 group"
-          onClick={() => setShowReportBreakdown(true)}
-        >
-          <Sparkles className="h-4 w-4 mr-2" />
-          Ver informe completo
-          <ChevronRight className="h-4 w-4 ml-auto group-hover:translate-x-1 transition-transform" />
-        </Button>
-      </CardContent>
-    </Card>
-
-    {/* Diálogo con el desglose del reporte */}
-    <Dialog open={showReportBreakdown} onOpenChange={setShowReportBreakdown}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-primary" />
-            Desglose del reporte – Score crediticio
-          </DialogTitle>
-          <DialogDescription>
-            Detalle de tu puntaje y factores que lo componen
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-6 py-2">
-          <div className="flex justify-center">
+        <CardContent className="flex-1 flex flex-col">
+          {/* Score Ring */}
+          <div className="flex justify-center py-2">
             <ProgressRing progress={progress} color={circleColor}>
               <div className="text-score-value font-bold">{scoreValue}</div>
               <div className="text-xs text-muted-foreground">de {creditScore.maxScore}</div>
             </ProgressRing>
           </div>
-          <div className="text-center">
-            <Badge variant="outline" className={cn("font-semibold", getStatusBadgeStyle())}>
-              {scoreStatus.label}
-            </Badge>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">Factores</p>
+
+          {/* Factors */}
+          <div className="space-y-2 flex-1">
             <FactorCard
               icon={CreditCard}
               label="Historial de pagos"
@@ -309,12 +243,71 @@ export default function CreditScoreCard() {
               status={creditScore.ageOfCredit}
             />
           </div>
-          <p className="text-xs text-muted-foreground text-center">
-            Score basado en datos reales de tu Informe de Deudas CMF. Las decisiones de otorgamiento de productos corresponden al proveedor financiero.
+
+          {/* Disclaimer */}
+          <p className="text-xs text-muted-foreground text-center mt-2">
+            Score calculado desde tu Informe de Deudas CMF. No garantiza aprobación de productos.
           </p>
-        </div>
-      </DialogContent>
-    </Dialog>
+
+          {/* Action Button: abre desglose del reporte */}
+          <Button className="w-full mt-4 group" onClick={() => setShowReportBreakdown(true)}>
+            <Sparkles className="h-4 w-4 mr-2" />
+            Ver informe completo
+            <ChevronRight className="h-4 w-4 ml-auto group-hover:translate-x-1 transition-transform" />
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Diálogo con el desglose del reporte */}
+      <Dialog open={showReportBreakdown} onOpenChange={setShowReportBreakdown}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-primary" />
+              Desglose del reporte – Score crediticio
+            </DialogTitle>
+            <DialogDescription>Detalle de tu puntaje y factores que lo componen</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-2">
+            <div className="flex justify-center">
+              <ProgressRing progress={progress} color={circleColor}>
+                <div className="text-score-value font-bold">{scoreValue}</div>
+                <div className="text-xs text-muted-foreground">de {creditScore.maxScore}</div>
+              </ProgressRing>
+            </div>
+            <div className="text-center">
+              <Badge variant="outline" className={cn("font-semibold", getStatusBadgeStyle())}>
+                {scoreStatus.label}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">Factores</p>
+              <FactorCard
+                icon={CreditCard}
+                label="Historial de pagos"
+                value={creditScore.paymentHistory || "—"}
+                status={creditScore.paymentHistory}
+              />
+              <FactorCard
+                icon={Percent}
+                label="Utilización de crédito"
+                value={creditScore.utilization || "—"}
+                status={creditScore.utilization}
+              />
+              <FactorCard
+                icon={Clock}
+                label="Antigüedad del crédito"
+                value={creditScore.ageOfCredit || "—"}
+                status={creditScore.ageOfCredit}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Score basado en datos reales de tu Informe de Deudas CMF. Las decisiones de
+              otorgamiento de productos corresponden al proveedor financiero.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

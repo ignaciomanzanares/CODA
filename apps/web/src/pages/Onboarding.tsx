@@ -35,7 +35,7 @@ function StepIndicator({ current }: { current: number }) {
               <div
                 className={cn(
                   "w-8 sm:w-12 h-0.5 mx-1 sm:mx-2 transition-colors",
-                  done ? "bg-primary" : "bg-border"
+                  done ? "bg-primary" : "bg-border",
                 )}
               />
             )}
@@ -45,7 +45,7 @@ function StepIndicator({ current }: { current: number }) {
                   "w-10 h-10 rounded-full flex items-center justify-center transition-all",
                   done && "bg-primary text-primary-foreground",
                   active && "bg-primary/10 ring-2 ring-primary text-primary",
-                  !done && !active && "bg-muted text-muted-foreground"
+                  !done && !active && "bg-muted text-muted-foreground",
                 )}
               >
                 {done ? <CheckCircle2 className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
@@ -53,7 +53,7 @@ function StepIndicator({ current }: { current: number }) {
               <span
                 className={cn(
                   "text-xs font-medium text-center whitespace-nowrap",
-                  active ? "text-primary" : "text-muted-foreground"
+                  active ? "text-primary" : "text-muted-foreground",
                 )}
               >
                 {step.label}
@@ -89,8 +89,8 @@ function OnboardingInner() {
                 </div>
                 <h2 className="text-2xl font-bold tracking-tight">Sube tu cartola bancaria</h2>
                 <p className="text-muted-foreground leading-relaxed max-w-lg mx-auto">
-                  Descárgala desde la app o sitio web de tu banco en formato PDF. También puedes subir
-                  tu informe de deudas CMF para un diagnóstico más completo.
+                  Descárgala desde la app o sitio web de tu banco en formato PDF. También puedes
+                  subir tu informe de deudas CMF para un diagnóstico más completo.
                 </p>
               </div>
 
@@ -103,11 +103,7 @@ function OnboardingInner() {
                 >
                   Prefiero explorar primero
                 </button>
-                <Button
-                  onClick={() => setStep(2)}
-                  disabled={!hasUploaded}
-                  className="gap-2"
-                >
+                <Button onClick={() => setStep(2)} disabled={!hasUploaded} className="gap-2">
                   Siguiente
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -124,8 +120,8 @@ function OnboardingInner() {
                 </div>
                 <h2 className="text-2xl font-bold tracking-tight">Tu diagnóstico está listo</h2>
                 <p className="text-muted-foreground leading-relaxed max-w-lg mx-auto">
-                  Analizamos tus movimientos bancarios con 7 factores para generar tu score transaccional
-                  y diagnóstico de salud financiera.
+                  Analizamos tus movimientos bancarios con 7 factores para generar tu score
+                  transaccional y diagnóstico de salud financiera.
                 </p>
               </div>
 
@@ -135,7 +131,8 @@ function OnboardingInner() {
                   <div>
                     <p className="font-medium text-sm">Score transaccional</p>
                     <p className="text-xs text-muted-foreground">
-                      Basado en liquidez, estabilidad de ingresos, gastos fijos, días críticos, ahorro, fondo de emergencia y consistencia.
+                      Basado en liquidez, estabilidad de ingresos, gastos fijos, días críticos,
+                      ahorro, fondo de emergencia y consistencia.
                     </p>
                   </div>
                 </div>
@@ -184,8 +181,8 @@ function OnboardingInner() {
                 </div>
                 <h2 className="text-2xl font-bold tracking-tight">Productos recomendados</h2>
                 <p className="text-muted-foreground leading-relaxed max-w-lg mx-auto">
-                  Según tu perfil financiero, te mostramos los productos y programas más relevantes para ti.
-                  Accede al marketplace para comparar opciones.
+                  Según tu perfil financiero, te mostramos los productos y programas más relevantes
+                  para ti. Accede al marketplace para comparar opciones.
                 </p>
               </div>
 
@@ -197,7 +194,10 @@ function OnboardingInner() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Marketplace financiero</p>
-                      <p className="text-sm text-muted-foreground">Créditos, cuentas, depósitos a plazo y fondos mutuos — filtrados por tu perfil.</p>
+                      <p className="text-sm text-muted-foreground">
+                        Créditos, cuentas, depósitos a plazo y fondos mutuos — filtrados por tu
+                        perfil.
+                      </p>
                     </div>
                     <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
@@ -209,7 +209,9 @@ function OnboardingInner() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Panel financiero</p>
-                      <p className="text-sm text-muted-foreground">Tu diagnóstico completo, insights y programas disponibles.</p>
+                      <p className="text-sm text-muted-foreground">
+                        Tu diagnóstico completo, insights y programas disponibles.
+                      </p>
                     </div>
                     <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
@@ -221,10 +223,13 @@ function OnboardingInner() {
                   <ArrowLeft className="h-4 w-4" />
                   Atrás
                 </Button>
-                <Button onClick={() => {
-                  localStorage.setItem("coda-onboarding-complete", "1");
-                  setLocation(ROUTES.panel);
-                }} className="gap-2">
+                <Button
+                  onClick={() => {
+                    localStorage.setItem("coda-onboarding-complete", "1");
+                    setLocation(ROUTES.panel);
+                  }}
+                  className="gap-2"
+                >
                   Ir a mi panel
                   <ArrowRight className="h-4 w-4" />
                 </Button>

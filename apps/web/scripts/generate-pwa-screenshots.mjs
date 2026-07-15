@@ -71,12 +71,14 @@ function miniBarChart(x, y, w, h) {
     <g>
       <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="28" fill="${colors.panel}" stroke="${colors.border}" stroke-width="2"/>
       <text x="${x + 34}" y="${y + 58}" font-size="24" font-weight="700" fill="${colors.muted}" letter-spacing="2">FLUJO MENSUAL</text>
-      ${bars.map((v, i) => {
-        const bh = Math.round((h - 128) * v);
-        const bx = x + 34 + i * (bw + gap);
-        const by = y + h - 42 - bh;
-        return `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="12" fill="${i % 2 ? colors.orange : colors.orange2}" opacity="${i % 2 ? "1" : "0.78"}"/>`;
-      }).join("")}
+      ${bars
+        .map((v, i) => {
+          const bh = Math.round((h - 128) * v);
+          const bx = x + 34 + i * (bw + gap);
+          const by = y + h - 42 - bh;
+          return `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="12" fill="${i % 2 ? colors.orange : colors.orange2}" opacity="${i % 2 ? "1" : "0.78"}"/>`;
+        })
+        .join("")}
     </g>`;
 }
 
@@ -98,14 +100,16 @@ function checklist(x, y, w, h, compact = false) {
     <g>
       <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="28" fill="${colors.panel}" stroke="${colors.border}" stroke-width="2"/>
       <text x="${x + 34}" y="${y + 58}" font-size="24" font-weight="700" fill="${colors.muted}" letter-spacing="2">DIAGNOSTICO</text>
-      ${rows.map(([label, status], i) => {
-        const ry = y + 112 + i * 66;
-        return `
+      ${rows
+        .map(([label, status], i) => {
+          const ry = y + 112 + i * 66;
+          return `
           <circle cx="${x + 48}" cy="${ry - 8}" r="13" fill="${colors.orange}"/>
           <path d="M${x + 41} ${ry - 8} l5 6 l10 -14" fill="none" stroke="${colors.text}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
           <text x="${x + 78}" y="${ry}" font-size="${labelSize}" font-weight="700" fill="${colors.text}">${label}</text>
           <text x="${x + w - 34}" y="${ry}" text-anchor="end" font-size="${statusSize}" font-weight="700" fill="${colors.orange2}">${status}</text>`;
-      }).join("")}
+        })
+        .join("")}
     </g>`;
 }
 

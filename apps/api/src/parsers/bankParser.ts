@@ -6,15 +6,8 @@
  * Cada parser por banco llama a `runBankParser()` con sus parámetros propios.
  */
 
-import {
-  parseCartolaPdfBuffer,
-  detectBankFromText,
-  type CartolaParseResult,
-} from "./cartola-parser.js";
-import {
-  extractPdfText,
-  type PdfLine,
-} from "../services/documents/pdfAnalysis.js";
+import { parseCartolaPdfBuffer, type CartolaParseResult } from "./cartola-parser.js";
+import { extractPdfText, type PdfLine } from "../services/documents/pdfAnalysis.js";
 import pdfParse from "pdf-parse";
 import {
   type ParseResult,
@@ -29,7 +22,6 @@ import {
   getDetectionTier,
   MIN_PARSE_CONFIDENCE,
   RECONCILIATION_ERROR_PCT,
-  RECONCILIATION_WARN_PCT,
 } from "./base.js";
 import { logger } from "../logger.js";
 
@@ -49,9 +41,7 @@ export interface BankParserOptions {
 // Text + line extraction (shared, identical to cartola-parser internals)
 // ──────────────────────────────────────────────────────────────────────────────
 
-async function extractTextAndLines(
-  buffer: Buffer
-): Promise<{ text: string; lines: PdfLine[] }> {
+async function extractTextAndLines(buffer: Buffer): Promise<{ text: string; lines: PdfLine[] }> {
   try {
     const result = await extractPdfText(buffer);
     const t = (result.text ?? "").trim();
@@ -87,7 +77,7 @@ function isInferredDate(d: Date): boolean {
 
 function annotateTransaction(
   tx: CartolaParseResult["transacciones"][number],
-  mode: ParsingMode
+  mode: ParsingMode,
 ): ParsedTransaction {
   const typeFromColumn = mode === "column_based";
   const typeFromSection = mode === "section_based";
@@ -142,7 +132,7 @@ function logParserAttempt(opts: {
         warning_count: opts.warnings.length,
       },
     },
-    "parser_attempt"
+    "parser_attempt",
   );
 }
 
@@ -159,10 +149,7 @@ function logParserAttempt(opts: {
  * @throws {ParseError} LOW_CONFIDENCE — confianza global < MIN_PARSE_CONFIDENCE.
  * @throws {ParseError} BALANCE_MISMATCH — delta de conciliación > RECONCILIATION_ERROR_PCT.
  */
-export async function runBankParser(
-  buffer: Buffer,
-  opts: BankParserOptions
-): Promise<ParseResult> {
+export async function runBankParser(buffer: Buffer, opts: BankParserOptions): Promise<ParseResult> {
   // 1. Text extraction guard
   const { text } = await extractTextAndLines(buffer);
   if (!text || text.length < 40) {
@@ -171,7 +158,7 @@ export async function runBankParser(
       "No se pudo extraer texto del PDF. " +
         "Es posible que sea una imagen escaneada. " +
         "Exporta la cartola directamente desde el sitio del banco (PDF digital, no escaneado).",
-      { text_length: text?.length ?? 0 }
+      { text_length: text?.length ?? 0 },
     );
   }
 
@@ -185,14 +172,14 @@ export async function runBankParser(
       "El parser leyó el PDF pero no encontró movimientos. " +
         "Verifica que la cartola tenga al menos una transacción en el período, " +
         "o descarga el PDF desde el sitio web del banco (no desde una app móvil).",
-      { banco: opts.banco }
+      { banco: opts.banco },
     );
   }
 
   // 4. Annotate each transaction with confidence scores
   const tier: DetectionTier = getDetectionTier(opts.banco_confidence);
   const rawTransacciones: ParsedTransaction[] = raw.transacciones.map((tx) =>
-    annotateTransaction(tx, opts.mode)
+    annotateTransaction(tx, opts.mode),
   );
 
   // When MEDIUM tier: multiply each transaction's confidence by banco_confidence
@@ -203,8 +190,7 @@ export async function runBankParser(
           ...tx,
           confidence: {
             ...tx.confidence,
-            overall:
-              Math.round(tx.confidence.overall * opts.banco_confidence * 1000) / 1000,
+            overall: Math.round(tx.confidence.overall * opts.banco_confidence * 1000) / 1000,
           },
         }))
       : rawTransacciones;
@@ -214,7 +200,7 @@ export async function runBankParser(
     raw.saldo_inicial,
     raw.saldo_final,
     raw.total_cargos,
-    raw.total_abonos
+    raw.total_abonos,
   );
 
   // 6. Overall parse confidence
@@ -224,26 +210,22 @@ export async function runBankParser(
   const warnings: string[] = [];
 
   if (parse_confidence < 0.65) {
-    warnings.push(
-      "La confianza de extracción es baja — revisa manualmente los montos y fechas."
-    );
+    warnings.push("La confianza de extracción es baja — revisa manualmente los montos y fechas.");
   }
 
   if (!reconciliation.skipped && !reconciliation.passed) {
     warnings.push(
       `Los saldos no cuadran (diferencia ${reconciliation.delta_pct}%). ` +
-        "Puede haber transacciones parciales o un período incompleto."
+        "Puede haber transacciones parciales o un período incompleto.",
     );
   }
 
   // Warn if many transactions have low type confidence
-  const lowTypeTxs = transacciones.filter(
-    (tx) => tx.confidence.type < 0.80
-  ).length;
+  const lowTypeTxs = transacciones.filter((tx) => tx.confidence.type < 0.8).length;
   if (lowTypeTxs > transacciones.length * 0.3) {
     warnings.push(
       "Más del 30% de los movimientos tienen clasificación cargo/abono incierta. " +
-        "Considera revisar el tipo de movimiento manualmente."
+        "Considera revisar el tipo de movimiento manualmente.",
     );
   }
 
@@ -265,14 +247,11 @@ export async function runBankParser(
       `La confianza global del parseo es muy baja (${Math.round(parse_confidence * 100)}%). ` +
         "Es posible que el formato del PDF no sea compatible. " +
         "Descarga la cartola directamente desde el portal web del banco.",
-      { parse_confidence, banco: opts.banco }
+      { parse_confidence, banco: opts.banco },
     );
   }
 
-  if (
-    !reconciliation.skipped &&
-    reconciliation.delta_pct > RECONCILIATION_ERROR_PCT
-  ) {
+  if (!reconciliation.skipped && reconciliation.delta_pct > RECONCILIATION_ERROR_PCT) {
     throw new ParseError(
       "BALANCE_MISMATCH",
       `Los saldos no cuadran con las transacciones (diferencia del ${reconciliation.delta_pct}%). ` +
@@ -281,7 +260,7 @@ export async function runBankParser(
         delta_pct: reconciliation.delta_pct,
         expected_final: reconciliation.expected_final,
         actual_final: reconciliation.actual_final,
-      }
+      },
     );
   }
 

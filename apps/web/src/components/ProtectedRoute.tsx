@@ -14,7 +14,11 @@ interface ProtectedRouteProps {
   skipOnboardingGate?: boolean;
 }
 
-export default function ProtectedRoute({ children, context = "personal", skipOnboardingGate = false }: ProtectedRouteProps) {
+export default function ProtectedRoute({
+  children,
+  context = "personal",
+  skipOnboardingGate = false,
+}: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth(context);
   const loginPath = context === "empresas" ? "/empresas/login" : ROUTES.iniciarSesion;
   const didFireRef = useRef(false);

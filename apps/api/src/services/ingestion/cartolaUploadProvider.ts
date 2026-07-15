@@ -6,14 +6,14 @@
  * determinístico (hash de fecha+descripción+montos+índice) para que re-subir la misma cartola
  * no duplique filas (la ingesta deduplica por `externalId`).
  */
-import { createHash } from 'node:crypto';
+import { createHash } from "node:crypto";
 import type {
   OBProvider,
   OBAccount,
   OBBalance,
   OBTransaction,
-} from '../../connectors/openbanking/mockProvider.js';
-import type { CartolaExtraida } from '../documents/pdfAnalysis.js';
+} from "../../connectors/openbanking/mockProvider.js";
+import type { CartolaExtraida } from "../documents/pdfAnalysis.js";
 
 /** Parsea fechas chilenas comunes (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD, DD/MM). */
 export function parseChileanDate(s: string | undefined): Date | null {
@@ -44,7 +44,10 @@ export class CartolaUploadProvider implements OBProvider {
     private readonly banco: string | null,
     private readonly cartolas: CartolaExtraida[],
   ) {
-    const slug = (banco || 'desconocido').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    const slug = (banco || "desconocido")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_|_$/g, "");
     this.providerAccountId = `cartola:${slug}`;
   }
 
@@ -52,9 +55,9 @@ export class CartolaUploadProvider implements OBProvider {
     return [
       {
         providerAccountId: this.providerAccountId,
-        name: this.banco || 'Cartola',
-        type: 'checking',
-        currency: 'CLP',
+        name: this.banco || "Cartola",
+        type: "checking",
+        currency: "CLP",
       },
     ];
   }
@@ -66,24 +69,30 @@ export class CartolaUploadProvider implements OBProvider {
       if (c.saldoFinal != null) current = c.saldoFinal;
       else if (c.saldoInicial != null) current = c.saldoInicial;
     }
-    return { current, currency: 'CLP', asOf: new Date() };
+    return { current, currency: "CLP", asOf: new Date() };
   }
 
-  async listTransactions(_providerAccountId: string, _from: Date, _to: Date): Promise<OBTransaction[]> {
+  async listTransactions(
+    _providerAccountId: string,
+    _from: Date,
+    _to: Date,
+  ): Promise<OBTransaction[]> {
     const out: OBTransaction[] = [];
     for (const cartola of this.cartolas) {
       cartola.transacciones.forEach((t, i) => {
         const postedAt = parseChileanDate(t.fecha) ?? new Date();
         const amount = t.abono > 0 ? t.abono : -t.cargo;
-        const externalId = createHash('sha1')
-          .update(`${this.providerAccountId}|${t.fecha}|${t.descripcion}|${t.cargo}|${t.abono}|${i}`)
-          .digest('hex');
+        const externalId = createHash("sha1")
+          .update(
+            `${this.providerAccountId}|${t.fecha}|${t.descripcion}|${t.cargo}|${t.abono}|${i}`,
+          )
+          .digest("hex");
         out.push({
           externalId,
           postedAt,
           description: t.descripcion,
           amount,
-          currency: 'CLP',
+          currency: "CLP",
           category: t.categoria,
           pending: false,
           raw: t,

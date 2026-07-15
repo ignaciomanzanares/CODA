@@ -8,9 +8,12 @@
  * (estado vacío) — esta función devuelve null en ese caso.
  */
 export function latestPostedAt(txs: Array<{ postedAt?: string | null }>): Date | null {
-  return txs.reduce((max: Date | null, t) => {
-    if (!t?.postedAt) return max;
-    const d = new Date(t.postedAt);
-    return !isNaN(d.getTime()) && (max === null || d > max) ? d : max;
-  }, null as Date | null);
+  return txs.reduce(
+    (max: Date | null, t) => {
+      if (!t?.postedAt) return max;
+      const d = new Date(t.postedAt);
+      return !isNaN(d.getTime()) && (max === null || d > max) ? d : max;
+    },
+    null as Date | null,
+  );
 }

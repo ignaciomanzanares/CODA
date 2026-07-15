@@ -14,7 +14,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { getEmpresasCompaniesWithSummary, getEmpresasDocuments, createEmpresasDocument } from "@/lib/empresasApi";
+import {
+  getEmpresasCompaniesWithSummary,
+  getEmpresasDocuments,
+  createEmpresasDocument,
+} from "@/lib/empresasApi";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/lib/CurrencyContext";
 import { FileText, ArrowUpRight, ArrowDownRight, Plus } from "lucide-react";
@@ -23,8 +27,13 @@ export default function EmpresasDocuments() {
   const { currency } = useCurrency();
   const search = useSearch();
   const queryClient = useQueryClient();
-  const companyId = new URLSearchParams(search).get("company_id") ? parseInt(new URLSearchParams(search).get("company_id")!, 10) : null;
-  const { data: companies } = useQuery({ queryKey: ["empresas", "companies-summary"], queryFn: getEmpresasCompaniesWithSummary });
+  const companyId = new URLSearchParams(search).get("company_id")
+    ? parseInt(new URLSearchParams(search).get("company_id")!, 10)
+    : null;
+  const { data: companies } = useQuery({
+    queryKey: ["empresas", "companies-summary"],
+    queryFn: getEmpresasCompaniesWithSummary,
+  });
   const { data: documents, isLoading } = useQuery({
     queryKey: ["empresas", "documents", companyId],
     queryFn: () => getEmpresasDocuments(companyId!),
@@ -81,28 +90,57 @@ export default function EmpresasDocuments() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Emitir DTE</DialogTitle>
-                <DialogDescription>Crear una factura (DTE emitido) para la empresa seleccionada. El emisor será la empresa.</DialogDescription>
+                <DialogDescription>
+                  Crear una factura (DTE emitido) para la empresa seleccionada. El emisor será la
+                  empresa.
+                </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="receiverRut">RUT receptor *</Label>
-                  <Input id="receiverRut" placeholder="12.345.678-9" value={receiverRut} onChange={(e) => setReceiverRut(e.target.value)} />
+                  <Input
+                    id="receiverRut"
+                    placeholder="12.345.678-9"
+                    value={receiverRut}
+                    onChange={(e) => setReceiverRut(e.target.value)}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="receiverName">Nombre receptor</Label>
-                  <Input id="receiverName" placeholder="Cliente o razón social" value={receiverName} onChange={(e) => setReceiverName(e.target.value)} />
+                  <Input
+                    id="receiverName"
+                    placeholder="Cliente o razón social"
+                    value={receiverName}
+                    onChange={(e) => setReceiverName(e.target.value)}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="netAmount">Monto neto (CLP) *</Label>
-                  <Input id="netAmount" type="number" min={0} placeholder="1000000" value={netAmount} onChange={(e) => setNetAmount(e.target.value)} />
+                  <Input
+                    id="netAmount"
+                    type="number"
+                    min={0}
+                    placeholder="1000000"
+                    value={netAmount}
+                    onChange={(e) => setNetAmount(e.target.value)}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="vatAmount">IVA (CLP, opcional)</Label>
-                  <Input id="vatAmount" type="number" min={0} placeholder="19% por defecto" value={vatAmount} onChange={(e) => setVatAmount(e.target.value)} />
+                  <Input
+                    id="vatAmount"
+                    type="number"
+                    min={0}
+                    placeholder="19% por defecto"
+                    value={vatAmount}
+                    onChange={(e) => setVatAmount(e.target.value)}
+                  />
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancelar
+                </Button>
                 <Button
                   disabled={!receiverRut.trim() || !netAmount || createDte.isPending}
                   onClick={() => selectedId && createDte.mutate(selectedId)}
@@ -126,14 +164,16 @@ export default function EmpresasDocuments() {
           </a>
         ))}
       </div>
-      {selectedId && (
-        isLoading ? (
+      {selectedId &&
+        (isLoading ? (
           <div className="h-48 bg-muted animate-pulse rounded-lg" />
         ) : documents && documents.length > 0 ? (
           <Card>
             <CardHeader>
               <CardTitle>Listado de DTE</CardTitle>
-              <CardDescription>Ordenados por fecha de emisión (más recientes primero)</CardDescription>
+              <CardDescription>
+                Ordenados por fecha de emisión (más recientes primero)
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -151,17 +191,33 @@ export default function EmpresasDocuments() {
                     {documents.map((d) => (
                       <tr key={d.id} className="border-b last:border-0">
                         <td className="py-2 pr-2 whitespace-nowrap">{d.issueDate}</td>
-                        <td className="py-2 pr-2">{d.documentType} #{d.folio}</td>
                         <td className="py-2 pr-2">
-                          <span className={d.direction === "issued" ? "text-green-600 flex items-center gap-0.5" : "text-blue-600 flex items-center gap-0.5"}>
-                            {d.direction === "issued" ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                          {d.documentType} #{d.folio}
+                        </td>
+                        <td className="py-2 pr-2">
+                          <span
+                            className={
+                              d.direction === "issued"
+                                ? "text-green-600 flex items-center gap-0.5"
+                                : "text-blue-600 flex items-center gap-0.5"
+                            }
+                          >
+                            {d.direction === "issued" ? (
+                              <ArrowUpRight className="h-3.5 w-3.5" />
+                            ) : (
+                              <ArrowDownRight className="h-3.5 w-3.5" />
+                            )}
                             {d.direction === "issued" ? "Emitido" : "Recibido"}
                           </span>
                         </td>
                         <td className="py-2 pr-2 max-w-[180px] truncate">
-                          {d.direction === "issued" ? (d.receiverName || d.receiverRut) : (d.emitterName || d.emitterRut)}
+                          {d.direction === "issued"
+                            ? d.receiverName || d.receiverRut
+                            : d.emitterName || d.emitterRut}
                         </td>
-                        <td className="py-2 pr-2 text-right">{formatCurrency(d.totalAmount, currency, { sourceCurrency: "CLP" })}</td>
+                        <td className="py-2 pr-2 text-right">
+                          {formatCurrency(d.totalAmount, currency, { sourceCurrency: "CLP" })}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -173,11 +229,13 @@ export default function EmpresasDocuments() {
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
               <FileText className="h-10 w-10 mx-auto mb-2 opacity-50" />
-              <p>No hay documentos DTE. Emite uno con &quot;Emitir DTE&quot; o sincroniza con SII desde Conectores.</p>
+              <p>
+                No hay documentos DTE. Emite uno con &quot;Emitir DTE&quot; o sincroniza con SII
+                desde Conectores.
+              </p>
             </CardContent>
           </Card>
-        )
-      )}
+        ))}
     </div>
   );
 }

@@ -4,4 +4,9 @@
  * de liquidez viven en `services/risk/liquidityMetrics.ts`.
  */
 
-export { toClp, DEFAULT_EXCHANGE_RATES_CLP, type ExchangeRatesToClp, type MsiCurrencyCode } from './currency.js';
+export {
+  toClp,
+  DEFAULT_EXCHANGE_RATES_CLP,
+  type ExchangeRatesToClp,
+  type MsiCurrencyCode,
+} from "./currency.js";

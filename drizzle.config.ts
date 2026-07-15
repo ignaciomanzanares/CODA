@@ -15,8 +15,7 @@ loadEnv({ path: path.join(repoRoot, "apps", "api", ".env") });
  * - Opcional: `DATABASE_URL_MIGRATE` = URL de conexión **directa** del dashboard (recomendado si db:push cuelga).
  * - Si solo tienes `DATABASE_URL` (p. ej. pooler de Render), intentamos convertir `-pooler` → host directo.
  */
-const rawUrl =
-  process.env.DATABASE_URL_MIGRATE?.trim() || process.env.DATABASE_URL?.trim() || "";
+const rawUrl = process.env.DATABASE_URL_MIGRATE?.trim() || process.env.DATABASE_URL?.trim() || "";
 const isPostgres = !!rawUrl && rawUrl.startsWith("postgres");
 const postgresUrl = isPostgres ? postgresUrlForDrizzleKit(rawUrl) : rawUrl;
 
@@ -29,7 +28,7 @@ if (isPostgres && process.env.DB_PUSH_ALLOW_POSTGRES !== "true") {
   throw new Error(
     `db:push apunta a Postgres (${postgresUrl.replace(/\/\/[^@]*@/, "//***@")}). ` +
       "Solo para una BD nueva/vacía: reintenta con DB_PUSH_ALLOW_POSTGRES=true. " +
-      "Para una BD existente usa `npm run db:migrate` (los índices viven en migrations/)."
+      "Para una BD existente usa `npm run db:migrate` (los índices viven en migrations/).",
   );
 }
 

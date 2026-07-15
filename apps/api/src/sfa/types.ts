@@ -35,7 +35,7 @@ export const RUT_FORMAT_REGEX = /^\d{1,2}\.\d{3}\.\d{3}-[\dkK]$/;
  * Historia del dato: No aplica.
  * Proveen: IPI. Acceden: PSBI.
  */
-export const SFA_UPDATE_TERMS_AND_CONDITIONS = 'weekly' as const;
+export const SFA_UPDATE_TERMS_AND_CONDITIONS = "weekly" as const;
 export const SFA_UPDATE_TERMS_AND_CONDITIONS_TTL_MINUTES = 5;
 
 /**
@@ -44,7 +44,7 @@ export const SFA_UPDATE_TERMS_AND_CONDITIONS_TTL_MINUTES = 5;
  * Tiempo para disponer en SFA: Hasta 5 minutos.
  * Proveen: IPI. Acceden: PSBI.
  */
-export const SFA_UPDATE_CHANNELS = 'weekly' as const;
+export const SFA_UPDATE_CHANNELS = "weekly" as const;
 export const SFA_UPDATE_CHANNELS_TTL_MINUTES = 5;
 
 /**
@@ -54,7 +54,7 @@ export const SFA_UPDATE_CHANNELS_TTL_MINUTES = 5;
  * Alcance: Personas jurídicas y naturales.
  * Proveen: IPI. Acceden: PSBI.
  */
-export const SFA_UPDATE_ENROLLMENT = 'daily' as const;
+export const SFA_UPDATE_ENROLLMENT = "daily" as const;
 export const SFA_UPDATE_ENROLLMENT_TTL_MINUTES = 5;
 
 /**
@@ -64,7 +64,7 @@ export const SFA_UPDATE_ENROLLMENT_TTL_MINUTES = 5;
  * Tiempo para disponer en SFA: Hasta 5 minutos.
  * Proveen: IPI (según Anexo N°1). Acceden: PSBI.
  */
-export const SFA_UPDATE_HISTORICAL_POSITIONS = 'monthly' as const;
+export const SFA_UPDATE_HISTORICAL_POSITIONS = "monthly" as const;
 export const SFA_UPDATE_HISTORICAL_POSITIONS_MONTHS = 12;
 export const SFA_UPDATE_HISTORICAL_POSITIONS_TTL_MINUTES = 5;
 
@@ -76,7 +76,7 @@ export const SFA_UPDATE_HISTORICAL_POSITIONS_TTL_MINUTES = 5;
  * Tiempo para disponer en SFA: Hasta 5 minutos.
  * Proveen: IPI (según Anexo N°1). Acceden: PSBI y PSIP.
  */
-export const SFA_UPDATE_TRANSACTIONS = 'daily' as const;
+export const SFA_UPDATE_TRANSACTIONS = "daily" as const;
 export const SFA_UPDATE_TRANSACTIONS_MONTHS = 12;
 export const SFA_UPDATE_TRANSACTIONS_TTL_MINUTES = 5;
 
@@ -86,7 +86,7 @@ export const SFA_UPDATE_TRANSACTIONS_TTL_MINUTES = 5;
  * Sin profundidad histórica.
  * Proveen: IPI (según Anexo N°1). Acceden: PSBI.
  */
-export const SFA_UPDATE_PRODUCTS_VIGENTES = 'realtime' as const;
+export const SFA_UPDATE_PRODUCTS_VIGENTES = "realtime" as const;
 export const SFA_UPDATE_PRODUCTS_VIGENTES_TTL_MINUTES = 5;
 
 /**
@@ -94,11 +94,14 @@ export const SFA_UPDATE_PRODUCTS_VIGENTES_TTL_MINUTES = 5;
  * Actualización: Tiempo real.
  * Participantes: IPC y PSIP.
  */
-export const SFA_UPDATE_PAYMENT_INITIATION = 'realtime' as const;
+export const SFA_UPDATE_PAYMENT_INITIATION = "realtime" as const;
 
 /** Resumen de frecuencias para documentación y caché */
 export const SFA_UPDATE_FREQUENCIES = {
-  terms_and_conditions: { frequency: SFA_UPDATE_TERMS_AND_CONDITIONS, ttlMinutes: SFA_UPDATE_TERMS_AND_CONDITIONS_TTL_MINUTES },
+  terms_and_conditions: {
+    frequency: SFA_UPDATE_TERMS_AND_CONDITIONS,
+    ttlMinutes: SFA_UPDATE_TERMS_AND_CONDITIONS_TTL_MINUTES,
+  },
   channels: { frequency: SFA_UPDATE_CHANNELS, ttlMinutes: SFA_UPDATE_CHANNELS_TTL_MINUTES },
   enrollment: { frequency: SFA_UPDATE_ENROLLMENT, ttlMinutes: SFA_UPDATE_ENROLLMENT_TTL_MINUTES },
   historical_positions: {
@@ -111,7 +114,10 @@ export const SFA_UPDATE_FREQUENCIES = {
     months: SFA_UPDATE_TRANSACTIONS_MONTHS,
     ttlMinutes: SFA_UPDATE_TRANSACTIONS_TTL_MINUTES,
   },
-  products_vigentes: { frequency: SFA_UPDATE_PRODUCTS_VIGENTES, ttlMinutes: SFA_UPDATE_PRODUCTS_VIGENTES_TTL_MINUTES },
+  products_vigentes: {
+    frequency: SFA_UPDATE_PRODUCTS_VIGENTES,
+    ttlMinutes: SFA_UPDATE_PRODUCTS_VIGENTES_TTL_MINUTES,
+  },
   payment_initiation: { frequency: SFA_UPDATE_PAYMENT_INITIATION },
 } as const;
 
@@ -121,50 +127,150 @@ export const SFA_UPDATE_FREQUENCIES = {
 
 /** Códigos de producto SFA - Cuentas (categoría a) */
 export const SFA_PRODUCT_CODES_ACCOUNTS = [
-  'A001', // Cuenta corriente
-  'A002', // Cuenta vista
-  'A003', // Cuenta RUT
-  'A004', // Cuenta con provisión de fondos
-  'A005', // Cuentas de ahorro para la vivienda
-  'A006', // Cuentas de ahorro con giro diferido
-  'A007', // Cuentas de ahorro con giro incondicional
+  "A001", // Cuenta corriente
+  "A002", // Cuenta vista
+  "A003", // Cuenta RUT
+  "A004", // Cuenta con provisión de fondos
+  "A005", // Cuentas de ahorro para la vivienda
+  "A006", // Cuentas de ahorro con giro diferido
+  "A007", // Cuentas de ahorro con giro incondicional
 ] as const;
 
 /** Códigos de producto SFA - Tarjetas de crédito (categoría b) */
-export const SFA_PRODUCT_CODES_CREDIT_CARDS = ['B001'] as const;
+export const SFA_PRODUCT_CODES_CREDIT_CARDS = ["B001"] as const;
 
 /** Códigos de producto SFA - Créditos de dinero (categoría c) */
 export const SFA_PRODUCT_CODES_LOANS = [
-  'C001', 'C002', 'C003', 'C004', // Consumo
-  'C005', 'C006', 'C007', 'C008', 'C009', 'C010', 'C011', // Hipotecario
-  'C012', 'C013', 'C014', 'C015', 'C016', // Comercial
-  'C017', 'C018', 'C019', // Estudiantiles
+  "C001",
+  "C002",
+  "C003",
+  "C004", // Consumo
+  "C005",
+  "C006",
+  "C007",
+  "C008",
+  "C009",
+  "C010",
+  "C011", // Hipotecario
+  "C012",
+  "C013",
+  "C014",
+  "C015",
+  "C016", // Comercial
+  "C017",
+  "C018",
+  "C019", // Estudiantiles
 ] as const;
 
 /** Códigos de producto SFA - Seguros (categoría d) - subconjunto representativo */
 export const SFA_PRODUCT_CODES_INSURANCE = [
-  'D001', 'D002', 'D003', 'D004', 'D005', 'D006', 'D007', 'D008', 'D009',
-  'D010', 'D011', 'D012', 'D013', 'D014', 'D015', 'D016', 'D017', 'D018',
-  'D020', 'D021', 'D022', 'D023', 'D024', 'D025', 'D026', 'D027', 'D028', 'D029',
-  'D030', 'D031', 'D032', 'D033', 'D034', 'D035', 'D036', 'D050',
-  'D101', 'D102', 'D103', 'D104', 'D105', 'D106', 'D107', 'D108', 'D109', 'D110', 'D111', 'D112', 'D113', 'D114', 'D150',
-  'D201', 'D202', 'D203', 'D204', 'D205', 'D206', 'D207', 'D208', 'D209', 'D210', 'D211', 'D212', 'D213', 'D214', 'D250',
-  'D301', 'D302', 'D303', 'D304', 'D305', 'D306', 'D307', 'D350',
-  'D421', 'D421-1', 'D421-2', 'D422', 'D422-1', 'D422-2', 'D423', 'D424', 'D425',
+  "D001",
+  "D002",
+  "D003",
+  "D004",
+  "D005",
+  "D006",
+  "D007",
+  "D008",
+  "D009",
+  "D010",
+  "D011",
+  "D012",
+  "D013",
+  "D014",
+  "D015",
+  "D016",
+  "D017",
+  "D018",
+  "D020",
+  "D021",
+  "D022",
+  "D023",
+  "D024",
+  "D025",
+  "D026",
+  "D027",
+  "D028",
+  "D029",
+  "D030",
+  "D031",
+  "D032",
+  "D033",
+  "D034",
+  "D035",
+  "D036",
+  "D050",
+  "D101",
+  "D102",
+  "D103",
+  "D104",
+  "D105",
+  "D106",
+  "D107",
+  "D108",
+  "D109",
+  "D110",
+  "D111",
+  "D112",
+  "D113",
+  "D114",
+  "D150",
+  "D201",
+  "D202",
+  "D203",
+  "D204",
+  "D205",
+  "D206",
+  "D207",
+  "D208",
+  "D209",
+  "D210",
+  "D211",
+  "D212",
+  "D213",
+  "D214",
+  "D250",
+  "D301",
+  "D302",
+  "D303",
+  "D304",
+  "D305",
+  "D306",
+  "D307",
+  "D350",
+  "D421",
+  "D421-1",
+  "D421-2",
+  "D422",
+  "D422-1",
+  "D422-2",
+  "D423",
+  "D424",
+  "D425",
 ] as const;
 
 /** Códigos de producto SFA - Instrumentos de ahorro/inversión (categoría e) */
 export const SFA_PRODUCT_CODES_INVESTMENT = [
-  'E001', 'E002', 'E003', // Depósitos a plazo
-  'E101', 'E102', 'E103', 'E104', 'E105', 'E106', 'E107', 'E108', // Fondos mutuos
-  'E201', 'E202', // Fondos de inversión
+  "E001",
+  "E002",
+  "E003", // Depósitos a plazo
+  "E101",
+  "E102",
+  "E103",
+  "E104",
+  "E105",
+  "E106",
+  "E107",
+  "E108", // Fondos mutuos
+  "E201",
+  "E202", // Fondos de inversión
 ] as const;
 
 /** Códigos de producto SFA - Operación de tarjetas de pago (categoría f) */
-export const SFA_PRODUCT_CODES_PAYMENT_CARDS = ['F001'] as const;
+export const SFA_PRODUCT_CODES_PAYMENT_CARDS = ["F001"] as const;
 
 /** Códigos de producto SFA - Prestadoras de servicios financieros (categoría g) */
-export const SFA_PRODUCT_CODES_PSF = ['G001', 'G002', 'G003', 'G004', 'G005'] as const;
+export const SFA_PRODUCT_CODES_PSF = ["G001", "G002", "G003", "G004", "G005"] as const;
 
 /** Unión de todos los códigos de producto SFA (tabla oficial CMF) */
 export type SfaProductCode =
@@ -185,19 +291,16 @@ export type SfaCurrencyCode = string; // e.g. 'CLP', 'USD'
 
 /** Categoría de la operación - Cuentas (transferencias, débito, ATM, otra) */
 export type SfaTransactionCategoryOperation =
-  | 'transferencia'
-  | 'compra_con_debito'
-  | 'operacion_cajero_automatico'
-  | 'otra';
+  "transferencia" | "compra_con_debito" | "operacion_cajero_automatico" | "otra";
 
 /** Tipo de operación: abono o cargo */
-export type SfaTipoOperacion = 'abono' | 'cargo';
+export type SfaTipoOperacion = "abono" | "cargo";
 
 /** Tipo de operación tarjeta: cuotas, avance en efectivo, rotativo */
-export type SfaTipoOperacionTarjeta = 'cuotas' | 'avance_efectivo' | 'rotativo';
+export type SfaTipoOperacionTarjeta = "cuotas" | "avance_efectivo" | "rotativo";
 
 /** Tipo de operación depósitos/fondos/APV: contratación, aporte, rescate */
-export type SfaTipoOperacionInversion = 'contratacion' | 'aporte' | 'rescate';
+export type SfaTipoOperacionInversion = "contratacion" | "aporte" | "rescate";
 
 /**
  * Transacción SFA - Cuentas (a): corrientes, vista, provisión de fondos, ahorro.
@@ -358,7 +461,7 @@ export interface SfaProductoVigenteCuenta {
 }
 
 /** Tipo de deuda tarjeta: cuotas, avance en efectivo, rotativo */
-export type SfaTipoDeudaTarjeta = 'cuotas' | 'avance_efectivo' | 'rotativo';
+export type SfaTipoDeudaTarjeta = "cuotas" | "avance_efectivo" | "rotativo";
 
 /**
  * Producto vigente - Tarjetas de crédito (b).
@@ -406,9 +509,9 @@ export interface SfaProductoVigenteSeguro {
   tipoProductoFinanciero: SfaProductCode;
   categoriaComercial?: string | null;
   primaVigente?: number | null;
-  periodicidadPrima?: 'mensual' | 'anual' | 'unica' | null;
-  frecuenciaPagoPrima?: 'mensual' | 'anual' | 'unica' | null;
-  tipoVenta?: 'directa' | 'intermediada' | null;
+  periodicidadPrima?: "mensual" | "anual" | "unica" | null;
+  frecuenciaPagoPrima?: "mensual" | "anual" | "unica" | null;
+  tipoVenta?: "directa" | "intermediada" | null;
   rutCorredor?: Rut | null;
   nombreCorredor?: string | null;
   montoAsegurado?: number | null;
@@ -416,7 +519,7 @@ export interface SfaProductoVigenteSeguro {
 }
 
 /** Tipo de plazo depósito: fijo, renovable, indefinido */
-export type SfaTipoPlazoDeposito = 'plazo_fijo' | 'plazo_renovable' | 'plazo_indefinido';
+export type SfaTipoPlazoDeposito = "plazo_fijo" | "plazo_renovable" | "plazo_indefinido";
 
 /**
  * Producto vigente - Depósitos a plazo (e).

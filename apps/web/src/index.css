@@ -5,32 +5,32 @@
 @layer base {
   :root {
     /* CODA — paleta investor deck · LIGHT (variante B: naranjo + morado) */
-    --background: 0 0% 98%;              /* #FAFAFA */
-    --foreground: 0 0% 4%;               /* #0A0A0A */
-    --card: 0 0% 100%;                   /* #FFFFFF */
+    --background: 0 0% 98%; /* #FAFAFA */
+    --foreground: 0 0% 4%; /* #0A0A0A */
+    --card: 0 0% 100%; /* #FFFFFF */
     --card-foreground: 0 0% 4%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 4%;
-    --primary: 12 100% 60%;              /* #FF5C35 naranjo marca */
+    --primary: 12 100% 60%; /* #FF5C35 naranjo marca */
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;            /* neutro #F3F4F6 (botones secundarios) */
+    --secondary: 220 14% 96%; /* neutro #F3F4F6 (botones secundarios) */
     --secondary-foreground: 215 25% 27%; /* #1F2937 */
     --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;      /* #6B7280 */
-    --accent: 13 100% 94%;               /* #FFE8E2 tinte naranjo (hover) */
-    --accent-foreground: 12 65% 45%;     /* #CC492A */
-    --destructive: 0 84% 60%;            /* #EF4444 */
+    --muted-foreground: 220 9% 46%; /* #6B7280 */
+    --accent: 13 100% 94%; /* #FFE8E2 tinte naranjo (hover) */
+    --accent-foreground: 12 65% 45%; /* #CC492A */
+    --destructive: 0 84% 60%; /* #EF4444 */
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 91%;               /* #E5E7EB */
+    --border: 220 13% 91%; /* #E5E7EB */
     --input: 220 13% 91%;
-    --ring: 12 100% 60%;                 /* naranjo */
+    --ring: 12 100% 60%; /* naranjo */
     /* Acento secundario de marca (morado) + charts multicolor */
-    --brand-secondary: 239 84% 67%;      /* #6366F1 índigo/morado */
-    --chart-1: 12 100% 60%;              /* naranjo */
-    --chart-2: 239 84% 67%;              /* morado */
-    --chart-3: 167 100% 38%;             /* #00C49A teal */
-    --chart-4: 38 92% 50%;               /* #F59E0B ámbar */
-    --chart-5: 160 84% 39%;              /* #10B981 esmeralda */
+    --brand-secondary: 239 84% 67%; /* #6366F1 índigo/morado */
+    --chart-1: 12 100% 60%; /* naranjo */
+    --chart-2: 239 84% 67%; /* morado */
+    --chart-3: 167 100% 38%; /* #00C49A teal */
+    --chart-4: 38 92% 50%; /* #F59E0B ámbar */
+    --chart-5: 160 84% 39%; /* #10B981 esmeralda */
     --radius: 0.75rem;
 
     /* Safe area insets — fallback to 0 on non-notch devices */
@@ -41,30 +41,30 @@
     /* Actualizado en runtime por useVisualViewportHeight (teclado móvil / iOS) */
     --visual-viewport-height: 100dvh;
   }
- 
+
   .dark {
     /* CODA — paleta investor deck · DARK (variante C: deck oscuro negro + naranjo) */
-    --background: 0 0% 4%;               /* #0A0A0A */
-    --foreground: 0 0% 98%;              /* #FAFAFA */
-    --card: 0 0% 9%;                     /* #161616 */
+    --background: 0 0% 4%; /* #0A0A0A */
+    --foreground: 0 0% 98%; /* #FAFAFA */
+    --card: 0 0% 9%; /* #161616 */
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 12 100% 60%;              /* #FF5C35 naranjo marca */
+    --primary: 12 100% 60%; /* #FF5C35 naranjo marca */
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 15%;               /* neutro #262626 */
+    --secondary: 0 0% 15%; /* neutro #262626 */
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 15%;
-    --muted-foreground: 218 11% 65%;     /* #9CA3AF */
-    --accent: 13 62% 12%;                /* #33150C tinte naranjo oscuro (hover) */
-    --accent-foreground: 13 100% 67%;    /* #FF7A57 */
-    --destructive: 0 72% 51%;            /* rojo visible en oscuro */
+    --muted-foreground: 218 11% 65%; /* #9CA3AF */
+    --accent: 13 62% 12%; /* #33150C tinte naranjo oscuro (hover) */
+    --accent-foreground: 13 100% 67%; /* #FF7A57 */
+    --destructive: 0 72% 51%; /* rojo visible en oscuro */
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 15%;                  /* #262626 */
+    --border: 0 0% 15%; /* #262626 */
     --input: 0 0% 15%;
-    --ring: 12 100% 60%;                 /* naranjo */
+    --ring: 12 100% 60%; /* naranjo */
     /* Acento secundario de marca (morado) + charts multicolor */
-    --brand-secondary: 239 84% 67%;      /* #6366F1 índigo/morado */
+    --brand-secondary: 239 84% 67%; /* #6366F1 índigo/morado */
     --chart-1: 12 100% 60%;
     --chart-2: 239 84% 67%;
     --chart-3: 167 100% 38%;
@@ -149,8 +149,12 @@
   }
 
   /* Disable hover effects on touch — prevents "sticky hover" */
-  .hover\:bg-accent:active { background-color: hsl(var(--accent)); }
-  .hover\:bg-muted:active { background-color: hsl(var(--muted)); }
+  .hover\:bg-accent:active {
+    background-color: hsl(var(--accent));
+  }
+  .hover\:bg-muted:active {
+    background-color: hsl(var(--muted));
+  }
 
   /* Expanded tap zone for small interactive elements via pseudo-element */
   .tap-target-expand {
@@ -172,13 +176,29 @@
 }
 
 /* ─── Task 3: Safe-area utility classes ───────────────────────────── */
-.safe-top    { padding-top: var(--sat); }
-.safe-bottom { padding-bottom: var(--sab); }
-.safe-left   { padding-left: var(--sal); }
-.safe-right  { padding-right: var(--sar); }
-.safe-x      { padding-left: var(--sal); padding-right: var(--sar); }
-.safe-y      { padding-top: var(--sat); padding-bottom: var(--sab); }
-.safe-all    { padding: var(--sat) var(--sar) var(--sab) var(--sal); }
+.safe-top {
+  padding-top: var(--sat);
+}
+.safe-bottom {
+  padding-bottom: var(--sab);
+}
+.safe-left {
+  padding-left: var(--sal);
+}
+.safe-right {
+  padding-right: var(--sar);
+}
+.safe-x {
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+}
+.safe-y {
+  padding-top: var(--sat);
+  padding-bottom: var(--sab);
+}
+.safe-all {
+  padding: var(--sat) var(--sar) var(--sab) var(--sal);
+}
 
 /* Sticky header sticks to the true top edge; its own padding-top
    (see .app-header) keeps content clear of the notch while the header
@@ -258,7 +278,9 @@ button,
 .fade-section {
   opacity: 0;
   transform: translateY(20px);
-  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  transition:
+    opacity 0.6s ease-out,
+    transform 0.6s ease-out;
   /* Safety net: if JS/observer fails, sections appear after 1.5s */
   animation: fade-section-fallback 0s 1.5s forwards;
 }
@@ -268,7 +290,10 @@ button,
   animation: none;
 }
 @keyframes fade-section-fallback {
-  to { opacity: 1; transform: translateY(0); }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 /* Respect prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {

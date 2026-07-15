@@ -43,9 +43,7 @@ export default function ProgressRing({
           transform={`rotate(-90 ${radius} ${radius})`}
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col justify-center items-center">
-        {children}
-      </div>
+      <div className="absolute inset-0 flex flex-col justify-center items-center">{children}</div>
     </div>
   );
 }

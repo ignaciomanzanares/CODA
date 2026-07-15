@@ -35,7 +35,10 @@ async function main() {
   const res = await rotateEncryptionKey({ batchSize, dryRun });
   console.log(JSON.stringify(res, null, 2));
   if (dryRun) console.log("DRY RUN — no se escribió nada. Quita --dry-run para aplicar.");
-  else console.log("Rotación aplicada. Tras verificar, quita FIELD_ENCRYPTION_KEY_PREV en el próximo deploy.");
+  else
+    console.log(
+      "Rotación aplicada. Tras verificar, quita FIELD_ENCRYPTION_KEY_PREV en el próximo deploy.",
+    );
   process.exit(0);
 }
 

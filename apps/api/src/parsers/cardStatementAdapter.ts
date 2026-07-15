@@ -15,8 +15,8 @@
  *   con fx pendiente (monto 0 + glosa con el USD) sin bloquear la ingesta.
  */
 
-import type { ParseResult, ParsedTransaction, TransactionCategory } from './base.js';
-import { computeReconciliation } from './base.js';
+import type { ParseResult, ParsedTransaction, TransactionCategory } from "./base.js";
+import { computeReconciliation } from "./base.js";
 import {
   isTarjetaNacional,
   parseTarjetaNacional,
@@ -25,10 +25,10 @@ import {
   applyUsdConversion,
   type TarjetaMovimiento,
   type TarjetaIntlMovimiento,
-} from './santanderTarjeta.js';
+} from "./santanderTarjeta.js";
 
-export const BANCO_TC_NACIONAL = 'Santander Tarjeta Nacional';
-export const BANCO_TC_INTERNACIONAL = 'Santander Tarjeta Internacional';
+export const BANCO_TC_NACIONAL = "Santander Tarjeta Nacional";
+export const BANCO_TC_INTERNACIONAL = "Santander Tarjeta Internacional";
 
 type GetUsdFn = (date: Date) => Promise<number | null>;
 
@@ -37,19 +37,19 @@ function diasEntre(desde: Date, hasta: Date): number {
 }
 
 function purchaseCategoria(): TransactionCategory {
-  return 'comercio';
+  return "comercio";
 }
 
 /** Mapea un movimiento de TC nacional (CLP) a ParsedTransaction. */
 function nacionalToParsed(m: TarjetaMovimiento): ParsedTransaction {
-  const esPago = m.kind === 'payment';
+  const esPago = m.kind === "payment";
   return {
     fecha: m.fecha,
     descripcion: m.descripcion,
-    tipo: esPago ? 'abono' : 'cargo',
+    tipo: esPago ? "abono" : "cargo",
     monto: Math.abs(m.montoClp),
     saldo_despues: 0,
-    categoria: esPago ? 'transferencia_recibida' : purchaseCategoria(),
+    categoria: esPago ? "transferencia_recibida" : purchaseCategoria(),
     es_transferencia: esPago,
     es_compra: !esPago,
     es_pago_recurrente: /COOPEUCH|DIVIDENDO|ARRIENDO/i.test(m.descripcion),
@@ -59,7 +59,7 @@ function nacionalToParsed(m: TarjetaMovimiento): ParsedTransaction {
 
 /** Mapea un movimiento de TC internacional (USD→CLP) a ParsedTransaction. */
 function internacionalToParsed(m: TarjetaIntlMovimiento, warnings: string[]): ParsedTransaction {
-  const esInterno = m.kind !== 'purchase';
+  const esInterno = m.kind !== "purchase";
   let monto: number;
   let descripcion = m.descripcion;
   if (m.montoClp != null) {
@@ -71,16 +71,17 @@ function internacionalToParsed(m: TarjetaIntlMovimiento, warnings: string[]): Pa
   }
   // Metadata USD nativa (para no mezclar USD/CLP sin contexto al normalizar).
   const montoUsd = m.montoUsd != null ? Math.abs(m.montoUsd) : undefined;
-  const fxRate = m.montoUsd != null && m.montoClp != null && m.montoUsd !== 0
-    ? Math.abs(m.montoClp / m.montoUsd)
-    : undefined;
+  const fxRate =
+    m.montoUsd != null && m.montoClp != null && m.montoUsd !== 0
+      ? Math.abs(m.montoClp / m.montoUsd)
+      : undefined;
   return {
     fecha: m.fecha,
     descripcion,
-    tipo: esInterno ? 'abono' : 'cargo',
+    tipo: esInterno ? "abono" : "cargo",
     monto,
     saldo_despues: 0,
-    categoria: esInterno ? 'transferencia_recibida' : purchaseCategoria(),
+    categoria: esInterno ? "transferencia_recibida" : purchaseCategoria(),
     es_transferencia: esInterno,
     es_compra: !esInterno,
     es_pago_recurrente: false,
@@ -100,12 +101,16 @@ function buildResult(opts: {
   parse_confidence: number;
   warnings: string[];
 }): ParseResult {
-  const total_cargos = opts.transacciones.filter((t) => t.tipo === 'cargo').reduce((a, t) => a + t.monto, 0);
-  const total_abonos = opts.transacciones.filter((t) => t.tipo === 'abono').reduce((a, t) => a + t.monto, 0);
+  const total_cargos = opts.transacciones
+    .filter((t) => t.tipo === "cargo")
+    .reduce((a, t) => a + t.monto, 0);
+  const total_abonos = opts.transacciones
+    .filter((t) => t.tipo === "abono")
+    .reduce((a, t) => a + t.monto, 0);
   return {
     banco: opts.banco,
     banco_confidence: 0.98, // discriminador exacto en el encabezado → alta confianza
-    detection_tier: 'HIGH',
+    detection_tier: "HIGH",
     titular: opts.titular,
     cuenta: opts.cuenta,
     periodo: { desde: opts.desde, hasta: opts.hasta, dias: diasEntre(opts.desde, opts.hasta) },
@@ -148,14 +153,14 @@ export async function parseCardStatementText(
 
   if (isTarjetaInternacional(text)) {
     const base = parseTarjetaInternacional(text);
-    const fx = getUsd ?? (await import('../services/indicators.js')).getUsd;
+    const fx = getUsd ?? (await import("../services/indicators.js")).getUsd;
     const rate = await fx(base.statementDate);
     const converted = applyUsdConversion(base, rate);
     const warnings = [...converted.warnings];
     if (converted.fxPending) {
       warnings.push(
         `Tipo de cambio USD no disponible para ${base.statementDate.toISOString().slice(0, 10)}; ` +
-          'movimientos ingresados con FX pendiente.',
+          "movimientos ingresados con FX pendiente.",
       );
     }
     return buildResult({

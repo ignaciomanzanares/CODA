@@ -9,7 +9,10 @@ import { authenticate, type AuthenticatedRequest } from "./middleware/auth.js";
 import { storage } from "./storage.js";
 import type { CartolaParseResult } from "./parsers/cartola-parser.js";
 import { parseCmfPdfBuffer, type CMFParseResult } from "./parsers/cmf-parser.js";
-import { calculateTransactionalScore, type TransactionalScoreResult } from "./scoring/transactional-score.js";
+import {
+  calculateTransactionalScore,
+  type TransactionalScoreResult,
+} from "./scoring/transactional-score.js";
 import {
   calculateCreditScore,
   calculateCreditScoreCmfOnly,
@@ -35,14 +38,16 @@ function getUserId(req: Request): string {
 
 function recomendacionesFromScores(
   credit: { score: number } | null,
-  transactional: { score: number } | null
+  transactional: { score: number } | null,
 ): string[] {
   const out: string[] = [];
   if (transactional !== null && transactional.score < 50) {
     out.push("Mantén un colchón de liquidez para reducir días con saldo bajo la línea crítica.");
   }
   if (credit !== null && credit.score < 700) {
-    out.push("Revisa el peso de tus deudas frente a tus ingresos y prioriza moras de mayor antigüedad.");
+    out.push(
+      "Revisa el peso de tus deudas frente a tus ingresos y prioriza moras de mayor antigüedad.",
+    );
   }
   if (out.length === 0) {
     out.push("Continúa monitoreando tus cargos recurrentes y el timing de tus ingresos.");
@@ -87,7 +92,7 @@ export function registerDocumentParsingAndScoringRoutes(app: Express): void {
         logger.error({ err: e }, "parse-cmf");
         res.status(400).json({ message: msg });
       }
-    }
+    },
   );
 
   app.post("/api/scoring/calculate", authenticate, async (req: Request, res: Response) => {
@@ -139,13 +144,13 @@ export function registerDocumentParsingAndScoringRoutes(app: Express): void {
       } else if (cmf && !cartola) {
         credit_score = calculateCreditScoreCmfOnly(cmf);
         notas.push(
-          "Solo CMF: el score crediticio no incluye comportamiento transaccional ni capacidad de pago desde cartola (no hay cartola cargada)."
+          "Solo CMF: el score crediticio no incluye comportamiento transaccional ni capacidad de pago desde cartola (no hay cartola cargada).",
         );
       } else if (cartola && transactional_score && !cmf) {
         const cmfDef = conservativeCmfPlaceholder();
         credit_score = calculateCreditScore(cmfDef, cartola, transactional_score);
         notas.push(
-          "Solo cartola: el crediticio usa perfil CMF conservador (sin deuda registrada, referencia interna 85) porque no hay certificado CMF cargado."
+          "Solo cartola: el crediticio usa perfil CMF conservador (sin deuda registrada, referencia interna 85) porque no hay certificado CMF cargado.",
         );
       }
 
@@ -190,7 +195,9 @@ export function registerDocumentParsingAndScoringRoutes(app: Express): void {
       });
     } catch (e: unknown) {
       logger.error({ err: e }, "scoring/calculate");
-      res.status(500).json({ message: e instanceof Error ? e.message : "Error al calcular scores" });
+      res
+        .status(500)
+        .json({ message: e instanceof Error ? e.message : "Error al calcular scores" });
     }
   });
 

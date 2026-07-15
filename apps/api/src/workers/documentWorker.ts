@@ -5,13 +5,13 @@
  * pico de OCR/parseo no compita por CPU con las requests HTTP normales.
  */
 
-import * as os from 'node:os';
-import { Worker, type Job } from 'bullmq';
-import { env } from '../env.js';
-import { logger } from '../logger.js';
-import { processDocumentUpload, type UploadResult } from '../services/documents/index.js';
-import { shutdownOcrPool } from '../services/documents/ocrService.js';
-import { DOCUMENT_QUEUE_NAME, type DocumentUploadJobData } from '../queues/documentQueue.js';
+import * as os from "node:os";
+import { Worker, type Job } from "bullmq";
+import { env } from "../env.js";
+import { logger } from "../logger.js";
+import { processDocumentUpload, type UploadResult } from "../services/documents/index.js";
+import { shutdownOcrPool } from "../services/documents/ocrService.js";
+import { DOCUMENT_QUEUE_NAME, type DocumentUploadJobData } from "../queues/documentQueue.js";
 
 /**
  * Concurrencia ligada a cores (#19): por defecto = nº de CPUs, acotada a [2, 4] para no
@@ -26,26 +26,26 @@ function resolveConcurrency(): number {
 }
 
 async function processJob(job: Job<DocumentUploadJobData>): Promise<UploadResult> {
-  const buffer = Buffer.from(job.data.fileBase64, 'base64');
+  const buffer = Buffer.from(job.data.fileBase64, "base64");
   return processDocumentUpload(job.data.userId, buffer);
 }
 
 export function startDocumentWorker(): Worker<DocumentUploadJobData, UploadResult> {
   if (!env.redisUrl) {
-    throw new Error('startDocumentWorker requires REDIS_URL to be set.');
+    throw new Error("startDocumentWorker requires REDIS_URL to be set.");
   }
   const concurrency = resolveConcurrency();
-  logger.info({ concurrency, cpus: os.cpus().length }, 'Document worker concurrency resuelta');
+  logger.info({ concurrency, cpus: os.cpus().length }, "Document worker concurrency resuelta");
   const worker = new Worker<DocumentUploadJobData, UploadResult>(DOCUMENT_QUEUE_NAME, processJob, {
     connection: { url: env.redisUrl },
     concurrency,
   });
 
-  worker.on('completed', (job) => {
-    logger.info({ jobId: job.id, userId: job.data.userId }, 'Document upload job completed');
+  worker.on("completed", (job) => {
+    logger.info({ jobId: job.id, userId: job.data.userId }, "Document upload job completed");
   });
-  worker.on('failed', (job: Job<DocumentUploadJobData> | undefined, err: Error) => {
-    logger.error({ jobId: job?.id, userId: job?.data.userId, err }, 'Document upload job failed');
+  worker.on("failed", (job: Job<DocumentUploadJobData> | undefined, err: Error) => {
+    logger.error({ jobId: job?.id, userId: job?.data.userId, err }, "Document upload job failed");
   });
 
   // Apagado limpio: cerrar el pool de workers Tesseract al terminar el worker.
@@ -53,14 +53,14 @@ export function startDocumentWorker(): Worker<DocumentUploadJobData, UploadResul
     await shutdownOcrPool();
     await worker.close();
   };
-  process.once('SIGTERM', shutdown);
-  process.once('SIGINT', shutdown);
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
 
   return worker;
 }
 
 // Permite correr este archivo directamente como proceso del worker: `tsx src/workers/documentWorker.ts`.
 if (import.meta.url === `file://${process.argv[1]}`) {
-  logger.info('Starting document upload worker...');
+  logger.info("Starting document upload worker...");
   startDocumentWorker();
 }

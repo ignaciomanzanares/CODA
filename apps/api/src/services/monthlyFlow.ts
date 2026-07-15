@@ -27,7 +27,20 @@ export interface MonthlyFlowEntry {
 
 export type MonthlyFlowView = "raw" | "real";
 
-const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const MONTH_LABELS = [
+  "Ene",
+  "Feb",
+  "Mar",
+  "Abr",
+  "May",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dic",
+];
 
 function labelForMonth(month: string): string {
   const year = Number(month.slice(0, 4));
@@ -40,7 +53,10 @@ export function buildMonthlyFlow(
   opts: { view?: MonthlyFlowView; product?: string | null } = {},
 ): MonthlyFlowEntry[] {
   const view = opts.view ?? "real";
-  const byMonth = new Map<string, { rawIn: number; rawOut: number; realIn: number; realOut: number }>();
+  const byMonth = new Map<
+    string,
+    { rawIn: number; rawOut: number; realIn: number; realOut: number }
+  >();
 
   for (const tx of txs) {
     if (!tx.month || (opts.product && tx.product !== opts.product)) continue;

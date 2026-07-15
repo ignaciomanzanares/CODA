@@ -43,10 +43,30 @@ interface FinancialHealthData {
 }
 
 const HEALTH_STYLES: Record<string, { bg: string; text: string; ring: string; badge: string }> = {
-  critico:      { bg: "bg-red-50 dark:bg-red-950/20",     text: "text-red-700 dark:text-red-400",     ring: "ring-red-200",     badge: "bg-red-100 text-red-700" },
-  en_riesgo:    { bg: "bg-amber-50 dark:bg-amber-950/20", text: "text-amber-700 dark:text-amber-400", ring: "ring-amber-200",   badge: "bg-amber-100 text-amber-700" },
-  estable:      { bg: "bg-blue-50 dark:bg-blue-950/20",   text: "text-blue-700 dark:text-blue-400",   ring: "ring-blue-200",    badge: "bg-blue-100 text-blue-700" },
-  saludable:    { bg: "bg-emerald-50 dark:bg-emerald-950/20", text: "text-emerald-700 dark:text-emerald-400", ring: "ring-emerald-200", badge: "bg-emerald-100 text-emerald-700" },
+  critico: {
+    bg: "bg-red-50 dark:bg-red-950/20",
+    text: "text-red-700 dark:text-red-400",
+    ring: "ring-red-200",
+    badge: "bg-red-100 text-red-700",
+  },
+  en_riesgo: {
+    bg: "bg-amber-50 dark:bg-amber-950/20",
+    text: "text-amber-700 dark:text-amber-400",
+    ring: "ring-amber-200",
+    badge: "bg-amber-100 text-amber-700",
+  },
+  estable: {
+    bg: "bg-blue-50 dark:bg-blue-950/20",
+    text: "text-blue-700 dark:text-blue-400",
+    ring: "ring-blue-200",
+    badge: "bg-blue-100 text-blue-700",
+  },
+  saludable: {
+    bg: "bg-emerald-50 dark:bg-emerald-950/20",
+    text: "text-emerald-700 dark:text-emerald-400",
+    ring: "ring-emerald-200",
+    badge: "bg-emerald-100 text-emerald-700",
+  },
 };
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -65,7 +85,8 @@ export default function FinancialHealthCard() {
     queryKey: ["/api/financial-health"],
     queryFn: () => {
       const token = getPersonalToken();
-      if (!token && !hasPersonalSession()) return Promise.resolve({ hasData: false } as FinancialHealthData);
+      if (!token && !hasPersonalSession())
+        return Promise.resolve({ hasData: false } as FinancialHealthData);
       return apiFetch("/api/financial-health");
     },
     enabled: isAuthenticated,
@@ -79,8 +100,8 @@ export default function FinancialHealthCard() {
   if (!data?.hasData || !data.healthLevel) return null;
 
   const style = HEALTH_STYLES[data.healthLevel] ?? HEALTH_STYLES.estable;
-  const eligible = data.programs.filter(p => p.eligible);
-  const notEligible = data.programs.filter(p => !p.eligible);
+  const eligible = data.programs.filter((p) => p.eligible);
+  const notEligible = data.programs.filter((p) => !p.eligible);
   const visiblePrograms = showAll ? data.programs : eligible.slice(0, 3);
 
   return (
@@ -98,13 +119,9 @@ export default function FinancialHealthCard() {
         {/* Health level badge */}
         <div className={cn("rounded-xl p-4 ring-1", style.bg, style.ring)}>
           <div className="flex items-center gap-2 mb-2">
-            <Badge className={cn("font-semibold", style.badge)}>
-              {data.healthLabel}
-            </Badge>
+            <Badge className={cn("font-semibold", style.badge)}>{data.healthLabel}</Badge>
           </div>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {data.healthDescription}
-          </p>
+          <p className="text-sm leading-relaxed text-muted-foreground">{data.healthDescription}</p>
         </div>
 
         {/* Savings tips */}
@@ -131,22 +148,26 @@ export default function FinancialHealthCard() {
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               {eligible.length > 0
                 ? `${eligible.length} programa${eligible.length !== 1 ? "s" : ""} disponible${eligible.length !== 1 ? "s" : ""}`
-                : "Programas evaluados"
-              }
+                : "Programas evaluados"}
             </p>
             <div className="space-y-2">
-              {visiblePrograms.map(prog => {
+              {visiblePrograms.map((prog) => {
                 const CategoryIcon = CATEGORY_ICONS[prog.category] ?? Shield;
                 return (
                   <div
                     key={prog.id}
                     className={cn(
                       "rounded-lg border p-3 text-sm transition-colors",
-                      prog.eligible ? "bg-card hover:bg-muted/50" : "bg-muted/30 opacity-70"
+                      prog.eligible ? "bg-card hover:bg-muted/50" : "bg-muted/30 opacity-70",
                     )}
                   >
                     <div className="flex items-start gap-2.5">
-                      <CategoryIcon className={cn("h-4 w-4 shrink-0 mt-0.5", prog.eligible ? "text-primary" : "text-muted-foreground")} />
+                      <CategoryIcon
+                        className={cn(
+                          "h-4 w-4 shrink-0 mt-0.5",
+                          prog.eligible ? "text-primary" : "text-muted-foreground",
+                        )}
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium">{prog.name}</span>
@@ -187,9 +208,14 @@ export default function FinancialHealthCard() {
             onClick={() => setShowAll(!showAll)}
           >
             {showAll ? (
-              <>Ocultar programas no elegibles <ChevronUp className="h-3.5 w-3.5" /></>
+              <>
+                Ocultar programas no elegibles <ChevronUp className="h-3.5 w-3.5" />
+              </>
             ) : (
-              <>Ver {notEligible.length} programa{notEligible.length !== 1 ? "s" : ""} más <ChevronDown className="h-3.5 w-3.5" /></>
+              <>
+                Ver {notEligible.length} programa{notEligible.length !== 1 ? "s" : ""} más{" "}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </>
             )}
           </Button>
         )}

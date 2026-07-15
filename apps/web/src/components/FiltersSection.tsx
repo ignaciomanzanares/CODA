@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Sliders } from "lucide-react";
 import {
   Sheet,
@@ -35,7 +41,7 @@ export default function FiltersSection({
     rate: "any",
     term: "any",
   });
-  
+
   // State for advanced filters
   const [advancedFilters, setAdvancedFilters] = useState({
     minAmount: 0,
@@ -118,7 +124,9 @@ export default function FiltersSection({
   const termOptions = getTermOptions();
 
   return (
-    <div className={cn("bg-muted/50 p-4 rounded-lg mb-6 flex flex-wrap items-center gap-4", className)}>
+    <div
+      className={cn("bg-muted/50 p-4 rounded-lg mb-6 flex flex-wrap items-center gap-4", className)}
+    >
       <div className="font-medium text-foreground">Filtros:</div>
 
       <div className="relative">
@@ -181,8 +189,7 @@ export default function FiltersSection({
           <SheetHeader>
             <SheetTitle>Filtros avanzados</SheetTitle>
             <SheetDescription>
-              Ajusta la búsqueda para encontrar los productos financieros
-              que mejor se adapten a ti.
+              Ajusta la búsqueda para encontrar los productos financieros que mejor se adapten a ti.
             </SheetDescription>
           </SheetHeader>
 
@@ -235,9 +242,7 @@ export default function FiltersSection({
               <Switch
                 id="pre-approved"
                 checked={advancedFilters.preApproved}
-                onCheckedChange={(checked) =>
-                  handleAdvancedFilterChange("preApproved", checked)
-                }
+                onCheckedChange={(checked) => handleAdvancedFilterChange("preApproved", checked)}
               />
             </div>
           </div>

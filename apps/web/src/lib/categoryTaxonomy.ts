@@ -10,13 +10,7 @@
 //   telecomunicaciones, transferencia_enviada, transferencia_recibida,
 //   comercio, entretenimiento, salud, ingreso_principal, servicios, otro
 
-import {
-  Wallet,
-  Home,
-  User,
-  Gamepad2,
-  Landmark,
-} from "lucide-react";
+import { Wallet, Home, User, Gamepad2, Landmark } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { CategoryGroupKey } from "@/types/dashboard";
 
@@ -39,10 +33,7 @@ export const CATEGORY_TAXONOMY: CategoryTaxonomyEntry[] = [
     icon: Wallet,
     color: "green",
     chartColor: "#10b981",
-    parserCategories: [
-      "ingreso_principal",
-      "transferencia_recibida",
-    ],
+    parserCategories: ["ingreso_principal", "transferencia_recibida"],
     subcategoryLabels: {
       ingreso_principal: "Sueldo / Ingreso principal",
       transferencia_recibida: "Transferencias recibidas",
@@ -108,13 +99,7 @@ export const CATEGORY_TAXONOMY: CategoryTaxonomyEntry[] = [
     icon: Gamepad2,
     color: "orange",
     chartColor: "#f59e0b",
-    parserCategories: [
-      "restaurantes",
-      "entretenimiento",
-      "diversion",
-      "hobbies",
-      "suscripciones",
-    ],
+    parserCategories: ["restaurantes", "entretenimiento", "diversion", "hobbies", "suscripciones"],
     subcategoryLabels: {
       restaurantes: "Restaurantes y comida fuera",
       entretenimiento: "Entretenimiento",
@@ -129,12 +114,7 @@ export const CATEGORY_TAXONOMY: CategoryTaxonomyEntry[] = [
     icon: Landmark,
     color: "red",
     chartColor: "#ef4444",
-    parserCategories: [
-      "transferencia_enviada",
-      "deudas",
-      "inversiones",
-      "ahorros",
-    ],
+    parserCategories: ["transferencia_enviada", "deudas", "inversiones", "ahorros"],
     subcategoryLabels: {
       transferencia_enviada: "Transferencias enviadas",
       deudas: "Pago de deudas",

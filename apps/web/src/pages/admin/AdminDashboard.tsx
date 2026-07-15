@@ -30,7 +30,10 @@ interface AdminLead {
   respondedAt: string | null;
 }
 
-const STATUS_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
+const STATUS_BADGE: Record<
+  string,
+  { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
+> = {
   pending: { label: "Pendiente", variant: "secondary" },
   delivered: { label: "Entregado", variant: "outline" },
   accepted: { label: "Aceptado", variant: "default" },
@@ -105,14 +108,30 @@ export default function AdminDashboard() {
 
       {/* Revenue & funnel */}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <KpiCard icon={DollarSign} label="Revenue total" loading={metricsLoading}
-          value={formatCurrency(Number(revenue.totalRevenue ?? 0), "CLP")} />
-        <KpiCard icon={CheckCircle} label="Originaciones" loading={metricsLoading}
-          value={String(revenue.approvalsCount ?? 0)} />
-        <KpiCard icon={Users} label="Aplicaciones" loading={metricsLoading}
-          value={String(revenue.applicationsCount ?? 0)} />
-        <KpiCard icon={TrendingUp} label="Conversión" loading={metricsLoading}
-          value={`${Number(funnel.overallConversionRate ?? 0).toFixed(1)}%`} />
+        <KpiCard
+          icon={DollarSign}
+          label="Revenue total"
+          loading={metricsLoading}
+          value={formatCurrency(Number(revenue.totalRevenue ?? 0), "CLP")}
+        />
+        <KpiCard
+          icon={CheckCircle}
+          label="Originaciones"
+          loading={metricsLoading}
+          value={String(revenue.approvalsCount ?? 0)}
+        />
+        <KpiCard
+          icon={Users}
+          label="Aplicaciones"
+          loading={metricsLoading}
+          value={String(revenue.applicationsCount ?? 0)}
+        />
+        <KpiCard
+          icon={TrendingUp}
+          label="Conversión"
+          loading={metricsLoading}
+          value={`${Number(funnel.overallConversionRate ?? 0).toFixed(1)}%`}
+        />
       </section>
 
       {/* Aprendizaje del modelo (Fase G): outcomes reales para recalibrar con data chilena */}
@@ -120,14 +139,30 @@ export default function AdminDashboard() {
         <div>
           <h2 className="text-lg font-medium">Aprendizaje del modelo</h2>
           <p className="text-sm text-muted-foreground">
-            Decisiones reales capturadas (snapshot al aplicar + resultado de la institución). Es el dataset
-            propio con el que se recalibran los scores y se aprende qué proveedor otorga a quién.
+            Decisiones reales capturadas (snapshot al aplicar + resultado de la institución). Es el
+            dataset propio con el que se recalibran los scores y se aprende qué proveedor otorga a
+            quién.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <KpiCard icon={Users} label="Snapshots" loading={outcomesLoading} value={String(outcomes?.total ?? 0)} />
-          <KpiCard icon={CheckCircle} label="Con resultado" loading={outcomesLoading} value={String(outcomes?.labeled ?? 0)} />
-          <KpiCard icon={TrendingUp} label="Pendientes" loading={outcomesLoading} value={String(outcomes?.pending ?? 0)} />
+          <KpiCard
+            icon={Users}
+            label="Snapshots"
+            loading={outcomesLoading}
+            value={String(outcomes?.total ?? 0)}
+          />
+          <KpiCard
+            icon={CheckCircle}
+            label="Con resultado"
+            loading={outcomesLoading}
+            value={String(outcomes?.labeled ?? 0)}
+          />
+          <KpiCard
+            icon={TrendingUp}
+            label="Pendientes"
+            loading={outcomesLoading}
+            value={String(outcomes?.pending ?? 0)}
+          />
         </div>
         <Card>
           <CardContent className="p-0 overflow-x-auto">
@@ -142,18 +177,28 @@ export default function AdminDashboard() {
               </thead>
               <tbody>
                 {(outcomes?.byProvider ?? []).length === 0 ? (
-                  <tr><td colSpan={4} className="p-4 text-center text-muted-foreground">
-                    Aún no hay decisiones con resultado. Se acumulan cuando las instituciones responden leads.
-                  </td></tr>
+                  <tr>
+                    <td colSpan={4} className="p-4 text-center text-muted-foreground">
+                      Aún no hay decisiones con resultado. Se acumulan cuando las instituciones
+                      responden leads.
+                    </td>
+                  </tr>
                 ) : (
-                  outcomes.byProvider.map((p: { provider: string; decisions: number; approvals: number; approvalRate: number }) => (
-                    <tr key={p.provider} className="border-b last:border-0">
-                      <td className="p-3 font-medium">{p.provider}</td>
-                      <td className="p-3 tabular-nums">{p.decisions}</td>
-                      <td className="p-3 tabular-nums">{p.approvals}</td>
-                      <td className="p-3 tabular-nums font-semibold">{p.approvalRate}%</td>
-                    </tr>
-                  ))
+                  outcomes.byProvider.map(
+                    (p: {
+                      provider: string;
+                      decisions: number;
+                      approvals: number;
+                      approvalRate: number;
+                    }) => (
+                      <tr key={p.provider} className="border-b last:border-0">
+                        <td className="p-3 font-medium">{p.provider}</td>
+                        <td className="p-3 tabular-nums">{p.decisions}</td>
+                        <td className="p-3 tabular-nums">{p.approvals}</td>
+                        <td className="p-3 tabular-nums font-semibold">{p.approvalRate}%</td>
+                      </tr>
+                    ),
+                  )
                 )}
               </tbody>
             </table>
@@ -168,7 +213,9 @@ export default function AdminDashboard() {
           <CardContent className="p-0 overflow-x-auto">
             {leadsLoading ? (
               <div className="p-4 space-y-2">
-                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
               </div>
             ) : leads.length === 0 ? (
               <p className="p-6 text-center text-muted-foreground">Aún no hay leads.</p>
@@ -186,22 +233,45 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {leads.map((lead) => {
-                    const badge = STATUS_BADGE[lead.status] ?? { label: lead.status, variant: "secondary" as const };
-                    const closed = ["approved", "rejected", "expired", "withdrawn"].includes(lead.status);
+                    const badge = STATUS_BADGE[lead.status] ?? {
+                      label: lead.status,
+                      variant: "secondary" as const,
+                    };
+                    const closed = ["approved", "rejected", "expired", "withdrawn"].includes(
+                      lead.status,
+                    );
                     return (
                       <tr key={lead.leadId} className="border-b last:border-0">
                         <td className="p-3">{lead.product.name}</td>
                         <td className="p-3 text-muted-foreground">{lead.product.provider}</td>
-                        <td className="p-3">{lead.requestedAmount ? formatCurrency(lead.requestedAmount, "CLP") : "—"}</td>
-                        <td className="p-3"><Badge variant={badge.variant}>{badge.label}</Badge></td>
-                        <td className="p-3">{lead.revenueEarned ? formatCurrency(lead.revenueEarned, "CLP") : "—"}</td>
+                        <td className="p-3">
+                          {lead.requestedAmount ? formatCurrency(lead.requestedAmount, "CLP") : "—"}
+                        </td>
+                        <td className="p-3">
+                          <Badge variant={badge.variant}>{badge.label}</Badge>
+                        </td>
+                        <td className="p-3">
+                          {lead.revenueEarned ? formatCurrency(lead.revenueEarned, "CLP") : "—"}
+                        </td>
                         <td className="p-3">
                           {!closed && (
                             <div className="flex gap-1">
-                              <Button size="sm" variant="outline" onClick={() => advance(lead, "originated")}
-                                disabled={statusMutation.isPending}>Originar</Button>
-                              <Button size="sm" variant="ghost" onClick={() => advance(lead, "rejected")}
-                                disabled={statusMutation.isPending}>Rechazar</Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => advance(lead, "originated")}
+                                disabled={statusMutation.isPending}
+                              >
+                                Originar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => advance(lead, "rejected")}
+                                disabled={statusMutation.isPending}
+                              >
+                                Rechazar
+                              </Button>
                             </div>
                           )}
                         </td>
@@ -221,8 +291,16 @@ export default function AdminDashboard() {
   );
 }
 
-function KpiCard({ icon: Icon, label, value, loading }: {
-  icon: React.ComponentType<{ className?: string }>; label: string; value: string; loading: boolean;
+function KpiCard({
+  icon: Icon,
+  label,
+  value,
+  loading,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  loading: boolean;
 }) {
   return (
     <Card>
@@ -231,7 +309,11 @@ function KpiCard({ icon: Icon, label, value, loading }: {
           <Icon className="h-4 w-4" />
           <span className="text-xs">{label}</span>
         </div>
-        {loading ? <Skeleton className="mt-2 h-7 w-24" /> : <p className="mt-1 text-xl font-semibold">{value}</p>}
+        {loading ? (
+          <Skeleton className="mt-2 h-7 w-24" />
+        ) : (
+          <p className="mt-1 text-xl font-semibold">{value}</p>
+        )}
       </CardContent>
     </Card>
   );
@@ -250,7 +332,11 @@ function ComplianceExport() {
       const data = await apiFetch("/api/audit/admin/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ startDate: start, endDate: `${end}T23:59:59.999Z`, kind: "product_recommendation" }),
+        body: JSON.stringify({
+          startDate: start,
+          endDate: `${end}T23:59:59.999Z`,
+          kind: "product_recommendation",
+        }),
       });
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -281,13 +367,20 @@ function ComplianceExport() {
         <CardContent className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
             <Label htmlFor="start">Desde</Label>
-            <Input id="start" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+            <Input
+              id="start"
+              type="date"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+            />
           </div>
           <div className="space-y-1">
             <Label htmlFor="end">Hasta</Label>
             <Input id="end" type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
           </div>
-          <Button onClick={runExport} disabled={busy}>{busy ? "Exportando…" : "Exportar JSON"}</Button>
+          <Button onClick={runExport} disabled={busy}>
+            {busy ? "Exportando…" : "Exportar JSON"}
+          </Button>
         </CardContent>
       </Card>
     </section>

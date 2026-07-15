@@ -1,26 +1,31 @@
 /**
  * Cartola (Bank Statement) PDF Parser → JSON Structured
- * 
+ *
  * Extends the existing cartola parser (pdfAnalysis.ts) to produce
  * SFA-compliant JSON mapped to our DB schema.
- * 
- * Flow: PDF Upload → Text Extraction → Parse Transactions → 
+ *
+ * Flow: PDF Upload → Text Extraction → Parse Transactions →
  *       Categorize → Map to SFA fields → Return structured JSON
  */
 
-import { extractPdfText, parseCartolaPdf, type CartolaExtraida } from '../documents/pdfAnalysis.js';
-import { categorizeExpense, type ExpenseCategorization } from './expenseCategorizer.js';
-import { classifyOperationCategory, mapExpenseCategoryToSfaCode, type SfaOperationCategory, type SfaOperationType } from './sfaCodes.js';
-import { logger } from '../../logger.js';
+import { extractPdfText, parseCartolaPdf, type CartolaExtraida } from "../documents/pdfAnalysis.js";
+import { categorizeExpense } from "./expenseCategorizer.js";
+import {
+  classifyOperationCategory,
+  mapExpenseCategoryToSfaCode,
+  type SfaOperationCategory,
+  type SfaOperationType,
+} from "./sfaCodes.js";
+import { logger } from "../../logger.js";
 
 /**
  * A single structured movement from a cartola, ready for DB insertion
  */
 export interface CartolaMovement {
   // Core fields (map to expenses table)
-  date: string;                     // ISO format
+  date: string; // ISO format
   description: string;
-  amount: number;                   // Always positive
+  amount: number; // Always positive
   merchantName: string;
   category: string;
   subcategory?: string;
@@ -64,13 +69,21 @@ function parseDateFromCartola(dateStr: string): string {
   // as "25-12-29" (DD=25, MM=12, YY=29) and incorrectly produce year 2029.
   const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (isoMatch) {
-    return new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3])).toISOString();
+    return new Date(
+      parseInt(isoMatch[1]),
+      parseInt(isoMatch[2]) - 1,
+      parseInt(isoMatch[3]),
+    ).toISOString();
   }
 
   // DD/MM/YYYY (anchored to avoid sub-pattern matches)
   const ddmmyyyyMatch = dateStr.match(/^(\d{2})[/-](\d{2})[/-](\d{4})/);
   if (ddmmyyyyMatch) {
-    return new Date(parseInt(ddmmyyyyMatch[3]), parseInt(ddmmyyyyMatch[2]) - 1, parseInt(ddmmyyyyMatch[1])).toISOString();
+    return new Date(
+      parseInt(ddmmyyyyMatch[3]),
+      parseInt(ddmmyyyyMatch[2]) - 1,
+      parseInt(ddmmyyyyMatch[1]),
+    ).toISOString();
   }
 
   // DD/MM/YY (anchored)
@@ -85,14 +98,14 @@ function parseDateFromCartola(dateStr: string): string {
 
 function extractMerchantName(description: string): string {
   let cleaned = description
-    .replace(/\d{2}[/-]\d{2}[/-]?\d{0,4}/g, '')   // Remove dates
-    .replace(/\*{3,}\d{4}/g, '')                     // Remove card numbers
-    .replace(/\b(TEF|PAC|PAT|CARGO|ABONO|COMPRA)\b/gi, '')
-    .replace(/\s+/g, ' ')
+    .replace(/\d{2}[/-]\d{2}[/-]?\d{0,4}/g, "") // Remove dates
+    .replace(/\*{3,}\d{4}/g, "") // Remove card numbers
+    .replace(/\b(TEF|PAC|PAT|CARGO|ABONO|COMPRA)\b/gi, "")
+    .replace(/\s+/g, " ")
     .trim();
 
   // Capitalize first letter of each word
-  cleaned = cleaned.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  cleaned = cleaned.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
   return cleaned || description;
 }
@@ -102,7 +115,7 @@ function extractMerchantName(description: string): string {
  */
 export async function parseCartolaPdfToJson(
   buffer: Buffer,
-  paymentMethod: string = 'debito'
+  paymentMethod: string = "debito",
 ): Promise<CartolaStructured> {
   try {
     const { text, numPages, lines: pdfLines } = await extractPdfText(buffer);
@@ -145,7 +158,7 @@ export async function parseCartolaPdfToJson(
       const cat = categorizeExpense(merchantName, tx.cargo || tx.abono, tx.descripcion);
       const opCategory = classifyOperationCategory(tx.descripcion);
       const sfaCode = mapExpenseCategoryToSfaCode(paymentMethod, opCategory);
-      const operationType: SfaOperationType = tx.cargo > 0 ? 'cargo' : 'abono';
+      const operationType: SfaOperationType = tx.cargo > 0 ? "cargo" : "abono";
       const amount = tx.cargo > 0 ? tx.cargo : tx.abono;
 
       totalCargos += tx.cargo;
@@ -170,18 +183,21 @@ export async function parseCartolaPdfToJson(
         sfaProductCode: sfaCode,
         sfaOperationCategory: opCategory,
         sfaOperationType: operationType,
-        moneda: 'CLP',
+        moneda: "CLP",
         cargo: tx.cargo,
         abono: tx.abono,
         saldo: tx.saldo,
       });
     }
 
-    logger.info({
-      movimientos: movimientos.length,
-      totalCargos,
-      totalAbonos,
-    }, 'Cartola parsed successfully');
+    logger.info(
+      {
+        movimientos: movimientos.length,
+        totalCargos,
+        totalAbonos,
+      },
+      "Cartola parsed successfully",
+    );
 
     return {
       success: true,
@@ -197,7 +213,7 @@ export async function parseCartolaPdfToJson(
       rawCartola: cartola,
     };
   } catch (error) {
-    logger.error({ error }, 'Failed to parse cartola PDF');
+    logger.error({ error }, "Failed to parse cartola PDF");
     return {
       success: false,
       movimientos: [],

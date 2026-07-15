@@ -31,13 +31,12 @@ export default function SessionExpiryGuard() {
 
       toast({
         title: "Sesión expirada",
-        description:
-          "Tu sesión ha expirado. Vuelve a iniciar sesión para continuar.",
+        description: "Tu sesión ha expirado. Vuelve a iniciar sesión para continuar.",
         variant: "destructive",
       });
       sessionStorage.setItem(
         "coda:post_login_return_to",
-        window.location.pathname + window.location.search
+        window.location.pathname + window.location.search,
       );
       setLocation(ROUTES.iniciarSesion);
     };

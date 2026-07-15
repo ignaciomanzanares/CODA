@@ -61,7 +61,10 @@ export async function deleteRelatedScoreDocsForDocumentUpload(
   via: RelatedScoreDocsResult["via"];
   legacyCandidateCount: number;
 }> {
-  const scoreDocs = (await storage.listScoreDocumentUploadsByType(userId, "cartola")) as ScoreDocumentUploadLike[];
+  const scoreDocs = (await storage.listScoreDocumentUploadsByType(
+    userId,
+    "cartola",
+  )) as ScoreDocumentUploadLike[];
   const related = findRelatedScoreDocsForDocumentUpload(doc, scoreDocs);
 
   if (related.via === "legacy_ambiguous") {
@@ -75,7 +78,9 @@ export async function deleteRelatedScoreDocsForDocumentUpload(
   let removedScoreDocuments = 0;
   for (const scoreDoc of related.docs) {
     removedTransactions += await deleteTransactionsForDocument(userId, scoreDoc.id).catch(() => 0);
-    const deleted = await storage.deleteScoreDocumentUploadById(scoreDoc.id, userId).catch(() => false);
+    const deleted = await storage
+      .deleteScoreDocumentUploadById(scoreDoc.id, userId)
+      .catch(() => false);
     if (deleted) removedScoreDocuments += 1;
   }
 

@@ -25,8 +25,12 @@ describe("deriveDocumentReviewState", () => {
   });
 
   it("tier MEDIUM/LOW (banco específico) → required / low_confidence", () => {
-    expect(deriveDocumentReviewState({ banco: "BancoX", detectionTier: "MEDIUM" }).reviewReason).toBe("low_confidence");
-    expect(deriveDocumentReviewState({ banco: "BancoX", detectionTier: "LOW" }).reviewStatus).toBe("required");
+    expect(
+      deriveDocumentReviewState({ banco: "BancoX", detectionTier: "MEDIUM" }).reviewReason,
+    ).toBe("low_confidence");
+    expect(deriveDocumentReviewState({ banco: "BancoX", detectionTier: "LOW" }).reviewStatus).toBe(
+      "required",
+    );
   });
 
   it("sin tier → not_required (no inventa revisión)", () => {
@@ -47,7 +51,11 @@ async function seedUser(): Promise<string> {
   return userId;
 }
 
-async function seedDoc(userId: string, reviewStatus = "required", reviewReason: string | null = "generic_parser"): Promise<string> {
+async function seedDoc(
+  userId: string,
+  reviewStatus = "required",
+  reviewReason: string | null = "generic_parser",
+): Promise<string> {
   const id = randomUUID();
   await storage.createDocumentUpload({
     id,

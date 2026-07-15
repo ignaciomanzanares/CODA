@@ -93,7 +93,7 @@ describe("parseCLP", () => {
 describe("formatCLP", () => {
   it("formats with Chilean locale dot-separated thousands", () => {
     // es-CL locale uses dots for thousands
-    expect(formatCLP(973959)).toMatch(/973[\.,]959/);
+    expect(formatCLP(973959)).toMatch(/973[.,]959/);
   });
 
   it("starts with dollar sign", () => {

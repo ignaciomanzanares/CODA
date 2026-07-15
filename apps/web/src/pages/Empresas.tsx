@@ -1,15 +1,15 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  ArrowLeft, 
-  Building2, 
-  TrendingUp, 
-  FileText, 
-  Shield, 
+import {
+  ArrowLeft,
+  Building2,
+  TrendingUp,
+  FileText,
+  Shield,
   BarChart3,
   CheckCircle,
-  ArrowRight
+  ArrowRight,
 } from "lucide-react";
 
 export default function Empresas() {
@@ -33,20 +33,20 @@ export default function Empresas() {
               CODA <span className="text-blue-200">Empresas</span>
             </h1>
             <p className="text-xl md:text-2xl text-blue-100 mb-8 leading-relaxed">
-              Plataforma de salud financiera y evaluación de riesgo crediticio 
-              para PYMEs chilenas.
+              Plataforma de salud financiera y evaluación de riesgo crediticio para PYMEs chilenas.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/empresas/login">
-                <Button size="lg" className="bg-white text-purple-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg">
+                <Button
+                  size="lg"
+                  className="bg-white text-purple-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg"
+                >
                   Ir a CODA Empresas
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
             </div>
-            <p className="mt-6 text-blue-200 text-sm">
-              Gestión financiera integral para tu PYME
-            </p>
+            <p className="mt-6 text-blue-200 text-sm">Gestión financiera integral para tu PYME</p>
           </div>
         </div>
       </section>
@@ -69,9 +69,7 @@ export default function Empresas() {
                 <div className="w-14 h-14 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center mb-4">
                   <BarChart3 className="h-8 w-8" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  Dashboard Ejecutivo
-                </h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Dashboard Ejecutivo</h3>
                 <p className="text-gray-600">
                   Métricas CFO en tiempo real: Revenue, EBITDA, Cash Flow, y más.
                 </p>
@@ -83,9 +81,7 @@ export default function Empresas() {
                 <div className="w-14 h-14 rounded-xl bg-green-100 text-green-600 flex items-center justify-center mb-4">
                   <TrendingUp className="h-8 w-8" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  Open Banking
-                </h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Open Banking</h3>
                 <p className="text-gray-600">
                   Consolida tu posición de caja desde múltiples bancos automáticamente.
                 </p>
@@ -97,9 +93,7 @@ export default function Empresas() {
                 <div className="w-14 h-14 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center mb-4">
                   <FileText className="h-8 w-8" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  Facturas DTE
-                </h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Facturas DTE</h3>
                 <p className="text-gray-600">
                   Importa facturas electrónicas directamente desde el SII chileno.
                 </p>
@@ -111,9 +105,7 @@ export default function Empresas() {
                 <div className="w-14 h-14 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center mb-4">
                   <CheckCircle className="h-8 w-8" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  Reconciliación
-                </h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Reconciliación</h3>
                 <p className="text-gray-600">
                   Motor inteligente que hace match entre transacciones y facturas.
                 </p>
@@ -125,9 +117,7 @@ export default function Empresas() {
                 <div className="w-14 h-14 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center mb-4">
                   <FileText className="h-8 w-8" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  Estados Financieros
-                </h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Estados Financieros</h3>
                 <p className="text-gray-600">
                   Genera automáticamente P&L, Cash Flow, y Balance General.
                 </p>
@@ -139,9 +129,7 @@ export default function Empresas() {
                 <div className="w-14 h-14 rounded-xl bg-red-100 text-red-600 flex items-center justify-center mb-4">
                   <Shield className="h-8 w-8" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  Evaluación de Riesgo
-                </h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Evaluación de Riesgo</h3>
                 <p className="text-gray-600">
                   Rating crediticio (A-E) con recomendaciones de financiamiento.
                 </p>
@@ -204,14 +192,15 @@ export default function Empresas() {
             Únete a las PYMEs que ya están tomando mejores decisiones financieras.
           </p>
           <Link href="/empresas/login">
-            <Button size="lg" className="bg-white text-purple-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg">
+            <Button
+              size="lg"
+              className="bg-white text-purple-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg"
+            >
               Comenzar con CODA Empresas
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </Link>
-          <p className="mt-6 text-indigo-200 text-sm">
-            Todo integrado en la misma plataforma CODA
-          </p>
+          <p className="mt-6 text-indigo-200 text-sm">Todo integrado en la misma plataforma CODA</p>
         </div>
       </section>
 

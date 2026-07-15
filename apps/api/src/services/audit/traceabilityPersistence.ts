@@ -4,11 +4,11 @@
  * de algorithmicTraceability.ts para auditoría CMF / NCG 502.
  */
 
-import { randomUUID } from 'crypto';
-import { eq, desc, and, gte, lte } from 'drizzle-orm';
-import { db, algorithmModelVersions, algorithmPredictionLogs } from '../../db/index.js';
-import { logger } from '../../logger.js';
-import { encryptField, decryptField, looksEncrypted } from '../crypto/fieldEncryption.js';
+import { randomUUID } from "crypto";
+import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { db, algorithmModelVersions, algorithmPredictionLogs } from "../../db/index.js";
+import { logger } from "../../logger.js";
+import { encryptField, decryptField, looksEncrypted } from "../crypto/fieldEncryption.js";
 
 /** Evita import circular con algorithmicTraceability.ts */
 export interface PersistableCreditPredictionLog {
@@ -39,40 +39,40 @@ export interface SeedCreditModel {
 }
 
 /** Misma versión por defecto que TraceabilityStore (algorithmicTraceability.ts). */
-export const DEFAULT_CREDIT_MODEL_VERSION_ID = 'a0000001-0000-4000-8000-000000000001';
+export const DEFAULT_CREDIT_MODEL_VERSION_ID = "a0000001-0000-4000-8000-000000000001";
 
 /** IDs estables para modelos que no pasan por el registro en memoria. */
 export const TRACEABILITY_SEED_MODELS = {
   transactionalSfa: {
-    id: 'a0000002-0000-4000-8000-000000000001',
-    modelType: 'sfa_transactional',
-    version: 'v1.0.0',
+    id: "a0000002-0000-4000-8000-000000000001",
+    modelType: "sfa_transactional",
+    version: "v1.0.0",
   },
   productMatching: {
-    id: 'a0000003-0000-4000-8000-000000000001',
-    modelType: 'product_matching',
-    version: 'v1.0.0',
+    id: "a0000003-0000-4000-8000-000000000001",
+    modelType: "product_matching",
+    version: "v1.0.0",
   },
   financialHealthV2: {
-    id: 'a0000004-0000-4000-8000-000000000001',
-    modelType: 'financial_health_v2',
-    version: 'v2.0.0',
+    id: "a0000004-0000-4000-8000-000000000001",
+    modelType: "financial_health_v2",
+    version: "v2.0.0",
   },
   debtRules: {
-    id: 'a0000005-0000-4000-8000-000000000001',
-    modelType: 'debt_rules',
-    version: 'v1.0.0',
+    id: "a0000005-0000-4000-8000-000000000001",
+    modelType: "debt_rules",
+    version: "v1.0.0",
   },
   // Doble evaluador de riesgo (Fase D): scorecard tradicional (logístico GMSC) + transaccional (XGB Berka).
   creditScorecard: {
-    id: 'a0000006-0000-4000-8000-000000000001',
-    modelType: 'credit_scorecard_logreg',
-    version: 'v1.0.0',
+    id: "a0000006-0000-4000-8000-000000000001",
+    modelType: "credit_scorecard_logreg",
+    version: "v1.0.0",
   },
   transactionalXgb: {
-    id: 'a0000007-0000-4000-8000-000000000001',
-    modelType: 'transactional_xgb',
-    version: 'v1.0.0',
+    id: "a0000007-0000-4000-8000-000000000001",
+    modelType: "transactional_xgb",
+    version: "v1.0.0",
   },
 } as const;
 
@@ -109,14 +109,14 @@ async function ensureModelVersionRow(
         modelType: row.modelType,
         version: row.version,
         deployedAt: now,
-        deployedBy: row.deployedBy ?? 'system',
+        deployedBy: row.deployedBy ?? "system",
         isActive: 1,
-        changelog: row.changelog ?? 'seed',
+        changelog: row.changelog ?? "seed",
         createdAt: now,
       })
       .onConflictDoNothing();
   } catch (e) {
-    logger.warn({ err: e, id: row.id }, 'traceability: ensureModelVersionRow failed (non-fatal)');
+    logger.warn({ err: e, id: row.id }, "traceability: ensureModelVersionRow failed (non-fatal)");
   }
 }
 
@@ -124,30 +124,33 @@ async function ensureModelVersionRow(
  * Inserta versiones fijas (score transaccional, matching de productos) y opcionalmente
  * la versión activa de score CMF desde memoria.
  */
-export async function ensureSeedTraceabilityModels(activeCreditModel?: SeedCreditModel): Promise<void> {
+export async function ensureSeedTraceabilityModels(
+  activeCreditModel?: SeedCreditModel,
+): Promise<void> {
   await ensureModelVersionRow({
     id: DEFAULT_CREDIT_MODEL_VERSION_ID,
-    modelType: 'simple_rules',
-    version: 'v1.0.0',
-    changelog: 'Initial simple rule-based credit scoring (CMF-only)',
+    modelType: "simple_rules",
+    version: "v1.0.0",
+    changelog: "Initial simple rule-based credit scoring (CMF-only)",
   });
   await ensureModelVersionRow({
     id: TRACEABILITY_SEED_MODELS.transactionalSfa.id,
     modelType: TRACEABILITY_SEED_MODELS.transactionalSfa.modelType,
     version: TRACEABILITY_SEED_MODELS.transactionalSfa.version,
-    changelog: 'SFA transactional scoring engine (cartola)',
+    changelog: "SFA transactional scoring engine (cartola)",
   });
   await ensureModelVersionRow({
     id: TRACEABILITY_SEED_MODELS.productMatching.id,
     modelType: TRACEABILITY_SEED_MODELS.productMatching.modelType,
     version: TRACEABILITY_SEED_MODELS.productMatching.version,
-    changelog: 'Weighted product matching (matchingEngine)',
+    changelog: "Weighted product matching (matchingEngine)",
   });
   await ensureModelVersionRow({
     id: TRACEABILITY_SEED_MODELS.financialHealthV2.id,
     modelType: TRACEABILITY_SEED_MODELS.financialHealthV2.modelType,
     version: TRACEABILITY_SEED_MODELS.financialHealthV2.version,
-    changelog: 'Motor Evaluación Salud Financiera v2 — 8 niveles, Etapa 1 determinística + Etapa 2 score compuesto',
+    changelog:
+      "Motor Evaluación Salud Financiera v2 — 8 niveles, Etapa 1 determinística + Etapa 2 score compuesto",
   });
   if (activeCreditModel) {
     await ensureModelVersionRow({
@@ -168,7 +171,7 @@ export async function persistCreditPredictionFromLog(
       id: log.modelVersionId,
       modelType: log.modelType,
       version: log.modelVersion,
-      changelog: 'credit CMF from document',
+      changelog: "credit CMF from document",
     },
     exec,
   );
@@ -177,7 +180,7 @@ export async function persistCreditPredictionFromLog(
     id: log.id,
     userId: log.userId,
     requestId: log.requestId,
-    kind: 'credit_cmf',
+    kind: "credit_cmf",
     modelVersionId: log.modelVersionId,
     modelVersion: log.modelVersion,
     modelType: log.modelType,
@@ -197,33 +200,39 @@ export async function persistCreditPredictionFromLog(
   });
 }
 
-export async function logTransactionalScoreComputation(params: {
-  userId: string;
-  requestId: string;
-  input: Record<string, unknown>;
-  output: {
-    transactionalScore: number;
-    mainInsights: string[];
-    recommendedProducts?: string[];
-    metrics?: unknown;
-  };
-  processingTimeMs?: number;
-  ipAddress?: string | null;
-  userAgent?: string | null;
-}, exec: any = db): Promise<void> {
+export async function logTransactionalScoreComputation(
+  params: {
+    userId: string;
+    requestId: string;
+    input: Record<string, unknown>;
+    output: {
+      transactionalScore: number;
+      mainInsights: string[];
+      recommendedProducts?: string[];
+      metrics?: unknown;
+    };
+    processingTimeMs?: number;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+  },
+  exec: any = db,
+): Promise<void> {
   const m = TRACEABILITY_SEED_MODELS.transactionalSfa;
-  await ensureModelVersionRow({
-    id: m.id,
-    modelType: m.modelType,
-    version: m.version,
-  }, exec);
+  await ensureModelVersionRow(
+    {
+      id: m.id,
+      modelType: m.modelType,
+      version: m.version,
+    },
+    exec,
+  );
 
   const id = randomUUID();
   await exec.insert(algorithmPredictionLogs).values({
     id,
     userId: params.userId,
     requestId: params.requestId,
-    kind: 'transactional_sfa',
+    kind: "transactional_sfa",
     modelVersionId: m.id,
     modelVersion: m.version,
     modelType: m.modelType,
@@ -265,7 +274,7 @@ export async function logProductRecommendationRun(params: {
     id,
     userId: params.userId,
     requestId: params.requestId,
-    kind: 'product_recommendation',
+    kind: "product_recommendation",
     modelVersionId: m.id,
     modelVersion: m.version,
     modelType: m.modelType,
@@ -311,7 +320,7 @@ export async function logProductInteractionTrace(params: {
     id,
     userId: params.userId,
     requestId: params.requestId,
-    kind: 'product_interaction',
+    kind: "product_interaction",
     modelVersionId: m.id,
     modelVersion: m.version,
     modelType: m.modelType,
@@ -355,7 +364,7 @@ export async function logProductApplicationTrace(params: {
     id,
     userId: params.userId,
     requestId: params.requestId,
-    kind: 'product_application',
+    kind: "product_application",
     modelVersionId: m.id,
     modelVersion: m.version,
     modelType: m.modelType,
@@ -364,7 +373,7 @@ export async function logProductApplicationTrace(params: {
       applicationId: params.applicationId,
       ...params.payload,
     }),
-    outputSnapshot: safeJson({ status: 'submitted', at: new Date().toISOString() }),
+    outputSnapshot: safeJson({ status: "submitted", at: new Date().toISOString() }),
     cmfData: null,
     sfaData: null,
     topFactors: null,
@@ -379,7 +388,9 @@ function safeParseJsonRecord(s: string): Record<string, unknown> | null {
   try {
     const decrypted = looksEncrypted(s) ? decryptField(s) : s;
     const v = JSON.parse(decrypted) as unknown;
-    return v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+    return v !== null && typeof v === "object" && !Array.isArray(v)
+      ? (v as Record<string, unknown>)
+      : null;
   } catch {
     return null;
   }
@@ -422,7 +433,7 @@ export async function logFinancialHealthV2(params: {
     id,
     userId: params.userId,
     requestId: params.requestId,
-    kind: 'financial_health_v2',
+    kind: "financial_health_v2",
     modelVersionId: m.id,
     modelVersion: m.version,
     modelType: m.modelType,
@@ -449,15 +460,32 @@ export async function logRiskEvaluation(params: {
   transactional?: { input: unknown; output: unknown } | null;
   processingTimeMs?: number;
 }): Promise<void> {
-  const rows: Array<{ model: { id: string; modelType: string; version: string }; kind: string; input: unknown; output: unknown }> = [];
+  const rows: Array<{
+    model: { id: string; modelType: string; version: string };
+    kind: string;
+    input: unknown;
+    output: unknown;
+  }> = [];
   if (params.traditional) {
-    rows.push({ model: TRACEABILITY_SEED_MODELS.creditScorecard, kind: 'credit_scorecard_logreg', ...params.traditional });
+    rows.push({
+      model: TRACEABILITY_SEED_MODELS.creditScorecard,
+      kind: "credit_scorecard_logreg",
+      ...params.traditional,
+    });
   }
   if (params.transactional) {
-    rows.push({ model: TRACEABILITY_SEED_MODELS.transactionalXgb, kind: 'transactional_xgb', ...params.transactional });
+    rows.push({
+      model: TRACEABILITY_SEED_MODELS.transactionalXgb,
+      kind: "transactional_xgb",
+      ...params.transactional,
+    });
   }
   for (const r of rows) {
-    await ensureModelVersionRow({ id: r.model.id, modelType: r.model.modelType, version: r.model.version });
+    await ensureModelVersionRow({
+      id: r.model.id,
+      modelType: r.model.modelType,
+      version: r.model.version,
+    });
     await db.insert(algorithmPredictionLogs).values({
       id: randomUUID(),
       userId: params.userId,
@@ -507,7 +535,7 @@ export async function logDebtRulesEvaluation(params: {
     id: randomUUID(),
     userId: params.userId,
     requestId: params.requestId,
-    kind: 'debt_rules',
+    kind: "debt_rules",
     modelVersionId: m.id,
     modelVersion: m.version,
     modelType: m.modelType,
@@ -521,7 +549,6 @@ export async function logDebtRulesEvaluation(params: {
     userAgent: params.userAgent ?? null,
   });
 }
-
 
 /** Entrada legible para el usuario (sin PII extra); el JSON completo sigue en BD. */
 export interface AlgorithmPredictionLogRow {
@@ -558,7 +585,7 @@ export async function listRecentPredictionPds(kind: string, limit = 5000): Promi
   for (const r of rows as Array<{ outputSnapshot: string }>) {
     const rec = safeParseJsonRecord(r.outputSnapshot);
     const pd = rec?.probabilityDefault;
-    if (typeof pd === 'number' && Number.isFinite(pd)) pds.push(pd);
+    if (typeof pd === "number" && Number.isFinite(pd)) pds.push(pd);
   }
   return pds;
 }
@@ -567,19 +594,33 @@ export async function listRecentPredictionPds(kind: string, limit = 5000): Promi
  * Retorna todas las versiones activas de un modelType ordenadas por fecha de despliegue.
  * Usado para sampleo A/B: si hay 2+ versiones activas, se sortea según abTrafficPct.
  */
-export async function listActiveModelVersionsByType(modelType: string): Promise<Array<{
-  id: string; version: string; modelType: string; abTrafficPct: number | null;
-}>> {
+export async function listActiveModelVersionsByType(modelType: string): Promise<
+  Array<{
+    id: string;
+    version: string;
+    modelType: string;
+    abTrafficPct: number | null;
+  }>
+> {
   return db
-    .select({ id: algorithmModelVersions.id, version: algorithmModelVersions.version, modelType: algorithmModelVersions.modelType, abTrafficPct: algorithmModelVersions.abTrafficPct })
+    .select({
+      id: algorithmModelVersions.id,
+      version: algorithmModelVersions.version,
+      modelType: algorithmModelVersions.modelType,
+      abTrafficPct: algorithmModelVersions.abTrafficPct,
+    })
     .from(algorithmModelVersions)
-    .where(and(eq(algorithmModelVersions.modelType, modelType), eq(algorithmModelVersions.isActive, 1)))
-    .orderBy(desc(algorithmModelVersions.deployedAt)) as Promise<Array<{ id: string; version: string; modelType: string; abTrafficPct: number | null }>>;
+    .where(
+      and(eq(algorithmModelVersions.modelType, modelType), eq(algorithmModelVersions.isActive, 1)),
+    )
+    .orderBy(desc(algorithmModelVersions.deployedAt)) as Promise<
+    Array<{ id: string; version: string; modelType: string; abTrafficPct: number | null }>
+  >;
 }
 
 export async function listAlgorithmPredictionLogsForUser(
   userId: string,
-  limit = 50
+  limit = 50,
 ): Promise<AlgorithmPredictionLogRow[]> {
   const cap = Math.min(Math.max(limit, 1), 100);
   const rows = await db
@@ -614,10 +655,10 @@ export async function listAlgorithmPredictionLogsForUser(
       kind: r.kind,
       modelVersion: r.modelVersion,
       modelType: r.modelType,
-      createdAt: r.createdAt ?? '',
+      createdAt: r.createdAt ?? "",
       inputSummary: safeParseJsonRecord(r.inputFeatures),
       outputSummary: safeParseJsonRecord(r.outputSnapshot),
-    })
+    }),
   );
 }
 
@@ -657,18 +698,27 @@ export async function exportPredictionLogsByDateRange(
     .orderBy(desc(algorithmPredictionLogs.createdAt))
     .limit(cap);
 
-  return rows.map((r: {
-    id: string; userId: string; requestId: string; kind: string; modelVersion: string;
-    modelType: string; inputFeatures: string; outputSnapshot: string; createdAt: string | null;
-  }) => ({
-    id: r.id,
-    userId: r.userId,
-    requestId: r.requestId,
-    kind: r.kind,
-    modelVersion: r.modelVersion,
-    modelType: r.modelType,
-    createdAt: r.createdAt ?? '',
-    inputSummary: safeParseJsonRecord(r.inputFeatures),
-    outputSummary: safeParseJsonRecord(r.outputSnapshot),
-  }));
+  return rows.map(
+    (r: {
+      id: string;
+      userId: string;
+      requestId: string;
+      kind: string;
+      modelVersion: string;
+      modelType: string;
+      inputFeatures: string;
+      outputSnapshot: string;
+      createdAt: string | null;
+    }) => ({
+      id: r.id,
+      userId: r.userId,
+      requestId: r.requestId,
+      kind: r.kind,
+      modelVersion: r.modelVersion,
+      modelType: r.modelType,
+      createdAt: r.createdAt ?? "",
+      inputSummary: safeParseJsonRecord(r.inputFeatures),
+      outputSummary: safeParseJsonRecord(r.outputSnapshot),
+    }),
+  );
 }

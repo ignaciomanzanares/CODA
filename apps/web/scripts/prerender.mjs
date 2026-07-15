@@ -49,9 +49,7 @@ function buildHtml(template, path, route) {
     <meta name="twitter:image" content="${image}" />`;
 
   // Replace the generic <title>CODA</title> and inject meta after <head>
-  return template
-    .replace(/<title>[^<]*<\/title>/, "")
-    .replace("<head>", `<head>${metaBlock}`);
+  return template.replace(/<title>[^<]*<\/title>/, "").replace("<head>", `<head>${metaBlock}`);
 }
 
 // ──────────────────────────────────────────────────────────────

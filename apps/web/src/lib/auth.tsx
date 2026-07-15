@@ -1,8 +1,8 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { apiFetch } from './api';
-import { setPersonalTokenMirror, setPersonalUserMirror } from './authSession';
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { apiFetch } from "./api";
+import { setPersonalTokenMirror, setPersonalUserMirror } from "./authSession";
 
-export type AuthContextType = 'personal' | 'empresas';
+export type AuthContextType = "personal" | "empresas";
 
 interface User {
   userId: string;
@@ -12,7 +12,7 @@ interface User {
   role?: string;
 }
 
-import type { RegisterConsentPayload } from '@/types';
+import type { RegisterConsentPayload } from "@/types";
 
 interface AuthContextValue {
   userPersonal: User | null;
@@ -20,29 +20,33 @@ interface AuthContextValue {
   userEmpresas: User | null;
   tokenEmpresas: string | null;
   isLoading: boolean;
-  login: (context: AuthContextType, email: string, password: string) => Promise<{ requires2FA?: boolean } | void>;
+  login: (
+    context: AuthContextType,
+    email: string,
+    password: string,
+  ) => Promise<{ requires2FA?: boolean } | void>;
   register: (
     name: string,
     email: string,
     password: string,
-    consentOptions: { consents: RegisterConsentPayload; policyVersion?: string }
+    consentOptions: { consents: RegisterConsentPayload; policyVersion?: string },
   ) => Promise<void>;
   logout: (context: AuthContextType) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const TOKEN_KEY = 'jwt_token';
-const USER_KEY = 'user_data';
-const TOKEN_KEY_EMPRESAS = 'jwt_token_empresas';
-const USER_KEY_EMPRESAS = 'user_data_empresas';
+const TOKEN_KEY = "jwt_token";
+const USER_KEY = "user_data";
+const TOKEN_KEY_EMPRESAS = "jwt_token_empresas";
+const USER_KEY_EMPRESAS = "user_data_empresas";
 
 /** sessionStorage key set after first login so ProtectedRoute can tell a
  *  real session expiry from a first-ever visit. */
-export const HAD_SESSION_KEY = 'coda:had_session';
+export const HAD_SESSION_KEY = "coda:had_session";
 
 function getKeys(context: AuthContextType) {
-  return context === 'empresas'
+  return context === "empresas"
     ? { token: TOKEN_KEY_EMPRESAS, user: USER_KEY_EMPRESAS }
     : { token: TOKEN_KEY, user: USER_KEY };
 }
@@ -50,7 +54,7 @@ function getKeys(context: AuthContextType) {
 // Session mirrors live in a leaf module (no imports) to avoid an import cycle
 // (auth → api → apiFetch → authEvents → authSession). Re-exported here so existing
 // `@/lib/auth` consumers keep working; AuthProvider syncs them via the setters.
-export { getPersonalToken, hasPersonalSession } from './authSession';
+export { getPersonalToken, hasPersonalSession } from "./authSession";
 
 function loadStoredAuth(context: AuthContextType): { token: string | null; user: User | null } {
   const { token: tk, user: uk } = getKeys(context);
@@ -70,10 +74,18 @@ function loadStoredAuth(context: AuthContextType): { token: string | null; user:
 export function AuthProvider({ children }: { children: ReactNode }) {
   // Synchronous initialization from localStorage — no flash of
   // unauthenticated state on hard reload.
-  const [userPersonal, setUserPersonal] = useState<User | null>(() => loadStoredAuth('personal').user);
-  const [tokenPersonal, setTokenPersonal] = useState<string | null>(() => loadStoredAuth('personal').token);
-  const [userEmpresas, setUserEmpresas] = useState<User | null>(() => loadStoredAuth('empresas').user);
-  const [tokenEmpresas, setTokenEmpresas] = useState<string | null>(() => loadStoredAuth('empresas').token);
+  const [userPersonal, setUserPersonal] = useState<User | null>(
+    () => loadStoredAuth("personal").user,
+  );
+  const [tokenPersonal, setTokenPersonal] = useState<string | null>(
+    () => loadStoredAuth("personal").token,
+  );
+  const [userEmpresas, setUserEmpresas] = useState<User | null>(
+    () => loadStoredAuth("empresas").user,
+  );
+  const [tokenEmpresas, setTokenEmpresas] = useState<string | null>(
+    () => loadStoredAuth("empresas").token,
+  );
   // C1 cookie-primary: la sesión personal se hidrata desde /api/auth/me usando la
   // cookie httpOnly (con Bearer legacy como fallback). `isHydratingPersonal` evita
   // que ProtectedRoute redirija o parpadee antes de que /me resuelva.
@@ -137,11 +149,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (
     context: AuthContextType,
     email: string,
-    password: string
+    password: string,
   ): Promise<{ requires2FA?: boolean } | void> => {
-    const data = await apiFetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const data = await apiFetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
 
@@ -150,14 +162,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (!data.token || !data.user) {
-      throw new Error('Invalid response from server');
+      throw new Error("Invalid response from server");
     }
 
-    sessionStorage.setItem(HAD_SESSION_KEY, '1');
+    sessionStorage.setItem(HAD_SESSION_KEY, "1");
 
-    if (context === 'empresas') {
+    if (context === "empresas") {
       // Empresas sigue token-based (Bearer/localStorage) — sin cambios.
-      const { token: tk, user: uk } = getKeys('empresas');
+      const { token: tk, user: uk } = getKeys("empresas");
       localStorage.setItem(tk, data.token);
       localStorage.setItem(uk, JSON.stringify(data.user));
       setTokenEmpresas(data.token);
@@ -174,38 +186,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     name: string,
     email: string,
     password: string,
-    consentOptions: { consents: RegisterConsentPayload; policyVersion?: string }
+    consentOptions: { consents: RegisterConsentPayload; policyVersion?: string },
   ) => {
-    const data = await apiFetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const data = await apiFetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name,
         email,
         password,
         consents: consentOptions.consents,
-        policyVersion: consentOptions.policyVersion ?? '1.0',
+        policyVersion: consentOptions.policyVersion ?? "1.0",
       }),
     });
 
     if (!data.token || !data.user) {
-      throw new Error('Invalid response from server');
+      throw new Error("Invalid response from server");
     }
 
     // Personal cookie-first (C2): la sesión queda en la cookie + /me; no guardamos
     // jwt_token/user_data nuevos, solo estado React.
-    sessionStorage.setItem(HAD_SESSION_KEY, '1');
+    sessionStorage.setItem(HAD_SESSION_KEY, "1");
     setUserPersonal(data.user);
   };
 
   const logout = (context: AuthContextType) => {
-    const token = context === 'empresas' ? tokenEmpresas : tokenPersonal;
+    const token = context === "empresas" ? tokenEmpresas : tokenPersonal;
     // Personal: llamar SIEMPRE al backend para que limpie la cookie de sesión
     // (apiFetch ya manda credentials:include); el Bearer se adjunta solo si existe.
     // Empresas: comportamiento sin cambios (solo si hay token Bearer).
-    if (context === 'personal' || token) {
-      apiFetch('/api/auth/logout', {
-        method: 'POST',
+    if (context === "personal" || token) {
+      apiFetch("/api/auth/logout", {
+        method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       }).catch(() => {});
     }
@@ -225,7 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void caches.delete("coda-v2").catch(() => {});
     }
 
-    if (context === 'empresas') {
+    if (context === "empresas") {
       setTokenEmpresas(null);
       setUserEmpresas(null);
     } else {
@@ -253,22 +265,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 /** Pasa el contexto ('personal' o 'empresas') para obtener usuario y sesión de ese contexto. Las sesiones son independientes. */
-export function useAuth(context: AuthContextType = 'personal') {
+export function useAuth(context: AuthContextType = "personal") {
   const ctx = useContext(AuthContext);
   if (ctx === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  const user = context === 'empresas' ? ctx.userEmpresas : ctx.userPersonal;
-  const token = context === 'empresas' ? ctx.tokenEmpresas : ctx.tokenPersonal;
+  const user = context === "empresas" ? ctx.userEmpresas : ctx.userPersonal;
+  const token = context === "empresas" ? ctx.tokenEmpresas : ctx.tokenPersonal;
   // C1: personal es cookie-primary → basta con `user` (hidratado desde /me),
   // ya no exige token local. Empresas queda igual (token-based) hasta su propia fase.
-  const isAuthenticated = context === 'empresas' ? !!(user && token) : !!user;
+  const isAuthenticated = context === "empresas" ? !!(user && token) : !!user;
   return {
     user,
     token,
     isAuthenticated,
     // Solo personal espera la hidratación de /me; empresas no cambia (sin loading).
-    isLoading: context === 'empresas' ? false : ctx.isLoading,
+    isLoading: context === "empresas" ? false : ctx.isLoading,
     login: ctx.login,
     register: ctx.register,
     logout: ctx.logout,

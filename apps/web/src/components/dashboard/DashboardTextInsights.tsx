@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Lightbulb } from "lucide-react";
+import { TrendingDown, AlertTriangle, CheckCircle2, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DashboardData } from "@/types/dashboard";
 
@@ -144,7 +144,10 @@ export default function DashboardTextInsights({ data }: { data: DashboardData })
         return (
           <div
             key={i}
-            className={cn("flex items-start gap-2.5 rounded-xl border px-3.5 py-3", BG_MAP[ins.type])}
+            className={cn(
+              "flex items-start gap-2.5 rounded-xl border px-3.5 py-3",
+              BG_MAP[ins.type],
+            )}
           >
             <Icon className={cn("h-4 w-4 shrink-0 mt-0.5", COLOR_MAP[ins.type])} />
             <p className="text-sm leading-snug text-foreground">{ins.text}</p>

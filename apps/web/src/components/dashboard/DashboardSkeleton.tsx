@@ -33,7 +33,7 @@ function BalanceCardSkeleton() {
         <Skeleton className="h-4 w-16" />
       </div>
       <div className="grid grid-cols-3 gap-3">
-        {[1, 2, 3].map(i => (
+        {[1, 2, 3].map((i) => (
           <div key={i} className="space-y-1.5">
             <Skeleton className="h-3 w-14" />
             <Skeleton className="h-5 w-20" />
@@ -62,7 +62,7 @@ function DonutSkeleton() {
     <div className="rounded-2xl border border-border bg-card p-5 flex items-center gap-5">
       <Skeleton className="w-24 h-24 rounded-full shrink-0" />
       <div className="flex-1 space-y-2.5">
-        {[1, 2, 3].map(i => (
+        {[1, 2, 3].map((i) => (
           <div key={i} className="flex items-center gap-2">
             <Skeleton className="w-3 h-3 rounded-full shrink-0" />
             <Skeleton className="h-3 flex-1" />

@@ -41,7 +41,9 @@ export default function LegalPageShell({ title, lastUpdated, toc, children }: Pr
               Volver al inicio
             </Button>
           </Link>
-          <p className="text-blue-200 text-sm font-medium tracking-wide uppercase mb-2">CODA · Documento legal</p>
+          <p className="text-blue-200 text-sm font-medium tracking-wide uppercase mb-2">
+            CODA · Documento legal
+          </p>
           <h1 className="text-3xl md:text-4xl font-bold leading-tight mb-3">{title}</h1>
           <p className="text-blue-100 text-sm md:text-base">Última actualización: {lastUpdated}</p>
         </div>
@@ -64,14 +66,18 @@ export default function LegalPageShell({ title, lastUpdated, toc, children }: Pr
               <span className="text-xs text-slate-500">{mobileOpen ? "Ocultar" : "Mostrar"}</span>
             </button>
             {mobileOpen && (
-              <div className="mt-2 rounded-xl border border-slate-200 bg-[#0f172a] p-4 shadow-lg">{nav}</div>
+              <div className="mt-2 rounded-xl border border-slate-200 bg-[#0f172a] p-4 shadow-lg">
+                {nav}
+              </div>
             )}
           </div>
 
           {/* Desktop sticky TOC */}
           <aside className="hidden lg:block">
             <div className="sticky top-8 rounded-xl border border-slate-200 bg-[#0f172a] p-5 shadow-lg">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">En esta página</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
+                En esta página
+              </p>
               {nav}
             </div>
           </aside>
@@ -83,7 +89,7 @@ export default function LegalPageShell({ title, lastUpdated, toc, children }: Pr
               "prose-p:text-slate-700 prose-p:leading-relaxed",
               "prose-li:text-slate-700",
               "prose-strong:text-slate-900",
-              "prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline"
+              "prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline",
             )}
           >
             {children}

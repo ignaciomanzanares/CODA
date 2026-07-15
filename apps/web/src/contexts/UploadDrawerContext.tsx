@@ -27,7 +27,9 @@ export function UploadDrawerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <UploadDrawerContext.Provider value={{ open, setOpen, openWithFilePicker, autoPickFile, clearAutoPickFile }}>
+    <UploadDrawerContext.Provider
+      value={{ open, setOpen, openWithFilePicker, autoPickFile, clearAutoPickFile }}
+    >
       {children}
     </UploadDrawerContext.Provider>
   );

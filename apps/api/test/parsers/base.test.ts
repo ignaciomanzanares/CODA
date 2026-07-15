@@ -61,10 +61,10 @@ describe("buildTransactionConfidence", () => {
       typeFromSection: false,
       descripcion: "Compra Nacional STARBUCKS MALL",
     });
-    expect(conf.date).toBeGreaterThanOrEqual(0.90);
-    expect(conf.amount).toBeGreaterThanOrEqual(0.90);
-    expect(conf.type).toBeGreaterThanOrEqual(0.90);
-    expect(conf.description).toBeGreaterThanOrEqual(0.90);
+    expect(conf.date).toBeGreaterThanOrEqual(0.9);
+    expect(conf.amount).toBeGreaterThanOrEqual(0.9);
+    expect(conf.type).toBeGreaterThanOrEqual(0.9);
+    expect(conf.description).toBeGreaterThanOrEqual(0.9);
     expect(conf.overall).toBeGreaterThan(0.85);
   });
 
@@ -77,10 +77,10 @@ describe("buildTransactionConfidence", () => {
       typeFromSection: false,
       descripcion: "TX",
     });
-    expect(conf.date).toBeLessThan(0.80);
+    expect(conf.date).toBeLessThan(0.8);
     expect(conf.type).toBeLessThan(0.85);
-    expect(conf.description).toBeLessThan(0.80);
-    expect(conf.overall).toBeLessThan(0.80);
+    expect(conf.description).toBeLessThan(0.8);
+    expect(conf.overall).toBeLessThan(0.8);
   });
 
   it("monto sospechosamente pequeño (<100 CLP) baja confianza de amount", () => {
@@ -92,16 +92,16 @@ describe("buildTransactionConfidence", () => {
       typeFromSection: false,
       descripcion: "Compra algo",
     });
-    expect(conf.amount).toBeLessThan(0.70);
+    expect(conf.amount).toBeLessThan(0.7);
   });
 
   it("overall es promedio ponderado correcto (date×0.2 + amount×0.3 + type×0.3 + description×0.2)", () => {
     const conf = buildTransactionConfidence({
-      dateIsInferred: false,   // date = 0.95
+      dateIsInferred: false, // date = 0.95
       amountFromColumn: false, // amount = 0.90 (monto redondo)
       monto: 100_000,
       typeFromColumn: false,
-      typeFromSection: true,   // type = 0.88
+      typeFromSection: true, // type = 0.88
       descripcion: "Compra supermercado jumbo",
     });
     const expectedOverall =
@@ -127,9 +127,9 @@ describe("computeOverallConfidence", () => {
           description: 0.9,
           overall,
         },
-      } as unknown as ParsedTransaction);
+      }) as unknown as ParsedTransaction;
 
-    const txs = [makeTx(0.90), makeTx(0.80), makeTx(0.70)];
+    const txs = [makeTx(0.9), makeTx(0.8), makeTx(0.7)];
     const result = computeOverallConfidence(txs);
     expect(result).toBeCloseTo(0.8, 2);
   });

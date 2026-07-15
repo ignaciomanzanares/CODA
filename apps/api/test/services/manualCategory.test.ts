@@ -52,7 +52,9 @@ describe("storage.updateTransactionCategory — corrección manual", () => {
     ]);
     expect(requiresReview(tx as never)).toBe(true);
 
-    const ok = await storage.updateTransactionCategory(tx.id, userId, "alimentacion", { subcategory: "Supermercado" });
+    const ok = await storage.updateTransactionCategory(tx.id, userId, "alimentacion", {
+      subcategory: "Supermercado",
+    });
     expect(ok).toBe(true);
 
     const [row] = await db.select().from(transactions).where(eq(transactions.id, tx.id));
@@ -139,7 +141,10 @@ describe("recategorizeUserTransactions — no pisa correcciones manuales", () =>
     // Con force, la manual también se recategoriza.
     const forced = await recategorizeUserTransactions(userId, { force: true });
     expect(forced.skippedManual).toBe(0);
-    const [manualAfter] = await db.select().from(transactions).where(eq(transactions.id, manualTx.id));
+    const [manualAfter] = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, manualTx.id));
     expect(manualAfter.category).toBe("servicios");
     expect(manualAfter.categoryRuleId).toBe("cl.impuestos.tgr");
   });

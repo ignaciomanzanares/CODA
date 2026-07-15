@@ -35,9 +35,7 @@ export type { ParseErrorCode } from "./base.js";
  */
 export async function parseCartolaBuffer(buffer: Buffer): Promise<ParseResult> {
   // 1. Extract text for format detection (lightweight — uses same pdfjs instance)
-  const { extractPdfText } = await import(
-    "../services/documents/pdfAnalysis.js"
-  );
+  const { extractPdfText } = await import("../services/documents/pdfAnalysis.js");
   let text = "";
   try {
     const result = await extractPdfText(buffer);
@@ -76,7 +74,7 @@ export async function parseCartolaBuffer(buffer: Buffer): Promise<ParseResult> {
     throw new ParseError(
       "TEXT_EXTRACTION_FAILED",
       "El PDF parece ser una imagen escaneada. Intenta subir el PDF original (no una foto o escaneo) o exportarlo directamente desde tu banco.",
-      { text_length: text?.length ?? 0 }
+      { text_length: text?.length ?? 0 },
     );
   }
 
@@ -92,7 +90,7 @@ export async function parseCartolaBuffer(buffer: Buffer): Promise<ParseResult> {
     throw new ParseError(
       "TEXT_EXTRACTION_FAILED",
       "El PDF parece ser una imagen escaneada o un documento que no es una cartola bancaria (ej: escritura pública). Solo se aceptan cartolas bancarias en PDF con texto.",
-      { text_length: text.length, numPages }
+      { text_length: text.length, numPages },
     );
   }
 
@@ -114,7 +112,7 @@ export async function parseCartolaBuffer(buffer: Buffer): Promise<ParseResult> {
         detected_banco: detected.banco,
         confidence: detected.confidence,
         tier,
-      }
+      },
     );
   }
 
@@ -128,7 +126,7 @@ export async function parseCartolaBuffer(buffer: Buffer): Promise<ParseResult> {
       "FORMAT_UNSUPPORTED",
       `El banco "${detected.banco}" fue detectado pero su parser no está implementado aún. ` +
         "Contacta a soporte para solicitar compatibilidad.",
-      { banco: detected.banco, confidence: detected.confidence }
+      { banco: detected.banco, confidence: detected.confidence },
     );
   }
 

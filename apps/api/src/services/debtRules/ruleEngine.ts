@@ -1,9 +1,9 @@
-import { DEBT_RULE_CATALOG } from './ruleCatalog.js';
-import { FAMILY_LABELS, type DebtRuleContext, type DebtRuleRecommendation } from './types.js';
+import { DEBT_RULE_CATALOG } from "./ruleCatalog.js";
+import { FAMILY_LABELS, type DebtRuleContext, type DebtRuleRecommendation } from "./types.js";
 
 /** Flag de habilitación (opt-out): apagar con DEBT_RULES_ENABLED=false. */
 export function isDebtRulesEnabled(): boolean {
-  return process.env.DEBT_RULES_ENABLED !== 'false';
+  return process.env.DEBT_RULES_ENABLED !== "false";
 }
 
 /**
@@ -15,10 +15,10 @@ export function isDebtRulesEnabled(): boolean {
  * alguien insolvente/sobreendeudado — la salida es reestructurar, no tomar más productos.
  */
 export function evaluateDebtRules(ctx: DebtRuleContext, limit = 6): DebtRuleRecommendation[] {
-  const criticalZone = ctx.health.zona === 'critica';
+  const criticalZone = ctx.health.zona === "critica";
 
   const matched = DEBT_RULE_CATALOG.filter((rule) => {
-    if (criticalZone && rule.familia !== 'reduccion_deuda') return false;
+    if (criticalZone && rule.familia !== "reduccion_deuda") return false;
     return rule.matches(ctx);
   });
 

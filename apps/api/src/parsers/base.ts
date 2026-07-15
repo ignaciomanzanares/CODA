@@ -31,11 +31,7 @@ export class ParseError extends Error {
   public readonly messageEs: string;
   public readonly details?: Record<string, unknown>;
 
-  constructor(
-    code: ParseErrorCode,
-    messageEs: string,
-    details?: Record<string, unknown>
-  ) {
+  constructor(code: ParseErrorCode, messageEs: string, details?: Record<string, unknown>) {
     super(messageEs);
     this.name = "ParseError";
     this.code = code;
@@ -148,10 +144,10 @@ export interface ParseResult {
 export type DetectionTier = "HIGH" | "MEDIUM" | "LOW";
 
 /** Umbral mínimo para el tier HIGH */
-export const HIGH_TIER_THRESHOLD = 0.90;
+export const HIGH_TIER_THRESHOLD = 0.9;
 
 /** Umbral mínimo para el tier MEDIUM (por debajo = LOW → FORMAT_UNKNOWN) */
-export const MEDIUM_TIER_THRESHOLD = 0.70;
+export const MEDIUM_TIER_THRESHOLD = 0.7;
 
 /** @deprecated Usar HIGH_TIER_THRESHOLD / MEDIUM_TIER_THRESHOLD con getDetectionTier() */
 export const CONFIDENCE_THRESHOLD = 0.85;
@@ -164,7 +160,7 @@ export function getDetectionTier(confidence: number): DetectionTier {
 }
 
 /** Confianza global mínima aceptable para devolver un resultado sin error */
-export const MIN_PARSE_CONFIDENCE = 0.40;
+export const MIN_PARSE_CONFIDENCE = 0.4;
 
 /** Tolerancia máxima de conciliación de saldos (%) antes de generar advertencia */
 export const RECONCILIATION_WARN_PCT = 1.0;
@@ -181,7 +177,7 @@ export function computeReconciliation(
   saldo_inicial: number,
   saldo_final: number,
   total_cargos: number,
-  total_abonos: number
+  total_abonos: number,
 ): ReconciliationResult {
   // Si ambos saldos son 0, asumimos que son desconocidos — saltamos la conciliación.
   if (saldo_inicial === 0 && saldo_final === 0) {
@@ -221,11 +217,11 @@ export function buildTransactionConfidence(opts: {
   if (opts.amountFromColumn) {
     amount = 0.97;
   } else if (opts.monto <= 0) {
-    amount = 0.10;
+    amount = 0.1;
   } else if (opts.monto < 100) {
-    amount = 0.60; // < 100 CLP is suspiciously small
+    amount = 0.6; // < 100 CLP is suspiciously small
   } else if (opts.monto % 100 === 0 || opts.monto % 10 === 0) {
-    amount = 0.90; // Round CLP amount is normal
+    amount = 0.9; // Round CLP amount is normal
   } else {
     amount = 0.85;
   }
@@ -246,13 +242,11 @@ export function buildTransactionConfidence(opts: {
   } else if (descLetters >= 3 && opts.descripcion.length >= 4) {
     description = 0.75;
   } else {
-    description = 0.50;
+    description = 0.5;
   }
 
   const overall =
-    Math.round(
-      (date * 0.2 + amount * 0.3 + type * 0.3 + description * 0.2) * 1000
-    ) / 1000;
+    Math.round((date * 0.2 + amount * 0.3 + type * 0.3 + description * 0.2) * 1000) / 1000;
 
   return { date, amount, type, description, overall };
 }

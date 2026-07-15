@@ -21,13 +21,7 @@ function timingSafeStringEqual(a: string, b: string): boolean {
 
 type LabelSet = Record<string, string>;
 type JsonLike =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | JsonLike[]
-  | { [key: string]: JsonLike };
+  string | number | boolean | null | undefined | JsonLike[] | { [key: string]: JsonLike };
 
 const SENSITIVE_KEY_PATTERN =
   /authorization|cookie|set-cookie|password|passwd|token|secret|api[-_]?key|credential|session|jwt|rut|email|user[-_]?id|filename|file|body|payload|transaction|description|cartola|account|amount|monto/i;
@@ -103,9 +97,18 @@ export class MetricsRegistry {
 }
 
 export const metrics = new MetricsRegistry();
-metrics.registerHelp("coda_http_requests_total", "Total HTTP requests by method, normalized route, and status.");
-metrics.registerHelp("coda_http_request_duration_ms", "Last observed HTTP request duration by method and normalized route.");
-metrics.registerHelp("coda_http_errors_total", "Total HTTP 5xx responses by normalized route and status.");
+metrics.registerHelp(
+  "coda_http_requests_total",
+  "Total HTTP requests by method, normalized route, and status.",
+);
+metrics.registerHelp(
+  "coda_http_request_duration_ms",
+  "Last observed HTTP request duration by method and normalized route.",
+);
+metrics.registerHelp(
+  "coda_http_errors_total",
+  "Total HTTP 5xx responses by normalized route and status.",
+);
 metrics.registerHelp("coda_process_uptime_seconds", "Process uptime in seconds.");
 
 function sanitizeString(value: string): string {
@@ -307,7 +310,10 @@ export function registerMetricsEndpoint(app: Express): void {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Envía una alerta al webhook de Ops (`OPS_WEBHOOK_URL`) si está configurado; si no, loguea. */
-export async function notifyOps(message: string, details: Record<string, unknown> = {}): Promise<void> {
+export async function notifyOps(
+  message: string,
+  details: Record<string, unknown> = {},
+): Promise<void> {
   const url = process.env.OPS_WEBHOOK_URL;
   if (!url) {
     logger.warn({ ...details }, `[ops-alert] ${message}`);
@@ -317,13 +323,13 @@ export async function notifyOps(message: string, details: Record<string, unknown
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 5000);
     await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: `🔔 CODA: ${message}`, details }),
       signal: controller.signal,
     });
     clearTimeout(t);
   } catch (e) {
-    logger.error({ err: e, message }, '[observability] notifyOps falló');
+    logger.error({ err: e, message }, "[observability] notifyOps falló");
   }
 }

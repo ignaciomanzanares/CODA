@@ -65,9 +65,7 @@ export function StatCard({
               {delta}
             </div>
           )}
-          {subtitle && (
-            <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
-          )}
+          {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
         </div>
         {icon && <PastelIcon icon={icon} color={iconColor} size="sm" />}
       </div>

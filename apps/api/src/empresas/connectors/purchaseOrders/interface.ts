@@ -1,11 +1,11 @@
 /**
  * Purchase Orders Connector Interface
- * 
+ *
  * Abstracts internal purchase order system ingestion.
  * Maps POs to expected payments for cash forecasting.
  */
 
-import type { Connector, SyncResult, PurchaseOrder } from '../types.js';
+import type { Connector, SyncResult, PurchaseOrder } from "../types.js";
 
 export interface PurchaseOrdersConnector extends Connector<PurchaseOrder> {
   /**

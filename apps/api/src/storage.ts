@@ -47,7 +47,13 @@ import {
 } from "./db/index.js";
 import { logger } from "./logger.js";
 import { logTransactionalScoreComputation } from "./services/audit/traceabilityPersistence.js";
-import { encryptField, encryptFieldOrNull, decryptField, decryptFieldOrNull, looksEncrypted } from "./services/crypto/fieldEncryption.js";
+import {
+  encryptField,
+  encryptFieldOrNull,
+  decryptField,
+  decryptFieldOrNull,
+  looksEncrypted,
+} from "./services/crypto/fieldEncryption.js";
 
 /** Tolera filas pre-existentes guardadas antes de activar cifrado de columna (ver scripts/encrypt-existing-data.ts). */
 function decryptStoredJson(value: string): string {
@@ -61,12 +67,14 @@ function maybeDecryptField(value: string | null | undefined): string | null {
 }
 
 /** Devuelve la transacción con `description`/`merchantName`/`raw` en claro (cifrados en reposo). */
-function decryptTxRow<T extends { description?: string | null; merchantName?: string | null; raw?: string | null }>(tx: T): T {
+function decryptTxRow<
+  T extends { description?: string | null; merchantName?: string | null; raw?: string | null },
+>(tx: T): T {
   if (!tx) return tx;
   const out: T = { ...tx };
-  if (typeof tx.description === 'string') out.description = maybeDecryptField(tx.description);
-  if (typeof tx.merchantName === 'string') out.merchantName = maybeDecryptField(tx.merchantName);
-  if (typeof tx.raw === 'string') out.raw = maybeDecryptField(tx.raw);
+  if (typeof tx.description === "string") out.description = maybeDecryptField(tx.description);
+  if (typeof tx.merchantName === "string") out.merchantName = maybeDecryptField(tx.merchantName);
+  if (typeof tx.raw === "string") out.raw = maybeDecryptField(tx.raw);
   return out;
 }
 import type {
@@ -84,12 +92,6 @@ import type {
   InsertCreditScore,
   InsuranceRisk,
   InsertInsuranceRisk,
-  FinancialGoal,
-  InsertFinancialGoal,
-  FinancialProduct,
-  InsertFinancialProduct,
-  Notification,
-  InsertNotification
 } from "./schema";
 
 /** Fecha de meta como texto yyyy-mm-dd (columna `target_date`). */
@@ -129,9 +131,17 @@ export interface IStorage {
   getBalances(accountId: number): Promise<any[]>;
   getLatestBalancesForAccounts(accountIds: number[]): Promise<Record<number, any>>;
   createTransactionsBulk(transactions: any[]): Promise<any[]>;
-  getTransactions(accountId: number, options?: { from?: Date; to?: Date; limit?: number; offset?: number }): Promise<any[]>;
+  getTransactions(
+    accountId: number,
+    options?: { from?: Date; to?: Date; limit?: number; offset?: number },
+  ): Promise<any[]>;
   getTransactionsForAccounts(accountIds: number[], options?: { from?: Date }): Promise<any[]>;
-  updateTransactionCategory(id: number, userId: string, category: string, opts?: { subcategory?: string | null }): Promise<boolean>;
+  updateTransactionCategory(
+    id: number,
+    userId: string,
+    category: string,
+    opts?: { subcategory?: string | null },
+  ): Promise<boolean>;
   // Credit score operations
   getCreditScore(userId: string): Promise<any>;
   createCreditScore(creditScore: any): Promise<any>;
@@ -139,7 +149,18 @@ export interface IStorage {
   /** Mismo contrato que upsertTransactionalScore: evita TS2551 y mismo "riel" de guardado. */
   upsertCreditScoreRaw(userId: string, payload: any): Promise<any>;
   /** Misma infraestructura que cartola: select + update o insert (Drizzle). `exec` opcional comparte la transacción del caller (#14). */
-  upsertCreditScore(userId: string, data: { score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string; lastUpdated: string }, exec?: any): Promise<any>;
+  upsertCreditScore(
+    userId: string,
+    data: {
+      score: number;
+      maxScore: number;
+      paymentHistory: string;
+      utilization: string;
+      ageOfCredit: string;
+      lastUpdated: string;
+    },
+    exec?: any,
+  ): Promise<any>;
   // Transactional score (cartolas)
   getTransactionalScore(userId: string): Promise<any>;
   upsertTransactionalScore(
@@ -152,10 +173,15 @@ export interface IStorage {
       recommendedProducts?: string[];
       /** Resumen de entradas para `algorithm_prediction_logs` (trazabilidad CMF). */
       algorithmInputs?: Record<string, unknown>;
-    }
+    },
   ): Promise<any>;
   // Score history
-  addScoreHistoryEntry(userId: string, score: number, maxScore: number, factors?: string): Promise<any>;
+  addScoreHistoryEntry(
+    userId: string,
+    score: number,
+    maxScore: number,
+    factors?: string,
+  ): Promise<any>;
   getScoreHistory(userId: string, limit?: number): Promise<any[]>;
   // Insurance risk operations
   getInsuranceRisk(userId: string): Promise<any>;
@@ -192,7 +218,10 @@ export interface IStorage {
   getUnlinkedParticipantsByEmail(email: string): Promise<any[]>;
 
   // Notification operations
-  getNotifications(userId: string, options?: { limit?: number; offset?: number; category?: string; unreadOnly?: boolean }): Promise<any[]>;
+  getNotifications(
+    userId: string,
+    options?: { limit?: number; offset?: number; category?: string; unreadOnly?: boolean },
+  ): Promise<any[]>;
   createNotification(insertNotification: any): Promise<any>;
   markNotificationAsRead(notificationId: number, userId: string): Promise<boolean>;
   markAllNotificationsAsRead(userId: string): Promise<boolean>;
@@ -202,7 +231,7 @@ export interface IStorage {
   // Assistant feedback (thumbs up/down)
   createAssistantFeedback(data: {
     userId: string;
-    rating: 'up' | 'down';
+    rating: "up" | "down";
     userMessage: string;
     assistantMessage: string;
     provider?: string;
@@ -211,10 +240,17 @@ export interface IStorage {
 
   // Assistant cross-session memory (rolling summary per user)
   getAssistantSummary(userId: string): Promise<{ summary: string; exchangeCount: number } | null>;
-  upsertAssistantSummary(userId: string, data: { summary: string; exchangeCount: number }): Promise<void>;
+  upsertAssistantSummary(
+    userId: string,
+    data: { summary: string; exchangeCount: number },
+  ): Promise<void>;
 
   // Habit feedback (thumbs up/down sobre hábitos financieros recomendados)
-  createHabitFeedback(data: { userId: string; habitKey: string; rating: 'up' | 'down' }): Promise<void>;
+  createHabitFeedback(data: {
+    userId: string;
+    habitKey: string;
+    rating: "up" | "down";
+  }): Promise<void>;
   getRecentlyDownvotedHabitKeys(userId: string): Promise<Set<string>>;
 
   // User cleanup
@@ -238,7 +274,11 @@ export interface IStorage {
 
   getDocumentUploadById(id: string, userId: string): Promise<any | undefined>;
   updateDocumentUploadParsedData(id: string, parsedData: unknown): Promise<void>;
-  updateDocumentUploadNormalizationStatus(id: string, userId: string, normalizationStatus: string): Promise<void>;
+  updateDocumentUploadNormalizationStatus(
+    id: string,
+    userId: string,
+    normalizationStatus: string,
+  ): Promise<void>;
   listDocumentUploadsByType(userId: string, tipo: string): Promise<any[]>;
   listAllDocumentUploads(userId: string): Promise<any[]>;
   deleteDocumentUploadById(id: string, userId: string): Promise<boolean>;
@@ -247,10 +287,15 @@ export interface IStorage {
 
   // Score-isolated document uploads
   createScoreDocumentUpload(row: {
-    id: string; userId: string; tipo: string;
+    id: string;
+    userId: string;
+    tipo: string;
     sourceDocumentUploadId?: string | null;
-    banco?: string | null; periodoDesde?: string | null; periodoHasta?: string | null;
-    parsedData: unknown; parseStatus?: string;
+    banco?: string | null;
+    periodoDesde?: string | null;
+    periodoHasta?: string | null;
+    parsedData: unknown;
+    parseStatus?: string;
   }): Promise<any>;
   listScoreDocumentUploads(userId: string): Promise<any[]>;
   listScoreDocumentUploadsByType(userId: string, tipo: string): Promise<any[]>;
@@ -307,14 +352,23 @@ export class DatabaseStorage implements IStorage {
   // nunca se consultan por valor, así que se cifran en reposo (pseudonimización de columna).
   private encryptUserPII<T extends Partial<InsertUser>>(data: T): T {
     const out: any = { ...data };
-    if ('firstName' in out) out.firstName = encryptFieldOrNull(out.firstName);
-    if ('lastName' in out) out.lastName = encryptFieldOrNull(out.lastName);
-    if ('totpSecret' in out) out.totpSecret = encryptFieldOrNull(out.totpSecret);
-    if ('backupCodes' in out) out.backupCodes = encryptFieldOrNull(out.backupCodes);
+    if ("firstName" in out) out.firstName = encryptFieldOrNull(out.firstName);
+    if ("lastName" in out) out.lastName = encryptFieldOrNull(out.lastName);
+    if ("totpSecret" in out) out.totpSecret = encryptFieldOrNull(out.totpSecret);
+    if ("backupCodes" in out) out.backupCodes = encryptFieldOrNull(out.backupCodes);
     return out;
   }
 
-  private decryptUserPII<T extends { firstName?: string | null; lastName?: string | null; totpSecret?: string | null; backupCodes?: string | null } | undefined>(user: T): T {
+  private decryptUserPII<
+    T extends
+      | {
+          firstName?: string | null;
+          lastName?: string | null;
+          totpSecret?: string | null;
+          backupCodes?: string | null;
+        }
+      | undefined,
+  >(user: T): T {
     if (!user) return user;
     return {
       ...user,
@@ -352,7 +406,7 @@ export class DatabaseStorage implements IStorage {
     // Use provided ID or generate a unique ID for the user if not provided
     const userWithId = {
       ...this.encryptUserPII(insertUser),
-      id: insertUser.id || Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9)
+      id: insertUser.id || Date.now().toString() + "-" + Math.random().toString(36).substr(2, 9),
     };
 
     try {
@@ -361,7 +415,11 @@ export class DatabaseStorage implements IStorage {
     } catch (err: any) {
       // Handle concurrent insert race: Postgres unique_violation code is '23505'
       // SQLite unique constraint uses 'SQLITE_CONSTRAINT_UNIQUE' and message contains 'UNIQUE constraint failed'
-      const isUniqueViolation = err && (err.code === '23505' || err.code === 'SQLITE_CONSTRAINT_UNIQUE' || String(err.message).includes('UNIQUE constraint failed'));
+      const isUniqueViolation =
+        err &&
+        (err.code === "23505" ||
+          err.code === "SQLITE_CONSTRAINT_UNIQUE" ||
+          String(err.message).includes("UNIQUE constraint failed"));
       if (isUniqueViolation) {
         // Try to fetch existing user by id or email
         let existing: any = null;
@@ -388,13 +446,13 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set({
         ...this.encryptUserPII(updateData),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(users.id, id))
       .returning();
     return this.decryptUserPII(updatedUser) || undefined;
   }
-  
+
   // Bank connection methods
   // `connectionData` se cifra en reposo (puede llevar tokens/datos de sesión del proveedor
   // bancario — riesgo de account-takeover si se filtra, no solo PII).
@@ -406,10 +464,7 @@ export class DatabaseStorage implements IStorage {
 
   async getBankConnection(id: number): Promise<BankConnection | undefined> {
     if (!db) return undefined;
-    const [connection] = await db
-      .select()
-      .from(bankConnections)
-      .where(eq(bankConnections.id, id));
+    const [connection] = await db.select().from(bankConnections).where(eq(bankConnections.id, id));
     if (!connection) return undefined;
     return { ...connection, connectionData: maybeDecryptField(connection.connectionData) };
   }
@@ -418,41 +473,46 @@ export class DatabaseStorage implements IStorage {
     if (!db) throw new Error("Database not available");
     const toInsert = {
       ...insertConnection,
-      connectionData: encryptFieldOrNull((insertConnection as { connectionData?: string | null }).connectionData),
+      connectionData: encryptFieldOrNull(
+        (insertConnection as { connectionData?: string | null }).connectionData,
+      ),
     };
-    const [connection] = await db
-      .insert(bankConnections)
-      .values(toInsert)
-      .returning();
+    const [connection] = await db.insert(bankConnections).values(toInsert).returning();
     return { ...connection, connectionData: maybeDecryptField(connection.connectionData) };
   }
 
-  async updateBankConnection(id: number, connection: Partial<InsertBankConnection>): Promise<BankConnection | undefined> {
+  async updateBankConnection(
+    id: number,
+    connection: Partial<InsertBankConnection>,
+  ): Promise<BankConnection | undefined> {
     if (!db) return undefined;
     const updates = { ...connection } as Partial<InsertBankConnection> & Record<string, unknown>;
-    if ('connectionData' in updates) {
-      updates.connectionData = encryptFieldOrNull(updates.connectionData as string | null | undefined);
+    if ("connectionData" in updates) {
+      updates.connectionData = encryptFieldOrNull(
+        updates.connectionData as string | null | undefined,
+      );
     }
     const [updatedConnection] = await db
       .update(bankConnections)
       .set({
         ...updates,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
       })
       .where(eq(bankConnections.id, id))
       .returning();
     if (!updatedConnection) return undefined;
-    return { ...updatedConnection, connectionData: maybeDecryptField(updatedConnection.connectionData) };
+    return {
+      ...updatedConnection,
+      connectionData: maybeDecryptField(updatedConnection.connectionData),
+    };
   }
-  
+
   async deleteBankConnection(id: number): Promise<boolean> {
     if (!db) return false;
-    const result = await db
-      .delete(bankConnections)
-      .where(eq(bankConnections.id, id));
+    const result = await db.delete(bankConnections).where(eq(bankConnections.id, id));
     return !!result;
   }
-  
+
   // Accounts & transactions (Open Banking) operations
   async getAccounts(userId: string): Promise<Account[]> {
     if (!db) return [];
@@ -473,7 +533,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateAccount(id: number, account: Partial<InsertAccount>): Promise<Account | undefined> {
     if (!db) return undefined;
-    const [acc] = await db.update(accounts).set({ ...account, updatedAt: new Date().toISOString() }).where(eq(accounts.id, id)).returning();
+    const [acc] = await db
+      .update(accounts)
+      .set({ ...account, updatedAt: new Date().toISOString() })
+      .where(eq(accounts.id, id))
+      .returning();
     return acc || undefined;
   }
 
@@ -498,9 +562,9 @@ export class DatabaseStorage implements IStorage {
     const toInsert = items.map((it) => {
       const row = it as { description?: unknown; merchantName?: unknown; raw?: unknown };
       const out = { ...it } as typeof it & Record<string, unknown>;
-      if (typeof row.description === 'string') out.description = encryptField(row.description);
-      if (typeof row.merchantName === 'string') out.merchantName = encryptField(row.merchantName);
-      if (typeof row.raw === 'string') out.raw = encryptField(row.raw);
+      if (typeof row.description === "string") out.description = encryptField(row.description);
+      if (typeof row.merchantName === "string") out.merchantName = encryptField(row.merchantName);
+      if (typeof row.raw === "string") out.raw = encryptField(row.raw);
       return out;
     });
     const inserted = await db.insert(transactions).values(toInsert).returning();
@@ -508,7 +572,10 @@ export class DatabaseStorage implements IStorage {
     return inserted.map((row: any) => decryptTxRow(row));
   }
 
-  async getTransactions(accountId: number, options?: { from?: Date; to?: Date; limit?: number; offset?: number }): Promise<Transaction[]> {
+  async getTransactions(
+    accountId: number,
+    options?: { from?: Date; to?: Date; limit?: number; offset?: number },
+  ): Promise<Transaction[]> {
     if (!db) return [];
     // Build a basic filtered select. For brevity, compose conditions inline.
     let result = await db.select().from(transactions).where(eq(transactions.accountId, accountId));
@@ -520,7 +587,9 @@ export class DatabaseStorage implements IStorage {
       result = result.filter((tx: any) => new Date(tx.postedAt) <= options.to!);
     }
     // Sort ascending by postedAt
-    result.sort((a: any, b: any) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime());
+    result.sort(
+      (a: any, b: any) => new Date(a.postedAt).getTime() - new Date(b.postedAt).getTime(),
+    );
     if (options?.offset) result = result.slice(options.offset);
     if (options?.limit) result = result.slice(0, options.limit);
     return result.map((row: any) => decryptTxRow(row));
@@ -539,9 +608,15 @@ export class DatabaseStorage implements IStorage {
     return byAccount;
   }
 
-  async getTransactionsForAccounts(accountIds: number[], options?: { from?: Date }): Promise<any[]> {
+  async getTransactionsForAccounts(
+    accountIds: number[],
+    options?: { from?: Date },
+  ): Promise<any[]> {
     if (!db || accountIds.length === 0) return [];
-    const rows = await db.select().from(transactions).where(inArray(transactions.accountId, accountIds));
+    const rows = await db
+      .select()
+      .from(transactions)
+      .where(inArray(transactions.accountId, accountIds));
     let result = rows;
     if (options?.from) {
       result = result.filter((tx: any) => new Date(tx.postedAt) >= options.from!);
@@ -560,7 +635,10 @@ export class DatabaseStorage implements IStorage {
     opts?: { subcategory?: string | null },
   ): Promise<boolean> {
     if (!db) return false;
-    const [row] = await db.select({ accountId: transactions.accountId }).from(transactions).where(eq(transactions.id, id));
+    const [row] = await db
+      .select({ accountId: transactions.accountId })
+      .from(transactions)
+      .where(eq(transactions.id, id));
     if (!row) return false;
     const [acc] = await db
       .select({ id: accounts.id })
@@ -569,9 +647,8 @@ export class DatabaseStorage implements IStorage {
     if (!acc) return false;
     // Corrección MANUAL: marca la fila para distinguir auto vs manual y para que el
     // recategorizador automático NO la pise (ver reviewStatus / recategorizeUserTransactions).
-    const { MANUAL_RULE_ID, MANUAL_CATEGORIZER_VERSION, MANUAL_CONFIDENCE } = await import(
-      "./services/transactions/reviewStatus.js"
-    );
+    const { MANUAL_RULE_ID, MANUAL_CATEGORIZER_VERSION, MANUAL_CONFIDENCE } =
+      await import("./services/transactions/reviewStatus.js");
     await db
       .update(transactions)
       .set({
@@ -595,40 +672,46 @@ export class DatabaseStorage implements IStorage {
       .where(eq(creditScores.userId, userIdStr));
     return creditScore || undefined;
   }
-  
+
   async createCreditScore(insertCreditScore: InsertCreditScore): Promise<CreditScore> {
     if (!db) throw new Error("Database not available");
     const payload = { ...insertCreditScore, userId: String(insertCreditScore.userId) };
     logger.info(
-      { payload, userId: payload.userId, score: payload.score, table: 'credit_scores', op: 'INSERT' },
-      '[storage] credit_scores INSERT (valores exactos enviados a DB)'
+      {
+        payload,
+        userId: payload.userId,
+        score: payload.score,
+        table: "credit_scores",
+        op: "INSERT",
+      },
+      "[storage] credit_scores INSERT (valores exactos enviados a DB)",
     );
     try {
-      const [creditScore] = await db
-        .insert(creditScores)
-        .values(payload)
-        .returning();
+      const [creditScore] = await db.insert(creditScores).values(payload).returning();
       return creditScore;
     } catch (err: unknown) {
       const e = err as { message?: string; code?: string; detail?: string };
       logger.error(
         { err, message: e?.message, code: e?.code, detail: e?.detail, payload },
-        '[storage] credit_scores INSERT falló (revisar tipos/permisos/constraints)'
+        "[storage] credit_scores INSERT falló (revisar tipos/permisos/constraints)",
       );
       throw err;
     }
   }
 
-  async updateCreditScore(userId: string, creditScore: Partial<InsertCreditScore>): Promise<CreditScore | undefined> {
+  async updateCreditScore(
+    userId: string,
+    creditScore: Partial<InsertCreditScore>,
+  ): Promise<CreditScore | undefined> {
     if (!db) return undefined;
     const userIdStr = String(userId);
     const setPayload = {
       ...creditScore,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     };
     logger.info(
-      { userId: userIdStr, setPayload, table: 'credit_scores', op: 'UPDATE' },
-      '[storage] credit_scores UPDATE (valores exactos enviados a DB)'
+      { userId: userIdStr, setPayload, table: "credit_scores", op: "UPDATE" },
+      "[storage] credit_scores UPDATE (valores exactos enviados a DB)",
     );
     try {
       const [updatedScore] = await db
@@ -640,8 +723,15 @@ export class DatabaseStorage implements IStorage {
     } catch (err: unknown) {
       const e = err as { message?: string; code?: string; detail?: string };
       logger.error(
-        { err, message: e?.message, code: e?.code, detail: e?.detail, userId: userIdStr, setPayload },
-        '[storage] credit_scores UPDATE falló (revisar tipos/permisos/constraints)'
+        {
+          err,
+          message: e?.message,
+          code: e?.code,
+          detail: e?.detail,
+          userId: userIdStr,
+          setPayload,
+        },
+        "[storage] credit_scores UPDATE falló (revisar tipos/permisos/constraints)",
       );
       throw err;
     }
@@ -654,7 +744,14 @@ export class DatabaseStorage implements IStorage {
    */
   async upsertCreditScoreRaw(
     userId: string,
-    payload: { score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string; lastUpdated: string }
+    payload: {
+      score: number;
+      maxScore: number;
+      paymentHistory: string;
+      utilization: string;
+      ageOfCredit: string;
+      lastUpdated: string;
+    },
   ): Promise<void> {
     if (!db) throw new Error("Database not available");
     const userIdStr = String(userId);
@@ -665,8 +762,17 @@ export class DatabaseStorage implements IStorage {
     const ageOfCredit = String(payload.ageOfCredit);
     const lastUpdated = String(payload.lastUpdated);
     logger.info(
-      { userId: userIdStr, score, maxScore, paymentHistory, utilization, ageOfCredit, lastUpdated, op: 'RAW_UPSERT' },
-      '[storage] credit_scores RAW INSERT ON CONFLICT (user_id) DO UPDATE'
+      {
+        userId: userIdStr,
+        score,
+        maxScore,
+        paymentHistory,
+        utilization,
+        ageOfCredit,
+        lastUpdated,
+        op: "RAW_UPSERT",
+      },
+      "[storage] credit_scores RAW INSERT ON CONFLICT (user_id) DO UPDATE",
     );
     try {
       await db.execute(sql`
@@ -683,8 +789,16 @@ export class DatabaseStorage implements IStorage {
     } catch (err: unknown) {
       const e = err as { message?: string; code?: string; detail?: string };
       logger.error(
-        { err, message: e?.message, code: e?.code, detail: e?.detail, userId: userIdStr, score, maxScore },
-        '[storage] credit_scores RAW UPSERT falló (¿tiene la tabla UNIQUE(user_id)?)'
+        {
+          err,
+          message: e?.message,
+          code: e?.code,
+          detail: e?.detail,
+          userId: userIdStr,
+          score,
+          maxScore,
+        },
+        "[storage] credit_scores RAW UPSERT falló (¿tiene la tabla UNIQUE(user_id)?)",
       );
       throw err;
     }
@@ -696,7 +810,14 @@ export class DatabaseStorage implements IStorage {
    */
   async upsertCreditScore(
     userId: string,
-    data: { score: number; maxScore: number; paymentHistory: string; utilization: string; ageOfCredit: string; lastUpdated: string },
+    data: {
+      score: number;
+      maxScore: number;
+      paymentHistory: string;
+      utilization: string;
+      ageOfCredit: string;
+      lastUpdated: string;
+    },
     exec: any = db,
   ): Promise<any> {
     if (!db) return undefined;
@@ -732,7 +853,9 @@ export class DatabaseStorage implements IStorage {
       transactionalScore: row.transactionalScore,
       metrics: row.metrics ? JSON.parse(row.metrics) : undefined,
       mainInsights: row.mainInsights ? JSON.parse(row.mainInsights) : undefined,
-      recommendedProducts: row.recommendedProducts ? JSON.parse(row.recommendedProducts) : undefined,
+      recommendedProducts: row.recommendedProducts
+        ? JSON.parse(row.recommendedProducts)
+        : undefined,
       lastUpdated: row.lastUpdated,
     };
   }
@@ -745,7 +868,7 @@ export class DatabaseStorage implements IStorage {
       mainInsights?: string[];
       recommendedProducts?: string[];
       algorithmInputs?: Record<string, unknown>;
-    }
+    },
   ): Promise<any> {
     if (!db) return undefined;
     const payload = {
@@ -753,7 +876,8 @@ export class DatabaseStorage implements IStorage {
       transactionalScore: data.transactionalScore,
       metrics: data.metrics != null ? JSON.stringify(data.metrics) : null,
       mainInsights: data.mainInsights != null ? JSON.stringify(data.mainInsights) : null,
-      recommendedProducts: data.recommendedProducts != null ? JSON.stringify(data.recommendedProducts) : null,
+      recommendedProducts:
+        data.recommendedProducts != null ? JSON.stringify(data.recommendedProducts) : null,
       lastUpdated: new Date().toISOString(),
     };
     const t0 = Date.now();
@@ -800,7 +924,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Score history
-  async addScoreHistoryEntry(userId: string, score: number, maxScore: number, factors?: string): Promise<any> {
+  async addScoreHistoryEntry(
+    userId: string,
+    score: number,
+    maxScore: number,
+    factors?: string,
+  ): Promise<any> {
     if (!db) return undefined;
     try {
       const [entry] = await db
@@ -838,37 +967,35 @@ export class DatabaseStorage implements IStorage {
       .where(eq(insuranceRisks.userId, userId));
     return insuranceRisk || undefined;
   }
-  
+
   async createInsuranceRisk(insertInsuranceRisk: InsertInsuranceRisk): Promise<InsuranceRisk> {
     if (!db) throw new Error("Database not available");
-    const [insuranceRisk] = await db
-      .insert(insuranceRisks)
-      .values(insertInsuranceRisk)
-      .returning();
+    const [insuranceRisk] = await db.insert(insuranceRisks).values(insertInsuranceRisk).returning();
     return insuranceRisk;
   }
-  
-  async updateInsuranceRisk(userId: string, insuranceRisk: Partial<InsertInsuranceRisk>): Promise<InsuranceRisk | undefined> {
+
+  async updateInsuranceRisk(
+    userId: string,
+    insuranceRisk: Partial<InsertInsuranceRisk>,
+  ): Promise<InsuranceRisk | undefined> {
     if (!db) return undefined;
     const [updatedRisk] = await db
       .update(insuranceRisks)
       .set({
         ...insuranceRisk,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
       })
       .where(eq(insuranceRisks.userId, userId))
       .returning();
     return updatedRisk || undefined;
   }
-  
+
   // Financial goal methods (PostgreSQL / SQLite via Drizzle cuando `db` existe)
   async getFinancialGoals(userId: string): Promise<any[]> {
     if (db) {
       return await db.select().from(financialGoals).where(eq(financialGoals.userId, userId));
     }
-    return Array.from(this.financialGoals.values()).filter(
-      (goal: any) => goal.userId === userId,
-    );
+    return Array.from(this.financialGoals.values()).filter((goal: any) => goal.userId === userId);
   }
   async getFinancialGoal(id: number): Promise<any | undefined> {
     if (db) {
@@ -943,7 +1070,7 @@ export class DatabaseStorage implements IStorage {
     }
     return this.financialGoals.delete(id);
   }
-  
+
   // Financial product methods
   async getFinancialProducts(category?: string): Promise<any[]> {
     // Fuente de verdad: tabla financial_products (catálogo único, cargado por
@@ -979,7 +1106,7 @@ export class DatabaseStorage implements IStorage {
     this.financialProducts.set(id, product);
     return product;
   }
-  
+
   // Catálogo inicial de productos financieros chilenos (solo si la tabla está vacía)
   private async seedFinancialProducts() {
     const allProducts = [
@@ -994,9 +1121,10 @@ export class DatabaseStorage implements IStorage {
         termUnit: "months",
         monthlyPayment: 325000,
         loanAmount: 10000000,
-        description: "Crédito de consumo con tasa preferencial para clientes con buen historial crediticio.",
+        description:
+          "Crédito de consumo con tasa preferencial para clientes con buen historial crediticio.",
         requirements: { minimumCreditScore: 680, minimumIncome: 800000 },
-        features: { preApproval: true, autoPay: true, seguroDesgravamen: true }
+        features: { preApproval: true, autoPay: true, seguroDesgravamen: true },
       },
       {
         productName: "Crédito de Consumo",
@@ -1010,7 +1138,7 @@ export class DatabaseStorage implements IStorage {
         loanAmount: 10000000,
         description: "Crédito accesible con cuotas fijas en UF o pesos.",
         requirements: { minimumCreditScore: 600, minimumIncome: 500000 },
-        features: { preApproval: true, autoPay: true, seguroDesgravamen: true }
+        features: { preApproval: true, autoPay: true, seguroDesgravamen: true },
       },
       // ── Líneas de crédito ──
       {
@@ -1021,7 +1149,7 @@ export class DatabaseStorage implements IStorage {
         interestRate: 2.15,
         description: "Línea de crédito rotativa con disponibilidad inmediata.",
         requirements: { minimumCreditScore: 660, minimumIncome: 700000 },
-        features: { montoMaximo: 15000000, disponibilidadInmediata: true }
+        features: { montoMaximo: 15000000, disponibilidadInmediata: true },
       },
       // ── Tarjetas de crédito ──
       {
@@ -1029,20 +1157,20 @@ export class DatabaseStorage implements IStorage {
         provider: "Banco de Chile",
         productType: "Tarjeta de Crédito",
         category: "tarjetas_credito",
-        interestRate: 2.80,
+        interestRate: 2.8,
         description: "Tarjeta con programa de puntos y seguros de viaje incluidos.",
         requirements: { minimumCreditScore: 700 },
-        features: { costoAnual: 2.5, programaPuntos: true, seguroViaje: true }
+        features: { costoAnual: 2.5, programaPuntos: true, seguroViaje: true },
       },
       {
         productName: "Tarjeta de Crédito Mastercard",
         provider: "Banco Falabella",
         productType: "Tarjeta de Crédito",
         category: "tarjetas_credito",
-        interestRate: 3.20,
+        interestRate: 3.2,
         description: "Tarjeta con descuentos en comercios asociados y CMR Puntos.",
         requirements: { minimumCreditScore: 620 },
-        features: { costoAnual: 0, descuentosComercios: true, programaPuntos: true }
+        features: { costoAnual: 0, descuentosComercios: true, programaPuntos: true },
       },
       // ── Cuentas vista ──
       {
@@ -1052,7 +1180,7 @@ export class DatabaseStorage implements IStorage {
         category: "cuentas_vista",
         interestRate: 0,
         description: "Cuenta sin costo de mantención con tarjeta de débito Visa.",
-        features: { costoMantencion: 0, tarjetaDebito: true, transferenciasGratis: true }
+        features: { costoMantencion: 0, tarjetaDebito: true, transferenciasGratis: true },
       },
       // ── Cuentas corrientes ──
       {
@@ -1063,7 +1191,7 @@ export class DatabaseStorage implements IStorage {
         interestRate: 0,
         description: "Cuenta corriente con línea de crédito y chequera digital.",
         requirements: { minimumCreditScore: 650, minimumIncome: 600000 },
-        features: { costoMantencion: 0, lineaCredito: true, chequeraDigital: true }
+        features: { costoMantencion: 0, lineaCredito: true, chequeraDigital: true },
       },
       // ── Cuentas de ahorro ──
       {
@@ -1071,9 +1199,9 @@ export class DatabaseStorage implements IStorage {
         provider: "BancoEstado",
         productType: "Cuenta de Ahorro",
         category: "cuentas_ahorro",
-        interestRate: 0.30,
+        interestRate: 0.3,
         description: "Cuenta de ahorro con tasa de interés y sin monto mínimo.",
-        features: { montoMinimo: 0, costoMantencion: 0, retiroLibre: true }
+        features: { montoMinimo: 0, costoMantencion: 0, retiroLibre: true },
       },
       // ── Depósitos a plazo ──
       {
@@ -1085,7 +1213,7 @@ export class DatabaseStorage implements IStorage {
         term: 12,
         termUnit: "months",
         description: "Depósito a plazo reajustable en UF con renovación automática.",
-        features: { montoMinimo: 500000, renovacionAutomatica: true }
+        features: { montoMinimo: 500000, renovacionAutomatica: true },
       },
       // ── Créditos hipotecarios ──
       {
@@ -1093,12 +1221,12 @@ export class DatabaseStorage implements IStorage {
         provider: "Banco Itaú Chile",
         productType: "Crédito Hipotecario",
         category: "hipotecarios",
-        interestRate: 4.50,
+        interestRate: 4.5,
         term: 240,
         termUnit: "months",
         description: "Financiamiento de hasta el 80% del valor de la propiedad.",
         requirements: { minimumCreditScore: 700, minimumIncome: 1200000 },
-        features: { financiamientoMax: 80, seguroIncendio: true, portabilidad: true }
+        features: { financiamientoMax: 80, seguroIncendio: true, portabilidad: true },
       },
       // ── Fondos mutuos ──
       {
@@ -1106,9 +1234,9 @@ export class DatabaseStorage implements IStorage {
         provider: "Bci Asset Management",
         productType: "Fondo Mutuo",
         category: "fondos_mutuos",
-        interestRate: 3.80,
+        interestRate: 3.8,
         description: "Fondo mutuo de renta fija nacional con liquidez diaria.",
-        features: { montoMinimo: 50000, liquidezDiaria: true, tipoRenta: "fija" }
+        features: { montoMinimo: 50000, liquidezDiaria: true, tipoRenta: "fija" },
       },
       // ── Seguros generales ──
       {
@@ -1117,7 +1245,7 @@ export class DatabaseStorage implements IStorage {
         productType: "Seguro General",
         category: "seguros_generales",
         description: "Cobertura integral para vehículos con asistencia en ruta.",
-        features: { asistenciaRuta: true, coberturaIntegral: true, descuentoBundling: true }
+        features: { asistenciaRuta: true, coberturaIntegral: true, descuentoBundling: true },
       },
       // ── Seguros de vida ──
       {
@@ -1126,7 +1254,7 @@ export class DatabaseStorage implements IStorage {
         productType: "Seguro de Vida",
         category: "seguros_vida",
         description: "Seguro de vida con cobertura por fallecimiento e invalidez.",
-        features: { coberturaFallecimiento: true, coberturaInvalidez: true, ahorro: false }
+        features: { coberturaFallecimiento: true, coberturaInvalidez: true, ahorro: false },
       },
       // ── APV ──
       {
@@ -1135,16 +1263,16 @@ export class DatabaseStorage implements IStorage {
         productType: "APV",
         category: "apv",
         description: "Ahorro previsional voluntario con bonificación fiscal del 15%.",
-        features: { regimen: "B", bonificacionFiscal: 15, liquidez: true }
+        features: { regimen: "B", bonificacionFiscal: 15, liquidez: true },
       },
     ];
 
-    allProducts.forEach(product => {
+    allProducts.forEach((product) => {
       const insertObj: any = { ...product };
-      if ('requirements' in product) {
+      if ("requirements" in product) {
         insertObj.requirements = product.requirements ? JSON.stringify(product.requirements) : null;
       }
-      if ('features' in product) {
+      if ("features" in product) {
         insertObj.features = product.features ? JSON.stringify(product.features) : null;
       }
       this.createFinancialProduct(insertObj);
@@ -1152,30 +1280,39 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Notification operations
-  async getNotifications(userId: string, options?: { limit?: number; offset?: number; category?: string; unreadOnly?: boolean }): Promise<any[]> {
-    let notifications = Array.from(this.notifications.values()).filter((notification: any) => notification.userId === userId);
-    
+  async getNotifications(
+    userId: string,
+    options?: { limit?: number; offset?: number; category?: string; unreadOnly?: boolean },
+  ): Promise<any[]> {
+    let notifications = Array.from(this.notifications.values()).filter(
+      (notification: any) => notification.userId === userId,
+    );
+
     if (options?.category) {
-      notifications = notifications.filter((notification: any) => notification.category === options.category);
+      notifications = notifications.filter(
+        (notification: any) => notification.category === options.category,
+      );
     }
-    
+
     if (options?.unreadOnly) {
       notifications = notifications.filter((notification: any) => !notification.isRead);
     }
-    
-    notifications.sort((a: any, b: any) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
-    
+
+    notifications.sort(
+      (a: any, b: any) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime(),
+    );
+
     if (options?.offset) {
       notifications = notifications.slice(options.offset);
     }
-    
+
     if (options?.limit) {
       notifications = notifications.slice(0, options.limit);
     }
-    
+
     return notifications;
   }
-  
+
   async createNotification(insertNotification: any): Promise<any> {
     const notification: any = {
       id: this.currentNotificationId++,
@@ -1189,47 +1326,47 @@ export class DatabaseStorage implements IStorage {
     this.notifications.set(notification.id, notification);
     return notification;
   }
-  
+
   async markNotificationAsRead(notificationId: number, userId: string): Promise<boolean> {
     const notification: any = this.notifications.get(notificationId);
     if (!notification || notification.userId !== userId) {
       return false;
     }
-    
+
     notification.isRead = true;
     notification.readAt = new Date().toISOString();
     this.notifications.set(notificationId, notification);
     return true;
   }
-  
+
   async markAllNotificationsAsRead(userId: string): Promise<boolean> {
     const userNotifications = Array.from(this.notifications.values()).filter(
-      (notification: any) => notification.userId === userId && !notification.isRead
+      (notification: any) => notification.userId === userId && !notification.isRead,
     );
-    
+
     const now = new Date().toISOString();
     userNotifications.forEach((notification: any) => {
       notification.isRead = true;
       notification.readAt = now;
       this.notifications.set(notification.id, notification);
     });
-    
+
     return userNotifications.length > 0;
   }
-  
+
   async deleteNotification(notificationId: number, userId: string): Promise<boolean> {
     const notification: any = this.notifications.get(notificationId);
     if (!notification || notification.userId !== userId) {
       return false;
     }
-    
+
     return this.notifications.delete(notificationId);
   }
-  
+
   async getUnreadNotificationCount(userId: string): Promise<number> {
-    return Array.from(this.notifications.values())
-      .filter((notification: any) => notification.userId === userId && !notification.isRead)
-      .length;
+    return Array.from(this.notifications.values()).filter(
+      (notification: any) => notification.userId === userId && !notification.isRead,
+    ).length;
   }
 
   // Expense implementations (DB if available, otherwise in-memory)
@@ -1242,10 +1379,12 @@ export class DatabaseStorage implements IStorage {
     if (db) {
       const toInsert: any = { ...expenseData };
       // Coerce boolean flags to integers expected by the DB schema
-      if (typeof toInsert.isRecurring === 'boolean') toInsert.isRecurring = toInsert.isRecurring ? 1 : 0;
-      if (typeof toInsert.isAutoClassified === 'boolean') toInsert.isAutoClassified = toInsert.isAutoClassified ? 1 : 0;
+      if (typeof toInsert.isRecurring === "boolean")
+        toInsert.isRecurring = toInsert.isRecurring ? 1 : 0;
+      if (typeof toInsert.isAutoClassified === "boolean")
+        toInsert.isAutoClassified = toInsert.isAutoClassified ? 1 : 0;
       // Ensure numeric amount
-      if (typeof toInsert.amount === 'string') toInsert.amount = parseFloat(toInsert.amount);
+      if (typeof toInsert.amount === "string") toInsert.amount = parseFloat(toInsert.amount);
 
       const [exp] = await db.insert(expenses).values(toInsert).returning();
       return exp;
@@ -1268,10 +1407,16 @@ export class DatabaseStorage implements IStorage {
   async updateExpense(id: number, updateData: any): Promise<any | undefined> {
     if (db) {
       const toUpdate: any = { ...updateData };
-      if (typeof toUpdate.isRecurring === 'boolean') toUpdate.isRecurring = toUpdate.isRecurring ? 1 : 0;
-      if (typeof toUpdate.isAutoClassified === 'boolean') toUpdate.isAutoClassified = toUpdate.isAutoClassified ? 1 : 0;
-      if (typeof toUpdate.amount === 'string') toUpdate.amount = parseFloat(toUpdate.amount);
-      const [exp] = await db.update(expenses).set({ ...toUpdate }).where(eq(expenses.id, id)).returning();
+      if (typeof toUpdate.isRecurring === "boolean")
+        toUpdate.isRecurring = toUpdate.isRecurring ? 1 : 0;
+      if (typeof toUpdate.isAutoClassified === "boolean")
+        toUpdate.isAutoClassified = toUpdate.isAutoClassified ? 1 : 0;
+      if (typeof toUpdate.amount === "string") toUpdate.amount = parseFloat(toUpdate.amount);
+      const [exp] = await db
+        .update(expenses)
+        .set({ ...toUpdate })
+        .where(eq(expenses.id, id))
+        .returning();
       return exp || undefined;
     }
     const existing = this.expenses.get(id);
@@ -1295,12 +1440,16 @@ export class DatabaseStorage implements IStorage {
       const [bs] = await db.select().from(billSplits).where(eq(billSplits.shareCode, code));
       return bs || undefined;
     }
-    return Array.from(this.billSplits.values()).find(b => b.shareCode === code);
+    return Array.from(this.billSplits.values()).find((b) => b.shareCode === code);
   }
 
   async getBillSplitParticipants(billSplitId: number): Promise<any[]> {
     if (db) {
-      const rows = await db.select().from(billSplitParticipants).where(eq(billSplitParticipants.billSplitId, billSplitId)).orderBy(billSplitParticipants.id);
+      const rows = await db
+        .select()
+        .from(billSplitParticipants)
+        .where(eq(billSplitParticipants.billSplitId, billSplitId))
+        .orderBy(billSplitParticipants.id);
       return rows.map((r: any) => {
         const amountOwed = r.amountOwed ?? r.amount_owed;
         const isPaid = r.isPaid ?? r.is_paid;
@@ -1313,16 +1462,24 @@ export class DatabaseStorage implements IStorage {
         };
       });
     }
-    return Array.from(this.billSplitParticipants.values()).filter(p => p.billSplitId === billSplitId);
+    return Array.from(this.billSplitParticipants.values()).filter(
+      (p) => p.billSplitId === billSplitId,
+    );
   }
 
   async updateBillSplitParticipant(id: number, updateData: any): Promise<any | undefined> {
     if (db) {
       const toUpdate: any = { ...updateData };
-      if (typeof toUpdate.amountOwed === 'string') toUpdate.amountOwed = parseFloat(toUpdate.amountOwed);
-      if (typeof toUpdate.amountPaid === 'string') toUpdate.amountPaid = parseFloat(toUpdate.amountPaid);
-      if (typeof toUpdate.isPaid === 'boolean') toUpdate.isPaid = toUpdate.isPaid ? 1 : 0;
-      const [p] = await db.update(billSplitParticipants).set(toUpdate).where(eq(billSplitParticipants.id, id)).returning();
+      if (typeof toUpdate.amountOwed === "string")
+        toUpdate.amountOwed = parseFloat(toUpdate.amountOwed);
+      if (typeof toUpdate.amountPaid === "string")
+        toUpdate.amountPaid = parseFloat(toUpdate.amountPaid);
+      if (typeof toUpdate.isPaid === "boolean") toUpdate.isPaid = toUpdate.isPaid ? 1 : 0;
+      const [p] = await db
+        .update(billSplitParticipants)
+        .set(toUpdate)
+        .where(eq(billSplitParticipants.id, id))
+        .returning();
       if (p) {
         p.isPaid = !!p.isPaid;
         p.amountPaid = p.amountPaid ? Number(p.amountPaid) : 0;
@@ -1339,27 +1496,32 @@ export class DatabaseStorage implements IStorage {
 
   async getBillSplits(userId: string): Promise<any[]> {
     if (db) return await db.select().from(billSplits).where(eq(billSplits.createdBy, userId));
-    return Array.from(this.billSplits.values()).filter(b => b.createdBy === userId);
+    return Array.from(this.billSplits.values()).filter((b) => b.createdBy === userId);
   }
 
   async getBillSplitsAsParticipant(userId: string): Promise<any[]> {
     if (db) {
       // Get participant records for this user
-      const participantRecords = await db.select().from(billSplitParticipants).where(eq(billSplitParticipants.userId, userId));
-      
+      const participantRecords = await db
+        .select()
+        .from(billSplitParticipants)
+        .where(eq(billSplitParticipants.userId, userId));
+
       // Get the unique bill split IDs
       const billSplitIds = [...new Set(participantRecords.map((p: any) => p.billSplitId))];
-      
+
       if (billSplitIds.length === 0) {
         return [];
       }
-      
+
       // Fetch the actual bill splits
       const splits = await db.select().from(billSplits).where(inArray(billSplits.id, billSplitIds));
       return splits;
     }
     // In-memory fallback: get participant records and then fetch corresponding bill splits
-    const participantRecords = Array.from(this.billSplitParticipants.values()).filter((p: any) => p.userId === userId);
+    const participantRecords = Array.from(this.billSplitParticipants.values()).filter(
+      (p: any) => p.userId === userId,
+    );
     const billSplitIds = [...new Set(participantRecords.map((p: any) => p.billSplitId))];
     return Array.from(this.billSplits.values()).filter((b: any) => billSplitIds.includes(b.id));
   }
@@ -1369,17 +1531,23 @@ export class DatabaseStorage implements IStorage {
       const toInsert: any = { ...data };
       // Coerce date to ISO string when Date instance provided
       if (toInsert.date instanceof Date) toInsert.date = toInsert.date.toISOString();
-      if (typeof toInsert.date === 'string') {
+      if (typeof toInsert.date === "string") {
         // leave as-is
       }
       // Ensure numeric totalAmount
-      if (typeof toInsert.totalAmount === 'string') toInsert.totalAmount = parseFloat(toInsert.totalAmount);
+      if (typeof toInsert.totalAmount === "string")
+        toInsert.totalAmount = parseFloat(toInsert.totalAmount);
       let [bs] = await db.insert(billSplits).values(toInsert).returning();
       // Some SQLite drivers may not return the inserted row; fall back to selecting the most recent matching row
       if ((!bs || !bs.id) && toInsert.createdBy) {
-        const rows = await db.select().from(billSplits).where(eq(billSplits.createdBy, toInsert.createdBy));
+        const rows = await db
+          .select()
+          .from(billSplits)
+          .where(eq(billSplits.createdBy, toInsert.createdBy));
         if (rows && rows.length) {
-          rows.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          rows.sort(
+            (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          );
           bs = rows[0];
         }
       }
@@ -1396,18 +1564,29 @@ export class DatabaseStorage implements IStorage {
     if (db) {
       const toInsert: any = { ...data };
       // Coerce numeric and boolean fields
-      if (typeof toInsert.amountOwed === 'string') toInsert.amountOwed = parseFloat(toInsert.amountOwed);
-      if (typeof toInsert.amountPaid === 'string') toInsert.amountPaid = parseFloat(toInsert.amountPaid);
-      if (typeof toInsert.isPaid === 'boolean') toInsert.isPaid = toInsert.isPaid ? 1 : 0;
+      if (typeof toInsert.amountOwed === "string")
+        toInsert.amountOwed = parseFloat(toInsert.amountOwed);
+      if (typeof toInsert.amountPaid === "string")
+        toInsert.amountPaid = parseFloat(toInsert.amountPaid);
+      if (typeof toInsert.isPaid === "boolean") toInsert.isPaid = toInsert.isPaid ? 1 : 0;
       // Ensure billSplitId is numeric
-      if (typeof toInsert.billSplitId === 'string') toInsert.billSplitId = parseInt(toInsert.billSplitId as any);
+      if (typeof toInsert.billSplitId === "string")
+        toInsert.billSplitId = parseInt(toInsert.billSplitId as any);
       const [p] = await db.insert(billSplitParticipants).values(toInsert).returning();
       // If insert didn't return the row (SQLite fallback), try selecting by billSplitId and email/name
       let participant = p;
       if ((!participant || !participant.id) && toInsert.billSplitId) {
-        const candidates = await db.select().from(billSplitParticipants).where(eq(billSplitParticipants.billSplitId, toInsert.billSplitId));
+        const candidates = await db
+          .select()
+          .from(billSplitParticipants)
+          .where(eq(billSplitParticipants.billSplitId, toInsert.billSplitId));
         if (candidates && candidates.length) {
-          participant = candidates.find((c: any) => (toInsert.email && c.email === toInsert.email) || (toInsert.name && c.name === toInsert.name)) || candidates[0];
+          participant =
+            candidates.find(
+              (c: any) =>
+                (toInsert.email && c.email === toInsert.email) ||
+                (toInsert.name && c.name === toInsert.name),
+            ) || candidates[0];
         }
       }
       // Normalize returned participant fields for consistent API responses
@@ -1437,8 +1616,13 @@ export class DatabaseStorage implements IStorage {
     if (db) {
       const toUpdate: any = { ...updateData };
       if (toUpdate.date instanceof Date) toUpdate.date = toUpdate.date.toISOString();
-      if (typeof toUpdate.totalAmount === 'string') toUpdate.totalAmount = parseFloat(toUpdate.totalAmount);
-      const [bs] = await db.update(billSplits).set(toUpdate).where(eq(billSplits.id, id)).returning();
+      if (typeof toUpdate.totalAmount === "string")
+        toUpdate.totalAmount = parseFloat(toUpdate.totalAmount);
+      const [bs] = await db
+        .update(billSplits)
+        .set(toUpdate)
+        .where(eq(billSplits.id, id))
+        .returning();
       return bs || undefined;
     }
     const existing = this.billSplits.get(id);
@@ -1462,10 +1646,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUnlinkedParticipantsByEmail(email: string): Promise<any[]> {
-    if (db) return await db.select().from(billSplitParticipants).where(eq(billSplitParticipants.email, email)).where(isNull(billSplitParticipants.userId));
-    return Array.from(this.billSplitParticipants.values()).filter(p => p.email && p.email.toLowerCase() === email.toLowerCase() && !p.userId);
+    if (db)
+      return await db
+        .select()
+        .from(billSplitParticipants)
+        .where(eq(billSplitParticipants.email, email))
+        .where(isNull(billSplitParticipants.userId));
+    return Array.from(this.billSplitParticipants.values()).filter(
+      (p) => p.email && p.email.toLowerCase() === email.toLowerCase() && !p.userId,
+    );
   }
-  
+
   // User data cleanup
   async createDocumentUpload(row: {
     id: string;
@@ -1537,7 +1728,11 @@ export class DatabaseStorage implements IStorage {
       .where(eq(documentUploads.id, id));
   }
 
-  async updateDocumentUploadNormalizationStatus(id: string, userId: string, normalizationStatus: string): Promise<void> {
+  async updateDocumentUploadNormalizationStatus(
+    id: string,
+    userId: string,
+    normalizationStatus: string,
+  ): Promise<void> {
     if (!db) return;
     await db
       .update(documentUploads)
@@ -1582,7 +1777,8 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDocumentUploadById(id: string, userId: string): Promise<boolean> {
     if (!db) return false;
-    await db.delete(documentUploads)
+    await db
+      .delete(documentUploads)
       .where(and(eq(documentUploads.id, id), eq(documentUploads.userId, userId)));
     return true;
   }
@@ -1597,31 +1793,41 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAllDocumentUploads(userId: string): Promise<number> {
     if (!db) return 0;
-    const result = await db
-      .delete(documentUploads)
-      .where(eq(documentUploads.userId, userId));
+    const result = await db.delete(documentUploads).where(eq(documentUploads.userId, userId));
     return (result as any).rowCount ?? (result as any).changes ?? 0;
   }
 
   // ── Score-isolated document uploads ────────────────────────────────────
   async createScoreDocumentUpload(row: {
-    id: string; userId: string; tipo: string;
+    id: string;
+    userId: string;
+    tipo: string;
     sourceDocumentUploadId?: string | null;
-    banco?: string | null; periodoDesde?: string | null; periodoHasta?: string | null;
-    parsedData: unknown; parseStatus?: string;
+    banco?: string | null;
+    periodoDesde?: string | null;
+    periodoHasta?: string | null;
+    parsedData: unknown;
+    parseStatus?: string;
   }): Promise<any> {
     if (!db) return null;
-    const serialized = typeof row.parsedData === 'string' ? row.parsedData : JSON.stringify(row.parsedData);
+    const serialized =
+      typeof row.parsedData === "string" ? row.parsedData : JSON.stringify(row.parsedData);
     const [inserted] = await db
       .insert(scoreDocumentUploads)
-      .values({ ...row, parsedData: encryptField(serialized), parseStatus: row.parseStatus ?? 'success' })
+      .values({
+        ...row,
+        parsedData: encryptField(serialized),
+        parseStatus: row.parseStatus ?? "success",
+      })
       .returning();
     return inserted;
   }
 
   async listScoreDocumentUploads(userId: string): Promise<any[]> {
     if (!db) return [];
-    const rows = await db.select().from(scoreDocumentUploads)
+    const rows = await db
+      .select()
+      .from(scoreDocumentUploads)
       .where(eq(scoreDocumentUploads.userId, userId))
       .orderBy(desc(scoreDocumentUploads.uploadedAt));
     return rows.map((r: any) => ({
@@ -1632,25 +1838,32 @@ export class DatabaseStorage implements IStorage {
 
   async listScoreDocumentUploadsByType(userId: string, tipo: string): Promise<any[]> {
     if (!db) return [];
-    const rows = await db.select().from(scoreDocumentUploads)
+    const rows = await db
+      .select()
+      .from(scoreDocumentUploads)
       .where(and(eq(scoreDocumentUploads.userId, userId), eq(scoreDocumentUploads.tipo, tipo)))
       .orderBy(desc(scoreDocumentUploads.uploadedAt));
     return rows.map((r: any) => ({
       ...r,
-      parsedData: typeof r.parsedData === 'string' ? JSON.parse(decryptStoredJson(r.parsedData)) : r.parsedData,
+      parsedData:
+        typeof r.parsedData === "string"
+          ? JSON.parse(decryptStoredJson(r.parsedData))
+          : r.parsedData,
     }));
   }
 
   async deleteScoreDocumentUploadById(id: string, userId: string): Promise<boolean> {
     if (!db) return false;
-    await db.delete(scoreDocumentUploads)
+    await db
+      .delete(scoreDocumentUploads)
       .where(and(eq(scoreDocumentUploads.id, id), eq(scoreDocumentUploads.userId, userId)));
     return true;
   }
 
   async deleteAllScoreDocumentUploads(userId: string): Promise<number> {
     if (!db) return 0;
-    const result = await db.delete(scoreDocumentUploads)
+    const result = await db
+      .delete(scoreDocumentUploads)
       .where(eq(scoreDocumentUploads.userId, userId));
     return (result as any).rowCount ?? (result as any).changes ?? 0;
   }
@@ -1669,7 +1882,9 @@ export class DatabaseStorage implements IStorage {
 
   async countScoreDocumentUploads(userId: string): Promise<number> {
     if (!db) return 0;
-    const rows = await db.select({ count: sql`count(*)` }).from(scoreDocumentUploads)
+    const rows = await db
+      .select({ count: sql`count(*)` })
+      .from(scoreDocumentUploads)
       .where(eq(scoreDocumentUploads.userId, userId));
     return Number(rows[0]?.count ?? 0);
   }
@@ -1697,7 +1912,8 @@ export class DatabaseStorage implements IStorage {
         categoria: row.categoria ?? null,
         componentes: row.componentes != null ? JSON.stringify(row.componentes) : null,
         insights: row.insights != null ? JSON.stringify(row.insights) : null,
-        documentosUsados: row.documentosUsados != null ? JSON.stringify(row.documentosUsados) : null,
+        documentosUsados:
+          row.documentosUsados != null ? JSON.stringify(row.documentosUsados) : null,
         calculadoAt: new Date().toISOString(),
         periodoAnalizadoDesde: row.periodoAnalizadoDesde ?? null,
         periodoAnalizadoHasta: row.periodoAnalizadoHasta ?? null,
@@ -1725,7 +1941,7 @@ export class DatabaseStorage implements IStorage {
 
   async createAssistantFeedback(data: {
     userId: string;
-    rating: 'up' | 'down';
+    rating: "up" | "down";
     userMessage: string;
     assistantMessage: string;
     provider?: string;
@@ -1734,7 +1950,7 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       // Modo memoria (dev sin DATABASE_URL): no persistimos feedback. Es solo
       // señal analítica; perder en dev no afecta a producción.
-      logger.debug({ rating: data.rating }, 'Assistant feedback (mem-storage, dropped)');
+      logger.debug({ rating: data.rating }, "Assistant feedback (mem-storage, dropped)");
       return;
     }
     await db.insert(assistantFeedback).values({
@@ -1751,10 +1967,13 @@ export class DatabaseStorage implements IStorage {
   async createHabitFeedback(data: {
     userId: string;
     habitKey: string;
-    rating: 'up' | 'down';
+    rating: "up" | "down";
   }): Promise<void> {
     if (!db) {
-      logger.debug({ habitKey: data.habitKey, rating: data.rating }, 'Habit feedback (mem-storage, dropped)');
+      logger.debug(
+        { habitKey: data.habitKey, rating: data.rating },
+        "Habit feedback (mem-storage, dropped)",
+      );
       return;
     }
     await db.insert(habitFeedback).values({
@@ -1778,8 +1997,8 @@ export class DatabaseStorage implements IStorage {
       .where(eq(habitFeedback.userId, userId))
       .orderBy(desc(habitFeedback.createdAt));
 
-    const latestRatingByKey = new Map<string, 'up' | 'down'>();
-    for (const row of rows as Array<{ habitKey: string; rating: 'up' | 'down' }>) {
+    const latestRatingByKey = new Map<string, "up" | "down">();
+    for (const row of rows as Array<{ habitKey: string; rating: "up" | "down" }>) {
       if (!latestRatingByKey.has(row.habitKey)) {
         latestRatingByKey.set(row.habitKey, row.rating);
       }
@@ -1787,12 +2006,14 @@ export class DatabaseStorage implements IStorage {
 
     const downvoted = new Set<string>();
     for (const [key, rating] of latestRatingByKey) {
-      if (rating === 'down') downvoted.add(key);
+      if (rating === "down") downvoted.add(key);
     }
     return downvoted;
   }
 
-  async getAssistantSummary(userId: string): Promise<{ summary: string; exchangeCount: number } | null> {
+  async getAssistantSummary(
+    userId: string,
+  ): Promise<{ summary: string; exchangeCount: number } | null> {
     if (!db) return null;
     const [row] = await db
       .select()
@@ -1844,15 +2065,29 @@ export class DatabaseStorage implements IStorage {
     if (!db) {
       // Modo sin DB (solo Maps en memoria). En la práctica `db` siempre existe;
       // se mantiene por compatibilidad con el fallback histórico.
-      this.bankConnections.forEach((c, id) => { if (c.userId === userId) this.bankConnections.delete(id); });
-      this.creditScores.forEach((s, id) => { if (s.userId === userId) this.creditScores.delete(id); });
-      this.insuranceRisks.forEach((r, id) => { if (r.userId === userId) this.insuranceRisks.delete(id); });
-      this.financialGoals.forEach((g, id) => { if (g.userId === userId) this.financialGoals.delete(id); });
-      this.expenses.forEach((e, id) => { if (e.userId === userId) this.expenses.delete(id); });
-      this.notifications.forEach((n, id) => { if (n.userId === userId) this.notifications.delete(id); });
+      this.bankConnections.forEach((c, id) => {
+        if (c.userId === userId) this.bankConnections.delete(id);
+      });
+      this.creditScores.forEach((s, id) => {
+        if (s.userId === userId) this.creditScores.delete(id);
+      });
+      this.insuranceRisks.forEach((r, id) => {
+        if (r.userId === userId) this.insuranceRisks.delete(id);
+      });
+      this.financialGoals.forEach((g, id) => {
+        if (g.userId === userId) this.financialGoals.delete(id);
+      });
+      this.expenses.forEach((e, id) => {
+        if (e.userId === userId) this.expenses.delete(id);
+      });
+      this.notifications.forEach((n, id) => {
+        if (n.userId === userId) this.notifications.delete(id);
+      });
       this.billSplits.forEach((b, id) => {
         if (b.createdBy === userId) {
-          this.billSplitParticipants.forEach((p, pid) => { if (p.billSplitId === id) this.billSplitParticipants.delete(pid); });
+          this.billSplitParticipants.forEach((p, pid) => {
+            if (p.billSplitId === id) this.billSplitParticipants.delete(pid);
+          });
           this.billSplits.delete(id);
         }
       });
@@ -1881,7 +2116,9 @@ export class DatabaseStorage implements IStorage {
         .where(eq(billSplits.createdBy, userId));
       const splitIds = userSplits.map((s: { id: number }) => s.id);
       if (splitIds.length > 0) {
-        await executor.delete(billSplitParticipants).where(inArray(billSplitParticipants.billSplitId, splitIds));
+        await executor
+          .delete(billSplitParticipants)
+          .where(inArray(billSplitParticipants.billSplitId, splitIds));
       }
       await executor.delete(billSplitParticipants).where(eq(billSplitParticipants.userId, userId));
 
@@ -1890,9 +2127,9 @@ export class DatabaseStorage implements IStorage {
       await executor.delete(scoreDocumentUploads).where(eq(scoreDocumentUploads.userId, userId));
 
       // 4. Padres intermedios.
-      await executor.delete(accounts).where(eq(accounts.userId, userId));          // tras transactions/balances
+      await executor.delete(accounts).where(eq(accounts.userId, userId)); // tras transactions/balances
       await executor.delete(bankConnections).where(eq(bankConnections.userId, userId)); // tras accounts
-      await executor.delete(billSplits).where(eq(billSplits.createdBy, userId));    // tras participants
+      await executor.delete(billSplits).where(eq(billSplits.createdBy, userId)); // tras participants
       await executor.delete(financialGoals).where(eq(financialGoals.userId, userId)); // tras goalProgress
       await executor.delete(documentUploads).where(eq(documentUploads.userId, userId)); // tras scoreDocumentUploads
 
@@ -1905,12 +2142,16 @@ export class DatabaseStorage implements IStorage {
       await executor.delete(transactionalScores).where(eq(transactionalScores.userId, userId));
       await executor.delete(riskFactors).where(eq(riskFactors.userId, userId));
       await executor.delete(expenses).where(eq(expenses.userId, userId));
-      await executor.delete(productRecommendations).where(eq(productRecommendations.userId, userId));
+      await executor
+        .delete(productRecommendations)
+        .where(eq(productRecommendations.userId, userId));
       await executor.delete(leadTracking).where(eq(leadTracking.userId, userId));
       await executor.delete(productApplications).where(eq(productApplications.userId, userId));
       await executor.delete(notifications).where(eq(notifications.userId, userId));
       await executor.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
-      await executor.delete(algorithmPredictionLogs).where(eq(algorithmPredictionLogs.userId, userId));
+      await executor
+        .delete(algorithmPredictionLogs)
+        .where(eq(algorithmPredictionLogs.userId, userId));
       await executor.delete(userScores).where(eq(userScores.userId, userId));
       await executor.delete(userAssets).where(eq(userAssets.userId, userId));
       await executor.delete(inscripcionJobs).where(eq(inscripcionJobs.userId, userId));
@@ -1928,7 +2169,9 @@ export class DatabaseStorage implements IStorage {
 
     try {
       if (dialect === "postgres") {
-        await db.transaction(async (tx: any) => { await purge(tx); });
+        await db.transaction(async (tx: any) => {
+          await purge(tx);
+        });
       } else {
         // better-sqlite3: transaction() no admite callback async → secuencial.
         await purge(db);

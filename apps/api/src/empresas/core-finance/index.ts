@@ -1,6 +1,6 @@
 /**
  * @finhealth-empresas/core-finance
- * 
+ *
  * Core finance engine for SME financial management.
  * Provides:
  * - Cash management and forecasting
@@ -10,7 +10,7 @@
  */
 
 // Types
-export * from './types.js';
+export * from "./types.js";
 
 // Cash Management
 export {
@@ -21,7 +21,7 @@ export {
   type BankAccountInput,
   type BankTransactionInput,
   type BalanceSnapshotInput,
-} from './cash/cashService.js';
+} from "./cash/cashService.js";
 
 // Reconciliation
 export {
@@ -30,7 +30,7 @@ export {
   rejectMatch,
   type BankTransactionForMatch,
   type DTEDocumentForMatch,
-} from './reconciliation/matchEngine.js';
+} from "./reconciliation/matchEngine.js";
 
 export {
   scoreMatch,
@@ -41,24 +41,18 @@ export {
   type MatchCandidate,
   type ScoringOptions,
   type MatchScore,
-} from './reconciliation/scoring.js';
+} from "./reconciliation/scoring.js";
 
 // Financial Statements
-export {
-  generateIncomeStatement,
-  type JournalEntryInput,
-} from './statements/incomeStatement.js';
+export { generateIncomeStatement, type JournalEntryInput } from "./statements/incomeStatement.js";
 
 export {
   generateCashFlowStatement,
   type CashTransactionInput,
   type CashFlowOptions,
-} from './statements/cashFlow.js';
+} from "./statements/cashFlow.js";
 
-export {
-  generateBalanceSheet,
-  type AccountBalanceInput,
-} from './statements/balanceSheet.js';
+export { generateBalanceSheet, type AccountBalanceInput } from "./statements/balanceSheet.js";
 
 // Ledger
 export {
@@ -69,4 +63,4 @@ export {
   getTrialBalance,
   DEFAULT_CHART_OF_ACCOUNTS,
   type ChartOfAccountsEntry,
-} from './ledger/ledgerService.js';
+} from "./ledger/ledgerService.js";

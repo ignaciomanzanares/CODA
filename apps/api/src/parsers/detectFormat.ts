@@ -33,7 +33,7 @@ function normalizeForDetection(text: string): string {
   // Pattern: letter, space, letter, space... (≥ 3 chars total)
   let normalized = text.replace(
     /(?<![A-Za-zÁÉÍÓÚÑáéíóúñ])([A-ZÁÉÍÓÚÑ] ){2,}[A-ZÁÉÍÓÚÑ](?![A-Za-zÁÉÍÓÚÑáéíóúñ])/g,
-    (m) => m.replace(/ /g, "")
+    (m) => m.replace(/ /g, ""),
   );
 
   // Collapse multiple spaces/tabs to single space
@@ -101,8 +101,7 @@ const BANK_PATTERNS: Array<{
     ],
     weight: 1.0,
     // Accept SANTANDER text OR Santander structural column headers as gate
-    requiredPattern:
-      /\bSANTANDER\b|Banco\s+Santander|CHEQUES\s+(?:Y\s+)?(?:OTROS\s+)?CARGOS/i,
+    requiredPattern: /\bSANTANDER\b|Banco\s+Santander|CHEQUES\s+(?:Y\s+)?(?:OTROS\s+)?CARGOS/i,
     // Strong-signal boost: 2+ of these → floor confidence at 0.92
     strongSignals: [
       /BANCO\s+SANTANDER/i,
@@ -150,44 +149,25 @@ const BANK_PATTERNS: Array<{
   },
   {
     banco: "Itaú",
-    patterns: [
-      /\bITAU\b/i,
-      /\bIT[ÁA]U\b/i,
-      /itau\.cl/i,
-      /BANCO\s+ITAU\b/i,
-      /CARTOLA\s+IT[ÁA]U/i,
-    ],
+    patterns: [/\bITAU\b/i, /\bIT[ÁA]U\b/i, /itau\.cl/i, /BANCO\s+ITAU\b/i, /CARTOLA\s+IT[ÁA]U/i],
     weight: 1.0,
     requiredPattern: /ITAU|IT[ÁA]U/i,
   },
   {
     banco: "Scotiabank",
-    patterns: [
-      /\bSCOTIABANK\b/i,
-      /\bSCOTIA\b/i,
-      /scotiabank\.cl/i,
-      /CARTOLA\s+SCOTIABANK/i,
-    ],
+    patterns: [/\bSCOTIABANK\b/i, /\bSCOTIA\b/i, /scotiabank\.cl/i, /CARTOLA\s+SCOTIABANK/i],
     weight: 1.0,
     requiredPattern: /SCOTIABANK|SCOTIA/i,
   },
   {
     banco: "BICE",
-    patterns: [
-      /\bBANCO\s+BICE\b/i,
-      /\bBICE\b/,
-      /bice\.cl/i,
-    ],
+    patterns: [/\bBANCO\s+BICE\b/i, /\bBICE\b/, /bice\.cl/i],
     weight: 0.9,
     requiredPattern: /\bBICE\b/,
   },
   {
     banco: "Security",
-    patterns: [
-      /BANCO\s+SECURITY/i,
-      /bancosecurity\.cl/i,
-      /CARTOLA\s+SECURITY/i,
-    ],
+    patterns: [/BANCO\s+SECURITY/i, /bancosecurity\.cl/i, /CARTOLA\s+SECURITY/i],
     weight: 0.9,
     requiredPattern: /BANCO\s+SECURITY/i,
   },
@@ -229,14 +209,13 @@ export function detectFormat(text: string): DetectedFormat {
     }
     if (matchedPatterns.length === 0) continue;
 
-    const baseScore = 0.70 * bankDef.weight;
-    const bonusScore =
-      Math.min(0.30, (matchedPatterns.length - 1) * 0.10) * bankDef.weight;
-    let confidence = baseScore + bonusScore;
+    const baseScore = 0.7 * bankDef.weight;
+    const bonusScore = Math.min(0.3, (matchedPatterns.length - 1) * 0.1) * bankDef.weight;
+    const confidence = baseScore + bonusScore;
 
     // Count strong signals for this bank
     const strongMatches = (bankDef.strongSignals ?? []).filter((re) =>
-      re.test(normalizedText)
+      re.test(normalizedText),
     ).length;
 
     if (confidence > bestConfidence) {
@@ -255,9 +234,7 @@ export function detectFormat(text: string): DetectedFormat {
 
   // Penalizar si el documento no parece una cartola de movimientos
   const hasTransactionContent =
-    /CARGO|ABONO|TRANSACCI[OÓ]N|MOVIMIENTO|SALDO|DEP[ÓO]SITO|CHEQUE|CHEQUES/i.test(
-      normalizedText
-    );
+    /CARGO|ABONO|TRANSACCI[OÓ]N|MOVIMIENTO|SALDO|DEP[ÓO]SITO|CHEQUE|CHEQUES/i.test(normalizedText);
   if (!hasTransactionContent && bestConfidence > 0) {
     bestConfidence *= 0.85;
   }
@@ -285,7 +262,7 @@ export function assertFormatDetected(detected: DetectedFormat): void {
         detected_banco: detected.banco,
         confidence: detected.confidence,
         tier,
-      }
+      },
     );
   }
 }

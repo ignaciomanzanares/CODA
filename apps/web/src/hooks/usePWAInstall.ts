@@ -103,7 +103,11 @@ export function usePWAInstall() {
     writeInstallDismissed();
   }, []);
 
-  const installMode: PWAInstallMode = deferredPrompt ? "native" : manualInstallAvailable ? "ios-manual" : null;
+  const installMode: PWAInstallMode = deferredPrompt
+    ? "native"
+    : manualInstallAvailable
+      ? "ios-manual"
+      : null;
 
   return {
     canInstall: Boolean(installMode) && !isInstalled && !dismissed,

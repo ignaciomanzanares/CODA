@@ -88,8 +88,7 @@ function scoreConsistenciaGastos(cv: number): number {
 function meanStd(values: number[]): { mean: number; std: number } {
   if (values.length === 0) return { mean: 0, std: 0 };
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  const v =
-    values.reduce((s, x) => s + (x - mean) ** 2, 0) / Math.max(1, values.length);
+  const v = values.reduce((s, x) => s + (x - mean) ** 2, 0) / Math.max(1, values.length);
   return { mean, std: Math.sqrt(v) };
 }
 
@@ -120,24 +119,22 @@ export function calculateTransactionalScore(cartola: CartolaParseResult): Transa
   const delta = (cartola.saldo_final - cartola.saldo_inicial) / saldoIni;
 
   // Emergency fund: balance / monthly expenses
-  const mesesCubiertos = totalCargos > 0 ? saldoPromedio / totalCargos : (saldoPromedio > 0 ? 6 : 0);
+  const mesesCubiertos = totalCargos > 0 ? saldoPromedio / totalCargos : saldoPromedio > 0 ? 6 : 0;
 
   // Spending consistency: CV of daily cargo amounts
-  const dailyAmounts = cartola.transacciones
-    .filter((t) => t.tipo === "cargo")
-    .map((t) => t.monto);
+  const dailyAmounts = cartola.transacciones.filter((t) => t.tipo === "cargo").map((t) => t.monto);
   const { std: stdGasto, mean: meanGasto } = meanStd(dailyAmounts);
   const cvGastos = meanGasto > 0 ? stdGasto / meanGasto : 0;
 
   // Weights redistributed across 7 factors (sum = 1.0)
   const w = {
-    liquidez: 0.20,
+    liquidez: 0.2,
     estabilidad_ingresos: 0.15,
     gastos_fijos: 0.15,
     dias_criticos: 0.15,
-    tendencia: 0.10,
+    tendencia: 0.1,
     fondo_emergencia: 0.15,
-    consistencia_gastos: 0.10,
+    consistencia_gastos: 0.1,
   };
 
   const sLiq = scoreLiquidez(ratioLiquidez);
@@ -197,84 +194,90 @@ function buildInsights(
     ingresosTotales: number;
     mesesCubiertos: number;
     cvGastos: number;
-  }
+  },
 ): string[] {
   const out: string[] = [];
 
   if (ctx.diasCriticos > 0) {
     out.push(
-      `Tu saldo estuvo por debajo de $${fmtMoney(CRITICO_CLP)} durante ${ctx.diasCriticos} día(s) en el período analizado.`
+      `Tu saldo estuvo por debajo de $${fmtMoney(CRITICO_CLP)} durante ${ctx.diasCriticos} día(s) en el período analizado.`,
     );
   }
 
   // Emergency fund insight
   if (ctx.mesesCubiertos < 1) {
     out.push(
-      `Tu saldo promedio cubre menos de 1 mes de gastos. Intenta construir un colchón de al menos 3 meses para emergencias.`
+      `Tu saldo promedio cubre menos de 1 mes de gastos. Intenta construir un colchón de al menos 3 meses para emergencias.`,
     );
   } else if (ctx.mesesCubiertos >= 3) {
     out.push(
-      `Tu fondo de emergencia cubre ${Math.round(ctx.mesesCubiertos * 10) / 10} meses de gastos — supera el mínimo recomendado de 3 meses.`
+      `Tu fondo de emergencia cubre ${Math.round(ctx.mesesCubiertos * 10) / 10} meses de gastos — supera el mínimo recomendado de 3 meses.`,
     );
   }
 
   // Spending consistency insight
   if (ctx.cvGastos > 1.5) {
     out.push(
-      `Tus gastos son muy variables (dispersión alta). Establecer un presupuesto fijo por categoría puede ayudarte a controlar mejor.`
+      `Tus gastos son muy variables (dispersión alta). Establecer un presupuesto fijo por categoría puede ayudarte a controlar mejor.`,
     );
   } else if (ctx.cvGastos < 0.5 && ctx.gastoDiarioPromedio > 0) {
     out.push(
-      `Tus gastos son consistentes y predecibles, lo que facilita la planificación. ¡Sigue así!`
+      `Tus gastos son consistentes y predecibles, lo que facilita la planificación. ¡Sigue así!`,
     );
   }
 
   // Bucketing por categoría: consume la nueva taxonomía (Batch 10) con respaldo
   // al slug heredado para cartolas almacenadas antes del nuevo motor.
   const edu = cartola.transacciones.filter(
-    (t) => t.tipo === "cargo" && (t.category === "Educación" || t.categoria === "educacion")
+    (t) => t.tipo === "cargo" && (t.category === "Educación" || t.categoria === "educacion"),
   );
   const gastoEdu = edu.reduce((s, t) => s + t.monto, 0);
   if (gastoEdu > 0 && ctx.ingresosTotales > 0) {
     const pct = Math.round((gastoEdu / ctx.ingresosTotales) * 100);
     out.push(
-      `Los pagos de educación sumaron $${fmtMoney(gastoEdu)} (${pct}% de tus ingresos). Verifica si aplicas a beneficios como CAE, Gratuidad o becas JUNAEB.`
+      `Los pagos de educación sumaron $${fmtMoney(gastoEdu)} (${pct}% de tus ingresos). Verifica si aplicas a beneficios como CAE, Gratuidad o becas JUNAEB.`,
     );
   }
 
   // Fixed expenses ratio
   if (ctx.ratioGF > 0.5) {
     out.push(
-      `Tus gastos fijos representan el ${Math.round(ctx.ratioGF * 100)}% de tus ingresos. Renegociar planes o consolidar deudas podría bajar esa carga.`
+      `Tus gastos fijos representan el ${Math.round(ctx.ratioGF * 100)}% de tus ingresos. Renegociar planes o consolidar deudas podría bajar esa carga.`,
     );
   }
 
   const alim = cartola.transacciones.filter(
-    (t) => t.tipo === "cargo" && (t.category === "Supermercado y almacén" || t.categoria === "alimentacion")
+    (t) =>
+      t.tipo === "cargo" &&
+      (t.category === "Supermercado y almacén" || t.categoria === "alimentacion"),
   );
   const gastoAlim = alim.reduce((s, t) => s + t.monto, 0);
   if (gastoAlim > 0 && ctx.ingresosTotales > 0) {
     const pct = Math.round((gastoAlim / ctx.ingresosTotales) * 100);
-    out.push(`Tus gastos en alimentación fueron $${fmtMoney(gastoAlim)} (${pct}% de tus ingresos). Planificar comidas semanalmente puede reducir este gasto un 20-30%.`);
+    out.push(
+      `Tus gastos en alimentación fueron $${fmtMoney(gastoAlim)} (${pct}% de tus ingresos). Planificar comidas semanalmente puede reducir este gasto un 20-30%.`,
+    );
   }
 
   // Esencial vs. discrecional (nueva señal `essential`; excluye transferencias/
   // ingresos). No altera el cálculo del score — sólo enriquece las recomendaciones.
   const cargos = cartola.transacciones.filter((t) => t.tipo === "cargo" && t.excluded !== true);
   const totalCargosCat = cargos.reduce((s, t) => s + t.monto, 0);
-  const gastoDiscrecional = cargos.filter((t) => t.essential === false).reduce((s, t) => s + t.monto, 0);
+  const gastoDiscrecional = cargos
+    .filter((t) => t.essential === false)
+    .reduce((s, t) => s + t.monto, 0);
   if (totalCargosCat > 0) {
     const pctDisc = Math.round((gastoDiscrecional / totalCargosCat) * 100);
     if (pctDisc >= 40) {
       out.push(
-        `El ${pctDisc}% de tus gastos fue discrecional (restaurantes, suscripciones, entretenimiento, retail). Recortar aquí es la vía más rápida para ahorrar sin afectar lo esencial.`
+        `El ${pctDisc}% de tus gastos fue discrecional (restaurantes, suscripciones, entretenimiento, retail). Recortar aquí es la vía más rápida para ahorrar sin afectar lo esencial.`,
       );
     }
   }
 
   if (out.length === 0) {
     out.push(
-      `Saldo promedio del período: $${fmtMoney(Math.round(ctx.saldoPromedio))}; gasto diario promedio: $${fmtMoney(Math.round(ctx.gastoDiarioPromedio))}.`
+      `Saldo promedio del período: $${fmtMoney(Math.round(ctx.saldoPromedio))}; gasto diario promedio: $${fmtMoney(Math.round(ctx.gastoDiarioPromedio))}.`,
     );
   }
 

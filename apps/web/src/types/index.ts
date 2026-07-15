@@ -6,7 +6,7 @@ export interface Goal {
   targetAmount: number;
   currentAmount: number;
   targetDate: string | Date;
-  category: 'savings' | 'debt_repayment' | 'retirement' | 'home' | 'education' | 'other';
+  category: "savings" | "debt_repayment" | "retirement" | "home" | "education" | "other";
   userId?: string;
   createdAt?: string | Date;
   updatedAt?: string | Date;
@@ -17,7 +17,7 @@ export interface CreateGoalData {
   targetAmount: number;
   currentAmount: number;
   targetDate: Date;
-  category: 'savings' | 'debt_repayment' | 'retirement' | 'home' | 'education' | 'other';
+  category: "savings" | "debt_repayment" | "retirement" | "home" | "education" | "other";
 }
 
 export interface UpdateGoalData extends Partial<CreateGoalData> {}
@@ -78,7 +78,7 @@ export interface CreateBankConnectionData {
 }
 
 /** Consentimiento SFA (Panel de Control). scope = authorization_details parseado. */
-export type ConsentGrantStatus = 'pending' | 'authorized' | 'rejected' | 'revoked' | 'expired';
+export type ConsentGrantStatus = "pending" | "authorized" | "rejected" | "revoked" | "expired";
 
 export interface ConsentGrantScopeItem {
   type: string;
@@ -102,18 +102,18 @@ export interface ConsentGrant {
 
 /** Finalidades de consentimiento de la app (CMF), distintas del consentimiento SFA bancario. */
 export type PrivacyPurposeKey =
-  | 'data_processing'
-  | 'open_banking'
-  | 'scoring'
-  | 'recommendations'
-  | 'marketing'
-  | 'origination_transfer';
+  | "data_processing"
+  | "open_banking"
+  | "scoring"
+  | "recommendations"
+  | "marketing"
+  | "origination_transfer";
 
 export interface PrivacyPurposeState {
   purpose: PrivacyPurposeKey;
   accepted: boolean;
   policyVersion: string | null;
-  lastAction: 'accepted' | 'revoked' | null;
+  lastAction: "accepted" | "revoked" | null;
   updatedAt: string | null;
 }
 
@@ -124,9 +124,9 @@ export interface PrivacyConsentPanelResponse {
 
 /** Finalidades que son obligatorias para usar el servicio; la revocación requiere cierre de cuenta o soporte. */
 export const REGISTRATION_REQUIRED_PRIVACY_PURPOSES: readonly PrivacyPurposeKey[] = [
-  'data_processing',
-  'scoring',
-  'recommendations',
+  "data_processing",
+  "scoring",
+  "recommendations",
 ] as const;
 
 /** Payload enviado en POST /api/auth/register junto con name, email, password. */
@@ -158,8 +158,8 @@ export interface SimulateBankFlowResponse {
 
 /** Respuesta de POST /api/documents/upload (Informe CMF o Cartola). */
 export interface DocumentUploadResult {
-  step: 'reading' | 'extracting' | 'scoring' | 'done';
-  documentType?: 'cmf_informe_deudas' | 'cartola';
+  step: "reading" | "extracting" | "scoring" | "done";
+  documentType?: "cmf_informe_deudas" | "cartola";
   /** Advertencias no bloqueantes devueltas por el servidor */
   warnings?: string[];
   cmf?: {
@@ -173,7 +173,7 @@ export interface DocumentUploadResult {
   mainInsights?: string[];
   recommendedProducts?: string[];
   /** Tier de detección del banco: HIGH | MEDIUM | LOW */
-  detection_tier?: 'HIGH' | 'MEDIUM' | 'LOW';
+  detection_tier?: "HIGH" | "MEDIUM" | "LOW";
   /** Confianza de detección (0–1) */
   banco_confidence?: number;
   /** Banco detectado */
@@ -190,15 +190,15 @@ export interface BillSplit {
   date: string | Date;
   createdBy: string;
   paidBy?: string | null;
-  splitType?: 'equal' | 'exact' | 'percentage' | 'shares';
-  status?: 'active' | 'settled' | 'deleted' | 'pending' | 'fully_paid';
+  splitType?: "equal" | "exact" | "percentage" | "shares";
+  status?: "active" | "settled" | "deleted" | "pending" | "fully_paid";
   receiptUrl?: string | null;
   notes?: string | null;
   participants?: BillSplitParticipant[];
   createdAt?: string | Date;
   updatedAt?: string | Date;
   // Optional compatibility fields used by some UI components
-  userRole?: 'none' | 'creator' | 'participant';
+  userRole?: "none" | "creator" | "participant";
   createdByName?: string | null;
   paidByName?: string | null;
   shareCode?: string | null;
@@ -222,7 +222,7 @@ export interface BillSplitParticipant {
 // Compatibility types used across the UI
 export type BillSplitWithParticipants = BillSplit & {
   participants: BillSplitParticipant[];
-  userRole?: 'none' | 'creator' | 'participant';
+  userRole?: "none" | "creator" | "participant";
   createdByName?: string;
   paidByName?: string;
   category?: string;
@@ -251,8 +251,8 @@ export interface CreateBillSplitData {
   totalAmount: number;
   category?: string;
   date: Date;
-  splitType?: 'equal' | 'exact' | 'percentage' | 'shares';
-  participants?: Omit<BillSplitParticipant, 'id' | 'billSplitId'>[];
+  splitType?: "equal" | "exact" | "percentage" | "shares";
+  participants?: Omit<BillSplitParticipant, "id" | "billSplitId">[];
   /** Si es true, se crea también un gasto en la página de Gastos con el mismo monto y nombre. */
   alsoAddToExpenses?: boolean;
 }

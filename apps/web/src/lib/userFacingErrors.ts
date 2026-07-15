@@ -46,7 +46,10 @@ export function mapLoginAuthError(err: unknown): string {
   }
 
   if (raw.includes("[migration_recovery]")) {
-    return raw.replace(/^\[migration_recovery\]\s*/i, "").trim() || "Tras la migración del servidor debes definir tu contraseña con «Recuperar acceso» en la página de inicio de sesión.";
+    return (
+      raw.replace(/^\[migration_recovery\]\s*/i, "").trim() ||
+      "Tras la migración del servidor debes definir tu contraseña con «Recuperar acceso» en la página de inicio de sesión."
+    );
   }
 
   if (raw.includes("La contraseña no es correcta")) {
@@ -61,7 +64,7 @@ export function mapLoginAuthError(err: unknown): string {
     return "No encontramos una cuenta con ese correo.";
   }
 
-  if (raw.includes("Revisa tu correo y contraseña") || (status === 401)) {
+  if (raw.includes("Revisa tu correo y contraseña") || status === 401) {
     return "Correo o contraseña incorrectos.";
   }
 

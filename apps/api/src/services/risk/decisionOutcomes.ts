@@ -8,12 +8,12 @@
  *
  * Todo es fire-and-forget / never-throw: nunca debe romper el flujo de aplicación de un lead.
  */
-import { eq, sql } from 'drizzle-orm';
-import { db, riskDecisionOutcomes } from '../../db/index.js';
-import { logger } from '../../logger.js';
-import { encryptField } from '../crypto/fieldEncryption.js';
-import { evaluateRisk } from './evaluateRisk.js';
-import { buildUserRiskProfile } from './userRiskProfile.js';
+import { eq } from "drizzle-orm";
+import { db, riskDecisionOutcomes } from "../../db/index.js";
+import { logger } from "../../logger.js";
+import { encryptField } from "../crypto/fieldEncryption.js";
+import { evaluateRisk } from "./evaluateRisk.js";
+import { buildUserRiskProfile } from "./userRiskProfile.js";
 
 /** Congela el snapshot de riesgo al momento de aplicar. Never-throw. */
 export async function captureDecisionSnapshot(params: {
@@ -60,7 +60,10 @@ export async function captureDecisionSnapshot(params: {
       })
       .onConflictDoNothing();
   } catch (e) {
-    logger.warn({ err: e, applicationId: params.applicationId }, '[decisionOutcomes] captureDecisionSnapshot failed (non-fatal)');
+    logger.warn(
+      { err: e, applicationId: params.applicationId },
+      "[decisionOutcomes] captureDecisionSnapshot failed (non-fatal)",
+    );
   }
 }
 
@@ -80,7 +83,10 @@ export async function recordDecisionOutcome(params: {
       })
       .where(eq(riskDecisionOutcomes.applicationId, params.applicationId));
   } catch (e) {
-    logger.warn({ err: e, applicationId: params.applicationId }, '[decisionOutcomes] recordDecisionOutcome failed (non-fatal)');
+    logger.warn(
+      { err: e, applicationId: params.applicationId },
+      "[decisionOutcomes] recordDecisionOutcome failed (non-fatal)",
+    );
   }
 }
 
@@ -90,7 +96,12 @@ export interface DecisionOutcomeStats {
   pending: number;
   byOutcome: Record<string, number>;
   /** Tasa de aprobación por proveedor (originated+approved / con outcome). */
-  byProvider: Array<{ provider: string; decisions: number; approvals: number; approvalRate: number }>;
+  byProvider: Array<{
+    provider: string;
+    decisions: number;
+    approvals: number;
+    approvalRate: number;
+  }>;
 }
 
 /** Métricas para el dashboard admin: cuánta data etiquetada hay y tasa de aprobación por proveedor. */
@@ -104,12 +115,12 @@ export async function getDecisionOutcomeStats(): Promise<DecisionOutcomeStats> {
   const providerMap = new Map<string, { decisions: number; approvals: number }>();
   let labeled = 0;
 
-  const APPROVED = new Set(['originated', 'approved', 'accepted']);
+  const APPROVED = new Set(["originated", "approved", "accepted"]);
   for (const r of rows) {
     if (r.outcome) {
       labeled += 1;
       byOutcome[r.outcome] = (byOutcome[r.outcome] ?? 0) + 1;
-      const p = r.provider ?? '(sin proveedor)';
+      const p = r.provider ?? "(sin proveedor)";
       const agg = providerMap.get(p) ?? { decisions: 0, approvals: 0 };
       agg.decisions += 1;
       if (APPROVED.has(r.outcome)) agg.approvals += 1;

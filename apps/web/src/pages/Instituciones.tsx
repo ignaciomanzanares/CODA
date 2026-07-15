@@ -13,12 +13,12 @@ export default function Instituciones() {
           CODA para instituciones financieras
         </h1>
         <p className="text-gray-500 dark:text-slate-400 leading-relaxed">
-          ¿Eres un banco o cooperativa? CODA está construyendo integraciones B2B
-          para ofrecer diagnóstico financiero automatizado a tus clientes.
+          ¿Eres un banco o cooperativa? CODA está construyendo integraciones B2B para ofrecer
+          diagnóstico financiero automatizado a tus clientes.
         </p>
         <p className="text-gray-500 dark:text-slate-400 leading-relaxed">
-          Scoring crediticio dual, análisis transaccional y recomendaciones de productos —
-          todo integrable vía API o white-label.
+          Scoring crediticio dual, análisis transaccional y recomendaciones de productos — todo
+          integrable vía API o white-label.
         </p>
         <a href="mailto:info@codafinance.cl?subject=CODA%20para%20instituciones">
           <Button className="gap-2 bg-blue-600 hover:bg-blue-500">

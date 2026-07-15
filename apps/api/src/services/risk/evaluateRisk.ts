@@ -3,14 +3,19 @@
  * unificado, determina el segmento, elige el titular y devuelve la reconciliación. Ambos se computan
  * SIEMPRE (el tradicional interpretable es el control y provee las razones de "adverse action").
  */
-import { buildUserRiskProfile } from './userRiskProfile.js';
-import { evaluateCreditScorecard, scorecardInputFromCmf, type CreditScorecardResult } from './creditScorecard.js';
-import { computeTransactionalScore, type TransactionalScoreResult } from './transactionalScore.js';
+import { buildUserRiskProfile } from "./userRiskProfile.js";
+import {
+  evaluateCreditScorecard,
+  scorecardInputFromCmf,
+  type CreditScorecardResult,
+} from "./creditScorecard.js";
+import { computeTransactionalScore, type TransactionalScoreResult } from "./transactionalScore.js";
 
-export type RiskSegment = 'thin_file' | 'cmf_rich';
-export type RiskHeadline = 'traditional' | 'transactional';
+export type RiskSegment = "thin_file" | "cmf_rich";
+export type RiskHeadline = "traditional" | "transactional";
 
-export type TraditionalResult = ({ available: true } & CreditScorecardResult) | { available: false };
+export type TraditionalResult =
+  ({ available: true } & CreditScorecardResult) | { available: false };
 
 export interface RiskEvaluation {
   segment: RiskSegment;
@@ -24,7 +29,10 @@ export interface RiskEvaluation {
 /** Umbral PD para clasificar riesgo bajo/alto al reconciliar las dos miradas. */
 const LOW_RISK_PD = 0.15;
 
-export function reconcile(traditional: TraditionalResult, transactional: TransactionalScoreResult): { agree: boolean | null; note: string } {
+export function reconcile(
+  traditional: TraditionalResult,
+  transactional: TransactionalScoreResult,
+): { agree: boolean | null; note: string } {
   const tAvail = traditional.available;
   const xAvail = transactional.available;
 
@@ -35,29 +43,32 @@ export function reconcile(traditional: TraditionalResult, transactional: Transac
       return {
         agree: true,
         note: lowT
-          ? 'Ambas miradas coinciden en riesgo bajo.'
-          : 'Ambas miradas coinciden en riesgo elevado.',
+          ? "Ambas miradas coinciden en riesgo bajo."
+          : "Ambas miradas coinciden en riesgo elevado.",
       };
     }
     return {
       agree: false,
-      note: 'Las dos miradas difieren: el score tradicional (buró) y el transaccional no coinciden. Usamos el tradicional interpretable para explicarte el porqué.',
+      note: "Las dos miradas difieren: el score tradicional (buró) y el transaccional no coinciden. Usamos el tradicional interpretable para explicarte el porqué.",
     };
   }
 
   if (!tAvail && xAvail) {
     return {
       agree: null,
-      note: 'Aún no hay control tradicional (sin historial de buró). Mostramos el score transaccional CODA como beta — es el segmento donde aportamos lo que el buró no puede.',
+      note: "Aún no hay control tradicional (sin historial de buró). Mostramos el score transaccional CODA como beta — es el segmento donde aportamos lo que el buró no puede.",
     };
   }
   if (tAvail && !xAvail) {
     return {
       agree: null,
-      note: 'Aún no hay suficientes datos transaccionales para el score CODA. El score tradicional (buró) es el disponible por ahora.',
+      note: "Aún no hay suficientes datos transaccionales para el score CODA. El score tradicional (buró) es el disponible por ahora.",
     };
   }
-  return { agree: null, note: 'Aún no hay datos suficientes para evaluar tu riesgo. Sube tu Informe CMF y una cartola.' };
+  return {
+    agree: null,
+    note: "Aún no hay datos suficientes para evaluar tu riesgo. Sube tu Informe CMF y una cartola.",
+  };
 }
 
 export async function evaluateRisk(userId: string): Promise<RiskEvaluation | null> {
@@ -65,7 +76,7 @@ export async function evaluateRisk(userId: string): Promise<RiskEvaluation | nul
   if (!profile) return null;
 
   const hasCmf = profile.meta.hasCmfHistory && profile.cmf != null;
-  const segment: RiskSegment = hasCmf ? 'cmf_rich' : 'thin_file';
+  const segment: RiskSegment = hasCmf ? "cmf_rich" : "thin_file";
 
   const traditional: TraditionalResult = hasCmf
     ? { available: true, ...evaluateCreditScorecard(scorecardInputFromCmf(profile.cmf!.features)) }
@@ -73,7 +84,7 @@ export async function evaluateRisk(userId: string): Promise<RiskEvaluation | nul
 
   const transactional = await computeTransactionalScore(profile);
 
-  const headline: RiskHeadline = segment === 'thin_file' ? 'transactional' : 'traditional';
+  const headline: RiskHeadline = segment === "thin_file" ? "transactional" : "traditional";
   const reconciliation = reconcile(traditional, transactional);
 
   return { segment, headline, traditional, transactional, reconciliation };

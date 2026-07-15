@@ -10,10 +10,10 @@
  *  - `purgeExpiredOriginals`: job de retención (borra los vencidos del blob store + sus filas).
  *  - `deleteOriginalsForUser`: borrado inmediato al cerrar/anonimizar la cuenta.
  */
-import { randomUUID } from 'node:crypto';
-import { db, documentOriginals, eq, lt, and, isNotNull } from '../../db/index.js';
-import { getBlobStore, newBlobKey } from '../storage/blobStore.js';
-import { logger } from '../../logger.js';
+import { randomUUID } from "node:crypto";
+import { db, documentOriginals, eq, lt, and, isNotNull } from "../../db/index.js";
+import { getBlobStore, newBlobKey } from "../storage/blobStore.js";
+import { logger } from "../../logger.js";
 
 /** TTL por defecto del original: 30 días (configurable por env). */
 const DEFAULT_TTL_DAYS = Number(process.env.ORIGINAL_DOC_TTL_DAYS) || 30;
@@ -26,7 +26,7 @@ export async function storeOriginal(
   try {
     const ttlDays = opts?.ttlDays ?? DEFAULT_TTL_DAYS;
     const ttlSeconds = ttlDays * 24 * 60 * 60;
-    const blobKey = newBlobKey(`originals/${userId}`, opts?.filename ?? 'document');
+    const blobKey = newBlobKey(`originals/${userId}`, opts?.filename ?? "document");
     const store = getBlobStore();
     await store.putObject(blobKey, bytes, { contentType: opts?.contentType, ttlSeconds });
 
@@ -43,7 +43,7 @@ export async function storeOriginal(
     return { id, blobKey };
   } catch (e) {
     // Best-effort: no debe tumbar el upload si el original no se pudo guardar.
-    logger.warn({ err: e, userId }, '[originalStore] no se pudo guardar el original (no fatal)');
+    logger.warn({ err: e, userId }, "[originalStore] no se pudo guardar el original (no fatal)");
     return null;
   }
 }
@@ -62,7 +62,10 @@ export async function purgeExpiredOriginals(): Promise<number> {
     try {
       await store.deleteObject(row.blobKey);
     } catch (e) {
-      logger.warn({ err: e, blobKey: row.blobKey }, '[originalStore] fallo borrando blob vencido (continúo)');
+      logger.warn(
+        { err: e, blobKey: row.blobKey },
+        "[originalStore] fallo borrando blob vencido (continúo)",
+      );
     }
     await db.delete(documentOriginals).where(eq(documentOriginals.id, row.id));
   }
@@ -72,7 +75,7 @@ export async function purgeExpiredOriginals(): Promise<number> {
   } catch {
     /* no fatal */
   }
-  logger.info({ count: expired.length }, '[originalStore] originales vencidos purgados');
+  logger.info({ count: expired.length }, "[originalStore] originales vencidos purgados");
   return expired.length;
 }
 
@@ -88,7 +91,10 @@ export async function deleteOriginalsForUser(userId: string): Promise<number> {
     try {
       await store.deleteObject(row.blobKey);
     } catch (e) {
-      logger.warn({ err: e, blobKey: row.blobKey }, '[originalStore] fallo borrando blob de usuario (continúo)');
+      logger.warn(
+        { err: e, blobKey: row.blobKey },
+        "[originalStore] fallo borrando blob de usuario (continúo)",
+      );
     }
   }
   await db.delete(documentOriginals).where(eq(documentOriginals.userId, userId));

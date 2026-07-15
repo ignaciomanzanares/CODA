@@ -1,14 +1,17 @@
 import { Badge } from "@/components/ui/badge";
 import { Home, Car, Bitcoin, TrendingUp, Package } from "lucide-react";
 
-type AssetType = 'property' | 'vehicle' | 'crypto' | 'investment' | 'other';
+type AssetType = "property" | "vehicle" | "crypto" | "investment" | "other";
 
-const ASSET_CONFIG: Record<AssetType, { label: string; icon: React.ElementType; className: string }> = {
-  property:   { label: 'Propiedad',   icon: Home,       className: 'bg-blue-100 text-blue-800' },
-  vehicle:    { label: 'Vehículo',    icon: Car,        className: 'bg-purple-100 text-purple-800' },
-  crypto:     { label: 'Criptoactivo',icon: Bitcoin,    className: 'bg-orange-100 text-orange-800' },
-  investment: { label: 'Inversión',   icon: TrendingUp, className: 'bg-green-100 text-green-800' },
-  other:      { label: 'Otro',        icon: Package,    className: 'bg-gray-100 text-gray-800' },
+const ASSET_CONFIG: Record<
+  AssetType,
+  { label: string; icon: React.ElementType; className: string }
+> = {
+  property: { label: "Propiedad", icon: Home, className: "bg-blue-100 text-blue-800" },
+  vehicle: { label: "Vehículo", icon: Car, className: "bg-purple-100 text-purple-800" },
+  crypto: { label: "Criptoactivo", icon: Bitcoin, className: "bg-orange-100 text-orange-800" },
+  investment: { label: "Inversión", icon: TrendingUp, className: "bg-green-100 text-green-800" },
+  other: { label: "Otro", icon: Package, className: "bg-gray-100 text-gray-800" },
 };
 
 interface AssetTypeBadgeProps {

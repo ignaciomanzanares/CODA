@@ -51,7 +51,10 @@ export default function Expenses() {
       queryClient.removeQueries({ queryKey: ["/api/transactions/parsed"] });
       queryClient.removeQueries({ queryKey: ["/api/transactions/insights"] });
       queryClient.invalidateQueries();
-      toast({ title: "Datos eliminados", description: "Puedes subir nuevas cartolas cuando quieras." });
+      toast({
+        title: "Datos eliminados",
+        description: "Puedes subir nuevas cartolas cuando quieras.",
+      });
     } catch (err) {
       toast({
         title: "Error al limpiar",
@@ -110,7 +113,9 @@ export default function Expenses() {
             <PastelIcon icon={Receipt} color="pink" />
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Gastos</h1>
-              <p className="text-sm text-muted-foreground">Gastos identificados desde tus cartolas bancarias</p>
+              <p className="text-sm text-muted-foreground">
+                Gastos identificados desde tus cartolas bancarias
+              </p>
             </div>
           </div>
 

@@ -2,8 +2,8 @@
  * Servicio de registro auditable de consentimientos por finalidad (append-only).
  */
 
-import { eq, desc, and } from 'drizzle-orm';
-import { db, privacyConsentEvents } from '../../db/index.js';
+import { eq, desc } from "drizzle-orm";
+import { db, privacyConsentEvents } from "../../db/index.js";
 import {
   PRIVACY_POLICY_VERSION,
   PRIVACY_PURPOSE_KEYS,
@@ -12,7 +12,7 @@ import {
   type PrivacyConsentEventMeta,
   type PrivacyPurposeState,
   type PrivacyAuditEventRow,
-} from './privacyConsentTypes.js';
+} from "./privacyConsentTypes.js";
 
 const MAX_UA_LEN = 500;
 
@@ -30,14 +30,14 @@ export async function recordPrivacyEvent(
   purpose: PrivacyPurposeKey,
   policyVersion: string,
   action: PrivacyConsentAction,
-  meta: PrivacyConsentEventMeta = {}
+  meta: PrivacyConsentEventMeta = {},
 ): Promise<void> {
   await db.insert(privacyConsentEvents).values({
     userId,
     purpose,
     policyVersion,
     action,
-    channel: meta.channel ?? 'web',
+    channel: meta.channel ?? "web",
     ipAddress: meta.ipAddress ?? null,
     userAgent: truncateUa(meta.userAgent ?? undefined),
   });
@@ -47,7 +47,7 @@ export async function recordPrivacyEvent(
 export async function recordBatchAccept(
   userId: string,
   purposeVersions: { purpose: PrivacyPurposeKey; policyVersion: string }[],
-  meta: PrivacyConsentEventMeta
+  meta: PrivacyConsentEventMeta,
 ): Promise<void> {
   if (purposeVersions.length === 0) return;
   await db.insert(privacyConsentEvents).values(
@@ -55,11 +55,11 @@ export async function recordBatchAccept(
       userId,
       purpose: p.purpose,
       policyVersion: p.policyVersion,
-      action: 'accepted' as const,
-      channel: meta.channel ?? 'web',
+      action: "accepted" as const,
+      channel: meta.channel ?? "web",
       ipAddress: meta.ipAddress ?? null,
       userAgent: truncateUa(meta.userAgent ?? undefined),
-    }))
+    })),
   );
 }
 
@@ -82,7 +82,7 @@ export async function getPurposeStates(userId: string): Promise<PrivacyPurposeSt
     latestByPurpose.set(p, {
       action: r.action as PrivacyConsentAction,
       policyVersion: (r.policyVersion as string) ?? PRIVACY_POLICY_VERSION,
-      createdAt: (r.createdAt as string) ?? '',
+      createdAt: (r.createdAt as string) ?? "",
     });
   }
 
@@ -99,7 +99,7 @@ export async function getPurposeStates(userId: string): Promise<PrivacyPurposeSt
     }
     return {
       purpose,
-      accepted: last.action === 'accepted',
+      accepted: last.action === "accepted",
       policyVersion: last.policyVersion,
       lastAction: last.action,
       updatedAt: last.createdAt,
@@ -120,13 +120,13 @@ export async function listAuditTrail(userId: string, limit = 100): Promise<Priva
     const purpose = r.purpose as string;
     return {
       id: r.id as number,
-      purpose: isPurpose(purpose) ? purpose : 'data_processing',
+      purpose: isPurpose(purpose) ? purpose : "data_processing",
       policyVersion: (r.policyVersion as string) ?? PRIVACY_POLICY_VERSION,
       action: r.action as PrivacyConsentAction,
-      channel: (r.channel as string) ?? 'web',
+      channel: (r.channel as string) ?? "web",
       ipAddress: (r.ipAddress as string) ?? null,
       userAgent: (r.userAgent as string) ?? null,
-      createdAt: (r.createdAt as string) ?? '',
+      createdAt: (r.createdAt as string) ?? "",
     };
   });
 }
@@ -135,16 +135,16 @@ export async function revokePurpose(
   userId: string,
   purpose: PrivacyPurposeKey,
   policyVersion: string,
-  meta: PrivacyConsentEventMeta
+  meta: PrivacyConsentEventMeta,
 ): Promise<void> {
-  await recordPrivacyEvent(userId, purpose, policyVersion, 'revoked', meta);
+  await recordPrivacyEvent(userId, purpose, policyVersion, "revoked", meta);
 }
 
 export async function acceptPurpose(
   userId: string,
   purpose: PrivacyPurposeKey,
   policyVersion: string,
-  meta: PrivacyConsentEventMeta
+  meta: PrivacyConsentEventMeta,
 ): Promise<void> {
-  await recordPrivacyEvent(userId, purpose, policyVersion, 'accepted', meta);
+  await recordPrivacyEvent(userId, purpose, policyVersion, "accepted", meta);
 }

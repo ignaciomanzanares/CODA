@@ -17,7 +17,8 @@ export default function ResetPassword() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get("token") ?? "";
-    if (!t) setError("El enlace no es válido. Solicita uno nuevo desde la página de inicio de sesión.");
+    if (!t)
+      setError("El enlace no es válido. Solicita uno nuevo desde la página de inicio de sesión.");
     setToken(t);
   }, []);
 
@@ -41,7 +42,11 @@ export default function ResetPassword() {
       });
       setDone(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "No se pudo restablecer la contraseña. El enlace puede haber expirado.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo restablecer la contraseña. El enlace puede haber expirado.",
+      );
     } finally {
       setLoading(false);
     }
@@ -64,7 +69,9 @@ export default function ResetPassword() {
               <CheckCircle2 className="mx-auto h-12 w-12 text-green-500" />
               <div>
                 <h2 className="text-lg font-semibold">Contraseña actualizada</h2>
-                <p className="text-sm text-muted-foreground mt-1">Ya puedes iniciar sesión con tu nueva contraseña.</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Ya puedes iniciar sesión con tu nueva contraseña.
+                </p>
               </div>
               <Button className="w-full" onClick={() => navigate(ROUTES.iniciarSesion)}>
                 Iniciar sesión
@@ -77,7 +84,9 @@ export default function ResetPassword() {
                   <Lock className="h-5 w-5 text-primary" />
                   <h2 className="text-lg font-semibold">Nueva contraseña</h2>
                 </div>
-                <p className="text-sm text-muted-foreground">Ingresa y confirma tu nueva contraseña.</p>
+                <p className="text-sm text-muted-foreground">
+                  Ingresa y confirma tu nueva contraseña.
+                </p>
               </div>
 
               {error && (
@@ -119,7 +128,13 @@ export default function ResetPassword() {
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading || !token}>
-                  {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Guardando...</> : "Guardar contraseña"}
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Guardando...
+                    </>
+                  ) : (
+                    "Guardar contraseña"
+                  )}
                 </Button>
               </form>
 

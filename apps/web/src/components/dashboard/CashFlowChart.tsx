@@ -11,7 +11,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-  ReferenceLine,
 } from "recharts";
 
 interface CashFlowData {
@@ -26,7 +25,11 @@ interface CashFlowChartProps {
   monthlyExpenses: number;
 }
 
-export default function CashFlowChart({ data, monthlyIncome, monthlyExpenses }: CashFlowChartProps) {
+export default function CashFlowChart({
+  data,
+  monthlyIncome,
+  monthlyExpenses,
+}: CashFlowChartProps) {
   const { currency } = useCurrency();
   const netCashFlow = monthlyIncome - monthlyExpenses;
   const isPositive = netCashFlow >= 0;
@@ -34,18 +37,19 @@ export default function CashFlowChart({ data, monthlyIncome, monthlyExpenses }: 
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const income = payload.find((p: any) => p.dataKey === 'income')?.value || 0;
-      const expenses = payload.find((p: any) => p.dataKey === 'expenses')?.value || 0;
+      const income = payload.find((p: any) => p.dataKey === "income")?.value || 0;
+      const expenses = payload.find((p: any) => p.dataKey === "expenses")?.value || 0;
       const net = income - expenses;
-      
+
       return (
         <div className="bg-background border rounded-lg shadow-lg p-3">
           <p className="font-medium text-sm mb-2">{label}</p>
           <p className="text-sm text-green-600">Ingresos: {formatCurrency(income)}</p>
           <p className="text-sm text-red-500">Gastos: {formatCurrency(expenses)}</p>
           <div className="border-t mt-2 pt-2">
-            <p className={`text-sm font-medium ${net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              Neto: {net >= 0 ? '+' : ''}{formatCurrency(net)}
+            <p className={`text-sm font-medium ${net >= 0 ? "text-green-600" : "text-red-600"}`}>
+              Neto: {net >= 0 ? "+" : ""}
+              {formatCurrency(net)}
             </p>
           </div>
         </div>
@@ -64,9 +68,18 @@ export default function CashFlowChart({ data, monthlyIncome, monthlyExpenses }: 
           </div>
           <div className="text-right">
             <p className="text-sm text-muted-foreground">Este mes</p>
-            <div className={`flex items-center justify-end gap-1 text-lg font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-              {isPositive ? <ArrowUpRight className="h-5 w-5" /> : <ArrowDownRight className="h-5 w-5" />}
-              <span>{isPositive ? '+' : ''}{formatCurrency(netCashFlow)}</span>
+            <div
+              className={`flex items-center justify-end gap-1 text-lg font-bold ${isPositive ? "text-green-600" : "text-red-600"}`}
+            >
+              {isPositive ? (
+                <ArrowUpRight className="h-5 w-5" />
+              ) : (
+                <ArrowDownRight className="h-5 w-5" />
+              )}
+              <span>
+                {isPositive ? "+" : ""}
+                {formatCurrency(netCashFlow)}
+              </span>
             </div>
           </div>
         </div>
@@ -93,13 +106,8 @@ export default function CashFlowChart({ data, monthlyIncome, monthlyExpenses }: 
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
-              <XAxis 
-                dataKey="month" 
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis 
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+              <YAxis
                 tickFormatter={formatCurrency}
                 tick={{ fontSize: 12 }}
                 tickLine={false}
@@ -107,21 +115,23 @@ export default function CashFlowChart({ data, monthlyIncome, monthlyExpenses }: 
                 width={50}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                wrapperStyle={{ paddingTop: '10px' }}
-                formatter={(value) => <span className="text-xs text-muted-foreground capitalize">{value}</span>}
+              <Legend
+                wrapperStyle={{ paddingTop: "10px" }}
+                formatter={(value) => (
+                  <span className="text-xs text-muted-foreground capitalize">{value}</span>
+                )}
               />
-              <Bar 
-                dataKey="income" 
+              <Bar
+                dataKey="income"
                 name="Ingresos"
-                fill="#22c55e" 
+                fill="#22c55e"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={40}
               />
-              <Bar 
-                dataKey="expenses" 
+              <Bar
+                dataKey="expenses"
                 name="Gastos"
-                fill="#ef4444" 
+                fill="#ef4444"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={40}
               />

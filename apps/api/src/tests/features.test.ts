@@ -39,7 +39,7 @@ describe("Feature Engineering", () => {
         accountId: account.id as number,
         postedAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
         description: "Salary",
-        amount: 5000.00,
+        amount: 5000.0,
         currency: "USD",
         category: "income",
         pending: 0,
@@ -48,7 +48,7 @@ describe("Feature Engineering", () => {
         accountId: account.id as number,
         postedAt: new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000).toISOString(), // 35 days ago
         description: "Salary",
-        amount: 5000.00,
+        amount: 5000.0,
         currency: "USD",
         category: "income",
         pending: 0,
@@ -59,7 +59,7 @@ describe("Feature Engineering", () => {
         postedAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
         description: "Rent",
         merchantName: "Landlord LLC",
-        amount: -1500.00,
+        amount: -1500.0,
         currency: "USD",
         category: "housing",
         pending: 0,
@@ -69,7 +69,7 @@ describe("Feature Engineering", () => {
         postedAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(),
         description: "Groceries",
         merchantName: "Whole Foods",
-        amount: -150.00,
+        amount: -150.0,
         currency: "USD",
         category: "groceries",
         pending: 0,
@@ -79,7 +79,7 @@ describe("Feature Engineering", () => {
         postedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000).toISOString(),
         description: "Groceries",
         merchantName: "Whole Foods",
-        amount: -145.00,
+        amount: -145.0,
         currency: "USD",
         category: "groceries",
         pending: 0,
@@ -103,7 +103,7 @@ describe("Feature Engineering", () => {
 
     // The test creates transactions for "test-user-features" but also might pick up seeded data
     // So we check that credits are at least 10000 (our 2 salary transactions)
-    expect(features.totalCredits).toBeGreaterThanOrEqual(10000); 
+    expect(features.totalCredits).toBeGreaterThanOrEqual(10000);
     expect(features.totalDebits).toBeGreaterThanOrEqual(1795); // 1500 + 150 + 145
   });
 

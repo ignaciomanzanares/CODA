@@ -1,9 +1,9 @@
 /**
  * Income Statement Generator
- * 
+ *
  * Generates income statements from journal entries.
  * Groups by revenue, cost of sales, and operating expenses.
- * 
+ *
  * ASSUMPTIONS:
  * - Chilean IFRS-based chart of accounts
  * - Account codes:
@@ -15,7 +15,7 @@
  *   - 9xxx: Taxes
  */
 
-import type { IncomeStatement, LineItem } from '../types.js';
+import type { IncomeStatement, LineItem } from "../types.js";
 
 // =============================================================================
 // INPUT TYPES
@@ -39,42 +39,42 @@ export interface JournalEntryInput {
 export function generateIncomeStatement(
   entries: JournalEntryInput[],
   periodStart: string,
-  periodEnd: string
+  periodEnd: string,
 ): IncomeStatement {
   // Filter entries by period
-  const periodEntries = entries.filter(e => 
-    e.entryDate >= periodStart && e.entryDate <= periodEnd
+  const periodEntries = entries.filter(
+    (e) => e.entryDate >= periodStart && e.entryDate <= periodEnd,
   );
 
   // Group entries by account type
   const revenue = aggregateByAccount(
-    periodEntries.filter(e => e.accountCode.startsWith('4')),
-    'credit' // Revenue is credit
+    periodEntries.filter((e) => e.accountCode.startsWith("4")),
+    "credit", // Revenue is credit
   );
 
   const costOfSales = aggregateByAccount(
-    periodEntries.filter(e => e.accountCode.startsWith('5')),
-    'debit' // COGS is debit
+    periodEntries.filter((e) => e.accountCode.startsWith("5")),
+    "debit", // COGS is debit
   );
 
   const operatingExpenses = aggregateByAccount(
-    periodEntries.filter(e => e.accountCode.startsWith('6')),
-    'debit' // Expenses are debit
+    periodEntries.filter((e) => e.accountCode.startsWith("6")),
+    "debit", // Expenses are debit
   );
 
   const otherIncome = aggregateByAccount(
-    periodEntries.filter(e => e.accountCode.startsWith('7')),
-    'credit'
+    periodEntries.filter((e) => e.accountCode.startsWith("7")),
+    "credit",
   );
 
   const otherExpenses = aggregateByAccount(
-    periodEntries.filter(e => e.accountCode.startsWith('8')),
-    'debit'
+    periodEntries.filter((e) => e.accountCode.startsWith("8")),
+    "debit",
   );
 
   const taxEntries = aggregateByAccount(
-    periodEntries.filter(e => e.accountCode.startsWith('9')),
-    'debit'
+    periodEntries.filter((e) => e.accountCode.startsWith("9")),
+    "debit",
   );
 
   // Calculate totals
@@ -113,21 +113,20 @@ export function generateIncomeStatement(
  */
 function aggregateByAccount(
   entries: JournalEntryInput[],
-  amountType: 'debit' | 'credit'
+  amountType: "debit" | "credit",
 ): LineItem[] {
   const byAccount = new Map<string, { name: string; amount: number }>();
 
   for (const entry of entries) {
-    const existing = byAccount.get(entry.accountCode) || { 
-      name: entry.accountName, 
-      amount: 0 
+    const existing = byAccount.get(entry.accountCode) || {
+      name: entry.accountName,
+      amount: 0,
     };
-    
+
     // Add the appropriate amount
-    existing.amount += amountType === 'debit' 
-      ? (entry.debit - entry.credit)
-      : (entry.credit - entry.debit);
-    
+    existing.amount +=
+      amountType === "debit" ? entry.debit - entry.credit : entry.credit - entry.debit;
+
     byAccount.set(entry.accountCode, existing);
   }
 

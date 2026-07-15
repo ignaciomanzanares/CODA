@@ -23,7 +23,7 @@ export interface ScorecardCoefficients {
 }
 
 export const CREDIT_SCORECARD: ScorecardCoefficients = {
-  modelId: 'logreg_cmf_1783351412',
+  modelId: "logreg_cmf_1783351412",
   intercept: -3.9554575248385047,
   coefficients: {
     mora30: 0.41755275413146536,
@@ -33,7 +33,7 @@ export const CREDIT_SCORECARD: ScorecardCoefficients = {
     util: 1.9844892398437808,
   },
   metrics: { aucCv5: 0.8361426992207845, baseRate: 0.06684 },
-  datasetHash: 'd109bceb151c069363c54440ef3f76a5ff0cda2b18069fa47f5c76e342a08c8c',
+  datasetHash: "d109bceb151c069363c54440ef3f76a5ff0cda2b18069fa47f5c76e342a08c8c",
 };
 
 /**
@@ -46,9 +46,9 @@ export const SCORE_MAPPING = { offset: 350, factor: 98, min: 0, max: 850 } as co
 
 /** Etiquetas legibles por feature, para las razones de "adverse action". */
 export const FEATURE_LABELS: Record<string, string> = {
-  mora30: 'atrasos de 30–59 días',
-  mora60: 'atrasos de 60–89 días',
-  mora90: 'atrasos de 90+ días',
-  dti: 'carga de deuda sobre tu ingreso',
-  util: 'utilización de tus líneas de crédito',
+  mora30: "atrasos de 30–59 días",
+  mora60: "atrasos de 60–89 días",
+  mora90: "atrasos de 90+ días",
+  dti: "carga de deuda sobre tu ingreso",
+  util: "utilización de tus líneas de crédito",
 };

@@ -44,28 +44,29 @@ export async function materializeFeatures(users: string[], outPath: string, wind
         continue;
       }
       const fv = await buildUserFeatureVector(userId, windowDays);
-      const row = [
-        userId,
-        fv.windowDays,
-        fv.txCount,
-        fv.debitCount,
-        fv.creditCount,
-        fv.totalDebits.toFixed(2),
-        fv.totalCredits.toFixed(2),
-        fv.avgAmount.toFixed(4),
-        fv.stdAmount.toFixed(4),
-        fv.activeDays,
-        fv.debitCreditRatio.toFixed(6),
-        fv.incomeRegularity.toFixed(6),
-        fv.topCategoryShare.toFixed(6),
-        fv.monthlyIncome.toFixed(2),
-        fv.monthlyDebits.toFixed(2),
-        fv.dti.toFixed(6),
-        fv.dtiCapped.toFixed(6),
-        fv.incomeTrend30_90.toFixed(6),
-        fv.netCashflowVolatility.toFixed(6),
-        fv.recurringExpenseShare.toFixed(6),
-      ].join(",") + "\n";
+      const row =
+        [
+          userId,
+          fv.windowDays,
+          fv.txCount,
+          fv.debitCount,
+          fv.creditCount,
+          fv.totalDebits.toFixed(2),
+          fv.totalCredits.toFixed(2),
+          fv.avgAmount.toFixed(4),
+          fv.stdAmount.toFixed(4),
+          fv.activeDays,
+          fv.debitCreditRatio.toFixed(6),
+          fv.incomeRegularity.toFixed(6),
+          fv.topCategoryShare.toFixed(6),
+          fv.monthlyIncome.toFixed(2),
+          fv.monthlyDebits.toFixed(2),
+          fv.dti.toFixed(6),
+          fv.dtiCapped.toFixed(6),
+          fv.incomeTrend30_90.toFixed(6),
+          fv.netCashflowVolatility.toFixed(6),
+          fv.recurringExpenseShare.toFixed(6),
+        ].join(",") + "\n";
       await fs.promises.appendFile(outPath, row, { encoding: "utf-8" });
     } catch (e) {
       console.error(`Feature materialization failed for ${userId}`, e);
@@ -79,11 +80,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const outPath = process.argv[3] || path.join(process.cwd(), "ml", "out", "features.csv");
   const windowDays = process.argv[4] ? parseInt(process.argv[4], 10) : 90;
 
-  materializeFeatures(users, outPath, windowDays).then(() => {
-    console.log(`Features written to ${outPath}`);
-    process.exit(0);
-  }).catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
+  materializeFeatures(users, outPath, windowDays)
+    .then(() => {
+      console.log(`Features written to ${outPath}`);
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
 }

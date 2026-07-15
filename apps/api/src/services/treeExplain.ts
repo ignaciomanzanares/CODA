@@ -94,7 +94,9 @@ export class XgbTreeModel {
     const raw = JSON.parse(fs.readFileSync(path, "utf-8"));
     const learner = raw.learner;
     const rawTrees: RawTree[] = learner.gradient_booster.model.trees;
-    const numFeatures = Number(learner.learner_model_param?.num_feature ?? rawTrees[0]?.left_children?.length ?? 0);
+    const numFeatures = Number(
+      learner.learner_model_param?.num_feature ?? rawTrees[0]?.left_children?.length ?? 0,
+    );
     return new XgbTreeModel(rawTrees.map(parseTree), numFeatures);
   }
 
@@ -153,9 +155,8 @@ export class XgbTreeModel {
         const cond = tree.splitConditions[node];
         const x = features[fIdx];
         // Mismo criterio float32 que margin() — ver nota allí.
-        const goLeft = x == null || Number.isNaN(x)
-          ? tree.defaultLeft[node] === 1
-          : Math.fround(x) < cond;
+        const goLeft =
+          x == null || Number.isNaN(x) ? tree.defaultLeft[node] === 1 : Math.fround(x) < cond;
         const child = goLeft ? tree.leftChildren[node] : tree.rightChildren[node];
         contributions[fIdx] += tree.nodeValue[child] - tree.nodeValue[node];
         node = child;
@@ -165,17 +166,31 @@ export class XgbTreeModel {
     return {
       marginTotal: bias + contributions.reduce((a, b) => a + b, 0),
       bias,
-      contributions: featureNames.map((name, i) => ({ feature: name, contribution: contributions[i] ?? 0 })),
+      contributions: featureNames.map((name, i) => ({
+        feature: name,
+        contribution: contributions[i] ?? 0,
+      })),
     };
   }
 
   /** Top features por |contribución|, con signo (aumenta/reduce riesgo) para mostrar como "reasons". */
-  topReasons(features: number[], featureNames: string[], limit = 5): Array<{ feature: string; contribution: number; direction: "increases_risk" | "decreases_risk" }> {
+  topReasons(
+    features: number[],
+    featureNames: string[],
+    limit = 5,
+  ): Array<{
+    feature: string;
+    contribution: number;
+    direction: "increases_risk" | "decreases_risk";
+  }> {
     const { contributions } = this.explain(features, featureNames);
     return contributions
       .slice()
       .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
       .slice(0, limit)
-      .map((c) => ({ ...c, direction: c.contribution >= 0 ? "increases_risk" as const : "decreases_risk" as const }));
+      .map((c) => ({
+        ...c,
+        direction: c.contribution >= 0 ? ("increases_risk" as const) : ("decreases_risk" as const),
+      }));
   }
 }

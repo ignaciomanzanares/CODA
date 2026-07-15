@@ -30,15 +30,23 @@ function makeReq(opts: {
 
 function makeRes(): any {
   const res: any = { statusCode: 200, body: undefined };
-  res.status = (c: number) => { res.statusCode = c; return res; };
-  res.json = (p: any) => { res.body = p; return res; };
+  res.status = (c: number) => {
+    res.statusCode = c;
+    return res;
+  };
+  res.json = (p: any) => {
+    res.body = p;
+    return res;
+  };
   return res;
 }
 
 function run(req: any): { nextCalled: boolean; res: any } {
   const res = makeRes();
   let nextCalled = false;
-  csrfOriginCheck(req, res, () => { nextCalled = true; });
+  csrfOriginCheck(req, res, () => {
+    nextCalled = true;
+  });
   return { nextCalled, res };
 }
 
@@ -69,7 +77,9 @@ describe("csrfAllowedOrigins", () => {
 });
 
 describe("csrfOriginCheck with CSRF_ENFORCE=true", () => {
-  beforeEach(() => { process.env.CSRF_ENFORCE = "true"; });
+  beforeEach(() => {
+    process.env.CSRF_ENFORCE = "true";
+  });
 
   it("1. cookie-auth mutation with allowlisted Origin → passes", () => {
     expect(run(makeReq({ origin: ALLOWED })).nextCalled).toBe(true);
@@ -105,7 +115,9 @@ describe("csrfOriginCheck with CSRF_ENFORCE=true", () => {
   });
 
   it("8. GET with cookie and no Origin → passes (safe method)", () => {
-    expect(run(makeReq({ method: "GET", path: "/api/transactions/summary" })).nextCalled).toBe(true);
+    expect(run(makeReq({ method: "GET", path: "/api/transactions/summary" })).nextCalled).toBe(
+      true,
+    );
   });
 
   it("9. auth-bootstrap (login/register/reset/2fa-verify) → passes without Origin", () => {

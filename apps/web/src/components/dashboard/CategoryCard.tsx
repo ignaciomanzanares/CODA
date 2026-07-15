@@ -75,7 +75,9 @@ export default function CategoryCard({ group }: CategoryCardProps) {
       <div className="rounded-2xl border border-dashed border-border bg-card/50 p-5">
         <div className="flex items-center gap-3">
           <Icon className="h-5 w-5 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">{group.label}: sin movimientos en este período</p>
+          <p className="text-sm text-muted-foreground">
+            {group.label}: sin movimientos en este período
+          </p>
         </div>
       </div>
     );
@@ -85,10 +87,16 @@ export default function CategoryCard({ group }: CategoryCardProps) {
     <div className="rounded-2xl border border-border bg-card overflow-hidden transition-shadow hover:shadow-md hover:shadow-primary/5">
       {/* Collapsed header — always visible */}
       <button
-        onClick={() => { setExpanded((e) => !e); setPage(0); }}
+        onClick={() => {
+          setExpanded((e) => !e);
+          setPage(0);
+        }}
         className="w-full text-left p-5 flex items-center gap-4"
       >
-        <Icon className={cn("h-5 w-5 shrink-0", `text-${group.color}-600 dark:text-${group.color}-400`)} style={{ color: chartColor }} />
+        <Icon
+          className={cn("h-5 w-5 shrink-0", `text-${group.color}-600 dark:text-${group.color}-400`)}
+          style={{ color: chartColor }}
+        />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
@@ -100,21 +108,30 @@ export default function CategoryCard({ group }: CategoryCardProps) {
           <div className="flex items-center justify-between gap-2 mt-1">
             <div className="flex items-center gap-2">
               <p className="text-xs text-muted-foreground">{group.pctOfIncome}% del ingreso</p>
-              {group.prevMonthTotal !== null && group.prevMonthTotal > 0 && (() => {
-                const delta = Math.round(((group.total - group.prevMonthTotal) / group.prevMonthTotal) * 100);
-                if (delta === 0) return null;
-                // For expenses: up = bad (red), down = good (green). For income: up = good, down = bad.
-                const isIncome = group.key === "ingresos";
-                const isGood = isIncome ? delta > 0 : delta < 0;
-                return (
-                  <span className={cn(
-                    "text-[10px] font-medium",
-                    isGood ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400",
-                  )}>
-                    {delta > 0 ? "+" : ""}{delta}% vs mes ant.
-                  </span>
-                );
-              })()}
+              {group.prevMonthTotal !== null &&
+                group.prevMonthTotal > 0 &&
+                (() => {
+                  const delta = Math.round(
+                    ((group.total - group.prevMonthTotal) / group.prevMonthTotal) * 100,
+                  );
+                  if (delta === 0) return null;
+                  // For expenses: up = bad (red), down = good (green). For income: up = good, down = bad.
+                  const isIncome = group.key === "ingresos";
+                  const isGood = isIncome ? delta > 0 : delta < 0;
+                  return (
+                    <span
+                      className={cn(
+                        "text-[10px] font-medium",
+                        isGood
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-red-500 dark:text-red-400",
+                      )}
+                    >
+                      {delta > 0 ? "+" : ""}
+                      {delta}% vs mes ant.
+                    </span>
+                  );
+                })()}
             </div>
             {/* Sparkline mini */}
             <div className="w-20 h-6">
@@ -174,10 +191,15 @@ export default function CategoryCard({ group }: CategoryCardProps) {
               {group.subcategories.map((sub) => (
                 <button
                   key={sub.key}
-                  onClick={(e) => { e.stopPropagation(); goToMovimientos(sub.key); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    goToMovimientos(sub.key);
+                  }}
                   className="flex items-center justify-between py-1.5 px-2 -mx-2 rounded-lg w-full text-left hover:bg-muted/50 transition-colors group/sub"
                 >
-                  <span className="text-sm text-foreground group-hover/sub:text-primary transition-colors">{sub.label}</span>
+                  <span className="text-sm text-foreground group-hover/sub:text-primary transition-colors">
+                    {sub.label}
+                  </span>
                   <span className="text-sm font-medium tabular-nums text-foreground">
                     {fmtCLP(sub.total)}
                   </span>
@@ -201,7 +223,10 @@ export default function CategoryCard({ group }: CategoryCardProps) {
                 {totalPages > 1 && (
                   <div className="flex items-center justify-center gap-2 pt-2">
                     <button
-                      onClick={(e) => { e.stopPropagation(); setPage((p) => Math.max(0, p - 1)); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPage((p) => Math.max(0, p - 1));
+                      }}
                       disabled={page === 0}
                       className="px-3 py-1 text-xs rounded-lg border border-border disabled:opacity-40 hover:bg-muted transition-colors"
                     >
@@ -211,7 +236,10 @@ export default function CategoryCard({ group }: CategoryCardProps) {
                       {page + 1} / {totalPages}
                     </span>
                     <button
-                      onClick={(e) => { e.stopPropagation(); setPage((p) => Math.min(totalPages - 1, p + 1)); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPage((p) => Math.min(totalPages - 1, p + 1));
+                      }}
                       disabled={page >= totalPages - 1}
                       className="px-3 py-1 text-xs rounded-lg border border-border disabled:opacity-40 hover:bg-muted transition-colors"
                     >
@@ -224,7 +252,10 @@ export default function CategoryCard({ group }: CategoryCardProps) {
 
             {/* Drill-down link */}
             <button
-              onClick={(e) => { e.stopPropagation(); goToMovimientos(group.subcategories[0]?.key); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                goToMovimientos(group.subcategories[0]?.key);
+              }}
               className="flex items-center justify-center gap-1.5 w-full py-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
             >
               <ExternalLink className="h-3 w-3" />
@@ -289,13 +320,14 @@ function TransactionRow({ tx }: { tx: DashboardTransaction }) {
     <div className="relative">
       <div className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-muted/50 transition-colors group">
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-foreground truncate">
-            {tx.descripcion || tx.categoria}
-          </p>
+          <p className="text-sm text-foreground truncate">{tx.descripcion || tx.categoria}</p>
           <div className="flex items-center gap-2">
             <p className="text-[11px] text-muted-foreground">{fmtDate(tx.fecha)}</p>
             <button
-              onClick={(e) => { e.stopPropagation(); setShowPicker((s) => !s); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowPicker((s) => !s);
+              }}
               className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
               title="Cambiar categoría"
             >
@@ -304,11 +336,14 @@ function TransactionRow({ tx }: { tx: DashboardTransaction }) {
             </button>
           </div>
         </div>
-        <span className={cn(
-          "text-sm font-medium tabular-nums shrink-0 ml-3",
-          tx.tipo === "ingreso" ? "text-emerald-600 dark:text-emerald-400" : "text-foreground",
-        )}>
-          {tx.tipo === "ingreso" ? "+" : ""}{fmtCLP(tx.monto)}
+        <span
+          className={cn(
+            "text-sm font-medium tabular-nums shrink-0 ml-3",
+            tx.tipo === "ingreso" ? "text-emerald-600 dark:text-emerald-400" : "text-foreground",
+          )}
+        >
+          {tx.tipo === "ingreso" ? "+" : ""}
+          {fmtCLP(tx.monto)}
         </span>
       </div>
 
@@ -323,25 +358,29 @@ function TransactionRow({ tx }: { tx: DashboardTransaction }) {
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             </div>
           )}
-          {!saving && CATEGORY_TAXONOMY.map((group) => (
-            <div key={group.key}>
-              <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                {group.label}
-              </p>
-              {group.parserCategories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={(e) => { e.stopPropagation(); handleRecategorize(cat); }}
-                  className={cn(
-                    "w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors",
-                    cat === tx.categoria && "bg-primary/10 text-primary font-medium",
-                  )}
-                >
-                  {categoryLabel(cat)}
-                </button>
-              ))}
-            </div>
-          ))}
+          {!saving &&
+            CATEGORY_TAXONOMY.map((group) => (
+              <div key={group.key}>
+                <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  {group.label}
+                </p>
+                {group.parserCategories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRecategorize(cat);
+                    }}
+                    className={cn(
+                      "w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors",
+                      cat === tx.categoria && "bg-primary/10 text-primary font-medium",
+                    )}
+                  >
+                    {categoryLabel(cat)}
+                  </button>
+                ))}
+              </div>
+            ))}
         </div>
       )}
     </div>

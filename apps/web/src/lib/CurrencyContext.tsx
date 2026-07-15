@@ -17,7 +17,8 @@ const RATE_SOURCES: { url: string; getRate: (data: any) => number | null }[] = [
   },
   {
     url: "https://open.er-api.com/v6/latest/USD",
-    getRate: (data) => (data?.conversion_rates?.CLP != null ? Number(data.conversion_rates.CLP) : null),
+    getRate: (data) =>
+      data?.conversion_rates?.CLP != null ? Number(data.conversion_rates.CLP) : null,
   },
   {
     url: "https://cdn.moneyconvert.net/api/latest.json",

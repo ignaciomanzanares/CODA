@@ -48,10 +48,22 @@ function formatDate(iso: string | null): string {
 
 function StatusBadge({ status }: { status: ConsentGrant["status"] }) {
   const config = {
-    authorized: { label: "Autorizado", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30" },
-    pending: { label: "Pendiente", className: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30" },
-    revoked: { label: "Revocado", className: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30" },
-    rejected: { label: "Rechazado", className: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30" },
+    authorized: {
+      label: "Autorizado",
+      className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+    },
+    pending: {
+      label: "Pendiente",
+      className: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
+    },
+    revoked: {
+      label: "Revocado",
+      className: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
+    },
+    rejected: {
+      label: "Rechazado",
+      className: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30",
+    },
     expired: { label: "Expirado", className: "bg-muted text-muted-foreground border-border" },
   };
   const { label, className } = config[status] ?? config.pending;
@@ -68,7 +80,13 @@ export default function ConsentConnections() {
   const { toast } = useToast();
   const [revokeGrantId, setRevokeGrantId] = useState<number | null>(null);
 
-  const { data: grants, isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: grants,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["consents"],
     queryFn: getConsents,
   });
@@ -78,10 +96,17 @@ export default function ConsentConnections() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["consents"] });
       setRevokeGrantId(null);
-      toast({ title: "Acceso revocado", description: "El consentimiento se ha revocado correctamente." });
+      toast({
+        title: "Acceso revocado",
+        description: "El consentimiento se ha revocado correctamente.",
+      });
     },
     onError: (err: Error) => {
-      toast({ variant: "destructive", title: "Error", description: err.message || "No se pudo revocar el acceso." });
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message || "No se pudo revocar el acceso.",
+      });
     },
   });
 
@@ -129,7 +154,8 @@ export default function ConsentConnections() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Mis conexiones bancarias</h1>
               <p className="text-sm text-muted-foreground">
-                Panel de control de consentimientos. Aquí ves con qué instituciones compartes datos y puedes revocar el acceso.
+                Panel de control de consentimientos. Aquí ves con qué instituciones compartes datos
+                y puedes revocar el acceso.
               </p>
             </div>
           </div>
@@ -203,13 +229,16 @@ export default function ConsentConnections() {
         )}
       </div>
 
-      <AlertDialog open={revokeGrantId != null} onOpenChange={(open) => !open && setRevokeGrantId(null)}>
+      <AlertDialog
+        open={revokeGrantId != null}
+        onOpenChange={(open) => !open && setRevokeGrantId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Revocar acceso?</AlertDialogTitle>
             <AlertDialogDescription>
-              Dejarás de compartir datos con esta institución. Si más adelante quieres usar de nuevo el servicio,
-              tendrás que autorizar un nuevo consentimiento.
+              Dejarás de compartir datos con esta institución. Si más adelante quieres usar de nuevo
+              el servicio, tendrás que autorizar un nuevo consentimiento.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

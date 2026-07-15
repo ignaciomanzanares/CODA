@@ -6,12 +6,12 @@
  */
 
 // Importamos la versión legacy optimizada para Node.js
-import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
-import type { SfaTransaccionCuenta, SfaProductoVigenteCuenta } from '../../sfa/types.js';
-import { parseCLP } from '../../utils/clp.js';
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+import type { SfaTransaccionCuenta, SfaProductoVigenteCuenta } from "../../sfa/types.js";
+import { parseCLP } from "../../utils/clp.js";
 
 export interface CmfInformeDeudas {
-  tipo: 'cmf_informe_deudas';
+  tipo: "cmf_informe_deudas";
   deudaTotalVigente: number;
   deudaIndirecta: number;
   numeroInstituciones: number;
@@ -20,7 +20,7 @@ export interface CmfInformeDeudas {
 }
 
 export interface CartolaExtraida {
-  tipo: 'cartola';
+  tipo: "cartola";
   transacciones: Array<{
     fecha: string;
     descripcion: string;
@@ -44,7 +44,7 @@ export type DocumentoExtraido = CmfInformeDeudas | CartolaExtraida;
 const RUT_RE = /\b\d{1,2}\.\d{3}\.\d{3}-[\dKk]\b/;
 
 function extractNumberAfterLabel(text: string, label: string): number | null {
-  const idx = text.search(new RegExp(label.replace(/\s+/g, '\\s+'), 'i'));
+  const idx = text.search(new RegExp(label.replace(/\s+/g, "\\s+"), "i"));
   if (idx === -1) return null;
   const slice = text.slice(idx, idx + 120);
   // Primary: match Chilean-format monetary string (dots = thousands, optional comma decimal)
@@ -54,8 +54,11 @@ function extractNumberAfterLabel(text: string, label: string): number | null {
     return val > 0 ? val : null;
   }
   // Fallback: extract first run of digits only (no dots — avoids thousands-separator misparse)
-  const onlyDigits = slice.replace(/[^\d]/g, ' ');
-  const num = onlyDigits.trim().split(/\s+/).find(s => s.length > 0);
+  const onlyDigits = slice.replace(/[^\d]/g, " ");
+  const num = onlyDigits
+    .trim()
+    .split(/\s+/)
+    .find((s) => s.length > 0);
   return num ? parseInt(num, 10) : null;
 }
 
@@ -64,16 +67,25 @@ function extractNumberAfterLabel(text: string, label: string): number | null {
  * Devuelve líneas agrupadas por Y y, para cada línea, los items con posición X.
  * Esto permite al parser de cartolas aislar columnas (fecha, descripción, monto, saldo).
  */
-export interface PdfLineItem { str: string; x: number; }
-export interface PdfLine { items: PdfLineItem[]; text: string; y: number; }
+export interface PdfLineItem {
+  str: string;
+  x: number;
+}
+export interface PdfLine {
+  items: PdfLineItem[];
+  text: string;
+  y: number;
+}
 
-export async function extractPdfText(buffer: Buffer): Promise<{ text: string; numPages: number; lines: PdfLine[] }> {
+export async function extractPdfText(
+  buffer: Buffer,
+): Promise<{ text: string; numPages: number; lines: PdfLine[] }> {
   const uint8Array = new Uint8Array(buffer);
 
   const loadingTask = pdfjs.getDocument(uint8Array as any);
   const pdfDocument = await loadingTask.promise;
 
-  let fullText = '';
+  let fullText = "";
   const allLines: PdfLine[] = [];
 
   for (let i = 1; i <= pdfDocument.numPages; i++) {
@@ -81,7 +93,7 @@ export async function extractPdfText(buffer: Buffer): Promise<{ text: string; nu
     const textContent = await page.getTextContent();
 
     const items = textContent.items
-      .filter((item: any) => 'str' in item && item.str.trim() !== '')
+      .filter((item: any) => "str" in item && item.str.trim() !== "")
       .map((item: any) => ({
         str: item.str as string,
         x: (item.transform?.[4] ?? 0) as number,
@@ -105,15 +117,15 @@ export async function extractPdfText(buffer: Buffer): Promise<{ text: string; nu
       if (Math.abs(items[j].y - currentY) <= 3) {
         currentLineItems.push({ str: items[j].str, x: items[j].x });
       } else {
-        const lineText = currentLineItems.map(it => it.str).join(' ');
-        fullText += lineText + '\n';
+        const lineText = currentLineItems.map((it) => it.str).join(" ");
+        fullText += lineText + "\n";
         allLines.push({ items: currentLineItems, text: lineText, y: currentY });
         currentY = items[j].y;
         currentLineItems = [{ str: items[j].str, x: items[j].x }];
       }
     }
-    const lineText = currentLineItems.map(it => it.str).join(' ');
-    fullText += lineText + '\n';
+    const lineText = currentLineItems.map((it) => it.str).join(" ");
+    fullText += lineText + "\n";
     allLines.push({ items: currentLineItems, text: lineText, y: currentY });
   }
 
@@ -130,22 +142,24 @@ export async function extractPdfText(buffer: Buffer): Promise<{ text: string; nu
  * Mejorado para manejar variaciones en formato (ej: "Deuda total y estado de pago $0")
  */
 export function parseCmfInformeDeudas(text: string): CmfInformeDeudas | null {
-  const normalized = text.replace(/\r\n/g, '\n').replace(/\s+/g, ' ');
-  
+  const normalized = text.replace(/\r\n/g, "\n").replace(/\s+/g, " ");
+
   // Buscar "Deuda total y estado de pago $X" o "Deuda Total Vigente $X"
-  let deudaTotal = extractNumberAfterLabel(normalized, 'Deuda Total Vigente')
-    ?? extractNumberAfterLabel(normalized, 'Deuda total vigente')
-    ?? extractNumberAfterLabel(normalized, 'Deuda total y estado de pago')
-    ?? extractNumberAfterLabel(normalized, 'Deuda total')
-    ?? extractNumberAfterLabel(normalized, 'Total vigente');
-  
+  let deudaTotal =
+    extractNumberAfterLabel(normalized, "Deuda Total Vigente") ??
+    extractNumberAfterLabel(normalized, "Deuda total vigente") ??
+    extractNumberAfterLabel(normalized, "Deuda total y estado de pago") ??
+    extractNumberAfterLabel(normalized, "Deuda total") ??
+    extractNumberAfterLabel(normalized, "Total vigente");
+
   // Buscar en secciones "Deuda Directa" y "Deuda Indirecta"
   const deudaDirectaMatch = normalized.match(/Deuda\s+Directa.*?Total\s+\$?\s*([\d.,]+)/is);
   const deudaIndirectaMatch = normalized.match(/Deuda\s+Indirecta.*?Total\s+\$?\s*([\d.,]+)/is);
-  
-  const deudaIndirecta = extractNumberAfterLabel(normalized, 'Deuda Indirecta')
-    ?? extractNumberAfterLabel(normalized, 'Deuda indirecta')
-    ?? (deudaIndirectaMatch ? parseCLP(deudaIndirectaMatch[1]) : null);
+
+  const deudaIndirecta =
+    extractNumberAfterLabel(normalized, "Deuda Indirecta") ??
+    extractNumberAfterLabel(normalized, "Deuda indirecta") ??
+    (deudaIndirectaMatch ? parseCLP(deudaIndirectaMatch[1]) : null);
 
   // Si no encontramos deuda total directamente, intentar sumar Directa + Indirecta de las secciones
   if (deudaTotal === null && deudaDirectaMatch && deudaIndirectaMatch) {
@@ -153,34 +167,39 @@ export function parseCmfInformeDeudas(text: string): CmfInformeDeudas | null {
     const indirecta = parseCLP(deudaIndirectaMatch[1]);
     deudaTotal = directa + indirecta;
   }
-  
+
   // Número de instituciones: buscar "No registra información" para detectar 0
-  let numInst = extractNumberAfterLabel(normalized, 'Número de Instituciones')
-    ?? extractNumberAfterLabel(normalized, 'Número de instituciones')
-    ?? (normalized.match(/instituciones?\s*[:\s]*(\d+)/i)?.[1] ? parseInt(normalized.match(/instituciones?\s*[:\s]*(\d+)/i)![1], 10) : null);
-  
+  let numInst =
+    extractNumberAfterLabel(normalized, "Número de Instituciones") ??
+    extractNumberAfterLabel(normalized, "Número de instituciones") ??
+    (normalized.match(/instituciones?\s*[:\s]*(\d+)/i)?.[1]
+      ? parseInt(normalized.match(/instituciones?\s*[:\s]*(\d+)/i)![1], 10)
+      : null);
+
   // Si dice "No registra información para esta sección" en Deuda Directa, entonces 0 instituciones
   if (numInst === null && /No\s+registra\s+información\s+para\s+esta\s+sección/i.test(normalized)) {
     numInst = 0;
   }
-  
+
   const rut = normalized.match(RUT_RE)?.[0];
-  
+
   // Si detectamos que es un informe CMF (tiene las palabras clave) pero no encontramos valores, asumir $0
   // IMPORTANTE: Solo si también tiene RUT válido (evitar falsos positivos con cartolas)
-  const isCmfDocument = /Informe\s+de\s+Deudas|CMF|Deuda\s+Directa|Deuda\s+Indirecta/i.test(normalized);
+  const isCmfDocument = /Informe\s+de\s+Deudas|CMF|Deuda\s+Directa|Deuda\s+Indirecta/i.test(
+    normalized,
+  );
   if (isCmfDocument && rut && deudaTotal === null && deudaIndirecta === null) {
     // Documento CMF detectado con RUT válido pero sin valores: asumir $0 (perfil sin deudas)
     deudaTotal = 0;
   }
-  
+
   // Si no hay RUT válido, no es un informe CMF válido (puede ser cartola u otro documento)
   if (!rut) return null;
-  
+
   if (deudaTotal === null && deudaIndirecta === null && numInst === null) return null;
-  
+
   return {
-    tipo: 'cmf_informe_deudas',
+    tipo: "cmf_informe_deudas",
     deudaTotalVigente: deudaTotal ?? 0,
     deudaIndirecta: deudaIndirecta ?? 0,
     numeroInstituciones: numInst ?? 0,
@@ -204,7 +223,7 @@ export function parseCmfInformeDeudas(text: string): CmfInformeDeudas | null {
  *  5. Prueba de integridad: saldo_prev + abono − cargo ≈ saldo_actual; auto-corrige swap.
  */
 export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtraida | null {
-  const transacciones: CartolaExtraida['transacciones'] = [];
+  const transacciones: CartolaExtraida["transacciones"] = [];
 
   // ── RUT ────────────────────────────────────────────────────────────────────
   let rut = text.match(RUT_RE)?.[0];
@@ -236,7 +255,7 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
       const nums = valRow[1].match(/[\d.,]+/g) ?? [];
       if (nums.length >= 2) {
         saldoInicial = parseChile(nums[0]!);
-        saldoFinal   = parseChile(nums[nums.length - 1]!);
+        saldoFinal = parseChile(nums[nums.length - 1]!);
       }
     }
   }
@@ -244,20 +263,20 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
   // labels and values appear on the same logical line without a newline break.
   if (saldoInicial === undefined || saldoFinal === undefined) {
     const saldoHeaderMatch = text.match(
-      /Saldo\s+Inicial.*?Saldo\s+Final.*?([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/is
+      /Saldo\s+Inicial.*?Saldo\s+Final.*?([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/is,
     );
     if (saldoHeaderMatch) {
       if (saldoInicial === undefined) saldoInicial = parseChile(saldoHeaderMatch[1]);
-      if (saldoFinal   === undefined) saldoFinal   = parseChile(saldoHeaderMatch[4]);
+      if (saldoFinal === undefined) saldoFinal = parseChile(saldoHeaderMatch[4]);
     }
   }
   // Strategy 3 — BCI/Banco de Chile colon format: "Saldo Anterior: $X" / "Saldo Final: $X"
   if (saldoInicial === undefined) {
-    const saMatch = text.match(/Saldo\s+(?:Anterior|Inicial)\s*[:\$]\s*\$?\s*([\d.,]+)/i);
+    const saMatch = text.match(/Saldo\s+(?:Anterior|Inicial)\s*[:$]\s*\$?\s*([\d.,]+)/i);
     if (saMatch) saldoInicial = parseChile(saMatch[1]);
   }
   if (saldoFinal === undefined) {
-    const sfMatch = text.match(/Saldo\s+Final\s*[:\$]\s*\$?\s*([\d.,]+)/i);
+    const sfMatch = text.match(/Saldo\s+Final\s*[:$]\s*\$?\s*([\d.,]+)/i);
     if (sfMatch) saldoFinal = parseChile(sfMatch[1]);
   }
 
@@ -265,8 +284,10 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
   const year = extractYear(text);
 
   // ── Regexes de control ─────────────────────────────────────────────────────
-  const HEADER_RE = /^(?:CARTOLA|DESDE|HASTA|P[AÁ]GINA|MENSAJES|INF[ÓO]RMESE|CUENTA\s+VISTA|CUENTA\s+CORRIENTE|ESTADO\s+DE\s+CUENTA|RESUMEN|N[°º]\s*DOC|SUCURSAL|DESCRIPCI[ÓO]N|FECHA|CHEQUES\s+O\s+CARGOS|DEP[ÓO]SITOS\s+O\s+ABONOS|DETALLE\s+DE\s+MOVIMIENTOS|MOVIMIENTOS\s+DEL\s+PER[IÍ]ODO|BANCO\s+|WWW\.|FOLIO|COMPROBANTE|RUT\s|NOMBRE|PRODUCTO|MONEDA|TIPO\s+CUENTA)\b/i;
-  const SALDO_DIA_RE = /---\s*Saldo\s+Dia|Saldo\s+al\s+d[ií]a|SUBTOTAL|TOTAL\s+CARGOS|TOTAL\s+ABONOS|TOTAL\s+DEP[OÓ]SITOS|TOTAL\s+CHEQUES/i;
+  const HEADER_RE =
+    /^(?:CARTOLA|DESDE|HASTA|P[AÁ]GINA|MENSAJES|INF[ÓO]RMESE|CUENTA\s+VISTA|CUENTA\s+CORRIENTE|ESTADO\s+DE\s+CUENTA|RESUMEN|N[°º]\s*DOC|SUCURSAL|DESCRIPCI[ÓO]N|FECHA|CHEQUES\s+O\s+CARGOS|DEP[ÓO]SITOS\s+O\s+ABONOS|DETALLE\s+DE\s+MOVIMIENTOS|MOVIMIENTOS\s+DEL\s+PER[IÍ]ODO|BANCO\s+|WWW\.|FOLIO|COMPROBANTE|RUT\s|NOMBRE|PRODUCTO|MONEDA|TIPO\s+CUENTA)\b/i;
+  const SALDO_DIA_RE =
+    /---\s*Saldo\s+Dia|Saldo\s+al\s+d[ií]a|SUBTOTAL|TOTAL\s+CARGOS|TOTAL\s+ABONOS|TOTAL\s+DEP[OÓ]SITOS|TOTAL\s+CHEQUES/i;
 
   // Secciones de resumen/pie de página de Santander que NO son movimientos pero
   // traen fecha+monto y se colaban como filas falsas (un COM.MANT duplicado en
@@ -277,12 +298,16 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
   // que NO se puede cortar de golpe: se marca "estoy en el pie" (saltar filas) y
   // se REANUDA al reaparecer el encabezado de la tabla ("DETALLE DE MOVIMIENTOS"
   // / "FECHA … DESCRIPCION").
-  const FOOTER_START_RE = /^(?:RESUMEN\s+DE\s+COMISIONES|INFORMACI[OÓ]N\s+DE\s+(?:SUPER\s+)?(?:CUENTA|L[IÍ]NEA))/i;
-  const MOVEMENTS_RESUME_RE = /DETALLE\s+DE\s+MOVIMIENTOS|^FECHA\b.*DESCRIPCI[OÓ]N|CHEQUES\s+Y\s+OTROS/i;
+  const FOOTER_START_RE =
+    /^(?:RESUMEN\s+DE\s+COMISIONES|INFORMACI[OÓ]N\s+DE\s+(?:SUPER\s+)?(?:CUENTA|L[IÍ]NEA))/i;
+  const MOVEMENTS_RESUME_RE =
+    /DETALLE\s+DE\s+MOVIMIENTOS|^FECHA\b.*DESCRIPCI[OÓ]N|CHEQUES\s+Y\s+OTROS/i;
 
   // Detectores de sección (multi-banco) - más flexibles para variaciones de formato
-  const SECTION_CARGO_RE = /CHEQUES?\s+(?:Y|O)\s+CARGOS?|CARGOS?\s+(?:Y|O)\s+CHEQUES?|CHEQUES\s+Y\s+CARGOS\s+DEL\s+PER[IÍ]ODO|CARGOS\s+DEL\s+PER[IÍ]ODO|EGRESOS|MOVIMIENTOS\s+DE\s+(?:D[EÉ]BITO|CARGO)|CHEQUES\s+O\s+CARGOS/i;
-  const SECTION_ABONO_RE = /DEP[ÓO]SITOS?\s+(?:Y|O)\s+ABONOS?|ABONOS?\s+(?:Y|O)\s+DEP[ÓO]SITOS?|DEP[ÓO]SITOS\s+Y\s+ABONOS\s+DEL\s+PER[IÍ]ODO|ABONOS\s+DEL\s+PER[IÍ]ODO|INGRESOS|MOVIMIENTOS\s+DE\s+(?:CR[EÉ]DITO|ABONO)|DEP[ÓO]SITOS\s+O\s+ABONOS/i;
+  const SECTION_CARGO_RE =
+    /CHEQUES?\s+(?:Y|O)\s+CARGOS?|CARGOS?\s+(?:Y|O)\s+CHEQUES?|CHEQUES\s+Y\s+CARGOS\s+DEL\s+PER[IÍ]ODO|CARGOS\s+DEL\s+PER[IÍ]ODO|EGRESOS|MOVIMIENTOS\s+DE\s+(?:D[EÉ]BITO|CARGO)|CHEQUES\s+O\s+CARGOS/i;
+  const SECTION_ABONO_RE =
+    /DEP[ÓO]SITOS?\s+(?:Y|O)\s+ABONOS?|ABONOS?\s+(?:Y|O)\s+DEP[ÓO]SITOS?|DEP[ÓO]SITOS\s+Y\s+ABONOS\s+DEL\s+PER[IÍ]ODO|ABONOS\s+DEL\s+PER[IÍ]ODO|INGRESOS|MOVIMIENTOS\s+DE\s+(?:CR[EÉ]DITO|ABONO)|DEP[ÓO]SITOS\s+O\s+ABONOS/i;
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   function parseChile(s: string): number {
@@ -306,8 +331,8 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
   function extractAmounts(line: string): { monto: number; saldo: number | undefined } {
     const matches = Array.from(line.matchAll(CLP_RE));
     const nums = matches
-      .map(m => ({ val: parseChile(m[0]), idx: m.index! }))
-      .filter(n => !isNaN(n.val) && n.val >= 10);
+      .map((m) => ({ val: parseChile(m[0]), idx: m.index! }))
+      .filter((n) => !isNaN(n.val) && n.val >= 10);
 
     if (nums.length === 0) return { monto: 0, saldo: undefined };
     if (nums.length === 1) return { monto: nums[0].val, saldo: undefined };
@@ -324,35 +349,35 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
    * Debe producir texto legible como "Compra Nacional STARBUCKS" o "Transf a JUAN PEREZ".
    */
   function cleanDescription(raw: string): string {
-    let d = raw.replace(/\s+/g, ' ').trim();
+    let d = raw.replace(/\s+/g, " ").trim();
 
     // Quitar prefijos de oficina: "O.Gerencia", "S.Central", etc.
-    d = d.replace(/^[A-Z]\.[A-Za-záéíóúñÁÉÍÓÚÑ]+\s+/, '');
+    d = d.replace(/^[A-Z]\.[A-Za-záéíóúñÁÉÍÓÚÑ]+\s+/, "");
 
     // Quitar SUCURSAL(1-4d) + NDOC(7-12d): "93 0222260043 Transf..."
-    d = d.replace(/^\d{1,4}\s+\d{7,12}\s+/, '');
+    d = d.replace(/^\d{1,4}\s+\d{7,12}\s+/, "");
 
     // Quitar NDOC(6-12d) + campo extra: "0650447700 3 Transf..."
-    d = d.replace(/^\d{6,12}\s+\d{1,6}\s+/, '');
+    d = d.replace(/^\d{6,12}\s+\d{1,6}\s+/, "");
 
     // Quitar NDOC solo: "0650447700 Transf..." → "Transf..."
-    d = d.replace(/^\d{6,12}\s+/, '');
+    d = d.replace(/^\d{6,12}\s+/, "");
 
     // Quitar cualquier token numérico al inicio
-    d = d.replace(/^(?:\d+\s+)+/, '');
+    d = d.replace(/^(?:\d+\s+)+/, "");
 
     // Quitar montos CLP que se colaron al final: "... 11.000" / "... 1.234.567,00"
-    d = d.replace(/\s+\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?\s*$/, '');
+    d = d.replace(/\s+\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?\s*$/, "");
     // Repetir (puede haber monto + saldo)
-    d = d.replace(/\s+\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?\s*$/, '');
+    d = d.replace(/\s+\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?\s*$/, "");
 
     // Quitar standalone large number al final (sub-doc): "... 0222260043"
-    d = d.replace(/\s+\d{5,12}\s*$/, '');
+    d = d.replace(/\s+\d{5,12}\s*$/, "");
 
     // Quitar "$" sueltos
-    d = d.replace(/\$\s*/g, '');
+    d = d.replace(/\$\s*/g, "");
 
-    return d.replace(/\s+/g, ' ').trim();
+    return d.replace(/\s+/g, " ").trim();
   }
 
   // ── Column detection from PdfLine[] ─────────────────────────────────────────
@@ -398,7 +423,12 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
   // Column midpoint: amounts closer to cargo col = cargo, closer to abono col = abono
   // Amounts beyond abono col = saldo
   const cargoAbonoMidX = hasColumnLayout ? (cargoColX! + abonoColX!) / 2 : 0;
-  const abonoSaldoMidX = hasColumnLayout && saldoColX !== null ? (abonoColX! + saldoColX) / 2 : (hasColumnLayout ? abonoColX! + 80 : 0);
+  const abonoSaldoMidX =
+    hasColumnLayout && saldoColX !== null
+      ? (abonoColX! + saldoColX) / 2
+      : hasColumnLayout
+        ? abonoColX! + 80
+        : 0;
 
   /**
    * Given a PdfLine, classify each CLP-formatted amount item by its X coordinate.
@@ -409,8 +439,14 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
    *  - Small amounts < 1,000 without separator: "500", "800", "999"
    *    (safe because we gate on column position to avoid matching doc/branch numbers)
    */
-  function classifyAmountsByColumn(pdfLine: PdfLine): { cargo: number; abono: number; saldo: number | undefined } {
-    let cargo = 0, abono = 0, saldo: number | undefined;
+  function classifyAmountsByColumn(pdfLine: PdfLine): {
+    cargo: number;
+    abono: number;
+    saldo: number | undefined;
+  } {
+    let cargo = 0,
+      abono = 0,
+      saldo: number | undefined;
 
     for (const item of pdfLine.items) {
       // Try CLP format with thousands separator first
@@ -448,9 +484,9 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
   }
 
   // ── Loop principal ──────────────────────────────────────────────────────────
-  type SectionCtx = 'cargo' | 'abono' | null;
+  type SectionCtx = "cargo" | "abono" | null;
   let currentSection: SectionCtx = null;
-  let currentDate = '';
+  let currentDate = "";
 
   // If we have column layout, process using PdfLine[] for accurate column detection
   // Otherwise fall back to text-based parsing
@@ -463,55 +499,73 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
       const line = pdfLine.text.trim();
       if (!line) continue;
 
-      if (MOVEMENTS_RESUME_RE.test(line)) { inFooter = false; continue; }
-      if (FOOTER_START_RE.test(line)) { inFooter = true; continue; }
+      if (MOVEMENTS_RESUME_RE.test(line)) {
+        inFooter = false;
+        continue;
+      }
+      if (FOOTER_START_RE.test(line)) {
+        inFooter = true;
+        continue;
+      }
       if (inFooter) continue; // saltar resumen de comisiones / cuadro de totales / línea de crédito
 
       if (HEADER_RE.test(line) || SALDO_DIA_RE.test(line)) continue;
 
       // Detect date at start of line
-      const dateMatch = line.match(/^(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\s+(.*)/);
+      const dateMatch = line.match(/^(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\s+(.*)/);
       if (dateMatch) {
         const [, dayStr, monthStr, yearStr] = dateMatch;
-        const day   = Math.min(31, Math.max(1, parseInt(dayStr, 10)));
+        const day = Math.min(31, Math.max(1, parseInt(dayStr, 10)));
         const month = Math.min(12, Math.max(1, parseInt(monthStr, 10)));
         let y = year;
         if (yearStr) {
           y = yearStr.length === 2 ? 2000 + parseInt(yearStr, 10) : parseInt(yearStr, 10);
           if (y < 2015 || y > new Date().getFullYear() + 1) y = year;
         }
-        currentDate = `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        currentDate = `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         processLineColumnar(pdfLine, currentDate);
         continue;
       }
 
       // Continuation line: starts with digits (doc/suc number) OR has a CLP amount with text
-      if (currentDate && (/^\d{2,}/.test(line) || (CLP_RE.test(line) && /[A-Za-zÁÉÍÓÚáéíóúñÑ]{3,}/.test(line)))) {
+      if (
+        currentDate &&
+        (/^\d{2,}/.test(line) || (CLP_RE.test(line) && /[A-Za-zÁÉÍÓÚáéíóúñÑ]{3,}/.test(line)))
+      ) {
         processLineColumnar(pdfLine, currentDate);
       }
     }
   } else {
     // ── Section/keyword-based parsing (other banks or no PdfLine data) ──
-    const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+    const lines = text
+      .split(/\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
 
     for (const line of lines) {
       // Detect section BEFORE header filter
-      if (SECTION_CARGO_RE.test(line)) { currentSection = 'cargo'; continue; }
-      if (SECTION_ABONO_RE.test(line)) { currentSection = 'abono'; continue; }
+      if (SECTION_CARGO_RE.test(line)) {
+        currentSection = "cargo";
+        continue;
+      }
+      if (SECTION_ABONO_RE.test(line)) {
+        currentSection = "abono";
+        continue;
+      }
 
       if (HEADER_RE.test(line) || SALDO_DIA_RE.test(line)) continue;
 
-      const dateMatch = line.match(/^(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\s+(.*)/);
+      const dateMatch = line.match(/^(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\s+(.*)/);
       if (dateMatch) {
         const [, dayStr, monthStr, yearStr, rest] = dateMatch;
-        const day   = Math.min(31, Math.max(1, parseInt(dayStr, 10)));
+        const day = Math.min(31, Math.max(1, parseInt(dayStr, 10)));
         const month = Math.min(12, Math.max(1, parseInt(monthStr, 10)));
         let y = year;
         if (yearStr) {
           y = yearStr.length === 2 ? 2000 + parseInt(yearStr, 10) : parseInt(yearStr, 10);
           if (y < 2015 || y > new Date().getFullYear() + 1) y = year;
         }
-        currentDate = `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        currentDate = `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         processLineKeywords(rest, currentDate, currentSection);
         continue;
       }
@@ -542,27 +596,27 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
       // Skip items that are CLP amounts (already classified)
       if (/^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(item.str)) continue;
       // Skip date at very start
-      if (item.x < 60 && /^\d{1,2}[\/\-]\d{1,2}/.test(item.str)) continue;
+      if (item.x < 60 && /^\d{1,2}[/-]\d{1,2}/.test(item.str)) continue;
       descParts.push(item.str);
     }
 
-    const descripcion = cleanDescription(descParts.join(' '));
+    const descripcion = cleanDescription(descParts.join(" "));
     if (descripcion.length < 3) return;
     if (/^\d+$/.test(descripcion)) return;
 
-    let tipo: 'cargo' | 'abono' = cargo > 0 ? 'cargo' : 'abono';
+    let tipo: "cargo" | "abono" = cargo > 0 ? "cargo" : "abono";
 
     // Safety: "COMPRA" is unambiguously a cargo. Correct column-based misclassification
     // that can occur when small amounts render slightly off the expected column X range.
-    if (tipo === 'abono' && /\bCOMPRA\b/i.test(descripcion)) {
-      tipo = 'cargo';
+    if (tipo === "abono" && /\bCOMPRA\b/i.test(descripcion)) {
+      tipo = "cargo";
     }
 
     transacciones.push({
       fecha,
       descripcion: descripcion.slice(0, 200),
-      cargo: tipo === 'cargo' ? monto : 0,
-      abono: tipo === 'abono' ? monto : 0,
+      cargo: tipo === "cargo" ? monto : 0,
+      abono: tipo === "abono" ? monto : 0,
       saldo,
     });
   }
@@ -579,7 +633,8 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
     const clpMatches = Array.from(trimmed.matchAll(CLP_RE));
     if (clpMatches.length > 0) {
       const lastIdx = clpMatches[clpMatches.length - 1].index!;
-      const secondLastIdx = clpMatches.length >= 2 ? clpMatches[clpMatches.length - 2].index! : lastIdx;
+      const secondLastIdx =
+        clpMatches.length >= 2 ? clpMatches[clpMatches.length - 2].index! : lastIdx;
       rawDesc = trimmed.slice(0, secondLastIdx).trim();
     }
 
@@ -588,33 +643,34 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
     if (/^\d+$/.test(descripcion)) return;
 
     // Determine type from section or keywords
-    let tipo: 'cargo' | 'abono';
+    let tipo: "cargo" | "abono";
 
-    if (section === 'cargo') {
-      tipo = 'cargo';
-    } else if (section === 'abono') {
-      tipo = 'abono';
+    if (section === "cargo") {
+      tipo = "cargo";
+    } else if (section === "abono") {
+      tipo = "abono";
     } else {
       // Keyword inference
       const d = descripcion.toUpperCase();
-      const esRecibida = /TRANSF(?:E?R)?\.?\s+DE\s|TRASPASO\s+DE\s|TEF\s+CR|TRASPASO\s+AUTOM|ABONO/i.test(d);
-      const esEnviada  = /TRANSF(?:E?R)?\.?\s+A\s|TRASPASO\s+A\s/i.test(d);
-      const esCargo    = /COMPRA|PAGO\s|PAC\s|PAT\s|GIRO\s|COBRO|D[EÉ]BITO|CARGO\s|RETIRO/i.test(d);
-      const esAbono    = /DEP[OÓ]SITO|CR[EÉ]DITO|REMUNERACI[OÓ]N|SUELDO|BONO\s|INGRESO/i.test(d);
+      const esRecibida =
+        /TRANSF(?:E?R)?\.?\s+DE\s|TRASPASO\s+DE\s|TEF\s+CR|TRASPASO\s+AUTOM|ABONO/i.test(d);
+      const esEnviada = /TRANSF(?:E?R)?\.?\s+A\s|TRASPASO\s+A\s/i.test(d);
+      const esCargo = /COMPRA|PAGO\s|PAC\s|PAT\s|GIRO\s|COBRO|D[EÉ]BITO|CARGO\s|RETIRO/i.test(d);
+      const esAbono = /DEP[OÓ]SITO|CR[EÉ]DITO|REMUNERACI[OÓ]N|SUELDO|BONO\s|INGRESO/i.test(d);
 
-      if (esRecibida && !esEnviada)      tipo = 'abono';
-      else if (esEnviada)                tipo = 'cargo';
-      else if (esCargo && !esAbono)      tipo = 'cargo';
-      else if (esAbono && !esCargo)      tipo = 'abono';
-      else if (esCargo && esAbono)       tipo = 'cargo';
+      if (esRecibida && !esEnviada) tipo = "abono";
+      else if (esEnviada) tipo = "cargo";
+      else if (esCargo && !esAbono) tipo = "cargo";
+      else if (esAbono && !esCargo) tipo = "abono";
+      else if (esCargo && esAbono) tipo = "cargo";
       else return; // no match → skip
     }
 
     transacciones.push({
       fecha,
       descripcion: descripcion.slice(0, 200),
-      cargo: tipo === 'cargo' ? monto : 0,
-      abono: tipo === 'abono' ? monto : 0,
+      cargo: tipo === "cargo" ? monto : 0,
+      abono: tipo === "abono" ? monto : 0,
       saldo,
     });
   }
@@ -625,7 +681,10 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
   if (saldoInicial !== undefined) {
     let running = saldoInicial;
     for (const tx of transacciones) {
-      if (tx.saldo === undefined) { running += tx.abono - tx.cargo; continue; }
+      if (tx.saldo === undefined) {
+        running += tx.abono - tx.cargo;
+        continue;
+      }
       const expected = running + tx.abono - tx.cargo;
       if (Math.abs(expected - tx.saldo) > 1) {
         // Posible swap monto↔saldo: intentar corregir
@@ -633,7 +692,8 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
         const altSaldo = tx.cargo > 0 ? tx.cargo : tx.abono;
         const altExpected = running + (tx.abono > 0 ? altMonto : 0) - (tx.cargo > 0 ? altMonto : 0);
         if (Math.abs(altExpected - altSaldo) <= 1) {
-          if (tx.cargo > 0) tx.cargo = altMonto; else tx.abono = altMonto;
+          if (tx.cargo > 0) tx.cargo = altMonto;
+          else tx.abono = altMonto;
           tx.saldo = altSaldo;
         }
       }
@@ -642,7 +702,7 @@ export function parseCartolaPdf(text: string, pdfLines?: PdfLine[]): CartolaExtr
   }
 
   return {
-    tipo: 'cartola',
+    tipo: "cartola",
     transacciones,
     saldoInicial,
     saldoFinal,
@@ -665,7 +725,10 @@ function extractYear(text: string): number {
     const m = text.match(re);
     if (!m) continue;
     const y = parseInt(m[3], 10);
-    if (y >= 2015 && y <= nowYear + 1) { year = y; break; }
+    if (y >= 2015 && y <= nowYear + 1) {
+      year = y;
+      break;
+    }
   }
 
   if (year === nowYear) {
@@ -678,13 +741,16 @@ function extractYear(text: string): number {
       const m = text.match(re);
       if (!m) continue;
       const y = 2000 + parseInt(m[3], 10);
-      if (y >= 2015 && y <= nowYear + 1) { year = y; break; }
+      if (y >= 2015 && y <= nowYear + 1) {
+        year = y;
+        break;
+      }
     }
   }
 
   if (year === nowYear) {
     const monthYear = text.match(
-      /(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(202[0-9]|201[5-9])/i
+      /(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(202[0-9]|201[5-9])/i,
     );
     if (monthYear) {
       const y = parseInt(monthYear[1], 10);
@@ -695,7 +761,9 @@ function extractYear(text: string): number {
   if (year === nowYear) {
     const allYears = text.match(/\b(201[5-9]|202[0-9])\b/g);
     if (allYears) {
-      const candidates = allYears.map(s => parseInt(s, 10)).filter(y => y >= 2015 && y <= nowYear);
+      const candidates = allYears
+        .map((s) => parseInt(s, 10))
+        .filter((y) => y >= 2015 && y <= nowYear);
       if (candidates.length > 0) year = Math.max(...candidates);
     }
   }
@@ -721,17 +789,17 @@ export async function analyzePdfBuffer(buffer: Buffer): Promise<DocumentoExtraid
  */
 export function cartolaToSfaTransactions(
   cartola: CartolaExtraida,
-  rutCliente: string
+  rutCliente: string,
 ): SfaTransaccionCuenta[] {
   return cartola.transacciones.map((t, i) => ({
     rutCliente,
     idInternoTransaccion: `cartola-${Date.now()}-${i}`,
     fechaOperacion: t.fecha,
     fechaContableOperacion: t.fecha,
-    tipoProductoFinanciero: 'A001',
-    tipoOperacion: t.abono > 0 ? 'abono' : 'cargo',
+    tipoProductoFinanciero: "A001",
+    tipoOperacion: t.abono > 0 ? "abono" : "cargo",
     montoOperacion: t.abono > 0 ? t.abono : -t.cargo,
-    monedaOperacion: 'CLP',
+    monedaOperacion: "CLP",
   }));
 }
 
@@ -740,18 +808,21 @@ export function cartolaToSfaTransactions(
  */
 export function cartolaToSfaProductos(
   cartola: CartolaExtraida,
-  rutCliente: string
+  rutCliente: string,
 ): SfaProductoVigenteCuenta[] {
   const saldo = cartola.saldoFinal ?? cartola.saldoInicial ?? 0;
-  return [{
-    rutCliente,
-    idInternoProducto: `cartola-cuenta-${Date.now()}`,
-    fechaContratacionProducto: cartola.transacciones[0]?.fecha ?? new Date().toISOString().slice(0, 10),
-    tipoProductoFinanciero: 'A001',
-    saldo,
-    moneda: 'CLP',
-    lineaCreditoSobregiroTotal: 0,
-    lineaCreditoSobregiroUtilizada: 0,
-    lineaCreditoSobregiroDisponible: 0,
-  }];
+  return [
+    {
+      rutCliente,
+      idInternoProducto: `cartola-cuenta-${Date.now()}`,
+      fechaContratacionProducto:
+        cartola.transacciones[0]?.fecha ?? new Date().toISOString().slice(0, 10),
+      tipoProductoFinanciero: "A001",
+      saldo,
+      moneda: "CLP",
+      lineaCreditoSobregiroTotal: 0,
+      lineaCreditoSobregiroUtilizada: 0,
+      lineaCreditoSobregiroDisponible: 0,
+    },
+  ];
 }

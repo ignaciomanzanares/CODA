@@ -57,10 +57,13 @@ export function scorePD(features: FeatureVector, model: PDModel = defaultModel) 
   // Provide simple reason codes (top 3 positive contributors)
   const contributions = Object.entries(model.weights).map(([k, w]) => {
     const fv = (features as any)[k];
-    return { key: k as keyof FeatureVector, contrib: (typeof fv === "number" && Number.isFinite(fv) ? fv : 0) * (w as number) };
+    return {
+      key: k as keyof FeatureVector,
+      contrib: (typeof fv === "number" && Number.isFinite(fv) ? fv : 0) * (w as number),
+    };
   });
   contributions.sort((a, b) => b.contrib - a.contrib);
-  const reasons = contributions.slice(0, 3).map(c => c.key);
+  const reasons = contributions.slice(0, 3).map((c) => c.key);
 
   return { pd, logit, reasons };
 }

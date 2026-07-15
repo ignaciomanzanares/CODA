@@ -61,7 +61,7 @@ export type EligibilityStatus = "eligible" | "borderline" | "not_eligible";
 
 export interface RankingReason {
   type: string;
-  weight: number;       // -100 a +100
+  weight: number; // -100 a +100
   explanation_es: string;
 }
 

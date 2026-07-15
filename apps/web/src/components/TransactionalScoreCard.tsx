@@ -9,7 +9,15 @@ import type { TransactionalScoreResult } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, AlertTriangle, BarChart3, Loader2, RefreshCw, Package, FileText } from "lucide-react";
+import {
+  CheckCircle2,
+  AlertTriangle,
+  BarChart3,
+  Loader2,
+  RefreshCw,
+  Package,
+  FileText,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TRANSACTIONAL_SCORE_TIMEOUT_MS = 10_000;
@@ -96,7 +104,10 @@ export default function TransactionalScoreCard() {
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         const timeout = new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new Error(TRANSACTIONAL_SCORE_TIMEOUT_ERROR)), TRANSACTIONAL_SCORE_TIMEOUT_MS);
+          timer = setTimeout(
+            () => reject(new Error(TRANSACTIONAL_SCORE_TIMEOUT_ERROR)),
+            TRANSACTIONAL_SCORE_TIMEOUT_MS,
+          );
         });
         const result = await Promise.race([getTransactionalScore(), timeout]);
         if (timer) clearTimeout(timer);
@@ -111,7 +122,10 @@ export default function TransactionalScoreCard() {
   });
 
   const scoreResult: TransactionalScoreResult | null =
-    data && typeof data === "object" && "transactionalScore" in data && data.transactionalScore != null
+    data &&
+    typeof data === "object" &&
+    "transactionalScore" in data &&
+    data.transactionalScore != null
       ? {
           transactionalScore: data.transactionalScore,
           mainInsights: data.mainInsights ?? [],
@@ -121,7 +135,12 @@ export default function TransactionalScoreCard() {
       : null;
 
   useEffect(() => {
-    if (data && typeof data === "object" && "transactionalScore" in data && data.transactionalScore != null) {
+    if (
+      data &&
+      typeof data === "object" &&
+      "transactionalScore" in data &&
+      data.transactionalScore != null
+    ) {
       setTransactionalResult({
         transactionalScore: data.transactionalScore,
         mainInsights: data.mainInsights ?? [],
@@ -176,7 +195,9 @@ export default function TransactionalScoreCard() {
         {showUnavailable && (
           <div className="flex flex-col items-center justify-center py-6 gap-3">
             <FileText className="h-12 w-12 text-muted-foreground" />
-            <p className="text-sm font-medium text-muted-foreground text-center max-w-sm">{NO_SCORE_AVAILABLE_MSG}</p>
+            <p className="text-sm font-medium text-muted-foreground text-center max-w-sm">
+              {NO_SCORE_AVAILABLE_MSG}
+            </p>
             {isError && (
               <Button variant="outline" size="sm" className="mt-1" onClick={() => refetch()}>
                 Reintentar
@@ -198,7 +219,9 @@ export default function TransactionalScoreCard() {
         {hasResult && scoreResult && !showSpinner && (
           <TransactionalScoreContent
             score={scoreResult}
-            onRefresh={() => queryClient.invalidateQueries({ queryKey: ["/api/transactional-score"] })}
+            onRefresh={() =>
+              queryClient.invalidateQueries({ queryKey: ["/api/transactional-score"] })
+            }
             isRefetching={isRefetching}
           />
         )}
@@ -221,28 +244,32 @@ function TransactionalScoreContent({
   return (
     <div className="space-y-4">
       <p className="text-xs text-center text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 rounded-md py-2 px-3">
-        7 factores analizados: liquidez, estabilidad de ingresos, gastos fijos, días críticos, tendencia de ahorro, fondo de emergencia y consistencia de gastos.
+        7 factores analizados: liquidez, estabilidad de ingresos, gastos fijos, días críticos,
+        tendencia de ahorro, fondo de emergencia y consistencia de gastos.
       </p>
       <div className="flex flex-col items-center">
         <ScoreGauge score={score.transactionalScore} />
       </div>
 
-      {metrics && (metrics.averageMonthlyBalanceClp != null || metrics.monthsWithAbonos != null) && (
-        <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/30 p-3 text-sm">
-          {metrics.averageMonthlyBalanceClp != null && (
-            <div>
-              <p className="text-xs text-muted-foreground">Saldo promedio (CLP)</p>
-              <p className="font-medium">${metrics.averageMonthlyBalanceClp.toLocaleString("es-CL")}</p>
-            </div>
-          )}
-          {metrics.monthsWithAbonos != null && (
-            <div>
-              <p className="text-xs text-muted-foreground">Meses con abonos (12m)</p>
-              <p className="font-medium">{metrics.monthsWithAbonos}</p>
-            </div>
-          )}
-        </div>
-      )}
+      {metrics &&
+        (metrics.averageMonthlyBalanceClp != null || metrics.monthsWithAbonos != null) && (
+          <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/30 p-3 text-sm">
+            {metrics.averageMonthlyBalanceClp != null && (
+              <div>
+                <p className="text-xs text-muted-foreground">Saldo promedio (CLP)</p>
+                <p className="font-medium">
+                  ${metrics.averageMonthlyBalanceClp.toLocaleString("es-CL")}
+                </p>
+              </div>
+            )}
+            {metrics.monthsWithAbonos != null && (
+              <div>
+                <p className="text-xs text-muted-foreground">Meses con abonos (12m)</p>
+                <p className="font-medium">{metrics.monthsWithAbonos}</p>
+              </div>
+            )}
+          </div>
+        )}
 
       {score.mainInsights && score.mainInsights.length > 0 && (
         <div className="space-y-2">

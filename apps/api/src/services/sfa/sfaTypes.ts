@@ -13,7 +13,7 @@
  *    cartola PDF puede no traerlo por transacción).
  */
 
-export type SfaTransactionType = 'Débito' | 'Crédito';
+export type SfaTransactionType = "Débito" | "Crédito";
 
 export interface SfaTransaction {
   transactionID: string;
@@ -39,15 +39,15 @@ export interface SfaTransactionsResponse {
 export interface SfaLoan {
   loanID: string;
   productName: string;
-  loanType: 'CONSUMO' | 'HIPOTECARIO' | 'COMERCIAL' | (string & {});
-  status: 'VIGENTE' | 'MOROSO' | 'PAGADO' | 'CASTIGADO' | (string & {});
+  loanType: "CONSUMO" | "HIPOTECARIO" | "COMERCIAL" | (string & {});
+  status: "VIGENTE" | "MOROSO" | "PAGADO" | "CASTIGADO" | (string & {});
   approvedAmount: number;
   currency: string; // ISO 4217
   disbursementDate: string; // ISO 8601 date
   maturityDate: string; // ISO 8601 date
   interestRate: number;
-  rateType: 'FIJA' | 'VARIABLE' | (string & {});
-  installmentFrequency: 'MENSUAL' | 'TRIMESTRAL' | 'ANUAL' | (string & {});
+  rateType: "FIJA" | "VARIABLE" | (string & {});
+  installmentFrequency: "MENSUAL" | "TRIMESTRAL" | "ANUAL" | (string & {});
   totalInstallments: number;
   gracePeriod: number;
   collateralDetails: unknown | null;

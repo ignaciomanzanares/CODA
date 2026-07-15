@@ -18,23 +18,58 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import {
-  Target, PiggyBank, GraduationCap, Home, CreditCard, Briefcase,
-  Plus, Pencil, Trash2, Sparkles, Loader2, TrendingDown, TrendingUp,
-  ChevronDown, ChevronUp, CheckCircle, Calendar,
+  Target,
+  PiggyBank,
+  GraduationCap,
+  Home,
+  CreditCard,
+  Briefcase,
+  Plus,
+  Pencil,
+  Trash2,
+  Sparkles,
+  Loader2,
+  TrendingDown,
+  TrendingUp,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle,
+  Calendar,
 } from "lucide-react";
 import SignInBanner from "@/components/SignInBanner";
 import { inlineMarkdownToHtml } from "@/lib/markdown";
@@ -66,19 +101,22 @@ interface PlanInsightsData {
 
 // ── Goal form schema (same as Goals.tsx) ─────────────────────────────────────
 
-const goalFormSchema = z.object({
-  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
-  targetAmount: z.coerce.number().min(1, "El monto objetivo es obligatorio"),
-  currentAmount: z.coerce.number().min(0, "El monto actual debe ser 0 o más"),
-  targetDate: z.string().min(1, "La fecha objetivo es obligatoria"),
-  category: z.enum(["savings", "debt_repayment", "retirement", "home", "education", "other"]),
-}).refine(
-  (d) => d.targetDate >= new Date().toISOString().slice(0, 10),
-  { message: "La fecha objetivo no puede ser en el pasado", path: ["targetDate"] }
-).refine(
-  (d) => d.currentAmount <= d.targetAmount,
-  { message: "El monto actual no puede superar el monto objetivo", path: ["currentAmount"] }
-);
+const goalFormSchema = z
+  .object({
+    name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+    targetAmount: z.coerce.number().min(1, "El monto objetivo es obligatorio"),
+    currentAmount: z.coerce.number().min(0, "El monto actual debe ser 0 o más"),
+    targetDate: z.string().min(1, "La fecha objetivo es obligatoria"),
+    category: z.enum(["savings", "debt_repayment", "retirement", "home", "education", "other"]),
+  })
+  .refine((d) => d.targetDate >= new Date().toISOString().slice(0, 10), {
+    message: "La fecha objetivo no puede ser en el pasado",
+    path: ["targetDate"],
+  })
+  .refine((d) => d.currentAmount <= d.targetAmount, {
+    message: "El monto actual no puede superar el monto objetivo",
+    path: ["currentAmount"],
+  });
 type GoalFormValues = z.infer<typeof goalFormSchema>;
 
 function isOptimisticId(id: unknown): boolean {
@@ -87,13 +125,28 @@ function isOptimisticId(id: unknown): boolean {
 
 // ── Goal category metadata ────────────────────────────────────────────────────
 
-const CATEGORY_META: Record<Goal["category"], { label: string; icon: React.ElementType; color: string }> = {
-  savings:         { label: "Ahorro",          icon: PiggyBank,     color: "text-emerald-600 dark:text-emerald-400" },
-  debt_repayment:  { label: "Pago de deuda",   icon: CreditCard,    color: "text-red-500 dark:text-red-400" },
-  retirement:      { label: "Jubilación",      icon: Briefcase,     color: "text-violet-600 dark:text-violet-400" },
-  home:            { label: "Vivienda",        icon: Home,          color: "text-blue-600 dark:text-blue-400" },
-  education:       { label: "Educación",       icon: GraduationCap, color: "text-amber-600 dark:text-amber-400" },
-  other:           { label: "Otro",            icon: Target,        color: "text-slate-500" },
+const CATEGORY_META: Record<
+  Goal["category"],
+  { label: string; icon: React.ElementType; color: string }
+> = {
+  savings: { label: "Ahorro", icon: PiggyBank, color: "text-emerald-600 dark:text-emerald-400" },
+  debt_repayment: {
+    label: "Pago de deuda",
+    icon: CreditCard,
+    color: "text-red-500 dark:text-red-400",
+  },
+  retirement: {
+    label: "Jubilación",
+    icon: Briefcase,
+    color: "text-violet-600 dark:text-violet-400",
+  },
+  home: { label: "Vivienda", icon: Home, color: "text-blue-600 dark:text-blue-400" },
+  education: {
+    label: "Educación",
+    icon: GraduationCap,
+    color: "text-amber-600 dark:text-amber-400",
+  },
+  other: { label: "Otro", icon: Target, color: "text-slate-500" },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -132,12 +185,19 @@ function BudgetBar({
       <div className="flex items-center justify-between text-sm">
         <span className="font-medium text-foreground">{label}</span>
         <div className="flex items-center gap-2">
-          <span className={cn("text-xs font-semibold tabular-nums", over ? "text-red-500" : "text-muted-foreground")}>
+          <span
+            className={cn(
+              "text-xs font-semibold tabular-nums",
+              over ? "text-red-500" : "text-muted-foreground",
+            )}
+          >
             {actual}% <span className="text-muted-foreground font-normal">/ {target}% meta</span>
           </span>
-          {over
-            ? <TrendingDown className="h-3.5 w-3.5 text-red-500" />
-            : <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />}
+          {over ? (
+            <TrendingDown className="h-3.5 w-3.5 text-red-500" />
+          ) : (
+            <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+          )}
         </div>
       </div>
       {/* Stacked bar: actual vs target */}
@@ -149,7 +209,10 @@ function BudgetBar({
         />
         {/* Actual bar */}
         <div
-          className={cn("absolute top-0 left-0 bottom-0 rounded-full transition-all duration-700", bgColor)}
+          className={cn(
+            "absolute top-0 left-0 bottom-0 rounded-full transition-all duration-700",
+            bgColor,
+          )}
           style={{ width: `${Math.min(actual, 100)}%` }}
         />
       </div>
@@ -171,9 +234,10 @@ function GoalCard({
 }) {
   const meta = CATEGORY_META[goal.category];
   const Icon = meta.icon;
-  const progress = goal.targetAmount > 0
-    ? Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100))
-    : 0;
+  const progress =
+    goal.targetAmount > 0
+      ? Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100))
+      : 0;
   const done = progress >= 100;
   const daysLeft = goal.targetDate
     ? Math.ceil((new Date(goal.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
@@ -184,7 +248,11 @@ function GoalCard({
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-muted")}>
+            <div
+              className={cn(
+                "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-muted",
+              )}
+            >
               <Icon className={cn("h-4 w-4", meta.color)} />
             </div>
             <div className="min-w-0">
@@ -236,12 +304,19 @@ function GoalCard({
                 <CheckCircle className="h-3 w-3 mr-1" /> Completada
               </Badge>
             ) : daysLeft !== null ? (
-              <span className={cn("flex items-center gap-1 text-muted-foreground", daysLeft < 30 && "text-amber-600 dark:text-amber-400")}>
+              <span
+                className={cn(
+                  "flex items-center gap-1 text-muted-foreground",
+                  daysLeft < 30 && "text-amber-600 dark:text-amber-400",
+                )}
+              >
                 <Calendar className="h-3 w-3" />
                 {daysLeft < 0 ? "Vencida" : daysLeft === 0 ? "Hoy" : `${daysLeft}d`}
               </span>
             ) : null}
-            <Badge variant="outline" className="text-[10px] px-1.5">{progress}%</Badge>
+            <Badge variant="outline" className="text-[10px] px-1.5">
+              {progress}%
+            </Badge>
           </div>
         </div>
       </CardContent>
@@ -265,53 +340,85 @@ function GoalForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField control={form.control} name="name" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Nombre de la meta</FormLabel>
-            <FormControl><Input placeholder="Ej: Fondo de emergencia" {...field} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nombre de la meta</FormLabel>
+              <FormControl>
+                <Input placeholder="Ej: Fondo de emergencia" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.control} name="targetAmount" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Monto objetivo ($)</FormLabel>
-              <FormControl><Input type="number" min="0" {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="currentAmount" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Monto actual ($)</FormLabel>
-              <FormControl><Input type="number" min="0" {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
+          <FormField
+            control={form.control}
+            name="targetAmount"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Monto objetivo ($)</FormLabel>
+                <FormControl>
+                  <Input type="number" min="0" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="currentAmount"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Monto actual ($)</FormLabel>
+                <FormControl>
+                  <Input type="number" min="0" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <FormField control={form.control} name="targetDate" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Fecha objetivo</FormLabel>
-              <FormControl><Input type="date" {...field} /></FormControl>
-              <FormMessage />
-            </FormItem>
-          )} />
-          <FormField control={form.control} name="category" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Categoría</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+          <FormField
+            control={form.control}
+            name="targetDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Fecha objetivo</FormLabel>
                 <FormControl>
-                  <SelectTrigger><SelectValue placeholder="Categoría" /></SelectTrigger>
+                  <Input type="date" {...field} />
                 </FormControl>
-                <SelectContent>
-                  {Object.entries(CATEGORY_META).map(([key, { label }]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )} />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="category"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Categoría</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Categoría" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {Object.entries(CATEGORY_META).map(([key, { label }]) => (
+                      <SelectItem key={key} value={key}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
         <DialogFooter>
           <Button type="submit" disabled={isPending} className="w-full">
@@ -348,7 +455,11 @@ function PlanInsightsPanel({ data }: { data: PlanInsightsData }) {
               onClick={() => setExpanded((v) => !v)}
               className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
             >
-              {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              {expanded ? (
+                <ChevronUp className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5" />
+              )}
               {expanded ? "Ocultar sugerencias" : `Ver ${recs.length} sugerencias`}
             </button>
             {expanded && (
@@ -437,7 +548,8 @@ export default function Plan() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { getFinancialGoals, createFinancialGoal, updateFinancialGoal, deleteFinancialGoal } = useApi();
+  const { getFinancialGoals, createFinancialGoal, updateFinancialGoal, deleteFinancialGoal } =
+    useApi();
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -470,7 +582,11 @@ export default function Plan() {
       const data = await apiFetch("/api/plan/insights");
       setPlanData(data as PlanInsightsData);
     } catch {
-      toast({ title: "Error", description: "No se pudo generar el plan. Intenta de nuevo.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "No se pudo generar el plan. Intenta de nuevo.",
+        variant: "destructive",
+      });
     } finally {
       setPlanLoading(false);
     }
@@ -487,7 +603,9 @@ export default function Plan() {
   const addForm = useForm<GoalFormValues>({
     resolver: zodResolver(goalFormSchema),
     defaultValues: {
-      name: "", targetAmount: 0, currentAmount: 0,
+      name: "",
+      targetAmount: 0,
+      currentAmount: 0,
       targetDate: format(new Date(Date.now() + 1000 * 60 * 60 * 24 * 365), "yyyy-MM-dd"),
       category: "savings",
     },
@@ -495,7 +613,13 @@ export default function Plan() {
 
   const editForm = useForm<GoalFormValues>({
     resolver: zodResolver(goalFormSchema),
-    defaultValues: { name: "", targetAmount: 0, currentAmount: 0, targetDate: "", category: "savings" },
+    defaultValues: {
+      name: "",
+      targetAmount: 0,
+      currentAmount: 0,
+      targetDate: "",
+      category: "savings",
+    },
   });
 
   // Mutations
@@ -505,9 +629,10 @@ export default function Plan() {
       await queryClient.cancelQueries({ queryKey: ["/api/financial-goals"] });
       const prev = queryClient.getQueryData<Goal[]>(["/api/financial-goals"]);
       if (prev) {
-        queryClient.setQueryData<Goal[]>(["/api/financial-goals"], [
-          ...prev, { id: Date.now(), ...newGoal, createdAt: new Date() },
-        ]);
+        queryClient.setQueryData<Goal[]>(
+          ["/api/financial-goals"],
+          [...prev, { id: Date.now(), ...newGoal, createdAt: new Date() }],
+        );
       }
       return { prev };
     },
@@ -519,7 +644,7 @@ export default function Plan() {
         if (!newGoal) return clean;
         const id = Number(newGoal.id);
         return clean.some((g) => Number(g.id) === id)
-          ? clean.map((g) => Number(g.id) === id ? { ...g, ...newGoal } : g)
+          ? clean.map((g) => (Number(g.id) === id ? { ...g, ...newGoal } : g))
           : [...clean, newGoal as Goal];
       });
       await queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
@@ -540,15 +665,18 @@ export default function Plan() {
       await queryClient.cancelQueries({ queryKey: ["/api/financial-goals"] });
       const prev = queryClient.getQueryData<Goal[]>(["/api/financial-goals"]);
       if (prev) {
-        queryClient.setQueryData<Goal[]>(["/api/financial-goals"],
-          prev.map((g) => g.id === Number(id) ? { ...g, ...goal } : g));
+        queryClient.setQueryData<Goal[]>(
+          ["/api/financial-goals"],
+          prev.map((g) => (g.id === Number(id) ? { ...g, ...goal } : g)),
+        );
       }
       return { prev };
     },
     onSuccess: async (data) => {
       if (data) {
         queryClient.setQueryData<Goal[]>(["/api/financial-goals"], (old) =>
-          (old ?? []).map((g) => Number(g.id) === Number(data.id) ? { ...g, ...data } : g));
+          (old ?? []).map((g) => (Number(g.id) === Number(data.id) ? { ...g, ...data } : g)),
+        );
       }
       await queryClient.invalidateQueries({ queryKey: ["/api/financial-goals"] });
       setIsEditOpen(false);
@@ -569,8 +697,10 @@ export default function Plan() {
       await queryClient.cancelQueries({ queryKey: ["/api/financial-goals"] });
       const prev = queryClient.getQueryData<Goal[]>(["/api/financial-goals"]);
       if (prev) {
-        queryClient.setQueryData<Goal[]>(["/api/financial-goals"],
-          prev.filter((g) => g.id !== Number(id)));
+        queryClient.setQueryData<Goal[]>(
+          ["/api/financial-goals"],
+          prev.filter((g) => g.id !== Number(id)),
+        );
       }
       return { prev };
     },
@@ -605,7 +735,10 @@ export default function Plan() {
   const submitEdit = (v: GoalFormValues) => {
     if (!editingGoal) return;
     const [y, m, d] = v.targetDate.split("-").map(Number);
-    editMutation.mutate({ id: String(editingGoal.id), goal: { ...v, targetDate: new Date(y, m - 1, d) } });
+    editMutation.mutate({
+      id: String(editingGoal.id),
+      goal: { ...v, targetDate: new Date(y, m - 1, d) },
+    });
   };
 
   // ── 50/30/20 calculations ──────────────────────────────────────────────────
@@ -615,7 +748,7 @@ export default function Plan() {
   const savings = Math.max(0, income - expenses);
 
   // Without categorized data we show total expenses as "needs+wants"
-  const needsPct = income > 0 ? pct(expenses * 0.6, income) : 0;   // rough split
+  const needsPct = income > 0 ? pct(expenses * 0.6, income) : 0; // rough split
   const wantsPct = income > 0 ? pct(expenses * 0.4, income) : 0;
   const savingsPct = income > 0 ? pct(savings, income) : 0;
 
@@ -640,7 +773,6 @@ export default function Plan() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-
         {!isAuthenticated && (
           <SignInBanner
             title="Inicia sesión para tu plan personalizado"
@@ -668,9 +800,11 @@ export default function Plan() {
             className="gap-2 shrink-0"
             variant={planRequested ? "outline" : "default"}
           >
-            {planLoading
-              ? <Loader2 className="h-4 w-4 animate-spin" />
-              : <Sparkles className="h-4 w-4" />}
+            {planLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
             {planLoading ? "Analizando…" : planRequested ? "Actualizar plan" : "Generar plan IA"}
           </Button>
         </div>
@@ -686,8 +820,12 @@ export default function Plan() {
           <CardContent className="p-6 space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold text-foreground">Distribución del ingreso</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Regla 50/30/20 — necesidades / gustos / ahorro</p>
+                <h2 className="text-base font-semibold text-foreground">
+                  Distribución del ingreso
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Regla 50/30/20 — necesidades / gustos / ahorro
+                </p>
               </div>
               {hasFinancialData && (
                 <Badge variant="outline" className="text-xs">
@@ -718,9 +856,15 @@ export default function Plan() {
                 </div>
                 {/* Legend */}
                 <div className="flex gap-4 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-blue-500 inline-block" /> Necesidades</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-violet-400 inline-block" /> Gustos</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-400 inline-block" /> Ahorro</span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-blue-500 inline-block" /> Necesidades
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-violet-400 inline-block" /> Gustos
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-emerald-400 inline-block" /> Ahorro
+                  </span>
                 </div>
 
                 {/* Detailed bars */}
@@ -759,13 +903,27 @@ export default function Plan() {
                   </div>
                   <div className="rounded-lg border border-border px-3 py-1.5 text-xs">
                     <span className="text-muted-foreground">Ahorro disponible: </span>
-                    <span className={cn("font-semibold", savings > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500")}>
+                    <span
+                      className={cn(
+                        "font-semibold",
+                        savings > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500",
+                      )}
+                    >
                       {CLP.format(savings)}
                     </span>
                   </div>
                   <div className="rounded-lg border border-border px-3 py-1.5 text-xs">
                     <span className="text-muted-foreground">Tasa de ahorro: </span>
-                    <span className={cn("font-semibold", savingsPct >= 20 ? "text-emerald-600 dark:text-emerald-400" : savingsPct >= 10 ? "text-amber-600" : "text-red-500")}>
+                    <span
+                      className={cn(
+                        "font-semibold",
+                        savingsPct >= 20
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : savingsPct >= 10
+                            ? "text-amber-600"
+                            : "text-red-500",
+                      )}
+                    >
                       {savingsPct}%
                     </span>
                   </div>
@@ -803,14 +961,21 @@ export default function Plan() {
                 <DialogHeader>
                   <DialogTitle>Nueva meta financiera</DialogTitle>
                 </DialogHeader>
-                <GoalForm form={addForm} onSubmit={submitAdd} isPending={addMutation.isPending} submitLabel="Crear meta" />
+                <GoalForm
+                  form={addForm}
+                  onSubmit={submitAdd}
+                  isPending={addMutation.isPending}
+                  submitLabel="Crear meta"
+                />
               </DialogContent>
             </Dialog>
           </div>
 
           {loadingGoals && !realGoals ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-32 rounded-2xl" />)}
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-32 rounded-2xl" />
+              ))}
             </div>
           ) : goals.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -828,7 +993,9 @@ export default function Plan() {
               <CardContent className="py-12 text-center space-y-3">
                 <PiggyBank className="h-10 w-10 mx-auto text-muted-foreground opacity-40" />
                 <p className="text-sm font-medium text-muted-foreground">No tienes metas aún</p>
-                <p className="text-xs text-muted-foreground">Crea tu primera meta para empezar a ahorrar con propósito</p>
+                <p className="text-xs text-muted-foreground">
+                  Crea tu primera meta para empezar a ahorrar con propósito
+                </p>
                 <Button size="sm" onClick={() => setIsAddOpen(true)} className="mt-2 gap-1.5">
                   <Plus className="h-3.5 w-3.5" />
                   Crear primera meta
@@ -844,7 +1011,12 @@ export default function Plan() {
             <DialogHeader>
               <DialogTitle>Editar meta</DialogTitle>
             </DialogHeader>
-            <GoalForm form={editForm} onSubmit={submitEdit} isPending={editMutation.isPending} submitLabel="Guardar cambios" />
+            <GoalForm
+              form={editForm}
+              onSubmit={submitEdit}
+              isPending={editMutation.isPending}
+              submitLabel="Guardar cambios"
+            />
           </DialogContent>
         </Dialog>
       </div>

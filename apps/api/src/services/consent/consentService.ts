@@ -3,22 +3,32 @@
  * Alimenta el Panel de Control de Consentimientos del usuario.
  */
 
-import { eq, and, desc } from 'drizzle-orm';
-import { db, consentGrants } from '../../db/index.js';
+import { eq, and, desc } from "drizzle-orm";
+import { db, consentGrants } from "../../db/index.js";
 import type {
   CreateConsentInput,
   ConsentGrantStatus,
   ConsentGrantForPanel,
   ConsentWebhookPayload,
-} from './types.js';
+} from "./types.js";
 import {
   CONSENT_PURPOSE_CODA,
   CONSENT_PURPOSE_MAX_LENGTH,
   CONSENT_POLICY_VERSION,
-} from './types.js';
-import { buildAuthorizationDetails, serializeAuthorizationDetails, parseAuthorizationDetails } from './rar.js';
+} from "./types.js";
+import {
+  buildAuthorizationDetails,
+  serializeAuthorizationDetails,
+  parseAuthorizationDetails,
+} from "./rar.js";
 
-const VALID_STATUSES: ConsentGrantStatus[] = ['pending', 'authorized', 'rejected', 'revoked', 'expired'];
+const VALID_STATUSES: ConsentGrantStatus[] = [
+  "pending",
+  "authorized",
+  "rejected",
+  "revoked",
+  "expired",
+];
 
 function isValidStatus(s: string): s is ConsentGrantStatus {
   return VALID_STATUSES.includes(s as ConsentGrantStatus);
@@ -43,7 +53,7 @@ export class ConsentService {
       .insert(consentGrants)
       .values({
         userId: input.userId,
-        status: 'pending',
+        status: "pending",
         authorizationDetails: authorizationDetailsJson,
         purpose,
         policyVersion: CONSENT_POLICY_VERSION,
@@ -80,7 +90,7 @@ export class ConsentService {
   async updateStatus(
     grantId: number,
     status: ConsentGrantStatus,
-    options?: { userId?: string; externalGrantId?: string }
+    options?: { userId?: string; externalGrantId?: string },
   ): Promise<ConsentGrantForPanel | null> {
     if (!isValidStatus(status)) return null;
     const conditions = options?.userId
@@ -134,7 +144,11 @@ export class ConsentService {
    * Asigna externalGrantId a un consentimiento (ej. para simulación: sim-{id}).
    * Permite que el webhook del banco identifique el grant después.
    */
-  async setExternalGrantId(grantId: number, userId: string, externalGrantId: string): Promise<ConsentGrantForPanel | null> {
+  async setExternalGrantId(
+    grantId: number,
+    userId: string,
+    externalGrantId: string,
+  ): Promise<ConsentGrantForPanel | null> {
     const [updated] = await db
       .update(consentGrants)
       .set({
@@ -148,37 +162,37 @@ export class ConsentService {
 
   /** Revoca un consentimiento (por el usuario). */
   async revoke(grantId: number, userId: string): Promise<ConsentGrantForPanel | null> {
-    return this.updateStatus(grantId, 'revoked', { userId });
+    return this.updateStatus(grantId, "revoked", { userId });
   }
 
   /** Marca un consentimiento como expirado. */
   async expire(grantId: number, userId?: string): Promise<ConsentGrantForPanel | null> {
-    return this.updateStatus(grantId, 'expired', userId ? { userId } : undefined);
+    return this.updateStatus(grantId, "expired", userId ? { userId } : undefined);
   }
 
   /**
    * Genera el objeto authorization_details (RAR) para enviar al AS del banco.
    * Útil para el flujo de autorización en el frontend.
    */
-  buildAuthorizationDetailsForTypes(resourceTypes: CreateConsentInput['resourceTypes']) {
+  buildAuthorizationDetailsForTypes(resourceTypes: CreateConsentInput["resourceTypes"]) {
     return buildAuthorizationDetails(resourceTypes);
   }
 }
 
 function mapToPanel(row: Record<string, unknown>): ConsentGrantForPanel {
-  const authDetails = (row.authorizationDetails as string) ?? '[]';
+  const authDetails = (row.authorizationDetails as string) ?? "[]";
   return {
     id: row.id as number,
     userId: row.userId as string,
     status: row.status as ConsentGrantStatus,
     scope: parseAuthorizationDetails(authDetails),
-    purpose: (row.purpose as string) ?? '',
+    purpose: (row.purpose as string) ?? "",
     policyVersion: (row.policyVersion as string) ?? CONSENT_POLICY_VERSION,
     externalGrantId: (row.externalGrantId as string) ?? null,
     ipiId: (row.ipiId as string) ?? null,
     expiresAt: (row.expiresAt as string) ?? null,
-    createdAt: (row.createdAt as string) ?? '',
-    updatedAt: (row.updatedAt as string) ?? '',
+    createdAt: (row.createdAt as string) ?? "",
+    updatedAt: (row.updatedAt as string) ?? "",
   };
 }
 

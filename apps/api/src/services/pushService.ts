@@ -11,7 +11,9 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
   logger.info("Web Push VAPID keys configured");
 } else {
-  logger.warn("VAPID keys not set — push notifications disabled. Generate with: npx web-push generate-vapid-keys");
+  logger.warn(
+    "VAPID keys not set — push notifications disabled. Generate with: npx web-push generate-vapid-keys",
+  );
 }
 
 export interface PushPayload {
@@ -27,7 +29,7 @@ export interface PushPayload {
 export async function saveSubscription(
   userId: string,
   subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
-  userAgent?: string
+  userAgent?: string,
 ): Promise<void> {
   try {
     const existing = await db
@@ -103,7 +105,7 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
           keys: { p256dh: sub.p256dh, auth: sub.auth },
         },
         jsonPayload,
-        { TTL: 60 * 60 * 24 }
+        { TTL: 60 * 60 * 24 },
       );
       sent++;
     } catch (err: any) {

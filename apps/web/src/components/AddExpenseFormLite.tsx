@@ -136,10 +136,7 @@ export function AddExpenseFormLite({
   });
 
   return (
-    <form
-      onSubmit={form.handleSubmit(onSubmit)}
-      className="space-y-5"
-    >
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
       <div>
         <label className="text-sm font-medium text-muted-foreground mb-2 block">
           Nombre (opcional)
@@ -151,9 +148,7 @@ export function AddExpenseFormLite({
         />
       </div>
       <div>
-        <label className="text-sm font-medium text-muted-foreground mb-2 block">
-          Monto
-        </label>
+        <label className="text-sm font-medium text-muted-foreground mb-2 block">Monto</label>
         <Input
           placeholder="0"
           type="number"
@@ -163,16 +158,12 @@ export function AddExpenseFormLite({
           className="text-lg"
         />
         {form.formState.errors.amount && (
-          <p className="text-sm text-destructive mt-1">
-            {form.formState.errors.amount.message}
-          </p>
+          <p className="text-sm text-destructive mt-1">{form.formState.errors.amount.message}</p>
         )}
       </div>
 
       <div>
-        <label className="text-sm font-medium text-muted-foreground mb-2 block">
-          Categoría
-        </label>
+        <label className="text-sm font-medium text-muted-foreground mb-2 block">Categoría</label>
         <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
           {categories.map((cat) => {
             const Icon = getCategoryIcon(cat);
@@ -186,7 +177,7 @@ export function AddExpenseFormLite({
                   "flex flex-col items-center justify-center gap-1 p-3 rounded-xl border-2 transition-all",
                   isSelected
                     ? `${getCategoryColor(cat)} border-primary text-white`
-                    : "border-muted hover:border-muted-foreground/50 bg-muted/30"
+                    : "border-muted hover:border-muted-foreground/50 bg-muted/30",
                 )}
               >
                 <Icon className="h-5 w-5" />
@@ -198,9 +189,7 @@ export function AddExpenseFormLite({
           })}
         </div>
         {form.formState.errors.category && (
-          <p className="text-sm text-destructive mt-1">
-            {form.formState.errors.category.message}
-          </p>
+          <p className="text-sm text-destructive mt-1">{form.formState.errors.category.message}</p>
         )}
       </div>
 

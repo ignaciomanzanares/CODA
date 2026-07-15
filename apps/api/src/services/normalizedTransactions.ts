@@ -15,17 +15,17 @@ import { storage } from "../storage.js";
 export interface NormalizedTx {
   id: string;
   accountId: number;
-  postedAt: string;          // YYYY-MM-DD (año ya corregido por normalizeCartola)
-  month: string;             // YYYY-MM
-  day: number;               // 1-31
-  amount: number;            // firmado: cargo negativo, abono positivo
-  cargo: number;             // magnitud del egreso (>= 0)
-  abono: number;             // magnitud del ingreso (>= 0)
+  postedAt: string; // YYYY-MM-DD (año ya corregido por normalizeCartola)
+  month: string; // YYYY-MM
+  day: number; // 1-31
+  amount: number; // firmado: cargo negativo, abono positivo
+  cargo: number; // magnitud del egreso (>= 0)
+  abono: number; // magnitud del ingreso (>= 0)
   tipo: "ingreso" | "egreso";
   descripcion: string;
-  description: string;       // alias para isInternalTransferTx
+  description: string; // alias para isInternalTransferTx
   categoria: string;
-  category: string;          // categoría cruda (para el predicado por etiqueta)
+  category: string; // categoría cruda (para el predicado por etiqueta)
   isInternalTransfer: boolean;
   is_internal_transfer: number; // 0/1 — señal autoritativa para el predicado
   accountName: string | null;
@@ -44,10 +44,14 @@ export interface NormalizedAccount {
 }
 
 /** Producto legible + clave de filtro (Cuenta corriente / TC Nacional / TC Internacional). */
-export function productOf(a: { name?: string | null; subtype?: string | null } | undefined): { key: string; label: string } {
+export function productOf(a: { name?: string | null; subtype?: string | null } | undefined): {
+  key: string;
+  label: string;
+} {
   const name = a?.name ?? "Cuenta";
   if (a?.subtype === "credit_card") {
-    if (/internacional/i.test(name)) return { key: "tc_internacional", label: `${name} · Tarjeta crédito` };
+    if (/internacional/i.test(name))
+      return { key: "tc_internacional", label: `${name} · Tarjeta crédito` };
     if (/nacional/i.test(name)) return { key: "tc_nacional", label: `${name} · Tarjeta crédito` };
     return { key: "tc", label: `${name} · Tarjeta crédito` };
   }

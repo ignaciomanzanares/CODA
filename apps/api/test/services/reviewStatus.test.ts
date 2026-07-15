@@ -22,17 +22,33 @@ describe("requiresReview — criterios de 'por revisar'", () => {
   });
 
   it("regla de respaldo explícita (fallback.* / unknown) requiere revisión", () => {
-    expect(requiresReview({ category: "alimentacion", categoryConfidence: 0.9, categoryRuleId: "fallback.otro" })).toBe(true);
+    expect(
+      requiresReview({
+        category: "alimentacion",
+        categoryConfidence: 0.9,
+        categoryRuleId: "fallback.otro",
+      }),
+    ).toBe(true);
     expect(requiresReview({ category: "x", categoryRuleId: "unknown" })).toBe(true);
   });
 
   it("categoría confiable NO requiere revisión", () => {
-    expect(requiresReview({ category: "alimentacion", categoryConfidence: 0.9, categoryRuleId: "cl.super" })).toBe(false);
+    expect(
+      requiresReview({
+        category: "alimentacion",
+        categoryConfidence: 0.9,
+        categoryRuleId: "cl.super",
+      }),
+    ).toBe(false);
   });
 
   it("regla vacía/null NO sobre-marca (evita flaggear todo)", () => {
-    expect(requiresReview({ category: "alimentacion", categoryConfidence: 0.9, categoryRuleId: null })).toBe(false);
-    expect(requiresReview({ category: "alimentacion", categoryConfidence: 0.9, categoryRuleId: "" })).toBe(false);
+    expect(
+      requiresReview({ category: "alimentacion", categoryConfidence: 0.9, categoryRuleId: null }),
+    ).toBe(false);
+    expect(
+      requiresReview({ category: "alimentacion", categoryConfidence: 0.9, categoryRuleId: "" }),
+    ).toBe(false);
   });
 
   it("una corrección MANUAL nunca requiere revisión, aunque sea 'otro'", () => {
@@ -49,17 +65,19 @@ describe("isManualCategory", () => {
   it("detecta manual por rule_id o version", () => {
     expect(isManualCategory({ categoryRuleId: MANUAL_RULE_ID })).toBe(true);
     expect(isManualCategory({ categorizerVersion: MANUAL_CATEGORIZER_VERSION })).toBe(true);
-    expect(isManualCategory({ categoryRuleId: "cl.super", categorizerVersion: "batch10.v3" })).toBe(false);
+    expect(isManualCategory({ categoryRuleId: "cl.super", categorizerVersion: "batch10.v3" })).toBe(
+      false,
+    );
   });
 });
 
 describe("countRequiresReview", () => {
   it("cuenta solo los pendientes (excluye manuales)", () => {
     const txs = [
-      { category: "otro" },                                   // review
-      { category: "alimentacion", categoryConfidence: 0.3 },  // review (low conf)
+      { category: "otro" }, // review
+      { category: "alimentacion", categoryConfidence: 0.3 }, // review (low conf)
       { category: "transporte", categoryConfidence: 0.9, categoryRuleId: "cl.uber" }, // ok
-      { category: "otro", categoryRuleId: MANUAL_RULE_ID },   // manual → no review
+      { category: "otro", categoryRuleId: MANUAL_RULE_ID }, // manual → no review
     ];
     expect(countRequiresReview(txs)).toBe(2);
   });

@@ -61,7 +61,7 @@ export interface RequestOptions {
 export function request(
   url: string | URL,
   options: RequestOptions = {},
-  clientOptions: FapiHttpClientOptions = {}
+  clientOptions: FapiHttpClientOptions = {},
 ): Promise<{ statusCode: number; headers: Record<string, string>; body: string }> {
   const urlObj = typeof url === "string" ? new URL(url) : url;
   const financialId = clientOptions.financialId ?? FAPI_FINANCIAL_ID;
@@ -105,12 +105,16 @@ export function request(
           statusCode: res.statusCode ?? 0,
           headers: resHeaders,
           body: Buffer.concat(chunks).toString("utf8"),
-        })
+        }),
       );
     });
 
     req.on("error", reject);
-    if (timeout) req.setTimeout(timeout, () => { req.destroy(); reject(new Error("Request timeout")); });
+    if (timeout)
+      req.setTimeout(timeout, () => {
+        req.destroy();
+        reject(new Error("Request timeout"));
+      });
     if (bodyBuffer) req.write(bodyBuffer);
     req.end();
   });
@@ -122,7 +126,7 @@ export function request(
 export function get(
   url: string | URL,
   options: RequestOptions = {},
-  clientOptions: FapiHttpClientOptions = {}
+  clientOptions: FapiHttpClientOptions = {},
 ): Promise<{ statusCode: number; headers: Record<string, string>; body: string }> {
   return request(url, { ...options, method: "GET" }, clientOptions);
 }
@@ -134,7 +138,7 @@ export function post(
   url: string | URL,
   body?: string | Buffer | object,
   options: RequestOptions = {},
-  clientOptions: FapiHttpClientOptions = {}
+  clientOptions: FapiHttpClientOptions = {},
 ): Promise<{ statusCode: number; headers: Record<string, string>; body: string }> {
   const bodyStr =
     body === undefined

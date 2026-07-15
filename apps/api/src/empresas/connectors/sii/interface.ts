@@ -1,11 +1,11 @@
 /**
  * SII DTE Connector Interface
- * 
+ *
  * Abstracts Chilean SII electronic document ingestion.
  * Handles invoices, credit notes, and debit notes (issued and received).
  */
 
-import type { Connector, SyncResult, DTEDocument } from '../types.js';
+import type { Connector, SyncResult, DTEDocument } from "../types.js";
 
 export interface SIIConnector extends Connector<DTEDocument> {
   /**

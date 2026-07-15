@@ -6,7 +6,7 @@
  * se movieron aquí para que el profile unificado pueda reusarlas sin ciclo de imports
  * (userHealthService las re-exporta para compatibilidad con callers existentes).
  */
-import type { CMFParseResult } from '../../parsers/cmf-parser.js';
+import type { CMFParseResult } from "../../parsers/cmf-parser.js";
 
 /** Plazos típicos (meses) por tipo de crédito en Chile, para estimar la cuota mensual. */
 const PLAZOS_MESES: Record<string, number> = {
@@ -27,7 +27,7 @@ export function estimarCuotaMensual(cmf: CMFParseResult, deudaTotalFallback: num
 /** Normaliza ambos formatos de CMF almacenados en BD a CMFParseResult. */
 export function normalizeCmfData(raw: any): CMFParseResult {
   // Formato nuevo: cmf-parser.ts (tiene deuda_total)
-  if (typeof raw?.deuda_total === 'number') return raw as CMFParseResult;
+  if (typeof raw?.deuda_total === "number") return raw as CMFParseResult;
   // Formato antiguo: pdfAnalysis.ts (tiene deudaTotalVigente)
   const deudaTotal = raw?.deudaTotalVigente ?? 0;
   return {
@@ -46,7 +46,11 @@ export function normalizeCmfData(raw: any): CMFParseResult {
 }
 
 /** Suma de operaciones en atraso por bucket (directa + indirecta), señal central del scorecard. */
-export function sumAtrasos(cmf: CMFParseResult): { mora30: number; mora60: number; mora90: number } {
+export function sumAtrasos(cmf: CMFParseResult): {
+  mora30: number;
+  mora60: number;
+  mora90: number;
+} {
   let mora30 = 0;
   let mora60 = 0;
   let mora90 = 0;
@@ -82,7 +86,11 @@ export interface CmfFeatures {
  * Deriva las features CMF a partir del CMF normalizado + un ingreso mensual de referencia.
  * `deudaTotalClp` puede venir ya ajustado (p. ej. + deuda fiscal TGR) desde el profile.
  */
-export function deriveCmfFeatures(cmf: CMFParseResult, ingresoMensualClp: number, deudaTotalClp?: number): CmfFeatures {
+export function deriveCmfFeatures(
+  cmf: CMFParseResult,
+  ingresoMensualClp: number,
+  deudaTotalClp?: number,
+): CmfFeatures {
   const { mora30, mora60, mora90 } = sumAtrasos(cmf);
   const deuda = deudaTotalClp ?? cmf.deuda_total ?? 0;
   const ingresoAnual = Math.max(1, ingresoMensualClp) * 12;

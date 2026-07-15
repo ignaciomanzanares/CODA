@@ -13,7 +13,7 @@ export class ApiError extends Error {
   }
 }
 
-import { dispatchSessionExpired } from './authEvents';
+import { dispatchSessionExpired } from "./authEvents";
 import { isBrowserOffline } from "@/lib/networkStatus";
 import { USER_FACING_CONNECTION_ERROR } from "@/lib/userFacingErrors";
 
@@ -121,10 +121,7 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
     // Network-level failure (CORS, DNS, offline)
     const detail = e instanceof Error ? e.message : "";
     console.error("[apiFetch] network error:", detail, "url:", url);
-    throw new ApiError(
-      `No podemos conectar con el servidor. Revisa tu conexión. (${detail})`,
-      0,
-    );
+    throw new ApiError(`No podemos conectar con el servidor. Revisa tu conexión. (${detail})`, 0);
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
   }
@@ -148,7 +145,7 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
     /^<html[\s>]/i.test(trimmed);
   if (looksLikeHtml) {
     throw new Error(
-      "La app no está hablando con el backend (se recibió HTML en lugar de JSON). En Vercel, define VITE_API_URL con la URL del API en Render y vuelve a desplegar el frontend."
+      "La app no está hablando con el backend (se recibió HTML en lugar de JSON). En Vercel, define VITE_API_URL con la URL del API en Render y vuelve a desplegar el frontend.",
     );
   }
   if (!trimmed) {
@@ -158,7 +155,7 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
     return JSON.parse(trimmed);
   } catch {
     throw new Error(
-      "Respuesta del servidor no válida (no es JSON). Revisa VITE_API_URL y que el API esté en marcha."
+      "Respuesta del servidor no válida (no es JSON). Revisa VITE_API_URL y que el API esté en marcha.",
     );
   }
 }

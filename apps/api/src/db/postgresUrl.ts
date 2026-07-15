@@ -48,6 +48,6 @@ export function ensurePostgresToolingQueryParams(connectionString: string): stri
 /** URL para drizzle-kit: SSL + (Neon) host directo + connect_timeout. */
 export function postgresUrlForDrizzleKit(connectionString: string): string {
   return ensurePostgresToolingQueryParams(
-    neonPreferDirectHost(ensurePostgresSslMode(connectionString))
+    neonPreferDirectHost(ensurePostgresSslMode(connectionString)),
   );
 }

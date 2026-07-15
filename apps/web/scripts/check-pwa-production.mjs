@@ -54,7 +54,7 @@ async function fetchJson(path) {
   const { text, contentType, url } = await fetchText(path, "application/json,*/*");
   assert(
     /(?:application\/json|application\/manifest\+json)/i.test(contentType),
-    `${path} must be JSON, got ${contentType || "no content-type"} from ${url}`
+    `${path} must be JSON, got ${contentType || "no content-type"} from ${url}`,
   );
   assert(!text.trimStart().startsWith("<!DOCTYPE html>"), `${path} was served as HTML`);
   try {
@@ -71,7 +71,7 @@ async function assertAsset(path, expectedType) {
   const contentType = res.headers.get("content-type") || "";
   assert(
     expectedType.test(contentType),
-    `${path} expected ${expectedType}, got ${contentType || "no content-type"} from ${res.url}`
+    `${path} expected ${expectedType}, got ${contentType || "no content-type"} from ${res.url}`,
   );
   const sample = await res.text();
   assert(!sample.trimStart().startsWith("<!DOCTYPE html>"), `${path} was served as HTML`);
@@ -84,10 +84,22 @@ function parseStartupImageHrefs(markup) {
 }
 
 const index = await fetchText("/", "text/html,*/*");
-assert(/text\/html/i.test(index.contentType), `/ must be HTML, got ${index.contentType || "no content-type"}`);
-assert(index.text.includes('<link rel="manifest" href="/manifest.json"'), "index must link /manifest.json");
-assert(index.text.includes('name="theme-color" content="#FF5C35"'), "index theme-color must match orange brand");
-assert(index.text.includes('name="apple-mobile-web-app-capable" content="yes"'), "index must enable iOS standalone mode");
+assert(
+  /text\/html/i.test(index.contentType),
+  `/ must be HTML, got ${index.contentType || "no content-type"}`,
+);
+assert(
+  index.text.includes('<link rel="manifest" href="/manifest.json"'),
+  "index must link /manifest.json",
+);
+assert(
+  index.text.includes('name="theme-color" content="#FF5C35"'),
+  "index theme-color must match orange brand",
+);
+assert(
+  index.text.includes('name="apple-mobile-web-app-capable" content="yes"'),
+  "index must enable iOS standalone mode",
+);
 
 const manifest = await fetchJson("/manifest.json");
 assert(manifest.name === "CODA", "manifest.name must be CODA");
@@ -98,11 +110,20 @@ assert(Array.isArray(manifest.icons), "manifest.icons must be present");
 assert(Array.isArray(manifest.screenshots), "manifest.screenshots must be present");
 
 const sw = await fetchText("/sw.js", "application/javascript,*/*");
-assert(/javascript/i.test(sw.contentType), `/sw.js must be JavaScript, got ${sw.contentType || "no content-type"}`);
+assert(
+  /javascript/i.test(sw.contentType),
+  `/sw.js must be JavaScript, got ${sw.contentType || "no content-type"}`,
+);
 assert(sw.text.includes('self.addEventListener("push"'), "/sw.js must include push handler");
-assert(sw.text.includes('self.addEventListener("notificationclick"'), "/sw.js must include notificationclick handler");
+assert(
+  sw.text.includes('self.addEventListener("notificationclick"'),
+  "/sw.js must include notificationclick handler",
+);
 assert(!sw.text.includes("NetworkFirst"), "/sw.js must not runtime-cache API responses");
-assert(!sw.text.includes('cacheName:"api-cache"') && !sw.text.includes("cacheName:'api-cache'"), "/sw.js must not recreate api-cache");
+assert(
+  !sw.text.includes('cacheName:"api-cache"') && !sw.text.includes("cacheName:'api-cache'"),
+  "/sw.js must not recreate api-cache",
+);
 
 await assertAsset("/favicon.svg", /image\/svg\+xml/i);
 await assertAsset("/og-image.png", /image\/png/i);

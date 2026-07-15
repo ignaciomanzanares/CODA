@@ -53,8 +53,14 @@ function makeReq(opts: {
 
 function makeRes(): any {
   const res: any = { statusCode: 200, body: undefined, cookies: [], cleared: [] };
-  res.status = (c: number) => { res.statusCode = c; return res; };
-  res.json = (p: any) => { res.body = p; return res; };
+  res.status = (c: number) => {
+    res.statusCode = c;
+    return res;
+  };
+  res.json = (p: any) => {
+    res.body = p;
+    return res;
+  };
   res.cookie = (name: string, value: string, options: any) => {
     res.cookies.push({ name, value, options });
     return res;
@@ -195,7 +201,7 @@ describe("token endpoints set/skip cookie by flag", () => {
           policyVersion: "1.0",
         },
       }),
-      res
+      res,
     );
     expect(res.statusCode).toBe(201);
     expect(res.cookies.some((c: any) => c.name === COOKIE)).toBe(true);
@@ -230,7 +236,9 @@ describe("authenticate reads cookie and Bearer", () => {
   async function runAuth(req: any) {
     const res = makeRes();
     let nextCalled = false;
-    await authenticate(req, res, () => { nextCalled = true; });
+    await authenticate(req, res, () => {
+      nextCalled = true;
+    });
     return { res, nextCalled, req };
   }
   async function tokenFor(prefix: string) {
@@ -250,7 +258,7 @@ describe("authenticate reads cookie and Bearer", () => {
   it("flag OFF: valid Bearer (+ cookie present) → 200 via Bearer", async () => {
     const { user, token } = await tokenFor("off-br");
     const { nextCalled, req } = await runAuth(
-      makeReq({ headers: { authorization: `Bearer ${token}` }, cookies: { [COOKIE]: token } })
+      makeReq({ headers: { authorization: `Bearer ${token}` }, cookies: { [COOKIE]: token } }),
     );
     expect(nextCalled).toBe(true);
     expect(req.user?.userId).toBe(user.id);
@@ -275,7 +283,7 @@ describe("authenticate reads cookie and Bearer", () => {
     process.env.AUTH_COOKIE_ENABLED = "true";
     const { user, token } = await tokenFor("on-br");
     const { nextCalled, req } = await runAuth(
-      makeReq({ headers: { authorization: `Bearer ${token}` } })
+      makeReq({ headers: { authorization: `Bearer ${token}` } }),
     );
     expect(nextCalled).toBe(true);
     expect(req.user?.userId).toBe(user.id);
@@ -300,7 +308,7 @@ describe("authenticate reads cookie and Bearer", () => {
     const email = uid("missing-sync") + "@coda.test";
 
     await expect(
-      ensureUserForToken({ userId, email, name: "Missing Sync", role: "persona" })
+      ensureUserForToken({ userId, email, name: "Missing Sync", role: "persona" }),
     ).resolves.toBeNull();
     expect(await storage.getUserByEmail(email)).toBeUndefined();
   });
@@ -309,7 +317,10 @@ describe("authenticate reads cookie and Bearer", () => {
     process.env.AUTH_COOKIE_ENABLED = "true";
     const { token } = await tokenFor("on-pri");
     const { res, nextCalled } = await runAuth(
-      makeReq({ headers: { authorization: "Bearer not.a.valid.jwt" }, cookies: { [COOKIE]: token } })
+      makeReq({
+        headers: { authorization: "Bearer not.a.valid.jwt" },
+        cookies: { [COOKIE]: token },
+      }),
     );
     expect(nextCalled).toBe(false);
     expect(res.statusCode).toBe(401);
@@ -319,7 +330,7 @@ describe("authenticate reads cookie and Bearer", () => {
     process.env.AUTH_COOKIE_ENABLED = "true";
     const { token } = await tokenFor("basic");
     const { res, nextCalled } = await runAuth(
-      makeReq({ headers: { authorization: "Basic dXNlcjpwYXNz" }, cookies: { [COOKIE]: token } })
+      makeReq({ headers: { authorization: "Basic dXNlcjpwYXNz" }, cookies: { [COOKIE]: token } }),
     );
     expect(nextCalled).toBe(false);
     expect(res.statusCode).toBe(401);
@@ -335,7 +346,7 @@ describe("authenticate reads cookie and Bearer", () => {
     const logoutRes = makeRes();
     await handleLogout(
       makeReq({ cookies: { [COOKIE]: token }, user: { userId: user.id, email: user.email } }),
-      logoutRes
+      logoutRes,
     );
     expect(logoutRes.cleared.some((c: any) => c.name === COOKIE)).toBe(true);
 
@@ -356,8 +367,18 @@ describe("authenticate reads cookie and Bearer", () => {
     process.env.AUTH_COOKIE_ENABLED = "true";
     const email = uid("delete-flow") + "@coda.test";
     const user = await seedUser(email, "Pass1234!");
-    const currentToken = generateToken({ userId: user.id, email, name: "Current", role: "persona" });
-    const otherToken = generateToken({ userId: user.id, email, name: "Other device", role: "persona" });
+    const currentToken = generateToken({
+      userId: user.id,
+      email,
+      name: "Current",
+      role: "persona",
+    });
+    const otherToken = generateToken({
+      userId: user.id,
+      email,
+      name: "Other device",
+      role: "persona",
+    });
 
     const deleteReq = makeReq({ cookies: { [COOKIE]: currentToken } });
     const before = await runAuth(deleteReq);
@@ -381,7 +402,7 @@ describe("authenticate reads cookie and Bearer", () => {
 
     // Simulates another device or a request already queued with a distinct valid JWT.
     const backgroundRequest = await runAuth(
-      makeReq({ headers: { authorization: `Bearer ${otherToken}` } })
+      makeReq({ headers: { authorization: `Bearer ${otherToken}` } }),
     );
     expect(backgroundRequest.nextCalled).toBe(false);
     expect(backgroundRequest.res.statusCode).toBe(401);

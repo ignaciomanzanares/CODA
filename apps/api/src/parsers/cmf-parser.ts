@@ -96,7 +96,7 @@ function extractTitular(text: string): string {
   if (n?.[1]) return n[1].trim().slice(0, 200);
   const lines = text.split(/\n/).map((l) => l.trim());
   const hit = lines.find(
-    (l) => /^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{10,}/.test(l) && !/INFORME|DEUDA|CMF|COMISI/i.test(l)
+    (l) => /^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{10,}/.test(l) && !/INFORME|DEUDA|CMF|COMISI/i.test(l),
   );
   return hit ? hit.slice(0, 200) : "";
 }
@@ -106,7 +106,10 @@ function extractTitular(text: string): string {
  */
 function parseDeudaRowsDirecta(section: string): CMFParseResult["deuda_directa"] {
   const rows: CMFParseResult["deuda_directa"] = [];
-  const lines = section.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = section
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
 
   for (const line of lines) {
     if (/total|vigente|atraso|instituci/i.test(line) && line.length < 40) continue;
@@ -150,7 +153,10 @@ function parseDeudaRowsDirecta(section: string): CMFParseResult["deuda_directa"]
 
 function parseDeudaRowsIndirecta(section: string): CMFParseResult["deuda_indirecta"] {
   const rows: CMFParseResult["deuda_indirecta"] = [];
-  const lines = section.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = section
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
 
   for (const line of lines) {
     if (/total|vigente|atraso|instituci/i.test(line) && line.length < 40) continue;
@@ -243,7 +249,7 @@ function computeMetricas(r: Omit<CMFParseResult, "metricas">): CMFParseResult["m
 
   const credito_disponible_total = r.lineas_credito.reduce(
     (s, l) => s + l.disponible_directo + l.disponible_indirecto,
-    0
+    0,
   );
 
   return {
@@ -279,7 +285,10 @@ function parseLineasCredito(text: string): CMFParseResult["lineas_credito"] {
   ]);
   const out: CMFParseResult["lineas_credito"] = [];
   if (!sec) return out;
-  const lines = sec.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = sec
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
   for (const line of lines) {
     const nums = line.match(/(?:[\d.]+\s*){2,}/);
     if (!nums) continue;
@@ -287,7 +296,11 @@ function parseLineasCredito(text: string): CMFParseResult["lineas_credito"] {
     if (!parts || parts.length < 2) continue;
     const disponible_directo = parseChileAmount(parts[0]!.replace(/\$/g, ""));
     const disponible_indirecto = parseChileAmount(parts[1]!.replace(/\$/g, ""));
-    const institucion = line.replace(/\$?\s*[\d.]+\s*/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+    const institucion = line
+      .replace(/\$?\s*[\d.]+\s*/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 80);
     if (institucion.length >= 3) {
       out.push({ institucion, disponible_directo, disponible_indirecto });
     }
@@ -320,14 +333,20 @@ export async function parseCmfPdfBuffer(buffer: Buffer): Promise<CMFParseResult>
   ]);
   if (!fecha_emision && !fecha_actualizacion) {
     throw new Error(
-      "No se pudieron detectar fechas de emisión ni de actualización en el certificado CMF."
+      "No se pudieron detectar fechas de emisión ni de actualización en el certificado CMF.",
     );
   }
   const fe = fecha_emision ?? fecha_actualizacion!;
   const fa = fecha_actualizacion ?? fecha_emision!;
 
-  const secDirecta = sliceSection(text, /Deuda\s+directa/i, [/Deuda\s+indirecta/i, /L[ií]neas?\s+de/i]);
-  const secIndirecta = sliceSection(text, /Deuda\s+indirecta/i, [/L[ií]neas?\s+de/i, /Informaci[oó]n/i]);
+  const secDirecta = sliceSection(text, /Deuda\s+directa/i, [
+    /Deuda\s+indirecta/i,
+    /L[ií]neas?\s+de/i,
+  ]);
+  const secIndirecta = sliceSection(text, /Deuda\s+indirecta/i, [
+    /L[ií]neas?\s+de/i,
+    /Informaci[oó]n/i,
+  ]);
 
   let deuda_directa = parseDeudaRowsDirecta(secDirecta);
   let deuda_indirecta = parseDeudaRowsIndirecta(secIndirecta);

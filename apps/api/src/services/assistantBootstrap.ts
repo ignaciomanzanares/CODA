@@ -59,22 +59,25 @@ export async function buildAssistantBootstrap(userId: string): Promise<{
   if (hasData) {
     const parts: string[] = [
       `¡Hola! 👋 Soy tu asistente financiero de CODA.`,
-      '',
+      "",
       `Según tus datos del último mes:`,
     ];
 
     if (inc > 0) parts.push(`• Ingresos: **${formatClp(inc)}**`);
     if (exp > 0) parts.push(`• Gastos: **${formatClp(exp)}**`);
     if (ctx.savingsRate != null) {
-      const emoji = ctx.savingsRate >= 20 ? '✅' : ctx.savingsRate >= 10 ? '⚠️' : '🔴';
+      const emoji = ctx.savingsRate >= 20 ? "✅" : ctx.savingsRate >= 10 ? "⚠️" : "🔴";
       parts.push(`• Tasa de ahorro: **${ctx.savingsRate}%** ${emoji}`);
     }
     if (ctx.creditScore) {
       parts.push(`• Score crediticio: **${ctx.creditScore}/850**`);
     }
 
-    parts.push('', 'Pregúntame lo que necesites — conozco tus números y te doy consejos personalizados.');
-    welcome = parts.join('\n');
+    parts.push(
+      "",
+      "Pregúntame lo que necesites — conozco tus números y te doy consejos personalizados.",
+    );
+    welcome = parts.join("\n");
   } else {
     welcome = `¡Hola! 👋 Soy tu asistente financiero de CODA.\n\nAún no tienes datos cargados. Para darte consejos personalizados, puedes:\n• **Subir una cartola bancaria** desde tu perfil\n• **Sincronizar cuentas** vía Open Finance\n• **Registrar gastos** manualmente\n\nMientras tanto, pregúntame lo que quieras sobre finanzas personales en Chile.`;
   }

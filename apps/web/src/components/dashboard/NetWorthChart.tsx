@@ -59,9 +59,18 @@ export default function NetWorthChart({ data, currentNetWorth }: NetWorthChartPr
           </div>
           <div className="text-right">
             <p className="text-2xl font-bold">{formatCurrency(currentNetWorth)}</p>
-            <div className={`flex items-center justify-end gap-1 text-sm ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-              {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-              <span>{isPositive ? '+' : ''}{formatCurrency(change)} ({changePercent}%)</span>
+            <div
+              className={`flex items-center justify-end gap-1 text-sm ${isPositive ? "text-green-600" : "text-red-600"}`}
+            >
+              {isPositive ? (
+                <TrendingUp className="h-4 w-4" />
+              ) : (
+                <TrendingDown className="h-4 w-4" />
+              )}
+              <span>
+                {isPositive ? "+" : ""}
+                {formatCurrency(change)} ({changePercent}%)
+              </span>
             </div>
           </div>
         </div>
@@ -81,13 +90,8 @@ export default function NetWorthChart({ data, currentNetWorth }: NetWorthChartPr
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis 
-                dataKey="month" 
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis 
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+              <YAxis
                 tickFormatter={formatCurrency}
                 tick={{ fontSize: 12 }}
                 tickLine={false}
@@ -95,9 +99,11 @@ export default function NetWorthChart({ data, currentNetWorth }: NetWorthChartPr
                 width={60}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                wrapperStyle={{ paddingTop: '20px' }}
-                formatter={(value) => <span className="text-sm text-muted-foreground">{value}</span>}
+              <Legend
+                wrapperStyle={{ paddingTop: "20px" }}
+                formatter={(value) => (
+                  <span className="text-sm text-muted-foreground">{value}</span>
+                )}
               />
               <Area
                 type="monotone"

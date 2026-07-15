@@ -1,20 +1,19 @@
 /**
  * ML Model Registry Service
- * 
+ *
  * Manages registration and deployment of credit scoring models.
  * Provides version control, performance tracking, and rollback capabilities.
- * 
+ *
  * Required for CMF compliance and operational reliability.
- * 
+ *
  * @author AI Assistant (Cursor)
  * @date 2026-03-02
  */
 
-import { randomUUID } from 'crypto';
-import { existsSync } from 'node:fs';
-import type { ModelVersion } from './algorithmicTraceability.js';
-import { registerModelVersion, getActiveModelVersion } from './algorithmicTraceability.js';
-import { ensureSeedTraceabilityModels } from './traceabilityPersistence.js';
+import { existsSync } from "node:fs";
+import type { ModelVersion } from "./algorithmicTraceability.js";
+import { registerModelVersion, getActiveModelVersion } from "./algorithmicTraceability.js";
+import { ensureSeedTraceabilityModels } from "./traceabilityPersistence.js";
 
 // ============================================================================
 // MODEL DEPLOYMENT
@@ -22,7 +21,7 @@ import { ensureSeedTraceabilityModels } from './traceabilityPersistence.js';
 
 /**
  * Deploy a new ML model version to production
- * 
+ *
  * Steps:
  * 1. Validate model artifacts exist
  * 2. Register version in audit system
@@ -31,10 +30,10 @@ import { ensureSeedTraceabilityModels } from './traceabilityPersistence.js';
  * 5. Log deployment
  */
 export async function deployNewModelVersion(config: {
-  modelType: ModelVersion['modelType'];
+  modelType: ModelVersion["modelType"];
   version: string;
   modelPath: string;
-  trainingMetrics?: ModelVersion['trainingMetrics'];
+  trainingMetrics?: ModelVersion["trainingMetrics"];
   validationMetrics?: Record<string, number>;
   hyperparameters?: Record<string, any>;
   features?: string[];
@@ -42,12 +41,12 @@ export async function deployNewModelVersion(config: {
   deployedBy: string;
 }): Promise<string> {
   console.log(`🚀 Deploying new model version: ${config.version}`);
-  
+
   // Validar que el artefacto existe antes de promover (NCG 502: no activar modelos sin artefacto)
   if (config.modelPath && !existsSync(config.modelPath)) {
     throw new Error(
       `El artefacto del modelo no existe en la ruta indicada: ${config.modelPath}. ` +
-      `Verifica que el archivo esté disponible antes de promocionar.`
+        `Verifica que el archivo esté disponible antes de promocionar.`,
     );
   }
 
@@ -73,7 +72,7 @@ export async function deployNewModelVersion(config: {
   });
 
   console.log(`✅ Model ${config.version} deployed with ID: ${modelVersionId}`);
-  
+
   return modelVersionId;
 }
 
@@ -83,21 +82,21 @@ export async function deployNewModelVersion(config: {
  */
 export async function registerEnhancedMLModel(): Promise<string> {
   const existingActive = getActiveModelVersion();
-  
+
   // Don't re-register if already deployed
-  if (existingActive?.version === 'v2.0.0' && existingActive.modelType === 'ensemble') {
-    console.log('✅ Enhanced ML model v2.0.0 already registered');
+  if (existingActive?.version === "v2.0.0" && existingActive.modelType === "ensemble") {
+    console.log("✅ Enhanced ML model v2.0.0 already registered");
     return existingActive.id;
   }
-  
+
   return deployNewModelVersion({
-    modelType: 'ensemble',
-    version: 'v2.0.0',
+    modelType: "ensemble",
+    version: "v2.0.0",
     // Ruta relativa al repo: es metadata de auditoría, no debe fijar una máquina.
-    modelPath: 'apps/api/ml/models/ensemble_v2.pkl',
+    modelPath: "apps/api/ml/models/ensemble_v2.pkl",
     trainingMetrics: {
       auc: 0.85,
-      gini: 0.70,
+      gini: 0.7,
       brierScore: 0.12,
       accuracy: 0.82,
     },
@@ -114,8 +113,8 @@ export async function registerEnhancedMLModel(): Promise<string> {
       },
       logistic_regression: {
         C: 1.0,
-        penalty: 'l2',
-        solver: 'lbfgs',
+        penalty: "l2",
+        solver: "lbfgs",
       },
       ensemble_weights: {
         xgboost: 0.7,
@@ -123,19 +122,19 @@ export async function registerEnhancedMLModel(): Promise<string> {
       },
     },
     features: [
-      'deuda_total_vigente',
-      'deuda_indirecta',
-      'numero_instituciones',
-      'has_debt',
-      'debt_ratio',
-      'saldo_promedio',
-      'total_ingresos',
-      'total_egresos',
-      'ratio_ingreso_egreso',
-      'volatilidad_saldo',
-      'meses_con_abonos',
-      'max_saldo',
-      'min_saldo',
+      "deuda_total_vigente",
+      "deuda_indirecta",
+      "numero_instituciones",
+      "has_debt",
+      "debt_ratio",
+      "saldo_promedio",
+      "total_ingresos",
+      "total_egresos",
+      "ratio_ingreso_egreso",
+      "volatilidad_saldo",
+      "meses_con_abonos",
+      "max_saldo",
+      "min_saldo",
     ],
     changelog: `
 Enhanced Statistical Credit Scoring Engine (v2.0.0)
@@ -177,6 +176,6 @@ Next Steps:
 - Implement A/B testing framework
 - Add automated retraining pipeline
 `,
-    deployedBy: 'AI Assistant (Initial Deployment)',
+    deployedBy: "AI Assistant (Initial Deployment)",
   });
 }

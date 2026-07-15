@@ -118,7 +118,8 @@ async function main() {
       .where(eq(financialProducts.slug, p.id));
 
     if (existing) {
-      if (!dryRun) await db.update(financialProducts).set(row).where(eq(financialProducts.id, existing.id));
+      if (!dryRun)
+        await db.update(financialProducts).set(row).where(eq(financialProducts.id, existing.id));
       updated++;
     } else {
       if (!dryRun) await db.insert(financialProducts).values(row);

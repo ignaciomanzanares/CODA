@@ -58,8 +58,12 @@ describe("observability metrics", () => {
 
     expect(response.status).toBe(200);
     expect(response.contentType).toContain("text/plain");
-    expect(response.text).toContain('coda_http_requests_total{method="GET",route="/api/users/:id",status="200"} 1');
-    expect(response.text).toContain('coda_http_request_duration_ms{method="GET",route="/api/users/:id"}');
+    expect(response.text).toContain(
+      'coda_http_requests_total{method="GET",route="/api/users/:id",status="200"} 1',
+    );
+    expect(response.text).toContain(
+      'coda_http_request_duration_ms{method="GET",route="/api/users/:id"}',
+    );
     expect(response.text).not.toContain("person@example.com");
     expect(response.text).not.toContain("token=secret");
     expect(response.text).not.toContain("/api/users/123");

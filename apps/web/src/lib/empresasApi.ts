@@ -58,7 +58,12 @@ export interface DashboardMetrics {
   cashBalance: number;
   transactionCount: number;
   invoiceCount: number;
-  dataFreshness: Array<{ connector: string; lastSync: string | null; status: string; recordCount: number }>;
+  dataFreshness: Array<{
+    connector: string;
+    lastSync: string | null;
+    status: string;
+    recordCount: number;
+  }>;
 }
 
 export interface BankTransaction {
@@ -106,9 +111,22 @@ export async function getEmpresasRisk(companyId: number): Promise<{
   rating: string;
   numericScore: number;
   lastCalculated: string;
-  factors: Array<{ name: string; category: string; value: string; score: number; weight: number; status: string; explanation: string }>;
+  factors: Array<{
+    name: string;
+    category: string;
+    value: string;
+    score: number;
+    weight: number;
+    status: string;
+    explanation: string;
+  }>;
   redFlags: string[];
-  recommendations: Array<{ product: string; maxAmount: number; suitability: string; description: string }>;
+  recommendations: Array<{
+    product: string;
+    maxAmount: number;
+    suitability: string;
+    description: string;
+  }>;
 }> {
   const r = await fetchEmpresas<unknown>(`/risk/${companyId}`);
   return r.data as Awaited<ReturnType<typeof getEmpresasRisk>>;
@@ -122,7 +140,7 @@ export async function getEmpresasReconciliation(companyId: number) {
 export async function runEmpresasReconciliation(companyId: number) {
   const res = await apiFetch(
     `${EMPRESAS_PREFIX}/reconciliation/${companyId}/run`,
-    withEmpresasAuth({ method: "POST" })
+    withEmpresasAuth({ method: "POST" }),
   );
   return (res as { data: unknown }).data;
 }
@@ -141,7 +159,7 @@ export async function getEmpresasConnections(companyId: number) {
 export async function syncEmpresasConnection(companyId: number, type: string) {
   const res = await apiFetch(
     `${EMPRESAS_PREFIX}/connections/${companyId}/${type}/sync`,
-    withEmpresasAuth({ method: "POST" })
+    withEmpresasAuth({ method: "POST" }),
   );
   return (res as { data: unknown }).data;
 }
@@ -178,14 +196,16 @@ export interface CreateDTEBody {
   issueDate?: string;
 }
 
-export async function createEmpresasDocument(body: CreateDTEBody): Promise<{ id: number; folio: number; message: string }> {
+export async function createEmpresasDocument(
+  body: CreateDTEBody,
+): Promise<{ id: number; folio: number; message: string }> {
   const res = await apiFetch(
     `${EMPRESAS_PREFIX}/documents`,
     withEmpresasAuth({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    })
+    }),
   );
   return (res as { data: { id: number; folio: number; message: string } }).data;
 }
@@ -198,7 +218,10 @@ export interface CashForecastDay {
   confidence: number;
 }
 
-export async function getEmpresasCashForecast(companyId: number, days?: number): Promise<{
+export async function getEmpresasCashForecast(
+  companyId: number,
+  days?: number,
+): Promise<{
   companyId: number;
   currentBalance: number;
   currency: string;
@@ -206,7 +229,9 @@ export async function getEmpresasCashForecast(companyId: number, days?: number):
   forecast: CashForecastDay[];
 }> {
   const q = days != null ? `?days=${days}` : "";
-  const r = await fetchEmpresas<Awaited<ReturnType<typeof getEmpresasCashForecast>>>(`/cash-forecast/${companyId}${q}`);
+  const r = await fetchEmpresas<Awaited<ReturnType<typeof getEmpresasCashForecast>>>(
+    `/cash-forecast/${companyId}${q}`,
+  );
   return r.data;
 }
 
@@ -238,19 +263,26 @@ export interface PurchaseOrdersByVendor {
   totalAmount: number;
 }
 
-export async function getEmpresasPurchaseOrdersByVendor(companyId: number): Promise<PurchaseOrdersByVendor[]> {
-  const r = await fetchEmpresas<PurchaseOrdersByVendor[]>(`/purchase-orders/by-vendor?company_id=${companyId}`);
+export async function getEmpresasPurchaseOrdersByVendor(
+  companyId: number,
+): Promise<PurchaseOrdersByVendor[]> {
+  const r = await fetchEmpresas<PurchaseOrdersByVendor[]>(
+    `/purchase-orders/by-vendor?company_id=${companyId}`,
+  );
   return r.data;
 }
 
-export async function linkPurchaseOrderToDte(poId: number, dteDocumentId: number): Promise<{ message: string }> {
+export async function linkPurchaseOrderToDte(
+  poId: number,
+  dteDocumentId: number,
+): Promise<{ message: string }> {
   const res = await apiFetch(
     `${EMPRESAS_PREFIX}/purchase-orders/${poId}/link-dte`,
     withEmpresasAuth({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ dteDocumentId }),
-    })
+    }),
   );
   return (res as { data: { message: string } }).data;
 }

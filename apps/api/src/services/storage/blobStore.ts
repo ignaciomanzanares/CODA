@@ -14,10 +14,10 @@
  * `docs/INTEGRATION_GUIDE.md` para activarlo.
  */
 
-import { randomUUID } from 'crypto';
-import { db, storedBlobs, eq, sql } from '../../db/index.js';
-import { logger } from '../../logger.js';
-import { encryptField, decryptField, looksEncrypted } from '../crypto/fieldEncryption.js';
+import { randomUUID } from "crypto";
+import { db, storedBlobs, eq, sql } from "../../db/index.js";
+import { logger } from "../../logger.js";
+import { encryptField, decryptField, looksEncrypted } from "../crypto/fieldEncryption.js";
 
 export interface PutOptions {
   contentType?: string;
@@ -42,10 +42,10 @@ export interface BlobStore {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class PostgresBlobStore implements BlobStore {
-  readonly scheme = 'pg';
+  readonly scheme = "pg";
 
   async putObject(key: string, data: Buffer, opts: PutOptions = {}): Promise<string> {
-    const encrypted = encryptField(data.toString('base64'));
+    const encrypted = encryptField(data.toString("base64"));
     const expiresAt = opts.ttlSeconds
       ? new Date(Date.now() + opts.ttlSeconds * 1000).toISOString()
       : null;
@@ -68,7 +68,7 @@ class PostgresBlobStore implements BlobStore {
     const [row] = await db.select().from(storedBlobs).where(eq(storedBlobs.key, key)).limit(1);
     if (!row) return null;
     const raw = looksEncrypted(row.data) ? decryptField(row.data) : row.data;
-    return Buffer.from(raw, 'base64');
+    return Buffer.from(raw, "base64");
   }
 
   async deleteObject(key: string): Promise<void> {
@@ -93,28 +93,28 @@ class PostgresBlobStore implements BlobStore {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class S3BlobStore implements BlobStore {
-  readonly scheme = 's3';
+  readonly scheme = "s3";
   private bucket: string;
   private clientPromise: Promise<any> | null = null;
 
   constructor() {
-    this.bucket = process.env.BLOB_BUCKET ?? '';
-    if (!this.bucket) throw new Error('S3BlobStore: BLOB_BUCKET no configurado');
+    this.bucket = process.env.BLOB_BUCKET ?? "";
+    if (!this.bucket) throw new Error("S3BlobStore: BLOB_BUCKET no configurado");
   }
 
   private async client(): Promise<any> {
     if (!this.clientPromise) {
       // Especificador no-literal: el typecheck no resuelve el módulo, así que
       // `@aws-sdk/client-s3` es una dependencia opcional instalada solo si se usa S3.
-      const pkg = '@aws-sdk/client-s3';
+      const pkg = "@aws-sdk/client-s3";
       this.clientPromise = import(pkg).then((aws: any) => {
         const Client = aws.S3Client;
         return {
           aws,
           s3: new Client({
-            region: process.env.BLOB_REGION ?? 'auto',
+            region: process.env.BLOB_REGION ?? "auto",
             endpoint: process.env.BLOB_ENDPOINT || undefined, // R2/MinIO
-            forcePathStyle: process.env.BLOB_FORCE_PATH_STYLE === 'true',
+            forcePathStyle: process.env.BLOB_FORCE_PATH_STYLE === "true",
             credentials:
               process.env.BLOB_ACCESS_KEY_ID && process.env.BLOB_SECRET_ACCESS_KEY
                 ? {
@@ -153,7 +153,7 @@ class S3BlobStore implements BlobStore {
       for await (const chunk of res.Body as AsyncIterable<Buffer>) chunks.push(Buffer.from(chunk));
       return Buffer.concat(chunks);
     } catch (e: any) {
-      if (e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404) return null;
+      if (e?.name === "NoSuchKey" || e?.$metadata?.httpStatusCode === 404) return null;
       throw e;
     }
   }
@@ -179,18 +179,18 @@ let _instance: BlobStore | null = null;
 /** Devuelve el blob store singleton según `BLOB_BACKEND` (s3 | postgres). */
 export function getBlobStore(): BlobStore {
   if (_instance) return _instance;
-  const backend = (process.env.BLOB_BACKEND ?? 'postgres').toLowerCase();
-  if (backend === 's3') {
+  const backend = (process.env.BLOB_BACKEND ?? "postgres").toLowerCase();
+  if (backend === "s3") {
     try {
       _instance = new S3BlobStore();
-      logger.info({ bucket: process.env.BLOB_BUCKET }, '[blobStore] backend S3/R2');
+      logger.info({ bucket: process.env.BLOB_BUCKET }, "[blobStore] backend S3/R2");
     } catch (e) {
-      logger.error({ err: e }, '[blobStore] S3 mal configurado; cayendo a Postgres');
+      logger.error({ err: e }, "[blobStore] S3 mal configurado; cayendo a Postgres");
       _instance = new PostgresBlobStore();
     }
   } else {
     _instance = new PostgresBlobStore();
-    logger.info('[blobStore] backend Postgres (stored_blobs)');
+    logger.info("[blobStore] backend Postgres (stored_blobs)");
   }
   return _instance;
 }

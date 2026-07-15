@@ -2,7 +2,16 @@ import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, ShoppingCart, Sparkles, TrendingUp, Shield, DollarSign, ArrowRight, PiggyBank } from "lucide-react";
+import {
+  ArrowLeft,
+  ShoppingCart,
+  Sparkles,
+  TrendingUp,
+  Shield,
+  DollarSign,
+  ArrowRight,
+  PiggyBank,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { ROUTES } from "@/lib/routes";
 import { Analytics } from "@/lib/analytics";
@@ -31,14 +40,14 @@ export default function ProductComparisonInfo() {
               Comparación de Productos Financieros
             </h1>
             <p className="text-xl text-orange-100 leading-relaxed mb-8">
-              Encuentra los mejores productos financieros para tu perfil. Créditos,
-              tarjetas, cuentas, depósitos y fondos mutuos personalizados según tu situación.
+              Encuentra los mejores productos financieros para tu perfil. Créditos, tarjetas,
+              cuentas, depósitos y fondos mutuos personalizados según tu situación.
             </p>
-            
+
             {/* CTA for authenticated users */}
             {!isLoading && isAuthenticated && (
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="bg-white text-orange-700 hover:bg-orange-50"
                 onClick={() => navigate(ROUTES.productos)}
               >
@@ -46,10 +55,10 @@ export default function ProductComparisonInfo() {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             )}
-            
+
             {!isLoading && !isAuthenticated && (
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="bg-white text-orange-700 hover:bg-orange-50"
                 onClick={() => navigate(ROUTES.registro)}
               >
@@ -69,29 +78,29 @@ export default function ProductComparisonInfo() {
               ¿Cómo Funciona la Comparación?
             </h2>
             <p className="text-gray-600 text-lg leading-relaxed mb-12">
-              CODA analiza tu perfil financiero (credit score, ingresos, historial transaccional) 
-              y te muestra solo los productos para los que calificas, ordenados por qué tan bien 
-              se ajustan a tu situación.
+              CODA analiza tu perfil financiero (credit score, ingresos, historial transaccional) y
+              te muestra solo los productos para los que calificas, ordenados por qué tan bien se
+              ajustan a tu situación.
             </p>
-            
+
             <div className="grid md:grid-cols-2 gap-6">
               <Card>
                 <CardContent className="p-6">
                   <Sparkles className="h-10 w-10 text-purple-500 mb-4" />
                   <h3 className="text-xl font-semibold mb-3">Personalización Inteligente</h3>
                   <p className="text-gray-600">
-                    Cada producto tiene un "match score" que indica qué tan bien se ajusta a tu perfil. 
-                    Solo ves productos relevantes para ti.
+                    Cada producto tiene un "match score" que indica qué tan bien se ajusta a tu
+                    perfil. Solo ves productos relevantes para ti.
                   </p>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardContent className="p-6">
                   <Shield className="h-10 w-10 text-orange-500 mb-4" />
                   <h3 className="text-xl font-semibold mb-3">Pre-calificación Automática</h3>
                   <p className="text-gray-600">
-                    Verificamos que cumplas los requisitos mínimos (score, ingresos, DTI) antes de 
+                    Verificamos que cumplas los requisitos mínimos (score, ingresos, DTI) antes de
                     mostrarte un producto, aumentando tus chances de aprobación.
                   </p>
                 </CardContent>
@@ -118,9 +127,15 @@ export default function ProductComparisonInfo() {
                     <h3 className="text-xl font-semibold">Créditos</h3>
                   </div>
                   <ul className="space-y-2 text-gray-600 text-sm">
-                    <li>• <strong>Consumo:</strong> Tasas desde 1.65% mensual</li>
-                    <li>• <strong>Hipotecarios:</strong> Financiamiento hasta 90%</li>
-                    <li>• <strong>Pyme:</strong> Capital de trabajo hasta UF 10.000</li>
+                    <li>
+                      • <strong>Consumo:</strong> Tasas desde 1.65% mensual
+                    </li>
+                    <li>
+                      • <strong>Hipotecarios:</strong> Financiamiento hasta 90%
+                    </li>
+                    <li>
+                      • <strong>Pyme:</strong> Capital de trabajo hasta UF 10.000
+                    </li>
                   </ul>
                   <p className="text-xs text-gray-500 mt-4">
                     De Banco de Chile, Santander, BCI, BancoEstado
@@ -137,13 +152,17 @@ export default function ProductComparisonInfo() {
                     <h3 className="text-xl font-semibold">Tarjetas de Crédito</h3>
                   </div>
                   <ul className="space-y-2 text-gray-600 text-sm">
-                    <li>• <strong>Cashback:</strong> Hasta 3% en supermercados</li>
-                    <li>• <strong>Premium:</strong> Acceso a salas VIP y beneficios de viaje</li>
-                    <li>• <strong>Sin costo:</strong> Opciones sin mantención ni emisión</li>
+                    <li>
+                      • <strong>Cashback:</strong> Hasta 3% en supermercados
+                    </li>
+                    <li>
+                      • <strong>Premium:</strong> Acceso a salas VIP y beneficios de viaje
+                    </li>
+                    <li>
+                      • <strong>Sin costo:</strong> Opciones sin mantención ni emisión
+                    </li>
                   </ul>
-                  <p className="text-xs text-gray-500 mt-4">
-                    De BCI, Banco de Chile, Scotiabank
-                  </p>
+                  <p className="text-xs text-gray-500 mt-4">De BCI, Banco de Chile, Scotiabank</p>
                 </CardContent>
               </Card>
 
@@ -156,16 +175,21 @@ export default function ProductComparisonInfo() {
                     <h3 className="text-xl font-semibold">Ahorro e Inversión</h3>
                   </div>
                   <ul className="space-y-2 text-gray-600 text-sm">
-                    <li>• <strong>Cuentas corrientes:</strong> Digitales, sin mantención</li>
-                    <li>• <strong>Cuentas vista:</strong> Sin requisitos de renta</li>
-                    <li>• <strong>Depósitos a plazo:</strong> Hasta 5.8% anual</li>
+                    <li>
+                      • <strong>Cuentas corrientes:</strong> Digitales, sin mantención
+                    </li>
+                    <li>
+                      • <strong>Cuentas vista:</strong> Sin requisitos de renta
+                    </li>
+                    <li>
+                      • <strong>Depósitos a plazo:</strong> Hasta 5.8% anual
+                    </li>
                   </ul>
                   <p className="text-xs text-gray-500 mt-4">
                     De BCI, BancoEstado, Santander, Banco de Chile
                   </p>
                 </CardContent>
               </Card>
-
             </div>
           </div>
         </div>
@@ -188,7 +212,7 @@ export default function ProductComparisonInfo() {
                   No más horas comparando manualmente. Resultados personalizados en segundos.
                 </p>
               </div>
-              
+
               <div className="text-center">
                 <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <DollarSign className="h-8 w-8 text-orange-600" />
@@ -198,7 +222,7 @@ export default function ProductComparisonInfo() {
                   Te mostramos productos con mejores tasas y beneficios según tu perfil.
                 </p>
               </div>
-              
+
               <div className="text-center">
                 <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Shield className="h-8 w-8 text-purple-600" />
@@ -220,14 +244,14 @@ export default function ProductComparisonInfo() {
             {isAuthenticated ? "Explora los Productos" : "¿Listo para Encontrar tu Producto Ideal?"}
           </h2>
           <p className="text-xl text-orange-100 mb-8 max-w-2xl mx-auto">
-            {isAuthenticated 
+            {isAuthenticated
               ? "Ve tus recomendaciones personalizadas y encuentra el producto perfecto para ti."
               : "Crea tu cuenta gratis y descubre productos financieros diseñados para tu perfil."}
           </p>
-          
+
           {!isLoading && isAuthenticated && (
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               className="bg-white text-orange-700 hover:bg-orange-50"
               onClick={() => navigate(ROUTES.productos)}
             >
@@ -235,10 +259,10 @@ export default function ProductComparisonInfo() {
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           )}
-          
+
           {!isLoading && !isAuthenticated && (
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               className="bg-white text-orange-700 hover:bg-orange-50"
               onClick={() => navigate(ROUTES.registro)}
             >

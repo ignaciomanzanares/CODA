@@ -1,6 +1,6 @@
 /**
  * Product Metrics Dashboard
- * 
+ *
  * Admin dashboard to monitor:
  * - Revenue from product recommendations
  * - Conversion funnel (views → clicks → applications → approvals)
@@ -16,14 +16,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   TrendingUp,
   DollarSign,
-  Users,
   CheckCircle,
   XCircle,
   Eye,
   MousePointer,
   FileText,
   BarChart3,
-  Activity
+  Activity,
 } from "lucide-react";
 
 export default function ProductMetrics() {
@@ -33,13 +32,13 @@ export default function ProductMetrics() {
   const { data: metrics, isLoading: metricsLoading } = useQuery({
     queryKey: ["/api/products/metrics"],
     queryFn: getProductMetrics,
-    refetchInterval: 30000 // Refresh every 30 seconds
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // Fetch user's applications
   const { data: applications, isLoading: applicationsLoading } = useQuery({
     queryKey: ["/api/products/applications"],
-    queryFn: getUserApplications
+    queryFn: getUserApplications,
   });
 
   if (metricsLoading) {
@@ -48,7 +47,9 @@ export default function ProductMetrics() {
         <div className="max-w-screen-2xl mx-auto space-y-6">
           <Skeleton className="h-12 w-64" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32" />)}
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-32" />
+            ))}
           </div>
           <Skeleton className="h-96" />
         </div>
@@ -59,12 +60,12 @@ export default function ProductMetrics() {
   // Extract data from nested structure
   const revenue = metrics?.revenue || {};
   const funnel = metrics?.funnel || {};
-  
+
   const {
     totalRevenue = 0,
     revenueByType = {},
     applicationsCount = 0,
-    approvalsCount = 0
+    approvalsCount = 0,
   } = revenue;
 
   const {
@@ -74,23 +75,27 @@ export default function ProductMetrics() {
     totalApprovals = 0,
     totalRejections = 0,
     overallConversionRate = 0,
-    topPerformingProducts = []
+    topPerformingProducts = [],
   } = funnel;
 
   // Calculate rates
   const viewToClickRate = totalViews > 0 ? (totalClicks / totalViews) * 100 : 0;
   const clickToApplicationRate = totalClicks > 0 ? (totalApplications / totalClicks) * 100 : 0;
-  const applicationToApprovalRate = totalApplications > 0 ? (totalApprovals / totalApplications) * 100 : 0;
+  const applicationToApprovalRate =
+    totalApplications > 0 ? (totalApprovals / totalApplications) * 100 : 0;
 
-  const formatCLP = (amount: number) => 
-    new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(amount);
+  const formatCLP = (amount: number) =>
+    new Intl.NumberFormat("es-CL", {
+      style: "currency",
+      currency: "CLP",
+      minimumFractionDigits: 0,
+    }).format(amount);
 
   const formatPercent = (value: number) => `${value.toFixed(1)}%`;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 p-6">
       <div className="max-w-screen-2xl mx-auto space-y-6">
-        
         {/* Header */}
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-primary/10">
@@ -156,9 +161,7 @@ export default function ProductMetrics() {
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Tasa de Conversión</p>
                   <p className="text-2xl font-bold">{formatPercent(overallConversionRate)}</p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Views → Approvals
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">Views → Approvals</p>
                 </div>
                 <div className="p-3 rounded-lg bg-purple-100">
                   <TrendingUp className="h-6 w-6 text-purple-600" />
@@ -173,9 +176,7 @@ export default function ProductMetrics() {
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Tasa de Aprobación</p>
                   <p className="text-2xl font-bold">{formatPercent(applicationToApprovalRate)}</p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Applications → Approvals
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">Applications → Approvals</p>
                 </div>
                 <div className="p-3 rounded-lg bg-amber-100">
                   <CheckCircle className="h-6 w-6 text-amber-600" />
@@ -204,7 +205,9 @@ export default function ProductMetrics() {
                 <div className="flex-1">
                   <div className="relative h-10 bg-blue-100 rounded-lg overflow-hidden">
                     <div className="absolute inset-0 flex items-center justify-between px-4">
-                      <span className="text-sm font-bold text-blue-900">{totalViews.toLocaleString('es-CL')}</span>
+                      <span className="text-sm font-bold text-blue-900">
+                        {totalViews.toLocaleString("es-CL")}
+                      </span>
                       <span className="text-xs text-blue-700">100%</span>
                     </div>
                   </div>
@@ -219,13 +222,17 @@ export default function ProductMetrics() {
                 </div>
                 <div className="flex-1">
                   <div className="relative h-10 bg-muted rounded-lg overflow-hidden">
-                    <div 
+                    <div
                       className="absolute inset-y-0 left-0 bg-purple-200 transition-all"
                       style={{ width: `${Math.min(100, viewToClickRate)}%` }}
                     />
                     <div className="absolute inset-0 flex items-center justify-between px-4">
-                      <span className="text-sm font-bold">{totalClicks.toLocaleString('es-CL')}</span>
-                      <span className="text-xs text-muted-foreground">{formatPercent(viewToClickRate)}</span>
+                      <span className="text-sm font-bold">
+                        {totalClicks.toLocaleString("es-CL")}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatPercent(viewToClickRate)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -239,13 +246,17 @@ export default function ProductMetrics() {
                 </div>
                 <div className="flex-1">
                   <div className="relative h-10 bg-muted rounded-lg overflow-hidden">
-                    <div 
+                    <div
                       className="absolute inset-y-0 left-0 bg-amber-200 transition-all"
                       style={{ width: `${Math.min(100, clickToApplicationRate)}%` }}
                     />
                     <div className="absolute inset-0 flex items-center justify-between px-4">
-                      <span className="text-sm font-bold">{totalApplications.toLocaleString('es-CL')}</span>
-                      <span className="text-xs text-muted-foreground">{formatPercent(clickToApplicationRate)}</span>
+                      <span className="text-sm font-bold">
+                        {totalApplications.toLocaleString("es-CL")}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatPercent(clickToApplicationRate)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -259,13 +270,17 @@ export default function ProductMetrics() {
                 </div>
                 <div className="flex-1">
                   <div className="relative h-10 bg-muted rounded-lg overflow-hidden">
-                    <div 
+                    <div
                       className="absolute inset-y-0 left-0 bg-green-200 transition-all"
                       style={{ width: `${Math.min(100, applicationToApprovalRate)}%` }}
                     />
                     <div className="absolute inset-0 flex items-center justify-between px-4">
-                      <span className="text-sm font-bold">{totalApprovals.toLocaleString('es-CL')}</span>
-                      <span className="text-xs text-muted-foreground">{formatPercent(applicationToApprovalRate)}</span>
+                      <span className="text-sm font-bold">
+                        {totalApprovals.toLocaleString("es-CL")}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatPercent(applicationToApprovalRate)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -279,7 +294,9 @@ export default function ProductMetrics() {
                   <Activity className="h-5 w-5 text-primary" />
                   <span className="font-semibold">Conversión Global</span>
                 </div>
-                <span className="text-2xl font-bold text-primary">{formatPercent(overallConversionRate)}</span>
+                <span className="text-2xl font-bold text-primary">
+                  {formatPercent(overallConversionRate)}
+                </span>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
                 Porcentaje de views que resultan en aprobación
@@ -300,8 +317,8 @@ export default function ProductMetrics() {
             <CardContent>
               <div className="space-y-3">
                 {topPerformingProducts.slice(0, 5).map((product: any, index: number) => (
-                  <div 
-                    key={product.productId} 
+                  <div
+                    key={product.productId}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-4">
@@ -331,51 +348,63 @@ export default function ProductMetrics() {
           <Card>
             <CardHeader>
               <CardTitle>Mis Aplicaciones</CardTitle>
-              <CardDescription>
-                Historial de productos a los que has aplicado
-              </CardDescription>
+              <CardDescription>Historial de productos a los que has aplicado</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {applications.slice(0, 10).map((app: any) => (
-                  <div 
-                    key={app.id} 
+                  <div
+                    key={app.id}
                     className="flex items-center justify-between p-4 border rounded-lg"
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`p-2 rounded-lg ${
-                        app.status === 'approved' ? 'bg-green-100' :
-                        app.status === 'rejected' ? 'bg-red-100' :
-                        app.status === 'pending' ? 'bg-yellow-100' :
-                        'bg-gray-100'
-                      }`}>
-                        {app.status === 'approved' && <CheckCircle className="h-5 w-5 text-green-600" />}
-                        {app.status === 'rejected' && <XCircle className="h-5 w-5 text-red-600" />}
-                        {app.status === 'pending' && <Activity className="h-5 w-5 text-yellow-600" />}
+                      <div
+                        className={`p-2 rounded-lg ${
+                          app.status === "approved"
+                            ? "bg-green-100"
+                            : app.status === "rejected"
+                              ? "bg-red-100"
+                              : app.status === "pending"
+                                ? "bg-yellow-100"
+                                : "bg-gray-100"
+                        }`}
+                      >
+                        {app.status === "approved" && (
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                        )}
+                        {app.status === "rejected" && <XCircle className="h-5 w-5 text-red-600" />}
+                        {app.status === "pending" && (
+                          <Activity className="h-5 w-5 text-yellow-600" />
+                        )}
                       </div>
                       <div>
                         <p className="font-semibold">Producto ID: {app.productId}</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(app.appliedAt).toLocaleDateString('es-CL', { 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
+                          {new Date(app.appliedAt).toLocaleDateString("es-CL", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
                           })}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Badge 
+                      <Badge
                         variant={
-                          app.status === 'approved' ? 'default' :
-                          app.status === 'rejected' ? 'destructive' :
-                          'secondary'
+                          app.status === "approved"
+                            ? "default"
+                            : app.status === "rejected"
+                              ? "destructive"
+                              : "secondary"
                         }
                       >
-                        {app.status === 'approved' ? 'Aprobado' :
-                         app.status === 'rejected' ? 'Rechazado' :
-                         app.status === 'pending' ? 'Pendiente' :
-                         app.status}
+                        {app.status === "approved"
+                          ? "Aprobado"
+                          : app.status === "rejected"
+                            ? "Rechazado"
+                            : app.status === "pending"
+                              ? "Pendiente"
+                              : app.status}
                       </Badge>
                       {app.revenueEarned && (
                         <span className="text-sm font-medium text-green-600">
@@ -401,7 +430,8 @@ export default function ProductMetrics() {
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Sin datos aún</h3>
                   <p className="text-muted-foreground max-w-md">
-                    Las métricas aparecerán cuando los usuarios comiencen a interactuar con los productos financieros.
+                    Las métricas aparecerán cuando los usuarios comiencen a interactuar con los
+                    productos financieros.
                   </p>
                 </div>
               </div>
