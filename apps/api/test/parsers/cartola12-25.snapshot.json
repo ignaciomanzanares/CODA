@@ -1,0 +1,214 @@
+{
+  "banco": "Santander",
+  "saldo_inicial": 993680,
+  "saldo_final": 973959,
+  "total_cargos": 1938504,
+  "total_abonos": 1918783,
+  "tx_count": 34,
+  "transacciones": [
+    {
+      "fecha": "2025-12-01",
+      "tipo": "abono",
+      "monto": 5000,
+      "descripcion": "Traspaso Automático Programado"
+    },
+    {
+      "fecha": "2025-12-01",
+      "tipo": "cargo",
+      "monto": 55000,
+      "descripcion": "Compra Nacional NP OLD REDLAND"
+    },
+    {
+      "fecha": "2025-12-01",
+      "tipo": "cargo",
+      "monto": 813200,
+      "descripcion": "PAGO EN LINEA PONTIFICIA UNIV"
+    },
+    {
+      "fecha": "2025-12-09",
+      "tipo": "cargo",
+      "monto": 1000,
+      "descripcion": "Pago Recurrente VD MERPAGO*PAG"
+    },
+    {
+      "fecha": "2025-12-09",
+      "tipo": "cargo",
+      "monto": 4800,
+      "descripcion": "Compra Nacional SAN FCO. INVES"
+    },
+    {
+      "fecha": "2025-12-09",
+      "tipo": "cargo",
+      "monto": 6200,
+      "descripcion": "Compra Nacional MERPAGO*INVERS"
+    },
+    {
+      "fecha": "2025-12-09",
+      "tipo": "cargo",
+      "monto": 10000,
+      "descripcion": "Giro en Cajero Automatico"
+    },
+    {
+      "fecha": "2025-12-09",
+      "tipo": "cargo",
+      "monto": 15000,
+      "descripcion": "Transf a Esteban Mu"
+    },
+    {
+      "fecha": "2025-12-12",
+      "tipo": "cargo",
+      "monto": 21000,
+      "descripcion": "Compra Nacional JAIME MORERE R"
+    },
+    {
+      "fecha": "2025-12-15",
+      "tipo": "cargo",
+      "monto": 11990,
+      "descripcion": "Compra Nacional NP ENTEL ONECL"
+    },
+    {
+      "fecha": "2025-12-18",
+      "tipo": "abono",
+      "monto": 12000,
+      "descripcion": "Transf. Simon Aguir"
+    },
+    {
+      "fecha": "2025-12-18",
+      "tipo": "cargo",
+      "monto": 11500,
+      "descripcion": "Transf a MEDIO DE P"
+    },
+    {
+      "fecha": "2025-12-18",
+      "tipo": "cargo",
+      "monto": 17250,
+      "descripcion": "Transf a MEDIO DE P"
+    },
+    {
+      "fecha": "2025-12-18",
+      "tipo": "cargo",
+      "monto": 18000,
+      "descripcion": "Transf a Samuel Paz"
+    },
+    {
+      "fecha": "2025-12-18",
+      "tipo": "cargo",
+      "monto": 19360,
+      "descripcion": "Compra Nacional TIP Y TAP"
+    },
+    {
+      "fecha": "2025-12-19",
+      "tipo": "abono",
+      "monto": 2000,
+      "descripcion": "Transf de PABLO RIV"
+    },
+    {
+      "fecha": "2025-12-19",
+      "tipo": "abono",
+      "monto": 4800,
+      "descripcion": "Transf. GUTIERREZ P"
+    },
+    {
+      "fecha": "2025-12-19",
+      "tipo": "abono",
+      "monto": 4800,
+      "descripcion": "Transf. Rodrigo Paz"
+    },
+    {
+      "fecha": "2025-12-19",
+      "tipo": "abono",
+      "monto": 4800,
+      "descripcion": "Transf. Rodrigo Paz"
+    },
+    {
+      "fecha": "2025-12-19",
+      "tipo": "abono",
+      "monto": 50000,
+      "descripcion": "Transf de DANIELA P"
+    },
+    {
+      "fecha": "2025-12-22",
+      "tipo": "cargo",
+      "monto": 68784,
+      "descripcion": "Compra Nacional UNIMARC LOS MI"
+    },
+    {
+      "fecha": "2025-12-23",
+      "tipo": "abono",
+      "monto": 100000,
+      "descripcion": "344684132K Transf de FERNANDO"
+    },
+    {
+      "fecha": "2025-12-26",
+      "tipo": "abono",
+      "monto": 4800,
+      "descripcion": "Transf de GUILLERMO"
+    },
+    {
+      "fecha": "2025-12-26",
+      "tipo": "cargo",
+      "monto": 17000,
+      "descripcion": "Compra Nacional ANTICIPA AUTOS"
+    },
+    {
+      "fecha": "2025-12-26",
+      "tipo": "cargo",
+      "monto": 20870,
+      "descripcion": "Compra Nacional MC DONALDS"
+    },
+    {
+      "fecha": "2025-12-29",
+      "tipo": "abono",
+      "monto": 5000,
+      "descripcion": "Traspaso Automático Programado"
+    },
+    {
+      "fecha": "2025-12-29",
+      "tipo": "abono",
+      "monto": 694480,
+      "descripcion": "Transf de DANIELA P"
+    },
+    {
+      "fecha": "2025-12-29",
+      "tipo": "abono",
+      "monto": 997553,
+      "descripcion": "Transf de INVERSION"
+    },
+    {
+      "fecha": "2025-12-29",
+      "tipo": "cargo",
+      "monto": 3100,
+      "descripcion": "Compra Nacional MERCADOPAGO*SU"
+    },
+    {
+      "fecha": "2025-12-29",
+      "tipo": "cargo",
+      "monto": 20000,
+      "descripcion": "Compra Nacional SALA GENTE"
+    },
+    {
+      "fecha": "2025-12-29",
+      "tipo": "cargo",
+      "monto": 54450,
+      "descripcion": "Compra Nacional MERCADOPAGO*TH"
+    },
+    {
+      "fecha": "2025-12-29",
+      "tipo": "cargo",
+      "monto": 750000,
+      "descripcion": "344684132K Transf a FERNANDO A"
+    },
+    {
+      "fecha": "2025-12-30",
+      "tipo": "abono",
+      "monto": 15950,
+      "descripcion": "Transf."
+    },
+    {
+      "fecha": "2025-12-30",
+      "tipo": "abono",
+      "monto": 17600,
+      "descripcion": "354787600K Transf. Andres Soto"
+    }
+  ]
+}

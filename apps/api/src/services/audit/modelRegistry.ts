@@ -93,7 +93,8 @@ export async function registerEnhancedMLModel(): Promise<string> {
   return deployNewModelVersion({
     modelType: 'ensemble',
     version: 'v2.0.0',
-    modelPath: '/home/ignaciomanzanares/Documents/Personal/WeGroup/CODA/apps/api/ml/models/ensemble_v2.pkl',
+    // Ruta relativa al repo: es metadata de auditoría, no debe fijar una máquina.
+    modelPath: 'apps/api/ml/models/ensemble_v2.pkl',
     trainingMetrics: {
       auc: 0.85,
       gini: 0.70,

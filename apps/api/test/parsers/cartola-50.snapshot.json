@@ -1,0 +1,244 @@
+{
+  "banco": "Santander",
+  "saldo_inicial": 938532,
+  "saldo_final": 1028928,
+  "total_cargos": 1180523,
+  "total_abonos": 1270919,
+  "tx_count": 39,
+  "transacciones": [
+    {
+      "fecha": "2026-03-02",
+      "tipo": "abono",
+      "monto": 5000,
+      "descripcion": "Traspaso Automático Programado"
+    },
+    {
+      "fecha": "2026-03-02",
+      "tipo": "abono",
+      "monto": 11000,
+      "descripcion": "354328174K Transf de AGUSTIN P"
+    },
+    {
+      "fecha": "2026-03-02",
+      "tipo": "cargo",
+      "monto": 18173,
+      "descripcion": "Pago Recurrente VD CURSOR, AI"
+    },
+    {
+      "fecha": "2026-03-03",
+      "tipo": "abono",
+      "monto": 150000,
+      "descripcion": "Transf de RODRIGO P"
+    },
+    {
+      "fecha": "2026-03-04",
+      "tipo": "cargo",
+      "monto": 5200,
+      "descripcion": "Pago Recurrente VD MERPAGO*PAG"
+    },
+    {
+      "fecha": "2026-03-04",
+      "tipo": "cargo",
+      "monto": 13480,
+      "descripcion": "Compra Nacional STA ISABEL L D"
+    },
+    {
+      "fecha": "2026-03-05",
+      "tipo": "cargo",
+      "monto": 2000,
+      "descripcion": "Compra Nacional TUU*inversione"
+    },
+    {
+      "fecha": "2026-03-05",
+      "tipo": "cargo",
+      "monto": 6494,
+      "descripcion": "Compra Nacional NP PAYU"
+    },
+    {
+      "fecha": "2026-03-05",
+      "tipo": "cargo",
+      "monto": 7190,
+      "descripcion": "Compra Nacional MC DONALDS BEL"
+    },
+    {
+      "fecha": "2026-03-10",
+      "tipo": "cargo",
+      "monto": 32000,
+      "descripcion": "Compra Nacional SumUp * Encuad"
+    },
+    {
+      "fecha": "2026-03-11",
+      "tipo": "cargo",
+      "monto": 12990,
+      "descripcion": "Compra Nacional NP ENTEL ONECL"
+    },
+    {
+      "fecha": "2026-03-11",
+      "tipo": "cargo",
+      "monto": 70000,
+      "descripcion": "Transf a OLD REDLAN"
+    },
+    {
+      "fecha": "2026-03-13",
+      "tipo": "abono",
+      "monto": 35000,
+      "descripcion": "Transf de EUGENIO S"
+    },
+    {
+      "fecha": "2026-03-13",
+      "tipo": "cargo",
+      "monto": 10000,
+      "descripcion": "Compra Nacional NP PRONTOPAGA"
+    },
+    {
+      "fecha": "2026-03-16",
+      "tipo": "cargo",
+      "monto": 1000,
+      "descripcion": "Compra Nacional EVELYN"
+    },
+    {
+      "fecha": "2026-03-16",
+      "tipo": "cargo",
+      "monto": 2315,
+      "descripcion": "Compra Nacional NP PAYU"
+    },
+    {
+      "fecha": "2026-03-16",
+      "tipo": "cargo",
+      "monto": 5270,
+      "descripcion": "Compra Nacional SHELL.PATAGONI"
+    },
+    {
+      "fecha": "2026-03-17",
+      "tipo": "cargo",
+      "monto": 10000,
+      "descripcion": "Compra Nacional NP PAGO ONLINE"
+    },
+    {
+      "fecha": "2026-03-17",
+      "tipo": "cargo",
+      "monto": 10000,
+      "descripcion": "Compra Nacional NP PAGO ONLINE"
+    },
+    {
+      "fecha": "2026-03-17",
+      "tipo": "cargo",
+      "monto": 30000,
+      "descripcion": "Compra Nacional NP PAGO ONLINE"
+    },
+    {
+      "fecha": "2026-03-18",
+      "tipo": "cargo",
+      "monto": 1000,
+      "descripcion": "Compra Nacional EVELYN"
+    },
+    {
+      "fecha": "2026-03-18",
+      "tipo": "cargo",
+      "monto": 15000,
+      "descripcion": "Transf a Matias Rey"
+    },
+    {
+      "fecha": "2026-03-18",
+      "tipo": "cargo",
+      "monto": 100000,
+      "descripcion": "Compra Nacional NP PAGO ONLINE"
+    },
+    {
+      "fecha": "2026-03-18",
+      "tipo": "cargo",
+      "monto": 200000,
+      "descripcion": "Compra Nacional NP PAGO ONLINE"
+    },
+    {
+      "fecha": "2026-03-19",
+      "tipo": "abono",
+      "monto": 15916,
+      "descripcion": "344684132K Transf de FERNANDO"
+    },
+    {
+      "fecha": "2026-03-19",
+      "tipo": "cargo",
+      "monto": 1000,
+      "descripcion": "Compra Nacional EVELYN"
+    },
+    {
+      "fecha": "2026-03-19",
+      "tipo": "cargo",
+      "monto": 2525,
+      "descripcion": "Compra Nacional Red Movilidad"
+    },
+    {
+      "fecha": "2026-03-19",
+      "tipo": "cargo",
+      "monto": 500000,
+      "descripcion": "Compra Nacional NP PAGO ONLINE"
+    },
+    {
+      "fecha": "2026-03-20",
+      "tipo": "cargo",
+      "monto": 746,
+      "descripcion": "Compra Inter. NP PDFE.COM* SUP 746"
+    },
+    {
+      "fecha": "2026-03-20",
+      "tipo": "cargo",
+      "monto": 93000,
+      "descripcion": "Compra Nacional NP PAGO ONLINE"
+    },
+    {
+      "fecha": "2026-03-23",
+      "tipo": "abono",
+      "monto": 1263,
+      "descripcion": "Nota de Crédito Nacional Cashb"
+    },
+    {
+      "fecha": "2026-03-23",
+      "tipo": "cargo",
+      "monto": 5990,
+      "descripcion": "Compra Nacional OPPEN KENNEDY"
+    },
+    {
+      "fecha": "2026-03-24",
+      "tipo": "cargo",
+      "monto": 1110,
+      "descripcion": "Pago Recurrente VD MERPAGO*PAG"
+    },
+    {
+      "fecha": "2026-03-30",
+      "tipo": "abono",
+      "monto": 5000,
+      "descripcion": "Traspaso Automático Programado"
+    },
+    {
+      "fecha": "2026-03-30",
+      "tipo": "abono",
+      "monto": 50000,
+      "descripcion": "Transf de DANIELA P"
+    },
+    {
+      "fecha": "2026-03-30",
+      "tipo": "abono",
+      "monto": 997740,
+      "descripcion": "Transf de INVERSION"
+    },
+    {
+      "fecha": "2026-03-30",
+      "tipo": "cargo",
+      "monto": 1040,
+      "descripcion": "Pago Recurrente VD MERPAGO*PAG"
+    },
+    {
+      "fecha": "2026-03-30",
+      "tipo": "cargo",
+      "monto": 6000,
+      "descripcion": "Compra Nacional ELKIKA PROVIDE"
+    },
+    {
+      "fecha": "2026-03-30",
+      "tipo": "cargo",
+      "monto": 17000,
+      "descripcion": "354787600K Transf a Andres Sot"
+    }
+  ]
+}

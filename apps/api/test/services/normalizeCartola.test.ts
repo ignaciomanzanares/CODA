@@ -53,7 +53,7 @@ describe('isInternalByDescription — sólo traspasos entre productos propios', 
     expect(isInternalByDescription('PAGO COOPEUCH')).toBe(false);
   });
   it('una transferencia de tercero NO es interna', () => {
-    expect(isInternalByDescription('Transf de PATRICIO RAFAEL')).toBe(false);
+    expect(isInternalByDescription('Transf de FERNANDO ANDRES')).toBe(false);
     expect(isInternalByDescription('Compra Nacional JUMBO')).toBe(false);
   });
 });

@@ -1,0 +1,238 @@
+{
+  "banco": "Otro",
+  "saldo_inicial": 928195,
+  "saldo_final": 901620,
+  "total_cargos": 1223593,
+  "total_abonos": 1197018,
+  "tx_count": 38,
+  "transacciones": [
+    {
+      "fecha": "2025-09-01",
+      "tipo": "cargo",
+      "monto": 813200,
+      "descripcion": "PAGO EN LINEA PONTIFICIA UNIV CATOLICA D"
+    },
+    {
+      "fecha": "2025-09-02",
+      "tipo": "abono",
+      "monto": 4503,
+      "descripcion": "TEMU.COM"
+    },
+    {
+      "fecha": "2025-09-02",
+      "tipo": "abono",
+      "monto": 17930,
+      "descripcion": "TEMU.COM"
+    },
+    {
+      "fecha": "2025-09-02",
+      "tipo": "cargo",
+      "monto": 4503,
+      "descripcion": "Compra Nacional TEMU.COM TEMU.COM"
+    },
+    {
+      "fecha": "2025-09-02",
+      "tipo": "cargo",
+      "monto": 9869,
+      "descripcion": "Compra Nacional NP TEMU.COM 2 TEMU.COM"
+    },
+    {
+      "fecha": "2025-09-02",
+      "tipo": "cargo",
+      "monto": 17930,
+      "descripcion": "Compra Nacional NP TEMU.COM TEMU.COM"
+    },
+    {
+      "fecha": "2025-09-05",
+      "tipo": "abono",
+      "monto": 50000,
+      "descripcion": "344684132K Transf de FERNANDO ANDRES RIO"
+    },
+    {
+      "fecha": "2025-09-05",
+      "tipo": "cargo",
+      "monto": 18700,
+      "descripcion": "Compra Nacional RESTAURANTE 3100"
+    },
+    {
+      "fecha": "2025-09-05",
+      "tipo": "cargo",
+      "monto": 53720,
+      "descripcion": "Compra Nacional LP BOLETERIA PLACA"
+    },
+    {
+      "fecha": "2025-09-08",
+      "tipo": "cargo",
+      "monto": 2750,
+      "descripcion": "Compra Nacional 32816 - BK CURAUMA AK"
+    },
+    {
+      "fecha": "2025-09-08",
+      "tipo": "cargo",
+      "monto": 9500,
+      "descripcion": "Compra Nacional SumUp * Licoreria Nuev"
+    },
+    {
+      "fecha": "2025-09-08",
+      "tipo": "cargo",
+      "monto": 11990,
+      "descripcion": "Compra Nacional NP ENTEL ONECLICK PCS PAG"
+    },
+    {
+      "fecha": "2025-09-09",
+      "tipo": "cargo",
+      "monto": 700,
+      "descripcion": "Compra Nacional PAYSCAN*VENDOMATICA 525255 700"
+    },
+    {
+      "fecha": "2025-09-09",
+      "tipo": "cargo",
+      "monto": 700,
+      "descripcion": "Compra Nacional PAYSCAN*VENDOMATICA 525256 700"
+    },
+    {
+      "fecha": "2025-09-10",
+      "tipo": "cargo",
+      "monto": 6200,
+      "descripcion": "Compra Nacional MERPAGO*SUBWAYBAQUED"
+    },
+    {
+      "fecha": "2025-09-11",
+      "tipo": "abono",
+      "monto": 5000,
+      "descripcion": "Transf. Guillermo Antonio Vega"
+    },
+    {
+      "fecha": "2025-09-11",
+      "tipo": "abono",
+      "monto": 8000,
+      "descripcion": "Trasp. desde Cta Mática/Internet"
+    },
+    {
+      "fecha": "2025-09-15",
+      "tipo": "cargo",
+      "monto": 2095,
+      "descripcion": "Compra Nacional NP PAYU"
+    },
+    {
+      "fecha": "2025-09-16",
+      "tipo": "cargo",
+      "monto": 5990,
+      "descripcion": "Compra Nacional CACHAGUA"
+    },
+    {
+      "fecha": "2025-09-16",
+      "tipo": "cargo",
+      "monto": 50000,
+      "descripcion": "Compra Nacional ARAMCO MANQUEHUE 415"
+    },
+    {
+      "fecha": "2025-09-17",
+      "tipo": "abono",
+      "monto": 3000,
+      "descripcion": "Transf. Guillermo Antonio Vega"
+    },
+    {
+      "fecha": "2025-09-17",
+      "tipo": "abono",
+      "monto": 8192,
+      "descripcion": "Transf. Guillermo Antonio Vega"
+    },
+    {
+      "fecha": "2025-09-17",
+      "tipo": "cargo",
+      "monto": 6790,
+      "descripcion": "Compra Nacional NP PAYU"
+    },
+    {
+      "fecha": "2025-09-17",
+      "tipo": "cargo",
+      "monto": 9000,
+      "descripcion": "Compra Nacional MERPAGO*DISCOICE"
+    },
+    {
+      "fecha": "2025-09-22",
+      "tipo": "abono",
+      "monto": 80000,
+      "descripcion": "344684132K Transf de FERNANDO ANDRES RIO"
+    },
+    {
+      "fecha": "2025-09-22",
+      "tipo": "cargo",
+      "monto": 15000,
+      "descripcion": "Transf a Guillermo Vegara"
+    },
+    {
+      "fecha": "2025-09-22",
+      "tipo": "cargo",
+      "monto": 17539,
+      "descripcion": "Pago Recurrente VD WARP PRO SUBSCRIPTION"
+    },
+    {
+      "fecha": "2025-09-23",
+      "tipo": "abono",
+      "monto": 17990,
+      "descripcion": "Transf. RICARDO SAENZ"
+    },
+    {
+      "fecha": "2025-09-23",
+      "tipo": "cargo",
+      "monto": 28580,
+      "descripcion": "Compra Nacional"
+    },
+    {
+      "fecha": "2025-09-25",
+      "tipo": "cargo",
+      "monto": 1000,
+      "descripcion": "Compra Nacional EL RINCON"
+    },
+    {
+      "fecha": "2025-09-25",
+      "tipo": "cargo",
+      "monto": 1800,
+      "descripcion": "Compra Nacional EL RINCON"
+    },
+    {
+      "fecha": "2025-09-26",
+      "tipo": "cargo",
+      "monto": 3740,
+      "descripcion": "Compra Nacional SENAL PARKING"
+    },
+    {
+      "fecha": "2025-09-29",
+      "tipo": "abono",
+      "monto": 5000,
+      "descripcion": "Traspaso Automático Programado"
+    },
+    {
+      "fecha": "2025-09-29",
+      "tipo": "cargo",
+      "monto": 1887,
+      "descripcion": "Compra Nacional NP PAYU"
+    },
+    {
+      "fecha": "2025-09-29",
+      "tipo": "cargo",
+      "monto": 3410,
+      "descripcion": "Compra Nacional"
+    },
+    {
+      "fecha": "2025-09-30",
+      "tipo": "abono",
+      "monto": 997403,
+      "descripcion": "Transf de INVERSIONES Y SERVI"
+    },
+    {
+      "fecha": "2025-09-30",
+      "tipo": "cargo",
+      "monto": 17000,
+      "descripcion": "Transf a Jose Pedro Farias"
+    },
+    {
+      "fecha": "2025-09-30",
+      "tipo": "cargo",
+      "monto": 110000,
+      "descripcion": "Transf a OLD REDLANDERS CLUB"
+    }
+  ]
+}
