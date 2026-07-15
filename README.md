@@ -44,6 +44,17 @@ npm run dev:web    # Web en :5173
 
 Variables mínimas: `DATABASE_URL` (Postgres en prod), `JWT_SECRET`, `CORS_ORIGINS`, `CLIENT_URL`. Ver `apps/api/.env.example`.
 
+### Docker (alternativa recomendada)
+
+Stack completo reproducible — API + worker + web + **Postgres** (igual que prod, sin la divergencia SQLite) + Redis (activa la cola real de documentos):
+
+```bash
+docker compose up --build          # dev con hot reload (web :5173, api :5000)
+docker compose -f docker-compose.prod.yml up --build   # smoke de las imágenes de producción
+```
+
+Detalles, decisiones y troubleshooting: [`docs/DOCKER.md`](./docs/DOCKER.md). No cambia el deploy actual (Render + Vercel).
+
 ### Neon (Postgres) — nueva base vacía
 
 1. Copia la connection string del dashboard. El runtime (Render) puede usar el endpoint **pooler**; para **`npm run db:push`** en tu PC, si se queda mucho rato en *Pulling schema from database…*, usa la URL de conexión **directa** (Neon → *Connection details* → *Direct*), o define en `apps/api/.env`:

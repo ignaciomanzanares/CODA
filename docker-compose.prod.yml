@@ -1,0 +1,122 @@
+# ============================================================
+# CODA — smoke test LOCAL de las imágenes de producción
+# (las mismas que se deployarían a Render con runtime Docker).
+#
+#   docker compose -f docker-compose.prod.yml up --build
+#
+#   Web (nginx) → http://localhost:8080
+#   API         → http://localhost:5000
+#
+# ⚠️ Los secretos de abajo son DUMMIES para el smoke local (env.ts exige
+# ≥32 chars con NODE_ENV=production). JAMÁS usarlos en un deploy real.
+# Este archivo NO reemplaza render.yaml ni el deploy actual.
+# ============================================================
+name: coda-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: coda
+      POSTGRES_PASSWORD: coda
+      POSTGRES_DB: coda
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coda -d coda"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot de inicialización. Usa el target `build` (trae código fuente y
+  # devDeps → drizzle-kit) porque aquí no hay bind mounts.
+  db-init:
+    build:
+      context: .
+      target: build
+    working_dir: /app
+    command: node docker/db-init.mjs
+    environment:
+      # sslmode=disable explícito (db/index.ts y drizzle.config.ts agregan
+      # sslmode=require si falta — pensado para Neon; aquí no hay TLS)
+      DATABASE_URL: postgresql://coda:coda@postgres:5432/coda?sslmode=disable
+      DATABASE_URL_MIGRATE: postgresql://coda:coda@postgres:5432/coda?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      target: api
+    environment: &prod-env
+      NODE_ENV: production
+      PORT: "5000"
+      DATABASE_URL: postgresql://coda:coda@postgres:5432/coda?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      RUN_MIGRATIONS: "false" # db-init ya las aplicó
+      # --- dummies SOLO smoke local (≥32 chars) ---
+      JWT_SECRET: local-smoke-jwt-secret-0123456789abcdef
+      FIELD_ENCRYPTION_KEY: local-smoke-field-key-0123456789abcdef
+      RUT_HASH_PEPPER: local-smoke-rut-pepper-0123456789abcdef
+      # --------------------------------------------
+      CORS_ORIGINS: http://localhost:8080
+      CLIENT_URL: http://localhost:8080
+      DEBUG_ENDPOINTS: "false"
+      DEMO_MODE: "false"
+      # Cookie de sesión por http://localhost (el front personal es cookie-only)
+      AUTH_COOKIE_ENABLED: "true"
+      AUTH_COOKIE_SECURE: "false"
+      AUTH_COOKIE_SAMESITE: lax
+    ports:
+      - "5000:5000"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  worker:
+    build:
+      context: .
+      target: api
+    command: ["npm", "run", "worker:start", "-w", "@coda/api"]
+    environment: *prod-env
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        VITE_API_URL: http://localhost:5000
+        VITE_ENV: production
+    environment:
+      # CSP connect-src (envsubst en el template de nginx)
+      API_ORIGIN: http://localhost:5000
+    ports:
+      - "8080:8080"
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  pgdata:

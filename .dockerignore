@@ -1,0 +1,35 @@
+# deps y builds (se instalan/compilan dentro de la imagen)
+node_modules
+**/node_modules
+**/dist
+coverage
+**/coverage
+**/tsconfig.tsbuildinfo
+
+# git / editores / agentes
+.git
+.github
+.claude
+.vscode
+
+# secretos y configs locales — NUNCA dentro de una imagen.
+# Incluye apps/web/.env.production a propósito: las VITE_* entran por
+# build ARGs del Dockerfile, no por archivo.
+**/.env
+**/.env.*
+
+# ML: venv de Python y datasets generados (el fallback ONNX versionado
+# en src/ml/artifacts sí entra)
+apps/api/src/ml/.venv
+apps/api/src/ml/out
+
+# bases de datos locales y cache OCR del host
+**/*.db
+**/*.db-journal
+**/*.db-wal
+**/*.db-shm
+*.traineddata
+
+# docker (evita invalidar cache al editar compose)
+Dockerfile
+docker-compose*.yml

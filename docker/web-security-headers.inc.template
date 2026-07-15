@@ -1,0 +1,19 @@
+# Headers de seguridad — mismo contrato que vercel.json.
+# nginx NO hereda add_header en locations que definen los suyos propios
+# (p. ej. Cache-Control), por eso este archivo se `include` en el server
+# Y en cada location que agregue headers.
+#
+# ${API_ORIGIN} la sustituye el entrypoint de la imagen nginx (envsubst)
+# — en el smoke local es http://localhost:5000; en un deploy real sería
+# https://api.codafinance.cl.
+#
+# Diferencia deliberada con vercel.json: sin `upgrade-insecure-requests`
+# (rompería el smoke por http://localhost al forzar https hacia el API).
+# Un deploy real detrás de TLS debería reponerla.
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "DENY" always;
+add_header X-XSS-Protection "1; mode=block" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Strict-Transport-Security "max-age=63072000" always;
+add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), accelerometer=(), gyroscope=(), magnetometer=(), midi=()" always;
+add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://plausible.io; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https:; connect-src 'self' ${API_ORIGIN} https://api.codafinance.cl https://coda-api-fplk.onrender.com https://plausible.io https://api.frankfurter.dev https://open.er-api.com https://cdn.moneyconvert.net; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
