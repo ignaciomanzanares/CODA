@@ -1,0 +1,6 @@
+# Commits mecánicos de formato — git blame los ignora con:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (GitHub lo aplica automáticamente por el nombre del archivo)
+
+# style: formato Prettier + autofixes de ESLint en todo el monorepo
+5f5f2845aa4c655dc87c9d86b782d5c3074fef77

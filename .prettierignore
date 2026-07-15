@@ -1,0 +1,27 @@
+# deps y builds
+node_modules
+dist
+coverage
+dev-dist
+package-lock.json
+tsconfig.tsbuildinfo
+
+# datos y artefactos (no código)
+packages/data
+apps/api/src/ml/artifacts
+apps/api/src/ml/out
+apps/api/src/ml/.venv
+apps/api/ml
+apps/web/public
+drizzle
+
+# fixtures y snapshots: los escriben los tests/parsers con su propio formato —
+# reformatearlos rompe la comparación de snapshots
+**/fixtures/**
+apps/api/test/parsers/*.json
+
+# docs: evitar churn de wrapping en markdown
+*.md
+
+# SQL de migraciones (prettier no las formatea, explícito por claridad)
+migrations

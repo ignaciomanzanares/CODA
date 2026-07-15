@@ -51,12 +51,10 @@ export function registerDataSourceRoutes(app: Express) {
 
           const result = parseGovDocument(source, text);
           if (!result.ok) {
-            return res
-              .status(422)
-              .json({
-                message: result.message ?? "No se pudieron extraer los datos del documento.",
-                source,
-              });
+            return res.status(422).json({
+              message: result.message ?? "No se pudieron extraer los datos del documento.",
+              source,
+            });
           }
 
           const { saveGovSourceData } = await import("./services/dataSources/govSourceService.js");
