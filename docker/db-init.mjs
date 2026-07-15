@@ -29,15 +29,19 @@ try {
   await sql.end();
 }
 
-function run(cmd, args) {
+function run(cmd, args, extraEnv = {}) {
   console.log(`db-init: ${cmd} ${args.join(" ")}`);
-  const r = spawnSync(cmd, args, { stdio: "inherit" });
+  const r = spawnSync(cmd, args, { stdio: "inherit", env: { ...process.env, ...extraEnv } });
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
 
 if (!initialized) {
   console.log("db-init: BD virgen — creando schema con drizzle-kit push");
-  run("npx", ["drizzle-kit", "push", "--config=./drizzle.config.ts", "--force"]);
+  // Único caso sancionado de push-a-Postgres (BD virgen recién verificada) →
+  // opt-in explícito del guard de drizzle.config.ts.
+  run("npx", ["drizzle-kit", "push", "--config=./drizzle.config.ts", "--force"], {
+    DB_PUSH_ALLOW_POSTGRES: "true",
+  });
 } else {
   console.log("db-init: schema ya existe — skip push (solo migraciones)");
 }

@@ -60,9 +60,10 @@ Detalles, decisiones y troubleshooting: [`docs/DOCKER.md`](./docs/DOCKER.md). No
 1. Copia la connection string del dashboard. El runtime (Render) puede usar el endpoint **pooler**; para **`npm run db:push`** en tu PC, si se queda mucho rato en *Pulling schema from database…*, usa la URL de conexión **directa** (Neon → *Connection details* → *Direct*), o define en `apps/api/.env`:
    - `DATABASE_URL_MIGRATE=postgresql://…@ep-xxxxx.region.aws.neon.tech/…` (directa), y/o
    - deja `DATABASE_URL` como esté: el proyecto intenta quitar `-pooler` del host y añade `sslmode=require` + `connect_timeout=15` solo para drizzle-kit.
-2. Sincroniza el schema:
+2. Sincroniza el schema (solo BD **nueva/vacía** — sobre una BD existente puede
+   botar los índices, que viven en `migrations/`; ahí usa `npm run db:migrate`):
    ```bash
-   npm run db:push
+   DB_PUSH_ALLOW_POSTGRES=true npm run db:push
    ```
 3. **No hace falta** ningún seed para que la app funcione: los usuarios se crean al registrarse. El comando `npm run seed:demo` es solo si quieres datos de prueba en cuentas/transacciones.
 4. **Migración con BD vacía y usuarios ya logueados (JWT):** esas cuentas pueden tener un hash placeholder hasta definir contraseña. En el hosting, define temporalmente `MIGRATION_RECOVERY_SECRET` (ver `apps/api/.env.example`), despliega, en login usa «Recuperar acceso», luego quita la variable.

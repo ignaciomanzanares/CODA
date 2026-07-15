@@ -20,6 +20,19 @@ const rawUrl =
 const isPostgres = !!rawUrl && rawUrl.startsWith("postgres");
 const postgresUrl = isPostgres ? postgresUrlForDrizzleKit(rawUrl) : rawUrl;
 
+// Guardia anti-footgun: `db:push` genera DDL desde el schema, que NO declara
+// índices (viven solo en migrations/*.sql) — contra una BD ya migrada puede
+// DROPear los índices de producción. Y como este config carga apps/api/.env,
+// un `npm run db:push` local inocente apunta a Neon sin que se note.
+// Postgres exige opt-in explícito; el camino normal es `npm run db:migrate`.
+if (isPostgres && process.env.DB_PUSH_ALLOW_POSTGRES !== "true") {
+  throw new Error(
+    `db:push apunta a Postgres (${postgresUrl.replace(/\/\/[^@]*@/, "//***@")}). ` +
+      "Solo para una BD nueva/vacía: reintenta con DB_PUSH_ALLOW_POSTGRES=true. " +
+      "Para una BD existente usa `npm run db:migrate` (los índices viven en migrations/)."
+  );
+}
+
 const config: Config = {
   schema: path.join(repoRoot, "packages/src/schema.ts"),
   out: path.join(repoRoot, "drizzle"),
