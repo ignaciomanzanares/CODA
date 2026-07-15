@@ -31,6 +31,7 @@ import {
   ThumbsDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { inlineMarkdownToHtml } from "@/lib/markdown";
 import { useAuth, getPersonalToken, hasPersonalSession } from "@/lib/auth";
 import { Link } from "wouter";
 import { ROUTES } from "@/lib/routes";
@@ -205,11 +206,7 @@ function renderMarkdown(text: string): string {
   if (!cleaned && text.trim().length > 0) {
     cleaned = "¡Hola! ¿En qué te puedo ayudar?";
   }
-  return cleaned
-    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    .replace(/^- (.+)$/gm, "&bull; $1")
-    .replace(/\n/g, "<br/>")
-    .replace(/•/g, "&bull;");
+  return inlineMarkdownToHtml(cleaned);
 }
 
 // ── Component ────────────────────────────────────────────────────────────────

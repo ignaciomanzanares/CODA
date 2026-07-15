@@ -37,6 +37,7 @@ import {
   ChevronDown, ChevronUp, CheckCircle, Calendar,
 } from "lucide-react";
 import SignInBanner from "@/components/SignInBanner";
+import { inlineMarkdownToHtml } from "@/lib/markdown";
 import type { Goal, UpdateGoalData } from "@/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -337,9 +338,7 @@ function PlanInsightsPanel({ data }: { data: PlanInsightsData }) {
           <div
             className="text-sm text-foreground/80 leading-relaxed flex-1 prose prose-sm dark:prose-invert max-w-none"
             dangerouslySetInnerHTML={{
-              __html: data.summaryBanner
-                .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-                .replace(/\n/g, "<br/>"),
+              __html: inlineMarkdownToHtml(data.summaryBanner),
             }}
           />
         </div>
