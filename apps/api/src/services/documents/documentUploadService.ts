@@ -264,23 +264,25 @@ export async function processDocumentUpload(userId: string, buffer: Buffer): Pro
 
     const review = deriveDocumentReviewState({ banco, detectionTier: parsed.detection_tier });
 
-    // Write to BOTH tables (el score doc referencia explicitamente al document upload).
+    // Write to BOTH tables — SECUENCIAL, padre antes que hijo: el score doc tiene
+    // FK a document_uploads y un Promise.all los insertaba en paralelo por
+    // conexiones distintas del pool → violación de FK intermitente (carrera que
+    // hacía fallar ~la mitad de los uploads en lote, con reintentos de BullMQ
+    // que volvían a perder la carrera hasta agotar attempts).
     documentUploadId = randomUUID();
     const scoreDocId = randomUUID();
-    await Promise.all([
-      storage.createDocumentUpload({
-        ...baseRow,
-        id: documentUploadId,
-        normalizationStatus: "pending",
-        reviewStatus: review.reviewStatus,
-        reviewReason: review.reviewReason,
-      }),
-      storage.createScoreDocumentUpload({
-        ...baseRow,
-        id: scoreDocId,
-        sourceDocumentUploadId: documentUploadId,
-      }),
-    ]);
+    await storage.createDocumentUpload({
+      ...baseRow,
+      id: documentUploadId,
+      normalizationStatus: "pending",
+      reviewStatus: review.reviewStatus,
+      reviewReason: review.reviewReason,
+    });
+    await storage.createScoreDocumentUpload({
+      ...baseRow,
+      id: scoreDocId,
+      sourceDocumentUploadId: documentUploadId,
+    });
 
     // Normalizar a accounts/transactions — ÚNICO escritor de movimientos (la doble
     // escritura vía OBProvider/CartolaUploadProvider duplicaba cada transacción en
