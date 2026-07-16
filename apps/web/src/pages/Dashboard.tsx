@@ -133,10 +133,25 @@ export default function Dashboard() {
     </div>
   );
 
+  // Patrimonio: se usa en la sidebar (desktop) o al final de la columna (móvil).
+  const patrimonioCard =
+    data?.patrimonio &&
+    (data.patrimonio.totalPatrimonioNeto !== 0 ||
+      data.patrimonio.inversionesLiquidas !== 0 ||
+      data.patrimonio.cuentasVista !== 0) ? (
+      <PatrimonioSidebar
+        inversionesLiquidas={data.patrimonio.inversionesLiquidas}
+        cuentasVista={data.patrimonio.cuentasVista}
+        totalPatrimonioNeto={data.patrimonio.totalPatrimonioNeto}
+      />
+    ) : null;
+
   return (
     <ErrorBoundary fallback={dashboardFallback}>
       <div className="min-h-screen bg-background">
-        <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
+        {/* En desktop el panel deja la columna única de 672px y usa el ancho real:
+            contenido principal + sidebar (oportunidades/patrimonio/referral). */}
+        <div className="w-full max-w-2xl lg:max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
           {/* ── Not authenticated banner ──────────────────────────────── */}
           {!isAuthenticated && (
             <SignInBanner
@@ -266,120 +281,125 @@ export default function Dashboard() {
           {/* DASHBOARD CONTENT                                          */}
           {/* ═══════════════════════════════════════════════════════════ */}
           {data?.hasData && (
-            <>
-              {/* ── CAPA 1: HERO ─────────────────────────────────────── */}
+            <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6 lg:items-start">
+              {/* ── Columna principal ─────────────────────────────────── */}
+              <div className="space-y-6 min-w-0">
+                {/* ── CAPA 1: HERO ─────────────────────────────────────── */}
 
-              {FEATURES.riskDualScore ? (
-                /* Doble evaluador de riesgo: un titular + segunda opinión (subsume hero + credit card).
+                {FEATURES.riskDualScore ? (
+                  /* Doble evaluador de riesgo: un titular + segunda opinión (subsume hero + credit card).
                    Card grande → el tile de salud va full-width debajo. */
-                <>
-                  <RiskScoreCard />
-                  <HealthSummaryCard />
-                </>
-              ) : (
-                <>
-                  {/* Score Hero */}
-                  {data.score !== null && <ScoreHero score={data.score} delta={data.scoreDelta} />}
+                  <>
+                    <RiskScoreCard />
+                    <HealthSummaryCard />
+                  </>
+                ) : (
+                  <>
+                    {/* Score Hero */}
+                    {data.score !== null && (
+                      <ScoreHero score={data.score} delta={data.scoreDelta} />
+                    )}
 
-                  {/* Crediticio (CMF) | Salud financiera. Si AMBOS están pendientes
+                    {/* Crediticio (CMF) | Salud financiera. Si AMBOS están pendientes
                       (falta el informe CMF), una sola card de acción en vez de dos
                       estados vacíos grises seguidos. */}
-                  {!data.creditScoreAvailable &&
-                  !health.isLoading &&
-                  !health.isError &&
-                  health.data?.hasData === false ? (
-                    <ScoresPendingCard />
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <CreditScoreCard
-                        score={data.creditScore}
-                        available={data.creditScoreAvailable}
-                        unavailableReason={data.creditScoreUnavailableReason}
-                        message={data.creditScoreMessage}
-                        sourceLabel={data.creditScoreSource?.label ?? null}
-                        sourceUploadedAt={data.creditScoreSource?.uploadedAt ?? null}
-                        delta={data.creditScoreDelta}
-                        lastUpdated={data.creditScoreDate}
-                      />
-                      <HealthSummaryCard />
-                    </div>
-                  )}
-                </>
-              )}
+                    {!data.creditScoreAvailable &&
+                    !health.isLoading &&
+                    !health.isError &&
+                    health.data?.hasData === false ? (
+                      <ScoresPendingCard />
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <CreditScoreCard
+                          score={data.creditScore}
+                          available={data.creditScoreAvailable}
+                          unavailableReason={data.creditScoreUnavailableReason}
+                          message={data.creditScoreMessage}
+                          sourceLabel={data.creditScoreSource?.label ?? null}
+                          sourceUploadedAt={data.creditScoreSource?.uploadedAt ?? null}
+                          delta={data.creditScoreDelta}
+                          lastUpdated={data.creditScoreDate}
+                        />
+                        <HealthSummaryCard />
+                      </div>
+                    )}
+                  </>
+                )}
 
-              {/* Score Breakdown — how to improve */}
-              {data.score !== null && (
-                <ScoreBreakdown
-                  score={data.score}
-                  insights={data.scoreInsights}
-                  creditScore={data.creditScore}
-                  totalIncome={data.totalIncome}
-                  totalExpenses={data.totalExpenses}
-                  savingsNet={data.savingsNet}
-                  savingsRate={data.savingsRate}
-                  scoreConfidence={data.scoreConfidence}
-                  scoreObservedMonths={data.scoreObservedMonths}
-                />
-              )}
-
-              {/* Balance del período */}
-              {(data.totalIncome > 0 || data.totalExpenses > 0) && (
-                <AvailableCard
-                  totalIncome={data.totalIncome}
-                  totalExpenses={data.totalExpenses}
-                  savingsGoal={data.savingsGoalAmount}
-                />
-              )}
-
-              {/* Plan financiero — resumen 50/30/20 + metas */}
-              <PlanSummaryCard />
-
-              {/* ── ACTION CARDS — Revenue bridge ────────────────────── */}
-              <ActionCards data={data} />
-
-              {/* ── CAPA 2: FLUJO DEL PERÍODO ────────────────────────── */}
-              <div className="space-y-4">
-                <FlowDonut
-                  segments={data.flowSegments}
-                  pctIncomeSpent={data.pctIncomeSpent}
-                  totalExpenses={data.totalExpenses}
-                />
-                <SavingsProgress
-                  savingsNet={data.savingsNet}
-                  savingsRate={data.savingsRate}
-                  goalPct={data.savingsGoalPct}
-                  goalAmount={data.savingsGoalAmount}
-                />
-              </div>
-
-              {/* Observaciones del período (incluye el insight del día) */}
-              <DashboardTextInsights data={data} />
-
-              {/* ── CAPA 3: DETALLE EXPANDIBLE ───────────────────────── */}
-              <div className="space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Detalle por categoría
-                </p>
-                {data.categoryGroups.map((group) => (
-                  <CategoryCard key={group.key} group={group} />
-                ))}
-              </div>
-
-              {/* ── PATRIMONIO ────────────────────────────────────────── */}
-              {data.patrimonio &&
-                (data.patrimonio.totalPatrimonioNeto !== 0 ||
-                  data.patrimonio.inversionesLiquidas !== 0 ||
-                  data.patrimonio.cuentasVista !== 0) && (
-                  <PatrimonioSidebar
-                    inversionesLiquidas={data.patrimonio.inversionesLiquidas}
-                    cuentasVista={data.patrimonio.cuentasVista}
-                    totalPatrimonioNeto={data.patrimonio.totalPatrimonioNeto}
+                {/* Score Breakdown — how to improve */}
+                {data.score !== null && (
+                  <ScoreBreakdown
+                    score={data.score}
+                    insights={data.scoreInsights}
+                    creditScore={data.creditScore}
+                    totalIncome={data.totalIncome}
+                    totalExpenses={data.totalExpenses}
+                    savingsNet={data.savingsNet}
+                    savingsRate={data.savingsRate}
+                    scoreConfidence={data.scoreConfidence}
+                    scoreObservedMonths={data.scoreObservedMonths}
                   />
                 )}
 
-              {/* Referral — organic growth */}
-              <ReferralShareCard />
-            </>
+                {/* Balance del período */}
+                {(data.totalIncome > 0 || data.totalExpenses > 0) && (
+                  <AvailableCard
+                    totalIncome={data.totalIncome}
+                    totalExpenses={data.totalExpenses}
+                    savingsGoal={data.savingsGoalAmount}
+                  />
+                )}
+
+                {/* Plan financiero — resumen 50/30/20 + metas */}
+                <PlanSummaryCard />
+
+                {/* ── ACTION CARDS — Revenue bridge (en desktop van a la sidebar) ── */}
+                <div className="lg:hidden">
+                  <ActionCards data={data} />
+                </div>
+
+                {/* ── CAPA 2: FLUJO DEL PERÍODO ────────────────────────── */}
+                <div className="space-y-4">
+                  <FlowDonut
+                    segments={data.flowSegments}
+                    pctIncomeSpent={data.pctIncomeSpent}
+                    totalExpenses={data.totalExpenses}
+                  />
+                  <SavingsProgress
+                    savingsNet={data.savingsNet}
+                    savingsRate={data.savingsRate}
+                    goalPct={data.savingsGoalPct}
+                    goalAmount={data.savingsGoalAmount}
+                  />
+                </div>
+
+                {/* Observaciones del período (incluye el insight del día) */}
+                <DashboardTextInsights data={data} />
+
+                {/* ── CAPA 3: DETALLE EXPANDIBLE ───────────────────────── */}
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Detalle por categoría
+                  </p>
+                  {data.categoryGroups.map((group) => (
+                    <CategoryCard key={group.key} group={group} />
+                  ))}
+                </div>
+
+                {/* ── PATRIMONIO + REFERRAL (solo móvil; en desktop, sidebar) ── */}
+                {patrimonioCard && <div className="lg:hidden">{patrimonioCard}</div>}
+                <div className="lg:hidden">
+                  <ReferralShareCard />
+                </div>
+              </div>
+
+              {/* ── Sidebar desktop: lo accionable y el contexto ──────── */}
+              <aside className="hidden lg:block space-y-6 lg:sticky lg:top-20">
+                <ActionCards data={data} />
+                {patrimonioCard}
+                <ReferralShareCard />
+              </aside>
+            </div>
           )}
         </div>
       </div>

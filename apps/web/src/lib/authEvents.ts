@@ -17,10 +17,14 @@
 
 import { hasPersonalSession } from "./authSession";
 
-const AUTH_ENDPOINT_RE = /\/api\/auth\/(login|2fa\/verify)/;
+// /me también excluido: su 401 significa "no hay sesión" (sonda de hidratación
+// cookie-first que corre incluso en el login) — sin esto, todo visitante sin
+// sesión veía el toast "Sesión expirada" al abrir la página. La expiración real
+// en páginas protegidas la despacha ProtectedRoute.
+const AUTH_ENDPOINT_RE = /\/api\/auth\/(login|2fa\/verify|me\b)/;
 
-/** Fire the session-expired event unless the failing URL is a login endpoint
- *  or there is an active (cookie-hydrated) personal session. */
+/** Fire the session-expired event unless the failing URL is a login/hydration
+ *  endpoint or there is an active (cookie-hydrated) personal session. */
 export function dispatchSessionExpired(requestUrl: string): void {
   if (AUTH_ENDPOINT_RE.test(requestUrl)) return;
 

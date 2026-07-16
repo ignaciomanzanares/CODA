@@ -178,6 +178,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Personal cookie-first (C2): la sesión vive en la cookie httpOnly + /me.
       // NO guardamos jwt_token/user_data nuevos; solo estado React. Sin token,
       // los requests personales van cookie-only (ver hasPersonalSession / apiFetch).
+      // Espejo síncrono ANTES del setState: ProtectedRoute puede montarse en
+      // /panel antes de que el estado propague, y sin el espejo su dispatch de
+      // sesión-expirada pasaba el guard de hasPersonalSession (toast espurio).
+      setPersonalUserMirror(data.user);
       setUserPersonal(data.user);
     }
   };
@@ -205,8 +209,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Personal cookie-first (C2): la sesión queda en la cookie + /me; no guardamos
-    // jwt_token/user_data nuevos, solo estado React.
+    // jwt_token/user_data nuevos, solo estado React. Espejo síncrono primero
+    // (misma carrera de ProtectedRoute que en login()).
     sessionStorage.setItem(HAD_SESSION_KEY, "1");
+    setPersonalUserMirror(data.user);
     setUserPersonal(data.user);
   };
 
