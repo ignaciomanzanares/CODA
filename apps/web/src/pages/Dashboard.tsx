@@ -5,7 +5,6 @@ import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import type { DashboardPeriod } from "@/types/dashboard";
 
 // Dashboard subcomponents
-import PeriodToggle from "@/components/dashboard/PeriodToggle";
 import ScoreHero from "@/components/dashboard/ScoreHero";
 import ScoreBreakdown from "@/components/dashboard/ScoreBreakdown";
 import AvailableCard from "@/components/dashboard/AvailableCard";
@@ -33,15 +32,7 @@ import OnboardingChecklist from "@/components/OnboardingChecklist";
 import SignInBanner from "@/components/SignInBanner";
 
 // Icons
-import {
-  RefreshCw,
-  FileText,
-  Upload,
-  ChevronLeft,
-  ChevronRight,
-  RotateCcw,
-  MoreHorizontal,
-} from "lucide-react";
+import { RefreshCw, FileText, Upload, RotateCcw, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
 import { apiFetch } from "@/lib/apiFetch";
@@ -56,22 +47,19 @@ const fmtCLP = (n: number) =>
 
 export default function Dashboard() {
   const { isLoading: authLoading, user, isAuthenticated } = useAuth();
-  const [period, setPeriod] = useState<DashboardPeriod>("month");
-  const [monthOffset, setMonthOffset] = useState(0);
+  // Fijo en "mes"/último período con datos — el selector de período se quitó
+  // del UI (sin SFA en vivo no aporta). useDashboardData conserva la firma.
+  const period: DashboardPeriod = "month";
+  const monthOffset = 0;
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isRecategorizing, setIsRecategorizing] = useState(false);
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const { setOpen: openUploadDrawer } = useUploadDrawer();
   const { toast } = useToast();
-  const { data, isLoading, totalMonths } = useDashboardData(period, monthOffset);
+  const { data, isLoading } = useDashboardData(period, monthOffset);
   // Para fusionar las dos cards "Pendiente" (CMF + salud) en una sola de acción.
   // React Query dedupe: HealthSummaryCard usa el mismo hook sin costo extra.
   const health = useHealthEvaluation();
-
-  const handlePeriodChange = (p: DashboardPeriod) => {
-    setPeriod(p);
-    setMonthOffset(0);
-  };
 
   const handleRecategorizeAll = async () => {
     setIsRecategorizing(true);
@@ -219,37 +207,13 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Period toggle + month nav */}
-            <div className="flex items-center justify-between">
-              <PeriodToggle value={period} onChange={handlePeriodChange} />
-              {data?.hasData && data.periodLabel && (
-                <div className="flex items-center gap-1">
-                  {period === "month" && totalMonths > 1 && (
-                    <button
-                      onClick={() => setMonthOffset((o) => Math.max(-(totalMonths - 1), o - 1))}
-                      disabled={Math.abs(monthOffset) >= totalMonths - 1}
-                      className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                      aria-label="Mes anterior"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                  )}
-                  <span className="text-xs text-muted-foreground min-w-[100px] text-center">
-                    {data.periodLabel}
-                  </span>
-                  {period === "month" && totalMonths > 1 && (
-                    <button
-                      onClick={() => setMonthOffset((o) => Math.min(0, o + 1))}
-                      disabled={monthOffset >= 0}
-                      className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                      aria-label="Mes siguiente"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+            {/* Etiqueta del período analizado. El toggle Hoy/Semana/Mes y la
+                navegación de meses se quitaron: con cartolas históricas (sin SFA
+                en vivo) no aportan — el detalle histórico vive en Movimientos.
+                Reponer navegación cuando haya datos en tiempo real. */}
+            {data?.hasData && data.periodLabel && (
+              <p className="text-xs text-muted-foreground">Último período: {data.periodLabel}</p>
+            )}
           </div>
 
           {/* ═══════════════════════════════════════════════════════════ */}
