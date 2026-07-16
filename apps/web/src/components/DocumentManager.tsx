@@ -191,7 +191,13 @@ export default function DocumentManager({
         )}
       </div>
 
-      <div className={cn("space-y-1.5 pr-1", !flat && "max-h-[60vh] overflow-y-auto")}>
+      <div
+        className={cn(
+          "space-y-1.5",
+          !flat &&
+            "max-h-[60vh] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        )}
+      >
         {documents.map((doc) => {
           const periodo = doc.periodoDesde
             ? `${doc.periodoDesde}${doc.periodoHasta ? ` → ${doc.periodoHasta}` : ""}`
