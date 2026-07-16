@@ -7,6 +7,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -40,18 +41,23 @@ import { ROUTES } from "@/lib/routes";
 import { useTheme } from "@/lib/useTheme";
 import { FEATURES } from "@/config/features";
 
+// Nav principal: 5 destinos de uso diario. Con 8 items la barra era ilegible;
+// lo secundario (activos, conexiones, admin) vive en el menú del avatar.
 const navItems = [
   { href: ROUTES.panel, label: "Panel", icon: LayoutDashboard },
-  { href: ROUTES.saludFinanciera, label: "Salud financiera", icon: HeartPulse },
-  { href: ROUTES.misActivos, label: "Mis activos", icon: Landmark },
-  { href: ROUTES.productos, label: "Productos", icon: Store },
   { href: ROUTES.movimientos, label: "Movimientos", icon: ArrowLeftRight },
   { href: ROUTES.plan, label: "Plan", icon: FileText },
+  { href: ROUTES.saludFinanciera, label: "Salud financiera", icon: HeartPulse },
+  { href: ROUTES.productos, label: "Productos", icon: Store },
+];
+
+const secondaryNavItems = [
+  { href: ROUTES.misActivos, label: "Mis activos", icon: Landmark },
   { href: ROUTES.conectarDatos, label: "Conectar datos", icon: Activity },
   { href: ROUTES.conexiones, label: "Conexiones", icon: Link2 },
 ];
 
-// Items visibles solo para usuarios con role === 'admin' (se agregan al nav personal).
+// Items visibles solo para usuarios con role === 'admin' (van al menú del avatar).
 const adminNavItems = [{ href: ROUTES.admin, label: "Admin", icon: Shield }];
 
 const empresasNavItems = [
@@ -74,10 +80,12 @@ export default function Header() {
   const { theme, toggle: toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Nav personal + items admin si corresponde. Empresas no cambia.
+  // Barra: solo los 5 principales. Secundarios (+ admin) van al dropdown del
+  // avatar en desktop y al final del menú móvil. Empresas no cambia.
   const isAdmin = !isEmpresas && user?.role === "admin";
-  const personalNavItems = isAdmin ? [...navItems, ...adminNavItems] : navItems;
-  const currentNavItems = isEmpresas ? empresasNavItems : personalNavItems;
+  const personalMenuItems = isAdmin ? [...secondaryNavItems, ...adminNavItems] : secondaryNavItems;
+  const currentNavItems = isEmpresas ? empresasNavItems : navItems;
+  const mobileNavItems = isEmpresas ? empresasNavItems : [...navItems, ...personalMenuItems];
 
   const handleLogout = () => {
     logout(authContext);
@@ -102,8 +110,20 @@ export default function Header() {
     return "U";
   };
 
+  // En la landing el hero es oscuro (#0c0a09): un header blanco encima genera
+  // una costura fea. Ahí el header adopta el fondo del hero; en el resto de la
+  // app sigue el tema claro/oscuro normal.
+  const isLanding = location === "/";
+
   return (
-    <header className="app-header sticky sticky-safe-top z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 safe-x">
+    <header
+      className={cn(
+        "app-header sticky sticky-safe-top z-50 w-full border-b backdrop-blur-xl safe-x",
+        isLanding
+          ? "border-white/10 bg-[#0c0a09]/90 supports-[backdrop-filter]:bg-[#0c0a09]/75 text-white"
+          : "border-border/60 bg-background/80 supports-[backdrop-filter]:bg-background/60",
+      )}
+    >
       <div className="w-full flex h-14 min-h-[3.5rem] flex-nowrap items-center gap-2 px-3 sm:px-4">
         {/* Izquierda: CODA logo — siempre visible */}
         <div className="flex shrink-0 items-center min-w-0">
@@ -124,7 +144,12 @@ export default function Header() {
             <nav className="hidden md:flex items-center gap-1 min-w-0 justify-center">
               <a
                 href={location === "/" ? "#servicios" : "/#servicios"}
-                className="px-3 py-2 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors whitespace-nowrap"
+                className={cn(
+                  "px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap",
+                  isLanding
+                    ? "text-white/70 hover:text-white hover:bg-white/10"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/80",
+                )}
               >
                 Servicios
               </a>
@@ -216,6 +241,17 @@ export default function Header() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    {!isEmpresas &&
+                      personalMenuItems.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <DropdownMenuItem key={item.href} onClick={() => setLocation(item.href)}>
+                            <Icon className="h-4 w-4 mr-2" />
+                            {item.label}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    {!isEmpresas && <DropdownMenuSeparator />}
                     <DropdownMenuItem onClick={() => setLocation(ROUTES.perfil)}>
                       <User className="h-4 w-4 mr-2" />
                       Perfil
@@ -267,7 +303,7 @@ export default function Header() {
                 {/* Nav items */}
                 {isAuthenticated && (
                   <nav className="flex flex-col gap-0.5">
-                    {currentNavItems.map((item) => {
+                    {mobileNavItems.map((item) => {
                       const Icon = item.icon;
                       const isActive =
                         location === item.href || location.startsWith(`${item.href}/`);

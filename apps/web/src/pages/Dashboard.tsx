@@ -9,7 +9,6 @@ import PeriodToggle from "@/components/dashboard/PeriodToggle";
 import ScoreHero from "@/components/dashboard/ScoreHero";
 import ScoreBreakdown from "@/components/dashboard/ScoreBreakdown";
 import AvailableCard from "@/components/dashboard/AvailableCard";
-import InsightCard from "@/components/dashboard/InsightCard";
 import ActionCards from "@/components/dashboard/ActionCards";
 import FlowDonut from "@/components/dashboard/FlowDonut";
 import SavingsProgress from "@/components/dashboard/SavingsProgress";
@@ -18,6 +17,8 @@ import CreditScoreCard from "@/components/dashboard/CreditScoreCard";
 import HealthSummaryCard from "@/components/dashboard/HealthSummaryCard";
 import PlanSummaryCard from "@/components/dashboard/PlanSummaryCard";
 import RiskScoreCard from "@/components/RiskScoreCard";
+import ScoresPendingCard from "@/components/dashboard/ScoresPendingCard";
+import { useHealthEvaluation } from "@/hooks/useHealthEvaluation";
 import { FEATURES } from "@/config/features";
 import PatrimonioSidebar from "@/components/dashboard/PatrimonioSidebar";
 import ReferralShareCard from "@/components/dashboard/ReferralShareCard";
@@ -63,6 +64,9 @@ export default function Dashboard() {
   const { setOpen: openUploadDrawer } = useUploadDrawer();
   const { toast } = useToast();
   const { data, isLoading, totalMonths } = useDashboardData(period, monthOffset);
+  // Para fusionar las dos cards "Pendiente" (CMF + salud) en una sola de acción.
+  // React Query dedupe: HealthSummaryCard usa el mismo hook sin costo extra.
+  const health = useHealthEvaluation();
 
   const handlePeriodChange = (p: DashboardPeriod) => {
     setPeriod(p);
@@ -277,20 +281,29 @@ export default function Dashboard() {
                   {/* Score Hero */}
                   {data.score !== null && <ScoreHero score={data.score} delta={data.scoreDelta} />}
 
-                  {/* Crediticio (CMF) | Salud financiera — lado a lado en sm+, apilados en mobile */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <CreditScoreCard
-                      score={data.creditScore}
-                      available={data.creditScoreAvailable}
-                      unavailableReason={data.creditScoreUnavailableReason}
-                      message={data.creditScoreMessage}
-                      sourceLabel={data.creditScoreSource?.label ?? null}
-                      sourceUploadedAt={data.creditScoreSource?.uploadedAt ?? null}
-                      delta={data.creditScoreDelta}
-                      lastUpdated={data.creditScoreDate}
-                    />
-                    <HealthSummaryCard />
-                  </div>
+                  {/* Crediticio (CMF) | Salud financiera. Si AMBOS están pendientes
+                      (falta el informe CMF), una sola card de acción en vez de dos
+                      estados vacíos grises seguidos. */}
+                  {!data.creditScoreAvailable &&
+                  !health.isLoading &&
+                  !health.isError &&
+                  health.data?.hasData === false ? (
+                    <ScoresPendingCard />
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <CreditScoreCard
+                        score={data.creditScore}
+                        available={data.creditScoreAvailable}
+                        unavailableReason={data.creditScoreUnavailableReason}
+                        message={data.creditScoreMessage}
+                        sourceLabel={data.creditScoreSource?.label ?? null}
+                        sourceUploadedAt={data.creditScoreSource?.uploadedAt ?? null}
+                        delta={data.creditScoreDelta}
+                        lastUpdated={data.creditScoreDate}
+                      />
+                      <HealthSummaryCard />
+                    </div>
+                  )}
                 </>
               )}
 
@@ -339,11 +352,8 @@ export default function Dashboard() {
                 />
               </div>
 
-              {/* Text insights — natural-language observations */}
+              {/* Observaciones del período (incluye el insight del día) */}
               <DashboardTextInsights data={data} />
-
-              {/* Insight of the day */}
-              {data.insight && <InsightCard insight={data.insight} />}
 
               {/* ── CAPA 3: DETALLE EXPANDIBLE ───────────────────────── */}
               <div className="space-y-3">

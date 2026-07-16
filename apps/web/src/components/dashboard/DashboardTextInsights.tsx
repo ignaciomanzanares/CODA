@@ -1,4 +1,17 @@
-import { TrendingDown, AlertTriangle, CheckCircle2, Lightbulb } from "lucide-react";
+import {
+  TrendingDown,
+  TrendingUp,
+  AlertTriangle,
+  AlertCircle,
+  CheckCircle2,
+  Lightbulb,
+  Info,
+  Shield,
+  Repeat,
+  PiggyBank,
+  Calendar,
+  PieChart,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DashboardData } from "@/types/dashboard";
 
@@ -117,6 +130,21 @@ const ICON_MAP = {
   info: Lightbulb,
 };
 
+// Iconos del "insight del día" (backend manda el nombre como string).
+const DAILY_ICON_MAP: Record<string, React.ElementType> = {
+  "trending-up": TrendingUp,
+  "trending-down": TrendingDown,
+  "alert-triangle": AlertTriangle,
+  "alert-circle": AlertCircle,
+  info: Info,
+  lightbulb: Lightbulb,
+  shield: Shield,
+  repeat: Repeat,
+  "piggy-bank": PiggyBank,
+  calendar: Calendar,
+  "pie-chart": PieChart,
+};
+
 const COLOR_MAP = {
   positive: "text-emerald-600 dark:text-emerald-400",
   warning: "text-amber-600 dark:text-amber-400",
@@ -124,36 +152,48 @@ const COLOR_MAP = {
   info: "text-blue-600 dark:text-blue-400",
 };
 
-const BG_MAP = {
-  positive: "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800",
-  warning: "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800",
-  alert: "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800",
-  info: "bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800",
-};
-
+/**
+ * Una sola card "Observaciones del período": filas con icono de color en vez
+ * de una franja de fondo verde/azul/amarillo/rojo por insight (parecían
+ * alertas de sistema). Integra el "insight del día" como última fila — antes
+ * era una cuarta franja aparte (InsightCard).
+ */
 export default function DashboardTextInsights({ data }: { data: DashboardData }) {
   if (!data.hasData || data.totalIncome === 0) return null;
 
   const insights = buildInsights(data);
-  if (insights.length === 0) return null;
+  const daily = data.insight;
+  if (insights.length === 0 && !daily) return null;
+
+  const DailyIcon = daily ? (DAILY_ICON_MAP[daily.icon] ?? Lightbulb) : null;
 
   return (
-    <div className="space-y-2">
-      {insights.map((ins, i) => {
-        const Icon = ICON_MAP[ins.type];
-        return (
-          <div
-            key={i}
-            className={cn(
-              "flex items-start gap-2.5 rounded-xl border px-3.5 py-3",
-              BG_MAP[ins.type],
-            )}
-          >
-            <Icon className={cn("h-4 w-4 shrink-0 mt-0.5", COLOR_MAP[ins.type])} />
-            <p className="text-sm leading-snug text-foreground">{ins.text}</p>
+    <div className="rounded-2xl border border-border bg-card">
+      <p className="px-4 pt-3.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        Observaciones del período
+      </p>
+      <div className="divide-y divide-border/60">
+        {insights.map((ins, i) => {
+          const Icon = ICON_MAP[ins.type];
+          return (
+            <div key={i} className="flex items-start gap-2.5 px-4 py-3">
+              <Icon className={cn("h-4 w-4 shrink-0 mt-0.5", COLOR_MAP[ins.type])} />
+              <p className="text-sm leading-snug text-foreground">{ins.text}</p>
+            </div>
+          );
+        })}
+        {daily && DailyIcon && (
+          <div className="flex items-start gap-2.5 px-4 py-3">
+            <DailyIcon
+              className={cn("h-4 w-4 shrink-0 mt-0.5", COLOR_MAP[daily.type] ?? COLOR_MAP.info)}
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-medium leading-snug text-foreground">{daily.title}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{daily.body}</p>
+            </div>
           </div>
-        );
-      })}
+        )}
+      </div>
     </div>
   );
 }

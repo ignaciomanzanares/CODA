@@ -1,8 +1,40 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Wallet } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
+import { useAuth } from "@/lib/auth";
 
 export default function Footer() {
+  const [location] = useLocation();
+  const isEmpresas = location.startsWith("/empresas");
+  const { isAuthenticated } = useAuth(isEmpresas ? "empresas" : "personal");
+
+  // Dentro de la app el footer de marketing (4 columnas + disclaimers) es ruido
+  // en cada página: versión mínima de una línea. El footer completo queda para
+  // visitantes (landing y páginas públicas).
+  if (isAuthenticated) {
+    return (
+      <footer className="app-footer border-t border-border/60 bg-background py-4 safe-x">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+          <span>&copy; {new Date().getFullYear()} CODA &middot; Chile Open-Data Analytics SpA</span>
+          <div className="flex items-center gap-4">
+            <Link href={ROUTES.privacidad} className="hover:text-foreground transition-colors">
+              Privacidad
+            </Link>
+            <Link href={ROUTES.terminos} className="hover:text-foreground transition-colors">
+              Términos
+            </Link>
+            <a
+              href="mailto:info@codafinance.cl"
+              className="hover:text-foreground transition-colors"
+            >
+              info@codafinance.cl
+            </a>
+          </div>
+        </div>
+      </footer>
+    );
+  }
+
   return (
     <footer className="app-footer bg-neutral-900 py-8 safe-x">
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
