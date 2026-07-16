@@ -195,19 +195,50 @@ export async function registerDocumentsRoutes(app: Express): Promise<void> {
   });
 
   // DELETE /api/documents — clear all movement documents (documentUploads table only)
+  // DELETE /api/documents — "borrar todo": deja al usuario en estado limpio.
+  // Elimina documentos (cartolas + CMF), sus PDFs originales cifrados, TODAS las
+  // transacciones/cuentas/balances derivados y los scores calculados. Los datos
+  // ingresados a mano (activos, metas, perfil) se conservan — los activos solo
+  // sueltan la referencia al documento de respaldo.
   app.delete("/api/documents", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
     try {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
-      // Cascada: borrar las transacciones normalizadas de todas las cartolas.
-      const { deleteTransactionsForDocument } =
-        await import("./services/documents/normalizeCartola.js");
-      const scoreDocs = await storage.listScoreDocumentUploadsByType(userId, "cartola");
-      for (const s of scoreDocs) await deleteTransactionsForDocument(userId, s.id).catch(() => {});
+
+      const { db, accounts, transactions, balances, userAssets, eq, inArray } =
+        await import("./db/index.js");
+      if (db) {
+        const userAccounts = await db
+          .select({ id: accounts.id })
+          .from(accounts)
+          .where(eq(accounts.userId, userId));
+        const accountIds = userAccounts.map((a: { id: number }) => a.id);
+        if (accountIds.length > 0) {
+          await db.delete(transactions).where(inArray(transactions.accountId, accountIds));
+          await db.delete(balances).where(inArray(balances.accountId, accountIds));
+          await db.delete(accounts).where(eq(accounts.userId, userId));
+        }
+        // user_assets.document_id referencia document_uploads (FK sin cascade):
+        // soltar la referencia antes de borrar los documentos.
+        await db.update(userAssets).set({ documentId: null }).where(eq(userAssets.userId, userId));
+      }
+
       await storage.deleteAllScoreDocumentUploads(userId).catch(() => {});
       await storage.deleteAllDocumentUploads(userId);
-      res.json({ success: true, message: "Movimientos y gastos eliminados." });
+
+      // Scores derivados de los documentos recién borrados.
+      await storage.deleteTransactionalScore(userId).catch(() => {});
+      await storage.deleteCreditScore(userId).catch(() => {});
+
+      // PDFs originales cifrados (stored_blobs) — sin esto el PII persiste.
+      const { deleteOriginalsForUser } = await import("./services/documents/originalStore.js");
+      await deleteOriginalsForUser(userId).catch(() => {});
+
+      res.json({
+        success: true,
+        message: "Documentos, movimientos, cuentas y scores eliminados.",
+      });
     } catch (e) {
       logger.error({ err: e, userId: authReq.user?.userId }, "Delete document uploads failed");
       res.status(500).json({ message: "Error al eliminar movimientos." });

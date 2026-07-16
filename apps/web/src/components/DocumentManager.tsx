@@ -176,8 +176,9 @@ export default function DocumentManager({
                 <AlertDialogTitle>¿Borrar todos los documentos?</AlertDialogTitle>
                 <AlertDialogDescription>
                   Se eliminarán tus {documents.length} documento{documents.length !== 1 ? "s" : ""}{" "}
-                  y los movimientos derivados de ellos. Esta acción no se puede deshacer, pero
-                  puedes volver a subirlos.
+                  (incluidos los PDFs originales), todos los movimientos, cuentas y scores derivados
+                  de ellos. Tus activos y metas ingresados a mano se conservan. Esta acción no se
+                  puede deshacer, pero puedes volver a subir tus cartolas.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

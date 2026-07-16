@@ -56,7 +56,10 @@ import {
   Download,
   Smartphone,
   Save,
+  Eraser,
 } from "lucide-react";
+import { apiFetch } from "@/lib/apiFetch";
+import { queryClient } from "@/lib/queryClient";
 import { Switch } from "@/components/ui/switch";
 import { useCurrency } from "@/lib/CurrencyContext";
 import type { CurrencyCode } from "@/lib/utils";
@@ -436,6 +439,28 @@ export default function Profile() {
       });
     } finally {
       setMfaBusy(false);
+    }
+  };
+
+  // Borrado de datos financieros (cartolas + derivados), sin tocar la cuenta.
+  const [wipingData, setWipingData] = useState(false);
+  const handleWipeFinancialData = async () => {
+    setWipingData(true);
+    try {
+      await apiFetch("/api/documents", { method: "DELETE" });
+      await queryClient.invalidateQueries();
+      toast({
+        title: "Datos financieros eliminados",
+        description: "Cartolas, movimientos, cuentas y scores quedaron en blanco.",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudieron borrar los datos. Intenta de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setWipingData(false);
     }
   };
 
@@ -1131,7 +1156,7 @@ export default function Profile() {
                     <div>
                       <h3 className="text-lg font-semibold text-foreground">Acciones de cuenta</h3>
                       <p className="text-sm text-muted-foreground mt-0.5">
-                        Cerrar sesión o eliminar tu cuenta
+                        Cerrar sesión, borrar tus datos financieros o eliminar tu cuenta
                       </p>
                     </div>
                     <div className="space-y-3">
@@ -1143,6 +1168,45 @@ export default function Profile() {
                         <LogOut className="h-4 w-4" />
                         Cerrar sesión
                       </Button>
+
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start gap-2"
+                            disabled={wipingData}
+                          >
+                            {wipingData ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Eraser className="h-4 w-4" />
+                            )}
+                            Borrar mis datos financieros
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              ¿Borrar todos tus datos financieros?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Se eliminarán todas tus cartolas e informes CMF (incluidos los PDFs
+                              originales), y todos los movimientos, cuentas y scores derivados de
+                              ellos. Tu cuenta, tus activos y tus metas se conservan. Esta acción no
+                              se puede deshacer, pero puedes volver a subir tus documentos.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-red-600 hover:bg-red-700 text-white"
+                              onClick={handleWipeFinancialData}
+                            >
+                              Sí, borrar todo
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
 
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
