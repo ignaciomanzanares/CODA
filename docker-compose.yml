@@ -75,6 +75,10 @@ services:
       DATABASE_URL: postgresql://coda:coda@postgres:5432/coda?sslmode=disable
       REDIS_URL: redis://redis:6379
       CLIENT_URL: http://localhost:5173
+      # Cookie de sesión: el frontend personal es cookie-first — sin esto, la
+      # sesión del navegador no sobrevive un reload en dev.
+      AUTH_COOKIE_ENABLED: "true"
+      AUTH_COOKIE_SECURE: "false"
     ports:
       - "5000:5000"
     volumes: *dev-mounts
