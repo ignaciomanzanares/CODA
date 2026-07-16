@@ -21,15 +21,22 @@ const EXPECTED = "HIPOTECA 123456";
 /** PDF de una página cuyo ÚNICO contenido es una imagen PNG con texto (sin capa de texto). */
 async function makeImageOnlyPdf(text: string): Promise<Buffer> {
   const { createCanvas } = await import("@napi-rs/canvas");
-  const W = 1000,
-    H = 260;
+  const FONT = "bold 96px sans-serif";
+  // Medir ANTES de dimensionar: qué fuente resuelve 'sans-serif' depende del
+  // sistema (runner de CI ≠ dev). Con un ancho fijo de 1000px y una fuente más
+  // ancha, el último dígito quedaba cortado y el OCR leía '12345' (CI rojo
+  // desde que GitHub actualizó las fuentes del runner).
+  const probe = createCanvas(10, 10).getContext("2d");
+  probe.font = FONT;
+  const W = Math.ceil(probe.measureText(text).width) + 120;
+  const H = 260;
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = "#000000";
-  ctx.font = "bold 96px sans-serif";
-  ctx.fillText(text, 40, 160);
+  ctx.font = FONT;
+  ctx.fillText(text, 60, 160);
   const pngImage = canvas.toBuffer("image/png");
 
   const { PDFDocument } = await import("pdf-lib");
