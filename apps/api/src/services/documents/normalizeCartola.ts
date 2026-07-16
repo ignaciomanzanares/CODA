@@ -143,10 +143,20 @@ async function getOrCreateAccount(userId: string, banco: string): Promise<number
 
   const match = await findExisting();
   if (match) {
-    if (!match.providerAccountId && db) {
+    // Auto-sanar cuentas legacy: sin providerAccountId (pre-041) o con el tipo
+    // equivocado (la ex-ruta OBProvider creaba TODO como 'checking' — la UI las
+    // etiquetaba "Cuenta corriente" y les pintaba saldo $0).
+    const needsHeal =
+      !match.providerAccountId || match.type !== kind.type || match.subtype !== kind.subtype;
+    if (needsHeal && db) {
       await db
         .update(accounts)
-        .set({ providerAccountId, updatedAt: new Date().toISOString() })
+        .set({
+          providerAccountId,
+          type: kind.type,
+          subtype: kind.subtype,
+          updatedAt: new Date().toISOString(),
+        })
         .where(eq(accounts.id, match.id));
     }
     return match.id;
