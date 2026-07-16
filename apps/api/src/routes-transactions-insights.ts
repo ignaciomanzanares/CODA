@@ -204,9 +204,12 @@ export async function registerTransactionsInsightsRoutes(app: Express): Promise<
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
 
-      // Fuente de verdad: tabla `transactions` (no parsed_data). Este resumen es BRUTO
-      // (incluye todo lo que aparece en cartolas) y alimenta la vista Movimientos; el
-      // Panel/Salud usan los endpoints que excluyen transferencias internas.
+      // Fuente de verdad: tabla `transactions` (no parsed_data). Ingresos/egresos y
+      // el flujo mensual EXCLUYEN transferencias internas (pago de tarjeta, divisas,
+      // traspasos propios) — con cartolas de TC, contar los pagos como "ingresos"
+      // duplicaba millones que no son plata nueva. `transactionCount` sí queda bruto:
+      // refleja lo extraído de las cartolas, igual que la tabla de la página.
+      const { isInternalTransferTx } = await import("./services/assistantContext.js");
       const { getUserNormalizedTransactions, getReportedBalance } =
         await import("./services/normalizedTransactions.js");
       const { transactions: txs } = await getUserNormalizedTransactions(userId);
@@ -222,6 +225,7 @@ export async function registerTransactionsInsightsRoutes(app: Express): Promise<
         const monto = t.tipo === "ingreso" ? t.abono : t.cargo;
         if (monto === 0) continue;
         transactionCount++;
+        if (isInternalTransferTx(t)) continue;
 
         if (t.tipo === "ingreso") totalIncome += monto;
         else totalExpenses += monto;

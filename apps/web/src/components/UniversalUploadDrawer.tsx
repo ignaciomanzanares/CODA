@@ -308,10 +308,15 @@ export default function UniversalUploadDrawer({ open, onOpenChange }: UniversalU
           const { ok, status, json } = await uploadOne(fs, setStatus);
           if (!ok) {
             if (status === 429) {
-              // Reintentos agotados: el límite es temporal, no un error del documento.
-              throw new Error(
-                "No pudimos subir este documento por el límite temporal de subidas. Espera un momento e inténtalo nuevamente.",
+              // Reintentos agotados: la ventana del limiter es larga (1 h), así que
+              // seguir intentando los archivos restantes solo repite el mismo error
+              // N veces. CORTAR el lote: este archivo queda en error con la
+              // explicación, los demás vuelven a "En espera" para el próximo intento.
+              setStatus(
+                "error",
+                "Límite temporal de subidas alcanzado — se detuvo el lote. Los archivos restantes quedaron en espera: vuelve a presionar «Subir archivos» en unos minutos.",
               );
+              break;
             }
             if (status >= 500) {
               // Preferir el mensaje real del backend (p. ej. failedReason del job encolado);

@@ -67,7 +67,9 @@ export const expensiveLimiter = rateLimit({
  */
 export const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: isProduction() ? 15 : 200, // 15 uploads/hour in production
+  // 60/hora: un usuario cargando su historial (2 años = 24 cartolas + CMF +
+  // reintentos) no debe toparse con el límite; 15 cortaba lotes legítimos.
+  max: isProduction() ? 60 : 200,
   keyGenerator: (req) => {
     // Use userId from JWT payload if available, fall back to IP
     const authReq = req as { user?: { userId?: string } };
