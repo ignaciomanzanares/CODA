@@ -26,6 +26,8 @@ export interface NormalizeTx {
   descripcion?: string;
   cargo?: number;
   abono?: number;
+  /** Saldo de la línea en la cartola — se conserva en `raw` (columna Saldo de Movimientos). */
+  saldo?: number;
   categoria?: string;
   category_confidence?: number;
   category_rule_id?: string;
@@ -43,6 +45,9 @@ export interface NormalizeCartolaInput {
   periodoDesde: string | null; // 'YYYY-MM-DD'
   periodoHasta: string | null;
   transacciones: NormalizeTx[];
+  /** Saldos de la cartola → balance de la cuenta (antes lo escribía la ruta OBProvider). */
+  saldoInicial?: number | null;
+  saldoFinal?: number | null;
 }
 
 // Fuente ÚNICA de la detección de transferencias internas por glosa:
@@ -100,29 +105,75 @@ function dayMonth(fecha: string | undefined): { day: number; month: number } | n
   return null;
 }
 
+/**
+ * providerAccountId determinístico de la cuenta de una cartola (misma convención
+ * `cartola:<slug>` que usaba la ex-ruta OBProvider, para que las cuentas históricas
+ * consolidadas por la migración 041 sigan matcheando).
+ */
+export function cartolaProviderAccountId(banco: string): string {
+  const slug = (banco || "desconocido")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "");
+  return `cartola:${slug}`;
+}
+
 /** Encuentra o crea la cuenta del usuario para este banco/producto. */
 async function getOrCreateAccount(userId: string, banco: string): Promise<number> {
   const kind = accountKindForBanco(banco);
-  const existing = await storage.getAccounts(userId);
-  const match = existing.find(
-    (a: { name?: string | null; type?: string | null; subtype?: string | null }) =>
-      (a.name ?? "") === banco && a.type === kind.type && a.subtype === kind.subtype,
-  );
-  if (match) return match.id as number;
-  const created = await storage.createAccount({
-    userId,
-    bankConnectionId: null,
-    providerAccountId: null,
-    name: banco,
-    officialName: banco,
-    type: kind.type,
-    subtype: kind.subtype,
-    currency: "CLP",
-    mask: null,
-    status: "active",
-    openedAt: null,
-  } as never);
-  return created.id as number;
+  const providerAccountId = cartolaProviderAccountId(banco);
+
+  type AccountRow = {
+    id: number;
+    providerAccountId?: string | null;
+    name?: string | null;
+    type?: string | null;
+    subtype?: string | null;
+  };
+  const findExisting = async (): Promise<AccountRow | undefined> => {
+    const existing = (await storage.getAccounts(userId)) as AccountRow[];
+    return (
+      existing.find((a) => a.providerAccountId === providerAccountId) ??
+      // Cuentas pre-041, creadas sin providerAccountId.
+      existing.find(
+        (a) => (a.name ?? "") === banco && a.type === kind.type && a.subtype === kind.subtype,
+      )
+    );
+  };
+
+  const match = await findExisting();
+  if (match) {
+    if (!match.providerAccountId && db) {
+      await db
+        .update(accounts)
+        .set({ providerAccountId, updatedAt: new Date().toISOString() })
+        .where(eq(accounts.id, match.id));
+    }
+    return match.id;
+  }
+
+  try {
+    const created = await storage.createAccount({
+      userId,
+      bankConnectionId: null,
+      providerAccountId,
+      name: banco,
+      officialName: banco,
+      type: kind.type,
+      subtype: kind.subtype,
+      currency: "CLP",
+      mask: null,
+      status: "active",
+      openedAt: null,
+    } as never);
+    return created.id as number;
+  } catch (e) {
+    // Carrera entre dos uploads del mismo usuario: el índice único
+    // (user_id, provider_account_id) hace perder a uno — usar la cuenta ganadora.
+    const winner = await findExisting();
+    if (winner) return winner.id;
+    throw e;
+  }
 }
 
 export interface NormalizeResult {
@@ -172,6 +223,9 @@ export function buildCartolaTransactionRows(
       categorizerVersion: t.categorizer_version ?? null,
       isInternalTransfer: internal,
       pending: 0,
+      // Línea original de la cartola: GET /api/transactions/parsed saca de aquí
+      // el saldo por movimiento (createTransactionsBulk lo cifra en reposo).
+      raw: JSON.stringify(t),
     };
     // Metadata USD para tarjeta internacional (no mezclar USD/CLP sin metadata).
     if (isCredit && /internacional/i.test(banco) && t.montoUsd != null) {
@@ -206,6 +260,28 @@ export async function normalizeCartolaDoc(
   const items = buildCartolaTransactionRows(input, accountId, banco);
 
   await storage.createTransactionsBulk(items as never);
+
+  // Balance de la cuenta desde el saldo de la cartola (best-effort: un fallo aquí
+  // no debe abortar la normalización, los movimientos ya quedaron persistidos).
+  const saldo = input.saldoFinal ?? input.saldoInicial;
+  if (saldo != null && Number.isFinite(saldo)) {
+    try {
+      await storage.upsertBalance({
+        accountId,
+        asOf: new Date().toISOString(),
+        current: saldo,
+        available: null,
+        creditLimit: null,
+        currency: "CLP",
+      } as never);
+    } catch (e) {
+      logger.warn(
+        { err: e, userId: input.userId, documentId: input.documentId },
+        "[normalizeCartola] upsertBalance falló (no fatal)",
+      );
+    }
+  }
+
   logger.info(
     { userId: input.userId, documentId: input.documentId, banco, count: items.length },
     "[normalizeCartola] normalizado",

@@ -10,6 +10,7 @@ import {
   accountKindForBanco,
   isInternalByDescription,
   buildCartolaTransactionRows,
+  cartolaProviderAccountId,
   type NormalizeCartolaInput,
 } from "../../src/services/documents/normalizeCartola.js";
 
@@ -137,5 +138,32 @@ describe("buildCartolaTransactionRows — filas de transactions", () => {
     const a = buildCartolaTransactionRows(ccInput, 7, "Santander");
     const b = buildCartolaTransactionRows(ccInput, 7, "Santander");
     expect(a.map((r) => r.externalId)).toEqual(b.map((r) => r.externalId));
+  });
+
+  it("conserva la línea original en raw (Movimientos saca de ahí el saldo)", () => {
+    const input: NormalizeCartolaInput = {
+      ...ccInput,
+      transacciones: [
+        { fecha: "02/06", descripcion: "Compra Nacional JUMBO", cargo: 15000, saldo: 485000 },
+      ],
+    };
+    const [row] = buildCartolaTransactionRows(input, 7, "Santander");
+    expect(JSON.parse(row.raw as string)).toMatchObject({
+      descripcion: "Compra Nacional JUMBO",
+      saldo: 485000,
+    });
+  });
+});
+
+describe("cartolaProviderAccountId — identidad determinística de la cuenta", () => {
+  it("slug estable por banco (misma convención cartola:<slug> que las cuentas históricas)", () => {
+    expect(cartolaProviderAccountId("Santander")).toBe("cartola:santander");
+    expect(cartolaProviderAccountId("Santander Tarjeta Nacional")).toBe(
+      "cartola:santander_tarjeta_nacional",
+    );
+    expect(cartolaProviderAccountId("Banco de Chile")).toBe("cartola:banco_de_chile");
+  });
+  it("banco vacío → cartola:desconocido", () => {
+    expect(cartolaProviderAccountId("")).toBe("cartola:desconocido");
   });
 });

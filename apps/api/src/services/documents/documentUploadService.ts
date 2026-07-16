@@ -282,9 +282,10 @@ export async function processDocumentUpload(userId: string, buffer: Buffer): Pro
       }),
     ]);
 
-    // Normalizar a accounts/transactions (fuente de verdad para Movimientos y el
-    // split bruto/real). Si falla, NO dejamos un upload "success" con Movimientos
-    // vacío: el documento queda marcado failed y el score doc se elimina.
+    // Normalizar a accounts/transactions — ÚNICO escritor de movimientos (la doble
+    // escritura vía OBProvider/CartolaUploadProvider duplicaba cada transacción en
+    // Movimientos; cerrada en la migración 041). Si falla, NO dejamos un upload
+    // "success" con Movimientos vacío: el documento queda failed y el score doc se elimina.
     try {
       const { normalizeCartolaDoc } = await import("./normalizeCartola.js");
       const normalized = await normalizeCartolaDoc({
@@ -294,6 +295,8 @@ export async function processDocumentUpload(userId: string, buffer: Buffer): Pro
         periodoDesde,
         periodoHasta,
         transacciones: (cartolaExtraida.transacciones ?? []) as never,
+        saldoInicial: cartolaExtraida.saldoInicial ?? null,
+        saldoFinal: cartolaExtraida.saldoFinal ?? null,
       });
       if (!normalized || normalized.inserted === 0) {
         throw new Error("No se insertaron transacciones normalizadas para la cartola.");
@@ -317,28 +320,6 @@ export async function processDocumentUpload(userId: string, buffer: Buffer): Pro
         banco_confidence: parsed.banco_confidence,
         detected_banco: parsed.banco,
       };
-    }
-
-    // Ingesta unificada (#18): además del score SFA (desde el blob), poblamos
-    // accounts/transactions vía el punto único OBProvider, para que las features ML y los
-    // listados lean de las mismas tablas que un futuro proveedor de open banking. Idempotente
-    // (dedup por externalId), best-effort: un fallo aquí no debe tumbar el upload.
-    try {
-      const { ingestFromProvider } = await import("../ingestion/ingestFromProvider.js");
-      const { CartolaUploadProvider } = await import("../ingestion/cartolaUploadProvider.js");
-      const ingestSummary = await ingestFromProvider(
-        userId,
-        new CartolaUploadProvider(banco, [cartolaExtraida]),
-      );
-      logger.info(
-        { userId, ingestSummary },
-        "[documentUploadService] cartola ingestada a accounts/transactions (OBProvider)",
-      );
-    } catch (ingErr) {
-      logger.warn(
-        { err: ingErr, userId },
-        "[documentUploadService] ingesta accounts/transactions falló (no fatal)",
-      );
     }
 
     // ── Compute transactional score from ALL score cartolas (best-effort) ──
