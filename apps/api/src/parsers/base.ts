@@ -24,7 +24,9 @@ export type ParseErrorCode =
   /** La conciliación de saldos falló (delta > 5%) */
   | "BALANCE_MISMATCH"
   /** Confianza global del parseo demasiado baja (< 0.40) */
-  | "LOW_CONFIDENCE";
+  | "LOW_CONFIDENCE"
+  /** Sin tipo de cambio USD→CLP disponible (TC internacional; reintentable) */
+  | "FX_UNAVAILABLE";
 
 export class ParseError extends Error {
   public readonly code: ParseErrorCode;

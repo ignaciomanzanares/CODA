@@ -70,13 +70,11 @@ describe("card statement → ParseResult adapter", () => {
   );
 
   (has(MAR) ? it : it.skip)(
-    "USD: fx unavailable → never blocks, flags FX pendiente, monto CLP 0",
+    "USD: fx unavailable → ParseError FX_UNAVAILABLE (fail-fast, nunca montos $0 silenciosos)",
     async () => {
-      const r = await parseCardStatementText(load(MAR), async () => null);
-      expect(r).not.toBeNull();
-      expect(r!.warnings.some((w) => /FX pendiente/i.test(w))).toBe(true);
-      const cargos = r!.transacciones.filter((t) => t.tipo === "cargo");
-      expect(cargos.every((t) => t.monto === 0 && /FX pendiente/i.test(t.descripcion))).toBe(true);
+      await expect(parseCardStatementText(load(MAR), async () => null)).rejects.toMatchObject({
+        code: "FX_UNAVAILABLE",
+      });
     },
   );
 

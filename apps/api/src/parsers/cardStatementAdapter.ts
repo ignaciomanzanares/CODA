@@ -16,7 +16,7 @@
  */
 
 import type { ParseResult, ParsedTransaction, TransactionCategory } from "./base.js";
-import { computeReconciliation } from "./base.js";
+import { computeReconciliation, ParseError } from "./base.js";
 import {
   isTarjetaNacional,
   parseTarjetaNacional,
@@ -155,14 +155,21 @@ export async function parseCardStatementText(
     const base = parseTarjetaInternacional(text);
     const fx = getUsd ?? (await import("../services/indicators.js")).getUsd;
     const rate = await fx(base.statementDate);
-    const converted = applyUsdConversion(base, rate);
-    const warnings = [...converted.warnings];
-    if (converted.fxPending) {
-      warnings.push(
-        `Tipo de cambio USD no disponible para ${base.statementDate.toISOString().slice(0, 10)}; ` +
-          "movimientos ingresados con FX pendiente.",
+    // FAIL-FAST: sin tasa no hay conversión posible y el fxPending de antes
+    // insertaba todos los movimientos con monto $0 — silenciosos y permanentes
+    // (nada los rellenaba después). Mejor rechazar la cartola con un error
+    // reintentable; getUsd ya agota caché + retroceso de días hábiles + serie
+    // reciente + er-api antes de rendirse.
+    if (rate == null) {
+      throw new ParseError(
+        "FX_UNAVAILABLE",
+        "No pudimos obtener el tipo de cambio USD→CLP para convertir tu cartola internacional. " +
+          "Es un problema temporal del servicio de indicadores — intenta subirla de nuevo en unos minutos.",
+        { statementDate: base.statementDate.toISOString().slice(0, 10) },
       );
     }
+    const converted = applyUsdConversion(base, rate);
+    const warnings = [...converted.warnings];
     return buildResult({
       banco: BANCO_TC_INTERNACIONAL,
       titular: converted.titular,

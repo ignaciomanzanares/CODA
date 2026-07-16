@@ -32,6 +32,7 @@ import {
   getUf,
   getUsd,
   parseMindicadorValue,
+  pickSerieValueAtOrBefore,
   toIsoDate,
   toMindicadorDate,
 } from "../../src/services/indicators.js";
@@ -116,5 +117,79 @@ describe("getUf / getUsd", () => {
   it("graceful fallback: date unavailable (empty serie) → null", async () => {
     mockFetchOnce(() => new Response(JSON.stringify({ serie: [] }), { status: 200 }));
     await expect(getUsd(DATE)).resolves.toBeNull();
+  });
+});
+
+describe("pickSerieValueAtOrBefore — día hábil más cercano anterior", () => {
+  const serie = {
+    serie: [
+      { fecha: "2026-04-02T04:00:00.000Z", valor: 950 },
+      { fecha: "2026-03-30T04:00:00.000Z", valor: 940 },
+      { fecha: "2026-03-27T04:00:00.000Z", valor: 930 },
+    ],
+  };
+  it("fecha exacta en la serie → ese valor", () => {
+    expect(pickSerieValueAtOrBefore(serie, "2026-03-30")).toBe(940);
+  });
+  it("fin de semana → el hábil anterior (salta valores posteriores)", () => {
+    expect(pickSerieValueAtOrBefore(serie, "2026-03-28")).toBe(930);
+  });
+  it("fecha anterior a toda la serie → null (no usar tasas muy posteriores)", () => {
+    expect(pickSerieValueAtOrBefore(serie, "2025-01-01")).toBeNull();
+  });
+});
+
+describe("fallbacks de getUsd (feriados / mindicador caído)", () => {
+  it("fecha sin valor (feriado) → retrocede al día hábil anterior y lo cachea", async () => {
+    const fetchFn = vi.fn(async (url: RequestInfo | URL) => {
+      const u = String(url);
+      if (u.endsWith("/31-03-2026")) return new Response(JSON.stringify({ serie: [] }));
+      if (u.endsWith("/30-03-2026"))
+        return new Response(JSON.stringify({ serie: [{ fecha: "x", valor: 941.7 }] }));
+      return new Response(JSON.stringify({ serie: [] }));
+    });
+    vi.stubGlobal("fetch", fetchFn);
+    await expect(getUsd(DATE)).resolves.toBe(941.7);
+    expect(h.inserted[0]).toMatchObject({ kind: "usd", date: "2026-03-30", valueClp: 941.7 });
+  });
+
+  it("mindicador por fecha caído pero serie viva → valor de la serie", async () => {
+    const fetchFn = vi.fn(async (url: RequestInfo | URL) => {
+      const u = String(url);
+      if (u === "https://mindicador.cl/api/dolar")
+        return new Response(
+          JSON.stringify({ serie: [{ fecha: "2026-03-31T04:00:00.000Z", valor: 947.3 }] }),
+        );
+      return new Response("down", { status: 503 });
+    });
+    vi.stubGlobal("fetch", fetchFn);
+    await expect(getUsd(DATE)).resolves.toBe(947.3);
+  });
+
+  it("mindicador caído del todo + fecha reciente → tasa actual de er-api (sin cachear)", async () => {
+    const recent = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const fetchFn = vi.fn(async (url: RequestInfo | URL) => {
+      const u = String(url);
+      if (u.startsWith("https://open.er-api.com"))
+        return new Response(JSON.stringify({ rates: { CLP: 952.1 } }));
+      return new Response("down", { status: 503 });
+    });
+    vi.stubGlobal("fetch", fetchFn);
+    await expect(getUsd(recent)).resolves.toBe(952.1);
+    expect(h.inserted).toHaveLength(0); // aproximada: no se persiste
+  });
+
+  it("mindicador caído + fecha antigua (>45 días) → null (no distorsionar cartolas viejas)", async () => {
+    const fetchFn = vi.fn(async (url: RequestInfo | URL) => {
+      const u = String(url);
+      if (u.startsWith("https://open.er-api.com"))
+        return new Response(JSON.stringify({ rates: { CLP: 952.1 } }));
+      return new Response("down", { status: 503 });
+    });
+    vi.stubGlobal("fetch", fetchFn);
+    await expect(getUsd(DATE)).resolves.toBeNull();
+    expect(fetchFn.mock.calls.every(([u]) => !String(u).startsWith("https://open.er-api"))).toBe(
+      true,
+    );
   });
 });
