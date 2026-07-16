@@ -118,7 +118,7 @@ export default function AssetList({ assets }: AssetListProps) {
       </div>
 
       <Dialog open={!!editingAsset} onOpenChange={(open) => !open && setEditingAsset(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <DialogHeader>
             <DialogTitle>Editar activo</DialogTitle>
           </DialogHeader>

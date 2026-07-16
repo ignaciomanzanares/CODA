@@ -129,9 +129,10 @@ export default function MisActivos() {
         </Link>
       </div>
 
-      {/* Modal agregar activo */}
+      {/* Modal agregar activo — más alto que el viewport en pantallas chicas:
+          scrollea internamente (barra oculta, mismo patrón del upload drawer). */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <DialogHeader>
             <DialogTitle>Agregar activo</DialogTitle>
           </DialogHeader>
