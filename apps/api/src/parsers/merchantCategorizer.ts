@@ -29,7 +29,7 @@ function foldAccentsUpper(s: string): string {
  * `MERPAGO*SPOTIFY`, `SumUp *CAFE`, `DLO*NETFLIX`.
  */
 const PROCESSOR_PREFIX_RE =
-  /^(?:PAYU|MERPAGO|MERCADO\s?PAGO|MPAGO|MP|SUMUP|SUM\s?UP|KUSHKI|DLOCAL|DLO|EBANX|PAYPAL|PP|PAYGOL|FLOW|KHIPU|GETNET|TRANSBANK|TBK|REDPAY|TOKU|FINTOC)\s*\*+\s*/;
+  /^(?:PAYU|MERPAGO|MERCADO\s?PAGO|MPAGO|MP|SUMUP|SUM\s?UP|KUSHKI|DLOCAL|DLO|EBANX|PAYPAL|PP|PAYGOL|FLOW|KHIPU|GETNET|TRANSBANK|TBK|REDPAY|TOKU|FINTOC|TUU|PAYSCAN|NYA)\s*\*+\s*/;
 
 /**
  * Tokens de país (2 letras) y de moneda que las filas internacionales arrastran
@@ -333,7 +333,7 @@ const RULES: Rule[] = [
   {
     id: "cl.impuestos.tgr",
     category: "Impuestos y servicios públicos",
-    re: /\bT\.?G\.?R\b|TESORERIA|\bS\.?I\.?I\b|PREVIRED|CONTRIBUCIONES|PERMISO\s+DE?\s*CIRCULACION|REGISTRO\s+CIVIL|\bMUNICIPALIDAD\b|PATENTE\s+(COMERCIAL|MUNICIPAL)/,
+    re: /\bIMPUESTOS?\b|\bT\.?G\.?R\b|TESORERIA|\bS\.?I\.?I\b|PREVIRED|CONTRIBUCIONES|PERMISO\s+DE?\s*CIRCULACION|REGISTRO\s+CIVIL|\bMUNICIPALIDAD\b|PATENTE\s+(COMERCIAL|MUNICIPAL)/,
     confidence: 0.9,
   },
 
@@ -341,7 +341,7 @@ const RULES: Rule[] = [
   {
     id: "bank.comisiones",
     category: "Comisiones bancarias",
-    re: /COM\.?\s?MANT|COMISION|MANTENCION\s+(DE\s+)?CUENTA|GASTO\s+BANCARIO|CARGO\s+POR\s+MANTEN|IMP\.?\s?TIMBRES|\bCAE\b/,
+    re: /COM\.?\s?MANT|COMISION|\bINTERESES\b|INTERES\s+ROTATIVO|MANTENCION\s+(DE\s+)?CUENTA|GASTO\s+BANCARIO|CARGO\s+POR\s+MANTEN|IMP\.?\s?TIMBRES|\bCAE\b/,
     confidence: 0.9,
   },
 
@@ -383,7 +383,7 @@ const RULES: Rule[] = [
   {
     id: "cl.combustible",
     category: "Combustible",
-    re: /\bCOPEC\b|\bSHELL\b|\bESMAX\b|PETROBRAS|\bARAMCO\b|\bENEX\b|\bTERPEL\b|PETRONOR|\bBENCINA\b|COMBUSTIBLE|\bGASOLINA\b|\bDIESEL\b|FULL\s+COPEC/,
+    re: /\bCOPEC\b|\bSHELL\b|\bESMAX\b|PETROBRAS|\bARAMCO\b|\bENEX\b|\bTERPEL\b|PETRONOR|\bBENCINA\b|COMBUSTIBLE|\bGASOLINA\b|\bDIESEL\b|FULL\s+COPEC|\bPRONTO\b/,
     confidence: 0.92,
   },
 
@@ -400,14 +400,14 @@ const RULES: Rule[] = [
   {
     id: "cl.transporte",
     category: "Transporte",
-    re: /\bUBER\b|\bCABIFY\b|\bDIDI\b|\bBEAT\b|\bLIME\b|\bBIP\b|TRANSANTIAGO|RED\s+MOVILIDAD|METRO\s+DE\b|\bPASAJE\b|AUTOPISTA|\bTAG\b|\bPEAJE\b|ESTACIONAMIENTO|\bPARKING\b|\bTAXI\b|VESPUCIO|COSTANERA\s+NORTE/,
+    re: /\bUBER\b|\bCABIFY\b|\bDIDI\b|\bBEAT\b|\bLIME\b|\bBIP\b|TRANSANTIAGO|RED\s+MOVILIDAD|METRO\s+DE\b|\bPASAJE\b|AUTOPISTA|\bTAG\b|\bPEAJE\b|ESTACIONAMIENTO|\bPARKING\b|\bTAXI\b|VESPUCIO|COSTANERA\s+NORTE|BOLT\.EU|\bSABA\b/,
     not: /UBER\s*EATS|DIDI\s*FOOD/,
     confidence: 0.88,
   },
   {
     id: "cl.transporte.aereo",
     category: "Transporte",
-    re: /\bLATAM\b|SKY\s?AIRLINE|\bJETSMART\b|JET\s+SMART|AEROLINEA|\bVUELO\b|AEROPUERTO/,
+    re: /\bLATAM\b|SKY\s?AIRLINE|\bJETSMART\b|JET\s+SMART|AEROLINEA|\bVUELO\b|AEROPUERTO|AIR\s+CANADA|LUFTHANSA|\bIBERIA\b|AIR\s+FRANCE|\bKLM\b|AIRLINES?\b|AIRWAYS/,
     confidence: 0.88,
   },
 
@@ -415,7 +415,7 @@ const RULES: Rule[] = [
   {
     id: "cl.restaurantes",
     category: "Restaurantes y delivery",
-    re: /MC\s?DONALD|BURGER\s+KING|\bKFC\b|\bSUBWAY\b|\bPIZZA\b|\bSUSHI\b|STARBUCKS|JUAN\s+VALDEZ|\bVIPS\b|RESTAURANT|RESTOBAR|\bCAFE\b|CAFETERIA|\bBAR\b|EMPANAD|PANADERIA|PASTELERIA/,
+    re: /MC\s?DONALD|BURGER\s+KING|\bKFC\b|\bSUBWAY\b|\bPIZZA\b|\bSUSHI\b|STARBUCKS|JUAN\s+VALDEZ|\bVIPS\b|RESTAURANT|RESTOBAR|\bCAFE\b|CAFETERIA|\bBAR\b|EMPANAD|PANADERIA|PASTELERIA|HELADERIA|DULCERIA|GELAT|\bBISTRO\b|TRATTORIA|\bBURGER\b|FUENTE\s+DE\s+SODA/,
     confidence: 0.82,
   },
 
@@ -431,7 +431,7 @@ const RULES: Rule[] = [
   {
     id: "cl.supermercado",
     category: "Supermercado y almacén",
-    re: /\bJUMBO\b|\bLIDER\b|SANTA\s+ISABEL|\bUNIMARC\b|\bTOTTUS\b|\bACUENTA\b|\bEKONO\b|\bSUPERMERCADO\b|\bMAYORISTA\b/,
+    re: /\bJUMBO\b|\bLIDER\b|SANTA\s+ISABEL|\bUNIMARC\b|\bTOTTUS\b|\bACUENTA\b|\bEKONO\b|\bSUPERMERCADO\b|\bMAYORISTA\b|BOTILLERIA|\bLIQUIDOS\b|VINOTECA|\bALMACEN\b|MINIMARKET/,
     confidence: 0.92,
   },
 
@@ -465,7 +465,7 @@ const RULES: Rule[] = [
   {
     id: "cl.retail",
     category: "Retail y compras",
-    re: /FALABELLA|\bPARIS\b|\bRIPLEY\b|LA\s+POLAR|\bHITES\b|ABC\s?DIN|SODIMAC|\bEASY\b|HOMECENTER|\bIKEA\b|MERCADO\s?LIBRE|ALIEXPRESS|\bSHEIN\b|\bAMAZON\b|\bEBAY\b|\bSHOPEE\b|CASAIDEAS|\bTIENDA\b|\bZETTLE\b|\bLOCAL\s+DEALER\b|\bNYX\b.*SERVICIOS/,
+    re: /FALABELLA|\bPARIS\b|\bRIPLEY\b|LA\s+POLAR|\bHITES\b|ABC\s?DIN|SODIMAC|\bEASY\b|HOMECENTER|\bIKEA\b|MERCADO\s?LIBRE|ALIEXPRESS|\bSHEIN\b|\bAMAZON\b|\bEBAY\b|\bSHOPEE\b|CASAIDEAS|DECATHLON|\bZARA\b|H\s?&\s?M\b|\bTIENDA\b|\bZETTLE\b|\bLOCAL\s+DEALER\b|\bNYX\b.*SERVICIOS/,
     confidence: 0.8,
   },
 

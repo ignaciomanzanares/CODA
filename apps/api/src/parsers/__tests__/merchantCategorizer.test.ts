@@ -180,7 +180,9 @@ describe("categorize — real cartola corpus", () => {
 });
 
 describe("categorize — ambiguous stays low-confidence Otro (never force-fit)", () => {
-  const ambiguous = ["S.FERRER LUIS PASTEUR", "POCURO SA MINIMARKET PROD", "Compra Nacional NP"];
+  // "MINIMARKET" dejó de ser ambiguo (regla cl.supermercado desde 2026-07:
+  // un minimarket ES almacén); se reemplaza por un caso genuinamente opaco.
+  const ambiguous = ["S.FERRER LUIS PASTEUR", "POCURO SA PROD", "Compra Nacional NP"];
   it.each(ambiguous)("%s → Otro, low confidence", (desc) => {
     const r = categorize({ descripcion: desc, tipo: "cargo" });
     expect(r.category).toBe("Otro");
