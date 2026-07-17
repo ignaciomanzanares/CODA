@@ -63,14 +63,14 @@ function Indicador({ label, valor, descripcion, semaforo }: IndicadorProps) {
   return (
     <div className={cn("rounded-lg p-3", s.bg)}>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-medium text-gray-700">{label}</span>
+        <span className="text-sm font-medium text-foreground">{label}</span>
         <div className="flex items-center gap-1.5">
           <div className={cn("w-2 h-2 rounded-full", s.dot)} />
           <span className={cn("text-xs font-medium", s.text)}>{s.label}</span>
         </div>
       </div>
-      <div className="text-lg font-bold text-gray-900">{valor}</div>
-      <div className="text-xs text-gray-500 mt-0.5">{descripcion}</div>
+      <div className="text-lg font-bold text-foreground">{valor}</div>
+      <div className="text-xs text-muted-foreground mt-0.5">{descripcion}</div>
     </div>
   );
 }

@@ -66,7 +66,7 @@ export default function SaludFinanciera() {
         <Card>
           <CardContent className="p-8 text-center space-y-4">
             <h2 className="text-lg font-semibold">No pudimos cargar tu salud financiera</h2>
-            <p className="text-gray-600 text-sm leading-relaxed">
+            <p className="text-muted-foreground text-sm leading-relaxed">
               Hubo un problema al obtener tu evaluación. Intenta recargar la página o recalcular más
               tarde.
             </p>
@@ -109,11 +109,11 @@ export default function SaludFinanciera() {
         <h1 className="text-2xl font-bold mb-6">Salud financiera</h1>
         <Card>
           <CardContent className="p-8 text-center space-y-4">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-              <Upload className="w-8 h-8 text-gray-400" />
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
+              <Upload className="w-8 h-8 text-muted-foreground" />
             </div>
             <h2 className="text-lg font-semibold">Aún no podemos calcular tu salud financiera</h2>
-            <p className="text-gray-600 text-sm leading-relaxed">{description}</p>
+            <p className="text-muted-foreground text-sm leading-relaxed">{description}</p>
             {missing && (
               <div className="mx-auto w-full max-w-xs space-y-2 rounded-lg border border-border bg-muted/30 p-3 text-left text-sm">
                 <div className="flex items-center gap-2">
@@ -157,11 +157,11 @@ export default function SaludFinanciera() {
         <h1 className="text-2xl font-bold mb-6">Salud financiera</h1>
         <Card>
           <CardContent className="p-8 text-center space-y-4">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-              <RefreshCw className="w-8 h-8 text-gray-400" />
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
+              <RefreshCw className="w-8 h-8 text-muted-foreground" />
             </div>
             <h2 className="text-lg font-semibold">No pudimos calcular tu evaluación</h2>
-            <p className="text-gray-600 text-sm leading-relaxed">
+            <p className="text-muted-foreground text-sm leading-relaxed">
               Tus datos están disponibles, pero no logramos generar la evaluación de salud
               financiera. Puedes intentar recalcular o subir una nueva cartola.
             </p>
@@ -271,7 +271,7 @@ export default function SaludFinanciera() {
         <Card>
           <CardContent className="p-4 space-y-2">
             {(evaluation.insights ?? []).map((insight, i) => (
-              <p key={i} className="text-sm text-gray-700 flex gap-2">
+              <p key={i} className="text-sm text-foreground flex gap-2">
                 <span className="text-blue-500 mt-0.5">•</span>
                 {insight}
               </p>
@@ -296,7 +296,7 @@ export default function SaludFinanciera() {
                 <CardContent className="p-3 flex items-center justify-between">
                   <div>
                     <div className="font-medium text-sm">{p.productName}</div>
-                    <div className="text-xs text-gray-500">{p.provider}</div>
+                    <div className="text-xs text-muted-foreground">{p.provider}</div>
                   </div>
                   <Link href={`${ROUTES.productos}?categoria=${p.category}`}>
                     <Button

@@ -66,21 +66,22 @@ export default function HealthLevelCard({
             ))}
           </div>
 
-          {/* Información del nivel activo */}
+          {/* Información del nivel activo. Tokens del tema (no grises fijos):
+              text-gray-900 era casi invisible en dark mode. */}
           <div className="flex-1">
-            <div className="mb-1 text-sm text-gray-500">
+            <div className="mb-1 text-sm text-muted-foreground">
               Nivel {nivel > 0 ? `+${nivel}` : nivel}
             </div>
-            <div className="text-2xl font-bold text-gray-900 mb-2">{nivelNombre}</div>
+            <div className="text-2xl font-bold text-foreground mb-2">{nivelNombre}</div>
             {descripcionNivel && (
-              <p className="text-sm text-gray-600 leading-relaxed">{descripcionNivel}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">{descripcionNivel}</p>
             )}
             <div className="mt-4">
-              <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
                 <span>Score compuesto</span>
                 <span>{scoreCompuesto}/100</span>
               </div>
-              <div className="w-full bg-gray-100 rounded-full h-2">
+              <div className="w-full bg-muted rounded-full h-2">
                 <div
                   className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
                   style={{ width: `${scoreCompuesto}%` }}
