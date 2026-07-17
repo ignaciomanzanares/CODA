@@ -221,12 +221,15 @@
   height: 100dvh !important;
 }
 
+/* Solo eje Y: bloquea pull-to-refresh/bounce del PWA móvil (vertical) SIN
+   matar el swipe-back de dos dedos del trackpad — `overscroll-behavior: none`
+   a secas también desactiva el gesto de navegación horizontal del navegador. */
 html {
-  overscroll-behavior: none;
+  overscroll-behavior-y: none;
   overflow-x: hidden;
 }
 body {
-  overscroll-behavior: none;
+  overscroll-behavior-y: none;
   /* `clip` (no `hidden`): recorta el desborde horizontal SIN convertir al body en
      scroll container. Con `hidden`, el body atrapa el scroll de rueda/teclado y
      `overscroll-behavior: none` bloquea el encadenamiento hacia html (que es quien
