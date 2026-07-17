@@ -103,9 +103,46 @@ export async function buildUserRiskProfile(userId: string): Promise<UserRiskProf
       countTransactionMonths(accountIds).catch(() => 0),
     ]);
 
-    // --- Cartola: flujos de la más reciente ---
+    // --- Cartola: flujo MENSUAL real desde la tabla normalizada ---
+    // Antes se sumaban los abonos/cargos brutos de UNA cartola arbitraria (la
+    // más reciente por fecha de subida): si esa era una TC (sin sueldo) o un
+    // mes atípico, la tasa de ahorro salía en -500% y arrastraba el nivel de
+    // salud. Ahora: transacciones normalizadas de TODAS las cuentas, sin
+    // transferencias internas (pagos de tarjeta/traspasos propios no son
+    // ingreso ni gasto), promediando los últimos 3 meses con datos — la misma
+    // regla que el panel y monthly-flow.
     let cartola: { ingresos: number; gastos: number } | null = null;
-    if (cartolas.length > 0) {
+    try {
+      const { getUserNormalizedTransactions } = await import("../normalizedTransactions.js");
+      const { isInternalTransferTx } = await import("../assistantContext.js");
+      const { transactions: txs } = await getUserNormalizedTransactions(userId);
+      const byMonth = new Map<string, { ingresos: number; gastos: number }>();
+      for (const t of txs) {
+        if (isInternalTransferTx(t)) continue;
+        const m = byMonth.get(t.month) ?? { ingresos: 0, gastos: 0 };
+        m.ingresos += t.abono;
+        m.gastos += t.cargo;
+        byMonth.set(t.month, m);
+      }
+      const lastMonths = [...byMonth.keys()].sort().slice(-3);
+      if (lastMonths.length > 0) {
+        let ing = 0;
+        let gas = 0;
+        for (const k of lastMonths) {
+          ing += byMonth.get(k)!.ingresos;
+          gas += byMonth.get(k)!.gastos;
+        }
+        cartola = {
+          ingresos: Math.round(ing / lastMonths.length),
+          gastos: Math.round(gas / lastMonths.length),
+        };
+      }
+    } catch {
+      /* tabla no disponible → fallback legacy abajo */
+    }
+    // Fallback legacy (sin transacciones normalizadas): flujos brutos de la
+    // cartola más reciente, como antes.
+    if (cartola == null && cartolas.length > 0) {
       const pd = (cartolas[0] as any)?.parsedData as {
         transacciones?: Array<{ tipo?: string; monto?: number; abono?: number; cargo?: number }>;
       } | null;

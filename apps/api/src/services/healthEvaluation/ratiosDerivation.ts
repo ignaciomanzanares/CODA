@@ -31,10 +31,26 @@ export function deriveHealthInput(input: RatioDerivationInput): HealthEvaluation
   const activosClp = Math.max(liquidosClp + declaradosClp, 1);
 
   // ── Ratios principales ───────────────────────────────────────────────────
-  const safeIngreso = Math.max(ingresoMensualClp, 1);
-  const deudaFlujo = deudaMensualClp / safeIngreso;
+  // Sin ingreso medible (p. ej. solo cartolas de tarjeta) los ratios sobre el
+  // ingreso NO existen: el viejo Math.max(ingreso, 1) dividía por 1 y entregaba
+  // CLP crudos como "ratio" (la UI mostraba -538% o -114.871.400%). Ahora:
+  //  - sin ingreso → deudaFlujo tope (10 = 1000%) si hay cuota — deuda sin
+  //    ingreso conocido ES crítica, pero acotada; 0 si tampoco hay cuota.
+  //    ahorroIngreso -1 (−100%) si hay déficit, 0 si no;
+  //  - con ingreso → clamp a ±10 (±1000%): un mes atípico no revienta la UI.
+  const clampRatio = (v: number) => Math.max(-10, Math.min(10, v));
+  const hasIngreso = ingresoMensualClp > 0;
+  const deudaFlujo = hasIngreso
+    ? clampRatio(deudaMensualClp / ingresoMensualClp)
+    : deudaMensualClp > 0
+      ? 10
+      : 0;
   const deudaActivos = deudaTotalClp / activosClp;
-  const ahorroIngreso = ahorroMensualClp / safeIngreso;
+  const ahorroIngreso = hasIngreso
+    ? clampRatio(ahorroMensualClp / ingresoMensualClp)
+    : ahorroMensualClp < 0
+      ? -1
+      : 0;
 
   // Debug verificable de Deuda/Activos: la deuda es el total CMF (sin sumar la
   // garantía); los activos son cada activo contado una sola vez + líquidos.
