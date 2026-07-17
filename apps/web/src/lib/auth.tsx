@@ -192,6 +192,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     consentOptions: { consents: RegisterConsentPayload; policyVersion?: string },
   ) => {
+    // Beta cerrada: el código validado por ClosedBetaGate viaja en el registro
+    // (el backend lo exige con CLOSED_BETA=true; sin flag lo ignora).
+    const inviteCode = sessionStorage.getItem("coda:beta_invite") ?? undefined;
     const data = await apiFetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -201,6 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         consents: consentOptions.consents,
         policyVersion: consentOptions.policyVersion ?? "1.0",
+        ...(inviteCode ? { inviteCode } : {}),
       }),
     });
 

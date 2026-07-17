@@ -1289,3 +1289,12 @@ export const supportTickets = table("support_tickets", {
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),
 });
+
+/** Lista de espera de la beta cerrada (mientras la inscripción RPSF está en trámite). */
+export const betaWaitlist = table("beta_waitlist", {
+  id: serialPk("id"),
+  email: text("email").notNull().unique(),
+  createdAt: text("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});

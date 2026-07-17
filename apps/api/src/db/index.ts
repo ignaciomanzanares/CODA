@@ -74,6 +74,7 @@ export const {
   productConversionEvents,
   parserDiagnostics,
   supportTickets,
+  betaWaitlist,
 } = schema as any;
 import postgres from "postgres";
 import { ensurePostgresSslMode } from "./postgresUrl.js";

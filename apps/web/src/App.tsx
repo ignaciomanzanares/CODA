@@ -10,6 +10,7 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import PWAInstallBanner from "./components/PWAInstallBanner";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ClosedBetaGate from "./components/ClosedBetaGate";
 import AdminRoute from "./components/AdminRoute";
 import PageLoader from "./components/PageLoader";
 import { Toaster } from "@/components/ui/toaster";
@@ -126,11 +127,16 @@ function App() {
                 <Route path={ROUTES.restablecerContrasena} component={ResetPassword} />
                 {/* Con el flag de onboarding, el registro es el wizard paso-a-paso
             (Términos → Identidad → 2FA → Crear cuenta). Sin flag, el signup normal. */}
-                <Route
-                  path={ROUTES.registro}
-                  component={FEATURES.onboarding ? OnboardingFlow : SignUp}
-                />
-                <Route path="/signup" component={FEATURES.onboarding ? OnboardingFlow : SignUp} />
+                <Route path={ROUTES.registro}>
+                  <ClosedBetaGate>
+                    {FEATURES.onboarding ? <OnboardingFlow /> : <SignUp />}
+                  </ClosedBetaGate>
+                </Route>
+                <Route path="/signup">
+                  <ClosedBetaGate>
+                    {FEATURES.onboarding ? <OnboardingFlow /> : <SignUp />}
+                  </ClosedBetaGate>
+                </Route>
                 <Route path={ROUTES.acerca} component={About} />
                 <Route path="/about">
                   <Redirect to={ROUTES.acerca} />

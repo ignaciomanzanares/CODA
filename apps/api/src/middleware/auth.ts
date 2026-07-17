@@ -651,8 +651,39 @@ function registerClientMeta(req: Request): {
   return { ipAddress: ip, userAgent: ua, channel: "web" };
 }
 
+/**
+ * Beta cerrada (CLOSED_BETA=true): el registro público queda bloqueado mientras
+ * la inscripción RPSF esté en trámite (ver docs/LEY_FINTECH_ENCAJE_2026-07.md).
+ * Solo entra quien traiga un código de BETA_INVITE_CODES (lista separada por
+ * comas). Login y usuarios existentes no cambian. Default: apagado.
+ */
+export function isValidBetaInvite(inviteCode: unknown): boolean {
+  const codes = (process.env.BETA_INVITE_CODES ?? "")
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean);
+  const provided = typeof inviteCode === "string" ? inviteCode.trim() : "";
+  return provided !== "" && codes.includes(provided);
+}
+
+function closedBetaGate(inviteCode: unknown): { ok: true } | { ok: false; message: string } {
+  if (process.env.CLOSED_BETA !== "true") return { ok: true };
+  if (isValidBetaInvite(inviteCode)) return { ok: true };
+  return {
+    ok: false,
+    message:
+      "CODA está en beta cerrada: necesitas un código de invitación para crear una cuenta. " +
+      "Déjanos tu correo en la lista de espera y te avisaremos.",
+  };
+}
+
 export async function handleRegister(req: Request, res: Response) {
-  const { name, email: rawEmail, password, consents, policyVersion } = req.body;
+  const { name, email: rawEmail, password, consents, policyVersion, inviteCode } = req.body;
+
+  const beta = closedBetaGate(inviteCode);
+  if (!beta.ok) {
+    return res.status(403).json({ error: "Forbidden", code: "closed_beta", message: beta.message });
+  }
 
   if (!rawEmail || !password) {
     return res.status(400).json({

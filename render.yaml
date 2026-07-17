@@ -116,6 +116,19 @@ services:
       # el blueprint apagaría el CSRF en silencio. Rollback: false + redeploy.
       - key: CSRF_ENFORCE
         value: true
+      # Beta cerrada (mientras la inscripción RPSF esté en trámite — ver
+      # docs/LEY_FINTECH_ENCAJE_2026-07.md). Con "true", /api/auth/register
+      # exige un código de BETA_INVITE_CODES y el frontend muestra el gate de
+      # invitación + lista de espera. Encender/apagar NO requiere rebuild del
+      # frontend (consulta /api/beta/status en runtime).
+      - key: CLOSED_BETA
+        value: false
+      # Códigos de invitación separados por coma (p. ej. "CODA-AMIGOS,CODA-CMF").
+      - key: BETA_INVITE_CODES
+        sync: false
+      # Buzón interno para avisos del canal de reclamos (default info@codafinance.cl).
+      - key: SUPPORT_INBOX_EMAIL
+        value: info@codafinance.cl
       # Email — REQUERIDO para 2FA OTP y reset de contraseña. Configura UN proveedor
       # (Resend preferido). Sin proveedor: 2FA falla cerrado (503) y forgot-password
       # no envía correo. Todos sync:false (set manual en el Dashboard, son secretos).

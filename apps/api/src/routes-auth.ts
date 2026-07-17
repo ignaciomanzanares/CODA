@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from "express";
-import { db, users, eq } from "./db/index.js";
+import { db, users, betaWaitlist, eq } from "./db/index.js";
 import {
   authenticate,
   handleLoginWithDB,
@@ -17,7 +17,8 @@ import { clearAuthCookie } from "./middleware/authCookie.js";
 import { env } from "./env.js";
 import { emailService } from "./services/emailService.js";
 import crypto from "crypto";
-import { authLimiter } from "./middleware/rateLimiter.js";
+import { authLimiter, publicLimiter } from "./middleware/rateLimiter.js";
+import { requireAdmin } from "./middleware/auth.js";
 import { logger } from "./logger.js";
 
 export async function registerAuthRoutes(app: Express): Promise<void> {
@@ -73,6 +74,54 @@ export async function registerAuthRoutes(app: Express): Promise<void> {
 
   // Auth routes
   app.post("/api/auth/register", authLimiter, handleRegister);
+
+  // ── Beta cerrada ─────────────────────────────────────────────────────────
+  // Estado del flag (público): el frontend decide si mostrar el gate de
+  // invitación en /registro. No expone los códigos.
+  app.get("/api/beta/status", (_req: Request, res: Response) => {
+    res.json({ closedBeta: process.env.CLOSED_BETA === "true" });
+  });
+
+  // Valida un código de invitación ANTES de iniciar el wizard de registro
+  // (evita completar todo el flujo para descubrir un código inválido al final).
+  app.post("/api/beta/validate-code", publicLimiter, async (req: Request, res: Response) => {
+    const { isValidBetaInvite } = await import("./middleware/auth.js");
+    res.json({ valid: isValidBetaInvite(req.body?.code) });
+  });
+
+  // Lista de espera (público, rate-limited). Siempre 200 con el mismo mensaje
+  // — sin enumeración de correos; el duplicado se ignora en silencio.
+  app.post("/api/beta/waitlist", publicLimiter, async (req: Request, res: Response) => {
+    const raw = (req.body?.email ?? "") as string;
+    const email = String(raw).trim().toLowerCase();
+    const ok = () =>
+      res.json({ success: true, message: "¡Listo! Te avisaremos cuando abramos el acceso." });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+      return res.status(400).json({ message: "Ingresa un correo válido." });
+    }
+    try {
+      await db.insert(betaWaitlist).values({ email }).onConflictDoNothing();
+    } catch (e) {
+      logger.warn({ err: e }, "[beta] waitlist insert falló (no fatal)");
+    }
+    return ok();
+  });
+
+  // Lista de espera para el admin (contactar al abrir el acceso).
+  app.get(
+    "/api/admin/beta/waitlist",
+    authenticate,
+    requireAdmin,
+    async (_req: Request, res: Response) => {
+      try {
+        const rows = await db.select().from(betaWaitlist);
+        res.json({ waitlist: rows });
+      } catch (e) {
+        logger.error({ err: e }, "[beta] waitlist admin falló");
+        res.status(500).json({ message: "Error al obtener la lista de espera." });
+      }
+    },
+  );
   app.post("/api/auth/login", authLimiter, handleLoginWithDB);
   /** Recuperar contraseña tras migración (requiere MIGRATION_RECOVERY_SECRET en el servidor). */
   app.post("/api/auth/recover-migration-password", authLimiter, handleRecoverMigrationPassword);
