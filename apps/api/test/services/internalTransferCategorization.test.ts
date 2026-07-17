@@ -20,6 +20,10 @@ describe("merchantCategorizer — transferencias internas (máxima prioridad)", 
     "PAGO T. CREDITO",
     "Traspaso Deuda Nacional",
     "Traspaso Deuda Internacional",
+    // Glosas reales del estado Santander: con "DE"/"A" y truncadas a 30 chars.
+    // Son el PAR de la consolidación de deuda (sale de nacional, entra a USD).
+    "TRASPASO DE DEUDA INTERNACIO",
+    "TRASPASO A DEUDA NACIONAL",
   ];
 
   for (const desc of internas) {

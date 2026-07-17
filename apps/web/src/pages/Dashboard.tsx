@@ -310,7 +310,7 @@ export default function Dashboard() {
                   <AvailableCard
                     totalIncome={data.totalIncome}
                     totalExpenses={data.totalExpenses}
-                    savingsGoal={data.savingsGoalAmount}
+                    savingsGoal={data.incomeReliable ? data.savingsGoalAmount : 0}
                   />
                 )}
 
@@ -326,15 +326,30 @@ export default function Dashboard() {
                 <div className="space-y-4">
                   <FlowDonut
                     segments={data.flowSegments}
-                    pctIncomeSpent={data.pctIncomeSpent}
+                    pctIncomeSpent={data.incomeReliable ? data.pctIncomeSpent : null}
                     totalExpenses={data.totalExpenses}
                   />
-                  <SavingsProgress
-                    savingsNet={data.savingsNet}
-                    savingsRate={data.savingsRate}
-                    goalPct={data.savingsGoalPct}
-                    goalAmount={data.savingsGoalAmount}
-                  />
+                  {/* Tasa de ahorro solo con ingreso medible: con puras cartolas
+                      de tarjeta mostraba "-2923%". */}
+                  {data.incomeReliable ? (
+                    <SavingsProgress
+                      savingsNet={data.savingsNet}
+                      savingsRate={data.savingsRate}
+                      goalPct={data.savingsGoalPct}
+                      goalAmount={data.savingsGoalAmount}
+                    />
+                  ) : (
+                    <div className="rounded-2xl border border-border bg-card p-4">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">
+                        Ahorro del mes
+                      </p>
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        Para medir tu tasa de ahorro y los porcentajes del ingreso necesitamos la
+                        cartola de la cuenta donde recibes tus ingresos (corriente o vista) — las
+                        tarjetas de crédito solo aportan gastos.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Observaciones del período (incluye el insight del día) */}

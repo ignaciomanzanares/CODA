@@ -20,6 +20,9 @@ export default function AvailableCard({
   savingsGoal,
 }: AvailableCardProps) {
   const balance = totalIncome - totalExpenses;
+  // savingsGoal = 0 significa "sin ingreso medible" (solo cartolas de TC):
+  // una meta de $0 derivada de un ingreso espurio confunde — se omite la celda.
+  const hasGoal = savingsGoal > 0;
   const afterGoal = balance - savingsGoal;
   const isPositive = balance >= 0;
 
@@ -64,15 +67,17 @@ export default function AvailableCard({
             {fmtCLP(totalExpenses)}
           </p>
         </div>
-        <div>
-          <p className="text-[11px] text-muted-foreground">Meta ahorro</p>
-          <p className="text-sm font-semibold tabular-nums text-muted-foreground">
-            {fmtCLP(savingsGoal)}
-          </p>
-        </div>
+        {hasGoal && (
+          <div>
+            <p className="text-[11px] text-muted-foreground">Meta ahorro</p>
+            <p className="text-sm font-semibold tabular-nums text-muted-foreground">
+              {fmtCLP(savingsGoal)}
+            </p>
+          </div>
+        )}
       </div>
 
-      {afterGoal > 0 && (
+      {hasGoal && afterGoal > 0 && (
         <p className="text-xs text-emerald-600 dark:text-emerald-400">
           Libre después de ahorrar: {fmtCLP(afterGoal)}
         </p>

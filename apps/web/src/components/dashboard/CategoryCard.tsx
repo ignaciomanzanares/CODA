@@ -107,7 +107,9 @@ export default function CategoryCard({ group }: CategoryCardProps) {
           </div>
           <div className="flex items-center justify-between gap-2 mt-1">
             <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground">{group.pctOfIncome}% del ingreso</p>
+              {group.pctOfIncome != null && (
+                <p className="text-xs text-muted-foreground">{group.pctOfIncome}% del ingreso</p>
+              )}
               {group.prevMonthTotal !== null &&
                 group.prevMonthTotal > 0 &&
                 (() => {

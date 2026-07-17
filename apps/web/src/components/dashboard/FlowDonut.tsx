@@ -10,7 +10,7 @@ const fmtCLP = (n: number) =>
 
 interface FlowDonutProps {
   segments: FlowSegment[];
-  pctIncomeSpent: number; // 0-100, displayed in center
+  pctIncomeSpent: number | null; // 0-100 en el centro; null = ingreso no medible (solo TC)
   totalExpenses: number;
 }
 
@@ -48,10 +48,10 @@ export default function FlowDonut({ segments, pctIncomeSpent, totalExpenses }: F
           {/* Center label */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-2xl font-bold tabular-nums text-foreground">
-              {pctIncomeSpent}%
+              {pctIncomeSpent != null ? `${pctIncomeSpent}%` : "—"}
             </span>
             <span className="text-[10px] text-muted-foreground leading-tight text-center">
-              del ingreso
+              {pctIncomeSpent != null ? "del ingreso" : "sin ingreso registrado"}
             </span>
           </div>
         </div>

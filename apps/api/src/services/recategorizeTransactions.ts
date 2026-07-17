@@ -1,6 +1,11 @@
 import { inArray } from "drizzle-orm";
 import { accounts, db, eq, transactions } from "../db/index.js";
-import { categorize, TAXONOMY, CATEGORIZER_VERSION } from "../parsers/merchantCategorizer.js";
+import {
+  categorize,
+  isInternalTransferDesc,
+  TAXONOMY,
+  CATEGORIZER_VERSION,
+} from "../parsers/merchantCategorizer.js";
 import { isManualCategory } from "./transactions/reviewStatus.js";
 import { looksEncrypted, decryptField } from "./crypto/fieldEncryption.js";
 
@@ -77,11 +82,17 @@ export async function recategorizeUserTransactions(
 
     scanned++;
     const amount = Number(row.amount ?? 0);
+    // Re-evaluar el flag interno con las reglas ACTUALES (solo escalar a interna,
+    // nunca desmarcar: el parser puede haberla marcado por señales que la glosa
+    // sola no captura). Permite reparar filas históricas cuando se amplían los
+    // patrones (p. ej. "TRASPASO DE DEUDA…", que contaba como ingreso).
+    const wasInternal = Number(row.isInternalTransfer ?? 0) === 1;
+    const isInternal = wasInternal || isInternalTransferDesc(description);
     const result = categorize({
       descripcion: description,
       monto: Math.abs(amount),
       tipo: amount >= 0 ? "abono" : "cargo",
-      internalTransfer: Number(row.isInternalTransfer ?? 0) === 1,
+      internalTransfer: isInternal,
     });
     const next = {
       category: legacyCategory(result),
@@ -89,6 +100,7 @@ export async function recategorizeUserTransactions(
       categoryConfidence: result.confidence,
       categoryRuleId: result.ruleId,
       categorizerVersion: result.version,
+      isInternalTransfer: isInternal ? 1 : 0,
     };
 
     if (
@@ -96,7 +108,8 @@ export async function recategorizeUserTransactions(
       changed(row.subcategory, next.subcategory) ||
       changed(row.categoryConfidence, next.categoryConfidence) ||
       changed(row.categoryRuleId, next.categoryRuleId) ||
-      changed(row.categorizerVersion, next.categorizerVersion)
+      changed(row.categorizerVersion, next.categorizerVersion) ||
+      changed(Number(row.isInternalTransfer ?? 0), next.isInternalTransfer)
     ) {
       await db
         .update(transactions)

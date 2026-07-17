@@ -32,8 +32,9 @@ function buildInsights(data: DashboardData): Insight[] {
   const { totalIncome, totalExpenses, savingsNet, savingsRate, categoryGroups } = data;
   const SAVINGS_GOAL = 20;
 
-  // 1. Income vs expenses
-  if (totalIncome > 0 && totalExpenses > totalIncome) {
+  // 1. Income vs expenses — solo con ingreso medible (con puras cartolas de TC,
+  // "tu tasa de ahorro fue -2923%" era ruido, no un insight).
+  if (data.incomeReliable && totalIncome > 0 && totalExpenses > totalIncome) {
     out.push({
       type: "alert",
       text: `Tus egresos superan tus ingresos en ${CLP.format(totalExpenses - totalIncome)} este período.`,
@@ -41,7 +42,7 @@ function buildInsights(data: DashboardData): Insight[] {
   }
 
   // 2. Savings rate vs goal
-  if (totalIncome > 0) {
+  if (data.incomeReliable && totalIncome > 0) {
     const diff = savingsRate - SAVINGS_GOAL;
     if (diff >= 0) {
       out.push({
@@ -113,7 +114,7 @@ function buildInsights(data: DashboardData): Insight[] {
   }
 
   // 5. Net savings message
-  if (totalIncome > 0 && savingsNet > 0) {
+  if (data.incomeReliable && totalIncome > 0 && savingsNet > 0) {
     out.push({
       type: "positive",
       text: `Saldo positivo de ${CLP.format(savingsNet)} — buen trabajo manteniendo el control.`,

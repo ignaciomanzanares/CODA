@@ -483,14 +483,16 @@ const RULES: Rule[] = [
  *  - MONTO CANCELADO                → pago de la tarjeta (estado de cuenta TC).
  *  - (ABONO|COMPRA|EGRESO|…) DE DIVISAS → plomería de divisas de la TC USD.
  *  - … A T. CRÉDITO / PAGO … T. CRÉDITO → fondeo/pago de TC propia desde la CC.
- *  - TRASPASO DEUDA NACIONAL/INTERNACIONAL → consolidación de deuda TC USD.
+ *  - TRASPASO [DE] DEUDA … → consolidación de deuda entre productos propios
+ *    (la glosa real del estado Santander llega truncada: "TRASPASO DE DEUDA
+ *    INTERNACIO" — por eso el patrón no exige el sufijo completo).
  *  - TRASPASO … (T. crédito|cta cte|cuenta vista|línea de crédito|ahorro).
  * Se evalúa con MÁXIMA prioridad en categorize() (antes que ingreso/gasto). NO
  * incluye transferencias a TERCEROS ("Transf a <persona>"): esos patrones son
  * específicos y nunca calzan el de tercero, que se mantiene como gasto/ingreso.
  */
 const INTERNAL_TRANSFER_RE =
-  /\bMONTO\s+CANCELADO\b|(?:ABONO|INGRESO|EGRESO|COMPRA|TRASPASO)\s+(?:POR\s+\w+\s+)?DE\s+DIVISAS\b|\bA\s+T\.?\s*CREDITO\b|\bPAGO\s+(?:DE\s+)?(?:TARJETA\s+(?:DE\s+)?)?T\.?\s*CREDITO\b|\bTRASPASO\s+DEUDA\s+(?:NACIONAL|INTERNACIONAL)\b|\bTRASPASO\b.*\b(T\.?\s*CREDITO|TARJETA\s+CREDITO|CUENTA\s+CORRIENTE|CTA\.?\s*CTE|CUENTA\s+VISTA|LINEA\s+(DE\s+)?CREDITO|AHORRO)\b/;
+  /\bMONTO\s+CANCELADO\b|(?:ABONO|INGRESO|EGRESO|COMPRA|TRASPASO)\s+(?:POR\s+\w+\s+)?DE\s+DIVISAS\b|\bA\s+T\.?\s*CREDITO\b|\bPAGO\s+(?:DE\s+)?(?:TARJETA\s+(?:DE\s+)?)?T\.?\s*CREDITO\b|\bTRASPASO\s+(?:DE\s+|A\s+)?DEUDA\b|\bTRASPASO\b.*\b(T\.?\s*CREDITO|TARJETA\s+CREDITO|CUENTA\s+CORRIENTE|CTA\.?\s*CTE|CUENTA\s+VISTA|LINEA\s+(DE\s+)?CREDITO|AHORRO)\b/;
 
 /**
  * ¿La glosa es un traspaso entre productos propios (transferencia interna)?

@@ -135,7 +135,8 @@ export default function PlanSummaryCard() {
       <CardChrome>
         <Header />
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Sube una cartola para armar tu plan 50/30/20 y definir metas de ahorro.
+          Sube la cartola de la cuenta donde recibes tus ingresos (corriente o vista) para armar tu
+          plan 50/30/20 — las tarjetas solo aportan gastos.
         </p>
         <FooterLink />
       </CardChrome>

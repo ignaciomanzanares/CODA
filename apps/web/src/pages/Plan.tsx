@@ -790,7 +790,7 @@ export default function Plan() {
               <p className="text-sm text-muted-foreground">
                 {hasFinancialData
                   ? `Ingreso mensual: ${CLP.format(income)}`
-                  : "Sube una cartola para ver tu plan personalizado"}
+                  : "Sube la cartola de la cuenta donde recibes tus ingresos (corriente o vista) para ver tu plan"}
               </p>
             </div>
           </div>
@@ -933,7 +933,10 @@ export default function Plan() {
               <div className="py-8 text-center text-muted-foreground space-y-2">
                 <Target className="h-10 w-10 mx-auto opacity-30" />
                 <p className="text-sm">No hay datos de ingreso aún</p>
-                <p className="text-xs">Sube una cartola bancaria para ver tu distribución real</p>
+                <p className="text-xs">
+                  Sube la cartola de la cuenta donde recibes tus ingresos (corriente o vista) — las
+                  tarjetas de crédito solo aportan gastos
+                </p>
               </div>
             )}
           </CardContent>

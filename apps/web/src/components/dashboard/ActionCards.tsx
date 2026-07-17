@@ -130,7 +130,10 @@ function generateRecommendations(data: DashboardData): ActionRecommendation[] {
     });
   }
 
-  if (totalIncome === 0) return recs;
+  // Sin ingreso medible (solo cartolas de tarjeta), los ratios sobre el ingreso
+  // producían "gastaste 3023% de tus ingresos" — nos quedamos solo con las
+  // recomendaciones que no dependen del ingreso (categorías, score, revisión).
+  if (totalIncome === 0 || !data.incomeReliable) return recs;
 
   const expenseRatio = totalIncome > 0 ? totalExpenses / totalIncome : 0;
   const findGroup = (key: string) => categoryGroups.find((g) => g.key === key);
@@ -175,7 +178,12 @@ function generateRecommendations(data: DashboardData): ActionRecommendation[] {
 
   // 2. High financial expenses (deudas) → suggest portabilidad or consolidation
   const financieros = findGroup("financieros");
-  if (financieros && financieros.total > 0 && financieros.pctOfIncome > 25) {
+  if (
+    financieros &&
+    financieros.total > 0 &&
+    financieros.pctOfIncome != null &&
+    financieros.pctOfIncome > 25
+  ) {
     if (transferShare(financieros) >= 0.5) {
       recs.push({
         id: "high-transfers",
@@ -203,7 +211,7 @@ function generateRecommendations(data: DashboardData): ActionRecommendation[] {
 
   // 3. High essential expenses → suggest switching accounts to lower costs
   const esenciales = findGroup("esenciales");
-  if (esenciales && esenciales.pctOfIncome > 60) {
+  if (esenciales && esenciales.pctOfIncome != null && esenciales.pctOfIncome > 60) {
     recs.push({
       id: "high-essentials",
       icon: Wallet,

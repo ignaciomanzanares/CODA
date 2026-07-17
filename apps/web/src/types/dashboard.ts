@@ -16,6 +16,8 @@ export interface DashboardTransaction {
   tipo: "ingreso" | "egreso";
   categoria: string; // raw category from parser (alimentacion, transporte, etc.)
   isInternalTransfer?: boolean;
+  /** Subtipo de la cuenta de origen (checking/credit_card/…) — para saber si el período tiene datos de una cuenta que recibe ingresos */
+  accountSubtype?: string | null;
 }
 
 /** Subcategory within a CategoryGroup */
@@ -34,7 +36,7 @@ export interface CategoryGroup {
   color: "green" | "blue" | "purple" | "orange" | "red";
   total: number; // CLP sum of all subcategories
   prevMonthTotal: number | null; // CLP sum from previous month (null if no data)
-  pctOfIncome: number; // 0-100
+  pctOfIncome: number | null; // 0-100; null cuando el ingreso no es medible (solo TC)
   subcategories: Subcategory[];
   /** Last 30 days of daily spending for sparkline */
   sparklineData: number[];
@@ -64,6 +66,14 @@ export interface DashboardInsight {
 export interface DashboardData {
   /** Whether we have any cartola data at all */
   hasData: boolean;
+
+  /**
+   * true cuando el ingreso del período es medible: hay datos de una cuenta que
+   * RECIBE ingresos (corriente/vista) y el ingreso es > 0. Con solo cartolas de
+   * tarjeta (que nunca traen sueldo), los "% del ingreso" daban 999%/-2900%:
+   * la UI los oculta y pide la cartola correcta.
+   */
+  incomeReliable: boolean;
 
   /** Human-readable label for the active period, e.g. "Marzo 2026" */
   periodLabel: string;

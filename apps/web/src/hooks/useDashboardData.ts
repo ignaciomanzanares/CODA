@@ -44,6 +44,7 @@ interface RawParsedTx {
   saldo: number | null;
   banco: string | null;
   categoria: string;
+  accountSubtype?: string | null;
   isInternalTransfer?: boolean;
   requiresReview?: boolean;
 }
@@ -140,6 +141,7 @@ function toDisplayTx(raw: RawParsedTx): DashboardTransaction {
     tipo: raw.tipo,
     categoria: raw.categoria || "otro",
     isInternalTransfer: raw.isInternalTransfer === true,
+    accountSubtype: raw.accountSubtype ?? null,
   };
 }
 
@@ -372,6 +374,7 @@ export function useDashboardData(
         creditScoreDelta: null,
         creditScoreDate: null,
         availableUntilEndOfMonth: null,
+        incomeReliable: false,
         totalIncome: 0,
         totalExpenses: 0,
         projectedIncome: 0,
@@ -413,6 +416,16 @@ export function useDashboardData(
   const totalExpenses = periodTx
     .filter((t) => t.tipo === "egreso")
     .reduce((s, t) => s + t.monto, 0);
+
+  // ¿El ingreso es medible EN ESTE PERÍODO? Las cartolas de tarjeta nunca traen
+  // sueldo: medir "% del ingreso" contra un abono residual de la TC producía
+  // 999%/-2900%. Requiere que el período tenga datos de una cuenta que recibe
+  // ingresos (corriente/vista) — mirar TODO el historial no sirve: una cartola
+  // de cuenta corriente vieja no vuelve medible el mes actual.
+  const hasDepositoryDataInPeriod = periodTx.some(
+    (t) => t.accountSubtype != null && t.accountSubtype !== "credit_card",
+  );
+  const incomeReliable = hasDepositoryDataInPeriod && totalIncome > 0;
 
   // For "available until end of month": use this period's actual data.
   // With cartolas only (no live balance), this is an approximation.
@@ -582,7 +595,8 @@ export function useDashboardData(
       color: entry.color,
       total,
       prevMonthTotal,
-      pctOfIncome: totalIncome > 0 ? Math.round((total / totalIncome) * 100) : 0,
+      pctOfIncome:
+        incomeReliable && totalIncome > 0 ? Math.round((total / totalIncome) * 100) : null,
       subcategories,
       sparklineData,
       topTransactions,
@@ -631,6 +645,7 @@ export function useDashboardData(
       creditScoreDelta,
       creditScoreDate,
       availableUntilEndOfMonth,
+      incomeReliable,
       totalIncome,
       totalExpenses,
       projectedIncome,
