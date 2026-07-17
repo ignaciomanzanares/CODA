@@ -50,8 +50,12 @@ export function isInternalTransfer(t: { description?: string; category?: string 
 }
 
 // Patrón de transferencia dirigida a un TERCERO ("Transf a Juan", "Transf. de
-// María", "Transferencia para ..."). Son movimientos reales y NUNCA se netean.
-const THIRD_PARTY_TRANSFER_RE = /\btransf\w*\.?\s+(?:a|de|para)\s+\S/i;
+// María", "Transferencia para ...", y también "Transf. Elisa …" — Santander
+// glosa las RECIBIDAS sin preposición). Son movimientos reales y NUNCA se
+// netean. La preposición es opcional a propósito: las transferencias entre
+// productos PROPIOS nunca llegan aquí — isInternalTransferDesc las atrapa antes
+// (traspasos a T. Crédito/cuenta propia, divisas, deuda).
+const THIRD_PARTY_TRANSFER_RE = /\btransf\w*\.?\s+(?:(?:a|de|para)\s+)?\S/i;
 
 // Predicado único de "transferencia interna" para transacciones PERSISTIDAS
 // (cartola JSON y tabla `transactions`). Lo consumen todas las superficies que

@@ -79,9 +79,13 @@ export default function MonthlyFlowChart() {
   const { apiRequest } = useApi();
   const { currency } = useCurrency();
 
+  // Vista REAL (excluye movimientos entre productos propios): las mismas
+  // reglas que las cards de Ingresos/Egresos del header — con view=raw las
+  // barras verdes sumaban $50M mientras el header decía $9,9M (los pagos de
+  // tarjeta y traspasos propios inflaban el gráfico).
   const { data, isLoading } = useQuery<{ months: MonthEntry[] }>({
-    queryKey: ["monthly-flow", "raw"],
-    queryFn: () => apiRequest("GET", "/api/transactions/monthly-flow?view=raw"),
+    queryKey: ["monthly-flow", "real"],
+    queryFn: () => apiRequest("GET", "/api/transactions/monthly-flow?view=real"),
     staleTime: 60_000,
   });
 
@@ -142,7 +146,9 @@ export default function MonthlyFlowChart() {
             )}
           </div>
         </div>
-        <CardDescription>Ingresos y egresos según cartolas cargadas</CardDescription>
+        <CardDescription>
+          Flujo real por mes — excluye movimientos entre tus propios productos
+        </CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
         <ResponsiveContainer width="100%" height={220}>

@@ -81,6 +81,17 @@ describe("isInternalTransferTx — exclusión consolidada", () => {
       isInternalTransferTx({ descripcion: "Transf a Juan Perez", es_transferencia: true }),
     ).toBe(false);
   });
+
+  it("false para transferencia RECIBIDA sin preposición (glosa Santander 'Transf. <Nombre>')", () => {
+    // Con la guarda vieja (exigía a/de/para), es_transferencia la marcaba
+    // interna y el abono desaparecía de los ingresos.
+    expect(
+      isInternalTransferTx({
+        descripcion: "Transf. Elisa Schlotfeldt Valenzu",
+        es_transferencia: true,
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("aceptación — netea ingreso Y egreso, conserva terceros", () => {

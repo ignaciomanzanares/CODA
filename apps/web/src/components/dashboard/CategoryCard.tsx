@@ -117,6 +117,9 @@ export default function CategoryCard({ group }: CategoryCardProps) {
                     ((group.total - group.prevMonthTotal) / group.prevMonthTotal) * 100,
                   );
                   if (delta === 0) return null;
+                  // Base del mes anterior ínfima → deltas absurdos ("+52412%").
+                  // Sobre ±500% el número no informa nada: se omite el badge.
+                  if (Math.abs(delta) > 500) return null;
                   // For expenses: up = bad (red), down = good (green). For income: up = good, down = bad.
                   const isIncome = group.key === "ingresos";
                   const isGood = isIncome ? delta > 0 : delta < 0;
