@@ -17,6 +17,9 @@ export default function Footer() {
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>&copy; {new Date().getFullYear()} CODA &middot; Chile Open-Data Analytics SpA</span>
           <div className="flex items-center gap-4">
+            <Link href={ROUTES.reclamos} className="hover:text-foreground transition-colors">
+              Reclamos
+            </Link>
             <Link href={ROUTES.privacidad} className="hover:text-foreground transition-colors">
               Privacidad
             </Link>

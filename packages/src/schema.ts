@@ -1264,3 +1264,28 @@ export const productConversionEvents = table("product_conversion_events", {
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),
 });
+
+/**
+ * Canal de reclamos y consultas (requisito de autorización NCG 502: canal
+ * habilitado, registro por caso y trazabilidad de la resolución). `mensaje` y
+ * `respuesta` se cifran en reposo desde el API (fieldEncryption) — pueden
+ * contener detalle financiero del usuario. El folio visible se deriva del id.
+ */
+export const supportTickets = table("support_tickets", {
+  id: serialPk("id"),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  tipo: text("tipo").notNull().default("reclamo"), // reclamo | consulta
+  asunto: text("asunto").notNull(),
+  mensaje: text("mensaje").notNull(), // cifrado en reposo
+  estado: text("estado").notNull().default("abierto"), // abierto | en_revision | resuelto | cerrado
+  respuesta: text("respuesta"), // cifrado en reposo
+  respondedAt: text("responded_at"),
+  createdAt: text("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  updatedAt: text("updated_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});

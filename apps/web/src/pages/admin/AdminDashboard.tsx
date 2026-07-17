@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { DollarSign, TrendingUp, Users, CheckCircle } from "lucide-react";
+import AdminSupportTickets from "./AdminSupportTickets";
 
 interface AdminLead {
   leadId: number;
@@ -284,6 +285,9 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </section>
+
+      {/* Canal de reclamos (NCG 502) */}
+      <AdminSupportTickets />
 
       {/* Compliance export */}
       <ComplianceExport />

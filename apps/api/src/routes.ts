@@ -26,6 +26,7 @@ import { registerScoringRiskRoutes } from "./routes-scoring-risk.js";
 import { registerExpensesRoutes, registerExpensesAutomationRoutes } from "./routes-expenses.js";
 import { registerBillSplitsRoutes, registerBillSplitSharingRoutes } from "./routes-bill-splits.js";
 import { registerProfileRoutes } from "./routes-profile.js";
+import { registerSupportRoutes } from "./routes-support.js";
 import { registerProductsRoutes } from "./routes-products.js";
 import { registerAdminRoutes, registerAdminRecategorizeRoutes } from "./routes-admin.js";
 
@@ -85,6 +86,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await registerExpensesRoutes(app);
   await registerBillSplitsRoutes(app);
   await registerProfileRoutes(app);
+  await registerSupportRoutes(app);
   await registerProductsRoutes(app);
   await registerAdminRoutes(app);
   await registerExpensesAutomationRoutes(app);

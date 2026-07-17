@@ -286,6 +286,50 @@ Ver detalle: ${billSplitUrl}
 
 — CODA`;
   }
+
+  /** Aviso interno de nuevo reclamo/consulta (canal NCG 502) — best-effort. */
+  async sendSupportTicketAlert(
+    to: string,
+    t: { folio: string; tipo: string; asunto: string; userEmail: string },
+  ): Promise<boolean> {
+    const subject = `[CODA soporte] Nuevo ${t.tipo} ${t.folio}: ${t.asunto}`;
+    const text = `Nuevo ${t.tipo} en el canal de reclamos.\n\nFolio: ${t.folio}\nUsuario: ${t.userEmail}\nAsunto: ${t.asunto}\n\nGestión: panel Admin → Reclamos.`;
+    const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return sendEmail({
+      to,
+      subject,
+      text,
+      html: `<pre style="font-family:inherit">${escaped}</pre>`,
+    });
+  }
+
+  /** Respuesta al usuario de su reclamo/consulta — best-effort. */
+  async sendSupportTicketReply(
+    to: string,
+    t: { folio: string; asunto: string; respuesta: string },
+  ): Promise<boolean> {
+    // asunto lo escribe el usuario y respuesta el admin: escapar antes de
+    // interpolar en el HTML del correo.
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const subject = `Respuesta a tu caso ${t.folio} — CODA`;
+    const text = `Hola,\n\nTenemos respuesta para tu caso ${t.folio} ("${t.asunto}"):\n\n${t.respuesta}\n\nPuedes ver el detalle en codafinance.cl → Reclamos.\n\n— Equipo CODA`;
+    return sendEmail({
+      to,
+      subject,
+      text,
+      html: `
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;">
+          <div style="text-align:center;margin-bottom:24px;">
+            <div style="display:inline-block;background:#FF5C35;color:white;padding:8px 16px;border-radius:8px;font-weight:bold;font-size:18px;">CODA</div>
+          </div>
+          <p style="color:#334155;font-size:15px;">Tenemos respuesta para tu caso <strong>${esc(t.folio)}</strong> ("${esc(t.asunto)}"):</p>
+          <div style="background:#f1f5f9;border-radius:12px;padding:16px;margin:16px 0;color:#1e293b;font-size:14px;white-space:pre-wrap;">${esc(t.respuesta)}</div>
+          <p style="color:#64748b;font-size:13px;">Puedes ver el detalle en codafinance.cl → Reclamos.</p>
+        </div>
+      `,
+    });
+  }
 }
 
 export const emailService = new EmailService();

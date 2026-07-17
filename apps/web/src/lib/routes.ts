@@ -17,6 +17,8 @@ export const ROUTES = {
   metas: "/metas",
   plan: "/plan",
   perfil: "/perfil",
+  /** Canal de reclamos y consultas (NCG 502) */
+  reclamos: "/reclamos",
   iniciarSesion: "/iniciar-sesion",
   registro: "/registro",
   acerca: "/acerca",

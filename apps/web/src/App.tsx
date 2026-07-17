@@ -78,6 +78,7 @@ const LegacySplitRedirect = lazy(() => import("@/components/LegacySplitRedirect"
 const NotFound = lazy(() => import("@/pages/not-found"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const SaludFinanciera = lazy(() => import("@/pages/SaludFinanciera"));
+const Reclamos = lazy(() => import("@/pages/Reclamos"));
 const MisActivos = lazy(() => import("@/pages/MisActivos"));
 const UniversalUploadDrawer = lazy(() => import("@/components/UniversalUploadDrawer"));
 
@@ -361,6 +362,11 @@ function App() {
                           <Route path={ROUTES.saludFinanciera}>
                             <ProtectedRoute>
                               <SaludFinanciera />
+                            </ProtectedRoute>
+                          </Route>
+                          <Route path={ROUTES.reclamos}>
+                            <ProtectedRoute>
+                              <Reclamos />
                             </ProtectedRoute>
                           </Route>
                           <Route path={ROUTES.misActivos}>
