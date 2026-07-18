@@ -141,7 +141,7 @@ export interface IStorage {
     userId: string,
     category: string,
     opts?: { subcategory?: string | null },
-  ): Promise<boolean>;
+  ): Promise<false | { description: string; previousCategory: string | null }>;
   // Credit score operations
   getCreditScore(userId: string): Promise<any>;
   createCreditScore(creditScore: any): Promise<any>;
@@ -633,10 +633,14 @@ export class DatabaseStorage implements IStorage {
     userId: string,
     category: string,
     opts?: { subcategory?: string | null },
-  ): Promise<boolean> {
+  ): Promise<false | { description: string; previousCategory: string | null }> {
     if (!db) return false;
     const [row] = await db
-      .select({ accountId: transactions.accountId })
+      .select({
+        accountId: transactions.accountId,
+        description: transactions.description,
+        category: transactions.category,
+      })
       .from(transactions)
       .where(eq(transactions.id, id));
     if (!row) return false;
@@ -659,7 +663,14 @@ export class DatabaseStorage implements IStorage {
         categorizerVersion: MANUAL_CATEGORIZER_VERSION,
       })
       .where(eq(transactions.id, id));
-    return true;
+    // Devuelve glosa (en claro) y categoría previa para que el caller registre la
+    // corrección y alimente al clasificador incremental (#31).
+    const rawDesc = row.description as string | null;
+    const description =
+      typeof rawDesc === "string" && looksEncrypted(rawDesc)
+        ? decryptField(rawDesc)
+        : (rawDesc ?? "");
+    return { description, previousCategory: (row.category as string) ?? null };
   }
 
   // Credit score operations

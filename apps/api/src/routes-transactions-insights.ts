@@ -185,10 +185,23 @@ export async function registerTransactionsInsightsRoutes(app: Express): Promise<
       const idNum = parseInt(txId, 10);
       if (isNaN(idNum)) return res.status(400).json({ message: "ID de transacción inválido." });
 
-      const ok = await storage.updateTransactionCategory(idNum, userId, category, {
+      const updated = await storage.updateTransactionCategory(idNum, userId, category, {
         subcategory: sub,
       });
-      if (!ok) return res.status(404).json({ message: "Transacción no encontrada." });
+      if (!updated) return res.status(404).json({ message: "Transacción no encontrada." });
+
+      // Alimentar al clasificador incremental (#31): antes las correcciones del
+      // PATCH no le enseñaban nada al modelo — solo cambiaban la fila.
+      if (updated.description) {
+        const { recordCategoryCorrection } =
+          await import("./services/documents/categoryCorrections.js");
+        await recordCategoryCorrection({
+          userId,
+          text: updated.description,
+          correctedCategory: category,
+          originalCategory: updated.previousCategory,
+        }).catch(() => ({ ok: false }));
+      }
 
       res.json({ id: txId, category, subcategory: sub, manual: true });
     } catch (e) {
@@ -196,6 +209,116 @@ export async function registerTransactionsInsightsRoutes(app: Express): Promise<
       res.status(500).json({ message: "Error al actualizar categoría." });
     }
   });
+
+  // GET /api/transactions/review-groups — pendientes de revisión AGRUPADOS por
+  // comercio normalizado, ordenados por monto (revisar de a uno era inviable con
+  // cientos de movimientos; un grupo se corrige con un solo gesto).
+  app.get("/api/transactions/review-groups", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+
+      const { getUserNormalizedTransactions } =
+        await import("./services/normalizedTransactions.js");
+      const { requiresReview } = await import("./services/transactions/reviewStatus.js");
+      const { normalizeMerchant } = await import("./parsers/merchantCategorizer.js");
+      const { transactions: txs } = await getUserNormalizedTransactions(userId);
+
+      interface Group {
+        merchant: string;
+        sample: string;
+        count: number;
+        total: number;
+        currentCategory: string;
+        txIds: number[];
+      }
+      const groups = new Map<string, Group>();
+      for (const t of txs) {
+        if (
+          !requiresReview({
+            category: t.categoria ?? null,
+            categoryConfidence: t.categoryConfidence,
+            categoryRuleId: t.categoryRuleId,
+            categorizerVersion: t.categorizerVersion,
+          })
+        ) {
+          continue;
+        }
+
+        const merchant = normalizeMerchant(t.descripcion) || t.descripcion.trim() || "(sin glosa)";
+        const g = groups.get(merchant) ?? {
+          merchant,
+          sample: t.descripcion,
+          count: 0,
+          total: 0,
+          currentCategory: t.categoria ?? "otro",
+          txIds: [],
+        };
+        g.count += 1;
+        g.total += Math.abs(t.amount);
+        g.txIds.push(Number(t.id));
+        groups.set(merchant, g);
+      }
+
+      const list = [...groups.values()].sort((a, b) => b.total - a.total).slice(0, 50);
+      res.json({ groups: list, pending: [...groups.values()].reduce((s, g) => s + g.count, 0) });
+    } catch (e) {
+      logger.error({ err: e }, "Failed to get review groups");
+      res.status(500).json({ message: "Error al obtener los grupos por revisar." });
+    }
+  });
+
+  // POST /api/transactions/categories/bulk — aplica una categoría a un lote de
+  // transacciones (mismos efectos que el PATCH individual: marca manual + enseña
+  // al clasificador una vez por glosa distinta).
+  app.post(
+    "/api/transactions/categories/bulk",
+    authenticate,
+    async (req: Request, res: Response) => {
+      const authReq = req as AuthenticatedRequest;
+      try {
+        const userId = await ensureUserForToken(authReq.user!);
+        if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+
+        const { txIds, category } = req.body as { txIds?: unknown; category?: string };
+        if (!category || !VALID_CATEGORIES.has(category)) {
+          return res.status(400).json({ message: "Categoría inválida." });
+        }
+        if (!Array.isArray(txIds) || txIds.length === 0 || txIds.length > 500) {
+          return res.status(400).json({ message: "txIds debe ser una lista de 1 a 500 ids." });
+        }
+
+        const { recordCategoryCorrection } =
+          await import("./services/documents/categoryCorrections.js");
+        const learned = new Set<string>();
+        let updated = 0;
+        for (const rawId of txIds) {
+          const id = Number(rawId);
+          if (!Number.isInteger(id)) continue;
+          // updateTransactionCategory verifica que la cuenta sea del usuario.
+          const r = await storage.updateTransactionCategory(id, userId, category, {});
+          if (!r) continue;
+          updated += 1;
+          const key = r.description.trim().toUpperCase();
+          if (r.description && !learned.has(key)) {
+            learned.add(key);
+            await recordCategoryCorrection({
+              userId,
+              text: r.description,
+              correctedCategory: category,
+              originalCategory: r.previousCategory,
+            }).catch(() => ({ ok: false }));
+          }
+        }
+
+        res.json({ updated, category });
+      } catch (e) {
+        logger.error({ err: e }, "Failed bulk category update");
+        res.status(500).json({ message: "Error al aplicar la categoría en lote." });
+      }
+    },
+  );
 
   // GET /api/transactions/summary — income, expenses, and balance summary
   app.get("/api/transactions/summary", authenticate, async (req: Request, res: Response) => {

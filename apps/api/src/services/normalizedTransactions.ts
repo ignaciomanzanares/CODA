@@ -28,6 +28,10 @@ export interface NormalizedTx {
   category: string; // categoría cruda (para el predicado por etiqueta)
   isInternalTransfer: boolean;
   is_internal_transfer: number; // 0/1 — señal autoritativa para el predicado
+  /** Campos de revisión de categoría (para requiresReview/isManualCategory). */
+  categoryConfidence: number | null;
+  categoryRuleId: string | null;
+  categorizerVersion: string | null;
   accountName: string | null;
   accountType: string | null;
   accountSubtype: string | null;
@@ -93,6 +97,9 @@ export async function getUserNormalizedTransactions(
       category: (t.category as string) ?? "otro",
       isInternalTransfer: internal,
       is_internal_transfer: internal ? 1 : 0,
+      categoryConfidence: typeof t.categoryConfidence === "number" ? t.categoryConfidence : null,
+      categoryRuleId: (t.categoryRuleId as string) ?? null,
+      categorizerVersion: (t.categorizerVersion as string) ?? null,
       accountName: acc?.name ?? null,
       accountType: acc?.type ?? null,
       accountSubtype: acc?.subtype ?? null,

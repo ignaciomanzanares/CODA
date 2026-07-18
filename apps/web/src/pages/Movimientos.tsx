@@ -25,6 +25,7 @@ import { apiFetch } from "@/lib/api";
 import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
 import BillSplit from "@/pages/BillSplit";
 import MonthlyFlowChart from "@/components/MonthlyFlowChart";
+import CategoryReviewPanel from "@/components/CategoryReviewPanel";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import { useUserDocuments } from "@/hooks/useUserDocuments";
 import SignInBanner from "@/components/SignInBanner";
@@ -371,6 +372,9 @@ export default function Movimientos() {
 
         {/* Monthly flow chart — visible only on transacciones tab */}
         {activeTab === "transacciones" && <MonthlyFlowChart />}
+
+        {/* Revisión masiva de categorías (pendientes agrupados por comercio) */}
+        {activeTab === "transacciones" && <CategoryReviewPanel />}
 
         {/* Tab content */}
         {activeTab === "transacciones" && (

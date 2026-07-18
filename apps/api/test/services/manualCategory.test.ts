@@ -55,7 +55,9 @@ describe("storage.updateTransactionCategory — corrección manual", () => {
     const ok = await storage.updateTransactionCategory(tx.id, userId, "alimentacion", {
       subcategory: "Supermercado",
     });
-    expect(ok).toBe(true);
+    // Devuelve la glosa y categoría previa (para alimentar al clasificador).
+    expect(ok).toBeTruthy();
+    if (ok) expect(ok.previousCategory).not.toBe("alimentacion");
 
     const [row] = await db.select().from(transactions).where(eq(transactions.id, tx.id));
     expect(row.category).toBe("alimentacion");
