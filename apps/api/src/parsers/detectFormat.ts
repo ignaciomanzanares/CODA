@@ -71,6 +71,11 @@ function stripDenylistedBlocks(text: string): string {
  *   considerar al banco siquiera (evita falsos positivos por nombres comunes).
  * - `strongSignals` (opcional): si ≥2 de estas señales coinciden, la confianza
  *   se eleva a un mínimo de 0.92 (HIGH tier garantizado).
+ * - `identityPattern`: evidencia de IDENTIDAD (nombre/dominio del banco). Si al
+ *   menos un banco presenta identidad en el texto, la detección se restringe a
+ *   esos bancos: una cartola de Banco de Chile usa las mismas cabeceras
+ *   estructurales que Santander ("CHEQUES Y OTROS CARGOS") y sin esta regla la
+ *   identidad estructural de Santander le ganaba al nombre explícito del banco.
  */
 const BANK_PATTERNS: Array<{
   banco: string;
@@ -78,6 +83,7 @@ const BANK_PATTERNS: Array<{
   weight: number;
   requiredPattern?: RegExp;
   strongSignals?: RegExp[];
+  identityPattern?: RegExp;
 }> = [
   {
     banco: "Santander",
@@ -102,6 +108,7 @@ const BANK_PATTERNS: Array<{
     weight: 1.0,
     // Accept SANTANDER text OR Santander structural column headers as gate
     requiredPattern: /\bSANTANDER\b|Banco\s+Santander|CHEQUES\s+(?:Y\s+)?(?:OTROS\s+)?CARGOS/i,
+    identityPattern: /\bSANTANDER\b|santander\.cl/i,
     // Strong-signal boost: 2+ of these → floor confidence at 0.92
     strongSignals: [
       /BANCO\s+SANTANDER/i,
@@ -122,6 +129,7 @@ const BANK_PATTERNS: Array<{
     ],
     weight: 1.0,
     requiredPattern: /\bBCI\b/,
+    identityPattern: /\bBCI\b|bci\.cl|BANCO\s+DE\s+CR[ÉE]DITO\s+E\s+INVERSIONES/i,
   },
   {
     banco: "Banco de Chile",
@@ -134,6 +142,7 @@ const BANK_PATTERNS: Array<{
     ],
     weight: 1.0,
     requiredPattern: /BANCO\s+DE\s+CHILE/i,
+    identityPattern: /BANCO\s+DE\s+CHILE|bancochile\.cl|\bEDWARDS\b/i,
   },
   {
     banco: "BancoEstado",
@@ -146,18 +155,21 @@ const BANK_PATTERNS: Array<{
     ],
     weight: 1.0,
     requiredPattern: /BANCOESTADO|BANCO\s+ESTADO/i,
+    identityPattern: /BANCOESTADO|BANCO\s+ESTADO|bancoestado\.cl|CUENTA\s*RUT\b/i,
   },
   {
     banco: "Itaú",
     patterns: [/\bITAU\b/i, /\bIT[ÁA]U\b/i, /itau\.cl/i, /BANCO\s+ITAU\b/i, /CARTOLA\s+IT[ÁA]U/i],
     weight: 1.0,
     requiredPattern: /ITAU|IT[ÁA]U/i,
+    identityPattern: /ITAU|IT[ÁA]U|itau\.cl/i,
   },
   {
     banco: "Scotiabank",
     patterns: [/\bSCOTIABANK\b/i, /\bSCOTIA\b/i, /scotiabank\.cl/i, /CARTOLA\s+SCOTIABANK/i],
     weight: 1.0,
     requiredPattern: /SCOTIABANK|SCOTIA/i,
+    identityPattern: /SCOTIABANK|SCOTIA|scotiabank\.cl/i,
   },
   {
     banco: "BICE",
@@ -195,7 +207,13 @@ export function detectFormat(text: string): DetectedFormat {
   let bestStrongMatches = 0;
   let bestBankDef: (typeof BANK_PATTERNS)[number] | undefined;
 
-  for (const bankDef of BANK_PATTERNS) {
+  // Pasada de identidad: si algún banco presenta su NOMBRE/dominio en el texto,
+  // solo esos bancos compiten (la evidencia estructural no puede ganarle al
+  // nombre explícito de otro banco — ver identityPattern arriba).
+  const withIdentity = BANK_PATTERNS.filter((b) => b.identityPattern?.test(normalizedText));
+  const candidates = withIdentity.length > 0 ? withIdentity : BANK_PATTERNS;
+
+  for (const bankDef of candidates) {
     // Required pattern must match to consider this bank
     if (bankDef.requiredPattern && !bankDef.requiredPattern.test(normalizedText)) {
       continue;
