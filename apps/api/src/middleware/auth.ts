@@ -627,10 +627,56 @@ export async function handleMe(req: AuthenticatedRequest, res: Response) {
     });
   }
 
+  // emailVerified vive en la fila (no en el JWT): el banner de "verifica tu
+  // correo" del frontend se alimenta de aquí. Lectura por PK — barata.
+  let emailVerified = true;
+  try {
+    const row = (await storage.getUser(req.user.userId)) as
+      { emailVerifiedAt?: string | null } | undefined;
+    emailVerified = !!row?.emailVerifiedAt;
+  } catch {
+    /* ante un hiccup de DB no molestamos con el banner */
+  }
+
   res.json({
     success: true,
-    user: req.user,
+    user: { ...req.user, emailVerified },
   });
+}
+
+// ── Verificación de email ────────────────────────────────────────────────────
+
+/** Token stateless firmado con el JWT_SECRET (7 días); sin tabla de tokens. */
+export function signEmailVerificationToken(userId: string, email: string): string {
+  return jwt.sign({ purpose: "email_verify", userId, email }, env.jwtSecret, { expiresIn: "7d" });
+}
+
+export function verifyEmailVerificationToken(
+  token: string,
+): { userId: string; email: string } | null {
+  try {
+    const p = jwt.verify(token, env.jwtSecret) as {
+      purpose?: string;
+      userId?: string;
+      email?: string;
+    };
+    if (p.purpose !== "email_verify" || !p.userId || !p.email) return null;
+    return { userId: p.userId, email: p.email };
+  } catch {
+    return null;
+  }
+}
+
+/** Envío best-effort del correo de verificación (jamás bloquea el registro). */
+export async function sendVerificationEmailFor(userId: string, email: string): Promise<void> {
+  try {
+    const token = signEmailVerificationToken(userId, email);
+    const url = `${env.clientUrl}/verificar-email?token=${encodeURIComponent(token)}`;
+    const { emailService } = await import("../services/emailService.js");
+    void emailService.sendEmailVerification(email, url);
+  } catch (e) {
+    logger.warn({ err: e }, "[auth] envío de verificación de email falló (no fatal)");
+  }
 }
 
 /**
@@ -805,11 +851,14 @@ export async function handleRegister(req: Request, res: Response) {
       email: redactEmail(newUser.email),
     });
 
+    // Correo de verificación — best-effort, no bloquea el registro.
+    void sendVerificationEmailFor(newUser.id, newUser.email);
+
     setAuthCookie(res, token);
     res.status(201).json({
       success: true,
       token,
-      user: tokenPayload,
+      user: { ...tokenPayload, emailVerified: false },
     });
   } catch (error) {
     logger.error({ err: error }, "Registration error");

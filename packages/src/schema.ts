@@ -40,6 +40,9 @@ export const users = table("users", {
   userMetadata: text("user_metadata"),
   /** 0 = desactivado, 1 = activado (login con segundo factor). */
   twoFactorEnabled: integer("two_factor_enabled").notNull().default(0),
+  /** Timestamp ISO de verificación del email (null = no verificado; existentes
+   * pre-migración-045 quedan verificados por grandfathering). */
+  emailVerifiedAt: text("email_verified_at"),
   /** JWT / producto: persona | empresa */
   role: text("role").notNull().default("persona"),
   /** TOTP (futuro); 0/1 */

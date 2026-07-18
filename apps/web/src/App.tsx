@@ -11,6 +11,7 @@ import Footer from "./components/Footer";
 import PWAInstallBanner from "./components/PWAInstallBanner";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ClosedBetaGate from "./components/ClosedBetaGate";
+import EmailVerifyBanner from "./components/EmailVerifyBanner";
 import AdminRoute from "./components/AdminRoute";
 import PageLoader from "./components/PageLoader";
 import { Toaster } from "@/components/ui/toaster";
@@ -80,6 +81,7 @@ const NotFound = lazy(() => import("@/pages/not-found"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const SaludFinanciera = lazy(() => import("@/pages/SaludFinanciera"));
 const Reclamos = lazy(() => import("@/pages/Reclamos"));
+const VerificarEmail = lazy(() => import("@/pages/VerificarEmail"));
 const MisActivos = lazy(() => import("@/pages/MisActivos"));
 const UniversalUploadDrawer = lazy(() => import("@/components/UniversalUploadDrawer"));
 
@@ -125,6 +127,7 @@ function App() {
                 <Route path="/login" component={Login} />
                 {FEATURES.codaEmpresas && <Route path="/empresas/login" component={Login} />}
                 <Route path={ROUTES.restablecerContrasena} component={ResetPassword} />
+                <Route path="/verificar-email" component={VerificarEmail} />
                 {/* Con el flag de onboarding, el registro es el wizard paso-a-paso
             (Términos → Identidad → 2FA → Crear cuenta). Sin flag, el signup normal. */}
                 <Route path={ROUTES.registro}>
@@ -205,6 +208,7 @@ function App() {
                 <Route>
                   <div className="relative flex min-h-screen flex-col">
                     <Header />
+                    <EmailVerifyBanner />
                     <PWAInstallBanner />
                     <main className="flex-1">
                       <RouteErrorBoundary>

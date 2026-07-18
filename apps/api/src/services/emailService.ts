@@ -287,6 +287,27 @@ Ver detalle: ${billSplitUrl}
 — CODA`;
   }
 
+  /** Verificación de correo al registro (link firmado, 7 días). */
+  async sendEmailVerification(to: string, verifyUrl: string): Promise<boolean> {
+    return sendEmail({
+      to,
+      subject: "Verifica tu correo — CODA",
+      text: `¡Bienvenido a CODA!\n\nVerifica tu correo haciendo clic en este enlace (válido por 7 días):\n${verifyUrl}\n\nSi no creaste esta cuenta, ignora este mensaje.`,
+      html: `
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
+          <div style="text-align:center;margin-bottom:24px;">
+            <div style="display:inline-block;background:#FF5C35;color:white;padding:8px 16px;border-radius:8px;font-weight:bold;font-size:18px;">CODA</div>
+          </div>
+          <p style="color:#334155;font-size:15px;">¡Bienvenido! Confirma que este es tu correo:</p>
+          <div style="text-align:center;margin:24px 0;">
+            <a href="${verifyUrl}" style="display:inline-block;background:#FF5C35;color:white;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:600;">Verificar mi correo</a>
+          </div>
+          <p style="color:#64748b;font-size:13px;">El enlace es válido por 7 días. Si no creaste esta cuenta, puedes ignorar este mensaje.</p>
+        </div>
+      `,
+    });
+  }
+
   /** Aviso interno de nuevo reclamo/consulta (canal NCG 502) — best-effort. */
   async sendSupportTicketAlert(
     to: string,

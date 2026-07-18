@@ -75,6 +75,57 @@ export async function registerAuthRoutes(app: Express): Promise<void> {
   // Auth routes
   app.post("/api/auth/register", authLimiter, handleRegister);
 
+  // ── Verificación de email ────────────────────────────────────────────────
+  // El link del correo llega aquí (público: el usuario puede no tener sesión).
+  app.post("/api/auth/verify-email", publicLimiter, async (req: Request, res: Response) => {
+    const { verifyEmailVerificationToken } = await import("./middleware/auth.js");
+    const parsed = verifyEmailVerificationToken(String(req.body?.token ?? ""));
+    if (!parsed) {
+      return res
+        .status(400)
+        .json({ message: "El enlace de verificación no es válido o expiró. Pide uno nuevo." });
+    }
+    try {
+      const [row] = await db
+        .select({ email: users.email, emailVerifiedAt: users.emailVerifiedAt })
+        .from(users)
+        .where(eq(users.id, parsed.userId));
+      if (!row || row.email !== parsed.email) {
+        return res.status(400).json({ message: "El enlace no corresponde a esta cuenta." });
+      }
+      if (!row.emailVerifiedAt) {
+        await db
+          .update(users)
+          .set({ emailVerifiedAt: new Date().toISOString() })
+          .where(eq(users.id, parsed.userId));
+      }
+      res.json({ success: true, message: "¡Correo verificado!" });
+    } catch (e) {
+      logger.error({ err: e }, "[auth] verify-email falló");
+      res.status(500).json({ message: "No pudimos verificar tu correo. Intenta de nuevo." });
+    }
+  });
+
+  // Reenvío (autenticado, rate-limited).
+  app.post(
+    "/api/auth/resend-verification",
+    authenticate,
+    authLimiter,
+    async (req: Request, res: Response) => {
+      const { sendVerificationEmailFor } = await import("./middleware/auth.js");
+      const user = (req as { user?: { userId: string; email: string } }).user!;
+      const [row] = await db
+        .select({ emailVerifiedAt: users.emailVerifiedAt })
+        .from(users)
+        .where(eq(users.id, user.userId));
+      if (row?.emailVerifiedAt) {
+        return res.json({ success: true, message: "Tu correo ya está verificado." });
+      }
+      await sendVerificationEmailFor(user.userId, user.email);
+      res.json({ success: true, message: "Te enviamos un nuevo enlace de verificación." });
+    },
+  );
+
   // ── Beta cerrada ─────────────────────────────────────────────────────────
   // Estado del flag (público): el frontend decide si mostrar el gate de
   // invitación en /registro. No expone los códigos.
