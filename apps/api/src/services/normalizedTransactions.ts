@@ -119,8 +119,32 @@ export async function getUserNormalizedTransactions(
  * acotado a este punto y claramente etiquetado como dato reportado/legacy.
  */
 export async function getReportedBalance(userId: string): Promise<number | null> {
+  return (await getReportedBalanceInfo(userId))?.saldo ?? null;
+}
+
+/**
+ * Igual que getReportedBalance pero con la fecha de cierre de la cartola de
+ * origen. Elige la cartola de CUENTA (no tarjeta) con el período más reciente
+ * — no la última subida: el orden de subida no dice nada del período, y el
+ * "saldo facturado" de una TC no es un saldo disponible.
+ */
+export async function getReportedBalanceInfo(
+  userId: string,
+): Promise<{ saldo: number; asOf: string | null; banco: string | null } | null> {
   const cartolas = await storage.listDocumentUploadsByType(userId, "cartola");
-  if (!cartolas.length) return null;
-  const pd = cartolas[0]?.parsedData as { saldo_final?: number; saldoFinal?: number } | null;
-  return pd?.saldo_final ?? pd?.saldoFinal ?? null;
+  const isCreditCard = (banco: unknown) =>
+    typeof banco === "string" && /tarjeta\s+(nacional|internacional)/i.test(banco);
+
+  const candidates = cartolas
+    .map((c) => {
+      const pd = c.parsedData as { saldo_final?: number; saldoFinal?: number } | null;
+      const saldo = pd?.saldo_final ?? pd?.saldoFinal ?? null;
+      return { saldo, asOf: (c.periodoHasta as string | null) ?? null, banco: c.banco ?? null };
+    })
+    .filter((c): c is { saldo: number; asOf: string | null; banco: string | null } =>
+      typeof c.saldo === "number" && !isCreditCard(c.banco),
+    )
+    .sort((a, b) => String(b.asOf ?? "").localeCompare(String(a.asOf ?? "")));
+
+  return candidates[0] ?? null;
 }

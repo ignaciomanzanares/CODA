@@ -48,6 +48,8 @@ export interface NormalizeCartolaInput {
   /** Saldos de la cartola → balance de la cuenta (antes lo escribía la ruta OBProvider). */
   saldoInicial?: number | null;
   saldoFinal?: number | null;
+  /** Titular de la cartola — habilita detectar auto-transferencias por nombre. */
+  titular?: string | null;
 }
 
 // Fuente ÚNICA de la detección de transferencias internas por glosa:
@@ -57,6 +59,34 @@ export interface NormalizeCartolaInput {
 // (dividendo hipotecario = gasto real) ni transferencias a terceros.
 export function isInternalByDescription(desc: string): boolean {
   return isInternalTransferDesc(desc ?? "");
+}
+
+// Auto-transferencia: "Transf a THOMAS SCHMIDT" cuando el titular de la cartola
+// es "SCHMIDT PUGA THOMAS" = traspaso a una cuenta propia en otro banco, no un
+// gasto (ni ingreso) real. Exige ≥2 tokens del destinatario presentes en el
+// titular, así "Transf a SEBASTIAN SCHMIDT" (familiar, comparte un apellido)
+// sigue contando como transferencia externa.
+const TRANSFER_COUNTERPARTY_RE = /\btransf\w*\.?\s+(?:(?:a|de|para)\s+)?(.+)$/i;
+
+function nameTokens(s: string): string[] {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-ZÑ ]+/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 3);
+}
+
+export function isSelfTransfer(desc: string, titular: string | null | undefined): boolean {
+  if (!titular) return false;
+  const m = (desc ?? "").match(TRANSFER_COUNTERPARTY_RE);
+  if (!m) return false;
+  const counterparty = nameTokens(m[1]!);
+  if (counterparty.length < 2) return false;
+  const own = new Set(nameTokens(titular));
+  if (own.size < 2) return false;
+  return counterparty.filter((t) => own.has(t)).length >= 2;
 }
 
 /** Tipo/subtipo de cuenta a partir del nombre del banco. */
@@ -215,7 +245,7 @@ export function buildCartolaTransactionRows(
     const amount = abono > 0 ? abono : -Math.abs(cargo);
 
     const desc = t.descripcion ?? "";
-    const internal = isInternalByDescription(desc) ? 1 : 0;
+    const internal = isInternalByDescription(desc) || isSelfTransfer(desc, input.titular) ? 1 : 0;
 
     const base: Record<string, unknown> = {
       accountId,

@@ -17,6 +17,13 @@ import { getBlobStore } from "../storage/blobStore.js";
 
 /** Mínimo de ejemplos para que el clasificador opere (debajo de esto, siempre fallback). */
 const MIN_EXAMPLES = 5;
+/**
+ * Mínimo de CLASES distintas para operar. Un modelo mono-clase es degenerado: el
+ * softmax le da confianza 1.0 a esa única clase para CUALQUIER texto (P(clase)=1),
+ * arrastrando todos los movimientos a esa categoría y pisando las reglas regex.
+ * Sin ≥2 clases el clasificador no discrimina nada → siempre fallback a reglas.
+ */
+const MIN_CLASSES = 2;
 /** Confianza mínima (posterior de la clase top) para usar la predicción en vez del fallback. */
 const MIN_CONFIDENCE = 0.6;
 
@@ -101,8 +108,16 @@ class CategoryClassifier {
     this.loaded = true;
   }
 
+  /** Un modelo es utilizable sólo si tiene suficientes ejemplos Y ≥2 clases. */
+  private isUsable(): boolean {
+    return this.totalDocs >= MIN_EXAMPLES && this.classDocs.size >= MIN_CLASSES;
+  }
+
   /** Persiste el modelo en blob store (fire-and-forget, no bloquea). */
   private async saveToBlob(): Promise<void> {
+    // No persistir modelos degenerados (mono-clase): re-envenenarían el próximo
+    // boot vía el blob, que se carga antes que la tabla de correcciones.
+    if (!this.isUsable()) return;
     try {
       const store = getBlobStore();
       const json = this.serialize();
@@ -122,11 +137,20 @@ class CategoryClassifier {
       const existing = await store.getObject(BLOB_KEY);
       if (existing) {
         this.deserialize(existing.toString("utf8"));
-        logger.info(
+        // Un blob mono-clase (degenerado) se ignora y se reconstruye desde la
+        // tabla de correcciones — nunca debe activar el override.
+        if (this.isUsable()) {
+          logger.info(
+            { examples: this.totalDocs, classes: this.classDocs.size },
+            "[categoryClassifier] modelo restaurado desde blob",
+          );
+          return;
+        }
+        logger.warn(
           { examples: this.totalDocs, classes: this.classDocs.size },
-          "[categoryClassifier] modelo restaurado desde blob",
+          "[categoryClassifier] blob degenerado (mono-clase) ignorado, reconstruyendo desde DB",
         );
-        return;
+        this.reset();
       }
     } catch {
       // blob store no disponible o sin modelo previo — reconstruir desde DB
@@ -175,7 +199,7 @@ class CategoryClassifier {
 
   /** Predicción síncrona (requiere ensureLoaded previo). null = sin confianza → usar fallback. */
   predict(text: string): { category: string; confidence: number } | null {
-    if (this.totalDocs < MIN_EXAMPLES || this.classDocs.size === 0) return null;
+    if (this.totalDocs < MIN_EXAMPLES || this.classDocs.size < MIN_CLASSES) return null;
     const tokens = tokenize(text);
     if (tokens.length === 0) return null;
 

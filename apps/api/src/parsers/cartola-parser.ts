@@ -100,6 +100,21 @@ export function detectBankFromText(text: string): string {
   return "Otro";
 }
 
+// Colapsa membretes con letras espaciadas ("B A N C O  S A N T A N D E R" →
+// "BANCOSANTANDER") sólo para el filtro de exclusión: un nombre real
+// ("SCHMIDT PUGA THOMAS") tiene palabras de varias letras y no se colapsa, pero
+// el membrete deletreado sí — así deja de evadir la lista de palabras vetadas.
+function collapseSpacedCaps(s: string): string {
+  return s.replace(/\b(?:[A-ZÁÉÍÓÚÑ]\s+){2,}[A-ZÁÉÍÓÚÑ]\b/g, (m) => m.replace(/\s+/g, ""));
+}
+
+function isPlausibleTitular(x: string): boolean {
+  if (!/^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{8,}/.test(x)) return false;
+  return !/CARTOLA|CUENTA|BANCO|SANTANDER|CHILE|SUCURSAL|DIRECCION|EJECUTIV|GERENCIA/i.test(
+    collapseSpacedCaps(x),
+  );
+}
+
 function extractTitular(text: string): string {
   const lines = text.split(/\n/).map((l) => l.trim());
   for (let i = 0; i < lines.length; i++) {
@@ -109,10 +124,14 @@ function extractTitular(text: string): string {
       if (m) return m[1]!.trim().slice(0, 120);
     }
   }
-  const nameLine = lines.find(
-    (x) =>
-      /^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{8,}/.test(x) && !/CARTOLA|CUENTA|BANCO|SANTANDER|CHILE/i.test(x),
-  );
+  // Santander cuenta corriente/vista: el titular va en la línea inmediatamente
+  // posterior a "CUENTA CORRIENTE ML" (no lleva etiqueta "Titular:").
+  for (let i = 0; i < lines.length - 1; i++) {
+    if (/^CUENTA\s+(CORRIENTE|VISTA)\b/i.test(lines[i]!) && isPlausibleTitular(lines[i + 1]!)) {
+      return lines[i + 1]!.slice(0, 120);
+    }
+  }
+  const nameLine = lines.find(isPlausibleTitular);
   if (nameLine) return nameLine.slice(0, 120);
   return "";
 }
@@ -156,7 +175,7 @@ function inferYearFromText(text: string): number {
   return Math.min(nowYear + 1, Math.max(2015, year));
 }
 
-function extractPeriodo(text: string): { desde: Date; hasta: Date; dias: number } {
+export function extractPeriodo(text: string): { desde: Date; hasta: Date; dias: number } {
   const year = inferYearFromText(text);
   let desde: Date | null = null;
   let hasta: Date | null = null;
@@ -167,6 +186,28 @@ function extractPeriodo(text: string): { desde: Date; hasta: Date; dias: number 
 
   function toDate(d: number, m: number, y: number): Date {
     return new Date(y, m - 1, d, 12, 0, 0, 0);
+  }
+
+  // Layout columnar (Santander cuenta corriente): las etiquetas "DESDE HASTA"
+  // quedan en una fila y los valores en otra, por lo que d1/d2 no calzan. Se
+  // toma el primer PAR de fechas completas adyacentes después de las etiquetas.
+  if (!d1 && !d2) {
+    const pair = text.match(
+      /DESDE\s+HASTA[\s\S]{0,400}?(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i,
+    );
+    if (pair) {
+      const toYear = (raw: string) => (raw.length === 2 ? 2000 + parseInt(raw, 10) : parseInt(raw, 10));
+      const from = toDate(parseInt(pair[1]!, 10), parseInt(pair[2]!, 10), toYear(pair[3]!));
+      const to = toDate(parseInt(pair[4]!, 10), parseInt(pair[5]!, 10), toYear(pair[6]!));
+      if (to.getTime() >= from.getTime()) {
+        const msPerDay = 86400000;
+        return {
+          desde: from,
+          hasta: to,
+          dias: Math.max(1, Math.round((to.getTime() - from.getTime()) / msPerDay) + 1),
+        };
+      }
+    }
   }
 
   if (d1) {

@@ -76,7 +76,10 @@ describe("recordCategoryCorrection (#31)", () => {
     expect(rows[0].corrected_category).toBe("restaurantes");
 
     // El modelo aprendió de inmediato (incremental): reforzando, predice esa categoría.
+    // Se añade una segunda clase (distractora) porque un modelo mono-clase es
+    // degenerado y no discrimina — la guarda MIN_CLASSES lo obliga a caer a reglas.
     for (let i = 0; i < 5; i++) categoryClassifier.learn("TRANSBANK CAFE ALTURA", "restaurantes");
+    for (let i = 0; i < 5; i++) categoryClassifier.learn("METRO SANTIAGO PASAJE", "transporte");
     const pred = categoryClassifier.predict("CAFE ALTURA TRANSBANK");
     expect(pred?.category).toBe("restaurantes");
   });

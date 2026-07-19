@@ -44,6 +44,7 @@ interface TransactionSummary {
     totalExpenses: number;
     netBalance: number;
     currentBalance: number | null;
+    balanceAsOf: string | null;
     transactionCount: number;
     documentCount: number;
   };
@@ -202,13 +203,10 @@ export default function Movimientos() {
   const s = txSummary?.summary;
   const f = financial?.summary;
 
-  // El "saldo actual" del backend es en realidad el saldo al CIERRE de la última
-  // cartola subida (getReportedBalance, ordenado por fecha de subida desc). Tomamos
-  // esa misma cartola para fechar la etiqueta y no inducir a error con datos viejos.
-  const latestCartola = [...documents]
-    .filter((d) => d.tipo === "cartola")
-    .sort((a, b) => String(b.uploadedAt).localeCompare(String(a.uploadedAt)))[0];
-  const balanceAsOf = latestCartola?.periodoHasta ?? latestCartola?.periodoDesde ?? null;
+  // El "saldo actual" del backend es el saldo al CIERRE de la cartola de cuenta
+  // con período más reciente; `balanceAsOf` viene del mismo documento, así la
+  // cifra y la fecha nunca se desalinean.
+  const balanceAsOf = s?.balanceAsOf ?? null;
   const balanceLabel = balanceAsOf
     ? `Saldo al cierre · ${fmtCartolaDate(balanceAsOf)}`
     : "Saldo al cierre de cartola";

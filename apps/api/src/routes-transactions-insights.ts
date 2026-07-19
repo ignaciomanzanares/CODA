@@ -333,7 +333,7 @@ export async function registerTransactionsInsightsRoutes(app: Express): Promise<
       // duplicaba millones que no son plata nueva. `transactionCount` sí queda bruto:
       // refleja lo extraído de las cartolas, igual que la tabla de la página.
       const { isInternalTransferTx } = await import("./services/assistantContext.js");
-      const { getUserNormalizedTransactions, getReportedBalance } =
+      const { getUserNormalizedTransactions, getReportedBalanceInfo } =
         await import("./services/normalizedTransactions.js");
       const { transactions: txs } = await getUserNormalizedTransactions(userId);
       const documentCount = (await storage.listDocumentUploadsByType(userId, "cartola")).length;
@@ -368,7 +368,8 @@ export async function registerTransactionsInsightsRoutes(app: Express): Promise<
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([month, data]) => ({ month, ...data }));
 
-      const currentBalance = await getReportedBalance(userId);
+      const balanceInfo = await getReportedBalanceInfo(userId);
+      const currentBalance = balanceInfo?.saldo ?? null;
 
       // Compute monthly averages using the last 3 months (more stable than all-time totals)
       const recentMonths = sortedMonthlyData.slice(-3);
@@ -387,6 +388,7 @@ export async function registerTransactionsInsightsRoutes(app: Express): Promise<
           totalExpenses,
           netBalance: totalIncome - totalExpenses,
           currentBalance,
+          balanceAsOf: balanceInfo?.asOf ?? null,
           transactionCount,
           documentCount,
           avgMonthlyIncome,

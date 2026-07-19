@@ -18,6 +18,7 @@ import { parseCartolaBuffer, ParseError } from "../../parsers/index.js";
 import { categorizeTransaction } from "../../parsers/cartola-parser.js";
 import { categoryClassifier, classifyOrRule } from "./categoryClassifier.js";
 import { isInternalTransferTx } from "../assistantContext.js";
+import { isSelfTransfer } from "./normalizeCartola.js";
 import { type DetectionTier } from "../../parsers/base.js";
 import { logCreditScorePrediction } from "../audit/algorithmicTraceability.js";
 import { deleteRelatedScoreDocsForDocumentUpload } from "./documentUploadLinks.js";
@@ -171,11 +172,12 @@ export async function processDocumentUpload(userId: string, buffer: Buffer): Pro
         // marcó el adaptador de tarjeta — para que NO se cuente como ingreso ni
         // gasto (antes el categorizador legacy la marcaba 'ingreso_principal').
         // Terceros ("Transf a <persona>") NO entran aquí: se siguen contando.
-        const interna = isInternalTransferTx({
-          descripcion: tx.descripcion,
-          categoria: tx.categoria,
-          es_transferencia: tx.es_transferencia,
-        });
+        const interna =
+          isInternalTransferTx({
+            descripcion: tx.descripcion,
+            categoria: tx.categoria,
+            es_transferencia: tx.es_transferencia,
+          }) || isSelfTransfer(tx.descripcion, parsed.titular);
         return {
           fecha: tx.fecha instanceof Date ? tx.fecha.toISOString().slice(0, 10) : String(tx.fecha),
           descripcion: tx.descripcion,
@@ -299,6 +301,7 @@ export async function processDocumentUpload(userId: string, buffer: Buffer): Pro
         transacciones: (cartolaExtraida.transacciones ?? []) as never,
         saldoInicial: cartolaExtraida.saldoInicial ?? null,
         saldoFinal: cartolaExtraida.saldoFinal ?? null,
+        titular: parsed.titular ?? null,
       });
       if (!normalized || normalized.inserted === 0) {
         throw new Error("No se insertaron transacciones normalizadas para la cartola.");

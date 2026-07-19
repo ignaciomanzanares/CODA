@@ -61,6 +61,7 @@ async function main() {
       periodoDesde: doc.periodoDesde,
       periodoHasta: doc.periodoHasta,
       transacciones,
+      titular: (pd as { titular?: string } | null)?.titular ?? null,
     });
     if (!r) continue;
     totalTx += r.inserted;
