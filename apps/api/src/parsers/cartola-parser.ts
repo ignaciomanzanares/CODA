@@ -196,7 +196,8 @@ export function extractPeriodo(text: string): { desde: Date; hasta: Date; dias: 
       /DESDE\s+HASTA[\s\S]{0,400}?(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i,
     );
     if (pair) {
-      const toYear = (raw: string) => (raw.length === 2 ? 2000 + parseInt(raw, 10) : parseInt(raw, 10));
+      const toYear = (raw: string) =>
+        raw.length === 2 ? 2000 + parseInt(raw, 10) : parseInt(raw, 10);
       const from = toDate(parseInt(pair[1]!, 10), parseInt(pair[2]!, 10), toYear(pair[3]!));
       const to = toDate(parseInt(pair[4]!, 10), parseInt(pair[5]!, 10), toYear(pair[6]!));
       if (to.getTime() >= from.getTime()) {

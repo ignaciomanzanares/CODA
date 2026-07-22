@@ -141,8 +141,9 @@ export async function getReportedBalanceInfo(
       const saldo = pd?.saldo_final ?? pd?.saldoFinal ?? null;
       return { saldo, asOf: (c.periodoHasta as string | null) ?? null, banco: c.banco ?? null };
     })
-    .filter((c): c is { saldo: number; asOf: string | null; banco: string | null } =>
-      typeof c.saldo === "number" && !isCreditCard(c.banco),
+    .filter(
+      (c): c is { saldo: number; asOf: string | null; banco: string | null } =>
+        typeof c.saldo === "number" && !isCreditCard(c.banco),
     )
     .sort((a, b) => String(b.asOf ?? "").localeCompare(String(a.asOf ?? "")));
 
