@@ -162,8 +162,13 @@ async function handleHealthEvaluationMe(req: Request, res: Response): Promise<an
       userAgent: req.headers["user-agent"] ?? null,
     });
 
+    // Para llegar aquí ya se validó (línea ~64) que existen cartola Y CMF con
+    // datos parseables; declararlo explícito para que el checklist de onboarding
+    // marque ambos pasos como completados (sin esto, missingData quedaba undefined
+    // y el frontend los pintaba como pendientes pese a estar subidos).
     res.json({
       hasData: true,
+      missingData: { cartola: false, cmf: false },
       evaluation,
       modelVersion: HEALTH_EVALUATION_ENGINE_VERSION,
       descripcionNivel: NIVEL_DESCRIPCION[evaluation.nivel],
