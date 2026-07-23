@@ -318,9 +318,6 @@ export default function Dashboard() {
                 {/* Plan financiero — resumen 50/30/20 + metas */}
                 <PlanSummaryCard />
 
-                {/* Activos declarados — resumen + acceso directo a /mis-activos */}
-                <AssetsSummaryCard />
-
                 {/* ── ACTION CARDS — Revenue bridge (en desktop van a la sidebar) ── */}
                 <div className="lg:hidden">
                   <ActionCards data={data} />
@@ -369,8 +366,11 @@ export default function Dashboard() {
                   ))}
                 </div>
 
-                {/* ── PATRIMONIO + REFERRAL (solo móvil; en desktop, sidebar) ── */}
+                {/* ── PATRIMONIO + ACTIVOS + REFERRAL (solo móvil; en desktop, sidebar) ── */}
                 {patrimonioCard && <div className="lg:hidden">{patrimonioCard}</div>}
+                <div className="lg:hidden">
+                  <AssetsSummaryCard />
+                </div>
                 <div className="lg:hidden">
                   <ReferralShareCard />
                 </div>
@@ -379,7 +379,11 @@ export default function Dashboard() {
               {/* ── Sidebar desktop: lo accionable y el contexto ──────── */}
               <aside className="hidden lg:block space-y-6 lg:sticky lg:top-20">
                 <ActionCards data={data} />
+                {/* Patrimonio (bancario) + Mis activos (declarados): ambos son
+                    "lo que tengo", van juntos. El neto NO incluye los activos
+                    declarados, por eso son dos cards y no un total fusionado. */}
                 {patrimonioCard}
+                <AssetsSummaryCard />
                 <ReferralShareCard />
               </aside>
             </div>
