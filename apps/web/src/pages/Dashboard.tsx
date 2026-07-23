@@ -15,7 +15,6 @@ import CategoryCard from "@/components/dashboard/CategoryCard";
 import CreditScoreCard from "@/components/dashboard/CreditScoreCard";
 import HealthSummaryCard from "@/components/dashboard/HealthSummaryCard";
 import PlanSummaryCard from "@/components/dashboard/PlanSummaryCard";
-import AssetsSummaryCard from "@/components/dashboard/AssetsSummaryCard";
 import RiskScoreCard from "@/components/RiskScoreCard";
 import ScoresPendingCard from "@/components/dashboard/ScoresPendingCard";
 import { useHealthEvaluation } from "@/hooks/useHealthEvaluation";
@@ -38,13 +37,6 @@ import { cn } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
 import { apiFetch } from "@/lib/apiFetch";
 import { useToast } from "@/hooks/use-toast";
-
-const fmtCLP = (n: number) =>
-  new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 0,
-  }).format(n);
 
 export default function Dashboard() {
   const { isLoading: authLoading, user, isAuthenticated } = useAuth();
@@ -127,10 +119,12 @@ export default function Dashboard() {
     data?.patrimonio &&
     (data.patrimonio.totalPatrimonioNeto !== 0 ||
       data.patrimonio.inversionesLiquidas !== 0 ||
-      data.patrimonio.cuentasVista !== 0) ? (
+      data.patrimonio.cuentasVista !== 0 ||
+      data.patrimonio.activosDeclarados !== 0) ? (
       <PatrimonioSidebar
         inversionesLiquidas={data.patrimonio.inversionesLiquidas}
         cuentasVista={data.patrimonio.cuentasVista}
+        activosDeclarados={data.patrimonio.activosDeclarados}
         totalPatrimonioNeto={data.patrimonio.totalPatrimonioNeto}
       />
     ) : null;
@@ -366,11 +360,10 @@ export default function Dashboard() {
                   ))}
                 </div>
 
-                {/* ── PATRIMONIO + ACTIVOS + REFERRAL (solo móvil; en desktop, sidebar) ── */}
+                {/* ── PATRIMONIO + REFERRAL (solo móvil; en desktop, sidebar) ── */}
+                {/* Los activos declarados ahora son una línea DENTRO de la card de
+                    Patrimonio y están sumados al neto. */}
                 {patrimonioCard && <div className="lg:hidden">{patrimonioCard}</div>}
-                <div className="lg:hidden">
-                  <AssetsSummaryCard />
-                </div>
                 <div className="lg:hidden">
                   <ReferralShareCard />
                 </div>
@@ -379,11 +372,7 @@ export default function Dashboard() {
               {/* ── Sidebar desktop: lo accionable y el contexto ──────── */}
               <aside className="hidden lg:block space-y-6 lg:sticky lg:top-20">
                 <ActionCards data={data} />
-                {/* Patrimonio (bancario) + Mis activos (declarados): ambos son
-                    "lo que tengo", van juntos. El neto NO incluye los activos
-                    declarados, por eso son dos cards y no un total fusionado. */}
                 {patrimonioCard}
-                <AssetsSummaryCard />
                 <ReferralShareCard />
               </aside>
             </div>

@@ -118,6 +118,7 @@ export interface DashboardData {
   patrimonio: {
     inversionesLiquidas: number;
     cuentasVista: number;
+    activosDeclarados: number;
     totalPatrimonioNeto: number;
   } | null;
 

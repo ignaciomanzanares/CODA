@@ -110,6 +110,7 @@ interface RawFinancialSummary {
   summary: {
     totalBalance: number;
     netWorth: number;
+    declaredAssets: number;
     accountCount: number;
   };
   accountsByType: {
@@ -618,6 +619,8 @@ export function useDashboardData(
           inversionesLiquidas: fs.accountsByType?.investments?.total ?? 0,
           cuentasVista:
             (fs.accountsByType?.checking?.total ?? 0) + (fs.accountsByType?.savings?.total ?? 0),
+          activosDeclarados: fs.summary?.declaredAssets ?? 0,
+          // netWorth ya incluye los activos declarados (ver routes-financial-summary).
           totalPatrimonioNeto: fs.summary?.netWorth ?? 0,
         }
       : null;

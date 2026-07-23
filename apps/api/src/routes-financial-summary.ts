@@ -72,6 +72,23 @@ export async function registerFinancialSummaryRoutes(app: Express): Promise<void
       const totalLiabilities = creditCardDebt + loansTotal;
       const netWorth = totalAssets - totalLiabilities;
 
+      // Activos declarados por el usuario (propiedad, vehículo, cripto, etc.).
+      // Son patrimonio igual que los saldos bancarios, pero viven en otra tabla;
+      // se suman al net worth para que el "Patrimonio neto" del panel sea real y
+      // no solo bancario. La salud financiera calcula su ratio deuda/activos
+      // aparte con estos mismos activos, así que no hay doble conteo.
+      let declaredAssetsTotal = 0;
+      try {
+        const { db, userAssets, eq } = await import("./db/index.js");
+        const assetRows = await db.select().from(userAssets).where(eq(userAssets.userId, userId));
+        declaredAssetsTotal = assetRows.reduce(
+          (sum: number, r: any) => sum + Number(r.estimatedValueClp ?? r.acquisitionCostClp ?? 0),
+          0,
+        );
+      } catch (assetErr) {
+        logger.warn({ assetErr }, "Failed to load declared assets for net worth");
+      }
+
       // ANCLAJE TEMPORAL: las ventanas de "últimos N días/meses" se anclan a la
       // ÚLTIMA fecha con datos del usuario, NO a hoy. Así una cartola histórica
       // (p. ej. may/jun 2025) sigue mostrando ingresos/gastos/tendencias en lugar de
@@ -316,12 +333,19 @@ export async function registerFinancialSummaryRoutes(app: Express): Promise<void
       }
       // -----------------------------------------------------------------------
 
+      // Sumar los activos declarados al patrimonio, consistente tanto con la ruta
+      // normal como con el fallback legacy de arriba (que reescribe los finales).
+      const roundedDeclaredAssets = Math.round(declaredAssetsTotal);
+      finalTotalAssets += roundedDeclaredAssets;
+      finalNetWorth += roundedDeclaredAssets;
+
       res.json({
         summary: {
           totalBalance: finalTotalBalance,
           totalAssets: finalTotalAssets,
           totalLiabilities: finalTotalLiabilities,
           netWorth: finalNetWorth,
+          declaredAssets: roundedDeclaredAssets,
           monthlyIncome: finalMonthlyIncome,
           monthlyExpenses: finalMonthlyExpenses,
           savingsRate: finalSavingsRate,
