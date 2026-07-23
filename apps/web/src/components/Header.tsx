@@ -41,18 +41,19 @@ import { ROUTES } from "@/lib/routes";
 import { useTheme } from "@/lib/useTheme";
 import { FEATURES } from "@/config/features";
 
-// Nav principal: 5 destinos de uso diario. Con 8 items la barra era ilegible;
-// lo secundario (activos, conexiones, admin) vive en el menú del avatar.
+// Nav principal: destinos de uso diario. "Mis activos" subió acá (antes vivía
+// escondido en el menú del avatar); lo demás secundario (conexiones, admin)
+// sigue en ese menú.
 const navItems = [
   { href: ROUTES.panel, label: "Panel", icon: LayoutDashboard },
   { href: ROUTES.movimientos, label: "Movimientos", icon: ArrowLeftRight },
   { href: ROUTES.plan, label: "Plan", icon: FileText },
   { href: ROUTES.saludFinanciera, label: "Salud financiera", icon: HeartPulse },
+  { href: ROUTES.misActivos, label: "Mis activos", icon: Landmark },
   { href: ROUTES.productos, label: "Productos", icon: Store },
 ];
 
 const secondaryNavItems = [
-  { href: ROUTES.misActivos, label: "Mis activos", icon: Landmark },
   { href: ROUTES.conectarDatos, label: "Conectar datos", icon: Activity },
   { href: ROUTES.conexiones, label: "Conexiones", icon: Link2 },
 ];

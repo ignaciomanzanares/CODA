@@ -15,6 +15,7 @@ import CategoryCard from "@/components/dashboard/CategoryCard";
 import CreditScoreCard from "@/components/dashboard/CreditScoreCard";
 import HealthSummaryCard from "@/components/dashboard/HealthSummaryCard";
 import PlanSummaryCard from "@/components/dashboard/PlanSummaryCard";
+import AssetsSummaryCard from "@/components/dashboard/AssetsSummaryCard";
 import RiskScoreCard from "@/components/RiskScoreCard";
 import ScoresPendingCard from "@/components/dashboard/ScoresPendingCard";
 import { useHealthEvaluation } from "@/hooks/useHealthEvaluation";
@@ -316,6 +317,9 @@ export default function Dashboard() {
 
                 {/* Plan financiero — resumen 50/30/20 + metas */}
                 <PlanSummaryCard />
+
+                {/* Activos declarados — resumen + acceso directo a /mis-activos */}
+                <AssetsSummaryCard />
 
                 {/* ── ACTION CARDS — Revenue bridge (en desktop van a la sidebar) ── */}
                 <div className="lg:hidden">
