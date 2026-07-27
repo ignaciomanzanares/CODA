@@ -156,6 +156,10 @@ export async function registerTransactionsInsightsRoutes(app: Express): Promise<
     "restaurantes",
     "salud",
     "ingreso_principal",
+    "honorarios",
+    "devoluciones",
+    "rentas",
+    "otros_ingresos",
     "servicios",
     "otro",
   ]);

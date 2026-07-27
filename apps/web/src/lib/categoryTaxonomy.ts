@@ -33,10 +33,21 @@ export const CATEGORY_TAXONOMY: CategoryTaxonomyEntry[] = [
     icon: Wallet,
     color: "green",
     chartColor: "#10b981",
-    parserCategories: ["ingreso_principal", "transferencia_recibida"],
+    parserCategories: [
+      "ingreso_principal",
+      "honorarios",
+      "transferencia_recibida",
+      "devoluciones",
+      "rentas",
+      "otros_ingresos",
+    ],
     subcategoryLabels: {
       ingreso_principal: "Sueldo / Ingreso principal",
+      honorarios: "Honorarios",
       transferencia_recibida: "Transferencias recibidas",
+      devoluciones: "Devoluciones y reintegros",
+      rentas: "Rentas e inversiones",
+      otros_ingresos: "Otros ingresos",
     },
   },
   {
@@ -151,92 +162,115 @@ export const CATEGORY_TAXONOMY: CategoryTaxonomyEntry[] = [
 ];
 
 /**
- * Vista de 3 "grandes categorías" para el selector de categoría (Movimientos).
- * Sigue el modelo de nivel superior usado por las apps líderes (Mint, YNAB,
- * Monarch): Ingresos / Gastos / Transferencias. Dentro de "Gastos" el orden es
- * Necesidades → Deseos, alineado con el 50/30/20. El ahorro/inversión va con
- * transferencias: es dinero que se mueve/guarda, no que se consume.
- * Cubre TODAS las parserCategories del taxonomy (nada queda fuera del dropdown).
+ * Selector de categoría de Movimientos, SEGÚN EL TIPO del movimiento.
+ * El tipo (ingreso/egreso) ya da la dirección, así que la categoría aporta el
+ * PROPÓSITO:
+ *   • Egresos  → modelo 50/30/20: Necesidades / Deseos / Ahorro (+ Transferencia).
+ *   • Ingresos → fuentes de ingreso.
+ * `canonical` = categoría que se guarda al elegir esa opción; `categories` = las
+ * categorías finas que se muestran con ese label (para derivar el label de una
+ * fila ya categorizada). Así el dashboard conserva el detalle fino.
  */
-export const CATEGORY_MEGA_GROUPS: {
+export interface DisplayCategory {
   label: string;
-  sections: { label?: string; categories: string[] }[];
-}[] = [
+  canonical: string;
+  categories: string[];
+}
+
+export const EXPENSE_DISPLAY: DisplayCategory[] = [
   {
-    label: "Ingresos",
-    sections: [{ categories: ["ingreso_principal", "transferencia_recibida"] }],
-  },
-  {
-    label: "Gastos",
-    sections: [
-      {
-        label: "Necesidades",
-        categories: [
-          "vivienda",
-          "servicios_basicos",
-          "servicios",
-          "alimentacion",
-          "transporte",
-          "salud",
-          "seguros",
-          "educacion",
-          "telecomunicaciones",
-          "deudas",
-        ],
-      },
-      {
-        label: "Deseos",
-        categories: [
-          "restaurantes",
-          "entretenimiento",
-          "diversion",
-          "hobbies",
-          "suscripciones",
-          "comercio",
-          "cuidado_personal",
-          "salud_bienestar",
-          "regalos",
-          "reparaciones",
-          "imprevistos",
-          "otro",
-        ],
-      },
+    label: "Necesidades",
+    canonical: "servicios",
+    categories: [
+      "vivienda",
+      "servicios_basicos",
+      "servicios",
+      "alimentacion",
+      "transporte",
+      "salud",
+      "seguros",
+      "educacion",
+      "telecomunicaciones",
+      "deudas",
     ],
   },
   {
-    label: "Ahorro y transferencias",
-    sections: [{ categories: ["ahorros", "inversiones", "transferencia_enviada"] }],
+    label: "Deseos",
+    canonical: "otro",
+    categories: [
+      "restaurantes",
+      "entretenimiento",
+      "diversion",
+      "hobbies",
+      "suscripciones",
+      "comercio",
+      "cuidado_personal",
+      "salud_bienestar",
+      "regalos",
+      "reparaciones",
+      "imprevistos",
+      "otro",
+    ],
+  },
+  { label: "Ahorro", canonical: "ahorros", categories: ["ahorros", "inversiones"] },
+  {
+    label: "Transferencia",
+    canonical: "transferencia_enviada",
+    categories: ["transferencia_enviada"],
   },
 ];
 
-/** Etiquetas de los 3 grandes buckets, en orden. */
-export const MEGA_BUCKET_LABELS = CATEGORY_MEGA_GROUPS.map((b) => b.label);
+export const INCOME_DISPLAY: DisplayCategory[] = [
+  {
+    label: "Sueldo / Ingreso principal",
+    canonical: "ingreso_principal",
+    categories: ["ingreso_principal"],
+  },
+  { label: "Honorarios", canonical: "honorarios", categories: ["honorarios"] },
+  {
+    label: "Transferencias recibidas",
+    canonical: "transferencia_recibida",
+    categories: ["transferencia_recibida"],
+  },
+  {
+    label: "Devoluciones y reintegros",
+    canonical: "devoluciones",
+    categories: ["devoluciones"],
+  },
+  { label: "Rentas e inversiones", canonical: "rentas", categories: ["rentas"] },
+  { label: "Otros ingresos", canonical: "otros_ingresos", categories: ["otros_ingresos"] },
+];
 
-/** Categoría canónica que se guarda al elegir un bucket en el selector simple. */
-export const MEGA_BUCKET_CANONICAL: Record<string, string> = {
-  Ingresos: "ingreso_principal",
-  Gastos: "otro",
-  "Ahorro y transferencias": "transferencia_enviada",
-};
-
-/** Color del chip por gran bucket (para el selector/etiqueta de Movimientos). */
-export const MEGA_BUCKET_COLORS: Record<string, string> = {
-  Ingresos: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  Gastos: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
-  "Ahorro y transferencias": "bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300",
-};
-
-/** Reverse index: parserCategory → etiqueta de su gran bucket. */
-const _bucketByCategory = new Map<string, string>();
-for (const bucket of CATEGORY_MEGA_GROUPS) {
-  for (const section of bucket.sections) {
-    for (const c of section.categories) _bucketByCategory.set(c, bucket.label);
-  }
+/** Opciones del selector según el tipo del movimiento. */
+export function categoryOptionsForTipo(tipo: "ingreso" | "egreso"): DisplayCategory[] {
+  return tipo === "ingreso" ? INCOME_DISPLAY : EXPENSE_DISPLAY;
 }
 
-/** Devuelve a cuál de los 3 grandes buckets pertenece una categoría fina. */
-export function megaBucketForCategory(cat: string): string {
-  return _bucketByCategory.get(cat) ?? "Gastos";
+const _labelByCatExpense = new Map<string, string>();
+for (const d of EXPENSE_DISPLAY) for (const c of d.categories) _labelByCatExpense.set(c, d.label);
+const _labelByCatIncome = new Map<string, string>();
+for (const d of INCOME_DISPLAY) for (const c of d.categories) _labelByCatIncome.set(c, d.label);
+
+/** Label a mostrar para una fila, según su categoría fina y su tipo. */
+export function displayCategoryLabel(categoria: string, tipo: "ingreso" | "egreso"): string {
+  const map = tipo === "ingreso" ? _labelByCatIncome : _labelByCatExpense;
+  return map.get(categoria) ?? (tipo === "ingreso" ? "Otros ingresos" : "Deseos");
+}
+
+/** Color del chip por label de egreso; los ingresos comparten el verde. */
+const EXPENSE_CHIP_COLORS: Record<string, string> = {
+  Necesidades: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  Deseos: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  Ahorro: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+  Transferencia: "bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300",
+};
+const INCOME_CHIP = "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+
+export function displayCategoryColor(categoria: string, tipo: "ingreso" | "egreso"): string {
+  if (tipo === "ingreso") return INCOME_CHIP;
+  return (
+    EXPENSE_CHIP_COLORS[displayCategoryLabel(categoria, "egreso")] ?? EXPENSE_CHIP_COLORS.Deseos
+  );
 }
 
 /** Reverse index: raw parser category → group key */

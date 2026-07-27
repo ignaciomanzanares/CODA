@@ -129,7 +129,7 @@ export function normalizeMerchant(raw: string): string {
 // ──────────────────────────────────────────────────────────────────────────────
 
 /** Versión del motor — se registra en cada categorización (NCG 502). */
-export const CATEGORIZER_VERSION = "batch10.v4";
+export const CATEGORIZER_VERSION = "batch10.v5";
 
 export type CategoryLabel =
   | "Vivienda"
@@ -151,6 +151,8 @@ export type CategoryLabel =
   | "Transferencias"
   | "Transferencia interna"
   | "Ingresos"
+  | "Honorarios"
+  | "Devoluciones"
   | "Otro";
 
 interface CategoryMeta {
@@ -250,6 +252,18 @@ export const TAXONOMY: Record<CategoryLabel, CategoryMeta> = {
     variability: "variable",
     excluded: true,
     legacy: "ingreso_principal",
+  },
+  Honorarios: {
+    essential: false,
+    variability: "variable",
+    excluded: true,
+    legacy: "honorarios",
+  },
+  Devoluciones: {
+    essential: false,
+    variability: "variable",
+    excluded: true,
+    legacy: "devoluciones",
   },
   Otro: { essential: false, variability: "variable", excluded: false, legacy: "otro" },
 };
@@ -507,8 +521,14 @@ export function isInternalTransferDesc(descripcion: string): boolean {
 }
 
 /** Detecta ingresos (sólo abonos con glosa de remuneración). */
+// Devoluciones/reintegros (abono): SII, Tesorería, reembolsos. Van antes que el
+// ingreso genérico para no confundir una devolución con sueldo.
+const DEVOLUCION_RE =
+  /DEV(?:OL|OLUCION)?\.?\s+(IMP|SII|RENTA|TESOR)|DEVOLUCION|\bREINTEGRO\b|\bREEMBOLSO\b/;
+// Honorarios / trabajo independiente (abono).
+const HONORARIOS_RE = /HONORARIO|BOLETA\s+HONORARIOS|SERVICIOS?\s+PROFESIONAL/;
 const INCOME_RE =
-  /REMUNERACION|\bSUELDO\b|LIQUIDACION|HONORARIO|PAGO\s+SUELDO|\bFINIQUITO\b|\bGRATIFICACION\b|\bAGUINALDO\b|ABONO\s+REMUN|DEV(?:OL|OLUCION)?\.?\s+(IMP|SII|RENTA|TESOR)|DEVOLUCION\s+(DE\s+)?IMPUESTO/;
+  /REMUNERACION|\bSUELDO\b|LIQUIDACION|PAGO\s+SUELDO|\bFINIQUITO\b|\bGRATIFICACION\b|\bAGUINALDO\b|ABONO\s+REMUN/;
 
 function build(
   category: CategoryLabel,
@@ -563,9 +583,11 @@ export function categorize(input: CategorizeInput): CategorizationResult {
     }
   }
 
-  // 3. Ingresos (sólo abonos con glosa explícita de remuneración).
-  if (input.tipo === "abono" && INCOME_RE.test(haystack)) {
-    return build("Ingresos", "income.remuneracion", 0.85);
+  // 3. Ingresos (sólo abonos). Fuentes específicas antes que el sueldo genérico.
+  if (input.tipo === "abono") {
+    if (DEVOLUCION_RE.test(haystack)) return build("Devoluciones", "income.devolucion", 0.9);
+    if (HONORARIOS_RE.test(haystack)) return build("Honorarios", "income.honorarios", 0.85);
+    if (INCOME_RE.test(haystack)) return build("Ingresos", "income.remuneracion", 0.85);
   }
 
   // 4. Desconocido → Otro con baja confianza (no se fuerza).

@@ -25,10 +25,11 @@ import { ArrowUpDown, ArrowUp, ArrowDown, Upload, Download, Trash2 } from "lucid
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
-  MEGA_BUCKET_LABELS,
-  MEGA_BUCKET_CANONICAL,
-  MEGA_BUCKET_COLORS,
-  megaBucketForCategory,
+  INCOME_DISPLAY,
+  EXPENSE_DISPLAY,
+  categoryOptionsForTipo,
+  displayCategoryLabel,
+  displayCategoryColor,
   categoryLabel,
 } from "@/lib/categoryTaxonomy";
 import { useUserDocuments } from "@/hooks/useUserDocuments";
@@ -231,13 +232,15 @@ export default function ParsedTransactionsTable({
     return set;
   }, [allTxs]);
 
-  // Opciones del filtro = los 3 grandes buckets presentes (en orden canónico).
+  // Opciones del filtro = los labels de display presentes (ingreso + egreso),
+  // en orden canónico (primero ingresos, luego egresos).
   const categories = useMemo(() => {
-    const set = new Set<string>();
+    const present = new Set<string>();
     allTxs.forEach((t) => {
-      if (t.categoria) set.add(megaBucketForCategory(t.categoria));
+      if (t.categoria) present.add(displayCategoryLabel(t.categoria, t.tipo));
     });
-    return MEGA_BUCKET_LABELS.filter((b) => set.has(b));
+    const order = [...INCOME_DISPLAY, ...EXPENSE_DISPLAY].map((d) => d.label);
+    return order.filter((l) => present.has(l));
   }, [allTxs]);
 
   // Pendientes por revisar (misma lógica que el badge: flag del backend).
@@ -256,10 +259,10 @@ export default function ParsedTransactionsTable({
     let txs = allTxs;
     if (reviewOnly) txs = txs.filter((t) => t.requiresReview);
     if (typeFilter !== "all") txs = txs.filter((t) => t.tipo === typeFilter);
-    // Acepta filtro por bucket (dropdown) o por categoría fina (drill-down del dashboard vía URL).
+    // Acepta filtro por label de display (dropdown) o por categoría fina (drill-down del dashboard vía URL).
     if (catFilter !== "all")
       txs = txs.filter(
-        (t) => t.categoria === catFilter || megaBucketForCategory(t.categoria) === catFilter,
+        (t) => t.categoria === catFilter || displayCategoryLabel(t.categoria, t.tipo) === catFilter,
       );
     if (productFilter !== "all") txs = txs.filter((t) => t.product === productFilter);
     if (search.trim()) {
@@ -694,51 +697,52 @@ export default function ParsedTransactionsTable({
                           </span>
                         </td>
                         <td className="px-3 py-2 text-center hidden sm:table-cell">
-                          {/* requiresReview = el motor no pudo determinar ni el bucket →
-                              se muestra "Sin categoría" y el usuario lo resuelve con 1
-                              toque entre los 3 grandes. */}
+                          {/* Selector SEGÚN EL TIPO: egreso → Necesidades/Deseos/Ahorro/
+                              Transferencia; ingreso → fuentes de ingreso. requiresReview
+                              (sin clasificar) → "Sin categoría", se resuelve con 1 toque. */}
                           <Select
-                            value={tx.requiresReview ? "" : megaBucketForCategory(tx.categoria)}
-                            onValueChange={(bucket) => {
-                              // Aplica si estaba sin clasificar (cualquier elección lo
-                              // resuelve) o si se cambia a un bucket distinto.
+                            value={
+                              tx.requiresReview ? "" : displayCategoryLabel(tx.categoria, tx.tipo)
+                            }
+                            onValueChange={(label) => {
+                              // Re-elegir el mismo label (misma etiqueta de display) no
+                              // toca la categoría fina; cualquier otro caso guarda el
+                              // canónico de la opción elegida.
                               if (
-                                tx.requiresReview ||
-                                bucket !== megaBucketForCategory(tx.categoria)
+                                !tx.requiresReview &&
+                                label === displayCategoryLabel(tx.categoria, tx.tipo)
                               ) {
-                                updateCategory(
-                                  tx.id,
-                                  MEGA_BUCKET_CANONICAL[bucket] ?? "otro",
-                                  tx.categoria,
-                                );
+                                return;
                               }
+                              const opt = categoryOptionsForTipo(tx.tipo).find(
+                                (o) => o.label === label,
+                              );
+                              if (opt) updateCategory(tx.id, opt.canonical, tx.categoria);
                             }}
                           >
                             <SelectTrigger
                               className={cn(
-                                "h-6 w-auto min-w-[90px] max-w-[170px] px-1.5 text-[10px] font-medium rounded-full inline-flex",
+                                "h-6 w-auto min-w-[90px] max-w-[190px] px-1.5 text-[10px] font-medium rounded-full inline-flex",
                                 tx.requiresReview
                                   ? "border border-dashed border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
                                   : cn(
                                       "border-0 bg-transparent",
-                                      MEGA_BUCKET_COLORS[megaBucketForCategory(tx.categoria)] ??
-                                        CAT_COLORS.otro,
+                                      displayCategoryColor(tx.categoria, tx.tipo),
                                     ),
                               )}
                             >
-                              {/* Texto directo (no SelectValue): con value="" para
-                                  las sin clasificar, SelectValue no renderiza los
-                                  children y el chip salía vacío. */}
+                              {/* Texto directo (no SelectValue): con value="" para las
+                                  sin clasificar, SelectValue no renderiza los children. */}
                               <span className="truncate">
                                 {tx.requiresReview
                                   ? "Sin categoría"
-                                  : megaBucketForCategory(tx.categoria)}
+                                  : displayCategoryLabel(tx.categoria, tx.tipo)}
                               </span>
                             </SelectTrigger>
                             <SelectContent>
-                              {MEGA_BUCKET_LABELS.map((label) => (
-                                <SelectItem key={label} value={label} className="text-xs">
-                                  {label}
+                              {categoryOptionsForTipo(tx.tipo).map((o) => (
+                                <SelectItem key={o.label} value={o.label} className="text-xs">
+                                  {o.label}
                                 </SelectItem>
                               ))}
                             </SelectContent>

@@ -40,6 +40,10 @@ export type TransactionCategory =
   | "restaurantes"
   | "salud"
   | "ingreso_principal"
+  | "honorarios"
+  | "devoluciones"
+  | "rentas"
+  | "otros_ingresos"
   | "servicios"
   | "otro";
 
@@ -365,10 +369,23 @@ export function categorizeTransaction(
   )
     return "transferencia_recibida";
 
+  // ── Devoluciones / reintegros (abono): SII, Tesorería, reembolsos ─────────
+  if (
+    tipo === "abono" &&
+    /DEV(?:OL|OLUCI[OÓ]N)?\.?\s+(IMP|SII|RENTA)|DEVOLUCI[OÓ]N|\bTESORERIA\b|\bREINTEGRO\b|\bREEMBOLSO\b/i.test(
+      u,
+    )
+  )
+    return "devoluciones";
+
+  // ── Honorarios / trabajo independiente (abono) ───────────────────────────
+  if (tipo === "abono" && /HONORARIO|BOLETA\s+HONORARIOS|SERVICIOS?\s+PROFESIONAL/i.test(u))
+    return "honorarios";
+
   // ── Ingresos (sueldos, remuneraciones) ───────────────────────────────────
   if (
     tipo === "abono" &&
-    /REMUNERACI[OÓ]N|SUELDO|LIQUIDACI[OÓ]N|HONORARIO|PAGO\s+SUELDO|PLANILLA|BONIFICACI[OÓ]N|GRATIFICACI[OÓ]N|AGUINALDO|SUBSIDIO|DEV(?:OL|OLUCI[OÓ]N)?\.?\s+(IMP|SII|RENTA)|DEVOLUCI[OÓ]N\s+IMPUESTO|\bTESORERIA\b|RENTA|PAGOS?\s+DESDE\s+BANCO/i.test(
+    /REMUNERACI[OÓ]N|SUELDO|LIQUIDACI[OÓ]N|PAGO\s+SUELDO|PLANILLA|BONIFICACI[OÓ]N|GRATIFICACI[OÓ]N|AGUINALDO|SUBSIDIO|RENTA|PAGOS?\s+DESDE\s+BANCO/i.test(
       u,
     )
   )

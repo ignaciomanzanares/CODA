@@ -199,13 +199,17 @@ describe("categorize — traceability (NCG 502)", () => {
     }
   });
 
-  it("uses categorizer version batch10.v4", () => {
-    expect(CATEGORIZER_VERSION).toBe("batch10.v4");
+  it("uses categorizer version batch10.v5", () => {
+    expect(CATEGORIZER_VERSION).toBe("batch10.v5");
   });
 
-  it("trata una devolución de impuesto (abono) como ingreso, no como pago de impuesto", () => {
+  it("clasifica ingresos por fuente (abono): devolución, honorarios, sueldo", () => {
     const refund = categorize({ descripcion: "DEV IMPUESTO TESORERIA G", tipo: "abono" });
-    expect(refund.category).toBe("Ingresos");
+    expect(refund.category).toBe("Devoluciones");
+    const fees = categorize({ descripcion: "PAGO HONORARIOS SERVICIOS", tipo: "abono" });
+    expect(fees.category).toBe("Honorarios");
+    const salary = categorize({ descripcion: "ABONO REMUNERACION", tipo: "abono" });
+    expect(salary.category).toBe("Ingresos");
     // Un pago de impuesto (cargo) sigue siendo impuesto/servicio público.
     const payment = categorize({ descripcion: "PAGO EN LINEA T.G.R.", tipo: "cargo" });
     expect(payment.category).toBe("Impuestos y servicios públicos");
