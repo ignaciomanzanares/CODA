@@ -219,6 +219,13 @@ export const MEGA_BUCKET_CANONICAL: Record<string, string> = {
   "Ahorro y transferencias": "transferencia_enviada",
 };
 
+/** Color del chip por gran bucket (para el selector/etiqueta de Movimientos). */
+export const MEGA_BUCKET_COLORS: Record<string, string> = {
+  Ingresos: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  Gastos: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
+  "Ahorro y transferencias": "bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300",
+};
+
 /** Reverse index: parserCategory → etiqueta de su gran bucket. */
 const _bucketByCategory = new Map<string, string>();
 for (const bucket of CATEGORY_MEGA_GROUPS) {

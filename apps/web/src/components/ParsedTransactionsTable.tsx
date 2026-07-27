@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   MEGA_BUCKET_LABELS,
   MEGA_BUCKET_CANONICAL,
+  MEGA_BUCKET_COLORS,
   megaBucketForCategory,
   categoryLabel,
 } from "@/lib/categoryTaxonomy";
@@ -231,12 +232,13 @@ export default function ParsedTransactionsTable({
     return set;
   }, [allTxs]);
 
+  // Opciones del filtro = los 3 grandes buckets presentes (en orden canónico).
   const categories = useMemo(() => {
     const set = new Set<string>();
     allTxs.forEach((t) => {
-      if (t.categoria) set.add(t.categoria);
+      if (t.categoria) set.add(megaBucketForCategory(t.categoria));
     });
-    return Array.from(set).sort();
+    return MEGA_BUCKET_LABELS.filter((b) => set.has(b));
   }, [allTxs]);
 
   // Pendientes por revisar (misma lógica que el badge: flag del backend).
@@ -255,7 +257,11 @@ export default function ParsedTransactionsTable({
     let txs = allTxs;
     if (reviewOnly) txs = txs.filter((t) => t.requiresReview);
     if (typeFilter !== "all") txs = txs.filter((t) => t.tipo === typeFilter);
-    if (catFilter !== "all") txs = txs.filter((t) => t.categoria === catFilter);
+    // Acepta filtro por bucket (dropdown) o por categoría fina (drill-down del dashboard vía URL).
+    if (catFilter !== "all")
+      txs = txs.filter(
+        (t) => t.categoria === catFilter || megaBucketForCategory(t.categoria) === catFilter,
+      );
     if (productFilter !== "all") txs = txs.filter((t) => t.product === productFilter);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -546,7 +552,7 @@ export default function ParsedTransactionsTable({
                     <SelectItem value="all">Categoría: todas</SelectItem>
                     {categories.map((c) => (
                       <SelectItem key={c} value={c}>
-                        {categoryLabel(c)}
+                        {c}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -715,13 +721,15 @@ export default function ParsedTransactionsTable({
                           >
                             <SelectTrigger
                               className={cn(
-                                "h-6 w-auto min-w-[90px] max-w-[150px] border-0 bg-transparent px-1.5 text-[10px] font-medium rounded-full inline-flex",
-                                CAT_COLORS[tx.categoria] ?? CAT_COLORS.otro,
+                                "h-6 w-auto min-w-[90px] max-w-[170px] border-0 bg-transparent px-1.5 text-[10px] font-medium rounded-full inline-flex",
+                                MEGA_BUCKET_COLORS[megaBucketForCategory(tx.categoria)] ??
+                                  CAT_COLORS.otro,
                               )}
                             >
-                              {/* Muestra la etiqueta fina (Transporte, Restaurantes…),
-                                  pero el dropdown elige solo entre 3 grandes buckets. */}
-                              <SelectValue>{categoryLabel(tx.categoria)}</SelectValue>
+                              {/* La fila muestra el gran bucket (Ingresos / Gastos /
+                                  Ahorro y transferencias); el dashboard conserva el
+                                  detalle fino. */}
+                              <SelectValue>{megaBucketForCategory(tx.categoria)}</SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {MEGA_BUCKET_LABELS.map((label) => (
