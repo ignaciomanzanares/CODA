@@ -76,16 +76,16 @@ function buildInsights(data: DashboardData): Insight[] {
     const top = expenseGroups[0];
     const pct = Math.round((top.total / totalExpenses) * 100);
     const prev = top.prevMonthTotal;
-    // "Gastos Financieros" puede incluir transferencias/pagos entre cuentas propias
-    // pendientes de reclasificar → suavizar el copy y pedir revisión, sin afirmar de más.
-    const isFinanciero = top.key === "financieros";
-    const concentraText = isFinanciero
+    // "Transferencias" y "Gastos Financieros" pueden incluir pagos/transferencias entre
+    // cuentas propias pendientes de reclasificar → suavizar el copy y pedir revisión.
+    const isTransferOrFinance = top.key === "transferencias" || top.key === "financieros";
+    const concentraText = isTransferOrFinance
       ? `Revisa la categoría ${top.label}: concentra cerca del ${pct}% de tus egresos (${CLP.format(top.total)}). Verifica que no incluya pagos o transferencias entre tus propias cuentas.`
       : `${top.label} concentra el ${pct}% de tus egresos (${CLP.format(top.total)}).`;
 
     if (prev !== null && prev > 0) {
       const change = Math.round(((top.total - prev) / prev) * 100);
-      if (Math.abs(change) >= 10 && !isFinanciero) {
+      if (Math.abs(change) >= 10 && !isTransferOrFinance) {
         out.push({
           type: change > 0 ? "warning" : "positive",
           text: `${top.label}: ${CLP.format(top.total)} — ${change > 0 ? "+" : ""}${change}% versus el mes anterior.`,

@@ -199,8 +199,16 @@ describe("categorize — traceability (NCG 502)", () => {
     }
   });
 
-  it("uses categorizer version batch10.v3", () => {
-    expect(CATEGORIZER_VERSION).toBe("batch10.v3");
+  it("uses categorizer version batch10.v4", () => {
+    expect(CATEGORIZER_VERSION).toBe("batch10.v4");
+  });
+
+  it("trata una devolución de impuesto (abono) como ingreso, no como pago de impuesto", () => {
+    const refund = categorize({ descripcion: "DEV IMPUESTO TESORERIA G", tipo: "abono" });
+    expect(refund.category).toBe("Ingresos");
+    // Un pago de impuesto (cargo) sigue siendo impuesto/servicio público.
+    const payment = categorize({ descripcion: "PAGO EN LINEA T.G.R.", tipo: "cargo" });
+    expect(payment.category).toBe("Impuestos y servicios públicos");
   });
 
   it("exposes essential + recurring tags", () => {

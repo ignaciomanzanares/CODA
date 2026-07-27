@@ -19,12 +19,22 @@ const SEMAFORO_STYLES: Record<Semaforo, { dot: string; bg: string; text: string;
   {
     sano: {
       dot: "bg-emerald-500",
-      bg: "bg-emerald-50",
-      text: "text-emerald-700",
+      bg: "bg-emerald-50 dark:bg-emerald-500/10",
+      text: "text-emerald-700 dark:text-emerald-300",
       label: "Saludable",
     },
-    alerta: { dot: "bg-yellow-500", bg: "bg-yellow-50", text: "text-yellow-700", label: "Alerta" },
-    critico: { dot: "bg-red-500", bg: "bg-red-50", text: "text-red-700", label: "Crítico" },
+    alerta: {
+      dot: "bg-yellow-500",
+      bg: "bg-yellow-50 dark:bg-yellow-500/10",
+      text: "text-yellow-700 dark:text-yellow-300",
+      label: "Alerta",
+    },
+    critico: {
+      dot: "bg-red-500",
+      bg: "bg-red-50 dark:bg-red-500/10",
+      text: "text-red-700 dark:text-red-300",
+      label: "Crítico",
+    },
   };
 
 function semaforoDeudaFlujo(ratio: number): Semaforo {

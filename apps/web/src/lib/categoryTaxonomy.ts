@@ -10,7 +10,7 @@
 //   telecomunicaciones, transferencia_enviada, transferencia_recibida,
 //   comercio, entretenimiento, salud, ingreso_principal, servicios, otro
 
-import { Wallet, Home, User, Gamepad2, Landmark } from "lucide-react";
+import { Wallet, Home, User, Gamepad2, Landmark, ArrowLeftRight, PiggyBank } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { CategoryGroupKey } from "@/types/dashboard";
 
@@ -18,7 +18,7 @@ export interface CategoryTaxonomyEntry {
   key: CategoryGroupKey;
   label: string;
   icon: LucideIcon;
-  color: "green" | "blue" | "purple" | "orange" | "red";
+  color: "green" | "blue" | "purple" | "orange" | "red" | "slate" | "indigo";
   chartColor: string;
   /** Raw parser categories that map to this group */
   parserCategories: string[];
@@ -109,17 +109,43 @@ export const CATEGORY_TAXONOMY: CategoryTaxonomyEntry[] = [
     },
   },
   {
+    // Solo deuda real (pagos de crédito, comisiones): NO transferencias ni ahorro.
+    // Antes esta categoría absorbía transferencia_enviada y ahorro/inversión, lo que
+    // inflaba "Gastos Financieros" al 90% de los egresos con transferencias a terceros.
     key: "financieros",
     label: "Gastos Financieros",
     icon: Landmark,
     color: "red",
     chartColor: "#ef4444",
-    parserCategories: ["transferencia_enviada", "deudas", "inversiones", "ahorros"],
+    parserCategories: ["deudas"],
+    subcategoryLabels: {
+      deudas: "Pago de deudas",
+    },
+  },
+  {
+    // Transferencias enviadas a terceros: mover plata NO es gastarla. Grupo propio,
+    // neutro, para no confundirlo con consumo ni con carga financiera.
+    key: "transferencias",
+    label: "Transferencias",
+    icon: ArrowLeftRight,
+    color: "slate",
+    chartColor: "#64748b",
+    parserCategories: ["transferencia_enviada"],
     subcategoryLabels: {
       transferencia_enviada: "Transferencias enviadas",
-      deudas: "Pago de deudas",
-      inversiones: "Aportes a inversiones",
+    },
+  },
+  {
+    // Aportes a ahorro/inversión: construyen patrimonio, no son un gasto.
+    key: "ahorro",
+    label: "Ahorro e inversión",
+    icon: PiggyBank,
+    color: "indigo",
+    chartColor: "#6366f1",
+    parserCategories: ["ahorros", "inversiones"],
+    subcategoryLabels: {
       ahorros: "Aportes a ahorros",
+      inversiones: "Aportes a inversiones",
     },
   },
 ];

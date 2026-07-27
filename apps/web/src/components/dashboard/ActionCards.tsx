@@ -18,7 +18,7 @@ import {
   Repeat2,
   ListChecks,
 } from "lucide-react";
-import type { DashboardData, CategoryGroup } from "@/types/dashboard";
+import type { DashboardData } from "@/types/dashboard";
 
 const fmtCLP = (n: number) =>
   new Intl.NumberFormat("es-CL", {
@@ -26,23 +26,6 @@ const fmtCLP = (n: number) =>
     currency: "CLP",
     maximumFractionDigits: 0,
   }).format(n);
-
-const TRANSFER_SUBCATEGORIES = new Set([
-  "transferencia_enviada",
-  "transferencias_enviadas",
-  "Transferencias enviadas",
-]);
-
-function transferShare(group: CategoryGroup): number {
-  if (group.total <= 0) return 0;
-  const transferTotal = group.subcategories
-    .filter(
-      (subcategory) =>
-        TRANSFER_SUBCATEGORIES.has(subcategory.key) || /transferencia/i.test(subcategory.label),
-    )
-    .reduce((sum, subcategory) => sum + subcategory.total, 0);
-  return transferTotal / group.total;
-}
 
 // ── Recommendation types ──────────────────────────────────────────────────────
 
@@ -176,7 +159,27 @@ function generateRecommendations(data: DashboardData): ActionRecommendation[] {
     });
   }
 
-  // 2. High financial expenses (deudas) → suggest portabilidad or consolidation
+  // 2a. Transferencias altas a terceros → revisar/reclasificar (no es consumo ni deuda).
+  const transferencias = findGroup("transferencias");
+  if (
+    transferencias &&
+    transferencias.total > 0 &&
+    transferencias.pctOfIncome != null &&
+    transferencias.pctOfIncome > 25
+  ) {
+    recs.push({
+      id: "high-transfers",
+      icon: Repeat2,
+      color: "amber",
+      title: `${transferencias.pctOfIncome}% de tu ingreso va a transferencias y pagos`,
+      body: "Revisa si corresponden a compromisos recurrentes, pagos de tarjeta o transferencias entre tus propias cuentas que conviene reclasificar.",
+      cta: "Ver detalle",
+      href: "/movimientos?categoria=transferencia_enviada",
+      priority: 86,
+    });
+  }
+
+  // 2b. Carga financiera real (deuda) → portabilidad o consolidación.
   const financieros = findGroup("financieros");
   if (
     financieros &&
@@ -184,29 +187,16 @@ function generateRecommendations(data: DashboardData): ActionRecommendation[] {
     financieros.pctOfIncome != null &&
     financieros.pctOfIncome > 25
   ) {
-    if (transferShare(financieros) >= 0.5) {
-      recs.push({
-        id: "high-transfers",
-        icon: Repeat2,
-        color: "amber",
-        title: `${financieros.pctOfIncome}% de tu ingreso va a transferencias y pagos`,
-        body: "Revisa si corresponden a compromisos recurrentes, pagos de tarjeta o gastos que conviene reclasificar.",
-        cta: "Ver detalle",
-        href: "/movimientos?categoria=transferencia_enviada",
-        priority: 86,
-      });
-    } else {
-      recs.push({
-        id: "high-debt",
-        icon: Repeat2,
-        color: "red",
-        title: `Revisa tu carga financiera (~${financieros.pctOfIncome}% de tu ingreso)`,
-        body: "La categoría Gastos Financieros puede incluir pagos o transferencias entre tus cuentas. Si es deuda real, consolidar o portar a una tasa menor puede ayudar.",
-        cta: "Ver opciones de portabilidad",
-        href: "/productos?tab=portabilidad",
-        priority: 90,
-      });
-    }
+    recs.push({
+      id: "high-debt",
+      icon: Repeat2,
+      color: "red",
+      title: `Revisa tu carga financiera (~${financieros.pctOfIncome}% de tu ingreso)`,
+      body: "Si es deuda real, consolidar o portar a una tasa menor puede ayudar.",
+      cta: "Ver opciones de portabilidad",
+      href: "/productos?tab=portabilidad",
+      priority: 90,
+    });
   }
 
   // 3. High essential expenses → suggest switching accounts to lower costs

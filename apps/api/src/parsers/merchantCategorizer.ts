@@ -129,7 +129,7 @@ export function normalizeMerchant(raw: string): string {
 // ──────────────────────────────────────────────────────────────────────────────
 
 /** Versión del motor — se registra en cada categorización (NCG 502). */
-export const CATEGORIZER_VERSION = "batch10.v3";
+export const CATEGORIZER_VERSION = "batch10.v4";
 
 export type CategoryLabel =
   | "Vivienda"
@@ -334,6 +334,9 @@ const RULES: Rule[] = [
     id: "cl.impuestos.tgr",
     category: "Impuestos y servicios públicos",
     re: /\bIMPUESTOS?\b|\bT\.?G\.?R\b|TESORERIA|\bS\.?I\.?I\b|PREVIRED|CONTRIBUCIONES|PERMISO\s+DE?\s*CIRCULACION|REGISTRO\s+CIVIL|\bMUNICIPALIDAD\b|PATENTE\s+(COMERCIAL|MUNICIPAL)/,
+    // Una DEVOLUCIÓN de impuesto/SII/renta es un ABONO (ingreso), no un pago de
+    // impuesto. Se excluye acá para que caiga en INCOME_RE (ver categorize()).
+    not: /DEV(?:OL|OLUCION)?\.?\s+(IMP|SII|RENTA|TESOR)|DEVOLUCION\s+(DE\s+)?IMPUESTO/i,
     confidence: 0.9,
   },
 
@@ -505,7 +508,7 @@ export function isInternalTransferDesc(descripcion: string): boolean {
 
 /** Detecta ingresos (sólo abonos con glosa de remuneración). */
 const INCOME_RE =
-  /REMUNERACION|\bSUELDO\b|LIQUIDACION|HONORARIO|PAGO\s+SUELDO|\bFINIQUITO\b|\bGRATIFICACION\b|\bAGUINALDO\b|ABONO\s+REMUN/;
+  /REMUNERACION|\bSUELDO\b|LIQUIDACION|HONORARIO|PAGO\s+SUELDO|\bFINIQUITO\b|\bGRATIFICACION\b|\bAGUINALDO\b|ABONO\s+REMUN|DEV(?:OL|OLUCION)?\.?\s+(IMP|SII|RENTA|TESOR)|DEVOLUCION\s+(DE\s+)?IMPUESTO/;
 
 function build(
   category: CategoryLabel,

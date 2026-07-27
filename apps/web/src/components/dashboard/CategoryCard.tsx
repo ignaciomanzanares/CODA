@@ -26,6 +26,8 @@ const CHART_COLORS: Record<string, string> = {
   purple: "#8b5cf6",
   orange: "#f59e0b",
   red: "#ef4444",
+  slate: "#64748b",
+  indigo: "#6366f1",
 };
 
 /** All valid categories flattened from taxonomy for the recategorize picker */

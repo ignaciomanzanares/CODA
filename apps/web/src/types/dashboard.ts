@@ -28,12 +28,12 @@ export interface Subcategory {
   transactions: DashboardTransaction[];
 }
 
-/** One of the 5 collapsible category cards */
+/** One of the collapsible category cards */
 export interface CategoryGroup {
   key: CategoryGroupKey;
   label: string;
   icon: LucideIcon;
-  color: "green" | "blue" | "purple" | "orange" | "red";
+  color: "green" | "blue" | "purple" | "orange" | "red" | "slate" | "indigo";
   total: number; // CLP sum of all subcategories
   prevMonthTotal: number | null; // CLP sum from previous month (null if no data)
   pctOfIncome: number | null; // 0-100; null cuando el ingreso no es medible (solo TC)
@@ -44,7 +44,8 @@ export interface CategoryGroup {
   topTransactions: DashboardTransaction[];
 }
 
-export type CategoryGroupKey = "ingresos" | "esenciales" | "personales" | "ocio" | "financieros";
+export type CategoryGroupKey =
+  "ingresos" | "esenciales" | "personales" | "ocio" | "financieros" | "transferencias" | "ahorro";
 
 /** Donut segment for the flow chart */
 export interface FlowSegment {
