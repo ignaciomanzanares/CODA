@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -692,25 +691,21 @@ export default function ParsedTransactionsTable({
                                 interna
                               </span>
                             )}
-                            {tx.requiresReview && (
-                              <Badge
-                                variant="outline"
-                                className="h-5 rounded-full border-amber-200 bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
-                                title="Categoría incierta — revísala para mejorar el diccionario"
-                              >
-                                Revisar categoría
-                              </Badge>
-                            )}
                           </span>
                         </td>
                         <td className="px-3 py-2 text-center hidden sm:table-cell">
+                          {/* requiresReview = el motor no pudo determinar ni el bucket →
+                              se muestra "Sin categoría" y el usuario lo resuelve con 1
+                              toque entre los 3 grandes. */}
                           <Select
-                            value={megaBucketForCategory(tx.categoria)}
+                            value={tx.requiresReview ? "" : megaBucketForCategory(tx.categoria)}
                             onValueChange={(bucket) => {
-                              // Selector simplificado: solo 3 grandes buckets. Al
-                              // elegir uno distinto se guarda su categoría canónica;
-                              // re-elegir el mismo bucket no toca la categoría fina.
-                              if (bucket !== megaBucketForCategory(tx.categoria)) {
+                              // Aplica si estaba sin clasificar (cualquier elección lo
+                              // resuelve) o si se cambia a un bucket distinto.
+                              if (
+                                tx.requiresReview ||
+                                bucket !== megaBucketForCategory(tx.categoria)
+                              ) {
                                 updateCategory(
                                   tx.id,
                                   MEGA_BUCKET_CANONICAL[bucket] ?? "otro",
@@ -721,15 +716,21 @@ export default function ParsedTransactionsTable({
                           >
                             <SelectTrigger
                               className={cn(
-                                "h-6 w-auto min-w-[90px] max-w-[170px] border-0 bg-transparent px-1.5 text-[10px] font-medium rounded-full inline-flex",
-                                MEGA_BUCKET_COLORS[megaBucketForCategory(tx.categoria)] ??
-                                  CAT_COLORS.otro,
+                                "h-6 w-auto min-w-[90px] max-w-[170px] px-1.5 text-[10px] font-medium rounded-full inline-flex",
+                                tx.requiresReview
+                                  ? "border border-dashed border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+                                  : cn(
+                                      "border-0 bg-transparent",
+                                      MEGA_BUCKET_COLORS[megaBucketForCategory(tx.categoria)] ??
+                                        CAT_COLORS.otro,
+                                    ),
                               )}
                             >
-                              {/* La fila muestra el gran bucket (Ingresos / Gastos /
-                                  Ahorro y transferencias); el dashboard conserva el
-                                  detalle fino. */}
-                              <SelectValue>{megaBucketForCategory(tx.categoria)}</SelectValue>
+                              <SelectValue>
+                                {tx.requiresReview
+                                  ? "Sin categoría"
+                                  : megaBucketForCategory(tx.categoria)}
+                              </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {MEGA_BUCKET_LABELS.map((label) => (

@@ -33,10 +33,14 @@ export function isManualCategory(tx: ReviewableTx): boolean {
 }
 
 /**
- * ¿La transacción requiere revisión manual de categoría?
- * Criterios (equivalentes al badge actual + exclusión de manuales):
- *  - categoría vacía / "otro" / "otros" (acepta slug o etiqueta, case-insensitive);
- *  - confianza por debajo del umbral;
+ * ¿La transacción quedó SIN CLASIFICAR? (el motor no pudo determinar ni siquiera
+ * el gran bucket → se muestra como "Sin categoría" y es lo único que requiere que
+ * el usuario intervenga).
+ *
+ * Con el selector de 3 grandes buckets, una categoría fina de baja confianza
+ * (p. ej. "restaurantes" @ 0.4) igual tiene un bucket claro (Gastos), así que NO
+ * se considera sin clasificar. Solo cuentan las genuinamente no matcheadas:
+ *  - categoría vacía / "otro" / "otros";
  *  - regla de respaldo explícita ("fallback.*" / "unknown").
  * Las correcciones manuales NUNCA requieren revisión.
  */
@@ -47,13 +51,6 @@ export function requiresReview(tx: ReviewableTx): boolean {
     .trim()
     .toLowerCase();
   if (cat === "" || cat === "otro" || cat === "otros") return true;
-
-  if (
-    typeof tx.categoryConfidence === "number" &&
-    tx.categoryConfidence < REVIEW_CONFIDENCE_THRESHOLD
-  ) {
-    return true;
-  }
 
   const rule = String(tx.categoryRuleId ?? "").toLowerCase();
   if (rule.startsWith("fallback") || rule.includes("unknown")) return true;
