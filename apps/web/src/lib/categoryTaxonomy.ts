@@ -209,6 +209,29 @@ export const CATEGORY_MEGA_GROUPS: {
   },
 ];
 
+/** Etiquetas de los 3 grandes buckets, en orden. */
+export const MEGA_BUCKET_LABELS = CATEGORY_MEGA_GROUPS.map((b) => b.label);
+
+/** Categoría canónica que se guarda al elegir un bucket en el selector simple. */
+export const MEGA_BUCKET_CANONICAL: Record<string, string> = {
+  Ingresos: "ingreso_principal",
+  Gastos: "otro",
+  "Ahorro y transferencias": "transferencia_enviada",
+};
+
+/** Reverse index: parserCategory → etiqueta de su gran bucket. */
+const _bucketByCategory = new Map<string, string>();
+for (const bucket of CATEGORY_MEGA_GROUPS) {
+  for (const section of bucket.sections) {
+    for (const c of section.categories) _bucketByCategory.set(c, bucket.label);
+  }
+}
+
+/** Devuelve a cuál de los 3 grandes buckets pertenece una categoría fina. */
+export function megaBucketForCategory(cat: string): string {
+  return _bucketByCategory.get(cat) ?? "Gastos";
+}
+
 /** Reverse index: raw parser category → group key */
 const _reverseMap = new Map<string, CategoryGroupKey>();
 for (const group of CATEGORY_TAXONOMY) {

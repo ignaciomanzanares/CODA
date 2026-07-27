@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback, useEffect, Fragment } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, API_URL } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -13,8 +13,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  SelectGroup,
-  SelectLabel,
 } from "@/components/ui/select";
 import {
   Dialog,
@@ -27,7 +25,12 @@ import {
 import { ArrowUpDown, ArrowUp, ArrowDown, Upload, Download, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { CATEGORY_MEGA_GROUPS, categoryLabel } from "@/lib/categoryTaxonomy";
+import {
+  MEGA_BUCKET_LABELS,
+  MEGA_BUCKET_CANONICAL,
+  megaBucketForCategory,
+  categoryLabel,
+} from "@/lib/categoryTaxonomy";
 import { useUserDocuments } from "@/hooks/useUserDocuments";
 import DocumentManager from "@/components/DocumentManager";
 
@@ -696,41 +699,35 @@ export default function ParsedTransactionsTable({
                         </td>
                         <td className="px-3 py-2 text-center hidden sm:table-cell">
                           <Select
-                            value={tx.categoria}
-                            onValueChange={(val) => updateCategory(tx.id, val, tx.categoria)}
+                            value={megaBucketForCategory(tx.categoria)}
+                            onValueChange={(bucket) => {
+                              // Selector simplificado: solo 3 grandes buckets. Al
+                              // elegir uno distinto se guarda su categoría canónica;
+                              // re-elegir el mismo bucket no toca la categoría fina.
+                              if (bucket !== megaBucketForCategory(tx.categoria)) {
+                                updateCategory(
+                                  tx.id,
+                                  MEGA_BUCKET_CANONICAL[bucket] ?? "otro",
+                                  tx.categoria,
+                                );
+                              }
+                            }}
                           >
                             <SelectTrigger
                               className={cn(
-                                "h-6 w-auto min-w-[90px] max-w-[130px] border-0 bg-transparent px-1.5 text-[10px] font-medium rounded-full inline-flex",
+                                "h-6 w-auto min-w-[90px] max-w-[150px] border-0 bg-transparent px-1.5 text-[10px] font-medium rounded-full inline-flex",
                                 CAT_COLORS[tx.categoria] ?? CAT_COLORS.otro,
                               )}
                             >
+                              {/* Muestra la etiqueta fina (Transporte, Restaurantes…),
+                                  pero el dropdown elige solo entre 3 grandes buckets. */}
                               <SelectValue>{categoryLabel(tx.categoria)}</SelectValue>
                             </SelectTrigger>
-                            {/* 3 grandes categorías (Ingresos / Gastos / Ahorro y
-                                transferencias); Gastos se subdivide en Necesidades
-                                y Deseos (50/30/20). */}
-                            <SelectContent className="max-h-[320px]">
-                              {CATEGORY_MEGA_GROUPS.map((group) => (
-                                <SelectGroup key={group.label}>
-                                  <SelectLabel className="text-[10px] font-semibold uppercase tracking-wide text-foreground">
-                                    {group.label}
-                                  </SelectLabel>
-                                  {group.sections.map((section, i) => (
-                                    <Fragment key={section.label ?? i}>
-                                      {section.label && (
-                                        <SelectLabel className="pl-4 text-[10px] font-normal normal-case text-muted-foreground">
-                                          {section.label}
-                                        </SelectLabel>
-                                      )}
-                                      {section.categories.map((c) => (
-                                        <SelectItem key={c} value={c} className="text-xs pl-6">
-                                          {categoryLabel(c)}
-                                        </SelectItem>
-                                      ))}
-                                    </Fragment>
-                                  ))}
-                                </SelectGroup>
+                            <SelectContent>
+                              {MEGA_BUCKET_LABELS.map((label) => (
+                                <SelectItem key={label} value={label} className="text-xs">
+                                  {label}
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
