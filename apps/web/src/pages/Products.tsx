@@ -255,7 +255,7 @@ function LeadCaptureDialog({
         if (!v) setTimeout(resetFlow, 300);
       }}
     >
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[92vh] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <DialogHeader>
           <DialogTitle className="text-lg">Solicitar {product.name}</DialogTitle>
         </DialogHeader>
@@ -284,11 +284,11 @@ function LeadCaptureDialog({
           </div>
         ) : step === "contract" ? (
           <div className="space-y-4">
-            {/* Documento de contrato (borrador demostrativo) */}
-            <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-[46vh] overflow-y-auto text-sm">
+            {/* Documento de contrato */}
+            <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm">
               <div className="mb-3 border-b border-border pb-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Contrato de apertura · borrador
+                  Contrato de apertura
                 </p>
                 <p className="mt-0.5 text-base font-bold text-foreground">{product.name}</p>
                 <p className="text-xs text-muted-foreground">{product.institution}</p>
