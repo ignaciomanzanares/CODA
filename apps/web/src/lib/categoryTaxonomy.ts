@@ -158,43 +158,54 @@ export const CATEGORY_TAXONOMY: CategoryTaxonomyEntry[] = [
  * transferencias: es dinero que se mueve/guarda, no que se consume.
  * Cubre TODAS las parserCategories del taxonomy (nada queda fuera del dropdown).
  */
-export const CATEGORY_MEGA_GROUPS: { label: string; categories: string[] }[] = [
+export const CATEGORY_MEGA_GROUPS: {
+  label: string;
+  sections: { label?: string; categories: string[] }[];
+}[] = [
   {
     label: "Ingresos",
-    categories: ["ingreso_principal", "transferencia_recibida"],
+    sections: [{ categories: ["ingreso_principal", "transferencia_recibida"] }],
   },
   {
     label: "Gastos",
-    categories: [
-      // Necesidades (50/30/20)
-      "vivienda",
-      "servicios_basicos",
-      "servicios",
-      "alimentacion",
-      "transporte",
-      "salud",
-      "seguros",
-      "educacion",
-      "telecomunicaciones",
-      "deudas",
-      // Deseos (50/30/20)
-      "restaurantes",
-      "entretenimiento",
-      "diversion",
-      "hobbies",
-      "suscripciones",
-      "comercio",
-      "cuidado_personal",
-      "salud_bienestar",
-      "regalos",
-      "reparaciones",
-      "imprevistos",
-      "otro",
+    sections: [
+      {
+        label: "Necesidades",
+        categories: [
+          "vivienda",
+          "servicios_basicos",
+          "servicios",
+          "alimentacion",
+          "transporte",
+          "salud",
+          "seguros",
+          "educacion",
+          "telecomunicaciones",
+          "deudas",
+        ],
+      },
+      {
+        label: "Deseos",
+        categories: [
+          "restaurantes",
+          "entretenimiento",
+          "diversion",
+          "hobbies",
+          "suscripciones",
+          "comercio",
+          "cuidado_personal",
+          "salud_bienestar",
+          "regalos",
+          "reparaciones",
+          "imprevistos",
+          "otro",
+        ],
+      },
     ],
   },
   {
     label: "Ahorro y transferencias",
-    categories: ["ahorros", "inversiones", "transferencia_enviada"],
+    sections: [{ categories: ["ahorros", "inversiones", "transferencia_enviada"] }],
   },
 ];
 

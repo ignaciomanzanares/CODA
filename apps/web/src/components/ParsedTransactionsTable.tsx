@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect, Fragment } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, API_URL } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -708,18 +708,27 @@ export default function ParsedTransactionsTable({
                               <SelectValue>{categoryLabel(tx.categoria)}</SelectValue>
                             </SelectTrigger>
                             {/* 3 grandes categorías (Ingresos / Gastos / Ahorro y
-                                transferencias) con las subcategorías adentro, en
-                                vez de una lista plana. */}
+                                transferencias); Gastos se subdivide en Necesidades
+                                y Deseos (50/30/20). */}
                             <SelectContent className="max-h-[320px]">
                               {CATEGORY_MEGA_GROUPS.map((group) => (
                                 <SelectGroup key={group.label}>
-                                  <SelectLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                  <SelectLabel className="text-[10px] font-semibold uppercase tracking-wide text-foreground">
                                     {group.label}
                                   </SelectLabel>
-                                  {group.categories.map((c) => (
-                                    <SelectItem key={c} value={c} className="text-xs pl-6">
-                                      {categoryLabel(c)}
-                                    </SelectItem>
+                                  {group.sections.map((section, i) => (
+                                    <Fragment key={section.label ?? i}>
+                                      {section.label && (
+                                        <SelectLabel className="pl-4 text-[10px] font-normal normal-case text-muted-foreground">
+                                          {section.label}
+                                        </SelectLabel>
+                                      )}
+                                      {section.categories.map((c) => (
+                                        <SelectItem key={c} value={c} className="text-xs pl-6">
+                                          {categoryLabel(c)}
+                                        </SelectItem>
+                                      ))}
+                                    </Fragment>
                                   ))}
                                 </SelectGroup>
                               ))}
