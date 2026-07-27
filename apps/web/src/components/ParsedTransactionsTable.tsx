@@ -726,11 +726,14 @@ export default function ParsedTransactionsTable({
                                     ),
                               )}
                             >
-                              <SelectValue>
+                              {/* Texto directo (no SelectValue): con value="" para
+                                  las sin clasificar, SelectValue no renderiza los
+                                  children y el chip salía vacío. */}
+                              <span className="truncate">
                                 {tx.requiresReview
                                   ? "Sin categoría"
                                   : megaBucketForCategory(tx.categoria)}
-                              </SelectValue>
+                              </span>
                             </SelectTrigger>
                             <SelectContent>
                               {MEGA_BUCKET_LABELS.map((label) => (
