@@ -352,7 +352,7 @@ export default function Movimientos() {
         )}
 
         {/* Tab bar */}
-        <div className="flex gap-1 border-b border-border overflow-x-auto">
+        <div className="flex gap-1 border-b border-border overflow-x-auto scrollbar-none">
           {TABS.map(({ id, label, icon: Icon, soon }) => (
             <button
               key={id}

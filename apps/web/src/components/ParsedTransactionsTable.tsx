@@ -13,6 +13,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
 } from "@/components/ui/select";
 import {
   Dialog,
@@ -83,10 +85,6 @@ const formatDate = (s: string) => {
     ? s
     : d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
 };
-
-// ── Category meta (single source of truth: categoryTaxonomy.ts) ──────────────
-/** All valid categories for the dropdown, grouped by taxonomy */
-const ALL_CATEGORIES = CATEGORY_TAXONOMY.flatMap((g) => g.parserCategories);
 
 const CAT_COLORS: Record<string, string> = {
   // Gastos esenciales
@@ -709,11 +707,21 @@ export default function ParsedTransactionsTable({
                             >
                               <SelectValue>{categoryLabel(tx.categoria)}</SelectValue>
                             </SelectTrigger>
-                            <SelectContent>
-                              {ALL_CATEGORIES.map((c) => (
-                                <SelectItem key={c} value={c} className="text-xs">
-                                  {categoryLabel(c)}
-                                </SelectItem>
+                            {/* Agrupado por las grandes categorías del taxonomy
+                                (Ingresos, Esenciales, Personales, …) con las
+                                subcategorías adentro, en vez de una lista plana. */}
+                            <SelectContent className="max-h-[320px]">
+                              {CATEGORY_TAXONOMY.map((group) => (
+                                <SelectGroup key={group.key}>
+                                  <SelectLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                    {group.label}
+                                  </SelectLabel>
+                                  {group.parserCategories.map((c) => (
+                                    <SelectItem key={c} value={c} className="text-xs pl-6">
+                                      {categoryLabel(c)}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
                               ))}
                             </SelectContent>
                           </Select>

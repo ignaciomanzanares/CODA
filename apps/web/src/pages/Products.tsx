@@ -50,7 +50,6 @@ import {
   Send,
   Loader2,
   PartyPopper,
-  PenLine,
   ArrowRight,
 } from "lucide-react";
 
@@ -187,10 +186,9 @@ function LeadCaptureDialog({
   const [amount, setAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  // Paso del flujo: datos → contrato (firma) → confirmación.
+  // Paso del flujo: datos → contrato (aceptación) → confirmación.
   const [step, setStep] = useState<"form" | "contract">("form");
   const [accepted, setAccepted] = useState(false);
-  const [signature, setSignature] = useState("");
 
   const holderName =
     (user as { name?: string; email?: string } | null)?.name ||
@@ -208,16 +206,16 @@ function LeadCaptureDialog({
     setStep("contract");
   };
 
-  // Paso 2 → 3: firma. Registra el interés (best-effort: si el backend falla,
-  // igual mostramos la confirmación — la firma del contrato ya es el acto del usuario).
+  // Paso 2 → 3: aceptación. Registra el interés (best-effort: si el backend falla,
+  // igual mostramos la confirmación — aceptar el contrato ya es el acto del usuario).
   const handleSign = async () => {
-    if (!accepted || signature.trim().length < 3) return;
+    if (!accepted) return;
     setSubmitting(true);
     try {
       await applyToProduct(Number(product.id), {
         purpose: purpose || undefined,
         requestedAmount: amount ? parseInt(amount, 10) : undefined,
-        additionalInfo: { signedAs: signature.trim(), acceptedContract: true },
+        additionalInfo: { acceptedContract: true },
       }).catch(() => {});
       setSubmitted(true);
       toast({
@@ -233,7 +231,6 @@ function LeadCaptureDialog({
     setSubmitted(false);
     setStep("form");
     setAccepted(false);
-    setSignature("");
     setPurpose("");
     setAmount("");
   };
@@ -336,12 +333,9 @@ function LeadCaptureDialog({
                 </li>
                 <li>El titular declara que la información entregada es veraz.</li>
               </ol>
-              <p className="mt-3 text-[10px] italic text-muted-foreground">
-                Documento demostrativo. No constituye un contrato vinculante.
-              </p>
             </div>
 
-            {/* Aceptación + firma */}
+            {/* Aceptación */}
             <label className="flex items-start gap-2.5 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -353,18 +347,6 @@ function LeadCaptureDialog({
                 He leído y acepto los términos y condiciones del contrato.
               </span>
             </label>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="signature">Firma digital</Label>
-              <Input
-                id="signature"
-                placeholder="Escribe tu nombre completo para firmar"
-                value={signature}
-                onChange={(e) => setSignature(e.target.value)}
-                className="font-signature text-base"
-                style={{ fontStyle: "italic" }}
-              />
-            </div>
 
             <div className="flex gap-2 pt-1">
               <Button
@@ -380,15 +362,15 @@ function LeadCaptureDialog({
                 type="button"
                 className="flex-1 gap-2"
                 onClick={handleSign}
-                disabled={submitting || !accepted || signature.trim().length < 3}
+                disabled={submitting || !accepted}
               >
                 {submitting ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Firmando...
+                    <Loader2 className="h-4 w-4 animate-spin" /> Enviando...
                   </>
                 ) : (
                   <>
-                    <PenLine className="h-4 w-4" /> Firmar y solicitar
+                    <CheckCircle2 className="h-4 w-4" /> Aceptar y solicitar
                   </>
                 )}
               </Button>
