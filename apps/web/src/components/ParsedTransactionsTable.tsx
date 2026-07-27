@@ -27,7 +27,7 @@ import {
 import { ArrowUpDown, ArrowUp, ArrowDown, Upload, Download, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { CATEGORY_TAXONOMY, categoryLabel } from "@/lib/categoryTaxonomy";
+import { CATEGORY_MEGA_GROUPS, categoryLabel } from "@/lib/categoryTaxonomy";
 import { useUserDocuments } from "@/hooks/useUserDocuments";
 import DocumentManager from "@/components/DocumentManager";
 
@@ -707,16 +707,16 @@ export default function ParsedTransactionsTable({
                             >
                               <SelectValue>{categoryLabel(tx.categoria)}</SelectValue>
                             </SelectTrigger>
-                            {/* Agrupado por las grandes categorías del taxonomy
-                                (Ingresos, Esenciales, Personales, …) con las
-                                subcategorías adentro, en vez de una lista plana. */}
+                            {/* 3 grandes categorías (Ingresos / Gastos / Ahorro y
+                                transferencias) con las subcategorías adentro, en
+                                vez de una lista plana. */}
                             <SelectContent className="max-h-[320px]">
-                              {CATEGORY_TAXONOMY.map((group) => (
-                                <SelectGroup key={group.key}>
+                              {CATEGORY_MEGA_GROUPS.map((group) => (
+                                <SelectGroup key={group.label}>
                                   <SelectLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
                                     {group.label}
                                   </SelectLabel>
-                                  {group.parserCategories.map((c) => (
+                                  {group.categories.map((c) => (
                                     <SelectItem key={c} value={c} className="text-xs pl-6">
                                       {categoryLabel(c)}
                                     </SelectItem>

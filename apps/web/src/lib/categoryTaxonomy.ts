@@ -150,6 +150,54 @@ export const CATEGORY_TAXONOMY: CategoryTaxonomyEntry[] = [
   },
 ];
 
+/**
+ * Vista de 3 "grandes categorías" para el selector de categoría (Movimientos).
+ * Sigue el modelo de nivel superior usado por las apps líderes (Mint, YNAB,
+ * Monarch): Ingresos / Gastos / Transferencias. Dentro de "Gastos" el orden es
+ * Necesidades → Deseos, alineado con el 50/30/20. El ahorro/inversión va con
+ * transferencias: es dinero que se mueve/guarda, no que se consume.
+ * Cubre TODAS las parserCategories del taxonomy (nada queda fuera del dropdown).
+ */
+export const CATEGORY_MEGA_GROUPS: { label: string; categories: string[] }[] = [
+  {
+    label: "Ingresos",
+    categories: ["ingreso_principal", "transferencia_recibida"],
+  },
+  {
+    label: "Gastos",
+    categories: [
+      // Necesidades (50/30/20)
+      "vivienda",
+      "servicios_basicos",
+      "servicios",
+      "alimentacion",
+      "transporte",
+      "salud",
+      "seguros",
+      "educacion",
+      "telecomunicaciones",
+      "deudas",
+      // Deseos (50/30/20)
+      "restaurantes",
+      "entretenimiento",
+      "diversion",
+      "hobbies",
+      "suscripciones",
+      "comercio",
+      "cuidado_personal",
+      "salud_bienestar",
+      "regalos",
+      "reparaciones",
+      "imprevistos",
+      "otro",
+    ],
+  },
+  {
+    label: "Ahorro y transferencias",
+    categories: ["ahorros", "inversiones", "transferencia_enviada"],
+  },
+];
+
 /** Reverse index: raw parser category → group key */
 const _reverseMap = new Map<string, CategoryGroupKey>();
 for (const group of CATEGORY_TAXONOMY) {
