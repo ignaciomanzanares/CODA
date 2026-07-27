@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Switch, Route, Redirect } from "wouter";
 import { ROUTES } from "@/lib/routes";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -85,6 +85,37 @@ const VerificarEmail = lazy(() => import("@/pages/VerificarEmail"));
 const MisActivos = lazy(() => import("@/pages/MisActivos"));
 const UniversalUploadDrawer = lazy(() => import("@/components/UniversalUploadDrawer"));
 
+// Prefetch de los chunks de las rutas de uso diario cuando el navegador está
+// ocioso, para que cambiar de página sea instantáneo (sin flash del loader).
+// No bloquea el arranque: corre en requestIdleCallback tras el primer render.
+function RoutePrefetch() {
+  useEffect(() => {
+    type IdleWin = Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    const w = window as IdleWin;
+    const schedule = (cb: () => void): number =>
+      typeof w.requestIdleCallback === "function"
+        ? w.requestIdleCallback(cb, { timeout: 3000 })
+        : (setTimeout(cb, 1500) as unknown as number);
+    const id = schedule(() => {
+      void import("@/pages/Dashboard");
+      void import("@/pages/Movimientos");
+      void import("@/pages/Plan");
+      void import("@/pages/SaludFinanciera");
+      void import("@/pages/Products");
+      void import("@/pages/MisActivos");
+      void import("@/pages/BillSplit");
+      void import("@/pages/Profile");
+    });
+    return () => {
+      if (typeof w.cancelIdleCallback === "function") w.cancelIdleCallback(id);
+    };
+  }, []);
+  return null;
+}
+
 function UploadDrawerGlobal() {
   const { open, setOpen } = useUploadDrawer();
   if (!open) return null;
@@ -106,6 +137,7 @@ function App() {
             <VisualViewportRootSync />
             <BrowserNotificationsInit />
             <KeepAliveInit />
+            <RoutePrefetch />
             <OfflineBanner />
             <SeoHelmet />
             <Suspense fallback={<PageLoader />}>

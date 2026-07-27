@@ -12,6 +12,7 @@ import {
   Users,
   Info,
   CheckCircle2,
+  HeartHandshake,
 } from "lucide-react";
 import { PastelIcon } from "@/components/ui/pastel-icon";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -74,11 +75,12 @@ const CLP = new Intl.NumberFormat("es-CL", {
   maximumFractionDigits: 0,
 });
 
-type TabId = "transacciones" | "dividir";
+type TabId = "transacciones" | "dividir" | "familia";
 
-const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
+const TABS: { id: TabId; label: string; icon: React.ElementType; soon?: boolean }[] = [
   { id: "transacciones", label: "Transacciones", icon: Receipt },
   { id: "dividir", label: "Dividir cuenta", icon: Users },
+  { id: "familia", label: "Familia y compartidos", icon: HeartHandshake, soon: true },
 ];
 
 // ── Account chips ─────────────────────────────────────────────────────────────
@@ -350,13 +352,13 @@ export default function Movimientos() {
         )}
 
         {/* Tab bar */}
-        <div className="flex gap-1 border-b border-border">
-          {TABS.map(({ id, label, icon: Icon }) => (
+        <div className="flex gap-1 border-b border-border overflow-x-auto">
+          {TABS.map(({ id, label, icon: Icon, soon }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+                "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
                 activeTab === id
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground",
@@ -364,6 +366,14 @@ export default function Movimientos() {
             >
               <Icon className="h-4 w-4" />
               {label}
+              {soon && (
+                <Badge
+                  variant="secondary"
+                  className="text-[9px] px-1.5 py-0 uppercase tracking-wide"
+                >
+                  Pronto
+                </Badge>
+              )}
             </button>
           ))}
         </div>
@@ -384,6 +394,36 @@ export default function Movimientos() {
         )}
 
         {activeTab === "dividir" && <BillSplit embedded />}
+
+        {activeTab === "familia" && (
+          <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-10 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+              <HeartHandshake className="h-8 w-8 text-primary" />
+            </div>
+            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
+              Próximamente
+            </div>
+            <h3 className="mb-2 text-lg font-bold text-foreground">Familia y compartidos</h3>
+            <p className="mx-auto max-w-md text-sm leading-relaxed text-muted-foreground">
+              Un espacio compartido para las finanzas de tu hogar: cuentas y metas en común,
+              presupuesto familiar y gastos de todos en un solo lugar. Cada integrante mantiene su
+              privacidad; ustedes deciden qué compartir.
+            </p>
+            <ul className="mx-auto mt-5 grid max-w-md gap-2 text-left text-sm text-muted-foreground sm:grid-cols-2">
+              {[
+                "Presupuesto del hogar",
+                "Metas de ahorro en común",
+                "Gastos compartidos automáticos",
+                "Roles y permisos por integrante",
+              ].map((f) => (
+                <li key={f} className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-primary/70" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );

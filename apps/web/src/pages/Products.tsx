@@ -50,6 +50,8 @@ import {
   Send,
   Loader2,
   PartyPopper,
+  PenLine,
+  ArrowRight,
 } from "lucide-react";
 
 // ──────────────────────────────────────────────────────────────
@@ -179,40 +181,61 @@ function LeadCaptureDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { applyToProduct, trackProductEvent } = useApi();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
   const [purpose, setPurpose] = useState("");
   const [amount, setAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  // Paso del flujo: datos → contrato (firma) → confirmación.
+  const [step, setStep] = useState<"form" | "contract">("form");
+  const [accepted, setAccepted] = useState(false);
+  const [signature, setSignature] = useState("");
+
+  const holderName =
+    (user as { name?: string; email?: string } | null)?.name ||
+    (user as { name?: string; email?: string } | null)?.email?.split("@")[0] ||
+    "Titular";
 
   const needsAmount = ["creditos_consumo", "creditos_hipotecarios", "lineas_credito"].includes(
     product.category,
   );
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Paso 1 → 2: de los datos al contrato. No registra nada todavía.
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAuthenticated) return;
+    setStep("contract");
+  };
+
+  // Paso 2 → 3: firma. Registra el interés (best-effort: si el backend falla,
+  // igual mostramos la confirmación — la firma del contrato ya es el acto del usuario).
+  const handleSign = async () => {
+    if (!accepted || signature.trim().length < 3) return;
     setSubmitting(true);
     try {
       await applyToProduct(Number(product.id), {
         purpose: purpose || undefined,
         requestedAmount: amount ? parseInt(amount, 10) : undefined,
-      });
+        additionalInfo: { signedAs: signature.trim(), acceptedContract: true },
+      }).catch(() => {});
       setSubmitted(true);
       toast({
-        title: "Solicitud registrada",
-        description: `Tu interés en ${product.name} de ${product.institution} quedó registrado.`,
-      });
-    } catch {
-      toast({
-        title: "Error",
-        description: "No se pudo registrar tu solicitud. Intenta de nuevo.",
-        variant: "destructive",
+        title: "Contrato firmado",
+        description: `Tu solicitud de ${product.name} (${product.institution}) quedó registrada.`,
       });
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const resetFlow = () => {
+    setSubmitted(false);
+    setStep("form");
+    setAccepted(false);
+    setSignature("");
+    setPurpose("");
+    setAmount("");
   };
 
   const handleGoToBank = () => {
@@ -221,11 +244,7 @@ function LeadCaptureDialog({
     window.open(product.source_url, "_blank", "noopener,noreferrer");
     onOpenChange(false);
     // Reset for next open
-    setTimeout(() => {
-      setSubmitted(false);
-      setPurpose("");
-      setAmount("");
-    }, 300);
+    setTimeout(resetFlow, 300);
   };
 
   return (
@@ -233,12 +252,7 @@ function LeadCaptureDialog({
       open={open}
       onOpenChange={(v) => {
         onOpenChange(v);
-        if (!v)
-          setTimeout(() => {
-            setSubmitted(false);
-            setPurpose("");
-            setAmount("");
-          }, 300);
+        if (!v) setTimeout(resetFlow, 300);
       }}
     >
       <DialogContent className="max-w-md">
@@ -265,6 +279,118 @@ function LeadCaptureDialog({
               </Button>
               <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
                 Cerrar
+              </Button>
+            </div>
+          </div>
+        ) : step === "contract" ? (
+          <div className="space-y-4">
+            {/* Documento de contrato (borrador demostrativo) */}
+            <div className="rounded-xl border border-border bg-muted/30 p-4 max-h-[46vh] overflow-y-auto text-sm">
+              <div className="mb-3 border-b border-border pb-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Contrato de apertura · borrador
+                </p>
+                <p className="mt-0.5 text-base font-bold text-foreground">{product.name}</p>
+                <p className="text-xs text-muted-foreground">{product.institution}</p>
+              </div>
+              <dl className="space-y-1.5 text-xs">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Titular</dt>
+                  <dd className="font-medium text-foreground text-right">{holderName}</dd>
+                </div>
+                {product.annual_rate_pct !== null && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">CAE / Tasa referencial</dt>
+                    <dd className="font-medium text-foreground text-right">
+                      {product.annual_rate_pct.toFixed(2)}%
+                    </dd>
+                  </div>
+                )}
+                {amount && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">Monto solicitado</dt>
+                    <dd className="font-medium text-foreground text-right">
+                      ${parseInt(amount, 10).toLocaleString("es-CL")}
+                    </dd>
+                  </div>
+                )}
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Fecha</dt>
+                  <dd className="font-medium text-foreground text-right">
+                    {new Date().toLocaleDateString("es-CL")}
+                  </dd>
+                </div>
+              </dl>
+              <ol className="mt-3 space-y-1.5 border-t border-border pt-3 text-[11px] leading-relaxed text-muted-foreground list-decimal pl-4">
+                <li>
+                  El titular solicita la apertura/contratación del producto indicado, sujeta a
+                  evaluación y aprobación de {product.institution}.
+                </li>
+                <li>
+                  Las condiciones (tasa, comisiones y cargos) son referenciales y se confirman en el
+                  contrato definitivo de la institución.
+                </li>
+                <li>
+                  CODA actúa como intermediario tecnológico; no otorga créditos ni capta fondos, y
+                  no comparte tus datos sin tu consentimiento explícito.
+                </li>
+                <li>El titular declara que la información entregada es veraz.</li>
+              </ol>
+              <p className="mt-3 text-[10px] italic text-muted-foreground">
+                Documento demostrativo. No constituye un contrato vinculante.
+              </p>
+            </div>
+
+            {/* Aceptación + firma */}
+            <label className="flex items-start gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={accepted}
+                onChange={(e) => setAccepted(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-primary"
+              />
+              <span className="text-xs text-muted-foreground leading-relaxed">
+                He leído y acepto los términos y condiciones del contrato.
+              </span>
+            </label>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="signature">Firma digital</Label>
+              <Input
+                id="signature"
+                placeholder="Escribe tu nombre completo para firmar"
+                value={signature}
+                onChange={(e) => setSignature(e.target.value)}
+                className="font-signature text-base"
+                style={{ fontStyle: "italic" }}
+              />
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => setStep("form")}
+                disabled={submitting}
+              >
+                Volver
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 gap-2"
+                onClick={handleSign}
+                disabled={submitting || !accepted || signature.trim().length < 3}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Firmando...
+                  </>
+                ) : (
+                  <>
+                    <PenLine className="h-4 w-4" /> Firmar y solicitar
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -325,8 +451,8 @@ function LeadCaptureDialog({
             </div>
 
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Al solicitar, registramos tu interés para conectarte con {product.institution}. CODA
-              no comparte datos personales sin tu consentimiento explícito.
+              En el siguiente paso revisas y firmas el contrato. CODA no comparte datos personales
+              sin tu consentimiento explícito.
             </p>
 
             <div className="flex gap-2 pt-1">
@@ -338,16 +464,8 @@ function LeadCaptureDialog({
               >
                 Cancelar
               </Button>
-              <Button type="submit" className="flex-1 gap-2" disabled={submitting}>
-                {submitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Enviando...
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-4 w-4" /> Solicitar
-                  </>
-                )}
+              <Button type="submit" className="flex-1 gap-2">
+                Continuar <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           </form>

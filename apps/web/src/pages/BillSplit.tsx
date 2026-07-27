@@ -23,6 +23,7 @@ import {
   Copy,
   Share2,
   Camera,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -423,6 +424,7 @@ export default function BillSplit({ embedded = false }: { embedded?: boolean } =
   const [isScanningBill, setIsScanningBill] = useState(false);
   const billScanInputRef = useRef<HTMLInputElement>(null);
   const [billSplitIdPendingDelete, setBillSplitIdPendingDelete] = useState<string | null>(null);
+  const [loadingDemo, setLoadingDemo] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -683,6 +685,48 @@ export default function BillSplit({ embedded = false }: { embedded?: boolean } =
       form.reset();
     },
   });
+
+  // Datos de ejemplo: puebla la vista con gastos compartidos realistas (sin PII
+  // real) usando el flujo normal de creación, para demos y para que el usuario
+  // vea la feature "viva" antes de cargar los suyos.
+  const handleLoadDemoData = async () => {
+    setLoadingDemo(true);
+    const demos: BillSplitFormValues[] = [
+      {
+        name: "Asado del grupo",
+        totalAmount: "84000",
+        category: "food",
+        splitType: "equal",
+        participants: [{ name: "Colomba" }, { name: "Fran" }, { name: "Javi" }],
+        alsoAddToExpenses: false,
+      },
+      {
+        name: "Arriendo depto",
+        totalAmount: "650000",
+        category: "rent",
+        splitType: "equal",
+        participants: [{ name: "Benja" }, { name: "Trini" }],
+        alsoAddToExpenses: false,
+      },
+      {
+        name: "Viaje a Pucón",
+        totalAmount: "320000",
+        category: "travel",
+        splitType: "equal",
+        participants: [{ name: "Colomba" }, { name: "Fran" }, { name: "Javi" }, { name: "Benja" }],
+        alsoAddToExpenses: false,
+      },
+    ];
+    try {
+      for (const d of demos) {
+        await createBillSplitMutation.mutateAsync(d);
+      }
+    } catch {
+      /* mutateAsync ya notifica; no bloquear la demo por uno que falle */
+    } finally {
+      setLoadingDemo(false);
+    }
+  };
 
   const markAsPaidMutation = useMutation({
     mutationFn: ({
@@ -1155,10 +1199,23 @@ export default function BillSplit({ embedded = false }: { embedded?: boolean } =
                     <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
                       Añade tu primer gasto compartido y empieza a llevar quién debe qué
                     </p>
-                    <Button onClick={() => setIsCreateDialogOpen(true)} disabled={!isAuthenticated}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Añadir gasto
-                    </Button>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                      <Button
+                        onClick={() => setIsCreateDialogOpen(true)}
+                        disabled={!isAuthenticated || loadingDemo}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Añadir gasto
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleLoadDemoData}
+                        disabled={!isAuthenticated || loadingDemo}
+                      >
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        {loadingDemo ? "Cargando ejemplo…" : "Cargar datos de ejemplo"}
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ) : (
