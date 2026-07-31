@@ -140,7 +140,7 @@ export interface IStorage {
     id: number,
     userId: string,
     category: string,
-    opts?: { subcategory?: string | null },
+    opts?: { subcategory?: string | null; isInternalTransfer?: boolean },
   ): Promise<false | { description: string; previousCategory: string | null }>;
   // Credit score operations
   getCreditScore(userId: string): Promise<any>;
@@ -632,7 +632,7 @@ export class DatabaseStorage implements IStorage {
     id: number,
     userId: string,
     category: string,
-    opts?: { subcategory?: string | null },
+    opts?: { subcategory?: string | null; isInternalTransfer?: boolean },
   ): Promise<false | { description: string; previousCategory: string | null }> {
     if (!db) return false;
     const [row] = await db
@@ -658,6 +658,10 @@ export class DatabaseStorage implements IStorage {
       .set({
         category,
         ...(opts && "subcategory" in opts ? { subcategory: opts.subcategory ?? null } : {}),
+        // Marcar/desmarcar como transferencia interna (excluida de ingreso/gasto).
+        ...(opts && "isInternalTransfer" in opts
+          ? { isInternalTransfer: opts.isInternalTransfer ? 1 : 0 }
+          : {}),
         categoryRuleId: MANUAL_RULE_ID,
         categoryConfidence: MANUAL_CONFIDENCE,
         categorizerVersion: MANUAL_CATEGORIZER_VERSION,

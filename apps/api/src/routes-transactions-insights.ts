@@ -168,6 +168,9 @@ export async function registerTransactionsInsightsRoutes(app: Express): Promise<
     "otros_ingresos",
     "servicios",
     "otro",
+    // Permite marcar/desmarcar a mano un movimiento como traspaso entre cuentas
+    // propias (se excluye de ingresos/gastos reales).
+    "Transferencia interna",
   ]);
 
   app.patch("/api/transactions/:id/category", authenticate, async (req: Request, res: Response) => {
@@ -195,8 +198,11 @@ export async function registerTransactionsInsightsRoutes(app: Express): Promise<
       const idNum = parseInt(txId, 10);
       if (isNaN(idNum)) return res.status(400).json({ message: "ID de transacción inválido." });
 
+      // "Transferencia interna" no es un gasto/ingreso: setea el flag para excluirla
+      // de los totales. Cualquier otra categoría lo limpia (des-marca).
       const updated = await storage.updateTransactionCategory(idNum, userId, category, {
         subcategory: sub,
+        isInternalTransfer: category === "Transferencia interna",
       });
       if (!updated) return res.status(404).json({ message: "Transacción no encontrada." });
 

@@ -218,6 +218,12 @@ export const EXPENSE_DISPLAY: DisplayCategory[] = [
     canonical: "transferencia_enviada",
     categories: ["transferencia_enviada"],
   },
+  {
+    // Traspaso entre cuentas propias: se excluye de ingresos/gastos reales.
+    label: "Transferencia interna",
+    canonical: "Transferencia interna",
+    categories: ["Transferencia interna"],
+  },
 ];
 
 export const INCOME_DISPLAY: DisplayCategory[] = [
@@ -239,6 +245,12 @@ export const INCOME_DISPLAY: DisplayCategory[] = [
   },
   { label: "Rentas e inversiones", canonical: "rentas", categories: ["rentas"] },
   { label: "Otros ingresos", canonical: "otros_ingresos", categories: ["otros_ingresos"] },
+  {
+    // Traspaso entre cuentas propias (p. ej. pago de la propia TC): excluido del ingreso.
+    label: "Transferencia interna",
+    canonical: "Transferencia interna",
+    categories: ["Transferencia interna"],
+  },
 ];
 
 /** Opciones del selector según el tipo del movimiento. */

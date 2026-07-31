@@ -359,7 +359,14 @@ export default function ParsedTransactionsTable({
             ...prev,
             transactions: prev.transactions.map((t) =>
               t.id === txId
-                ? { ...t, categoria: newCategory, requiresReview: false, isManual: true }
+                ? {
+                    ...t,
+                    categoria: newCategory,
+                    requiresReview: false,
+                    isManual: true,
+                    source: "manual" as const,
+                    isInternalTransfer: newCategory === "Transferencia interna",
+                  }
                 : t,
             ),
           };
@@ -823,9 +830,11 @@ export default function ParsedTransactionsTable({
                               (sin clasificar) → "Sin categoría", se resuelve con 1 toque. */}
                           <Select
                             value={
-                              tx.isInternalTransfer || tx.requiresReview
-                                ? ""
-                                : displayCategoryLabel(tx.categoria, tx.tipo)
+                              tx.isInternalTransfer
+                                ? "Transferencia interna"
+                                : tx.requiresReview
+                                  ? ""
+                                  : displayCategoryLabel(tx.categoria, tx.tipo)
                             }
                             onValueChange={(label) => {
                               // Re-elegir el mismo label (misma etiqueta de display) no
