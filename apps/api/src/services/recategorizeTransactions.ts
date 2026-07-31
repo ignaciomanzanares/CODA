@@ -126,12 +126,13 @@ export async function recategorizeUserTransactions(
         skippedManual++;
         continue;
       }
-      // Conservar lo ya puesto por IA (sugerencia estable) — no re-consultar el LLM
-      // ni degradarla a "otro" si las reglas siguen sin conocer el comercio.
-      if (String(row.categoryRuleId ?? "").startsWith("ai.")) continue;
+      const amount = Number(row.amount ?? 0);
+      // Conservar lo puesto por IA SOLO en egresos (donde el fallback aplica) y sin
+      // re-consultar el LLM. Si por error quedó una IA en un abono (ingreso), se
+      // re-evalúa para devolverla a ingreso/Sin categoría.
+      if (amount < 0 && String(row.categoryRuleId ?? "").startsWith("ai.")) continue;
 
       scanned++;
-      const amount = Number(row.amount ?? 0);
       // Re-evaluar el flag interno con las reglas ACTUALES (solo escalar a interna,
       // nunca desmarcar: el parser puede haberla marcado por señales que la glosa
       // sola no captura). Permite reparar filas históricas cuando se amplían los
@@ -153,10 +154,13 @@ export async function recategorizeUserTransactions(
         isInternalTransfer: isInternal ? 1 : 0,
       };
 
-      // Lo que las reglas no pudieron ubicar ("otro") y NO es transferencia a
-      // persona → al fallback de IA (fase 1.5). El resto se persiste directo.
+      // EGRESOS no reconocidos ("otro") y que NO son transferencia a persona → al
+      // fallback de IA (fase 1.5). La lista que ve la IA es de gasto, así que los
+      // ABONOS (ingresos) NO se mandan: quedan como ingreso/Sin categoría, nunca
+      // como un gasto. El resto se persiste directo.
       if (
         options.ai !== false &&
+        amount < 0 &&
         next.category === "otro" &&
         !PERSON_TRANSFER_RE.test(description)
       ) {
