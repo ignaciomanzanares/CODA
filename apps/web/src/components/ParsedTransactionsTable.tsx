@@ -580,6 +580,16 @@ export default function ParsedTransactionsTable({
                   {isRecategorizing ? "Recategorizando…" : "Recategorizar"}
                 </Button>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={exportCsv}
+                title="Exportar los movimientos filtrados a CSV (incluye origen y confianza)"
+              >
+                <Download className="h-4 w-4" />
+                Exportar CSV
+              </Button>
 
               <Input
                 placeholder="Buscar descripción..."
@@ -813,7 +823,9 @@ export default function ParsedTransactionsTable({
                               (sin clasificar) → "Sin categoría", se resuelve con 1 toque. */}
                           <Select
                             value={
-                              tx.requiresReview ? "" : displayCategoryLabel(tx.categoria, tx.tipo)
+                              tx.isInternalTransfer || tx.requiresReview
+                                ? ""
+                                : displayCategoryLabel(tx.categoria, tx.tipo)
                             }
                             onValueChange={(label) => {
                               // Re-elegir el mismo label (misma etiqueta de display) no
@@ -834,20 +846,26 @@ export default function ParsedTransactionsTable({
                             <SelectTrigger
                               className={cn(
                                 "h-6 w-auto min-w-[90px] max-w-[190px] px-1.5 text-[10px] font-medium rounded-full inline-flex",
-                                tx.requiresReview
-                                  ? "border border-dashed border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
-                                  : cn(
-                                      "border-0 bg-transparent",
-                                      displayCategoryColor(tx.categoria, tx.tipo),
-                                    ),
+                                tx.isInternalTransfer
+                                  ? "border-0 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-400"
+                                  : tx.requiresReview
+                                    ? "border border-dashed border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+                                    : cn(
+                                        "border-0 bg-transparent",
+                                        displayCategoryColor(tx.categoria, tx.tipo),
+                                      ),
                               )}
                             >
-                              {/* Texto directo (no SelectValue): con value="" para las
-                                  sin clasificar, SelectValue no renderiza los children. */}
+                              {/* Texto directo (no SelectValue): con value="" (interna o
+                                  sin clasificar) SelectValue no renderiza los children.
+                                  Las transferencias internas NO son ingreso/gasto — se
+                                  muestran como tales, no como "Otros ingresos". */}
                               <span className="truncate">
-                                {tx.requiresReview
-                                  ? "Sin categoría"
-                                  : displayCategoryLabel(tx.categoria, tx.tipo)}
+                                {tx.isInternalTransfer
+                                  ? "Transferencia interna"
+                                  : tx.requiresReview
+                                    ? "Sin categoría"
+                                    : displayCategoryLabel(tx.categoria, tx.tipo)}
                               </span>
                             </SelectTrigger>
                             <SelectContent>
@@ -967,16 +985,6 @@ export default function ParsedTransactionsTable({
                   >
                     Cargar más ↓
                   </span>
-                )}
-                {filtered.length > 0 && (
-                  <button
-                    onClick={exportCsv}
-                    className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-                    title="Exportar a CSV"
-                  >
-                    <Download className="h-3 w-3" />
-                    Exportar CSV
-                  </button>
                 )}
               </div>
             </div>
