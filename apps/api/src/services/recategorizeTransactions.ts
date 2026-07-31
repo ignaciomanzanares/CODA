@@ -9,11 +9,14 @@ import {
 import { isManualCategory } from "./transactions/reviewStatus.js";
 import { looksEncrypted, decryptField } from "./crypto/fieldEncryption.js";
 import { logger } from "../logger.js";
+import { aiCategorizeDescriptions, AI_RULE_ID, AI_CONFIDENCE } from "./documents/aiCategorize.js";
 
 export interface RecategorizeResult {
   scanned: number;
   updated: number;
   skippedManual: number;
+  /** Cuántas quedaron categorizadas por el fallback de IA (subset de `updated`). */
+  aiCategorized: number;
   version: string;
 }
 
@@ -21,7 +24,12 @@ export interface RecategorizeOptions {
   /** Si es true, también re-categoriza las correcciones manuales del usuario.
    *  Por defecto NO: el botón normal nunca pisa lo que el usuario corrigió a mano. */
   force?: boolean;
+  /** Fallback de IA para lo que las reglas dejan en "otro". Default: true. */
+  ai?: boolean;
 }
+
+/** Glosa de transferencia a/de persona (PII de terceros → NO se manda a la IA). */
+const PERSON_TRANSFER_RE = /\bTRANSF|\bTEF\b|TRASPASO|\bGIRO\s+A\b/i;
 
 function legacyCategory(result: ReturnType<typeof categorize>): string {
   return result.category === "Transferencia interna"
@@ -33,11 +41,29 @@ function changed(a: unknown, b: unknown): boolean {
   return (a ?? null) !== (b ?? null);
 }
 
+function rowChanged(row: Record<string, unknown>, next: Record<string, unknown>): boolean {
+  return (
+    changed(row.category, next.category) ||
+    changed(row.subcategory, next.subcategory) ||
+    changed(row.categoryConfidence, next.categoryConfidence) ||
+    changed(row.categoryRuleId, next.categoryRuleId) ||
+    changed(row.categorizerVersion, next.categorizerVersion) ||
+    changed(Number(row.isInternalTransfer ?? 0), next.isInternalTransfer)
+  );
+}
+
 export async function recategorizeUserTransactions(
   userId: string,
   options: RecategorizeOptions = {},
 ): Promise<RecategorizeResult> {
-  if (!db) return { scanned: 0, updated: 0, skippedManual: 0, version: CATEGORIZER_VERSION };
+  if (!db)
+    return {
+      scanned: 0,
+      updated: 0,
+      skippedManual: 0,
+      aiCategorized: 0,
+      version: CATEGORIZER_VERSION,
+    };
 
   const userAccounts = await db
     .select({ id: accounts.id })
@@ -46,7 +72,13 @@ export async function recategorizeUserTransactions(
 
   const accountIds = userAccounts.map((account: { id: number }) => account.id);
   if (accountIds.length === 0) {
-    return { scanned: 0, updated: 0, skippedManual: 0, version: CATEGORIZER_VERSION };
+    return {
+      scanned: 0,
+      updated: 0,
+      skippedManual: 0,
+      aiCategorized: 0,
+      version: CATEGORIZER_VERSION,
+    };
   }
 
   const rows = await db
@@ -58,11 +90,18 @@ export async function recategorizeUserTransactions(
   let updated = 0;
   let skippedManual = 0;
 
-  // Fase 1 (sync): calcular la categoría nueva de cada fila y juntar las que
-  // cambian. Una fila corrupta (glosa indescifrable) se registra y se salta,
-  // nunca aborta el batch.
+  // Fase 1 (sync): calcular la categoría por reglas de cada fila. Una fila
+  // corrupta (glosa indescifrable) se registra y se salta, nunca aborta el batch.
   type Update = { id: number; next: Record<string, unknown> };
   const pending: Update[] = [];
+  // Filas que las reglas dejaron en "otro" → candidatas al fallback de IA.
+  type Unmatched = {
+    id: number;
+    description: string;
+    row: Record<string, unknown>;
+    next: Record<string, unknown>;
+  };
+  const unmatched: Unmatched[] = [];
 
   for (const row of rows as Array<Record<string, unknown>>) {
     try {
@@ -87,6 +126,9 @@ export async function recategorizeUserTransactions(
         skippedManual++;
         continue;
       }
+      // Conservar lo ya puesto por IA (sugerencia estable) — no re-consultar el LLM
+      // ni degradarla a "otro" si las reglas siguen sin conocer el comercio.
+      if (String(row.categoryRuleId ?? "").startsWith("ai.")) continue;
 
       scanned++;
       const amount = Number(row.amount ?? 0);
@@ -111,18 +153,37 @@ export async function recategorizeUserTransactions(
         isInternalTransfer: isInternal ? 1 : 0,
       };
 
+      // Lo que las reglas no pudieron ubicar ("otro") y NO es transferencia a
+      // persona → al fallback de IA (fase 1.5). El resto se persiste directo.
       if (
-        changed(row.category, next.category) ||
-        changed(row.subcategory, next.subcategory) ||
-        changed(row.categoryConfidence, next.categoryConfidence) ||
-        changed(row.categoryRuleId, next.categoryRuleId) ||
-        changed(row.categorizerVersion, next.categorizerVersion) ||
-        changed(Number(row.isInternalTransfer ?? 0), next.isInternalTransfer)
+        options.ai !== false &&
+        next.category === "otro" &&
+        !PERSON_TRANSFER_RE.test(description)
       ) {
+        unmatched.push({ id: row.id as number, description, row, next });
+      } else if (rowChanged(row, next)) {
         pending.push({ id: row.id as number, next });
       }
     } catch (rowErr) {
       logger.warn({ err: rowErr, rowId: row.id }, "recategorize: fila omitida");
+    }
+  }
+
+  // Fase 1.5: fallback de IA para lo no reconocido por reglas (best-effort — si
+  // no hay proveedor o falla, quedan "otro"/Sin categoría, sin empeorar nada).
+  let aiCategorized = 0;
+  if (unmatched.length > 0) {
+    const aiMap = await aiCategorizeDescriptions(unmatched.map((u) => u.description));
+    for (const u of unmatched) {
+      const aiSlug = aiMap.get(u.description);
+      if (aiSlug) {
+        u.next.category = aiSlug;
+        u.next.subcategory = null;
+        u.next.categoryConfidence = AI_CONFIDENCE;
+        u.next.categoryRuleId = AI_RULE_ID;
+        aiCategorized++;
+      }
+      if (rowChanged(u.row, u.next)) pending.push({ id: u.id, next: u.next });
     }
   }
 
@@ -147,5 +208,5 @@ export async function recategorizeUserTransactions(
     );
   }
 
-  return { scanned, updated, skippedManual, version: CATEGORIZER_VERSION };
+  return { scanned, updated, skippedManual, aiCategorized, version: CATEGORIZER_VERSION };
 }

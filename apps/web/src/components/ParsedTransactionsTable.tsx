@@ -404,15 +404,18 @@ export default function ParsedTransactionsTable({
       const result = (await apiFetch("/api/admin/recategorize", { method: "POST" })) as {
         updated?: number;
         scanned?: number;
+        aiCategorized?: number;
       };
       await queryClient.invalidateQueries();
       const updated = result?.updated ?? 0;
       const scanned = result?.scanned ?? 0;
+      const ai = result?.aiCategorized ?? 0;
+      const aiSuffix = ai > 0 ? ` · ${ai} identificadas con IA` : "";
       toast({
         title: "Categorías actualizadas",
         description:
           updated > 0
-            ? `Se recategorizaron ${updated} de ${scanned} movimientos.`
+            ? `Se recategorizaron ${updated} de ${scanned} movimientos${aiSuffix}.`
             : `Los ${scanned} movimientos ya tenían la categoría correcta.`,
       });
     } catch {
