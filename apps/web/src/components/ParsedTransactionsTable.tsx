@@ -52,6 +52,8 @@ interface ParsedTransaction {
   requiresReview?: boolean;
   /** La categoría fue corregida manualmente por el usuario. */
   isManual?: boolean;
+  /** Origen de la categoría: manual (tú) / ai (sugerida por IA) / rule (regla). */
+  source?: "manual" | "ai" | "rule";
   /** Cuenta/producto de origen (tabla normalizada). */
   accountName?: string | null;
   accountType?: string | null;
@@ -202,6 +204,7 @@ export default function ParsedTransactionsTable({
   const [catFilter, setCatFilter] = useState<string>(initialCategory ?? "all");
   const [productFilter, setProductFilter] = useState<string>("all");
   const [reviewOnly, setReviewOnly] = useState(initialReviewOnly ?? false);
+  const [aiOnly, setAiOnly] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [sortField, setSortField] = useState<SortField>("fecha");
@@ -246,6 +249,7 @@ export default function ParsedTransactionsTable({
 
   // Pendientes por revisar (misma lógica que el badge: flag del backend).
   const pendingReviewCount = useMemo(() => allTxs.filter((t) => t.requiresReview).length, [allTxs]);
+  const aiCount = useMemo(() => allTxs.filter((t) => t.source === "ai").length, [allTxs]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -259,6 +263,7 @@ export default function ParsedTransactionsTable({
   const filtered = useMemo(() => {
     let txs = allTxs;
     if (reviewOnly) txs = txs.filter((t) => t.requiresReview);
+    if (aiOnly) txs = txs.filter((t) => t.source === "ai");
     if (typeFilter !== "all") txs = txs.filter((t) => t.tipo === typeFilter);
     // Acepta filtro por label de display (dropdown) o por categoría fina (drill-down del dashboard vía URL).
     if (catFilter !== "all")
@@ -283,6 +288,7 @@ export default function ParsedTransactionsTable({
   }, [
     allTxs,
     reviewOnly,
+    aiOnly,
     typeFilter,
     catFilter,
     productFilter,
@@ -324,6 +330,7 @@ export default function ParsedTransactionsTable({
     catFilter,
     productFilter,
     reviewOnly,
+    aiOnly,
     dateFrom,
     dateTo,
     sortField,
@@ -336,6 +343,7 @@ export default function ParsedTransactionsTable({
     catFilter !== "all" ||
     productFilter !== "all" ||
     reviewOnly ||
+    aiOnly ||
     dateFrom ||
     dateTo;
 
@@ -583,6 +591,29 @@ export default function ParsedTransactionsTable({
                 </Button>
               )}
 
+              {/* Filtro "Sugeridas por IA": para revisar/confirmar las que puso la IA. */}
+              {(aiCount > 0 || aiOnly) && !isGastos && (
+                <Button
+                  variant={aiOnly ? "default" : "outline"}
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={() => setAiOnly((v) => !v)}
+                  title="Mostrar solo las categorías sugeridas por IA para revisarlas"
+                >
+                  Sugeridas por IA
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 text-[10px] leading-5 font-semibold",
+                      aiOnly
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : "bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300",
+                    )}
+                  >
+                    {aiCount}
+                  </span>
+                </Button>
+              )}
+
               {!isGastos && (
                 <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
                   <SelectTrigger className="w-28 h-8 text-xs">
@@ -659,6 +690,7 @@ export default function ParsedTransactionsTable({
                     setCatFilter("all");
                     setProductFilter("all");
                     setReviewOnly(false);
+                    setAiOnly(false);
                     setDateFrom("");
                     setDateTo("");
                   }}
@@ -743,6 +775,14 @@ export default function ParsedTransactionsTable({
                                 title="Transferencia entre productos propios — se excluye de ingresos/gastos reales"
                               >
                                 interna
+                              </span>
+                            )}
+                            {tx.source === "ai" && (
+                              <span
+                                className="rounded bg-violet-50 px-1 py-0.5 text-[10px] font-semibold text-violet-600 dark:bg-violet-950/30 dark:text-violet-400"
+                                title="Categoría sugerida por IA — revisá y corregí si hace falta"
+                              >
+                                IA
                               </span>
                             )}
                           </span>

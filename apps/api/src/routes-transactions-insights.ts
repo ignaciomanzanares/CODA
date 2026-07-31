@@ -115,6 +115,12 @@ export async function registerTransactionsInsightsRoutes(app: Express): Promise<
           category_confidence: reviewTx.categoryConfidence,
           requiresReview: requiresReview(reviewTx),
           isManual: isManualCategory(reviewTx),
+          // Origen de la categoría: manual (tú) / ai (sugerida por IA) / rule (regla).
+          source: isManualCategory(reviewTx)
+            ? "manual"
+            : String(reviewTx.categoryRuleId ?? "").startsWith("ai.")
+              ? "ai"
+              : "rule",
           isInternalTransfer: Number(t.isInternalTransfer ?? 0) === 1,
           periodoDesde: null,
           periodoHasta: null,
