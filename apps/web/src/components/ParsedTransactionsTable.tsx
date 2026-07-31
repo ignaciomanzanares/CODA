@@ -666,7 +666,7 @@ export default function ParsedTransactionsTable({
                   <SelectTrigger className="w-28 h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent align="end" sideOffset={4} collisionPadding={8}>
                     <SelectItem value="all">Tipo: todos</SelectItem>
                     <SelectItem value="ingreso">Ingresos</SelectItem>
                     <SelectItem value="egreso">Egresos</SelectItem>
@@ -679,7 +679,7 @@ export default function ParsedTransactionsTable({
                   <SelectTrigger className="w-36 h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent align="end" sideOffset={4} collisionPadding={8}>
                     <SelectItem value="all">Categoría: todas</SelectItem>
                     {categories.map((c) => (
                       <SelectItem key={c} value={c}>
@@ -695,7 +695,7 @@ export default function ParsedTransactionsTable({
                   <SelectTrigger className="w-40 h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent align="end" sideOffset={4} collisionPadding={8}>
                     {PRODUCT_FILTERS.filter(
                       (p) => p.value === "all" || presentProducts.has(p.value),
                     ).map((p) => (

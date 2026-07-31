@@ -133,7 +133,7 @@ export function normalizeMerchant(raw: string): string {
 // ──────────────────────────────────────────────────────────────────────────────
 
 /** Versión del motor — se registra en cada categorización (NCG 502). */
-export const CATEGORIZER_VERSION = "batch10.v7";
+export const CATEGORIZER_VERSION = "batch10.v8";
 
 export type CategoryLabel =
   | "Vivienda"
@@ -435,7 +435,9 @@ const RULES: Rule[] = [
   {
     id: "cl.transporte.aereo",
     category: "Transporte",
-    re: /\bLATAM\b|SKY\s?AIRLINE|\bJETSMART\b|JET\s+SMART|AEROLINEA|\bVUELO\b|AEROPUERTO|AIR\s+CANADA|LUFTHANSA|\bIBERIA\b|AIR\s+FRANCE|\bKLM\b|AIRLINES?\b|AIRWAYS/,
+    // Sin ancla de cola en las marcas pegadas (`JETSMARTAIRLINESS`, `SKYAIRLINE`):
+    // los agregadores concatenan el nombre del comercio sin separador.
+    re: /\bLATAM\b|SKY\s?AIRLINE|\bJETSMART|JET\s+SMART|AEROLINEA|\bVUELO\b|AEROPUERTO|AIR\s+CANADA|LUFTHANSA|\bIBERIA\b|AIR\s+FRANCE|\bKLM\b|AIRLINES?|AIRWAYS/,
     confidence: 0.88,
   },
 

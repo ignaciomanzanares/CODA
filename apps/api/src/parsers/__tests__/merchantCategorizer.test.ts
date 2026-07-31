@@ -74,6 +74,8 @@ describe("categorize — real cartola corpus", () => {
     ["MERPAGO*CABIFY2618NBCWVRF", "Transporte"],
     // Cruz Verde abreviada → farmacia (antes caía en Otro/Vivienda).
     ["C. VERDE NVA COSTA 4177", "Salud y farmacia"],
+    // Aerolínea pegada por el agregador (sin separador) → transporte, no Compras.
+    ["MERPAGO*JETSMARTAIRLINESS", "Transporte"],
     ["Prime Video", "Suscripciones y software"],
     ["Amazon", "Suscripciones y software"],
     ["amzn", "Suscripciones y software"],
@@ -203,8 +205,8 @@ describe("categorize — traceability (NCG 502)", () => {
     }
   });
 
-  it("uses categorizer version batch10.v7", () => {
-    expect(CATEGORIZER_VERSION).toBe("batch10.v7");
+  it("uses categorizer version batch10.v8", () => {
+    expect(CATEGORIZER_VERSION).toBe("batch10.v8");
   });
 
   it("distingue transferencia enviada (cargo) vs recibida (abono)", () => {
