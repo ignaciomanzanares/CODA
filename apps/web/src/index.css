@@ -239,6 +239,17 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Al abrir un dropdown/dialog de Radix, react-remove-scroll bloquea el scroll y le
+   agrega al body un `margin/padding-right: <ancho-scrollbar>px !important` para
+   compensar el scrollbar que "desaparece". Pero acá el scroll container es `html`
+   (el body usa overflow-x:clip y NO scrollea), así que el scrollbar de html sigue
+   visible y esa compensación es sobrante: encoge el body ~15px y reordena la barra
+   de filtros (Categoría saltaba de fila). Mayor especificidad + !important la anula. */
+html body[data-scroll-locked] {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+}
+
 button,
 a,
 [role="button"],
