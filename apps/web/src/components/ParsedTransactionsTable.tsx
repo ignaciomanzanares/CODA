@@ -887,7 +887,12 @@ export default function ParsedTransactionsTable({
                                     : displayCategoryLabel(tx.categoria, tx.tipo)}
                               </span>
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent
+                              align="center"
+                              sideOffset={4}
+                              collisionPadding={8}
+                              className="min-w-[150px]"
+                            >
                               {categoryOptionsForTipo(tx.tipo).map((o) => (
                                 <SelectItem key={o.label} value={o.label} className="text-xs">
                                   {o.label}

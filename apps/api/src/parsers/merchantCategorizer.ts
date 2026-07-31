@@ -99,6 +99,10 @@ export function normalizeMerchant(raw: string): string {
   // 5. Quitar ruido de sucursal/ubicación.
   s = s.replace(BRANCH_NOISE_RE, " ");
 
+  // 5.5 Separar letra↔dígito pegados: los sub-comercios de agregadores vienen con
+  //     un código pegado (`CABIFY2618NBC`, `JETSMART04`) que impedía el match.
+  s = s.replace(/([A-Z])(\d)/g, "$1 $2").replace(/(\d)([A-Z])/g, "$1 $2");
+
   // 6. Quitar números de local/serie largos (3+ dígitos) — no identifican comercio.
   s = s.replace(/\b\d{3,}\b/g, " ");
 
@@ -129,7 +133,7 @@ export function normalizeMerchant(raw: string): string {
 // ──────────────────────────────────────────────────────────────────────────────
 
 /** Versión del motor — se registra en cada categorización (NCG 502). */
-export const CATEGORIZER_VERSION = "batch10.v6";
+export const CATEGORIZER_VERSION = "batch10.v7";
 
 export type CategoryLabel =
   | "Vivienda"
@@ -447,7 +451,9 @@ const RULES: Rule[] = [
   {
     id: "cl.salud",
     category: "Salud y farmacia",
-    re: /CRUZ\s+VERDE|SALCO\s?BRAND|\bFARMACIA(S)?\b|\bAHUMADA\b|DR\.?\s?SIMI|\bFONASA\b|\bISAPRE\b|BANMEDICA|CONSALUD|\bCOLMENA\b|\bCLINICA\b|HOSPITAL|\bDENTAL\b|DENTISTA|\bMEDIC|\bOPTICA\b/,
+    // "C VERDE" = Cruz Verde abreviada (farmacia). \bC\s+VERDE\b evita falsos
+    // positivos con otras palabras que contengan "VERDE".
+    re: /CRUZ\s+VERDE|\bC\.?\s+VERDE\b|SALCO\s?BRAND|\bFARMACIA(S)?\b|\bAHUMADA\b|DR\.?\s?SIMI|\bFONASA\b|\bISAPRE\b|BANMEDICA|CONSALUD|\bCOLMENA\b|\bCLINICA\b|HOSPITAL|\bDENTAL\b|DENTISTA|\bMEDIC|\bOPTICA\b/,
     confidence: 0.88,
   },
 

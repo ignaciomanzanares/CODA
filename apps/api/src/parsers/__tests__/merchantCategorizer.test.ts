@@ -70,6 +70,10 @@ describe("categorize — real cartola corpus", () => {
     ["UBER", "Transporte"],
     ["LATAM.COM EUR LA", "Transporte"],
     ["MERPAGO*LATAM", "Transporte"],
+    // Sub-comercio de agregador con código pegado: se separa letra↔dígito y matchea.
+    ["MERPAGO*CABIFY2618NBCWVRF", "Transporte"],
+    // Cruz Verde abreviada → farmacia (antes caía en Otro/Vivienda).
+    ["C. VERDE NVA COSTA 4177", "Salud y farmacia"],
     ["Prime Video", "Suscripciones y software"],
     ["Amazon", "Suscripciones y software"],
     ["amzn", "Suscripciones y software"],
@@ -199,8 +203,8 @@ describe("categorize — traceability (NCG 502)", () => {
     }
   });
 
-  it("uses categorizer version batch10.v6", () => {
-    expect(CATEGORIZER_VERSION).toBe("batch10.v6");
+  it("uses categorizer version batch10.v7", () => {
+    expect(CATEGORIZER_VERSION).toBe("batch10.v7");
   });
 
   it("distingue transferencia enviada (cargo) vs recibida (abono)", () => {
