@@ -138,13 +138,7 @@ export async function recategorizeUserTransactions(
         continue;
       }
       const amount = Number(row.amount ?? 0);
-      // Conservar lo puesto por IA (sin re-consultar el LLM) SOLO si la categoría
-      // coincide con el tipo (egreso→gasto, abono→ingreso). Si no coincide (bug
-      // viejo: una IA de gasto en un ingreso), se re-evalúa para corregirla.
-      if (String(row.categoryRuleId ?? "").startsWith("ai.")) {
-        const catIsIncome = INCOME_SLUGS.has(String(row.category ?? ""));
-        if (catIsIncome === amount >= 0) continue;
-      }
+      const wasAi = String(row.categoryRuleId ?? "").startsWith("ai.");
 
       scanned++;
       // Re-evaluar el flag interno con las reglas ACTUALES (solo escalar a interna,
@@ -167,6 +161,16 @@ export async function recategorizeUserTransactions(
         categorizerVersion: result.version,
         isInternalTransfer: isInternal ? 1 : 0,
       };
+
+      // La REGLA determinista siempre gana. Para filas ya puestas por IA: si las
+      // reglas ahora la reconocen (≠ "otro") cae abajo y la regla la corrige; si
+      // siguen en "otro" se CONSERVA la sugerencia de IA (sin re-consultar el LLM)
+      // solo si coincide con el tipo (egreso→gasto, abono→ingreso); si no coincide
+      // (bug viejo), se re-evalúa por IA del tipo correcto en la fase 1.5.
+      if (wasAi && next.category === "otro") {
+        const catIsIncome = INCOME_SLUGS.has(String(row.category ?? ""));
+        if (catIsIncome === amount >= 0) continue;
+      }
 
       // Lo no reconocido por reglas ("otro") y que NO es transferencia a persona
       // (PII) → al fallback de IA (fase 1.5), TIPO-AWARE: a un egreso se le ofrecen
