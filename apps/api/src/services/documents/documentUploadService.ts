@@ -15,7 +15,7 @@ import {
 } from "./pdfAnalysis.js";
 import { parseCmfPdfBuffer, type CMFParseResult } from "../../parsers/cmf-parser.js";
 import { parseCartolaBuffer, ParseError } from "../../parsers/index.js";
-import { categorizeTransaction } from "../../parsers/cartola-parser.js";
+import { ruleCategory } from "../../parsers/merchantCategorizer.js";
 import { categoryClassifier, classifyOrRule } from "./categoryClassifier.js";
 import { isInternalTransferTx } from "../assistantContext.js";
 import { isSelfTransfer } from "./normalizeCartola.js";
@@ -188,7 +188,9 @@ export async function processDocumentUpload(userId: string, buffer: Buffer): Pro
             ? "Transferencia interna"
             : classifyOrRule(
                 tx.descripcion,
-                categorizeTransaction(tx.descripcion, tx.monto, tx.tipo),
+                // Motor ÚNICO (merchantCategorizer), el mismo que el recategorizador
+                // → el upload y el botón "Recategorizar" ya no divergen.
+                ruleCategory(tx.descripcion, tx.monto, tx.tipo),
               ),
           es_transferencia: interna || tx.es_transferencia === true,
           ...(tx.montoUsd != null ? { montoUsd: tx.montoUsd } : {}),

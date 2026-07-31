@@ -126,9 +126,9 @@ describe("categorize — real cartola corpus", () => {
 
     for (const descripcion of descriptions) {
       const r = categorize({ descripcion, tipo: "abono", monto: 100_000 });
-      expect(r.category).toBe("Transferencias");
+      expect(r.category).toBe("Transferencia recibida");
       expect(r.subcategory).toBe("Transferencias recibidas");
-      expect(r.ruleId).toBe("transfer.tercero");
+      expect(r.ruleId).toBe("transfer.recibida");
       expect(r.confidence).toBeGreaterThan(0.5);
     }
   });
@@ -199,8 +199,23 @@ describe("categorize — traceability (NCG 502)", () => {
     }
   });
 
-  it("uses categorizer version batch10.v5", () => {
-    expect(CATEGORIZER_VERSION).toBe("batch10.v5");
+  it("uses categorizer version batch10.v6", () => {
+    expect(CATEGORIZER_VERSION).toBe("batch10.v6");
+  });
+
+  it("distingue transferencia enviada (cargo) vs recibida (abono)", () => {
+    const sent = categorize({ descripcion: "Transf a Juan Perez", tipo: "cargo" });
+    expect(sent.category).toBe("Transferencias");
+    const received = categorize({ descripcion: "Transf. de Maria Lopez", tipo: "abono" });
+    expect(received.category).toBe("Transferencia recibida");
+  });
+
+  it("agregador de pago sin comercio reconocido → comercio (no 'Otro')", () => {
+    const agg = categorize({ descripcion: "MERCADOPAGO*ARIANENAYDUFL", tipo: "cargo" });
+    expect(agg.category).toBe("Retail y compras");
+    // Pero un agregador con comercio conocido gana la regla específica.
+    const known = categorize({ descripcion: "MERPAGO*SPOTIFY", tipo: "cargo" });
+    expect(known.category).toBe("Suscripciones y software");
   });
 
   it("clasifica ingresos por fuente (abono): devolución, honorarios, sueldo", () => {

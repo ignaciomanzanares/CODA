@@ -129,7 +129,7 @@ export function normalizeMerchant(raw: string): string {
 // ──────────────────────────────────────────────────────────────────────────────
 
 /** Versión del motor — se registra en cada categorización (NCG 502). */
-export const CATEGORIZER_VERSION = "batch10.v5";
+export const CATEGORIZER_VERSION = "batch10.v6";
 
 export type CategoryLabel =
   | "Vivienda"
@@ -149,6 +149,7 @@ export type CategoryLabel =
   | "Comisiones bancarias"
   | "Inversión y divisas"
   | "Transferencias"
+  | "Transferencia recibida"
   | "Transferencia interna"
   | "Ingresos"
   | "Honorarios"
@@ -240,6 +241,12 @@ export const TAXONOMY: Record<CategoryLabel, CategoryMeta> = {
     variability: "variable",
     excluded: false,
     legacy: "transferencia_enviada",
+  },
+  "Transferencia recibida": {
+    essential: false,
+    variability: "variable",
+    excluded: true,
+    legacy: "transferencia_recibida",
   },
   "Transferencia interna": {
     essential: false,
@@ -486,14 +493,13 @@ const RULES: Rule[] = [
     confidence: 0.8,
   },
 
-  // ── Transferencias a terceros (PATRÓN — nunca el nombre de la contraparte) ─
-  {
-    id: "transfer.tercero",
-    category: "Transferencias",
-    re: /\bTRANSF(?:ERENCIA)?\.?\s+A\b|\bTRANSF(?:ERENCIA)?\.?\s+DE\b|\bTEF\b|\bTRASPASO\s+A\b|\bGIRO\s+A\b|\b(?:\d{7,8}[\dK]\s+)?TRANSF\.?\s+\S+/,
-    confidence: 0.78,
-  },
+  // Las transferencias a/de terceros se resuelven en categorize() (tipo-aware:
+  // enviada vs recibida), después de las reglas de comercio específicas.
 ];
+
+/** Glosa de transferencia a/de terceros (patrón — nunca el nombre de la contraparte). */
+const TRANSFER_GLOSA_RE =
+  /\bTRANSF(?:ERENCIA)?\.?\s+A\b|\bTRANSF(?:ERENCIA)?\.?\s+DE\b|\bTEF\b|\bTRASPASO\s+A\b|\bGIRO\s+A\b|\b(?:\d{7,8}[\dK]\s+)?TRANSF\.?\s+\S+/;
 
 /**
  * Traspasos/pagos entre PRODUCTOS PROPIOS (excluidos del gasto Y del ingreso):
@@ -550,46 +556,64 @@ function build(
   };
 }
 
-function transferSubcategory(
-  input: CategorizeInput,
-): "Transferencias recibidas" | "Transferencias enviadas" {
-  if (input.tipo === "abono") return "Transferencias recibidas";
-  if (input.tipo === "cargo") return "Transferencias enviadas";
-  if (typeof input.monto === "number" && input.monto > 0) return "Transferencias recibidas";
-  if (typeof input.monto === "number" && input.monto < 0) return "Transferencias enviadas";
-  return "Transferencias enviadas";
-}
-
 /**
  * Categoriza una transacción de forma determinista y auditable.
  * Lo desconocido permanece "Otro" con baja confianza — nunca se inventa.
  */
 export function categorize(input: CategorizeInput): CategorizationResult {
   const haystack = normalizeMerchant(input.descripcion);
+  // La glosa cruda (sin normalizar) conserva el prefijo del procesador de pago,
+  // que normalizeMerchant recorta — se usa para el default de agregadores.
+  const hadProcessorPrefix = PROCESSOR_PREFIX_RE.test(input.descripcion.toUpperCase());
 
   // 1. Transferencia interna (excluida del gasto, no se re-clasifica).
   if (input.internalTransfer || INTERNAL_TRANSFER_RE.test(haystack)) {
     return build("Transferencia interna", "transfer.interna", 0.95);
   }
 
-  // 2. Reglas en orden de prioridad.
+  // 2. Reglas de comercio en orden de prioridad.
   for (const rule of RULES) {
     if (rule.re.test(haystack) && !(rule.not && rule.not.test(haystack))) {
       return build(rule.category, rule.id, rule.confidence, {
-        subcategory:
-          rule.category === "Transferencias" ? transferSubcategory(input) : rule.subcategory,
+        subcategory: rule.subcategory,
         recurring: rule.recurring,
       });
     }
   }
 
-  // 3. Ingresos (sólo abonos). Fuentes específicas antes que el sueldo genérico.
+  // 3. Ingresos por fuente (sólo abonos): específicas antes que el sueldo genérico.
   if (input.tipo === "abono") {
     if (DEVOLUCION_RE.test(haystack)) return build("Devoluciones", "income.devolucion", 0.9);
     if (HONORARIOS_RE.test(haystack)) return build("Honorarios", "income.honorarios", 0.85);
     if (INCOME_RE.test(haystack)) return build("Ingresos", "income.remuneracion", 0.85);
   }
 
-  // 4. Desconocido → Otro con baja confianza (no se fuerza).
+  // 4. Transferencias a/de terceros (tipo-aware): un abono es RECIBIDA (ingreso),
+  //    un cargo es ENVIADA. Antes ambas caían en enviada por error.
+  if (TRANSFER_GLOSA_RE.test(haystack)) {
+    if (input.tipo === "abono")
+      return build("Transferencia recibida", "transfer.recibida", 0.8, {
+        subcategory: "Transferencias recibidas",
+      });
+    return build("Transferencias", "transfer.tercero", 0.78, {
+      subcategory: "Transferencias enviadas",
+    });
+  }
+
+  // 5. Agregador de pago (MERCADOPAGO*, SUMUP*, PAYU*…) sin comercio reconocido:
+  //    casi siempre es una compra en un comercio chico → "comercio" con baja
+  //    confianza (revisable), en vez de dejarlo "Sin categoría".
+  if (hadProcessorPrefix) return build("Retail y compras", "cl.retail.agregador", 0.5);
+
+  // 6. Desconocido → Otro con baja confianza (no se fuerza).
   return build("Otro", "fallback.otro", 0.2);
+}
+
+/**
+ * Categoría legacy (slug del TransactionCategory) para una transacción — motor
+ * ÚNICO compartido por el parseo (documentUploadService) y el recategorizador,
+ * para que no diverjan. Reemplaza al viejo `categorizeTransaction` de 45 bloques.
+ */
+export function ruleCategory(descripcion: string, monto: number, tipo: "cargo" | "abono"): string {
+  return TAXONOMY[categorize({ descripcion, monto, tipo }).category].legacy;
 }
