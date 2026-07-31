@@ -381,8 +381,18 @@ export default function ParsedTransactionsTable({
           body: JSON.stringify({ category: newCategory }),
         });
         if (!res.ok) throw new Error(`Error ${res.status}`);
+        const body = (await res.json().catch(() => ({}))) as { propagated?: number };
         // Recategorizing affects dashboard totals, flow chart, insights, etc.
         queryClient.invalidateQueries();
+        // CODA aprende retroactivo: si se aplicó a otros del mismo comercio, avisar.
+        if (body.propagated && body.propagated > 0) {
+          toast({
+            title: "Aplicado a todo el comercio",
+            description: `También se actualizaron ${body.propagated} movimiento${
+              body.propagated !== 1 ? "s" : ""
+            } del mismo comercio.`,
+          });
+        }
       } catch {
         // Revert on error
         queryClient.setQueryData<{ transactions: ParsedTransaction[]; count: number }>(

@@ -219,7 +219,28 @@ export async function registerTransactionsInsightsRoutes(app: Express): Promise<
         }).catch(() => ({ ok: false }));
       }
 
-      res.json({ id: txId, category, subcategory: sub, manual: true });
+      // Propagar la corrección a los DEMÁS movimientos del mismo comercio que el
+      // usuario no haya tocado a mano (retroactivo). Best-effort: si falla, la
+      // corrección puntual ya quedó igual.
+      let propagated = 0;
+      if (updated.description) {
+        propagated = await storage
+          .applyMerchantCategory(userId, updated.description, category, {
+            subcategory: sub,
+            isInternalTransfer: category === "Transferencia interna",
+            excludeId: idNum,
+          })
+          .catch(() => 0);
+      }
+
+      res.json({
+        id: txId,
+        category,
+        subcategory: sub,
+        manual: true,
+        propagated,
+        merchant: updated.description ?? null,
+      });
     } catch (e) {
       logger.error({ err: e }, "Failed to update transaction category");
       res.status(500).json({ message: "Error al actualizar categoría." });

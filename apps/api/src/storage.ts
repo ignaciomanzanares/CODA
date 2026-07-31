@@ -142,6 +142,12 @@ export interface IStorage {
     category: string,
     opts?: { subcategory?: string | null; isInternalTransfer?: boolean },
   ): Promise<false | { description: string; previousCategory: string | null }>;
+  applyMerchantCategory(
+    userId: string,
+    matchDescription: string,
+    category: string,
+    opts: { subcategory?: string | null; isInternalTransfer?: boolean; excludeId: number },
+  ): Promise<number>;
   // Credit score operations
   getCreditScore(userId: string): Promise<any>;
   createCreditScore(creditScore: any): Promise<any>;
@@ -675,6 +681,73 @@ export class DatabaseStorage implements IStorage {
         ? decryptField(rawDesc)
         : (rawDesc ?? "");
     return { description, previousCategory: (row.category as string) ?? null };
+  }
+
+  /**
+   * Propaga una corrección de categoría a TODOS los demás movimientos del MISMO
+   * comercio (misma glosa normalizada) que el usuario no haya tocado a mano — el
+   * "CODA aprende" hecho retroactivo. Devuelve cuántos se actualizaron.
+   */
+  async applyMerchantCategory(
+    userId: string,
+    matchDescription: string,
+    category: string,
+    opts: { subcategory?: string | null; isInternalTransfer?: boolean; excludeId: number },
+  ): Promise<number> {
+    if (!db) return 0;
+    const { normalizeMerchant } = await import("./parsers/merchantCategorizer.js");
+    const target = normalizeMerchant(matchDescription);
+    if (!target) return 0;
+
+    const userAccounts = await db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(eq(accounts.userId, String(userId)));
+    const accountIds = userAccounts.map((a: { id: number }) => a.id);
+    if (accountIds.length === 0) return 0;
+
+    const { MANUAL_RULE_ID, MANUAL_CATEGORIZER_VERSION, MANUAL_CONFIDENCE } =
+      await import("./services/transactions/reviewStatus.js");
+
+    const rows = await db
+      .select({
+        id: transactions.id,
+        description: transactions.description,
+        categoryRuleId: transactions.categoryRuleId,
+        categorizerVersion: transactions.categorizerVersion,
+      })
+      .from(transactions)
+      .where(inArray(transactions.accountId, accountIds));
+
+    const ids: number[] = [];
+    for (const r of rows as Array<Record<string, unknown>>) {
+      if (r.id === opts.excludeId) continue;
+      // No pisar otras correcciones manuales del usuario.
+      if (
+        r.categoryRuleId === MANUAL_RULE_ID ||
+        r.categorizerVersion === MANUAL_CATEGORIZER_VERSION
+      )
+        continue;
+      const raw = r.description as string | null;
+      const desc = typeof raw === "string" && looksEncrypted(raw) ? decryptField(raw) : (raw ?? "");
+      if (normalizeMerchant(desc) === target) ids.push(r.id as number);
+    }
+    if (ids.length === 0) return 0;
+
+    await db
+      .update(transactions)
+      .set({
+        category,
+        ...(opts.subcategory !== undefined ? { subcategory: opts.subcategory ?? null } : {}),
+        ...(opts.isInternalTransfer !== undefined
+          ? { isInternalTransfer: opts.isInternalTransfer ? 1 : 0 }
+          : {}),
+        categoryRuleId: MANUAL_RULE_ID,
+        categoryConfidence: MANUAL_CONFIDENCE,
+        categorizerVersion: MANUAL_CATEGORIZER_VERSION,
+      })
+      .where(inArray(transactions.id, ids));
+    return ids.length;
   }
 
   // Credit score operations
