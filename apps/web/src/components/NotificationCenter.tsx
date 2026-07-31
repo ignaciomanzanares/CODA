@@ -333,7 +333,21 @@ export default function NotificationCenter({ className }: NotificationCenterProp
 
         <DialogContent className="max-w-2xl w-[calc(100vw-1.5rem)] sm:w-full max-h-notification-panel flex flex-col gap-0 overflow-hidden rounded-t-2xl p-0 sm:rounded-lg">
           <DialogHeader className="shrink-0 space-y-3 p-4 pb-3 sm:p-6 sm:pb-4">
-            <div className="flex flex-col gap-3 pr-9 sm:flex-row sm:items-center sm:justify-between sm:pr-10">
+            {/* Ajustes: anclado a la misma altura que la X de cierre (que Dialog fija
+                en top-4) para que formen un par prolijo en la esquina, no en diagonal. */}
+            <button
+              type="button"
+              aria-label="Ajustes de notificaciones"
+              onClick={() => {
+                setIsOpen(false);
+                navigate(ROUTES.perfil);
+              }}
+              className="absolute right-11 top-4 rounded-sm text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            >
+              <Settings className="h-4 w-4" />
+              <span className="sr-only">Ajustes de notificaciones</span>
+            </button>
+            <div className="flex flex-col gap-3 pr-16 sm:flex-row sm:items-center sm:justify-between">
               <DialogTitle className="flex flex-wrap items-center gap-2 text-left">
                 <Bell className="h-5 w-5 shrink-0" />
                 <span>Notificaciones</span>
@@ -343,36 +357,22 @@ export default function NotificationCenter({ className }: NotificationCenterProp
                   </Badge>
                 )}
               </DialogTitle>
-              <div className="flex flex-wrap items-center justify-end gap-2 sm:min-w-0 sm:flex-1 sm:justify-end">
-                {unreadCount > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => markAllAsReadMutation.mutate()}
-                    disabled={markAllAsReadMutation.isPending}
-                    className="min-h-[44px] shrink-0 max-w-full sm:max-w-none"
-                    title="Marcar todas como leídas"
-                  >
-                    <CheckCheck className="h-4 w-4 mr-2 shrink-0" />
-                    <span className="truncate sm:whitespace-normal">
-                      <span className="sm:hidden">Marcar leídas</span>
-                      <span className="hidden sm:inline">Marcar todas como leídas</span>
-                    </span>
-                  </Button>
-                )}
+              {unreadCount > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="min-h-[44px] shrink-0"
-                  aria-label="Ajustes de notificaciones"
-                  onClick={() => {
-                    setIsOpen(false);
-                    navigate(ROUTES.perfil);
-                  }}
+                  onClick={() => markAllAsReadMutation.mutate()}
+                  disabled={markAllAsReadMutation.isPending}
+                  className="min-h-[44px] shrink-0 self-start sm:self-auto"
+                  title="Marcar todas como leídas"
                 >
-                  <Settings className="h-4 w-4" />
+                  <CheckCheck className="h-4 w-4 mr-2 shrink-0" />
+                  <span className="truncate sm:whitespace-normal">
+                    <span className="sm:hidden">Marcar leídas</span>
+                    <span className="hidden sm:inline">Marcar todas como leídas</span>
+                  </span>
                 </Button>
-              </div>
+              )}
             </div>
           </DialogHeader>
 

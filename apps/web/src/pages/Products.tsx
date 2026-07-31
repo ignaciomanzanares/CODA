@@ -606,90 +606,94 @@ function ProductCard({ product, currency }: { product: RankedProduct; currency: 
                   </span>
                 )}
               </div>
-            </div>
-          </div>
 
-          {/* Benefit banner — prominent */}
-          {hasBenefit && (
-            <div className="mt-3">
-              <BenefitBanner benefitClp={product.expected_benefit_clp!} currency={currency} />
-            </div>
-          )}
+              {/* Benefit banner — prominent */}
+              {hasBenefit && (
+                <div className="mt-3">
+                  <BenefitBanner benefitClp={product.expected_benefit_clp!} currency={currency} />
+                </div>
+              )}
 
-          {/* Top reason always visible */}
-          {topPositiveReason && (
-            <div className="mt-2">
-              <TopReason reason={topPositiveReason} />
-            </div>
-          )}
+              {/* Top reason always visible */}
+              {topPositiveReason && (
+                <div className="mt-2">
+                  <TopReason reason={topPositiveReason} />
+                </div>
+              )}
 
-          {/* Expand / Collapse more reasons + CTAs */}
-          <div className="mt-3 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
-            {product.reasons.length > 1 ? (
-              <button
-                onClick={() => setExpanded((v) => !v)}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Info className="h-3.5 w-3.5" />
-                {expanded
-                  ? "Ocultar detalles"
-                  : `Ver ${product.reasons.length - 1} ${
-                      product.reasons.length - 1 > 1 ? "razones" : "razón"
-                    } más`}
-                {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-              </button>
-            ) : (
-              <div />
-            )}
-            <div className="flex items-center gap-2">
-              <a
-                href={product.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Ver en {product.institution}
-                <ExternalLink className="h-3 w-3" />
-              </a>
-              {isAuthenticated && product.eligibility !== "not_eligible" && (
-                <Button
-                  size="sm"
-                  className="h-7 text-xs gap-1.5 rounded-lg"
-                  onClick={() => setLeadOpen(true)}
-                >
-                  <Send className="h-3 w-3" />
-                  Solicitar
-                </Button>
+              {/* Expand / Collapse more reasons + CTAs */}
+              <div className="mt-3 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
+                {product.reasons.length > 1 ? (
+                  <button
+                    onClick={() => setExpanded((v) => !v)}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Info className="h-3.5 w-3.5" />
+                    {expanded
+                      ? "Ocultar detalles"
+                      : `Ver ${product.reasons.length - 1} ${
+                          product.reasons.length - 1 > 1 ? "razones" : "razón"
+                        } más`}
+                    {expanded ? (
+                      <ChevronUp className="h-3 w-3" />
+                    ) : (
+                      <ChevronDown className="h-3 w-3" />
+                    )}
+                  </button>
+                ) : (
+                  <div />
+                )}
+                <div className="flex items-center gap-2">
+                  <a
+                    href={product.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Ver en {product.institution}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                  {isAuthenticated && product.eligibility !== "not_eligible" && (
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs gap-1.5 rounded-lg"
+                      onClick={() => setLeadOpen(true)}
+                    >
+                      <Send className="h-3 w-3" />
+                      Solicitar
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Remaining reasons */}
+              {expanded && remainingReasons.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  {remainingReasons.map((r, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        "flex items-start gap-2 text-xs rounded-lg px-3 py-2",
+                        r.weight > 0
+                          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
+                          : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
+                      )}
+                    >
+                      {r.weight > 0 ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      ) : (
+                        <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      )}
+                      {r.explanation_es}
+                    </div>
+                  ))}
+                  <p className="text-[11px] text-muted-foreground px-1 pt-1 leading-relaxed">
+                    {product.disclosure}
+                  </p>
+                </div>
               )}
             </div>
           </div>
-
-          {/* Remaining reasons */}
-          {expanded && remainingReasons.length > 0 && (
-            <div className="mt-3 space-y-1.5">
-              {remainingReasons.map((r, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "flex items-start gap-2 text-xs rounded-lg px-3 py-2",
-                    r.weight > 0
-                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
-                      : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
-                  )}
-                >
-                  {r.weight > 0 ? (
-                    <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                  ) : (
-                    <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                  )}
-                  {r.explanation_es}
-                </div>
-              ))}
-              <p className="text-[11px] text-muted-foreground px-1 pt-1 leading-relaxed">
-                {product.disclosure}
-              </p>
-            </div>
-          )}
         </CardContent>
       </Card>
       <LeadCaptureDialog product={product} open={leadOpen} onOpenChange={setLeadOpen} />
