@@ -633,7 +633,9 @@ function ProductCard({ product, currency }: { product: RankedProduct; currency: 
                 <Info className="h-3.5 w-3.5" />
                 {expanded
                   ? "Ocultar detalles"
-                  : `Ver ${product.reasons.length - 1} razón${product.reasons.length - 1 > 1 ? "es" : ""} más`}
+                  : `Ver ${product.reasons.length - 1} ${
+                      product.reasons.length - 1 > 1 ? "razones" : "razón"
+                    } más`}
                 {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
               </button>
             ) : (
@@ -788,7 +790,9 @@ export default function Products() {
     return rankProductsByCategory(products, activeTab, profile);
   }, [products, activeTab, profile]);
 
-  const eligibleCount = rankedProducts.filter((p) => p.eligibility === "eligible").length;
+  // Compatibles = todo lo que se lista (elegibles + posibles); "elegibles" a secas
+  // daba 0 aunque abajo hubiera varias tarjetas "Posible" → copy contradictoria.
+  const compatibleCount = rankedProducts.filter((p) => p.eligibility !== "not_eligible").length;
   const hasProfile = profile.has_real_data;
   // Tiene perfil por cartola (ingresos) pero aún no hay score crediticio (falta CMF):
   // el ranking de crédito se calcula sin la señal de deuda. Avisamos sin bloquear.
@@ -828,7 +832,9 @@ export default function Products() {
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {hasProfile
-                ? `Ranking personalizado · ${eligibleCount} productos elegibles para tu perfil`
+                ? `Ranking personalizado · ${compatibleCount} ${
+                    compatibleCount === 1 ? "producto compatible" : "productos compatibles"
+                  } con tu perfil`
                 : "Catálogo con más de 50 productos de instituciones chilenas"}
             </p>
           </div>
@@ -869,7 +875,7 @@ export default function Products() {
 
         {/* Category tabs — scrollable on mobile with fade hint */}
         <div className="-mx-4 sm:mx-0 relative">
-          <div className="flex gap-2 overflow-x-auto px-4 sm:px-0 pb-2 scrollbar-none scroll-smooth">
+          <div className="flex gap-2 overflow-x-auto px-4 pb-2 scrollbar-none scroll-smooth sm:flex-wrap sm:overflow-x-visible sm:px-0">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;

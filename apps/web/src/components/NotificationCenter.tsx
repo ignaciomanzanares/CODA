@@ -333,7 +333,7 @@ export default function NotificationCenter({ className }: NotificationCenterProp
 
         <DialogContent className="max-w-2xl w-[calc(100vw-1.5rem)] sm:w-full max-h-notification-panel flex flex-col gap-0 overflow-hidden rounded-t-2xl p-0 sm:rounded-lg">
           <DialogHeader className="shrink-0 space-y-3 p-4 pb-3 sm:p-6 sm:pb-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-col gap-3 pr-9 sm:flex-row sm:items-center sm:justify-between sm:pr-10">
               <DialogTitle className="flex flex-wrap items-center gap-2 text-left">
                 <Bell className="h-5 w-5 shrink-0" />
                 <span>Notificaciones</span>
