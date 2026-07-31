@@ -141,21 +141,6 @@ export default function Header() {
 
         {/* Centro: navegación + moneda — centrado */}
         <div className="flex-1 min-w-0 flex items-center justify-center gap-1 sm:gap-2">
-          {!isAuthenticated && (
-            <nav className="hidden md:flex items-center gap-1 min-w-0 justify-center">
-              <a
-                href={location === "/" ? "#servicios" : "/#servicios"}
-                className={cn(
-                  "px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap",
-                  isLanding
-                    ? "text-white/70 hover:text-white hover:bg-white/10"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/80",
-                )}
-              >
-                Servicios
-              </a>
-            </nav>
-          )}
           {isAuthenticated && (
             <nav className="hidden lg:flex items-center gap-0.5 min-w-0 justify-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {currentNavItems.map((item) => {
