@@ -5,7 +5,18 @@ import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, ArrowRight, Upload, Wallet, Info, CheckCircle2, Circle } from "lucide-react";
+import {
+  RefreshCw,
+  ArrowRight,
+  Upload,
+  Wallet,
+  Info,
+  CheckCircle2,
+  Circle,
+  HeartPulse,
+} from "lucide-react";
+import { PastelIcon } from "@/components/ui/pastel-icon";
+import { cn } from "@/lib/utils";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import { useToast } from "@/hooks/use-toast";
 import { useUserDocuments } from "@/hooks/useUserDocuments";
@@ -23,6 +34,21 @@ const SALIDA_LABEL: Record<HealthSalida, string> = {
   reestructuracion: "Reestructuración",
   concursal: "Asesoría legal",
 };
+
+/** Header consistente con el resto de la app (PastelIcon + título), reutilizado en
+ *  todos los estados (cargando/error/sin-datos/principal). `children` = acción a la
+ *  derecha (p. ej. el botón Recalcular). */
+function SaludHeader({ className, children }: { className?: string; children?: React.ReactNode }) {
+  return (
+    <div className={cn("flex items-center justify-between gap-3", className)}>
+      <div className="flex items-center gap-3">
+        <PastelIcon icon={HeartPulse} color="red" />
+        <h1 className="text-2xl font-bold tracking-tight">Salud financiera</h1>
+      </div>
+      {children}
+    </div>
+  );
+}
 
 export default function SaludFinanciera() {
   const queryClient = useQueryClient();
@@ -62,7 +88,7 @@ export default function SaludFinanciera() {
     const msg = error instanceof Error ? error.message : "Error desconocido";
     return (
       <div className="container max-w-2xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">Salud financiera</h1>
+        <SaludHeader className="mb-6" />
         <Card>
           <CardContent className="p-8 text-center space-y-4">
             <h2 className="text-lg font-semibold">No pudimos cargar tu salud financiera</h2>
@@ -106,7 +132,7 @@ export default function SaludFinanciera() {
 
     return (
       <div className="container max-w-2xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">Salud financiera</h1>
+        <SaludHeader className="mb-6" />
         <Card>
           <CardContent className="p-8 text-center space-y-4">
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
@@ -154,7 +180,7 @@ export default function SaludFinanciera() {
   if (!evaluation) {
     return (
       <div className="container max-w-2xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">Salud financiera</h1>
+        <SaludHeader className="mb-6" />
         <Card>
           <CardContent className="p-8 text-center space-y-4">
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
@@ -189,19 +215,18 @@ export default function SaludFinanciera() {
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Salud financiera</h1>
+      <SaludHeader>
         <Button
           variant="outline"
           size="sm"
-          className="gap-1.5"
+          className="gap-1.5 shrink-0"
           onClick={() => recalcMutation.mutate()}
           disabled={recalcMutation.isPending}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${recalcMutation.isPending ? "animate-spin" : ""}`} />
           Recalcular
         </Button>
-      </div>
+      </SaludHeader>
 
       {/* Indicador de confianza de datos según el estado de revisión de las cartolas
           importadas (#36/#37). No cambia el score; solo contextualiza su confiabilidad. */}
@@ -289,10 +314,7 @@ export default function SaludFinanciera() {
           </h2>
           <div className="space-y-2">
             {evaluation.productos.map((p, i) => (
-              <Card
-                key={i}
-                className="border border-gray-100 hover:border-blue-200 transition-colors"
-              >
+              <Card key={i} className="border-border hover:border-primary/40 transition-colors">
                 <CardContent className="p-3 flex items-center justify-between">
                   <div>
                     <div className="font-medium text-sm">{p.productName}</div>
@@ -302,7 +324,7 @@ export default function SaludFinanciera() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="gap-1 text-blue-600 hover:text-blue-700"
+                      className="gap-1 text-primary hover:text-primary/80"
                     >
                       Ver <ArrowRight className="w-3 h-3" />
                     </Button>
@@ -315,10 +337,12 @@ export default function SaludFinanciera() {
       )}
 
       {evaluation.salida === "concursal" && (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30">
           <CardContent className="p-4">
-            <p className="text-sm text-red-700 font-medium mb-1">Situación de insolvencia activa</p>
-            <p className="text-sm text-red-600">
+            <p className="text-sm text-red-700 dark:text-red-300 font-medium mb-1">
+              Situación de insolvencia activa
+            </p>
+            <p className="text-sm text-red-600 dark:text-red-400">
               Tu nivel de deuda requiere asesoría legal especializada. CODA no recomienda
               refinanciamiento en esta situación — hacerlo empeoraría tu carga.
             </p>
