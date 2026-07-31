@@ -439,12 +439,32 @@ export default function ParsedTransactionsTable({
 
   // ── CSV export ──────────────────────────────────────────────────────────
   const exportCsv = useCallback(() => {
+    // Origen + confianza permiten auditar afuera: filtrás por "IA" y por confianza
+    // baja para ver qué revisar. Grupo = el gran bucket; Categoría = la fina.
+    const originLabel = (t: ParsedTransaction) =>
+      t.isManual || t.source === "manual" ? "Manual" : t.source === "ai" ? "IA" : "Regla";
     const rows = [
-      ["Fecha", "Descripcion", "Categoria", "Tipo", "Monto", "Saldo", "Banco"],
+      [
+        "Fecha",
+        "Descripcion",
+        "Grupo",
+        "Categoria",
+        "Origen",
+        "Confianza",
+        "Tipo",
+        "Monto",
+        "Saldo",
+        "Banco",
+      ],
       ...filtered.map((t) => [
         t.fecha,
         `"${t.descripcion.replace(/"/g, '""')}"`,
+        t.requiresReview ? "Sin categoría" : displayCategoryLabel(t.categoria, t.tipo),
         categoryLabel(t.categoria),
+        originLabel(t),
+        typeof t.category_confidence === "number"
+          ? `${Math.round(t.category_confidence * 100)}%`
+          : "",
         t.tipo,
         t.monto.toString(),
         t.saldo != null ? t.saldo.toString() : "",
