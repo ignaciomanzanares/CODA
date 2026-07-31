@@ -21,7 +21,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowUpDown, ArrowUp, ArrowDown, Upload, Download, Trash2 } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Upload, Download, Trash2, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -195,6 +195,7 @@ export default function ParsedTransactionsTable({
   const cartolaCount = documents.filter((doc) => doc.tipo === "cartola").length;
 
   const [search, setSearch] = useState("");
+  const [isRecategorizing, setIsRecategorizing] = useState(false);
   const [typeFilter, setTypeFilter] = useState<"all" | "ingreso" | "egreso">(
     isGastos ? "egreso" : "all",
   );
@@ -391,6 +392,40 @@ export default function ParsedTransactionsTable({
     [queryClient, toast],
   );
 
+  // Re-aplica el motor de categorización más reciente a TODOS los movimientos
+  // (no pisa correcciones manuales). Mismo endpoint que el botón del panel.
+  const handleRecategorize = useCallback(async () => {
+    setIsRecategorizing(true);
+    toast({
+      title: "Recategorizando…",
+      description: "Aplicando el motor más reciente a tus movimientos.",
+    });
+    try {
+      const result = (await apiFetch("/api/admin/recategorize", { method: "POST" })) as {
+        updated?: number;
+        scanned?: number;
+      };
+      await queryClient.invalidateQueries();
+      const updated = result?.updated ?? 0;
+      const scanned = result?.scanned ?? 0;
+      toast({
+        title: "Categorías actualizadas",
+        description:
+          updated > 0
+            ? `Se recategorizaron ${updated} de ${scanned} movimientos.`
+            : `Los ${scanned} movimientos ya tenían la categoría correcta.`,
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "No se pudieron recategorizar las transacciones.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRecategorizing(false);
+    }
+  }, [queryClient, toast]);
+
   // ── CSV export ──────────────────────────────────────────────────────────
   const exportCsv = useCallback(() => {
     const rows = [
@@ -500,6 +535,19 @@ export default function ParsedTransactionsTable({
                     <DocumentManager documentType="cartola" showDeleteAll={false} showEmptyState />
                   </DialogContent>
                 </Dialog>
+              )}
+              {!isGastos && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={handleRecategorize}
+                  disabled={isRecategorizing}
+                  title="Vuelve a categorizar todos los movimientos con el motor más reciente (no toca tus correcciones manuales)"
+                >
+                  <RotateCcw className={cn("h-4 w-4", isRecategorizing && "animate-spin")} />
+                  {isRecategorizing ? "Recategorizando…" : "Recategorizar"}
+                </Button>
               )}
 
               <Input

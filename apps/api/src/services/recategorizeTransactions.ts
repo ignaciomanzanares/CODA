@@ -58,10 +58,13 @@ export async function recategorizeUserTransactions(
   let updated = 0;
   let skippedManual = 0;
 
+  // Fase 1 (sync): calcular la categoría nueva de cada fila y juntar las que
+  // cambian. Una fila corrupta (glosa indescifrable) se registra y se salta,
+  // nunca aborta el batch.
+  type Update = { id: number; next: Record<string, unknown> };
+  const pending: Update[] = [];
+
   for (const row of rows as Array<Record<string, unknown>>) {
-    // Una fila corrupta (glosa indescifrable, update que falla) NO debe abortar
-    // todo el batch: se registra y se sigue. Antes cualquier throw devolvía 500
-    // y el usuario veía "No se pudieron recategorizar las transacciones".
     try {
       // `transactions.description` se cifra en reposo (fieldEncryption); descifrar para
       // categorizar. Tolera filas legacy en claro vía looksEncrypted.
@@ -116,15 +119,32 @@ export async function recategorizeUserTransactions(
         changed(row.categorizerVersion, next.categorizerVersion) ||
         changed(Number(row.isInternalTransfer ?? 0), next.isInternalTransfer)
       ) {
-        await db
-          .update(transactions)
-          .set(next)
-          .where(eq(transactions.id, row.id as number));
-        updated++;
+        pending.push({ id: row.id as number, next });
       }
     } catch (rowErr) {
       logger.warn({ err: rowErr, rowId: row.id }, "recategorize: fila omitida");
     }
+  }
+
+  // Fase 2: persistir en tandas concurrentes acotadas. Antes eran cientos de
+  // UPDATE secuenciales (un bump de versión toca TODAS las filas) → tardaba
+  // demasiado y el proxy cortaba el request ("No se pudieron recategorizar").
+  const CONCURRENCY = 12;
+  for (let i = 0; i < pending.length; i += CONCURRENCY) {
+    await Promise.all(
+      pending.slice(i, i + CONCURRENCY).map((u) =>
+        db
+          .update(transactions)
+          .set(u.next)
+          .where(eq(transactions.id, u.id))
+          .then(() => {
+            updated++;
+          })
+          .catch((e: unknown) => {
+            logger.warn({ err: e, rowId: u.id }, "recategorize: update falló");
+          }),
+      ),
+    );
   }
 
   return { scanned, updated, skippedManual, version: CATEGORIZER_VERSION };
