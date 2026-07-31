@@ -14,8 +14,12 @@
 import { simpleChat } from "../aiService.js";
 import { logger } from "../../logger.js";
 
-/** Categorías válidas que la IA puede devolver (slugs de gasto/ahorro). */
-const ALLOWED = [
+/** El fallback es tipo-aware: a un egreso le ofrece categorías de gasto, a un
+ *  ingreso las fuentes de ingreso — nunca se mezclan. */
+export type TxKind = "expense" | "income";
+
+/** Categorías de GASTO/ahorro que la IA puede devolver para un egreso. */
+const EXPENSE_ALLOWED = [
   "vivienda",
   "alimentacion",
   "transporte",
@@ -40,15 +44,29 @@ const ALLOWED = [
   "ahorros",
   "inversiones",
 ] as const;
-const ALLOWED_SET = new Set<string>(ALLOWED);
+
+/** Fuentes de INGRESO que la IA puede devolver para un abono. */
+const INCOME_ALLOWED = [
+  "ingreso_principal",
+  "honorarios",
+  "transferencia_recibida",
+  "devoluciones",
+  "rentas",
+  "otros_ingresos",
+] as const;
 
 /** ruleId con el que se marcan las categorías puestas por IA (trazabilidad). */
 export const AI_RULE_ID = "ai.suggested";
 export const AI_CONFIDENCE = 0.6;
 
-const SYSTEM_PROMPT = `Eres un categorizador de transacciones bancarias chilenas. Recibes un arreglo JSON de descripciones (glosas de cartola). Para cada una, elige EXACTAMENTE una categoría de esta lista (usa el slug tal cual):
-${ALLOWED.join(", ")}.
+const EXPENSE_PROMPT = `Eres un categorizador de EGRESOS bancarios chilenos. Recibes un arreglo JSON de descripciones (glosas de cartola). Para cada una, elige EXACTAMENTE una categoría de esta lista (usa el slug tal cual):
+${EXPENSE_ALLOWED.join(", ")}.
 Guías: comercios de comida/cafés/bares → restaurantes; tiendas/retail/marketplace → comercio; apps de streaming/software → suscripciones; farmacias/clínicas → salud; supermercados → alimentacion; bencineras/uber/metro/estacionamiento → transporte; luz/agua/gas/internet → servicios_basicos. Si NO puedes determinarla con razonable certeza, usa "otro".
+Responde SOLO un objeto JSON que mapee cada descripción EXACTA de entrada a su slug. Sin explicaciones, sin markdown.`;
+
+const INCOME_PROMPT = `Eres un categorizador de INGRESOS bancarios chilenos. Recibes un arreglo JSON de descripciones (glosas de cartola), todas son ABONOS (dinero que entra). Para cada una, elige EXACTAMENTE una categoría de esta lista (usa el slug tal cual):
+${INCOME_ALLOWED.join(", ")}.
+Guías: sueldo/remuneración/liquidación → ingreso_principal; boletas de honorarios/trabajo independiente → honorarios; devoluciones de impuesto/SII/reintegros/reembolsos → devoluciones; arriendos/dividendos/intereses → rentas; transferencias recibidas de personas → transferencia_recibida; lo demás → otros_ingresos. Si NO puedes determinarla, usa "otro".
 Responde SOLO un objeto JSON que mapee cada descripción EXACTA de entrada a su slug. Sin explicaciones, sin markdown.`;
 
 /** Extrae el primer objeto JSON de una respuesta que puede venir con ```json … ```. */
@@ -75,10 +93,14 @@ function extractJsonObject(raw: string): Record<string, unknown> | null {
  */
 export async function aiCategorizeDescriptions(
   descriptions: string[],
+  kind: TxKind = "expense",
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   const uniq = [...new Set(descriptions.map((d) => d.trim()).filter(Boolean))];
   if (uniq.length === 0) return out;
+
+  const allowedSet = new Set<string>(kind === "income" ? INCOME_ALLOWED : EXPENSE_ALLOWED);
+  const prompt = kind === "income" ? INCOME_PROMPT : EXPENSE_PROMPT;
 
   const BATCH = 40;
   const TIMEOUT_MS = 20_000; // un proveedor colgado no debe tumbar el recategorize
@@ -86,7 +108,7 @@ export async function aiCategorizeDescriptions(
     const batch = uniq.slice(i, i + BATCH);
     try {
       const raw = await Promise.race([
-        simpleChat(SYSTEM_PROMPT, JSON.stringify(batch)),
+        simpleChat(prompt, JSON.stringify(batch)),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("ai timeout")), TIMEOUT_MS),
         ),
@@ -95,7 +117,7 @@ export async function aiCategorizeDescriptions(
       if (!obj) continue;
       for (const [desc, val] of Object.entries(obj)) {
         const slug = String(val).trim().toLowerCase();
-        if (ALLOWED_SET.has(slug) && slug !== "otro") out.set(desc, slug);
+        if (allowedSet.has(slug) && slug !== "otro") out.set(desc, slug);
       }
     } catch (err) {
       logger.warn({ err, batchSize: batch.length }, "aiCategorize: batch falló (best-effort)");

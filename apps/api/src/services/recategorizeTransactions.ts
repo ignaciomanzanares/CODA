@@ -31,6 +31,16 @@ export interface RecategorizeOptions {
 /** Glosa de transferencia a/de persona (PII de terceros → NO se manda a la IA). */
 const PERSON_TRANSFER_RE = /\bTRANSF|\bTEF\b|TRASPASO|\bGIRO\s+A\b/i;
 
+/** Slugs de ingreso — para saber si una categoría IA coincide con el tipo del movimiento. */
+const INCOME_SLUGS = new Set([
+  "ingreso_principal",
+  "honorarios",
+  "transferencia_recibida",
+  "devoluciones",
+  "rentas",
+  "otros_ingresos",
+]);
+
 function legacyCategory(result: ReturnType<typeof categorize>): string {
   return result.category === "Transferencia interna"
     ? "Transferencia interna"
@@ -100,6 +110,7 @@ export async function recategorizeUserTransactions(
     description: string;
     row: Record<string, unknown>;
     next: Record<string, unknown>;
+    kind: "expense" | "income";
   };
   const unmatched: Unmatched[] = [];
 
@@ -127,10 +138,13 @@ export async function recategorizeUserTransactions(
         continue;
       }
       const amount = Number(row.amount ?? 0);
-      // Conservar lo puesto por IA SOLO en egresos (donde el fallback aplica) y sin
-      // re-consultar el LLM. Si por error quedó una IA en un abono (ingreso), se
-      // re-evalúa para devolverla a ingreso/Sin categoría.
-      if (amount < 0 && String(row.categoryRuleId ?? "").startsWith("ai.")) continue;
+      // Conservar lo puesto por IA (sin re-consultar el LLM) SOLO si la categoría
+      // coincide con el tipo (egreso→gasto, abono→ingreso). Si no coincide (bug
+      // viejo: una IA de gasto en un ingreso), se re-evalúa para corregirla.
+      if (String(row.categoryRuleId ?? "").startsWith("ai.")) {
+        const catIsIncome = INCOME_SLUGS.has(String(row.category ?? ""));
+        if (catIsIncome === amount >= 0) continue;
+      }
 
       scanned++;
       // Re-evaluar el flag interno con las reglas ACTUALES (solo escalar a interna,
@@ -154,17 +168,21 @@ export async function recategorizeUserTransactions(
         isInternalTransfer: isInternal ? 1 : 0,
       };
 
-      // EGRESOS no reconocidos ("otro") y que NO son transferencia a persona → al
-      // fallback de IA (fase 1.5). La lista que ve la IA es de gasto, así que los
-      // ABONOS (ingresos) NO se mandan: quedan como ingreso/Sin categoría, nunca
-      // como un gasto. El resto se persiste directo.
+      // Lo no reconocido por reglas ("otro") y que NO es transferencia a persona
+      // (PII) → al fallback de IA (fase 1.5), TIPO-AWARE: a un egreso se le ofrecen
+      // categorías de gasto, a un abono las fuentes de ingreso. El resto directo.
       if (
         options.ai !== false &&
-        amount < 0 &&
         next.category === "otro" &&
         !PERSON_TRANSFER_RE.test(description)
       ) {
-        unmatched.push({ id: row.id as number, description, row, next });
+        unmatched.push({
+          id: row.id as number,
+          description,
+          row,
+          next,
+          kind: amount < 0 ? "expense" : "income",
+        });
       } else if (rowChanged(row, next)) {
         pending.push({ id: row.id as number, next });
       }
@@ -177,9 +195,14 @@ export async function recategorizeUserTransactions(
   // no hay proveedor o falla, quedan "otro"/Sin categoría, sin empeorar nada).
   let aiCategorized = 0;
   if (unmatched.length > 0) {
-    const aiMap = await aiCategorizeDescriptions(unmatched.map((u) => u.description));
+    const expDescs = unmatched.filter((u) => u.kind === "expense").map((u) => u.description);
+    const incDescs = unmatched.filter((u) => u.kind === "income").map((u) => u.description);
+    const [expMap, incMap] = await Promise.all([
+      expDescs.length ? aiCategorizeDescriptions(expDescs, "expense") : new Map<string, string>(),
+      incDescs.length ? aiCategorizeDescriptions(incDescs, "income") : new Map<string, string>(),
+    ]);
     for (const u of unmatched) {
-      const aiSlug = aiMap.get(u.description);
+      const aiSlug = (u.kind === "income" ? incMap : expMap).get(u.description);
       if (aiSlug) {
         u.next.category = aiSlug;
         u.next.subcategory = null;
