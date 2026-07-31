@@ -146,7 +146,7 @@ const CATEGORY_META: Record<
     icon: GraduationCap,
     color: "text-amber-600 dark:text-amber-400",
   },
-  other: { label: "Otro", icon: Target, color: "text-slate-500" },
+  other: { label: "Otro", icon: Target, color: "text-slate-500 dark:text-slate-400" },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
