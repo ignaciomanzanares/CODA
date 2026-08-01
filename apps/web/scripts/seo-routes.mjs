@@ -13,7 +13,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const BASE_URL = "https://www.codafinance.cl";
-export const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image.png`;
+// Versionada (v2 = paleta naranjo). Debe coincidir con src/lib/seo-routes.ts.
+// El prerender usa ESTE valor para el <meta og:image> que leen los crawlers.
+export const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image-v2.png`;
 
 // Read VITE_ENABLE_CODA_EMPRESAS from .env / .env.production / process.env.
 // Build scripts (sitemap, prerender) run under Node and don't share Vite's

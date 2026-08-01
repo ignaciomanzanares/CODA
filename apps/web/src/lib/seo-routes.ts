@@ -10,7 +10,9 @@
 import { FEATURES } from "@/config/features";
 
 export const BASE_URL = "https://www.codafinance.cl";
-export const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image.png`;
+// URL versionada (v2 = paleta naranjo): al cambiar el diseño, subir la versión aquí
+// y en scripts/generate-og-image.mjs busta el caché de las redes sociales (URL nueva).
+export const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image-v2.png`;
 
 export interface RouteSeoEntry {
   title: string;

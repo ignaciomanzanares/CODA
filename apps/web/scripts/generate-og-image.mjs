@@ -10,7 +10,10 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const outDir = join(__dirname, "..", "public");
-const outFile = join(outDir, "og-image.png");
+// Nombre versionado: al cambiar la paleta/diseño, subir la versión (v2, v3…) y
+// actualizar DEFAULT_OG_IMAGE en src/lib/seo-routes.ts fuerza a las redes sociales
+// a re-fetchear (URL nueva = sin caché), sin depender de que re-scrapeen la vieja.
+const outFile = join(outDir, "og-image-v2.png");
 
 const W = 1200;
 const H = 630;

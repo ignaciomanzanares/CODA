@@ -126,7 +126,7 @@ assert(
 );
 
 await assertAsset("/favicon.svg", /image\/svg\+xml/i);
-await assertAsset("/og-image.png", /image\/png/i);
+await assertAsset("/og-image-v2.png", /image\/png/i);
 for (const icon of manifest.icons || []) {
   await assertAsset(icon.src, /image\/png/i);
 }

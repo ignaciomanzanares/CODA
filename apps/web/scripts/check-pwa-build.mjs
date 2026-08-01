@@ -85,7 +85,7 @@ function assertVercelStaticExclusions(configPath, config) {
     "manifest\\.json$",
     "favicon\\.svg$",
     "sw\\.js$",
-    "og-image\\.png$",
+    "og-image-v2\\.png$",
     "assets/",
     "icons/",
     "screenshots/",
