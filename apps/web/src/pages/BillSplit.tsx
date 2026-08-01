@@ -221,7 +221,7 @@ function FriendBalanceRow({
       <div className="flex items-center gap-3">
         <Avatar className="h-12 w-12">
           <AvatarFallback
-            className={`text-sm font-medium ${isOwed ? "bg-green-100 text-green-700" : isOwing ? "bg-red-100 text-red-700" : "bg-gray-100"}`}
+            className={`text-sm font-medium ${isOwed ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300" : isOwing ? "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300" : "bg-muted text-muted-foreground"}`}
           >
             {getInitials(name)}
           </AvatarFallback>
@@ -229,7 +229,7 @@ function FriendBalanceRow({
         <div>
           <p className="font-medium">{name}</p>
           <p
-            className={`text-sm ${isOwed ? "text-green-600" : isOwing ? "text-red-600" : "text-muted-foreground"}`}
+            className={`text-sm ${isOwed ? "text-green-600 dark:text-green-400" : isOwing ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}`}
           >
             {isOwed
               ? `te debe ${formatAmount(balance, currency)}`
@@ -280,7 +280,9 @@ function ExpenseCard({
   const card = (
     <Card
       className={`hover:shadow-lg transition-all cursor-pointer border-l-4 ${
-        expense.status === "settled" ? "border-l-green-500 bg-green-50/30" : "border-l-transparent"
+        expense.status === "settled"
+          ? "border-l-green-500 bg-green-50/30 dark:bg-green-500/5"
+          : "border-l-transparent"
       }`}
       onClick={onViewDetails}
     >
@@ -294,7 +296,7 @@ function ExpenseCard({
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold truncate">{expense.name}</h3>
                 {expense.status === "settled" && (
-                  <Badge className="bg-green-100 text-green-700 border-0">
+                  <Badge className="bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300 border-0">
                     <Check className="h-3 w-3 mr-1" />
                     Saldado
                   </Badge>
@@ -330,7 +332,7 @@ function ExpenseCard({
                   {expense.participants?.slice(0, 4).map((p) => (
                     <Avatar key={p.id} className="h-7 w-7 border-2 border-background">
                       <AvatarFallback
-                        className={`text-xs ${p.isPaid ? "bg-green-100 text-green-700" : "bg-muted"}`}
+                        className={`text-xs ${p.isPaid ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300" : "bg-muted"}`}
                       >
                         {getInitials(p.name)}
                       </AvatarFallback>
@@ -368,7 +370,7 @@ function ExpenseCard({
               {isCreator && expense.status !== "settled" && paidCount < totalCount && (
                 <Badge
                   variant="outline"
-                  className="text-xs border-amber-300 bg-amber-50 text-amber-700 whitespace-nowrap"
+                  className="text-xs border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700/60 dark:bg-amber-500/15 dark:text-amber-300 whitespace-nowrap"
                 >
                   <Clock className="h-3 w-3 mr-1" />
                   Pendiente
@@ -1244,8 +1246,8 @@ export default function BillSplit({ embedded = false }: { embedded?: boolean } =
                 <CardContent className="p-0">
                   {userBalances.length === 0 ? (
                     <div className="p-12 text-center">
-                      <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
-                        <Check className="w-8 h-8 text-green-600" />
+                      <div className="mx-auto w-16 h-16 rounded-full bg-green-100 dark:bg-green-500/15 flex items-center justify-center mb-4">
+                        <Check className="w-8 h-8 text-green-600 dark:text-green-400" />
                       </div>
                       <h3 className="font-semibold text-lg mb-2">¡Todo al día!</h3>
                       <p className="text-muted-foreground">No tienes saldos pendientes</p>
@@ -1389,7 +1391,7 @@ export default function BillSplit({ embedded = false }: { embedded?: boolean } =
                           <Button
                             variant="outline"
                             size="sm"
-                            className="flex-1 text-green-700 border-green-200 hover:bg-green-50"
+                            className="flex-1 text-green-700 border-green-200 hover:bg-green-50 dark:text-green-300 dark:border-green-800/60 dark:hover:bg-green-500/10"
                             onClick={() => {
                               const amount = new Intl.NumberFormat("es-CL", {
                                 style: "currency",
@@ -1452,7 +1454,11 @@ export default function BillSplit({ embedded = false }: { embedded?: boolean } =
                             <div className="flex items-center gap-3">
                               <Avatar className="h-10 w-10">
                                 <AvatarFallback
-                                  className={p.isPaid ? "bg-green-100 text-green-700" : "bg-muted"}
+                                  className={
+                                    p.isPaid
+                                      ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300"
+                                      : "bg-muted"
+                                  }
                                 >
                                   {getInitials(p.name)}
                                 </AvatarFallback>
@@ -1467,7 +1473,7 @@ export default function BillSplit({ embedded = false }: { embedded?: boolean } =
                               </div>
                             </div>
                             {p.isPaid ? (
-                              <Badge className="bg-green-100 text-green-700 border-0">
+                              <Badge className="bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300 border-0">
                                 <Check className="h-3 w-3 mr-1" />
                                 Pagado
                               </Badge>
