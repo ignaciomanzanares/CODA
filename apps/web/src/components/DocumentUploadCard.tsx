@@ -295,7 +295,7 @@ export default function DocumentUploadCard() {
         {/* Interrupted-upload banner: shown when the user re-authenticates
             after a session expiry that fired during a previous upload. */}
         {pendingUploadBanner && (
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-500/10 dark:border-amber-700/50 dark:text-amber-300 text-sm">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="font-medium mb-1">Carga interrumpida</p>
@@ -373,7 +373,7 @@ export default function DocumentUploadCard() {
         </div>
 
         {warnings && warnings.length > 0 && (
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-500/10 dark:border-amber-700/50 dark:text-amber-300 text-sm">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="font-medium mb-1">Advertencias:</p>
@@ -408,7 +408,7 @@ export default function DocumentUploadCard() {
           !result.error &&
           result.detection_tier === "MEDIUM" &&
           result.documentType === "cartola" && (
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-500/10 dark:border-amber-700/50 dark:text-amber-300 text-sm">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="font-medium mb-1">
@@ -421,7 +421,7 @@ export default function DocumentUploadCard() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-amber-400 text-amber-800 hover:bg-amber-100"
+                  className="border-amber-400 text-amber-800 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-500/10"
                   onClick={() => {
                     // CTA: transaction review — user can proceed after acknowledgment
                     alert(

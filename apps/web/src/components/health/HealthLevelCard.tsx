@@ -25,10 +25,22 @@ const SEGMENTOS: { nivel: HealthLevel; label: string; color: string; textColor: 
 ];
 
 const SALIDA_BADGE: Record<HealthSalida, { label: string; className: string }> = {
-  ahorro_inversion: { label: "Ahorro e Inversión", className: "bg-emerald-100 text-emerald-800" },
-  refinanciamiento: { label: "Refinanciamiento", className: "bg-yellow-100 text-yellow-800" },
-  reestructuracion: { label: "Reestructuración", className: "bg-orange-100 text-orange-800" },
-  concursal: { label: "Proceso Concursal", className: "bg-red-100 text-red-800" },
+  ahorro_inversion: {
+    label: "Ahorro e Inversión",
+    className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300",
+  },
+  refinanciamiento: {
+    label: "Refinanciamiento",
+    className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-300",
+  },
+  reestructuracion: {
+    label: "Reestructuración",
+    className: "bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300",
+  },
+  concursal: {
+    label: "Proceso Concursal",
+    className: "bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-300",
+  },
 };
 
 export default function HealthLevelCard({
