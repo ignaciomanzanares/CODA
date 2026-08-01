@@ -269,7 +269,7 @@ async function callOpenAI(messages: Message[], apiKey: string): Promise<string> 
       model: "gpt-4o-mini",
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
       max_tokens: 1500,
-      temperature: 0.6,
+      temperature: 0.4,
     }),
   });
 
@@ -294,7 +294,7 @@ async function callAnthropic(messages: Message[], apiKey: string): Promise<strin
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-3-5-haiku-20241022",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 1500,
       system: systemMessage,
       messages: chatMessages.map((m) => ({ role: m.role, content: m.content })),
@@ -393,7 +393,7 @@ async function callGemini(messages: Message[], apiKey: string): Promise<string> 
     body: JSON.stringify({
       system_instruction,
       contents,
-      generationConfig: { maxOutputTokens: 1500, temperature: 0.6 },
+      generationConfig: { maxOutputTokens: 1500, temperature: 0.4 },
     }),
   });
 
@@ -420,7 +420,7 @@ async function callGeminiWithToolLoop(
     const body: Record<string, unknown> = {
       system_instruction,
       contents,
-      generationConfig: { maxOutputTokens: 1500, temperature: 0.6 },
+      generationConfig: { maxOutputTokens: 1500, temperature: 0.4 },
     };
     if (!isLast) body.tools = geminiToolsPayload();
 
@@ -488,7 +488,7 @@ async function callGroq(
     model: "llama-3.3-70b-versatile",
     messages: messages.map(toOpenAIWireMessage),
     max_tokens: 1500,
-    temperature: 0.6,
+    temperature: 0.4,
   };
   if (opts.withTools) {
     body.tools = TOOL_DEFINITIONS;
@@ -561,7 +561,7 @@ export async function* streamOpenAI(
       model: "gpt-4o-mini",
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
       max_tokens: 1500,
-      temperature: 0.6,
+      temperature: 0.4,
       stream: true,
     }),
   });
@@ -617,7 +617,7 @@ export async function* streamAnthropic(
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-3-5-haiku-20241022",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 1500,
       stream: true,
       system: systemMessage,
@@ -673,7 +673,7 @@ export async function* streamGemini(
     body: JSON.stringify({
       system_instruction,
       contents,
-      generationConfig: { maxOutputTokens: 1500, temperature: 0.6 },
+      generationConfig: { maxOutputTokens: 1500, temperature: 0.4 },
     }),
   });
 
@@ -730,7 +730,7 @@ export async function* streamGeminiWithTools(
     const body: Record<string, unknown> = {
       system_instruction,
       contents,
-      generationConfig: { maxOutputTokens: 1500, temperature: 0.6 },
+      generationConfig: { maxOutputTokens: 1500, temperature: 0.4 },
     };
     if (!isLast) body.tools = geminiToolsPayload();
 
@@ -814,7 +814,7 @@ export async function* streamGroq(
       model: "llama-3.3-70b-versatile",
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
       max_tokens: 1500,
-      temperature: 0.6,
+      temperature: 0.4,
       stream: true,
     }),
   });
@@ -872,7 +872,7 @@ export async function* streamGroqWithTools(
       model: "llama-3.3-70b-versatile",
       messages: working.map(toOpenAIWireMessage),
       max_tokens: 1500,
-      temperature: 0.6,
+      temperature: 0.4,
       stream: true,
     };
     if (!isLast) {
