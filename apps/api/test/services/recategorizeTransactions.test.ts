@@ -125,6 +125,7 @@ describe("recategorizeUserTransactions", () => {
       scanned: 3,
       updated: 3,
       skippedManual: 0,
+      aiCategorized: 0,
       version: CATEGORIZER_VERSION,
     });
 

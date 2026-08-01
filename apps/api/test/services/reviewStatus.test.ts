@@ -16,9 +16,11 @@ describe("requiresReview — criterios de 'por revisar'", () => {
     expect(requiresReview({ category: null })).toBe(true);
   });
 
-  it("confianza baja (< 0.5) requiere revisión", () => {
-    expect(requiresReview({ category: "alimentacion", categoryConfidence: 0.2 })).toBe(true);
-    expect(requiresReview({ category: "alimentacion", categoryConfidence: 0.49 })).toBe(true);
+  it("confianza baja con categoría/bucket claro NO requiere revisión", () => {
+    // Con el selector de 3 buckets, "alimentacion" @ 0.2 igual cae en un bucket
+    // claro (Gastos) → no es "sin clasificar". Solo vacío/otro/fallback se revisan.
+    expect(requiresReview({ category: "alimentacion", categoryConfidence: 0.2 })).toBe(false);
+    expect(requiresReview({ category: "alimentacion", categoryConfidence: 0.49 })).toBe(false);
   });
 
   it("regla de respaldo explícita (fallback.* / unknown) requiere revisión", () => {
@@ -74,8 +76,9 @@ describe("isManualCategory", () => {
 describe("countRequiresReview", () => {
   it("cuenta solo los pendientes (excluye manuales)", () => {
     const txs = [
-      { category: "otro" }, // review
-      { category: "alimentacion", categoryConfidence: 0.3 }, // review (low conf)
+      { category: "otro" }, // review (categoría 'otro')
+      { category: "alimentacion", categoryConfidence: 0.3, categoryRuleId: "fallback.otro" }, // review (fallback)
+      { category: "alimentacion", categoryConfidence: 0.3 }, // baja conf pero bucket claro → NO review
       { category: "transporte", categoryConfidence: 0.9, categoryRuleId: "cl.uber" }, // ok
       { category: "otro", categoryRuleId: MANUAL_RULE_ID }, // manual → no review
     ];
