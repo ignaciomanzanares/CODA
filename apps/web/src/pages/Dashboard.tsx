@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useAuth } from "@/lib/auth";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
@@ -9,9 +9,11 @@ import ScoreHero from "@/components/dashboard/ScoreHero";
 import ScoreBreakdown from "@/components/dashboard/ScoreBreakdown";
 import AvailableCard from "@/components/dashboard/AvailableCard";
 import ActionCards from "@/components/dashboard/ActionCards";
-import FlowDonut from "@/components/dashboard/FlowDonut";
+// Charts (recharts, ~404KB): lazy para que NO entren en el chunk inicial del Panel.
+// El shell + números renderizan primero; los gráficos hacen streaming después.
+const FlowDonut = lazy(() => import("@/components/dashboard/FlowDonut"));
+const CategoryCard = lazy(() => import("@/components/dashboard/CategoryCard"));
 import SavingsProgress from "@/components/dashboard/SavingsProgress";
-import CategoryCard from "@/components/dashboard/CategoryCard";
 import CreditScoreCard from "@/components/dashboard/CreditScoreCard";
 import HealthSummaryCard from "@/components/dashboard/HealthSummaryCard";
 import PlanSummaryCard from "@/components/dashboard/PlanSummaryCard";
@@ -319,11 +321,17 @@ export default function Dashboard() {
 
                 {/* ── CAPA 2: FLUJO DEL PERÍODO ────────────────────────── */}
                 <div className="space-y-4">
-                  <FlowDonut
-                    segments={data.flowSegments}
-                    pctIncomeSpent={data.incomeReliable ? data.pctIncomeSpent : null}
-                    totalExpenses={data.totalExpenses}
-                  />
+                  <Suspense
+                    fallback={
+                      <div className="h-[212px] rounded-2xl border border-border bg-card animate-pulse" />
+                    }
+                  >
+                    <FlowDonut
+                      segments={data.flowSegments}
+                      pctIncomeSpent={data.incomeReliable ? data.pctIncomeSpent : null}
+                      totalExpenses={data.totalExpenses}
+                    />
+                  </Suspense>
                   {/* Tasa de ahorro solo con ingreso medible: con puras cartolas
                       de tarjeta mostraba "-2923%". */}
                   {data.incomeReliable ? (
@@ -355,9 +363,22 @@ export default function Dashboard() {
                   <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                     Detalle por categoría
                   </p>
-                  {data.categoryGroups.map((group) => (
-                    <CategoryCard key={group.key} group={group} />
-                  ))}
+                  <Suspense
+                    fallback={
+                      <div className="space-y-3">
+                        {data.categoryGroups.map((group) => (
+                          <div
+                            key={group.key}
+                            className="h-[72px] rounded-2xl border border-border bg-card animate-pulse"
+                          />
+                        ))}
+                      </div>
+                    }
+                  >
+                    {data.categoryGroups.map((group) => (
+                      <CategoryCard key={group.key} group={group} />
+                    ))}
+                  </Suspense>
                 </div>
 
                 {/* ── PATRIMONIO + REFERRAL (solo móvil; en desktop, sidebar) ── */}
