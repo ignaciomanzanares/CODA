@@ -214,6 +214,24 @@ registerMetricsEndpoint(app);
       }
     }
 
+    // Recordatorios de cobros recurrentes (notificaciones v1 #1): al boot y cada 24h.
+    // El servicio es no-op salvo RECURRING_REMINDERS_ENABLED=true (rollout seguro:
+    // primero validamos con el endpoint de preview, luego se prende el flag).
+    if (process.env.NODE_ENV !== "test") {
+      const runRecurringReminders = async () => {
+        try {
+          const { runRecurringRemindersForAllUsers } =
+            await import("./services/notifications/recurringReminders.js");
+          await runRecurringRemindersForAllUsers();
+        } catch (err) {
+          logger.warn({ err }, "[recurring-reminders] corrida falló");
+        }
+      };
+      void runRecurringReminders();
+      const recurringTimer = setInterval(runRecurringReminders, 24 * 60 * 60 * 1000);
+      recurringTimer.unref?.();
+    }
+
     // Monitor de profundidad de cola (#27): alerta a Ops si la cola de documentos se satura
     // (worker caído). No-op si no hay Redis. Desactivado en test.
     if (process.env.NODE_ENV !== "test") {

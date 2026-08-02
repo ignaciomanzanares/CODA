@@ -151,6 +151,14 @@ export const NotificationTemplates = {
     category: "product" as const,
     actionUrl: "/productos",
   }),
+
+  RECURRING_CHARGE: (merchant: string, amount: number, day: number) => ({
+    title: "Cobro recurrente próximo",
+    message: `${merchant} te suele cobrar ~${fmtClp(amount)} alrededor del día ${day}.`,
+    type: "info" as const,
+    category: "expense" as const,
+    actionUrl: "/movimientos",
+  }),
 };
 
 class NotificationServiceImpl implements NotificationService {
@@ -292,6 +300,35 @@ class NotificationServiceImpl implements NotificationService {
       userId,
       ...template,
       metadata: JSON.stringify({ expenseId, amount, category }),
+    });
+  }
+
+  async notifyRecurringCharge(
+    userId: string,
+    charge: {
+      merchant: string;
+      typicalAmountClp: number;
+      typicalDay: number;
+      cycle: string;
+      nextChargeDate: string;
+    },
+  ): Promise<Notification> {
+    const template = NotificationTemplates.RECURRING_CHARGE(
+      charge.merchant,
+      charge.typicalAmountClp,
+      charge.typicalDay,
+    );
+    return await this.createNotification({
+      userId,
+      ...template,
+      // `kind`+`merchant`+`cycle` = clave de deduplicación por ciclo mensual.
+      metadata: JSON.stringify({
+        kind: "recurring_charge",
+        merchant: charge.merchant,
+        cycle: charge.cycle,
+        nextChargeDate: charge.nextChargeDate,
+        amount: charge.typicalAmountClp,
+      }),
     });
   }
 

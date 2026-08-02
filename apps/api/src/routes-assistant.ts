@@ -285,6 +285,26 @@ export async function registerAssistantRoutes(app: Express): Promise<void> {
     }
   });
 
+  /**
+   * GET /api/assistant/recurring-reminders/preview
+   * Dry-run: cobros recurrentes próximos del usuario (suscripciones/PAC detectados
+   * del historial). NO escribe ni notifica — sirve para validar la lógica sobre data
+   * real antes de habilitar el job diario (RECURRING_REMINDERS_ENABLED).
+   */
+  app.get("/api/assistant/recurring-reminders/preview", authenticate, async (req, res) => {
+    try {
+      const userId = getUserIdFromAuth(req);
+      const { getUpcomingRecurringForUser } =
+        await import("./services/notifications/recurringReminders.js");
+      // Ventana amplia (mes) solo para el preview: mostrar todo lo detectado.
+      const upcoming = await getUpcomingRecurringForUser(userId, { windowDays: 35 });
+      res.json({ upcoming });
+    } catch (e) {
+      logger.error({ err: e }, "recurring reminders preview error");
+      res.status(500).json({ message: "Error al calcular recordatorios." });
+    }
+  });
+
   /** Mensaje inicial y chips del chat (datos reales, sin plantillas genéricas). */
   app.get("/api/assistant/bootstrap", authenticate, async (req, res) => {
     try {
