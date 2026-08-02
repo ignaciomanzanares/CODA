@@ -95,9 +95,9 @@ export async function runRecurringRemindersForAllUsers(): Promise<void> {
     return;
   }
   const t0 = Date.now();
-  const rows = (await db
-    .selectDistinct({ userId: accounts.userId })
-    .from(accounts)) as Array<{ userId: string | null }>;
+  const rows = (await db.selectDistinct({ userId: accounts.userId }).from(accounts)) as Array<{
+    userId: string | null;
+  }>;
   const userIds = rows.map((r) => r.userId).filter((id): id is string => !!id);
 
   let totalCreated = 0;

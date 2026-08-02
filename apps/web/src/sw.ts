@@ -13,11 +13,7 @@
  *  - Runtime cache solo para imágenes y fuentes (contenido no sensible).
  */
 
-import {
-  cleanupOutdatedCaches,
-  matchPrecache,
-  precacheAndRoute,
-} from "workbox-precaching";
+import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from "workbox-precaching";
 import { NavigationRoute, registerRoute } from "workbox-routing";
 import { CacheFirst, NetworkFirst } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
