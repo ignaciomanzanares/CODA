@@ -15,11 +15,11 @@
 
 import {
   cleanupOutdatedCaches,
-  createHandlerBoundToURL,
+  matchPrecache,
   precacheAndRoute,
 } from "workbox-precaching";
 import { NavigationRoute, registerRoute } from "workbox-routing";
-import { CacheFirst } from "workbox-strategies";
+import { CacheFirst, NetworkFirst } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 
 declare let self: ServiceWorkerGlobalScope;
@@ -49,11 +49,28 @@ self.addEventListener("activate", (event) => {
 
 /* ─── Rutas ─── */
 
-// SPA fallback a /index.html, excepto API y archivos estáticos con ruta propia.
+// Navegación SPA: NetworkFirst en vez de servir el index PRECACHEADO.
+//
+// Por qué: los chunks de ruta son lazy con hash por build. Si el SW sirviera un
+// index.html viejo cacheado (tras varios deploys), ese HTML apunta a hashes que ya
+// no existen en el server → "Failed to fetch dynamically imported module" (404) y la
+// app se cae. Con NetworkFirst, cada navegación trae el index FRESCO del server (con
+// los hashes correctos) mientras haya red — sin depender de que el SW se actualice —
+// y cae al shell precacheado solo si estás offline.
+const navigationHandler = new NetworkFirst({
+  cacheName: "app-shell",
+  networkTimeoutSeconds: 4,
+  plugins: [new ExpirationPlugin({ maxEntries: 1, maxAgeSeconds: 86400 })],
+});
 registerRoute(
-  new NavigationRoute(createHandlerBoundToURL("/index.html"), {
-    denylist: [/^\/api\//, /^\/robots\.txt$/, /^\/sitemap\.xml$/],
-  }),
+  new NavigationRoute(
+    async (options) => {
+      const res = await navigationHandler.handle(options).catch(() => undefined);
+      // Sin red y sin copia previa en app-shell → shell precacheado (offline).
+      return res ?? (await matchPrecache("/index.html")) ?? Response.error();
+    },
+    { denylist: [/^\/api\//, /^\/robots\.txt$/, /^\/sitemap\.xml$/] },
+  ),
 );
 
 // Imágenes: CacheFirst acotado (no sensibles; los PDFs de cartolas van por /api y NO se cachean).
