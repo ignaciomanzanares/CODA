@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { useSearch } from "wouter";
 import {
   ArrowLeftRight,
@@ -25,7 +25,9 @@ import { useToast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/api";
 import ParsedTransactionsTable from "@/components/ParsedTransactionsTable";
 import BillSplit from "@/pages/BillSplit";
-import MonthlyFlowChart from "@/components/MonthlyFlowChart";
+// recharts (~404KB) fuera del chunk inicial: la tabla de movimientos renderiza
+// primero y el gráfico de flujo mensual hace streaming después.
+const MonthlyFlowChart = lazy(() => import("@/components/MonthlyFlowChart"));
 import CategoryReviewPanel from "@/components/CategoryReviewPanel";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 import { useUserDocuments } from "@/hooks/useUserDocuments";
@@ -379,7 +381,15 @@ export default function Movimientos() {
         </div>
 
         {/* Monthly flow chart — visible only on transacciones tab */}
-        {activeTab === "transacciones" && <MonthlyFlowChart />}
+        {activeTab === "transacciones" && (
+          <Suspense
+            fallback={
+              <div className="h-[300px] rounded-2xl border border-border bg-card animate-pulse" />
+            }
+          >
+            <MonthlyFlowChart />
+          </Suspense>
+        )}
 
         {/* Revisión masiva de categorías (pendientes agrupados por comercio) */}
         {activeTab === "transacciones" && <CategoryReviewPanel />}
