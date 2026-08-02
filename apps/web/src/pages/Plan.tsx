@@ -263,13 +263,17 @@ function GoalCard({
           <div className="flex gap-1 shrink-0">
             <button
               onClick={() => onEdit(goal)}
+              aria-label="Editar meta"
               className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <Pencil className="h-3.5 w-3.5" />
             </button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <button className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                <button
+                  aria-label="Eliminar meta"
+                  className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </AlertDialogTrigger>
