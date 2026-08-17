@@ -16,7 +16,7 @@ export default function Empresas() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-700 to-blue-800 text-white">
+      <section className="relative overflow-hidden bg-gradient-to-br from-orange-600 via-orange-700 to-orange-800 text-white">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
         <div className="container mx-auto px-4 py-20 md:py-32 relative">
           <Link href="/">
@@ -27,26 +27,26 @@ export default function Empresas() {
           </Link>
           <div className="max-w-3xl mx-auto text-center">
             <div className="flex items-center justify-center mb-6">
-              <Building2 className="h-16 w-16 text-blue-200" />
+              <Building2 className="h-16 w-16 text-orange-200" />
             </div>
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-              CODA <span className="text-blue-200">Empresas</span>
+              CODA <span className="text-orange-200">Empresas</span>
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 mb-8 leading-relaxed">
+            <p className="text-xl md:text-2xl text-orange-100 mb-8 leading-relaxed">
               Plataforma de salud financiera y evaluación de riesgo crediticio para PYMEs chilenas.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/empresas/login">
                 <Button
                   size="lg"
-                  className="bg-white text-purple-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg"
+                  className="bg-white text-orange-700 hover:bg-orange-50 font-semibold px-8 py-6 text-lg"
                 >
                   Ir a CODA Empresas
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
             </div>
-            <p className="mt-6 text-blue-200 text-sm">Gestión financiera integral para tu PYME</p>
+            <p className="mt-6 text-orange-200 text-sm">Gestión financiera integral para tu PYME</p>
           </div>
         </div>
       </section>
@@ -183,24 +183,24 @@ export default function Empresas() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-indigo-600 to-purple-700 text-white">
+      <section className="py-20 bg-gradient-to-r from-orange-600 to-orange-800 text-white">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
             ¿Listo para Transformar tu Gestión Financiera?
           </h2>
-          <p className="text-xl text-indigo-100 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-orange-100 mb-8 max-w-2xl mx-auto">
             Únete a las PYMEs que ya están tomando mejores decisiones financieras.
           </p>
           <Link href="/empresas/login">
             <Button
               size="lg"
-              className="bg-white text-purple-700 hover:bg-blue-50 font-semibold px-8 py-6 text-lg"
+              className="bg-white text-orange-700 hover:bg-orange-50 font-semibold px-8 py-6 text-lg"
             >
               Comenzar con CODA Empresas
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </Link>
-          <p className="mt-6 text-indigo-200 text-sm">Todo integrado en la misma plataforma CODA</p>
+          <p className="mt-6 text-orange-200 text-sm">Todo integrado en la misma plataforma CODA</p>
         </div>
       </section>
 

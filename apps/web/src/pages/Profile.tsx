@@ -550,7 +550,7 @@ export default function Profile() {
 
         {/* ── Profile Hero ── */}
         <Card className="overflow-hidden rounded-2xl border-border">
-          <div className="h-28 bg-gradient-to-r from-blue-600 to-indigo-600" />
+          <div className="h-28 bg-gradient-to-r from-orange-600 to-orange-800" />
           <CardContent className="relative px-5 pb-5 pt-0">
             <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12">
               <Avatar className="h-20 w-20 border-4 border-background shadow-lg">

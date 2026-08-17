@@ -33,7 +33,7 @@ export default function LegalPageShell({ title, lastUpdated, toc, children }: Pr
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900 text-white">
+      <header className="bg-gradient-to-br from-orange-600 via-orange-700 to-orange-800 text-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-14">
           <Link href="/">
             <Button variant="ghost" className="text-white hover:bg-white/10 mb-6 -ml-2">
@@ -41,11 +41,13 @@ export default function LegalPageShell({ title, lastUpdated, toc, children }: Pr
               Volver al inicio
             </Button>
           </Link>
-          <p className="text-blue-200 text-sm font-medium tracking-wide uppercase mb-2">
+          <p className="text-orange-200 text-sm font-medium tracking-wide uppercase mb-2">
             CODA · Documento legal
           </p>
           <h1 className="text-3xl md:text-4xl font-bold leading-tight mb-3">{title}</h1>
-          <p className="text-blue-100 text-sm md:text-base">Última actualización: {lastUpdated}</p>
+          <p className="text-orange-100 text-sm md:text-base">
+            Última actualización: {lastUpdated}
+          </p>
         </div>
       </header>
 
@@ -60,7 +62,7 @@ export default function LegalPageShell({ title, lastUpdated, toc, children }: Pr
               aria-expanded={mobileOpen}
             >
               <span className="flex items-center gap-2">
-                <Menu className="h-5 w-5 text-blue-600" />
+                <Menu className="h-5 w-5 text-orange-600" />
                 Índice
               </span>
               <span className="text-xs text-slate-500">{mobileOpen ? "Ocultar" : "Mostrar"}</span>
@@ -89,7 +91,7 @@ export default function LegalPageShell({ title, lastUpdated, toc, children }: Pr
               "prose-p:text-slate-700 prose-p:leading-relaxed",
               "prose-li:text-slate-700",
               "prose-strong:text-slate-900",
-              "prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline",
+              "prose-a:text-orange-600 prose-a:no-underline hover:prose-a:underline",
             )}
           >
             {children}

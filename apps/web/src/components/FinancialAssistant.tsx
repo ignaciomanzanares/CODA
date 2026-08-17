@@ -520,7 +520,7 @@ export default function FinancialAssistant({
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed right-6 z-50 flex items-center gap-2.5 bg-gradient-to-r from-primary to-blue-600 text-primary-foreground rounded-full shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:scale-105 transition-all px-4 h-13 py-3"
+        className="fixed right-6 z-50 flex items-center gap-2.5 bg-gradient-to-r from-primary to-orange-600 text-primary-foreground rounded-full shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:scale-105 transition-all px-4 h-13 py-3"
         style={{ bottom: "max(1.5rem, var(--sab, 0px))" }}
         aria-label="Abrir asistente financiero"
       >
@@ -537,7 +537,7 @@ export default function FinancialAssistant({
   const chatContent = (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-primary to-blue-600 text-white rounded-t-xl">
+      <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-primary to-orange-600 text-white rounded-t-xl">
         <div className="flex items-center gap-3">
           <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm">
             <Bot className="h-5 w-5 text-white" />
