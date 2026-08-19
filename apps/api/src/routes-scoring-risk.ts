@@ -27,36 +27,20 @@ export async function registerScoringRiskRoutes(app: Express): Promise<void> {
         return res.json({ hasData: false, healthLevel: null, programs: [], savingsTips: [] });
       }
 
-      let totalIncome = 0,
-        totalExpenses = 0,
-        hasEduExpenses = false,
-        eduTotal = 0;
-
-      for (const t of txs) {
-        if (isInternalTransferTx(t)) continue;
-        if (t.tipo === "ingreso") {
-          totalIncome += t.abono;
-        } else {
-          totalExpenses += t.cargo;
-          if (t.categoria === "educacion") {
-            hasEduExpenses = true;
-            eduTotal += t.cargo;
-          }
-        }
-      }
+      const { computeMonthlyHealthMetrics, mesesDeFondoEmergencia } =
+        await import("./services/financialHealthMetrics.js");
+      const { monthlyIncome, monthlyExpenses, savingsRate, hasEduExpenses, eduPct } =
+        computeMonthlyHealthMetrics(txs, isInternalTransferTx);
 
       const saldoActual: number = (await getReportedBalance(userId)) ?? 0;
-      const savingsRate =
-        totalIncome > 0 ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100) : 0;
-      const mesesCubiertos = totalExpenses > 0 ? saldoActual / totalExpenses : 0;
-      const eduPct = totalIncome > 0 ? Math.round((eduTotal / totalIncome) * 100) : 0;
+      const mesesCubiertos = mesesDeFondoEmergencia(saldoActual, monthlyExpenses);
 
       const credit = await storage.getCreditScore(userId);
       const txScore = await storage.getTransactionalScore(userId);
 
       const result = evaluateGovernmentPrograms({
-        monthlyIncome: totalIncome,
-        monthlyExpenses: totalExpenses,
+        monthlyIncome,
+        monthlyExpenses,
         savingsRate,
         saldoActual,
         creditScore: credit?.score ?? null,
