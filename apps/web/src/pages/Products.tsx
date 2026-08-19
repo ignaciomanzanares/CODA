@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUploadDrawer } from "@/contexts/UploadDrawerContext";
 
 // Data & ranking
-import { rankProductsByCategory } from "@/lib/product-ranking";
+import { rankProductsByCategory, isCreditCategory } from "@/lib/product-ranking";
 import { PRODUCT_CATEGORIES } from "@/types/products";
 import type {
   Product,
@@ -51,6 +51,7 @@ import {
   Loader2,
   PartyPopper,
   ArrowRight,
+  ArrowDownNarrowWide,
 } from "lucide-react";
 
 // ──────────────────────────────────────────────────────────────
@@ -906,9 +907,17 @@ export default function Products() {
 
         {/* Active category label */}
         {activeTab !== "all" && (
-          <EyebrowLabel color="muted">
-            {PRODUCT_CATEGORIES[activeTab as ProductCategory]}
-          </EyebrowLabel>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <EyebrowLabel color="muted">
+              {PRODUCT_CATEGORIES[activeTab as ProductCategory]}
+            </EyebrowLabel>
+            {isCreditCategory(activeTab) && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+                <ArrowDownNarrowWide className="h-3.5 w-3.5" />
+                Ordenado por tasa: el más barato primero
+              </span>
+            )}
+          </div>
         )}
 
         {/* Products list */}

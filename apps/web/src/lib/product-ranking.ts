@@ -337,7 +337,30 @@ export function rankProducts(products: Product[], profile: UserFinancialProfile)
 }
 
 /**
+ * Categorías de CRÉDITO cuyo "costo" para el usuario es la tasa anual: el crédito
+ * más barato es el de menor tasa. El pitch de CODA es mostrar ese primero, así que
+ * en estas pestañas ordenamos por tasa ascendente (no por el score compuesto).
+ */
+const CREDIT_CATEGORIES = new Set([
+  "creditos_consumo",
+  "lineas_credito",
+  "creditos_hipotecarios",
+  "portabilidad",
+  "tarjetas_credito",
+]);
+
+/** True si la pestaña activa es una categoría de crédito (se ordena por tasa). */
+export function isCreditCategory(category: string): boolean {
+  return CREDIT_CATEGORIES.has(category);
+}
+
+/**
  * Filtra por categoría y rankea. Útil para la vista de tabs.
+ *
+ * En categorías de crédito el orden es por COSTO (tasa anual ascendente = más
+ * barato primero) dentro de cada grupo de elegibilidad —no anteponemos un crédito
+ * que el usuario no puede obtener—, cumpliendo el pitch de "te mostramos el crédito
+ * más barato". En el resto, se mantiene el ranking por adecuación (score compuesto).
  */
 export function rankProductsByCategory(
   products: Product[],
@@ -345,6 +368,21 @@ export function rankProductsByCategory(
   profile: UserFinancialProfile,
 ): RankedProduct[] {
   const filtered = category === "all" ? products : products.filter((p) => p.category === category);
+  const ranked = rankProducts(filtered, profile);
 
-  return rankProducts(filtered, profile);
+  if (category === "all" || !isCreditCategory(category)) return ranked;
+
+  const eligOrder = { eligible: 0, borderline: 1, not_eligible: 2 };
+  return [...ranked].sort((a, b) => {
+    const oDiff = eligOrder[a.eligibility] - eligOrder[b.eligibility];
+    if (oDiff !== 0) return oDiff;
+    const ra = a.annual_rate_pct;
+    const rb = b.annual_rate_pct;
+    // Tasa conocida primero; menor tasa (más barato) primero; empate → score.
+    if (ra === null && rb === null) return b.score - a.score;
+    if (ra === null) return 1;
+    if (rb === null) return -1;
+    if (ra !== rb) return ra - rb;
+    return b.score - a.score;
+  });
 }
