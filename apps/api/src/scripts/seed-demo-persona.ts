@@ -249,6 +249,15 @@ async function main() {
   const encFirst = encryptNames ? encryptField("Camila") : null;
   const encLast = encryptNames ? encryptField("Rojas Fuentes") : null;
 
+  // Persona PRE-CARGADO: el onboarding va marcado como COMPLETO para que caiga
+  // directo al dashboard. Sin esto, el gate de onboarding (FEATURES.onboarding)
+  // redirige a /verificacion en cada ruta protegida y no se ve la plataforma.
+  // (La cuenta FRESCA del demo se crea aparte y sí recorre el wizard en vivo.)
+  const onboardingFields = {
+    onboardingCompleted: 1,
+    kycStatus: "mock_completed",
+  } as Record<string, unknown>;
+
   let userRow = (await db.select().from(users).where(eq(users.id, DEMO_USER_ID)).limit(1))[0];
   if (!userRow) {
     console.log("Creando persona demo Camila…");
@@ -261,15 +270,21 @@ async function main() {
       lastName: encLast,
       displayName: "Camila Rojas",
       role: "persona",
+      ...onboardingFields,
     });
     userRow = (await db.select().from(users).where(eq(users.id, DEMO_USER_ID)).limit(1))[0]!;
     console.log(`  → ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
   } else {
-    // Auto-cura: si quedó de una corrida previa con nombres en claro, re-cifra.
-    console.log("El persona demo ya existe; re-cifrando PII y verificando datos…");
+    // Auto-cura: re-cifra nombres, resetea clave y marca onboarding completo.
+    console.log("El persona demo ya existe; re-cifrando PII y marcando onboarding…");
     await db
       .update(users)
-      .set({ firstName: encFirst, lastName: encLast, passwordHash: hashPassword(DEMO_PASSWORD) })
+      .set({
+        firstName: encFirst,
+        lastName: encLast,
+        passwordHash: hashPassword(DEMO_PASSWORD),
+        ...onboardingFields,
+      })
       .where(eq(users.id, DEMO_USER_ID));
   }
   const userId = userRow.id;
