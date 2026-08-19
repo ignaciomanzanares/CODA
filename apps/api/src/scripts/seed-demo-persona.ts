@@ -241,8 +241,13 @@ async function main() {
   // firstName/lastName se guardan CIFRADOS (AES-256-GCM): storage.decryptUserPII
   // los descifra en el login y lanza si están en texto plano. displayName y email
   // NO se cifran (email se busca por igualdad en el login).
-  const encFirst = encryptField("Camila");
-  const encLast = encryptField("Rojas Fuentes");
+  //
+  // SEED_ENCRYPT_NAMES=false → guarda los nombres como NULL (el saludo usa
+  // displayName). Necesario al sembrar PROD desde una máquina con la llave DEV:
+  // cifrar con la llave equivocada rompería el descifrado (login 500) en prod.
+  const encryptNames = process.env.SEED_ENCRYPT_NAMES !== "false";
+  const encFirst = encryptNames ? encryptField("Camila") : null;
+  const encLast = encryptNames ? encryptField("Rojas Fuentes") : null;
 
   let userRow = (await db.select().from(users).where(eq(users.id, DEMO_USER_ID)).limit(1))[0];
   if (!userRow) {
@@ -336,18 +341,18 @@ async function main() {
     console.log(`  → ${rows.length} movimientos en 6 meses.`);
   }
 
-  // Cartola subida (document_uploads) — getReportedBalance/financial-health leen
-  // el saldo del `saldo_final` de la ÚLTIMA cartola de cuenta (NO de la tabla
-  // balances), así que sin esto la salud financiera sale "sin saldo" → crítico.
-  // parsedData va en JSON plano: la lectura tolera texto sin cifrar (looksEncrypted).
-  const cartolaDocs = await db
-    .select()
-    .from(documentUploads)
-    .where(eq(documentUploads.userId, userId));
-  if (cartolaDocs.length === 0) {
-    const end = new Date(now.getFullYear(), now.getMonth(), 0); // último día del mes previo
-    const start = new Date(end.getFullYear(), end.getMonth(), 1);
-    const iso = (d: Date) => d.toISOString().slice(0, 10);
+  // Documentos subidos (document_uploads). parsedData va en JSON plano: la lectura
+  // tolera texto sin cifrar (looksEncrypted).
+  const docs = await db.select().from(documentUploads).where(eq(documentUploads.userId, userId));
+  const hasTipo = (tipo: string) => docs.some((d) => d.tipo === tipo);
+  const end = new Date(now.getFullYear(), now.getMonth(), 0); // último día del mes previo
+  const start = new Date(end.getFullYear(), end.getMonth(), 1);
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+  // Cartola — getReportedBalance/financial-health leen el saldo del `saldo_final`
+  // de la ÚLTIMA cartola de cuenta (NO de la tabla balances); sin esto la salud
+  // financiera sale "sin saldo" → crítico.
+  if (!hasTipo("cartola")) {
     await db.insert(documentUploads).values({
       id: `${DEMO_USER_ID}-cartola`,
       userId,
@@ -365,6 +370,34 @@ async function main() {
       uploadedAt: now.toISOString(),
     });
     console.log(`  → cartola con saldo_final $${LIQUID_BALANCE.toLocaleString("es-CL")}.`);
+  }
+
+  // Informe de Deudas CMF — /api/credit-score exige un doc tipo "cmf" (success) +
+  // la fila credit_scores para mostrar el score tradicional (si no: "sube tu
+  // informe de deudas"). Persona sana: deuda hipotecaria vigente al día, sin mora.
+  if (!hasTipo("cmf")) {
+    await db.insert(documentUploads).values({
+      id: `${DEMO_USER_ID}-cmf`,
+      userId,
+      tipo: "cmf",
+      banco: "CMF",
+      periodoDesde: iso(start),
+      periodoHasta: iso(end),
+      parsedData: JSON.stringify({
+        fuente: "Informe de Deudas CMF",
+        periodo: iso(end),
+        deuda_directa_vigente_clp: 46_000_000, // saldo hipotecario
+        deuda_directa_morosa_clp: 0,
+        deuda_indirecta_clp: 0,
+        numero_instituciones: 1,
+        numero_operaciones: 1,
+        dias_morosidad_max: 0,
+      }),
+      parseStatus: "success",
+      reviewStatus: "not_required",
+      uploadedAt: now.toISOString(),
+    });
+    console.log("  → informe CMF (deuda hipotecaria vigente, sin mora).");
   }
 
   // Patrimonio (activos) -----------------------------------------------------
