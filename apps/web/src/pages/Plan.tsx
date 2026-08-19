@@ -171,6 +171,7 @@ function BudgetBar({
   amount,
   color,
   bgColor,
+  higherIsBetter = false,
 }: {
   label: string;
   actual: number;
@@ -178,8 +179,11 @@ function BudgetBar({
   amount: number;
   color: string;
   bgColor: string;
+  /** Si true, superar la meta es BUENO (ej. ahorro). Por defecto superarla es malo (gasto). */
+  higherIsBetter?: boolean;
 }) {
-  const over = actual > target;
+  // "Malo" = gastar por sobre la meta, o —en ahorro— ahorrar por debajo de ella.
+  const isBad = higherIsBetter ? actual < target : actual > target;
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
@@ -188,12 +192,12 @@ function BudgetBar({
           <span
             className={cn(
               "text-xs font-semibold tabular-nums",
-              over ? "text-red-500" : "text-muted-foreground",
+              isBad ? "text-red-500" : "text-muted-foreground",
             )}
           >
             {actual}% <span className="text-muted-foreground font-normal">/ {target}% meta</span>
           </span>
-          {over ? (
+          {isBad ? (
             <TrendingDown className="h-3.5 w-3.5 text-red-500" />
           ) : (
             <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
@@ -896,6 +900,7 @@ export default function Plan() {
                     amount={savings}
                     color="text-emerald-600"
                     bgColor="bg-emerald-400"
+                    higherIsBetter
                   />
                 </div>
 
