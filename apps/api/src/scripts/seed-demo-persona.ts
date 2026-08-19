@@ -15,7 +15,7 @@
  *   Credenciales:  demo@codafinance.cl  /  CodaDemo2026!
  */
 
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "../../../../packages/dist/schema.js";
@@ -76,7 +76,7 @@ function monthTransactions(): Tx[] {
     description: "Sueldo",
     merchantName: "Constructora Andes SpA",
     amount: vary(1_650_000, 0.02),
-    category: "income",
+    category: "ingreso_principal",
   });
   // Ingreso menor esporádico (reembolso / honorario) algunos meses.
   if (rand() < 0.5) {
@@ -85,54 +85,54 @@ function monthTransactions(): Tx[] {
       description: "Transferencia recibida",
       merchantName: "Reembolso",
       amount: ri(60_000, 180_000),
-      category: "income",
+      category: "transferencia_recibida",
     });
   }
-  // Arriendo (día 5) — gasto fijo mayor.
+  // Arriendo (día 5) — gasto fijo mayor. → Necesidades
   txs.push({
     day: 5,
     description: "Arriendo departamento",
     merchantName: "Arriendo",
     amount: -520_000,
-    category: "housing",
+    category: "vivienda",
   });
-  // Servicios básicos (días 8–12).
+  // Servicios básicos (días 8–12). → Necesidades
   txs.push({
     day: 8,
     description: "Cuenta de luz",
     merchantName: "Enel",
     amount: -vary(48_000, 0.15),
-    category: "utilities",
+    category: "servicios_basicos",
   });
   txs.push({
     day: 9,
     description: "Cuenta de agua",
     merchantName: "Aguas Andinas",
     amount: -vary(22_000, 0.12),
-    category: "utilities",
+    category: "servicios_basicos",
   });
   txs.push({
     day: 10,
     description: "Internet hogar",
     merchantName: "VTR",
     amount: -29_990,
-    category: "utilities",
+    category: "telecomunicaciones",
   });
   txs.push({
     day: 11,
     description: "Gas",
     merchantName: "Lipigas",
     amount: -vary(19_000, 0.2),
-    category: "utilities",
+    category: "servicios_basicos",
   });
   txs.push({
     day: 12,
     description: "Plan celular",
     merchantName: "Entel",
     amount: -19_990,
-    category: "utilities",
+    category: "telecomunicaciones",
   });
-  // Supermercado (4 compras semanales).
+  // Supermercado (4 compras semanales). → Necesidades
   const superMarkets = ["Jumbo", "Lider", "Unimarc", "Santa Isabel"];
   for (let w = 0; w < 4; w++) {
     txs.push({
@@ -140,10 +140,10 @@ function monthTransactions(): Tx[] {
       description: "Supermercado",
       merchantName: superMarkets[w % superMarkets.length],
       amount: -ri(55_000, 92_000),
-      category: "groceries",
+      category: "alimentacion",
     });
   }
-  // Restaurantes / delivery (5).
+  // Restaurantes / delivery (5). → Deseos
   const dining = ["Restaurante Peumayen", "PedidosYa", "Uber Eats", "Café Colmado", "La Burguesía"];
   for (let i = 0; i < 5; i++) {
     txs.push({
@@ -151,23 +151,23 @@ function monthTransactions(): Tx[] {
       description: "Restaurante",
       merchantName: dining[i % dining.length],
       amount: -ri(14_000, 42_000),
-      category: "dining",
+      category: "restaurantes",
     });
   }
-  // Transporte (2 recargas Bip + 4 Uber/DiDi).
+  // Transporte (2 recargas Bip + 4 Uber/DiDi). → Necesidades
   txs.push({
     day: ri(2, 6),
     description: "Recarga Bip!",
     merchantName: "Metro de Santiago",
     amount: -10_000,
-    category: "transportation",
+    category: "transporte",
   });
   txs.push({
     day: ri(15, 20),
     description: "Recarga Bip!",
     merchantName: "Metro de Santiago",
     amount: -10_000,
-    category: "transportation",
+    category: "transporte",
   });
   for (let i = 0; i < 4; i++) {
     txs.push({
@@ -175,25 +175,25 @@ function monthTransactions(): Tx[] {
       description: "Viaje",
       merchantName: i % 2 ? "Uber" : "DiDi",
       amount: -ri(4_200, 12_800),
-      category: "transportation",
+      category: "transporte",
     });
   }
-  // Suscripciones.
+  // Suscripciones. → Deseos
   txs.push({
     day: 6,
     description: "Suscripción música",
     merchantName: "Spotify",
     amount: -5_900,
-    category: "subscriptions",
+    category: "suscripciones",
   });
   txs.push({
     day: 7,
     description: "Suscripción streaming",
     merchantName: "Netflix",
     amount: -9_900,
-    category: "subscriptions",
+    category: "suscripciones",
   });
-  // Salud / farmacia (0–2).
+  // Salud / farmacia (0–2). → Necesidades
   const nHealth = ri(0, 2);
   for (let i = 0; i < nHealth; i++) {
     txs.push({
@@ -201,17 +201,17 @@ function monthTransactions(): Tx[] {
       description: "Farmacia",
       merchantName: i % 2 ? "Salcobrand" : "Cruz Verde",
       amount: -ri(9_000, 38_000),
-      category: "health",
+      category: "salud",
     });
   }
-  // Retail ocasional.
+  // Retail ocasional. → Deseos
   if (rand() < 0.6) {
     txs.push({
       day: ri(10, 24),
       description: "Compra retail",
       merchantName: "Falabella",
       amount: -ri(25_000, 120_000),
-      category: "shopping",
+      category: "comercio",
     });
   }
   return txs;
@@ -354,6 +354,41 @@ async function main() {
       currency: "CLP",
     });
     console.log(`  → ${rows.length} movimientos en 6 meses.`);
+  }
+
+  // Re-mapeo de categorías (auto-cura): corridas previas usaron categorías en
+  // inglés que la taxonomía (español) no reconoce → caían todas a "Deseos" /
+  // "Otros ingresos". Mapear las descripciones del seed a las categorías
+  // canónicas para que el 50/30/20 (Necesidades/Deseos) quede bien.
+  const CATEGORY_BY_DESC: Record<string, string> = {
+    Sueldo: "ingreso_principal",
+    "Transferencia recibida": "transferencia_recibida",
+    "Arriendo departamento": "vivienda",
+    "Cuenta de luz": "servicios_basicos",
+    "Cuenta de agua": "servicios_basicos",
+    Gas: "servicios_basicos",
+    "Internet hogar": "telecomunicaciones",
+    "Plan celular": "telecomunicaciones",
+    Supermercado: "alimentacion",
+    Restaurante: "restaurantes",
+    "Recarga Bip!": "transporte",
+    Viaje: "transporte",
+    "Suscripción música": "suscripciones",
+    "Suscripción streaming": "suscripciones",
+    Farmacia: "salud",
+    "Compra retail": "comercio",
+  };
+  const acctIds = (await db.select().from(accounts).where(eq(accounts.userId, userId))).map(
+    (a) => a.id,
+  );
+  if (acctIds.length) {
+    for (const [desc, cat] of Object.entries(CATEGORY_BY_DESC)) {
+      await db
+        .update(transactions)
+        .set({ category: cat })
+        .where(and(inArray(transactions.accountId, acctIds), eq(transactions.description, desc)));
+    }
+    console.log("  → categorías re-mapeadas a la taxonomía canónica (español).");
   }
 
   // Documentos subidos (document_uploads). parsedData va en JSON plano: la lectura
