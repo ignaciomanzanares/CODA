@@ -35,3 +35,9 @@ export {
   assertSourceConsent,
 } from "./consentGate.js";
 export type { GrantLike } from "./consentGate.js";
+export {
+  computeConsentEvidenceHash,
+  sealConsentEvidence,
+  verifyConsentEvidence,
+} from "./consentEvidence.js";
+export type { ConsentEvidenceFacts, SealedGrant } from "./consentEvidence.js";

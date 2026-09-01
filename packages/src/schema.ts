@@ -103,6 +103,10 @@ export const consentGrants = table("consent_grants", {
   externalGrantId: text("external_grant_id"),
   ipiId: text("ipi_id"),
   expiresAt: text("expires_at"),
+  /** Evidencia sellada (D2): SHA-256 de los hechos consentidos al autorizar (tamper-evident). */
+  evidenceHash: text("evidence_hash"),
+  /** ISO timestamp del sellado (momento de la autorización). */
+  sealedAt: text("sealed_at"),
   createdAt: text("created_at")
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),

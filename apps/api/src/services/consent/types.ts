@@ -87,6 +87,8 @@ export interface ConsentGrantRecord {
   externalGrantId: string | null;
   ipiId: string | null;
   expiresAt: string | null;
+  evidenceHash: string | null;
+  sealedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -102,6 +104,9 @@ export interface ConsentGrantForPanel {
   externalGrantId: string | null;
   ipiId: string | null;
   expiresAt: string | null;
+  /** Evidencia sellada (D2): hash de lo consentido + momento del sello. null si sin sellar. */
+  evidenceHash: string | null;
+  sealedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

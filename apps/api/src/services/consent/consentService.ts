@@ -21,6 +21,7 @@ import {
   serializeAuthorizationDetails,
   parseAuthorizationDetails,
 } from "./rar.js";
+import { sealConsentEvidence } from "./consentEvidence.js";
 
 const VALID_STATUSES: ConsentGrantStatus[] = [
   "pending",
@@ -99,12 +100,30 @@ export class ConsentService {
         ? eq(consentGrants.externalGrantId, options.externalGrantId)
         : eq(consentGrants.id, grantId);
 
+    const setFields: Record<string, unknown> = {
+      status,
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Al AUTORIZAR, sellar la evidencia (hash de lo consentido) si aún no está sellado.
+    if (status === "authorized") {
+      const [existing] = await db.select().from(consentGrants).where(conditions).limit(1);
+      const g = existing as Record<string, unknown> | undefined;
+      if (g && !g.evidenceHash) {
+        const seal = sealConsentEvidence({
+          userId: g.userId as string,
+          authorizationDetails: g.authorizationDetails as string,
+          purpose: g.purpose as string,
+          policyVersion: g.policyVersion as string,
+        });
+        setFields.evidenceHash = seal.evidenceHash;
+        setFields.sealedAt = seal.sealedAt;
+      }
+    }
+
     const [updated] = await db
       .update(consentGrants)
-      .set({
-        status,
-        updatedAt: new Date().toISOString(),
-      })
+      .set(setFields as never)
       .where(conditions)
       .returning();
 
@@ -130,6 +149,19 @@ export class ConsentService {
     };
     if (payload.ipiId !== undefined) updates.ipiId = payload.ipiId;
     if (payload.expiresAt !== undefined) updates.expiresAt = payload.expiresAt;
+
+    // Sellar la evidencia si el banco autoriza y aún no está sellado.
+    const r = row as Record<string, unknown>;
+    if (payload.status === "authorized" && !r.evidenceHash) {
+      const seal = sealConsentEvidence({
+        userId: r.userId as string,
+        authorizationDetails: r.authorizationDetails as string,
+        purpose: r.purpose as string,
+        policyVersion: r.policyVersion as string,
+      });
+      updates.evidenceHash = seal.evidenceHash;
+      updates.sealedAt = seal.sealedAt;
+    }
 
     const [updated] = await db
       .update(consentGrants)
@@ -191,6 +223,8 @@ function mapToPanel(row: Record<string, unknown>): ConsentGrantForPanel {
     externalGrantId: (row.externalGrantId as string) ?? null,
     ipiId: (row.ipiId as string) ?? null,
     expiresAt: (row.expiresAt as string) ?? null,
+    evidenceHash: (row.evidenceHash as string) ?? null,
+    sealedAt: (row.sealedAt as string) ?? null,
     createdAt: (row.createdAt as string) ?? "",
     updatedAt: (row.updatedAt as string) ?? "",
   };
