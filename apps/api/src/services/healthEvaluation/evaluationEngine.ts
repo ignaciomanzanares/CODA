@@ -9,8 +9,9 @@ import type {
 import { getTopRecommendations } from "../products/matchingEngine.js";
 import type { UserProfile } from "../products/matchingEngine.js";
 import { getProductsByCategory } from "../products/productCatalog.js";
+import { HEALTH_V2_SCORECARD as SC } from "./healthScorecard.config.js";
 
-export const HEALTH_EVALUATION_ENGINE_VERSION = "v2.0.0";
+export const HEALTH_EVALUATION_ENGINE_VERSION = SC.version;
 
 const NIVEL_NOMBRES: Record<HealthLevel, string> = {
   [-2]: "Insolvencia activa",
@@ -23,16 +24,15 @@ const NIVEL_NOMBRES: Record<HealthLevel, string> = {
   [5]: "Independencia financiera",
 };
 
-const DIV_NORM_LOOKUP = [0, 40, 70, 100] as const;
-
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
 function mapScoreToLevel(score: number): HealthLevel {
-  // 0–100 en tramos de 12.5 → -2..+5 (8 segmentos)
-  const raw = Math.floor(score / 12.5) - 2;
-  return clamp(raw, -2, 5) as HealthLevel;
+  // 0–100 en tramos de `segmentSize` → levelMin..levelMax (ver scorecard).
+  const { segmentSize, levelOffset, levelMin, levelMax } = SC.composite;
+  const raw = Math.floor(score / segmentSize) + levelOffset;
+  return clamp(raw, levelMin, levelMax) as HealthLevel;
 }
 
 function buildInsights(
@@ -55,21 +55,21 @@ function buildInsights(
     return insights;
   }
 
-  if (input.deudaFlujo > 0.5) {
+  if (input.deudaFlujo > SC.insights.deudaFlujoAlta) {
     insights.push(
       `Más del 50% de tu flujo mensual va a deuda (${Math.round(input.deudaFlujo * 100)}%). Reducir esa carga debería ser prioridad.`,
     );
-  } else if (input.deudaFlujo > 0.3) {
+  } else if (input.deudaFlujo > SC.insights.deudaFlujoAlerta) {
     insights.push(
       `Tu ratio deuda/flujo es ${Math.round(input.deudaFlujo * 100)}%. Estás en zona de alerta — considera reducir gastos fijos.`,
     );
   }
 
-  if (input.ahorroIngreso < 0.1) {
+  if (input.ahorroIngreso < SC.insights.ahorroBajo) {
     insights.push(
       "Estás ahorrando menos del 10% de tus ingresos. Un pequeño ajuste en gastos puede marcar la diferencia.",
     );
-  } else if (input.ahorroIngreso >= 0.2 && nivel >= 1) {
+  } else if (input.ahorroIngreso >= SC.insights.ahorroBueno && nivel >= 1) {
     insights.push(
       `Ahorras el ${Math.round(input.ahorroIngreso * 100)}% de tus ingresos — estás en buen camino para construir patrimonio.`,
     );
@@ -158,8 +158,11 @@ export function evaluateHealthV2(
   const ratios = { deudaFlujo, deudaActivos, ahorroIngreso, moraActiva, diasMora };
 
   // ── Etapa 1: zona crítica ─────────────────────────────────────────────────
-  // Regla dura: ambas condiciones deben cumplirse simultáneamente
-  if (deudaFlujo > 0.5 && deudaActivos > 0.8) {
+  // Regla dura: ambas condiciones deben cumplirse simultáneamente (ver scorecard).
+  if (
+    deudaFlujo > SC.criticalZone.deudaFlujoMax &&
+    deudaActivos > SC.criticalZone.deudaActivosMax
+  ) {
     const zona: HealthZone = "critica";
     const salida: HealthSalida = moraActiva ? "concursal" : "reestructuracion";
     const nivel: HealthLevel = moraActiva ? -2 : -1;
@@ -190,27 +193,35 @@ export function evaluateHealthV2(
   const zona: HealthZone = "intermedia";
 
   // Normalización a 0-100
+  const rw = SC.ratiosScore.weights;
   const deudaFlujoNorm = clamp(deudaFlujo, 0, 1) * 100;
   // deudaActivos: tope natural en 1.0 (100% de activos = deuda). Valores > 1 → sobre-apalancado.
   const deudaActivosNorm = clamp(deudaActivos, 0, 1) * 100;
-  const penalizacionAhorro = Math.max(0, ((0.2 - ahorroIngreso) / 0.2) * 100);
+  const ahorroTarget = SC.ratiosScore.ahorroTarget;
+  const penalizacionAhorro = Math.max(0, ((ahorroTarget - ahorroIngreso) / ahorroTarget) * 100);
 
   const scoreRatios = Math.max(
     0,
-    100 - (deudaFlujoNorm * 0.4 + deudaActivosNorm * 0.35 + penalizacionAhorro * 0.25),
+    100 -
+      (deudaFlujoNorm * rw.deudaFlujo +
+        deudaActivosNorm * rw.deudaActivos +
+        penalizacionAhorro * rw.ahorro),
   );
 
   // Score interno
-  const histNorm = clamp(historialCmfRaw / 850, 0, 1) * 100;
-  const antNorm = clamp(antiguedadMeses / 120, 0, 1) * 100; // 120 meses = 10 años = tope
-  const divNorm = DIV_NORM_LOOKUP[clamp(tiposCredito, 0, 3)] ?? 100;
+  const iw = SC.internalScore.weights;
+  const histNorm = clamp(historialCmfRaw / SC.internalScore.historialMax, 0, 1) * 100;
+  const antNorm = clamp(antiguedadMeses / SC.internalScore.antiguedadTopeMeses, 0, 1) * 100;
+  const divNorm = SC.internalScore.diversificacionLookup[clamp(tiposCredito, 0, 3)] ?? 100;
 
-  const scoreInterno = histNorm * 0.5 + antNorm * 0.3 + divNorm * 0.2;
-  const scoreCompuesto = scoreRatios * 0.5 + scoreInterno * 0.5;
+  const scoreInterno =
+    histNorm * iw.historial + antNorm * iw.antiguedad + divNorm * iw.diversificacion;
+  const scoreCompuesto =
+    scoreRatios * SC.composite.ratiosWeight + scoreInterno * SC.composite.internoWeight;
 
   const nivelBruto = mapScoreToLevel(scoreCompuesto);
   const nivel: HealthLevel = moraActiva
-    ? (Math.max(-2, nivelBruto - 2) as HealthLevel)
+    ? (Math.max(SC.composite.levelMin, nivelBruto - SC.moraPenaltyLevels) as HealthLevel)
     : nivelBruto;
 
   let salida: HealthSalida;
@@ -218,9 +229,9 @@ export function evaluateHealthV2(
   // un buen historial CMF puede empujar el score compuesto a nivel 1 pese a ratios de deuda
   // mediocres (deudaFlujo alto + ahorro bajo), así que ahorro_inversión se reserva para
   // nivel ≥ 2 ("Fondo consolidado" en adelante), donde los ratios ya son sanos.
-  if (nivel >= 2) {
+  if (nivel >= SC.salidaThresholds.ahorroInversionMinNivel) {
     salida = "ahorro_inversion";
-  } else if (nivel >= -1) {
+  } else if (nivel >= SC.salidaThresholds.refinanciamientoMinNivel) {
     salida = "refinanciamiento";
   } else {
     salida = "reestructuracion";
