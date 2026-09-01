@@ -10,6 +10,9 @@ const LOCATIONS_PRODUCTS = ["https://api.coda.cl/sfa/products"];
 const LOCATIONS_HISTORICAL = ["https://api.coda.cl/sfa/historical-positions"];
 const LOCATIONS_TC = ["https://api.coda.cl/sfa/terms"];
 const LOCATIONS_PAYMENTS = ["https://api.coda.cl/sfa/payments"];
+const LOCATIONS_CMF = ["https://api.coda.cl/sources/cmf"];
+const LOCATIONS_SII = ["https://api.coda.cl/sources/sii"];
+const LOCATIONS_AFC = ["https://api.coda.cl/sources/afc"];
 
 function buildDetail(type: ConsentResourceType): AuthorizationDetail {
   switch (type) {
@@ -43,6 +46,12 @@ function buildDetail(type: ConsentResourceType): AuthorizationDetail {
         actions: ["initiate", "status", "cancel"],
         locations: LOCATIONS_PAYMENTS,
       };
+    case "cmf_debt_report":
+      return { type: "cmf_debt_report", actions: ["read"], locations: LOCATIONS_CMF };
+    case "sii_tax_data":
+      return { type: "sii_tax_data", actions: ["read"], locations: LOCATIONS_SII };
+    case "afc_employment":
+      return { type: "afc_employment", actions: ["read"], locations: LOCATIONS_AFC };
     default:
       return { type, actions: ["read"], locations: [] };
   }

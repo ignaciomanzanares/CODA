@@ -11,13 +11,21 @@ export type ConsentGrantStatus =
   | "revoked" // Revocado (por el usuario o el banco)
   | "expired"; // Expirado
 
-/** Tipos de recurso SFA para autorización granular (solo pedir lo necesario). */
+/**
+ * Tipos de recurso para autorización granular (solo pedir lo necesario).
+ * Incluye recursos SFA/banco (RFC 9396) y las fuentes oficiales del nivel 1.
+ */
 export type ConsentResourceType =
+  // — SFA / banco —
   | "account_information" // Cuentas, saldos, transacciones (para score transaccional)
   | "products_vigentes" // Productos vigentes
   | "historical_positions" // Posiciones financieras históricas
   | "terms_and_conditions" // T&C (catálogo)
-  | "payment_initiation"; // Iniciación de pagos (futuro)
+  | "payment_initiation" // Iniciación de pagos (futuro)
+  // — Fuentes oficiales (nivel 1) —
+  | "cmf_debt_report" // Informe de Deudas CMF (deuda directa/indirecta/morosa)
+  | "sii_tax_data" // Carpeta tributaria y DDJJ (renta) — SII
+  | "afc_employment"; // Cotizaciones y vínculo laboral — AFC
 
 /** Acciones posibles por tipo (RFC 9396). */
 export type ConsentAction =

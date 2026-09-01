@@ -25,3 +25,13 @@ export {
   CONSENT_POLICY_VERSION,
 } from "./types.js";
 export { handleConsentWebhook } from "./webhooks.js";
+export {
+  ConsentRequiredError,
+  isGrantActive,
+  scopeCovers,
+  selectActiveConsent,
+  findActiveConsent,
+  hasValidConsent,
+  assertSourceConsent,
+} from "./consentGate.js";
+export type { GrantLike } from "./consentGate.js";
