@@ -43,6 +43,60 @@ export async function registerScoringRiskRoutes(app: Express): Promise<void> {
     }
   });
 
+  // R4 — Catálogo de variables para la consola del prestador: qué es exponible vs protegido/
+  // proxy/interno, con el fundamento de cada una. Es metodología (sin datos de usuario).
+  app.get("/api/lender/variables", authenticate, async (_req: Request, res: Response) => {
+    try {
+      const { lenderVariableCatalog } = await import("./services/risk/lenderConsole.js");
+      res.json({ catalog: lenderVariableCatalog() });
+    } catch (e) {
+      logger.error({ err: e }, "lender variables failed");
+      res.status(500).json({ message: "Error al listar variables." });
+    }
+  });
+
+  // R5 — Simula una política del prestador sobre un COHORTE SINTÉTICO (nunca usuarios reales):
+  // tasa de aprobación + rechazos por variable. El guard de fairness ignora criterios sobre
+  // variables no exponibles. Body: { name?, criteria: [{ variable, op, threshold }] }.
+  app.post("/api/lender/policy/simulate", authenticate, async (req: Request, res: Response) => {
+    try {
+      const body = (req.body ?? {}) as {
+        name?: unknown;
+        criteria?: unknown;
+        cohortSize?: unknown;
+      };
+      if (!Array.isArray(body.criteria)) {
+        return res.status(400).json({ message: "Se requiere 'criteria' (arreglo)." });
+      }
+      const criteria = body.criteria
+        .filter((c): c is Record<string, unknown> => !!c && typeof c === "object")
+        .map((c) => ({
+          variable: String(c.variable ?? ""),
+          op: c.op as ">=" | "<=" | ">" | "<" | "==",
+          threshold: typeof c.threshold === "boolean" ? c.threshold : Number(c.threshold),
+          label: c.label != null ? String(c.label) : undefined,
+        }));
+      const cohortSize = Math.min(
+        2000,
+        Math.max(50, Number.isFinite(Number(body.cohortSize)) ? Number(body.cohortSize) : 500),
+      );
+      const { runLenderConsoleSimulation } = await import("./services/risk/lenderConsole.js");
+      const result = runLenderConsoleSimulation(
+        {
+          lenderId: "console",
+          name: typeof body.name === "string" && body.name.trim() ? body.name.trim() : "Política",
+          version: "draft",
+          criteria,
+        },
+        cohortSize,
+      );
+      res.json(result);
+    } catch (e) {
+      logger.error({ err: e }, "lender simulate failed");
+      res.status(500).json({ message: "Error al simular la política." });
+    }
+  });
+
   app.get("/api/financial-health", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
     try {
