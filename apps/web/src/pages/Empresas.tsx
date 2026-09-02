@@ -201,6 +201,15 @@ export default function Empresas() {
             </Button>
           </Link>
           <p className="mt-6 text-orange-200 text-sm">Todo integrado en la misma plataforma CODA</p>
+          <p className="mt-4">
+            <Link
+              href="/consola-prestador"
+              className="inline-flex items-center gap-1.5 text-sm text-orange-100 underline-offset-4 hover:text-white hover:underline"
+            >
+              Ver la consola de riesgo del prestador (demo)
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </p>
         </div>
       </section>
 

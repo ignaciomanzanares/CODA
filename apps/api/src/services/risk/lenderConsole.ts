@@ -89,7 +89,11 @@ export interface LenderConsoleSimulation {
   /** Tamaño y naturaleza del cohorte (siempre sintético). */
   cohort: { size: number; synthetic: true };
   /** Muestra de decisiones (perfiles sintéticos anonimizados) para ilustrar el detalle. */
-  examples: Array<{ values: VariableValues; decision: PolicyDecision["decision"]; failed: string[] }>;
+  examples: Array<{
+    values: VariableValues;
+    decision: PolicyDecision["decision"];
+    failed: string[];
+  }>;
 }
 
 /**

@@ -80,6 +80,7 @@ const LegacySplitRedirect = lazy(() => import("@/components/LegacySplitRedirect"
 const NotFound = lazy(() => import("@/pages/not-found"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const SaludFinanciera = lazy(() => import("@/pages/SaludFinanciera"));
+const ConsolaPrestador = lazy(() => import("@/pages/ConsolaPrestador"));
 const Reclamos = lazy(() => import("@/pages/Reclamos"));
 const VerificarEmail = lazy(() => import("@/pages/VerificarEmail"));
 const MisActivos = lazy(() => import("@/pages/MisActivos"));
@@ -409,6 +410,11 @@ function App() {
                           <Route path={ROUTES.reclamos}>
                             <ProtectedRoute>
                               <Reclamos />
+                            </ProtectedRoute>
+                          </Route>
+                          <Route path={ROUTES.consolaPrestador}>
+                            <ProtectedRoute>
+                              <ConsolaPrestador />
                             </ProtectedRoute>
                           </Route>
                           <Route path={ROUTES.misActivos}>

@@ -39,6 +39,8 @@ export const ROUTES = {
   privacidad: "/privacidad",
   /** Términos y condiciones de uso */
   terminos: "/terminos",
+  /** Consola del prestador (demo B2B): políticas de crédito sobre variables exponibles (R4/R5) */
+  consolaPrestador: "/consola-prestador",
 } as const;
 
 /** Enlace público para invitados (compartir un dividir cuenta). */
