@@ -23,6 +23,7 @@ import { useUserDocuments } from "@/hooks/useUserDocuments";
 import HealthLevelCard from "@/components/health/HealthLevelCard";
 import EvaluationBreakdown from "@/components/health/EvaluationBreakdown";
 import HealthExplainPanel from "@/components/health/HealthExplainPanel";
+import IncomeConfidencePanel from "@/components/health/IncomeConfidencePanel";
 import {
   useHealthEvaluation,
   type HealthResponse,
@@ -309,6 +310,8 @@ export default function SaludFinanciera() {
       {evaluation.ratios && <EvaluationBreakdown ratios={evaluation.ratios} />}
 
       <HealthExplainPanel />
+
+      <IncomeConfidencePanel />
 
       {evaluation.salida !== "concursal" && (evaluation.productos ?? []).length > 0 && (
         <div>
