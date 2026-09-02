@@ -12,6 +12,7 @@
 import { logger } from "../../logger.js";
 import { deriveHealthInput } from "./ratiosDerivation.js";
 import { evaluateHealthV2 } from "./evaluationEngine.js";
+import { explainHealthV2, type HealthAudit } from "./healthExplain.js";
 import type { HealthEvaluationResult } from "./types.js";
 import { buildUserRiskProfile, type UserRiskProfile } from "../risk/userRiskProfile.js";
 
@@ -64,6 +65,42 @@ export async function evaluateUserHealth(userId: string): Promise<HealthEvaluati
     return evaluateHealthFromProfile(profile);
   } catch (e) {
     logger.warn({ err: e, userId }, "[userHealthService] evaluateUserHealth failed (non-fatal)");
+    return null;
+  }
+}
+
+/** R1 — Traza auditable de la salud del usuario ("por qué este nivel"). Mismos insumos que evaluate. */
+export function explainHealthFromProfile(profile: UserRiskProfile): HealthAudit | null {
+  if (!profile.meta.hasCartola || !profile.meta.hasCmfHistory || !profile.cmf || !profile.cartola) {
+    return null;
+  }
+  const cmfData = profile.cmf.raw;
+  const totalIngresos = profile.cartola.ingresos;
+  const totalGastos = profile.cartola.gastos;
+  const deudaTotalClp = profile.meta.deudaTotalClp;
+  const deudaMensualClp = estimarCuotaMensual(cmfData, deudaTotalClp);
+  const sfaAvg = profile.storedScores.txMetrics?.averageMonthlyBalanceClp ?? undefined;
+
+  const healthInput = deriveHealthInput({
+    ingresoMensualClp: totalIngresos,
+    deudaMensualClp,
+    deudaTotalClp,
+    ahorroMensualClp: totalIngresos - totalGastos,
+    cmf: cmfData,
+    sfaAvgMonthlyBalanceClp: sfaAvg,
+    userAssets: profile.assets,
+  });
+
+  return explainHealthV2(healthInput);
+}
+
+export async function explainUserHealth(userId: string): Promise<HealthAudit | null> {
+  try {
+    const profile = await buildUserRiskProfile(userId);
+    if (!profile) return null;
+    return explainHealthFromProfile(profile);
+  } catch (e) {
+    logger.warn({ err: e, userId }, "[userHealthService] explainUserHealth failed (non-fatal)");
     return null;
   }
 }

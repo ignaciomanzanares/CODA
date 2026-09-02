@@ -11,6 +11,38 @@ import { validateBody, scoringApplicationSchema } from "./middleware/validation.
 import { getUserIdFromAuth, getMLArtifactsDir } from "./routes-shared.js";
 
 export async function registerScoringRiskRoutes(app: Express): Promise<void> {
+  // D7 — Reconciliación de ingresos: confianza por fuente + discrepancias (informalidad,
+  // no declarado, obsoleto, brecha). Aditivo: no cambia el score, alimenta banderas/insights.
+  app.get("/api/income/reconciliation", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+      const { getIncomeReconciliationForUser } =
+        await import("./services/risk/incomeReconciliationService.js");
+      res.json(await getIncomeReconciliationForUser(userId));
+    } catch (e) {
+      logger.error({ err: e }, "income reconciliation failed");
+      res.status(500).json({ message: "Error al reconciliar ingresos." });
+    }
+  });
+
+  // R1 — Traza auditable de la salud: por qué el usuario quedó en este nivel (variable→corte→aporte).
+  app.get("/api/health/explain", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+      const { explainUserHealth } = await import("./services/healthEvaluation/index.js");
+      const audit = await explainUserHealth(userId);
+      if (!audit) return res.json({ available: false, reason: "Faltan datos (cartola o CMF)." });
+      res.json({ available: true, audit });
+    } catch (e) {
+      logger.error({ err: e }, "health explain failed");
+      res.status(500).json({ message: "Error al explicar la salud financiera." });
+    }
+  });
+
   app.get("/api/financial-health", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
     try {
