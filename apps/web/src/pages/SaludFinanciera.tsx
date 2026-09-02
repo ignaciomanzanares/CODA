@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUserDocuments } from "@/hooks/useUserDocuments";
 import HealthLevelCard from "@/components/health/HealthLevelCard";
 import EvaluationBreakdown from "@/components/health/EvaluationBreakdown";
+import HealthExplainPanel from "@/components/health/HealthExplainPanel";
 import {
   useHealthEvaluation,
   type HealthResponse,
@@ -306,6 +307,8 @@ export default function SaludFinanciera() {
       )}
 
       {evaluation.ratios && <EvaluationBreakdown ratios={evaluation.ratios} />}
+
+      <HealthExplainPanel />
 
       {evaluation.salida !== "concursal" && (evaluation.productos ?? []).length > 0 && (
         <div>
