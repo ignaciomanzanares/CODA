@@ -26,7 +26,8 @@
     "db:seed": "npm run db:seed -w @coda/db",
     "db:reset:sqlite": "npm run reset:sqlite -w @coda/db",
     "db:reset:postgres": "npm run reset:postgres -w @coda/db",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "ci:verify": "bash scripts/ci-verify.sh"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
