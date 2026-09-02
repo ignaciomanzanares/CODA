@@ -237,6 +237,16 @@ function App() {
                   </Route>
                 )}
 
+                {/* Consola del prestador (demo B2B): chrome propio, sin el nav personal. */}
+                <Route path={ROUTES.consolaPrestador}>
+                  <ProtectedRoute>
+                    <div className="min-h-screen bg-background">
+                      <ConsolaPrestador />
+                      <Toaster />
+                    </div>
+                  </ProtectedRoute>
+                </Route>
+
                 {/* All other routes with header/footer and protection */}
                 <Route>
                   <div className="relative flex min-h-screen flex-col">
@@ -410,11 +420,6 @@ function App() {
                           <Route path={ROUTES.reclamos}>
                             <ProtectedRoute>
                               <Reclamos />
-                            </ProtectedRoute>
-                          </Route>
-                          <Route path={ROUTES.consolaPrestador}>
-                            <ProtectedRoute>
-                              <ConsolaPrestador />
                             </ProtectedRoute>
                           </Route>
                           <Route path={ROUTES.misActivos}>
