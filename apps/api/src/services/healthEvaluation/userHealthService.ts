@@ -94,11 +94,19 @@ export function explainHealthFromProfile(profile: UserRiskProfile): HealthAudit 
   return explainHealthV2(healthInput);
 }
 
+/**
+ * Traza auditable de la salud del usuario. Usa el MISMO resolver de input que la ruta
+ * `/api/health-evaluation/me` (el número que ve el usuario) para que el nivel y su
+ * explicación no diverjan — antes se derivaban distinto (profile vs. transacciones del
+ * último mes) y no coincidían. `explainHealthFromProfile` se mantiene para callers que ya
+ * tienen un profile en mano, pero el flujo por-usuario pasa por el resolver único.
+ */
 export async function explainUserHealth(userId: string): Promise<HealthAudit | null> {
   try {
-    const profile = await buildUserRiskProfile(userId);
-    if (!profile) return null;
-    return explainHealthFromProfile(profile);
+    const { resolveHealthInputForUser } = await import("./healthInputResolver.js");
+    const resolved = await resolveHealthInputForUser(userId);
+    if (!resolved) return null;
+    return explainHealthV2(resolved.healthInput);
   } catch (e) {
     logger.warn({ err: e, userId }, "[userHealthService] explainUserHealth failed (non-fatal)");
     return null;

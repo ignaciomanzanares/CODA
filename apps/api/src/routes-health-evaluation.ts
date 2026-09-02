@@ -1,22 +1,15 @@
 import type { Express, Request, Response } from "express";
 import { randomUUID } from "crypto";
-import { eq } from "drizzle-orm";
 import { authenticate, type AuthenticatedRequest } from "./middleware/auth.js";
 import { apiLimiter, expensiveLimiter } from "./middleware/rateLimiter.js";
 import { storage } from "./storage.js";
-import { db, userAssets } from "./db/index.js";
 import { logger } from "./logger.js";
 import {
   evaluateHealthV2,
-  deriveHealthInput,
   HEALTH_EVALUATION_ENGINE_VERSION,
 } from "./services/healthEvaluation/index.js";
+import { resolveHealthInputForUser } from "./services/healthEvaluation/healthInputResolver.js";
 import { logFinancialHealthV2 } from "./services/audit/traceabilityPersistence.js";
-import {
-  estimarCuotaMensual,
-  normalizeCmfData,
-} from "./services/healthEvaluation/userHealthService.js";
-import type { UserAsset } from "./services/assets/types.js";
 
 const NIVEL_DESCRIPCION: Record<number, string> = {
   [-2]: "Tu deuda supera tus activos o está en mora grave. Se recomienda asesoría legal para explorar reestructuración o proceso concursal.",
@@ -38,18 +31,14 @@ async function handleHealthEvaluationMe(req: Request, res: Response): Promise<an
     const userId = authReq.user!.userId;
     const requestId = randomUUID();
 
-    // Obtener datos de scoring persistidos
-    // CMF: buscar ambos tipos — 'cmf' (parser nuevo) y 'cmf_informe_deudas' (parser antiguo)
-    const [credit, txScore, cartolas, cmfDocsNew, cmfDocsLegacy] = await Promise.all([
-      storage.getCreditScore(userId),
-      storage.getTransactionalScore(userId),
+    // Detección de datos faltantes (mensajería granular en la respuesta).
+    // CMF: buscar ambos tipos — 'cmf' (parser nuevo) y 'cmf_informe_deudas' (parser antiguo).
+    const [cartolas, cmfDocsNew, cmfDocsLegacy] = await Promise.all([
       storage.listDocumentUploadsByType(userId, "cartola"),
       storage.listDocumentUploadsByType(userId, "cmf"),
       storage.listDocumentUploadsByType(userId, "cmf_informe_deudas"),
     ]);
-    const cmfDocs = [...cmfDocsNew, ...cmfDocsLegacy].sort(
-      (a, b) => new Date(b.uploadedAt ?? 0).getTime() - new Date(a.uploadedAt ?? 0).getTime(),
-    );
+    const cmfDocs = [...cmfDocsNew, ...cmfDocsLegacy];
 
     logger.info(
       {
@@ -71,70 +60,14 @@ async function handleHealthEvaluationMe(req: Request, res: Response): Promise<an
       });
     }
 
-    // Ingresos y gastos del último mes con datos, desde la tabla `transactions`
-    // (fuente de verdad, no parsed_data). Se excluyen las transferencias internas
-    // (pago de tarjeta/divisas) para no inflar ingreso ni ahorro — mismo predicado
-    // consolidado que el resto de las métricas (Salud usa la vista REAL).
-    const { getUserNormalizedTransactions } = await import("./services/normalizedTransactions.js");
-    const { isInternalTransferTx } = await import("./services/assistantContext.js");
-    const { transactions: normTxs } = await getUserNormalizedTransactions(userId);
-    const latestMonth = normTxs.reduce((m, t) => (t.month > m ? t.month : m), "");
-    let totalIngresos = 0,
-      totalGastos = 0;
-    for (const t of normTxs) {
-      if (t.month !== latestMonth) continue;
-      if (isInternalTransferTx(t)) continue;
-      totalIngresos += t.abono;
-      totalGastos += t.cargo;
-    }
-
-    // CMF más reciente — normaliza ambos formatos posibles
-    const latestCmf = cmfDocs[0] as any;
-    const rawCmfData = latestCmf?.parsedData;
-    if (!rawCmfData) {
+    // Input del motor v2 desde la fuente ÚNICA (misma derivación que la traza R1).
+    const resolved = await resolveHealthInputForUser(userId);
+    if (!resolved) {
+      // Docs presentes pero el CMF más reciente no tiene parsedData.
       return res.json({ hasData: false, missingData: { cartola: false, cmf: true } });
     }
-    const cmfData = normalizeCmfData(rawCmfData);
 
-    // Activos declarados del usuario
-    const assetRows = await db.select().from(userAssets).where(eq(userAssets.userId, userId));
-    const assets: UserAsset[] = assetRows.map((row: any) => ({
-      id: row.id,
-      userId: row.userId,
-      type: row.type,
-      name: row.name,
-      acquisitionCostClp: row.acquisitionCostClp,
-      estimatedValueClp: row.estimatedValueClp ?? null,
-      hasLien: row.hasLien === 1 || row.hasLien === true,
-      lienAmountClp: row.lienAmountClp ?? null,
-      currency: row.currency,
-      documentId: row.documentId ?? null,
-      notes: row.notes ?? null,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    }));
-
-    // Derivar inputs del motor v2
-    const deudaTotalClp: number = cmfData.deuda_total ?? 0;
-    const deudaMensualClp = estimarCuotaMensual(cmfData, deudaTotalClp);
-    const sfaAvg = txScore?.metrics?.averageMonthlyBalanceClp ?? undefined;
-
-    const healthInput = deriveHealthInput({
-      ingresoMensualClp: totalIngresos,
-      deudaMensualClp,
-      deudaTotalClp,
-      ahorroMensualClp: totalIngresos - totalGastos,
-      cmf: cmfData,
-      sfaAvgMonthlyBalanceClp: sfaAvg,
-      userAssets: assets,
-    });
-
-    const evaluation = evaluateHealthV2(healthInput, {
-      creditScore: credit?.score ?? 0,
-      transactionalScore: txScore?.transactionalScore ?? 0,
-      monthlyIncome: totalIngresos,
-      monthlyDebt: deudaMensualClp,
-    });
+    const evaluation = evaluateHealthV2(resolved.healthInput, resolved.scoringContext);
 
     // Trazabilidad NCG 502 — persistida antes de responder (ver algorithmicTraceability.ts)
     await logFinancialHealthV2({
