@@ -15,6 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -110,6 +111,12 @@ export default function ConsolaPrestador() {
     }
   }
 
+  // Al cambiar la política, el resultado anterior queda obsoleto: se descarta para no mostrar
+  // una tasa que ya no corresponde a los criterios en pantalla.
+  function invalidateResult() {
+    if (sim.data || sim.isError) sim.reset();
+  }
+
   function addCriterion() {
     if (!draftVar) return;
     const v = exposableById.get(draftVar);
@@ -126,12 +133,14 @@ export default function ConsolaPrestador() {
         { variable: draftVar, op: draftOp, threshold: num, label: v?.label },
       ]);
     }
+    invalidateResult();
     setDraftVar("");
     setDraftThreshold("");
   }
 
   function removeCriterion(variable: string) {
     setCriteria((cs) => cs.filter((c) => c.variable !== variable));
+    invalidateResult();
   }
 
   function runSimulation() {
@@ -184,7 +193,15 @@ export default function ConsolaPrestador() {
           </p>
         </div>
 
-        {isLoading && <p className="text-sm text-muted-foreground">Cargando variables…</p>}
+        {isLoading && (
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-10 w-3/4" />
+            </CardContent>
+          </Card>
+        )}
         {isError && (
           <p className="text-sm text-muted-foreground">
             No pudimos cargar el catálogo de variables. Intenta más tarde.
@@ -294,6 +311,12 @@ export default function ConsolaPrestador() {
                           step="any"
                           value={draftThreshold}
                           onChange={(e) => setDraftThreshold(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addCriterion();
+                            }
+                          }}
                           placeholder="0.4"
                         />
                       </div>
@@ -316,6 +339,21 @@ export default function ConsolaPrestador() {
                   </p>
                 ) : (
                   <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {criteria.length} {criteria.length === 1 ? "criterio" : "criterios"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCriteria([]);
+                          invalidateResult();
+                        }}
+                        className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                      >
+                        Limpiar
+                      </button>
+                    </div>
                     {criteria.map((c) => (
                       <div
                         key={c.variable}
