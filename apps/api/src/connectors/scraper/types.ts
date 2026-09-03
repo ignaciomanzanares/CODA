@@ -16,6 +16,18 @@
 import type { OBAccount, OBBalance, OBTransaction } from "../openbanking/mockProvider.js";
 
 /**
+ * Un método del adapter que aún no se implementa contra el sitio real. Los esqueletos de banco
+ * lanzan esto por método hasta que sus selectores/URLs se completan iterando en vivo con una
+ * cuenta de prueba. Distinguible de un error de scrape genuino (login fallido, sesión caída).
+ */
+export class PendingAdapterError extends Error {
+  constructor(bankId: string, step: string) {
+    super(`${bankId}.${step}: pendiente — completar contra el sitio real`);
+    this.name = "PendingAdapterError";
+  }
+}
+
+/**
  * Credenciales del titular para el login bancario. EFÍMERAS: viven solo en memoria durante
  * el scrape, nunca se escriben a disco/DB ni se emiten en logs/telemetría.
  */

@@ -7,14 +7,8 @@
  */
 
 import type { OBAccount, OBBalance, OBTransaction } from "../../openbanking/mockProvider.js";
+import { PendingAdapterError } from "../types.js";
 import type { BankAdapter, BankPage, MfaResolver, ScraperCredentials } from "../types.js";
-
-export class PendingAdapterError extends Error {
-  constructor(step: string) {
-    super(`BancoEstadoAdapter.${step}: pendiente — completar contra el sitio real`);
-    this.name = "PendingAdapterError";
-  }
-}
 
 export class BancoEstadoAdapter implements BankAdapter {
   readonly bankId = "bancoestado";
@@ -32,15 +26,15 @@ export class BancoEstadoAdapter implements BankAdapter {
     _creds: ScraperCredentials,
     _resolveMfa: MfaResolver,
   ): Promise<void> {
-    throw new PendingAdapterError("login");
+    throw new PendingAdapterError("bancoestado", "login");
   }
 
   async listAccounts(_page: BankPage): Promise<OBAccount[]> {
-    throw new PendingAdapterError("listAccounts");
+    throw new PendingAdapterError("bancoestado", "listAccounts");
   }
 
   async getBalance(_page: BankPage, _providerAccountId: string): Promise<OBBalance> {
-    throw new PendingAdapterError("getBalance");
+    throw new PendingAdapterError("bancoestado", "getBalance");
   }
 
   async listTransactions(
@@ -49,6 +43,6 @@ export class BancoEstadoAdapter implements BankAdapter {
     _from: Date,
     _to: Date,
   ): Promise<OBTransaction[]> {
-    throw new PendingAdapterError("listTransactions");
+    throw new PendingAdapterError("bancoestado", "listTransactions");
   }
 }

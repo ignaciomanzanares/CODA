@@ -1,8 +1,22 @@
 import { describe, it, expect, vi } from "vitest";
 import { BankScraperProvider } from "../bankScraperProvider";
 import { scrapeAndIngest, type BrowserDriver } from "../scrapeAndIngest";
-import type { BankAdapter, BankPage, MfaResolver, ScraperCredentials } from "../types";
+import {
+  PendingAdapterError,
+  type BankAdapter,
+  type BankPage,
+  type MfaResolver,
+  type ScraperCredentials,
+} from "../types";
 import type { OBAccount, OBBalance, OBTransaction } from "../../openbanking/mockProvider";
+import { SantanderAdapter } from "../adapters/santander";
+import { BancoEstadoAdapter } from "../adapters/bancoEstado";
+
+// El scrape ingiere por `ingestOpenBankingForUser` (toca DB): se mockea para probar la
+// orquestación (login → wrap OBProvider → ingest → cierre) sin infraestructura. vi.hoisted
+// para que el spy exista cuando el factory de vi.mock (hoisteado) lo referencia.
+const { ingestSpy } = vi.hoisted(() => ({ ingestSpy: vi.fn(async () => {}) }));
+vi.mock("../../../jobs/ingest.js", () => ({ ingestOpenBankingForUser: ingestSpy }));
 
 /** BankPage inerte para tests (los adapters fake no la usan). */
 function fakePage(): BankPage {
@@ -65,5 +79,42 @@ describe("scrapeAndIngest — garantía de seguridad", () => {
     ).rejects.toThrow("credenciales inválidas");
     // El finally cerró el navegador aunque el login lanzó.
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("happy path: autentica, ingiere y cierra el navegador", async () => {
+    ingestSpy.mockClear();
+    const close = vi.fn(async () => {});
+    const driver: BrowserDriver = { newPage: async () => fakePage(), close };
+    const adapter = fakeAdapter();
+    const creds: ScraperCredentials = { rut: "1-9", password: "x" };
+    const resolveMfa: MfaResolver = async () => "000000";
+
+    const result = await scrapeAndIngest({ userId: "u1", adapter, creds, resolveMfa, driver });
+
+    expect(result).toEqual({ bankId: "fakebank", ok: true });
+    // Se ingirió por el pipeline canónico, con el userId y un OBProvider respaldado por el scraper.
+    expect(ingestSpy).toHaveBeenCalledTimes(1);
+    expect(ingestSpy.mock.calls[0][0]).toBe("u1");
+    expect(ingestSpy.mock.calls[0][1]).toBeInstanceOf(BankScraperProvider);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("esqueletos de adapter (pendientes hasta el sitio real)", () => {
+  const page = fakePage();
+  const creds: ScraperCredentials = { rut: "1-9", password: "x" };
+  const resolveMfa: MfaResolver = async () => "000000";
+
+  it.each([
+    ["santander", new SantanderAdapter()],
+    ["bancoestado", new BancoEstadoAdapter()],
+  ])("%s lanza PendingAdapterError en cada método (nada a medio implementar)", async (id, a) => {
+    expect(a.bankId).toBe(id);
+    await expect(a.login(page, creds, resolveMfa)).rejects.toBeInstanceOf(PendingAdapterError);
+    await expect(a.listAccounts(page)).rejects.toBeInstanceOf(PendingAdapterError);
+    await expect(a.getBalance(page, "acc-1")).rejects.toBeInstanceOf(PendingAdapterError);
+    await expect(a.listTransactions(page, "acc-1", new Date(0), new Date())).rejects.toBeInstanceOf(
+      PendingAdapterError,
+    );
   });
 });
