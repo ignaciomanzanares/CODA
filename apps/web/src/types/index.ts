@@ -96,6 +96,9 @@ export interface ConsentGrant {
   externalGrantId: string | null;
   ipiId: string | null;
   expiresAt: string | null;
+  /** Evidencia sellada (D2): hash SHA-256 de lo consentido + timestamp del sello. */
+  evidenceHash: string | null;
+  sealedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

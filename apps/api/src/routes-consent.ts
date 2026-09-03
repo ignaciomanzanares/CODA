@@ -142,6 +142,32 @@ export function registerConsentRoutes(app: Express): void {
     },
   );
 
+  /** Verifica el sello de evidencia de un grant (D2): recomputa el hash y compara (tamper-evident). */
+  router.get(
+    "/:id/verify",
+    authenticate,
+    validateParams(idParamSchema),
+    async (req: Request, res: Response) => {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user?.userId ?? "";
+      const { id } = req.params as { id: string };
+      const grantId = parseInt(id, 10);
+      if (Number.isNaN(grantId)) {
+        return res.status(400).json({ message: "Invalid grant id" });
+      }
+      try {
+        const result = await consentService.verifyById(grantId, userId);
+        if (!result) {
+          return res.status(404).json({ message: "Consent grant not found" });
+        }
+        return res.json(result);
+      } catch (e) {
+        logger.error({ err: e }, "Verify consent evidence failed");
+        return res.status(500).json({ message: "Error verifying consent evidence" });
+      }
+    },
+  );
+
   /**
    * Webhook: notificación del banco cuando el consentimiento cambia de estado.
    * Sin autenticación JWT; en producción verificar firma/secret del IPI.

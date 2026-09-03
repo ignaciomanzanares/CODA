@@ -21,7 +21,7 @@ import {
   serializeAuthorizationDetails,
   parseAuthorizationDetails,
 } from "./rar.js";
-import { sealConsentEvidence } from "./consentEvidence.js";
+import { sealConsentEvidence, verifyConsentEvidence } from "./consentEvidence.js";
 
 const VALID_STATUSES: ConsentGrantStatus[] = [
   "pending",
@@ -75,6 +75,33 @@ export class ConsentService {
     const [row] = await db.select().from(consentGrants).where(conditions).limit(1);
     if (!row) return null;
     return mapToPanel(row);
+  }
+
+  /**
+   * Verifica el sello de evidencia de un grant recomputando el hash sobre los hechos guardados
+   * (D2). Devuelve `null` si el grant no existe o no pertenece al usuario; si existe, indica si
+   * está sellado y si el sello es válido (tamper-evident).
+   */
+  async verifyById(
+    grantId: number,
+    userId?: string,
+  ): Promise<{ sealed: boolean; valid: boolean } | null> {
+    const conditions = userId
+      ? and(eq(consentGrants.id, grantId), eq(consentGrants.userId, userId))
+      : eq(consentGrants.id, grantId);
+    const [row] = await db.select().from(consentGrants).where(conditions).limit(1);
+    if (!row) return null;
+    const g = row as Record<string, unknown>;
+    const sealed = !!g.evidenceHash && !!g.sealedAt;
+    const valid = verifyConsentEvidence({
+      userId: g.userId as string,
+      authorizationDetails: g.authorizationDetails as string,
+      purpose: g.purpose as string,
+      policyVersion: g.policyVersion as string,
+      sealedAt: (g.sealedAt as string) ?? null,
+      evidenceHash: (g.evidenceHash as string) ?? null,
+    });
+    return { sealed, valid };
   }
 
   /** Lista todos los consentimientos del usuario para el Panel de Control. */

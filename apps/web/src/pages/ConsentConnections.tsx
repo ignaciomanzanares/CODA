@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Link2, Shield, Calendar, RefreshCw, Loader2 } from "lucide-react";
+import { Link2, Shield, Calendar, RefreshCw, Loader2, ShieldCheck } from "lucide-react";
 import { PastelIcon } from "@/components/ui/pastel-icon";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -75,7 +75,7 @@ function StatusBadge({ status }: { status: ConsentGrant["status"] }) {
 }
 
 export default function ConsentConnections() {
-  const { getConsents, revokeConsent } = useApi();
+  const { getConsents, revokeConsent, verifyConsent } = useApi();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [revokeGrantId, setRevokeGrantId] = useState<number | null>(null);
@@ -114,6 +114,31 @@ export default function ConsentConnections() {
     if (revokeGrantId == null) return;
     revokeMutation.mutate(revokeGrantId);
   };
+
+  const verifyMutation = useMutation({
+    mutationFn: verifyConsent,
+    onSuccess: (result) => {
+      if (result.valid) {
+        toast({
+          title: "Sello verificado ✓",
+          description: "La huella coincide: lo que autorizaste no fue alterado.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "El sello no coincide",
+          description: "La evidencia no pudo verificarse. Contacta a soporte.",
+        });
+      }
+    },
+    onError: (err: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message || "No se pudo verificar el sello.",
+      });
+    },
+  });
 
   if (isLoading) {
     return (
@@ -209,6 +234,36 @@ export default function ConsentConnections() {
                     <div className="text-xs text-muted-foreground">
                       Actualizado: {formatDate(grant.updatedAt)}
                     </div>
+                    {grant.evidenceHash && grant.sealedAt && (
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2.5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                          <span className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+                            Consentimiento sellado
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs leading-snug text-muted-foreground">
+                          Sellado el {formatDate(grant.sealedAt)}. Guardamos una huella
+                          criptográfica (SHA-256) de lo que autorizaste; si algo cambiara, el sello
+                          deja de coincidir.
+                        </p>
+                        <div className="mt-1.5 flex items-center justify-between gap-2">
+                          <span className="font-mono text-[11px] text-muted-foreground/80 break-all">
+                            {grant.evidenceHash.slice(0, 16)}…
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 shrink-0 gap-1.5 text-emerald-700 hover:bg-emerald-100/60 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-900/30"
+                            onClick={() => verifyMutation.mutate(grant.id)}
+                            disabled={verifyMutation.isPending}
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            Verificar sello
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     {(grant.status === "authorized" || grant.status === "pending") && (
                       <div className="pt-2">
                         <Button

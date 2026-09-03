@@ -157,6 +157,7 @@ export type ApiClient = {
   getUnreadNotificationCount: () => Promise<number>;
   getConsents: () => Promise<import("@/types").ConsentGrant[]>;
   revokeConsent: (grantId: number) => Promise<import("@/types").ConsentGrant>;
+  verifyConsent: (grantId: number) => Promise<{ sealed: boolean; valid: boolean }>;
   getPrivacyConsents: () => Promise<import("@/types").PrivacyConsentPanelResponse>;
   acceptPrivacyPurpose: (
     purpose: import("@/types").PrivacyPurposeKey,
@@ -660,6 +661,13 @@ export function useApi(): ApiClient {
     );
   };
 
+  const verifyConsent = async (grantId: number): Promise<{ sealed: boolean; valid: boolean }> => {
+    return await apiRequest<{ sealed: boolean; valid: boolean }>(
+      "GET",
+      `/api/consent/${grantId}/verify`,
+    );
+  };
+
   const getPrivacyConsents = async (): Promise<import("@/types").PrivacyConsentPanelResponse> => {
     return await apiRequest<import("@/types").PrivacyConsentPanelResponse>(
       "GET",
@@ -831,6 +839,7 @@ export function useApi(): ApiClient {
     getUnreadNotificationCount,
     getConsents,
     revokeConsent,
+    verifyConsent,
     getPrivacyConsents,
     acceptPrivacyPurpose,
     revokePrivacyPurpose,
