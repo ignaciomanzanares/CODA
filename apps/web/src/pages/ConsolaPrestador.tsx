@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
+import { Helmet } from "react-helmet-async";
 import {
   Building2,
   ShieldCheck,
@@ -151,6 +152,10 @@ export default function ConsolaPrestador() {
 
   return (
     <>
+      <Helmet>
+        <title>Consola del prestador · CODA Empresas</title>
+        <meta name="robots" content="noindex" />
+      </Helmet>
       <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="container mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
