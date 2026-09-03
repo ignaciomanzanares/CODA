@@ -28,6 +28,24 @@ export function isStandalonePWA(win: WindowLike) {
   return Boolean(win.navigator.standalone || win.matchMedia("(display-mode: standalone)").matches);
 }
 
+/**
+ * ¿El dispositivo es "de tipo móvil" (teléfono/tablet)? Instalar una PWA en un laptop/PC es válido
+ * técnicamente, pero el banner de instalación no aporta ahí y molesta: Chromium (Brave incl.)
+ * dispara `beforeinstallprompt` también en desktop. Gateamos el banner a móvil por UA o por
+ * puntero grueso (touch primario). En desktop la instalación sigue disponible por el ícono del
+ * navegador; solo ocultamos NUESTRO banner.
+ */
+export function isMobileLikeDevice(win: WindowLike) {
+  const ua = win.navigator.userAgent || "";
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
+  if (isAppleMobilePlatform(win.navigator)) return true; // iPadOS moderno (MacIntel + touch)
+  try {
+    return win.matchMedia("(pointer: coarse)").matches;
+  } catch {
+    return false;
+  }
+}
+
 function readInstallDismissed() {
   if (typeof window === "undefined") return false;
 
@@ -63,10 +81,14 @@ export function usePWAInstall() {
       return;
     }
 
-    setManualInstallAvailable(isAppleMobilePlatform(window.navigator));
+    // Solo ofrecemos instalar en dispositivos de tipo móvil; en desktop el banner no se muestra.
+    const mobile = isMobileLikeDevice(window);
+    setManualInstallAvailable(mobile && isAppleMobilePlatform(window.navigator));
 
     const handler = (e: Event) => {
+      // preventDefault siempre (suprime el mini-infobar de Chrome); guardamos el prompt solo en móvil.
       e.preventDefault();
+      if (!mobile) return;
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       setManualInstallAvailable(false);
     };
