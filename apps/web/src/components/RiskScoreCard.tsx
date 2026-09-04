@@ -153,13 +153,29 @@ function Lens({
 }
 
 export default function RiskScoreCard() {
-  const { data, isLoading } = useQuery<RiskEvaluation>({
+  const { data, isLoading, isError } = useQuery<RiskEvaluation>({
     queryKey: ["/api/risk/evaluation"],
     queryFn: () => apiFetch("/api/risk/evaluation"),
   });
 
   if (isLoading) return <Skeleton className="h-56 w-full rounded-2xl" />;
-  if (!data) return null;
+
+  // NUNCA fallar en silencio: si el endpoint no responde (p. ej. RISK_DUAL_SCORE_ENABLED
+  // apagado en la API → 404), antes retornábamos null y la tarjeta desaparecía sin rastro,
+  // indistinguible de "el flag del front está apagado". Eso costó una sesión de debug.
+  if (isError || !data) {
+    return (
+      <Card>
+        <CardContent className="flex items-center gap-3 p-5">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" />
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">Score no disponible.</span> No pudimos
+            calcular tu evaluación de riesgo en este momento. Reintenta más tarde.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (!data.available) {
     return (

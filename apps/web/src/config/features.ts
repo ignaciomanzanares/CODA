@@ -26,6 +26,10 @@ export const FEATURES = {
    * OFF por defecto: con el flag apagado, el dashboard muestra el ScoreHero/CreditScoreCard actuales.
    * Encendido (VITE_ENABLE_RISK_DUAL_SCORE=true), la tarjeta consume /api/risk/evaluation y muestra
    * titular + segunda opinión según segmento. Beta hasta calibrar con outcomes locales (Fase G).
+   *
+   * Flag de DOS LADOS: la API gatea el mismo endpoint con RISK_DUAL_SCORE_ENABLED (404 en
+   * producción si está apagado). Encender solo este monta la tarjeta pero no hay datos que
+   * mostrar — hay que encender ambos.
    */
   riskDualScore: import.meta.env.VITE_ENABLE_RISK_DUAL_SCORE === "true",
 } as const;
