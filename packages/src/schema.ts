@@ -194,6 +194,11 @@ export const transactions = table("transactions", {
   // Normalización de cartolas (migración 025).
   /** 1 = traspaso entre productos propios (pago de tarjeta, divisas). No es ingreso/gasto real. */
   isInternalTransfer: integer("is_internal_transfer").notNull().default(0),
+  // Movimientos extraordinarios (migración 047). NULLABLE = tres estados:
+  // NULL sin decidir · 1 puntual (fuera del baseline recurrente) · 0 habitual.
+  // Lo decide SIEMPRE el usuario; el detector solo propone candidatos.
+  isExtraordinary: integer("is_extraordinary"),
+  extraordinaryMarkedAt: text("extraordinary_marked_at"),
   /** id del score_document_uploads que originó esta transacción (borrado en cascada). */
   sourceDocumentId: text("source_document_id"),
   /** Metadata moneda original (TC internacional USD): monto/moneda nativos + tasa + CLP. */

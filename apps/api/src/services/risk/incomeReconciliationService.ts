@@ -17,16 +17,19 @@ import {
 } from "./incomeReconciliation.js";
 import { getGovSources } from "../dataSources/govSourceService.js";
 import { getUserNormalizedTransactions } from "../normalizedTransactions.js";
-import { isInternalTransferTx } from "../assistantContext.js";
+import { isOutsideBaselineTx } from "../transactions/extraordinaryEvents.js";
 import { computeMonthlyHealthMetrics } from "../financialHealthMetrics.js";
 
 export async function getIncomeReconciliationForUser(userId: string): Promise<ReconciledIncome> {
   const signals: IncomeSignal[] = [];
 
-  // Cartola: ingreso mensual observado (excluye transferencias internas).
+  // Cartola: ingreso mensual observado. Fuera del baseline quedan las transferencias
+  // internas y los ingresos puntuales confirmados (p. ej. plata que familiares transfieren
+  // para financiar un evento): entraron de verdad, pero no son ingreso recurrente y
+  // sobreestimarían la capacidad de pago.
   const { transactions } = await getUserNormalizedTransactions(userId);
   if (transactions.length > 0) {
-    const { monthlyIncome } = computeMonthlyHealthMetrics(transactions, isInternalTransferTx);
+    const { monthlyIncome } = computeMonthlyHealthMetrics(transactions, isOutsideBaselineTx);
     if (monthlyIncome > 0) {
       const latest = transactions.reduce(
         (max, t) => (t.postedAt > max ? t.postedAt : max),

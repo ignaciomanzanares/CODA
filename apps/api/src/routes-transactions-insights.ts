@@ -357,6 +357,77 @@ export async function registerTransactionsInsightsRoutes(app: Express): Promise<
     },
   );
 
+  // ── Movimientos extraordinarios (migración 047) ────────────────────────────
+  // Un matrimonio, un auto, un pie: plata real que NO describe el ritmo mensual.
+  // El detector sólo PROPONE; marcar es siempre una acción del usuario.
+
+  // GET /api/transactions/extraordinary — candidatos sin decidir + los ya marcados.
+  app.get("/api/transactions/extraordinary", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+
+      const { getUserNormalizedTransactions } =
+        await import("./services/normalizedTransactions.js");
+      const { detectExtraordinaryCandidates } =
+        await import("./services/transactions/extraordinaryEvents.js");
+      const { transactions: txs } = await getUserNormalizedTransactions(userId);
+
+      const candidates = detectExtraordinaryCandidates(txs);
+      // Los ya confirmados se devuelven para que el usuario pueda revertir la decisión:
+      // marcar algo como puntual cambia su diagnóstico, así que tiene que poder deshacerlo.
+      const marked = txs
+        .filter((t) => t.isExtraordinary)
+        .map((t) => ({
+          id: t.id,
+          postedAt: t.postedAt,
+          month: t.month,
+          description: t.descripcion,
+          categoria: t.categoria,
+          tipo: t.tipo,
+          amountClp: Math.round(t.tipo === "ingreso" ? t.abono : t.cargo),
+          markedAt: t.extraordinaryMarkedAt,
+        }))
+        .sort((a, b) => b.amountClp - a.amountClp);
+
+      res.json({ candidates, marked });
+    } catch (e) {
+      logger.error({ err: e }, "Failed to list extraordinary transactions");
+      res.status(500).json({ message: "Error al buscar movimientos puntuales." });
+    }
+  });
+
+  // POST /api/transactions/:id/extraordinary — el usuario decide.
+  // body: { isExtraordinary: true | false | null }  (null = volver a "sin decidir")
+  app.post(
+    "/api/transactions/:id/extraordinary",
+    authenticate,
+    async (req: Request, res: Response) => {
+      const authReq = req as AuthenticatedRequest;
+      try {
+        const userId = await ensureUserForToken(authReq.user!);
+        if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id)) return res.status(400).json({ message: "Id inválido." });
+
+        const { isExtraordinary } = req.body as { isExtraordinary?: unknown };
+        if (isExtraordinary !== true && isExtraordinary !== false && isExtraordinary !== null) {
+          return res.status(400).json({ message: "isExtraordinary debe ser true, false o null." });
+        }
+
+        const result = await storage.setTransactionExtraordinary(id, userId, isExtraordinary);
+        if (!result) return res.status(404).json({ message: "Movimiento no encontrado." });
+
+        res.json({ id, isExtraordinary: result.isExtraordinary });
+      } catch (e) {
+        logger.error({ err: e }, "Failed to set extraordinary flag");
+        res.status(500).json({ message: "Error al marcar el movimiento." });
+      }
+    },
+  );
+
   // GET /api/transactions/summary — income, expenses, and balance summary
   app.get("/api/transactions/summary", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;

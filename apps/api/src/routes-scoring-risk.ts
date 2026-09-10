@@ -103,9 +103,11 @@ export async function registerScoringRiskRoutes(app: Express): Promise<void> {
       const userId = await ensureUserForToken(authReq.user!);
       if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
 
-      // Fuente de verdad: tabla `transactions`. Excluye transferencias internas
-      // (pago de tarjeta, divisas) para que NO inflen el ingreso ni la tasa de ahorro.
-      const { isInternalTransferTx } = await import("./services/assistantContext.js");
+      // Fuente de verdad: tabla `transactions`. Fuera del baseline recurrente quedan las
+      // transferencias internas (pago de tarjeta, divisas) y los movimientos que el usuario
+      // confirmó como puntuales — ninguno describe su ritmo mensual.
+      const { isOutsideBaselineTx } =
+        await import("./services/transactions/extraordinaryEvents.js");
       const { getUserNormalizedTransactions, getReportedBalance } =
         await import("./services/normalizedTransactions.js");
       const { transactions: txs } = await getUserNormalizedTransactions(userId);
@@ -116,7 +118,7 @@ export async function registerScoringRiskRoutes(app: Express): Promise<void> {
       const { computeMonthlyHealthMetrics, mesesDeFondoEmergencia } =
         await import("./services/financialHealthMetrics.js");
       const { monthlyIncome, monthlyExpenses, savingsRate, hasEduExpenses, eduPct } =
-        computeMonthlyHealthMetrics(txs, isInternalTransferTx);
+        computeMonthlyHealthMetrics(txs, isOutsideBaselineTx);
 
       const saldoActual: number = (await getReportedBalance(userId)) ?? 0;
       const mesesCubiertos = mesesDeFondoEmergencia(saldoActual, monthlyExpenses);

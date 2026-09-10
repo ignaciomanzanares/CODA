@@ -148,6 +148,15 @@ export interface IStorage {
     category: string,
     opts: { subcategory?: string | null; isInternalTransfer?: boolean; excludeId: number },
   ): Promise<number>;
+  /**
+   * Marca una transacción como extraordinaria (puntual), habitual, o vuelve a "sin decidir".
+   * Verifica que la cuenta sea del usuario. Devuelve false si no existe o no es suya.
+   */
+  setTransactionExtraordinary(
+    id: number,
+    userId: string,
+    value: boolean | null,
+  ): Promise<false | { description: string; isExtraordinary: number | null }>;
   // Credit score operations
   getCreditScore(userId: string): Promise<any>;
   createCreditScore(creditScore: any): Promise<any>;
@@ -681,6 +690,47 @@ export class DatabaseStorage implements IStorage {
         ? decryptField(rawDesc)
         : (rawDesc ?? "");
     return { description, previousCategory: (row.category as string) ?? null };
+  }
+
+  /**
+   * Marca un movimiento como EXTRAORDINARIO (puntual) o habitual — migración 047.
+   * `null` lo devuelve a "sin decidir", por si el usuario quiere volver a evaluarlo.
+   *
+   * Sólo lo escribe una acción explícita del usuario: el detector propone, nunca marca.
+   * Se guarda `extraordinary_marked_at` para que la decisión quede fechada y auditable.
+   */
+  async setTransactionExtraordinary(
+    id: number,
+    userId: string,
+    value: boolean | null,
+  ): Promise<false | { description: string; isExtraordinary: number | null }> {
+    if (!db) return false;
+    const [row] = await db
+      .select({ accountId: transactions.accountId, description: transactions.description })
+      .from(transactions)
+      .where(eq(transactions.id, id));
+    if (!row) return false;
+    const [acc] = await db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(and(eq(accounts.id, row.accountId as number), eq(accounts.userId, String(userId))));
+    if (!acc) return false;
+
+    const isExtraordinary = value === null ? null : value ? 1 : 0;
+    await db
+      .update(transactions)
+      .set({
+        isExtraordinary,
+        extraordinaryMarkedAt: isExtraordinary === null ? null : new Date().toISOString(),
+      })
+      .where(eq(transactions.id, id));
+
+    const rawDesc = row.description as string | null;
+    const description =
+      typeof rawDesc === "string" && looksEncrypted(rawDesc)
+        ? decryptField(rawDesc)
+        : (rawDesc ?? "");
+    return { description, isExtraordinary };
   }
 
   /**

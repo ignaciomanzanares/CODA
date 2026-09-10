@@ -57,16 +57,18 @@ export async function resolveHealthInputForUser(
   const cmfData = normalizeCmfData(rawCmfData);
 
   // Ingreso/gasto del último mes con datos, desde la tabla `transactions` (fuente de verdad),
-  // excluyendo transferencias internas — mismo predicado que el resto de las métricas de salud.
+  // fuera del baseline recurrente: transferencias internas + movimientos que el usuario
+  // confirmó como puntuales (matrimonio, auto, pie). Sin esto, el mes de un evento así
+  // define el nivel de salud de la persona — que es justo lo que el nivel NO debe medir.
   const { getUserNormalizedTransactions } = await import("../normalizedTransactions.js");
-  const { isInternalTransferTx } = await import("../assistantContext.js");
+  const { isOutsideBaselineTx } = await import("../transactions/extraordinaryEvents.js");
   const { transactions: normTxs } = await getUserNormalizedTransactions(userId);
   const latestMonth = normTxs.reduce((m, t) => (t.month > m ? t.month : m), "");
   let totalIngresos = 0;
   let totalGastos = 0;
   for (const t of normTxs) {
     if (t.month !== latestMonth) continue;
-    if (isInternalTransferTx(t)) continue;
+    if (isOutsideBaselineTx(t)) continue;
     totalIngresos += t.abono;
     totalGastos += t.cargo;
   }

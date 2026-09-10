@@ -16,6 +16,7 @@ const CategoryCard = lazy(() => import("@/components/dashboard/CategoryCard"));
 import SavingsProgress from "@/components/dashboard/SavingsProgress";
 import CreditScoreCard from "@/components/dashboard/CreditScoreCard";
 import HealthSummaryCard from "@/components/dashboard/HealthSummaryCard";
+import ExtraordinaryEventsCard from "@/components/dashboard/ExtraordinaryEventsCard";
 import PlanSummaryCard from "@/components/dashboard/PlanSummaryCard";
 import RiskScoreCard from "@/components/RiskScoreCard";
 import ScoresPendingCard from "@/components/dashboard/ScoresPendingCard";
@@ -310,6 +311,11 @@ export default function Dashboard() {
                     savingsGoal={data.incomeReliable ? data.savingsGoalAmount : 0}
                   />
                 )}
+
+                {/* Movimientos puntuales: va ARRIBA del plan y del flujo porque explica
+                    por qué esos números pueden verse raros (un evento único distorsiona
+                    el período entero). Se oculta sola cuando no hay nada que decidir. */}
+                <ExtraordinaryEventsCard />
 
                 {/* Plan financiero — resumen 50/30/20 + metas */}
                 <PlanSummaryCard />

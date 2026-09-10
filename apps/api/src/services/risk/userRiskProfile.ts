@@ -107,18 +107,22 @@ export async function buildUserRiskProfile(userId: string): Promise<UserRiskProf
     // Antes se sumaban los abonos/cargos brutos de UNA cartola arbitraria (la
     // más reciente por fecha de subida): si esa era una TC (sin sueldo) o un
     // mes atípico, la tasa de ahorro salía en -500% y arrastraba el nivel de
-    // salud. Ahora: transacciones normalizadas de TODAS las cuentas, sin
-    // transferencias internas (pagos de tarjeta/traspasos propios no son
-    // ingreso ni gasto), promediando los últimos 3 meses con datos — la misma
-    // regla que el panel y monthly-flow.
+    // salud. Ahora: transacciones normalizadas de TODAS las cuentas, fuera del
+    // baseline recurrente (pagos de tarjeta/traspasos propios no son ingreso ni
+    // gasto; los eventos puntuales confirmados por el usuario tampoco describen
+    // su ritmo), promediando los últimos 3 meses con datos.
+    //
+    // Lo extraordinario importa especialmente ACÁ: estas son las features que
+    // alimentan el XGB, y un pago único enorme es exactamente lo que empuja la PD
+    // a la cola no confiable que tapa PD_TRUSTED_MAX (ver transactionalScore.ts).
     let cartola: { ingresos: number; gastos: number } | null = null;
     try {
       const { getUserNormalizedTransactions } = await import("../normalizedTransactions.js");
-      const { isInternalTransferTx } = await import("../assistantContext.js");
+      const { isOutsideBaselineTx } = await import("../transactions/extraordinaryEvents.js");
       const { transactions: txs } = await getUserNormalizedTransactions(userId);
       const byMonth = new Map<string, { ingresos: number; gastos: number }>();
       for (const t of txs) {
-        if (isInternalTransferTx(t)) continue;
+        if (isOutsideBaselineTx(t)) continue;
         const m = byMonth.get(t.month) ?? { ingresos: 0, gastos: 0 };
         m.ingresos += t.abono;
         m.gastos += t.cargo;

@@ -8,7 +8,9 @@
  * Cada fila se entrega en una forma uniforme que sirve a la vez para:
  *  - agregación (amount firmado + magnitudes cargo/abono + tipo + month/day);
  *  - el predicado consolidado `isInternalTransferTx` (lee la columna autoritativa
- *    `is_internal_transfer` y, como respaldo, description/category).
+ *    `is_internal_transfer` y, como respaldo, description/category);
+ *  - `isOutsideBaselineTx` (extraordinaryEvents.ts), que además saca los movimientos
+ *    puntuales confirmados por el usuario del baseline que modela el ritmo recurrente.
  */
 import { storage } from "../storage.js";
 
@@ -28,6 +30,10 @@ export interface NormalizedTx {
   category: string; // categoría cruda (para el predicado por etiqueta)
   isInternalTransfer: boolean;
   is_internal_transfer: number; // 0/1 — señal autoritativa para el predicado
+  /** null = el usuario no ha decidido · 1 = puntual · 0 = habitual (migración 047). */
+  is_extraordinary: number | null;
+  isExtraordinary: boolean;
+  extraordinaryMarkedAt: string | null;
   /** Campos de revisión de categoría (para requiresReview/isManualCategory). */
   categoryConfidence: number | null;
   categoryRuleId: string | null;
@@ -81,6 +87,11 @@ export async function getUserNormalizedTransactions(
     const postedAt = String(t.postedAt).slice(0, 10);
     const prod = productOf(acc);
     const internal = Number(t.isInternalTransfer ?? 0) === 1;
+    // Tres estados: null (sin decidir) se preserva como null — distinto de 0 (el usuario
+    // dijo que es habitual), que es lo que impide volver a preguntar por esa fila.
+    const rawExtra = t.isExtraordinary;
+    const extraordinary =
+      rawExtra === null || rawExtra === undefined ? null : Number(rawExtra) === 1 ? 1 : 0;
     return {
       id: String(t.id),
       accountId: t.accountId as number,
@@ -97,6 +108,9 @@ export async function getUserNormalizedTransactions(
       category: (t.category as string) ?? "otro",
       isInternalTransfer: internal,
       is_internal_transfer: internal ? 1 : 0,
+      is_extraordinary: extraordinary,
+      isExtraordinary: extraordinary === 1,
+      extraordinaryMarkedAt: (t.extraordinaryMarkedAt as string) ?? null,
       categoryConfidence: typeof t.categoryConfidence === "number" ? t.categoryConfidence : null,
       categoryRuleId: (t.categoryRuleId as string) ?? null,
       categorizerVersion: (t.categorizerVersion as string) ?? null,

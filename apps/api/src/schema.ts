@@ -225,6 +225,12 @@ export const transactions = pgTable("transactions", {
   raw: text("raw"), // JSON string
   // Normalización de cartolas (migración 025).
   isInternalTransfer: integer("is_internal_transfer").notNull().default(0),
+  // Movimientos extraordinarios (migración 047). NULLABLE = tres estados:
+  // NULL sin decidir · 1 puntual · 0 habitual. Espejo de packages/src/schema.ts —
+  // esta copia construye la BD SQLite de tests/dev: si sólo se toca una, los tests
+  // fallan con "table transactions has no column named ...".
+  isExtraordinary: integer("is_extraordinary"),
+  extraordinaryMarkedAt: text("extraordinary_marked_at"),
   sourceDocumentId: text("source_document_id"),
   originalAmount: real("original_amount"),
   originalCurrency: text("original_currency"),
