@@ -27,6 +27,43 @@ const CLP = new Intl.NumberFormat("es-CL", {
   notation: "compact",
 });
 
+/**
+ * Base mínima para que un porcentaje signifique algo. Comparar contra $3.000 del mes
+ * pasado produce "+4.900%": cierto y completamente inútil.
+ */
+const MIN_BASE_FOR_PCT_CLP = 50_000;
+
+/** Sobre este cambio el porcentaje deja de informar y los pesos informan más. */
+const MAX_MEANINGFUL_PCT = 200;
+
+interface CategoryChange {
+  /** % de cambio contra el mes anterior, ya redondeado. */
+  pct: number;
+  /** Diferencia en CLP (con signo). */
+  deltaClp: number;
+  /** Frase lista para el usuario: porcentaje cuando informa, pesos cuando no. */
+  phrase: string;
+}
+
+/**
+ * Compara ritmo contra ritmo. Usa los totales BASELINE (sin eventos puntuales), porque
+ * un matrimonio o un auto en uno de los dos meses convierte la comparación en ruido.
+ *
+ * Y cuando el porcentaje deja de comunicar —base ínfima, o un salto enorme— la frase
+ * pasa a pesos: "subió $10,4M" se entiende; "+3.484%" no.
+ */
+export function categoryChange(current: number, prev: number | null): CategoryChange | null {
+  if (prev === null || prev <= 0 || current < 0) return null;
+  const deltaClp = current - prev;
+  const pct = Math.round((deltaClp / prev) * 100);
+  const usePct = prev >= MIN_BASE_FOR_PCT_CLP && Math.abs(pct) < MAX_MEANINGFUL_PCT;
+  const verbo = deltaClp > 0 ? "subió" : "bajó";
+  const phrase = usePct
+    ? `${verbo} un ${Math.abs(pct)}%`
+    : `${verbo} ${CLP.format(Math.abs(deltaClp))}`;
+  return { pct, deltaClp, phrase };
+}
+
 function buildInsights(data: DashboardData): Insight[] {
   const out: Insight[] = [];
   const { totalIncome, totalExpenses, savingsNet, savingsRate, categoryGroups } = data;
@@ -83,16 +120,26 @@ function buildInsights(data: DashboardData): Insight[] {
       ? `Revisa la categoría ${top.label}: concentra cerca del ${pct}% de tus egresos (${CLP.format(top.total)}). Verifica que no incluya pagos o transferencias entre tus propias cuentas.`
       : `${top.label} concentra el ${pct}% de tus egresos (${CLP.format(top.total)}).`;
 
-    if (prev !== null && prev > 0) {
-      const change = Math.round(((top.total - prev) / prev) * 100);
-      if (Math.abs(change) >= 10 && !isTransferOrFinance) {
-        out.push({
-          type: change > 0 ? "warning" : "positive",
-          text: `${top.label}: ${CLP.format(top.total)} — ${change > 0 ? "+" : ""}${change}% versus el mes anterior.`,
-        });
-      } else {
-        out.push({ type: "info", text: concentraText });
-      }
+    const change = categoryChange(top.baselineTotal, top.prevMonthBaselineTotal);
+    // Cuánto del total son eventos puntuales. Si hay, NO se puede mostrar el total real
+    // junto a un cambio calculado sobre el baseline: se leería como si $10,4M hubieran
+    // "subido un 49%". Se nombra el evento y se compara lo habitual, por separado.
+    const puntual = top.total - top.baselineTotal;
+
+    if (puntual > 0) {
+      const habitual =
+        change !== null && Math.abs(change.pct) >= 10
+          ? ` Tu gasto habitual en la categoría ${change.phrase}.`
+          : "";
+      out.push({
+        type: "info",
+        text: `${top.label}: ${CLP.format(top.total)}, de los cuales ${CLP.format(puntual)} fueron movimientos puntuales.${habitual}`,
+      });
+    } else if (change !== null && Math.abs(change.pct) >= 10 && !isTransferOrFinance) {
+      out.push({
+        type: change.deltaClp > 0 ? "warning" : "positive",
+        text: `${top.label}: ${CLP.format(top.total)} — ${change.phrase} versus el mes anterior.`,
+      });
     } else {
       out.push({ type: "info", text: concentraText });
     }
@@ -101,15 +148,12 @@ function buildInsights(data: DashboardData): Insight[] {
   // 4. Second-biggest category mom change (if different direction from top)
   if (expenseGroups.length > 1) {
     const second = expenseGroups[1];
-    const prev = second.prevMonthTotal;
-    if (prev !== null && prev > 0) {
-      const change = Math.round(((second.total - prev) / prev) * 100);
-      if (Math.abs(change) >= 20) {
-        out.push({
-          type: change > 0 ? "warning" : "positive",
-          text: `${second.label} ${change > 0 ? "subió" : "bajó"} un ${Math.abs(change)}% vs el mes pasado.`,
-        });
-      }
+    const change = categoryChange(second.baselineTotal, second.prevMonthBaselineTotal);
+    if (change !== null && Math.abs(change.pct) >= 20) {
+      out.push({
+        type: change.deltaClp > 0 ? "warning" : "positive",
+        text: `${second.label} ${change.phrase} vs el mes pasado.`,
+      });
     }
   }
 

@@ -16,6 +16,8 @@ export interface DashboardTransaction {
   tipo: "ingreso" | "egreso";
   categoria: string; // raw category from parser (alimentacion, transporte, etc.)
   isInternalTransfer?: boolean;
+  /** Evento puntual confirmado por el usuario (matrimonio, auto, pie). Real, pero no recurrente. */
+  isExtraordinary?: boolean;
   /** Subtipo de la cuenta de origen (checking/credit_card/…) — para saber si el período tiene datos de una cuenta que recibe ingresos */
   accountSubtype?: string | null;
 }
@@ -36,6 +38,13 @@ export interface CategoryGroup {
   color: "green" | "blue" | "purple" | "orange" | "red" | "slate" | "indigo";
   total: number; // CLP sum of all subcategories
   prevMonthTotal: number | null; // CLP sum from previous month (null if no data)
+  /**
+   * Igual que `total` / `prevMonthTotal` pero SIN los movimientos que el usuario marcó
+   * como puntuales. Sirven para comparar ritmo contra ritmo: los totales de arriba se
+   * siguen MOSTRANDO (la plata se gastó), estos son los que se comparan entre meses.
+   */
+  baselineTotal: number;
+  prevMonthBaselineTotal: number | null;
   pctOfIncome: number | null; // 0-100; null cuando el ingreso no es medible (solo TC)
   subcategories: Subcategory[];
   /** Last 30 days of daily spending for sparkline */

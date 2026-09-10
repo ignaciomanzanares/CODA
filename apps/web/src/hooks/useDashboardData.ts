@@ -535,17 +535,26 @@ export function useDashboardData(
     period === "month" && totalMonths > 1 ? filterByPeriod(realTx, "month", monthOffset - 1) : null;
   const prevMonthTx = prevMonthResult?.filtered ?? [];
 
-  // Group previous month expenses by taxonomy group
+  // Group previous month expenses by taxonomy group.
+  // En paralelo, el mismo total SIN los movimientos puntuales: los reales se muestran,
+  // los baseline se comparan entre meses (ver `baselineTotal` en CategoryGroup).
   const prevGroupedExpenses = new Map<CategoryGroupKey, number>();
+  const prevGroupedBaseline = new Map<CategoryGroupKey, number>();
   for (const tx of prevMonthTx) {
     if (tx.tipo !== "egreso") continue;
     const gk = resolveGroupKey(tx.categoria);
     if (gk === "ingresos") continue;
     prevGroupedExpenses.set(gk, (prevGroupedExpenses.get(gk) ?? 0) + tx.monto);
+    if (!tx.isExtraordinary) {
+      prevGroupedBaseline.set(gk, (prevGroupedBaseline.get(gk) ?? 0) + tx.monto);
+    }
   }
   // Previous month income total
   const prevMonthIncome = prevMonthTx
     .filter((t) => t.tipo === "ingreso")
+    .reduce((s, t) => s + t.monto, 0);
+  const prevMonthBaselineIncome = prevMonthTx
+    .filter((t) => t.tipo === "ingreso" && !t.isExtraordinary)
     .reduce((s, t) => s + t.monto, 0);
 
   const incomeTx = periodTx.filter((t) => t.tipo === "ingreso");
@@ -554,6 +563,8 @@ export function useDashboardData(
     const entry = getTaxonomyEntry(key);
     const txs = key === "ingresos" ? incomeTx : (groupedExpenses.get(key) ?? []);
     const total = txs.reduce((s, t) => s + t.monto, 0);
+    // Mismo total sin los eventos puntuales: es el que describe el ritmo del período.
+    const baselineTotal = txs.reduce((s, t) => (t.isExtraordinary ? s : s + t.monto), 0);
 
     // Previous month total for comparison
     const prevMonthTotal =
@@ -561,6 +572,12 @@ export function useDashboardData(
         ? key === "ingresos"
           ? prevMonthIncome
           : (prevGroupedExpenses.get(key) ?? 0)
+        : null;
+    const prevMonthBaselineTotal =
+      prevMonthTx.length > 0
+        ? key === "ingresos"
+          ? prevMonthBaselineIncome
+          : (prevGroupedBaseline.get(key) ?? 0)
         : null;
 
     // Subcategories
@@ -596,6 +613,8 @@ export function useDashboardData(
       color: entry.color,
       total,
       prevMonthTotal,
+      baselineTotal,
+      prevMonthBaselineTotal,
       pctOfIncome:
         incomeReliable && totalIncome > 0 ? Math.round((total / totalIncome) * 100) : null,
       subcategories,

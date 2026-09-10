@@ -122,6 +122,10 @@ export async function registerTransactionsInsightsRoutes(app: Express): Promise<
               ? "ai"
               : "rule",
           isInternalTransfer: Number(t.isInternalTransfer ?? 0) === 1,
+          // Evento puntual confirmado por el usuario (migración 047). El front lo usa
+          // para comparar ritmo contra ritmo: un pago único enorme no debe generar un
+          // "+3.484% vs el mes anterior" que es cierto y a la vez inútil.
+          isExtraordinary: Number(t.isExtraordinary ?? 0) === 1,
           periodoDesde: null,
           periodoHasta: null,
         };

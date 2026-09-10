@@ -256,22 +256,25 @@ function generateRecommendations(data: DashboardData): ActionRecommendation[] {
     });
   }
 
-  // 7. High leisure spending spike (vs previous month)
+  // 7. High leisure spending spike (vs previous month).
+  // Compara BASELINE contra BASELINE: un evento puntual (una despedida, un viaje único
+  // marcado por el usuario) no debe disparar una alerta de "tu ocio se disparó".
   const ocio = findGroup("ocio");
+  const ocioPrev = ocio?.prevMonthBaselineTotal ?? null;
   if (
     ocio &&
-    ocio.prevMonthTotal !== null &&
-    ocio.prevMonthTotal > 0 &&
-    ocio.total > ocio.prevMonthTotal * 1.5 &&
-    ocio.total > 50000
+    ocioPrev !== null &&
+    ocioPrev > 0 &&
+    ocio.baselineTotal > ocioPrev * 1.5 &&
+    ocio.baselineTotal > 50000
   ) {
-    const delta = Math.round(((ocio.total - ocio.prevMonthTotal) / ocio.prevMonthTotal) * 100);
+    const delta = Math.round(((ocio.baselineTotal - ocioPrev) / ocioPrev) * 100);
     recs.push({
       id: "leisure-spike",
       icon: Banknote,
       color: "orange",
       title: `Ocio subió ${delta}% vs mes anterior`,
-      body: `Gastaste ${fmtCLP(ocio.total)} en entretenimiento. Redirigir parte a ahorro podría mejorar tu score.`,
+      body: `Gastaste ${fmtCLP(ocio.baselineTotal)} en entretenimiento. Redirigir parte a ahorro podría mejorar tu score.`,
       cta: "Ver detalle",
       href: "/movimientos?categoria=entretenimiento",
       priority: 55,
