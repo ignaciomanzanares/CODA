@@ -29,43 +29,54 @@ async function seedUser(): Promise<string> {
   return userId;
 }
 
-describe("processDocumentUpload — no deja documentos 'pending' huérfanos (#41B)", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+// Integración real: parsea un PDF, normaliza y persiste en SQLite. Tarda ~2–3 s en frío y
+// >5 s (el default de vitest) cuando la máquina está cargada — fallaba por timeout, no por
+// lógica, y dejaba el gate de CI (`npm run ci:verify`) rojo sin motivo. 30 s de margen.
+const INTEGRATION_TIMEOUT_MS = 30_000;
 
-  if (!haveFixture) {
-    it.skip("sin fixture de cartola en disco", () => {});
-    return;
-  }
+describe(
+  "processDocumentUpload — no deja documentos 'pending' huérfanos (#41B)",
+  { timeout: INTEGRATION_TIMEOUT_MS },
+  () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
 
-  it("caso feliz: el documento queda 'success' (normalizada)", async () => {
-    const userId = await seedUser();
-    const res = await processDocumentUpload(userId, readFileSync(fixture));
-    expect(res.error).toBeUndefined();
-    const docs = await storage.listAllDocumentUploads(userId);
-    const doc = docs.find((d: { id: string }) => d.id === res.documentId);
-    expect(doc?.normalizationStatus).toBe("success");
-  });
+    if (!haveFixture) {
+      it.skip("sin fixture de cartola en disco", () => {});
+      return;
+    }
 
-  it("throw post-create: el documento queda 'failed', NO 'pending'", async () => {
-    const userId = await seedUser();
-    // Falla la escritura del score doc, que va en el mismo Promise.all que la del
-    // document_upload: el documento ya se creó pero el upload lanza después.
-    vi.spyOn(storage, "createScoreDocumentUpload").mockRejectedValueOnce(new Error("boom"));
+    it("caso feliz: el documento queda 'success' (normalizada)", async () => {
+      const userId = await seedUser();
+      const res = await processDocumentUpload(userId, readFileSync(fixture));
+      expect(res.error).toBeUndefined();
+      const docs = await storage.listAllDocumentUploads(userId);
+      const doc = docs.find((d: { id: string }) => d.id === res.documentId);
+      expect(doc?.normalizationStatus).toBe("success");
+    });
 
-    await expect(processDocumentUpload(userId, readFileSync(fixture))).rejects.toThrow();
+    it("throw post-create: el documento queda 'failed', NO 'pending'", async () => {
+      const userId = await seedUser();
+      // Falla la escritura del score doc, que va en el mismo Promise.all que la del
+      // document_upload: el documento ya se creó pero el upload lanza después.
+      vi.spyOn(storage, "createScoreDocumentUpload").mockRejectedValueOnce(new Error("boom"));
 
-    const docs = await storage.listAllDocumentUploads(userId);
-    expect(docs.length).toBeGreaterThan(0);
-    // El documento existe pero NO quedó 'pending' huérfano: el outer catch lo marcó 'failed'.
-    expect(
-      docs.every(
-        (d: { normalizationStatus?: string | null }) => d.normalizationStatus !== "pending",
-      ),
-    ).toBe(true);
-    expect(
-      docs.some((d: { normalizationStatus?: string | null }) => d.normalizationStatus === "failed"),
-    ).toBe(true);
-  });
-});
+      await expect(processDocumentUpload(userId, readFileSync(fixture))).rejects.toThrow();
+
+      const docs = await storage.listAllDocumentUploads(userId);
+      expect(docs.length).toBeGreaterThan(0);
+      // El documento existe pero NO quedó 'pending' huérfano: el outer catch lo marcó 'failed'.
+      expect(
+        docs.every(
+          (d: { normalizationStatus?: string | null }) => d.normalizationStatus !== "pending",
+        ),
+      ).toBe(true);
+      expect(
+        docs.some(
+          (d: { normalizationStatus?: string | null }) => d.normalizationStatus === "failed",
+        ),
+      ).toBe(true);
+    });
+  },
+);

@@ -30,57 +30,66 @@ async function seedUser(): Promise<string> {
   return userId;
 }
 
-describe("processDocumentUpload — score best-effort (#40)", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+// Integración real: parsea un PDF, normaliza y persiste en SQLite. Tarda ~2–3 s en frío y
+// >5 s (el default de vitest) cuando la máquina está cargada — fallaba por timeout, no por
+// lógica, y dejaba el gate de CI (`npm run ci:verify`) rojo sin motivo. 30 s de margen.
+const INTEGRATION_TIMEOUT_MS = 30_000;
 
-  if (!haveFixture) {
-    it.skip("sin fixture de cartola en disco", () => {});
-    return;
-  }
+describe(
+  "processDocumentUpload — score best-effort (#40)",
+  { timeout: INTEGRATION_TIMEOUT_MS },
+  () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
 
-  it("caso normal: 200 con métricas de liquidez + documentId (sin warnings de score)", async () => {
-    const userId = await seedUser();
-    const buf = readFileSync(fixture);
-    const res = await processDocumentUpload(userId, buf);
+    if (!haveFixture) {
+      it.skip("sin fixture de cartola en disco", () => {});
+      return;
+    }
 
-    expect(res.error).toBeUndefined();
-    expect(res.documentType).toBe("cartola");
-    expect(res.documentId).toBeTruthy();
-    // El score transaccional ya NO se computa al subir (lo da el modelo XGB bajo demanda);
-    // la subida persiste las métricas de liquidez que consume el motor de salud.
-    expect(res.transactionalScore).toBeUndefined();
-    expect(typeof res.metrics?.averageMonthlyBalanceClp).toBe("number");
-    expect(typeof res.movementCount).toBe("number");
-    expect(res.warnings ?? []).toHaveLength(0);
-  });
+    it("caso normal: 200 con métricas de liquidez + documentId (sin warnings de score)", async () => {
+      const userId = await seedUser();
+      const buf = readFileSync(fixture);
+      const res = await processDocumentUpload(userId, buf);
 
-  it("falla de score post-persist: 200 degradado con warnings, doc/movimientos persistidos, sin score", async () => {
-    const userId = await seedUser();
-    const buf = readFileSync(fixture);
+      expect(res.error).toBeUndefined();
+      expect(res.documentType).toBe("cartola");
+      expect(res.documentId).toBeTruthy();
+      // El score transaccional ya NO se computa al subir (lo da el modelo XGB bajo demanda);
+      // la subida persiste las métricas de liquidez que consume el motor de salud.
+      expect(res.transactionalScore).toBeUndefined();
+      expect(typeof res.metrics?.averageMonthlyBalanceClp).toBe("number");
+      expect(typeof res.movementCount).toBe("number");
+      expect(res.warnings ?? []).toHaveLength(0);
+    });
 
-    // El parse + persist + normalize ya ocurrieron antes de este paso; forzamos
-    // que el upsert del score lance (hiccup simulado).
-    vi.spyOn(storage, "upsertTransactionalScore").mockRejectedValueOnce(new Error("boom"));
+    it("falla de score post-persist: 200 degradado con warnings, doc/movimientos persistidos, sin score", async () => {
+      const userId = await seedUser();
+      const buf = readFileSync(fixture);
 
-    const res = await processDocumentUpload(userId, buf);
+      // El parse + persist + normalize ya ocurrieron antes de este paso; forzamos
+      // que el upsert del score lance (hiccup simulado).
+      vi.spyOn(storage, "upsertTransactionalScore").mockRejectedValueOnce(new Error("boom"));
 
-    // No es un error duro: el upload no se tumba.
-    expect(res.error).toBeUndefined();
-    expect(res.documentType).toBe("cartola");
-    // Lo que sí se logró se devuelve.
-    expect(res.documentId).toBeTruthy();
-    expect(typeof res.movementCount).toBe("number");
-    expect(res.reviewStatus).toBeTruthy();
-    // El score no se incluye porque no se pudo calcular.
-    expect(res.transactionalScore).toBeUndefined();
-    expect(res.recommendedProducts).toBeUndefined();
-    // Y viene un warning honesto.
-    expect(res.warnings && res.warnings.length).toBeGreaterThan(0);
+      const res = await processDocumentUpload(userId, buf);
 
-    // El documento quedó persistido (best-effort no revierte lo anterior).
-    const docs = await storage.listAllDocumentUploads(userId);
-    expect(docs.find((d: { id: string }) => d.id === res.documentId)).toBeTruthy();
-  });
-});
+      // No es un error duro: el upload no se tumba.
+      expect(res.error).toBeUndefined();
+      expect(res.documentType).toBe("cartola");
+      // Lo que sí se logró se devuelve.
+      expect(res.documentId).toBeTruthy();
+      expect(typeof res.movementCount).toBe("number");
+      expect(res.reviewStatus).toBeTruthy();
+      // El score no se incluye porque no se pudo calcular.
+      expect(res.transactionalScore).toBeUndefined();
+      expect(res.recommendedProducts).toBeUndefined();
+      // Y viene un warning honesto.
+      expect(res.warnings && res.warnings.length).toBeGreaterThan(0);
+
+      // El documento quedó persistido (best-effort no revierte lo anterior).
+      const docs = await storage.listAllDocumentUploads(userId);
+      expect(docs.find((d: { id: string }) => d.id === res.documentId)).toBeTruthy();
+    });
+  },
+);
