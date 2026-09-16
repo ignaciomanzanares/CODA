@@ -12,21 +12,40 @@ import { logger } from "../logger.js";
 import { processDocumentUpload, type UploadResult } from "../services/documents/index.js";
 import { shutdownOcrPool } from "../services/documents/ocrService.js";
 import { DOCUMENT_QUEUE_NAME, type DocumentUploadJobData } from "../queues/documentQueue.js";
+import { getBlobStore, type BlobStore } from "../services/storage/blobStore.js";
 
 /**
  * Concurrencia ligada a cores (#19): por defecto = nº de CPUs, acotada a [2, 4] para no
  * saturar memoria (cada job rasteriza PDFs + corre OCR). Coincide con el tamaño del pool de
  * workers Tesseract (OCR_POOL_SIZE), así los jobs concurrentes se reparten 1:1 entre los
  * workers del pool. Override explícito con DOCUMENT_WORKER_CONCURRENCY.
+ *
+ * Dentro de la API (RUN_WORKERS_IN_PROCESS=true) el default es 1: la instancia chica comparte
+ * memoria con las requests, y `os.cpus()` reporta los cores del host, no los asignados.
  */
 function resolveConcurrency(): number {
   const explicit = Number(process.env.DOCUMENT_WORKER_CONCURRENCY);
   if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  if (process.env.RUN_WORKERS_IN_PROCESS === "true") return 1;
   return Math.max(2, Math.min(os.cpus().length, 4));
 }
 
+/** Bytes del documento del job: desde el blob store, o del payload en jobs viejos. */
+export async function loadJobFile(
+  data: DocumentUploadJobData,
+  store: Pick<BlobStore, "getObject"> = getBlobStore(),
+): Promise<Buffer | null> {
+  if (data.blobKey) return store.getObject(data.blobKey);
+  if (data.fileBase64) return Buffer.from(data.fileBase64, "base64");
+  return null;
+}
+
 async function processJob(job: Job<DocumentUploadJobData>): Promise<UploadResult> {
-  const buffer = Buffer.from(job.data.fileBase64, "base64");
+  const buffer = await loadJobFile(job.data);
+  if (!buffer) {
+    // El original venció o se borró (p. ej. el usuario borró sus datos) antes de procesarlo.
+    return { step: "reading", error: "El documento ya no está disponible. Vuelve a subirlo." };
+  }
   return processDocumentUpload(job.data.userId, buffer);
 }
 

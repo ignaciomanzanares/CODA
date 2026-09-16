@@ -73,9 +73,10 @@ export async function registerDocumentsRoutes(app: Express): Promise<void> {
         }
 
         // 3.5 Persistir el ORIGINAL cifrado con TTL (#21). Best-effort: si falla, el upload sigue.
+        let original: { id: string; blobKey: string } | null = null;
         try {
           const { storeOriginal } = await import("./services/documents/originalStore.js");
-          await storeOriginal(userId, file.buffer, {
+          original = await storeOriginal(userId, file.buffer, {
             contentType: file.mimetype,
             filename: file.originalname,
           });
@@ -87,13 +88,12 @@ export async function registerDocumentsRoutes(app: Express): Promise<void> {
         }
 
         // 4. Process document — en cola (BullMQ) si hay Redis configurado, para no bloquear el
-        // request HTTP con OCR/parseo PDF + scoring; si no, igual que antes (síncrono).
+        // request HTTP con OCR/parseo PDF + scoring; si no, igual que antes (síncrono). El job
+        // lleva la key del original ya guardado, no el PDF: si el original no se pudo guardar,
+        // se procesa síncrono.
         const { documentQueue } = await import("./queues/documentQueue.js");
-        if (documentQueue) {
-          const job = await documentQueue.add("upload", {
-            userId,
-            fileBase64: file.buffer.toString("base64"),
-          });
+        if (documentQueue && original) {
+          const job = await documentQueue.add("upload", { userId, blobKey: original.blobKey });
           return res.status(202).json({
             step: "queued",
             jobId: job.id,

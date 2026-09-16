@@ -16,8 +16,14 @@ export const DOCUMENT_QUEUE_NAME = "document-upload";
 
 export interface DocumentUploadJobData {
   userId: string;
-  /** Buffer del PDF, serializado en base64 para viajar como payload del job en Redis. */
-  fileBase64: string;
+  /**
+   * Key del ORIGINAL cifrado en el blob store (lo guarda `storeOriginal` al recibir el upload).
+   * El PDF no viaja en Redis: con el Redis gratis (25 MB) un par de PDFs retenidos 1 h llenaban
+   * la memoria y la cola dejaba de aceptar jobs.
+   */
+  blobKey?: string;
+  /** @deprecated Jobs encolados antes de `blobKey`: el PDF entero en base64. */
+  fileBase64?: string;
 }
 
 // BullMQ trae su propia copia de ioredis internamente — pasarle la URL (en vez de nuestra

@@ -1,41 +1,75 @@
-# Ingesta unificada (`OBProvider`) — #18
+# Capa de ingesta común (D1)
 
-Todo origen de datos bancarios entra al sistema por **un solo punto**:
-`ingestFromProvider(userId, provider)`. El proveedor implementa la interfaz `OBProvider`
-(`connectors/openbanking/mockProvider.ts`):
+Cómo entran los datos de un titular a CODA y qué garantías tiene cada consulta a una fuente.
+Esta carpeta es sólo el mapa: el código vive donde se indica.
 
-```ts
-interface OBProvider {
-  listAccounts(userId: string): Promise<OBAccount[]>;
-  getBalance(providerAccountId: string): Promise<OBBalance>;
-  listTransactions(providerAccountId: string, from: Date, to: Date): Promise<OBTransaction[]>;
-}
+```
+pedido (usuario o tarea programada)
+  │
+  ├─ conector sin el usuario presente (CMF, SII, AFC…)
+  │    requestConnectorRun ── con REDIS_URL → cola `connector-run` → worker
+  │                        └─ sin REDIS_URL → en el proceso, con reintentos
+  │
+  └─ scraper bancario (clave + MFA, usuario presente) → scrapeAndIngest, en el request
+                     │
+                     ▼
+        withSourceAccess  ← gate de consentimiento (D2) + traza por consulta
+                     │
+                     ▼
+        tablas normalizadas (accounts / balances / transactions, user_financial_sources…)
+                     │
+                     ▼
+        perfil canónico con procedencia por dato  →  GET /api/profile/canonical
 ```
 
-`ingestFromProvider` escribe en las tablas canónicas `accounts` / `balances` / `transactions`.
-El resto del sistema (features ML en `ml/features.ts`, listados, scoring) lee **siempre** de esas
-tablas y no sabe de dónde vinieron los datos.
+## Piezas
 
-## Proveedores
+| Pieza | Dónde |
+|---|---|
+| Contrato canónico (identidad/renta/deuda/empleo + procedencia) | `services/canonical/` |
+| Gate de consentimiento + traza por consulta | `services/audit/sourceAccessAudit.ts` (`withSourceAccess`) |
+| Registro de conectores | `connectors/registry.ts` |
+| Ejecución: cola o en proceso | `connectors/runConnector.ts`, `queues/connectorQueue.ts`, `workers/connectorWorker.ts` |
+| Ingesta bancaria a tablas normalizadas | `jobs/ingest.ts` (`ingestOpenBankingForUser`) |
+| Cartolas subidas (PDF) | `normalizeCartolaDoc` — único escritor de sus transacciones |
+| Cifrado en reposo + rotación de llaves | `services/crypto/` |
 
-- **`CartolaUploadProvider`** (`cartolaUploadProvider.ts`): envuelve la salida de OCR+parser de
-  una cartola (`CartolaExtraida`). Lo invoca `documentUploadService` tras parsear una cartola.
-- **`MockProvider`** (`connectors/openbanking/mockProvider.ts`): datos de ejemplo para dev.
-- **Futuro** (Khipu, SFA, open banking real): basta implementar `OBProvider` y llamar
-  `ingestFromProvider`. **Cero cambios aguas abajo** — ese es el punto de la abstracción.
+## Garantías de cada consulta a una fuente
 
-## Garantías
+- **Sin consentimiento vigente no se consulta.** `withSourceAccess` busca el grant que cubre el
+  recurso (`cmf_debt_report`, `sii_tax_data`, `afc_employment`, `account_information`…) y si no
+  hay, lanza `ConsentRequiredError` sin ejecutar el conector. El rechazo queda registrado.
+- **Sin traza no se consulta.** La fila `source_access.started` se escribe en `audit_logs` antes de
+  tocar la fuente; si no se puede escribir, la consulta no ocurre. El término (`succeeded` /
+  `failed`) va en otra fila con el mismo `entity_id` (append-only).
+- **Sin PII en la traza.** Ids, conector, quién la pidió, duración y código de error. Nunca el
+  mensaje del error.
+- **Credenciales fuera de la cola.** El job lleva sólo `userId`, `connectorId` y `trigger`. El
+  scraper recibe la clave en memoria y cierra el navegador en un `finally`.
+- El titular ve sus consultas en `GET /api/data-sources/access-log`.
 
-- **Idempotente**: cuentas deduplicadas por `(userId, providerAccountId)`, transacciones por
-  `externalId` dentro de la cuenta. Re-ingestar el mismo origen no duplica filas.
-- **Best-effort en balances**: un fallo al traer el balance no aborta la ingesta de
-  transacciones.
-- **Desacople verificado**: `__tests__/ingestFromProvider.test.ts` usa un `FakeProvider` para
-  probar que la ingesta deja `accounts`/`transactions` correctas sin pasar por PDF/OCR —
-  demuestra que el flujo no está atado a la cartola.
+## Agregar un conector de fuente
 
-## Cómo agregar un proveedor nuevo
+```ts
+registerConnector({
+  id: "cmf-informe-deudas",
+  resourceType: "cmf_debt_report",
+  async run({ userId, accessId, consentGrantId }) {
+    // traer + normalizar + persistir; devolver un resumen chico (va a Redis)
+    return { deudas: 3 };
+  },
+  isRetryable: (err) => !(err instanceof CredencialInvalidaError),
+});
 
-1. Implementa `OBProvider` (mapea tus cuentas/saldos/movimientos a `OBAccount`/`OBBalance`/`OBTransaction`).
-2. Asigna un `externalId` **determinístico** a cada transacción (para la dedup).
-3. Llama `await ingestFromProvider(userId, new TuProvider(...))`.
+await requestConnectorRun(userId, "cmf-informe-deudas");
+```
+
+No llames a `assertSourceConsent` desde el conector: el runner ya pasa por `withSourceAccess`.
+
+## Cola en producción
+
+Hoy `REDIS_URL` no está en `coda-api`: los conectores y los uploads corren en el proceso. Para
+encender la cola sin pagar un worker aparte: Redis (Render Key Value, política `noeviction`) +
+`REDIS_URL` + `RUN_WORKERS_IN_PROCESS=true` en la API. Los jobs de documentos llevan la key del
+original cifrado, no el PDF, así que caben en un Redis chico. En ese modo el worker de documentos
+procesa de a uno (`DOCUMENT_WORKER_CONCURRENCY` lo cambia) para no competir por memoria con la API.

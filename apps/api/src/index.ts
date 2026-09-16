@@ -243,6 +243,17 @@ registerMetricsEndpoint(app);
       }
     }
 
+    // Workers dentro de la API (RUN_WORKERS_IN_PROCESS=true): la cola funciona sin un servicio
+    // worker aparte. Sin esto, poner REDIS_URL sin worker deja los uploads encolados para siempre.
+    if (process.env.RUN_WORKERS_IN_PROCESS === "true" && process.env.NODE_ENV !== "test") {
+      if (!process.env.REDIS_URL) {
+        logger.warn("[workers] RUN_WORKERS_IN_PROCESS=true sin REDIS_URL — no hay cola, se ignora");
+      } else {
+        const { startWorkers } = await import("./workers/index.js");
+        startWorkers();
+      }
+    }
+
     logger.info("✅ Application initialization completed successfully");
   } catch (error) {
     logger.error({ error }, "❌ Error during application initialization");
