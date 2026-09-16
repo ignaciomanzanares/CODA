@@ -2,9 +2,13 @@
  * Orquestador del scrape: abre un navegador, autentica con el adapter del banco, envuelve la
  * sesión como `OBProvider` y ingiere a las tablas canónicas. Cierra SIEMPRE el navegador al
  * terminar (finally) → la sesión y las credenciales en memoria se descartan pase lo que pase.
+ *
+ * Todo el scrape corre dentro de `withSourceAccess`: sin consentimiento vigente para
+ * `account_information` no se abre ni la página del banco, y cada intento queda en la traza.
  */
 
 import { ingestOpenBankingForUser } from "../../jobs/ingest.js";
+import { withSourceAccess } from "../../services/audit/sourceAccessAudit.js";
 import { BankScraperProvider } from "./bankScraperProvider.js";
 import type { BankAdapter, BankPage, MfaResolver, ScraperCredentials } from "./types.js";
 
@@ -41,12 +45,20 @@ export interface ScrapeResult {
  */
 export async function scrapeAndIngest(opts: ScrapeOptions): Promise<ScrapeResult> {
   const { userId, adapter, creds, resolveMfa, driver } = opts;
-  const page = await driver.newPage();
   try {
-    await adapter.login(page, creds, resolveMfa);
-    const provider = new BankScraperProvider(page, adapter);
-    await ingestOpenBankingForUser(userId, provider);
-    return { bankId: adapter.bankId, ok: true };
+    return await withSourceAccess(
+      userId,
+      "account_information",
+      // El scrape necesita al usuario presente (clave + MFA): siempre lo dispara él.
+      { connectorId: `scraper:${adapter.bankId}`, trigger: "user" },
+      async () => {
+        const page = await driver.newPage();
+        await adapter.login(page, creds, resolveMfa);
+        const provider = new BankScraperProvider(page, adapter);
+        await ingestOpenBankingForUser(userId, provider);
+        return { bankId: adapter.bankId, ok: true };
+      },
+    );
   } finally {
     // Cierra el navegador SIEMPRE: descarta la sesión autenticada y las credenciales en memoria.
     await driver.close();

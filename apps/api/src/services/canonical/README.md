@@ -20,11 +20,14 @@ empleo), parse CMF (deuda), transacciones (flujo) y la reconciliación D7 (renta
 Cada `CanonicalFact` lleva `{ source, asOf, confidence }`. La renta reutiliza la confianza de D7
 (reconciliación); el resto usa una confianza base por fuente (CMF/SII 0.9, AFP 0.85, cartola 0.7…).
 
+## Dónde se lee
+
+`GET /api/profile/canonical` (autenticado) devuelve el perfil del usuario. El mapa completo de la
+capa de ingesta (consentimiento, traza por consulta, cola) está en `services/ingestion/README.md`.
+
 ## Qué NO hace (todavía)
 
 - No cambia el scoring (sigue en `userRiskProfile` con su lógica). D1 es la capa de LECTURA
   unificada; migrar consumidores a ella es un paso posterior.
 - El RUT crudo no se materializa (solo se guarda su hash) → `identidad.rut` queda para cuando se
   conecte Registro Civil. Hoy se puebla `identidad.nombre` (declarado).
-- La escritura/ingesta con gate de consentimiento (D2) + auditoría-por-consulta se enchufa cuando
-  existan los fetch automatizados (D3/D5/D6/scraper) — el gate ya está listo (`assertSourceConsent`).

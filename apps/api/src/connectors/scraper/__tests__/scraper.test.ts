@@ -15,8 +15,18 @@ import { BancoEstadoAdapter } from "../adapters/bancoEstado";
 // El scrape ingiere por `ingestOpenBankingForUser` (toca DB): se mockea para probar la
 // orquestación (login → wrap OBProvider → ingest → cierre) sin infraestructura. vi.hoisted
 // para que el spy exista cuando el factory de vi.mock (hoisteado) lo referencia.
-const { ingestSpy } = vi.hoisted(() => ({ ingestSpy: vi.fn(async () => {}) }));
+const { ingestSpy, sourceAccessSpy } = vi.hoisted(() => ({
+  ingestSpy: vi.fn(async () => {}),
+  // Gate + traza (D1/D2): por defecto deja pasar; cada test puede simular un rechazo.
+  sourceAccessSpy: vi.fn(
+    async (_u: string, _r: string, _c: unknown, fn: (g: unknown) => Promise<unknown>) =>
+      fn({ accessId: "access-1", consentGrantId: 1 }),
+  ),
+}));
 vi.mock("../../../jobs/ingest.js", () => ({ ingestOpenBankingForUser: ingestSpy }));
+vi.mock("../../../services/audit/sourceAccessAudit.js", () => ({
+  withSourceAccess: sourceAccessSpy,
+}));
 
 /** BankPage inerte para tests (los adapters fake no la usan). */
 function fakePage(): BankPage {
@@ -96,6 +106,33 @@ describe("scrapeAndIngest — garantía de seguridad", () => {
     expect(ingestSpy).toHaveBeenCalledTimes(1);
     expect(ingestSpy.mock.calls[0][0]).toBe("u1");
     expect(ingestSpy.mock.calls[0][1]).toBeInstanceOf(BankScraperProvider);
+    expect(close).toHaveBeenCalledTimes(1);
+    // Pasó por el gate de consentimiento con el recurso bancario.
+    expect(sourceAccessSpy.mock.calls.at(-1)?.slice(0, 3)).toEqual([
+      "u1",
+      "account_information",
+      { connectorId: "scraper:fakebank", trigger: "user" },
+    ]);
+  });
+
+  it("sin consentimiento no abre la página ni hace login, y cierra el navegador igual", async () => {
+    sourceAccessSpy.mockRejectedValueOnce(new Error("Consentimiento requerido"));
+    const newPage = vi.fn(async () => fakePage());
+    const close = vi.fn(async () => {});
+    const login = vi.fn(async () => {});
+    const adapter = fakeAdapter({ login });
+
+    await expect(
+      scrapeAndIngest({
+        userId: "u1",
+        adapter,
+        creds: { rut: "1-9", password: "x" },
+        resolveMfa: async () => "000000",
+        driver: { newPage, close },
+      }),
+    ).rejects.toThrow("Consentimiento requerido");
+    expect(newPage).not.toHaveBeenCalled();
+    expect(login).not.toHaveBeenCalled();
     expect(close).toHaveBeenCalledTimes(1);
   });
 });

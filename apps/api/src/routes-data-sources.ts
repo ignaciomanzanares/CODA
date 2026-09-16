@@ -6,7 +6,7 @@
  * persisten para enriquecer los ratios de salud. NO manejamos credenciales del usuario.
  */
 import type { Express, Request, Response } from "express";
-import { authenticate, type AuthenticatedRequest } from "./middleware/auth.js";
+import { authenticate, ensureUserForToken, type AuthenticatedRequest } from "./middleware/auth.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
 import { logger } from "./logger.js";
 import type { GovSource } from "./services/dataSources/types.js";
@@ -86,6 +86,35 @@ export function registerDataSourceRoutes(app: Express) {
     } catch (e) {
       logger.error({ err: e }, "[dataSources] getGovSources falló");
       res.status(500).json({ message: "Error al obtener las fuentes." });
+    }
+  });
+
+  // D1 — Consultas a fuentes hechas con los datos del usuario: qué fuente, bajo qué
+  // consentimiento, qué la disparó y cómo terminó (incluye las rechazadas por falta de consentimiento).
+  app.get("/api/data-sources/access-log", authenticate, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as AuthenticatedRequest).user!.userId;
+      const limit = Math.min(parseInt(String(req.query.limit), 10) || 50, 200);
+      const { listSourceAccessForUser } = await import("./services/audit/sourceAccessAudit.js");
+      res.json({ entries: await listSourceAccessForUser(userId, limit) });
+    } catch (e) {
+      logger.error({ err: e }, "[dataSources] access-log falló");
+      res.status(500).json({ message: "Error al obtener el registro de consultas." });
+    }
+  });
+
+  // D1 — Perfil canónico: identidad, renta, deuda y empleo con procedencia por dato (fuente,
+  // fecha, confianza). Capa de lectura: no cambia el scoring.
+  app.get("/api/profile/canonical", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+      const { assembleCanonicalProfile } = await import("./services/canonical/index.js");
+      res.json(await assembleCanonicalProfile(userId));
+    } catch (e) {
+      logger.error({ err: e }, "[dataSources] perfil canónico falló");
+      res.status(500).json({ message: "Error al armar el perfil." });
     }
   });
 }
