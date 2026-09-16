@@ -432,6 +432,46 @@ export async function registerTransactionsInsightsRoutes(app: Express): Promise<
     },
   );
 
+  // ── B6: recurrentes y posibles duplicados (insumo de PFM y Billshark) ────────
+  // Sólo lectura: describen patrones, no cambian nada.
+
+  // GET /api/transactions/recurring — suscripciones/cobros fijos e ingresos recurrentes.
+  app.get("/api/transactions/recurring", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+
+      const { getUserNormalizedTransactions } =
+        await import("./services/normalizedTransactions.js");
+      const { detectRecurringSeries } = await import("./services/transactions/recurringSeries.js");
+      const { transactions: txs } = await getUserNormalizedTransactions(userId);
+      res.json(detectRecurringSeries(txs));
+    } catch (e) {
+      logger.error({ err: e }, "Failed to detect recurring series");
+      res.status(500).json({ message: "Error al buscar movimientos recurrentes." });
+    }
+  });
+
+  // GET /api/transactions/duplicates — posibles cargos duplicados, para REVISAR (no se toca nada).
+  app.get("/api/transactions/duplicates", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+      const userId = await ensureUserForToken(authReq.user!);
+      if (!userId) return res.status(404).json({ message: "Usuario no encontrado." });
+
+      const { getUserNormalizedTransactions } =
+        await import("./services/normalizedTransactions.js");
+      const { detectPossibleDuplicateCharges } =
+        await import("./services/transactions/duplicateCharges.js");
+      const { transactions: txs } = await getUserNormalizedTransactions(userId);
+      res.json({ candidates: detectPossibleDuplicateCharges(txs) });
+    } catch (e) {
+      logger.error({ err: e }, "Failed to detect duplicate charges");
+      res.status(500).json({ message: "Error al buscar cargos duplicados." });
+    }
+  });
+
   // GET /api/transactions/summary — income, expenses, and balance summary
   app.get("/api/transactions/summary", authenticate, async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;

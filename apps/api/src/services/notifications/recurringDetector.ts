@@ -13,6 +13,7 @@
  *   - el último cobro debe ser reciente (no recordar suscripciones ya canceladas).
  */
 import { normalizeMerchant } from "../../parsers/merchantCategorizer.js";
+import { findMonthlySeries } from "../transactions/recurringSeries.js";
 
 export interface ChargeTx {
   description: string;
@@ -49,12 +50,6 @@ export interface DetectOptions {
   recentWithinDays?: number;
 }
 
-function median(nums: number[]): number {
-  const s = [...nums].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
-}
-
 function toDateUTC(ymd: string): Date {
   return new Date(`${ymd}T00:00:00Z`);
 }
@@ -83,72 +78,45 @@ export function detectUpcomingRecurringCharges(
   const recentWithinDays = opts.recentWithinDays ?? 45;
   const todayUTC = toDateUTC(ymd(today));
 
-  // 1. Solo cargos reales (no ingresos, no transferencias internas).
-  const charges = txs.filter((t) => t.amount < 0 && !t.isInternalTransfer && t.description);
-
-  // 2. Agrupar por comercio normalizado.
-  const groups = new Map<string, ChargeTx[]>();
-  for (const t of charges) {
-    const merchant = normalizeMerchant(t.description);
-    if (!merchant) continue;
-    (groups.get(merchant) ?? groups.set(merchant, []).get(merchant)!).push(t);
-  }
+  // 1–5. Series mensuales con el núcleo compartido (B6), con los criterios ORIGINALES de este
+  //      recordatorio: comercio normalizado, día lineal ±4, CV ≤ 0.35, ≤1.6 cargos por mes, y
+  //      sólo la marca de transferencia interna como exclusión.
+  const series = findMonthlySeries(txs, {
+    direction: "egreso",
+    keyOf: normalizeMerchant,
+    minOccurrences,
+    maxDaySpread: 4,
+    circularDays: false,
+    maxAmountCv: 0.35,
+    maxPerMonthRatio: 1.6,
+    monthlyAmount: "latest",
+    exclude: (t) => Boolean(t.isInternalTransfer),
+  });
 
   const results: UpcomingCharge[] = [];
 
-  for (const [merchant, list] of groups) {
-    // Un cobro por mes: si hay varios en el mismo mes, el comercio no es una
-    // suscripción limpia (supermercado, etc.) — quedará fuera por inconsistencia,
-    // pero primero nos quedamos con el cargo más reciente de cada mes.
-    const byMonth = new Map<string, ChargeTx>();
-    for (const t of list) {
-      const month = t.postedAt.slice(0, 7);
-      const prev = byMonth.get(month);
-      if (!prev || t.postedAt > prev.postedAt) byMonth.set(month, t);
-    }
-    // Si en algún mes hubo MUCHOS cargos, es consumo variable, no suscripción.
-    const multiPerMonth = list.length > byMonth.size * 1.6;
-    if (multiPerMonth) continue;
-
-    const monthly = [...byMonth.values()].sort((a, b) => a.postedAt.localeCompare(b.postedAt));
-    if (monthly.length < minOccurrences) continue;
-
-    // 3. Último cobro reciente (no suscripción cancelada).
-    const last = monthly[monthly.length - 1]!;
-    if (daysBetween(toDateUTC(last.postedAt), todayUTC) > recentWithinDays) continue;
-
-    // 4. Día del mes consistente.
-    const days = monthly.map((t) => Number(t.postedAt.slice(8, 10)) || 1);
-    const typicalDay = Math.round(median(days));
-    const daySpreadOk = days.every((d) => Math.abs(d - typicalDay) <= 4);
-    if (!daySpreadOk) continue;
-
-    // 5. Monto consistente (coef. de variación bajo).
-    const amounts = monthly.map((t) => Math.abs(t.amount));
-    const typicalAmount = Math.round(median(amounts));
-    const mean = amounts.reduce((s, n) => s + n, 0) / amounts.length;
-    const variance = amounts.reduce((s, n) => s + (n - mean) ** 2, 0) / amounts.length;
-    const cv = mean > 0 ? Math.sqrt(variance) / mean : 1;
-    if (cv > 0.35) continue;
+  for (const s of series) {
+    // Último cobro reciente (no suscripción cancelada).
+    if (daysBetween(toDateUTC(s.last.postedAt), todayUTC) > recentWithinDays) continue;
 
     // 6. Predecir el próximo cobro: primer día==typicalDay que sea > la fecha del
     //    último cobro (evita "predecir" un cobro que ya ocurrió este mes).
-    const lastDate = toDateUTC(last.postedAt);
-    let next = clampDayToMonth(lastDate.getUTCFullYear(), lastDate.getUTCMonth(), typicalDay);
+    const lastDate = toDateUTC(s.last.postedAt);
+    let next = clampDayToMonth(lastDate.getUTCFullYear(), lastDate.getUTCMonth(), s.typicalDay);
     while (next <= lastDate) {
-      next = clampDayToMonth(next.getUTCFullYear(), next.getUTCMonth() + 1, typicalDay);
+      next = clampDayToMonth(next.getUTCFullYear(), next.getUTCMonth() + 1, s.typicalDay);
     }
 
     const daysUntil = daysBetween(todayUTC, next);
     if (daysUntil < 0 || daysUntil > windowDays) continue;
 
     results.push({
-      merchant,
-      typicalAmountClp: typicalAmount,
-      typicalDay,
+      merchant: s.key,
+      typicalAmountClp: s.typicalAmountClp,
+      typicalDay: s.typicalDay,
       nextChargeDate: ymd(next),
       daysUntil,
-      occurrences: monthly.length,
+      occurrences: s.monthly.length,
       cycle: ymd(next).slice(0, 7),
     });
   }
