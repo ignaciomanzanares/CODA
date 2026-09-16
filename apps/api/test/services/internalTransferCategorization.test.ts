@@ -87,7 +87,7 @@ describe("isInternalTransferTx — exclusión consolidada", () => {
     // interna y el abono desaparecía de los ingresos.
     expect(
       isInternalTransferTx({
-        descripcion: "Transf. Elisa Schlotfeldt Valenzu",
+        descripcion: "Transf. Elisa Fuentes Valenzu",
         es_transferencia: true,
       }),
     ).toBe(false);

@@ -16,3 +16,9 @@ Reglas si agregas un fixture nuevo:
 3. RUTs de terceros: rotar dígitos (no basta cambiar el dígito verificador).
 4. Actualizar/regenerar el `.expected.json` y borrar los `.snapshot.json`
    correspondientes (el test los regenera).
+5. **RUTs de prueba:** usar `TEST_RUTS` de `test/helpers/testRuts.ts`. La guarda
+   `test/security/noPersonalRuts.test.ts` hace fallar la suite si cualquier archivo
+   versionado (no sólo fixtures) trae un RUT de persona con dígito verificador válido
+   que no sea sintético. **Los nombres no se pueden detectar automáticamente:** en tests
+   que citan glosas de cartolas reales, reemplazar nombres de personas y razones
+   sociales antes de commitear.

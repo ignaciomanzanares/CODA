@@ -31,8 +31,8 @@ function saldosDiariosRealesNoviembre(): CartolaParseResult["saldos_diarios"] {
 
 const CARTOLA_REAL: CartolaParseResult = {
   banco: "Santander",
-  titular: "CASTELLANO QUINTERO BASTIAN",
-  cuenta: "0-011-00-71234-5",
+  titular: "PRUEBA SINTETICA TITULAR",
+  cuenta: "0-000-00-00000-0",
   periodo: {
     desde: new Date("2025-10-30T12:00:00"),
     hasta: new Date("2025-11-28T12:00:00"),
@@ -136,8 +136,8 @@ const CARTOLA_REAL: CartolaParseResult = {
 };
 
 const CMF_REAL: CMFParseResult = {
-  titular: "CASTELLANO QUINTERO BASTIAN",
-  rut: "21.486.204-2",
+  titular: "PRUEBA SINTETICA TITULAR",
+  rut: "11.111.111-1",
   fecha_emision: new Date("2026-02-23T12:00:00"),
   fecha_actualizacion: new Date("2026-02-13T12:00:00"),
   deuda_total: 0,

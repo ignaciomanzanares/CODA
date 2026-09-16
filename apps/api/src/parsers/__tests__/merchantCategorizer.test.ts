@@ -122,12 +122,12 @@ describe("categorize — real cartola corpus", () => {
 
   it("generic Santander transfer deposits are Transferencias recibidas, not Otro", () => {
     const descriptions = [
-      "Transf. Rudolf Paul Schmidt Crnos",
-      "077971019K Transf. STALLION SPA",
-      "Transf. AGUILERA PINEIRO ANA",
-      "Transf. JUAN SEBASTIAN CABELLO",
-      "Transf. HAUG LIMITADA HAUG",
-      "77.901.388-K Transf. HOME TELE",
+      "Transf. Pedro Pablo Soto Rojas",
+      "076543210K Transf. EJEMPLO SPA",
+      "Transf. GONZALEZ MUNOZ ANA",
+      "Transf. JUAN SEBASTIAN FUENTES",
+      "Transf. DEMO LIMITADA DEMO",
+      "76.543.210-3 Transf. SERVI TELE",
     ];
 
     for (const descripcion of descriptions) {

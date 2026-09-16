@@ -52,11 +52,11 @@ describe("isOutsideBaselineTx", () => {
 
 describe("detectExtraordinaryCandidates", () => {
   it("detecta el pago único enorme entre gastos habituales", () => {
-    const boda = tx({ cargo: 5_000_000, descripcion: "Transf a COOKERS EVENTOS SPA" });
-    const out = detectExtraordinaryCandidates([...routine(30), boda]);
+    const evento = tx({ cargo: 5_000_000, descripcion: "Transf a EVENTOS DEMO SPA" });
+    const out = detectExtraordinaryCandidates([...routine(30), evento]);
 
     expect(out).toHaveLength(1);
-    expect(out[0].id).toBe(boda.id);
+    expect(out[0].id).toBe(evento.id);
     expect(out[0].amountClp).toBe(5_000_000);
     expect(out[0].medianMultiple).toBeGreaterThan(100);
     expect(out[0].monthShare).toBeGreaterThan(0.5);
@@ -64,7 +64,7 @@ describe("detectExtraordinaryCandidates", () => {
   });
 
   it("también detecta INGRESOS puntuales (plata que entra para financiar el evento)", () => {
-    const aporte = tx({ abono: 2_500_000, descripcion: "Transf. Macarena" });
+    const aporte = tx({ abono: 2_500_000, descripcion: "Transf. Persona Uno" });
     const sueldos = Array.from({ length: 20 }, () => tx({ abono: 90_000 }));
     const out = detectExtraordinaryCandidates([...sueldos, aporte]);
 
@@ -173,25 +173,25 @@ describe("detectExtraordinaryCandidates — con la forma REAL de producción (to
       { id: 1, name: "Cuenta", subtype: "checking" },
     );
 
-  // Caso que originó el fix (mayo 2026, cifras reales redondeadas):
-  //  - egresos habituales chicos (mediana ~$10.000) + pagos a un catering por un matrimonio;
-  //  - ingresos habituales ~$365.000 + transferencias de familiares para financiar el evento;
+  // Forma del caso que originó el fix (anonimizado: nombres y RUTs sintéticos, montos redondeados):
+  //  - egresos habituales chicos (mediana ~$10.000) + pagos grandes a un proveedor de eventos;
+  //  - ingresos habituales ~$365.000 + transferencias de terceros el mismo mes;
   //  - un pago recurrente de empresa de $1.350.000 (3,7× la mediana de ingreso).
   const build = () => [
     ...Array.from({ length: 40 }, () => row("2026-05-10", -10_000, "SUPERMERCADO")),
-    row("2026-05-20", -5_000_000, "Transf a COOKERS EVENTOS SPA"),
-    row("2026-05-18", -4_750_000, "Transf a COOKERS EVENTOS SPA"),
-    row("2026-05-15", -250_000, "Transf a COOKERS EVENTOS SPA"),
+    row("2026-05-20", -5_000_000, "Transf a EVENTOS DEMO SPA"),
+    row("2026-05-18", -4_750_000, "Transf a EVENTOS DEMO SPA"),
+    row("2026-05-15", -250_000, "Transf a EVENTOS DEMO SPA"),
     ...Array.from({ length: 20 }, (_, i) =>
       row(`2025-${String((i % 9) + 1).padStart(2, "0")}-05`, 365_000, "HONORARIOS"),
     ),
-    row("2026-05-19", 2_500_000, "Transf. Macarena"),
-    row("2026-05-19", 2_500_000, "Transf. Rudolf"),
-    row("2026-05-15", 2_500_000, "Transf. Macarena"),
-    row("2026-04-11", 1_350_000, "77.901.388-K Transf. HOME TELE"),
+    row("2026-05-19", 2_500_000, "Transf. Persona Uno"),
+    row("2026-05-19", 2_500_000, "Transf. Persona Dos"),
+    row("2026-05-15", 2_500_000, "Transf. Persona Uno"),
+    row("2026-04-11", 1_350_000, "76.543.210-3 Transf. SERVI TELE"),
   ];
 
-  it("propone el matrimonio en las DOS puntas — el bug hacía que no propusiera nada", () => {
+  it("propone el evento puntual en las DOS puntas — el bug hacía que no propusiera nada", () => {
     const out = detectExtraordinaryCandidates(build());
     const desc = out.map((c) => `${c.tipo}:${c.amountClp}`);
 
@@ -208,9 +208,9 @@ describe("detectExtraordinaryCandidates — con la forma REAL de producción (to
 
   it("lo que el usuario ya marcó (1 o 0) deja de proponerse", () => {
     const txs = build().map((t) =>
-      t.description.includes("COOKERS") && t.cargo === 5_000_000
+      t.description.includes("EVENTOS DEMO") && t.cargo === 5_000_000
         ? row(t.postedAt, -5_000_000, t.description, 1)
-        : t.description.includes("COOKERS") && t.cargo === 4_750_000
+        : t.description.includes("EVENTOS DEMO") && t.cargo === 4_750_000
           ? row(t.postedAt, -4_750_000, t.description, 0)
           : t,
     );

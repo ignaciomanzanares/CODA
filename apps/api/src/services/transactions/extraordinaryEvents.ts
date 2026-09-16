@@ -34,8 +34,8 @@ export const MIN_SAMPLE_SIZE = 12;
  * y chicos (cafés, bencina, supermercado) → mediana baja, un evento queda a cientos de
  * veces. Los ingresos son pocos y grandes (sueldo, honorarios) → la mediana ya es alta, y
  * un 10× sobre un sueldo es casi inalcanzable. Caso real que lo calibró: mediana de egreso
- * $9.907 (502 cargos) vs. de ingreso $365.000 (70 abonos). Las transferencias de familiares
- * para financiar un matrimonio quedaban en 6,8× y NUNCA se proponían; marcar sólo el gasto
+ * $9.907 (502 cargos) vs. de ingreso $365.000 (70 abonos). Las transferencias de terceros
+ * asociadas a un evento puntual quedaban en 6,8× y NUNCA se proponían; marcar sólo el gasto
  * del evento dejaba el ingreso inflado y la tasa de ahorro saltaba a ~81% — otro
  * diagnóstico falso, al revés. Con 5× entran, y un pago recurrente de empresa (3,7×) no.
  *
