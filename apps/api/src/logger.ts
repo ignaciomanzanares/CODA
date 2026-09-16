@@ -1,5 +1,18 @@
 import pino from "pino";
 import { isDevelopment } from "./env.js";
+import { redactForLog } from "./services/hardening/piiSafe.js";
+
+/**
+ * Formatters del logger, exportados para testearlos contra un stream real.
+ * `log` aplica `redactForLog` a TODO objeto logueado (D8 "logs sin PII"): emails y RUTs salen
+ * enmascarados aunque la llamada los pase en claro.
+ */
+export const loggerFormatters = {
+  level: (label: string) => {
+    return { level: label };
+  },
+  log: (object: Record<string, unknown>) => redactForLog(object),
+};
 
 /**
  * Centralized logger configuration using Pino
@@ -17,11 +30,7 @@ export const logger = pino({
         },
       }
     : undefined,
-  formatters: {
-    level: (label) => {
-      return { level: label };
-    },
-  },
+  formatters: loggerFormatters,
   base: {
     env: process.env.NODE_ENV,
   },

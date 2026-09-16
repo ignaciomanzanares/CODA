@@ -76,3 +76,50 @@ export function redactPii<T>(value: T, extraKeys: string[] = []): T {
 
   return walk(value) as T;
 }
+
+const isPlainObject = (v: unknown): v is Record<string, unknown> => {
+  if (!v || typeof v !== "object") return false;
+  const proto = Object.getPrototypeOf(v);
+  return proto === Object.prototype || proto === null;
+};
+
+/**
+ * Redacción para el LOGGER (D8 "logs sin PII"). Se aplica a todo objeto que se loguea vía
+ * `formatters.log` de pino, así que no depende de acordarse en cada llamada — antes había logs
+ * que escribían emails y RUTs en claro (bill splits, gastos, links de pago).
+ *
+ * Distinta de `redactPii` a propósito, porque en un log no todo lo que está bajo una clave
+ * "sensible" es un dato:
+ *  - `emailError`, `tokenErr` son Errors → se dejan (pino los serializa; borrarlos ocultaría fallas).
+ *  - `emailSent: true`, `tokenCount: 12` → flags y contadores, no identifican a nadie → se dejan.
+ *  - strings bajo clave sensible → enmascarados (RUT `***-9`, email `c***@dominio`, resto `[redacted]`).
+ *  - objetos/arrays bajo clave sensible (`credentials: {…}`) → `[redacted]` completo.
+ * Sólo recorre objetos planos y arrays; Date, Buffer, Error e instancias quedan intactos.
+ *
+ * Límite: no mira el TEXTO del mensaje (`logger.info(\`user ${email}\`)`). Los datos van en el
+ * objeto, nunca interpolados en el mensaje.
+ */
+export function redactForLog<T>(value: T): T {
+  const walk = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(walk);
+    if (!isPlainObject(v)) return v;
+    const out: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(v)) {
+      if (!isPiiKey(key)) {
+        out[key] = walk(val);
+      } else if (
+        val === null ||
+        val === undefined ||
+        typeof val === "number" ||
+        typeof val === "boolean" ||
+        val instanceof Error
+      ) {
+        out[key] = val;
+      } else {
+        out[key] = redactByKey(key, val);
+      }
+    }
+    return out;
+  };
+  return walk(value) as T;
+}
