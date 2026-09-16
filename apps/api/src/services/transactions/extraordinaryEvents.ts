@@ -27,10 +27,22 @@ import { isInternalTransferTx } from "../assistantContext.js";
 export const MIN_SAMPLE_SIZE = 12;
 
 /**
- * Cuántas veces la mediana habitual tiene que ser un movimiento para sospechar. Mediana y
- * no promedio: el promedio ya viene contaminado por el propio outlier que buscamos.
+ * Cuántas veces la mediana habitual de SU dirección tiene que ser un movimiento para
+ * sospechar. Mediana y no promedio: el promedio ya viene contaminado por el propio outlier.
+ *
+ * Distinto por dirección, porque las distribuciones no se parecen. Los egresos son muchos
+ * y chicos (cafés, bencina, supermercado) → mediana baja, un evento queda a cientos de
+ * veces. Los ingresos son pocos y grandes (sueldo, honorarios) → la mediana ya es alta, y
+ * un 10× sobre un sueldo es casi inalcanzable. Caso real que lo calibró: mediana de egreso
+ * $9.907 (502 cargos) vs. de ingreso $365.000 (70 abonos). Las transferencias de familiares
+ * para financiar un matrimonio quedaban en 6,8× y NUNCA se proponían; marcar sólo el gasto
+ * del evento dejaba el ingreso inflado y la tasa de ahorro saltaba a ~81% — otro
+ * diagnóstico falso, al revés. Con 5× entran, y un pago recurrente de empresa (3,7×) no.
+ *
+ * Errar hacia proponer de más es barato (un clic en "Es habitual" y no se vuelve a
+ * preguntar); errar hacia proponer de menos deja un diagnóstico equivocado sin salida.
  */
-export const MEDIAN_MULTIPLE = 10;
+export const MEDIAN_MULTIPLE = { egreso: 10, ingreso: 5 } as const;
 
 /** Además tiene que ser material dentro de su mes: un evento explica parte grande del mes. */
 export const MIN_MONTH_SHARE = 0.2;
@@ -52,6 +64,24 @@ export interface BaselineTxLike {
   /** Señal autoritativa de la tabla `transactions`. null = sin decidir. */
   is_extraordinary?: number | null;
   isExtraordinary?: number | boolean | null;
+}
+
+/**
+ * Decisión del usuario sobre el movimiento, en tres estados: 1 puntual, 0 habitual, null sin
+ * decidir. Manda la columna autoritativa `is_extraordinary`; el booleano `isExtraordinary`
+ * sólo se usa si esa columna no viene.
+ *
+ * OJO: el booleano COLAPSA null y 0 en `false`, así que nunca puede significar "decidido
+ * habitual". Leerlo así fue un bug real: `is_extraordinary ?? isExtraordinary` convertía
+ * cada fila sin decidir (null) en `false` → "ya decidida" → el detector saltaba TODO en
+ * producción, mientras los tests (sin el booleano en el fixture) pasaban.
+ */
+export function extraordinaryDecision(t: BaselineTxLike): 0 | 1 | null {
+  if (t.is_extraordinary === 1 || t.is_extraordinary === 0) return t.is_extraordinary;
+  if (t.is_extraordinary === null) return null;
+  if (t.isExtraordinary === 1 || t.isExtraordinary === true) return 1;
+  if (t.isExtraordinary === 0) return 0; // numérico explícito; `false` NO cuenta
+  return null;
 }
 
 /** True sólo si el USUARIO confirmó que el movimiento fue puntual. NULL (sin decidir) es false. */
@@ -146,8 +176,7 @@ export function detectExtraordinaryCandidates(
   const candidates: ExtraordinaryCandidate[] = [];
   for (const t of relevant) {
     // Ya decidido por el usuario (puntual o habitual): no se vuelve a preguntar.
-    const decided = t.is_extraordinary ?? t.isExtraordinary;
-    if (decided !== null && decided !== undefined) continue;
+    if (extraordinaryDecision(t) !== null) continue;
 
     const amount = magnitudeOf(t);
     if (amount < MIN_AMOUNT_CLP) continue;
@@ -156,7 +185,7 @@ export function detectExtraordinaryCandidates(
     if (med <= 0) continue; // sin historia suficiente para juzgar
 
     const multiple = amount / med;
-    if (multiple < MEDIAN_MULTIPLE) continue;
+    if (multiple < MEDIAN_MULTIPLE[t.tipo]) continue;
 
     const monthTotal = monthTotals.get(`${t.month}|${t.tipo}`) ?? 0;
     const share = monthTotal > 0 ? amount / monthTotal : 0;

@@ -1,12 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
   detectExtraordinaryCandidates,
+  extraordinaryDecision,
   isExtraordinaryTx,
   isOutsideBaselineTx,
   MIN_SAMPLE_SIZE,
   MIN_AMOUNT_CLP,
   type CandidateTxLike,
 } from "../extraordinaryEvents";
+import { toNormalizedTx } from "../../normalizedTransactions";
 
 let seq = 0;
 const tx = (over: Partial<CandidateTxLike> = {}): CandidateTxLike => {
@@ -131,5 +133,89 @@ describe("detectExtraordinaryCandidates", () => {
     const evento = tx({ cargo: 9_000_000, month: "2026-05" });
     const out = detectExtraordinaryCandidates([...routine(50, 20_000, "2026-05"), evento]);
     expect(out[0].monthShare).toBeCloseTo(0.9, 1);
+  });
+});
+
+describe("extraordinaryDecision — tres estados sin colapsar", () => {
+  it("el booleano de conveniencia `false` NO significa 'decidido habitual'", () => {
+    // Forma real de producción para una fila sin decidir: null + false.
+    expect(extraordinaryDecision({ is_extraordinary: null, isExtraordinary: false })).toBeNull();
+    expect(extraordinaryDecision({ isExtraordinary: false })).toBeNull();
+  });
+
+  it("respeta la columna autoritativa cuando viene", () => {
+    expect(extraordinaryDecision({ is_extraordinary: 1, isExtraordinary: true })).toBe(1);
+    expect(extraordinaryDecision({ is_extraordinary: 0, isExtraordinary: false })).toBe(0);
+  });
+});
+
+describe("detectExtraordinaryCandidates — con la forma REAL de producción (toNormalizedTx)", () => {
+  // Filas crudas como las devuelve la tabla `transactions`, pasadas por el mismo mapper que
+  // usa getUserNormalizedTransactions. is_extraordinary NULL en la base = sin decidir.
+  let id = 1000;
+  const row = (
+    postedAt: string,
+    amount: number,
+    description = "MOV",
+    extra: number | null = null,
+  ) =>
+    toNormalizedTx(
+      {
+        id: ++id,
+        accountId: 1,
+        postedAt,
+        amount,
+        description,
+        category: "otro",
+        isInternalTransfer: 0,
+        isExtraordinary: extra,
+      },
+      { id: 1, name: "Cuenta", subtype: "checking" },
+    );
+
+  // Caso que originó el fix (mayo 2026, cifras reales redondeadas):
+  //  - egresos habituales chicos (mediana ~$10.000) + pagos a un catering por un matrimonio;
+  //  - ingresos habituales ~$365.000 + transferencias de familiares para financiar el evento;
+  //  - un pago recurrente de empresa de $1.350.000 (3,7× la mediana de ingreso).
+  const build = () => [
+    ...Array.from({ length: 40 }, () => row("2026-05-10", -10_000, "SUPERMERCADO")),
+    row("2026-05-20", -5_000_000, "Transf a COOKERS EVENTOS SPA"),
+    row("2026-05-18", -4_750_000, "Transf a COOKERS EVENTOS SPA"),
+    row("2026-05-15", -250_000, "Transf a COOKERS EVENTOS SPA"),
+    ...Array.from({ length: 20 }, (_, i) =>
+      row(`2025-${String((i % 9) + 1).padStart(2, "0")}-05`, 365_000, "HONORARIOS"),
+    ),
+    row("2026-05-19", 2_500_000, "Transf. Macarena"),
+    row("2026-05-19", 2_500_000, "Transf. Rudolf"),
+    row("2026-05-15", 2_500_000, "Transf. Macarena"),
+    row("2026-04-11", 1_350_000, "77.901.388-K Transf. HOME TELE"),
+  ];
+
+  it("propone el matrimonio en las DOS puntas — el bug hacía que no propusiera nada", () => {
+    const out = detectExtraordinaryCandidates(build());
+    const desc = out.map((c) => `${c.tipo}:${c.amountClp}`);
+
+    expect(desc).toContain("egreso:5000000");
+    expect(desc).toContain("egreso:4750000");
+    expect(out.filter((c) => c.tipo === "ingreso" && c.amountClp === 2_500_000)).toHaveLength(3);
+  });
+
+  it("no propone el pago chico bajo el piso ni el ingreso recurrente de empresa", () => {
+    const out = detectExtraordinaryCandidates(build());
+    expect(out.find((c) => c.amountClp === 250_000)).toBeUndefined();
+    expect(out.find((c) => c.amountClp === 1_350_000)).toBeUndefined();
+  });
+
+  it("lo que el usuario ya marcó (1 o 0) deja de proponerse", () => {
+    const txs = build().map((t) =>
+      t.description.includes("COOKERS") && t.cargo === 5_000_000
+        ? row(t.postedAt, -5_000_000, t.description, 1)
+        : t.description.includes("COOKERS") && t.cargo === 4_750_000
+          ? row(t.postedAt, -4_750_000, t.description, 0)
+          : t,
+    );
+    const out = detectExtraordinaryCandidates(txs);
+    expect(out.find((c) => c.amountClp === 5_000_000)).toBeUndefined();
+    expect(out.find((c) => c.amountClp === 4_750_000)).toBeUndefined();
   });
 });

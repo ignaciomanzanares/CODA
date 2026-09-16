@@ -81,49 +81,61 @@ export async function getUserNormalizedTransactions(
   const accIds = accounts.map((a) => a.id);
   const rows = accIds.length ? await storage.getTransactionsForAccounts(accIds) : [];
 
-  const transactions = (rows as Array<Record<string, unknown>>).map((t) => {
-    const acc = accById.get(t.accountId as number);
-    const amount = Number(t.amount);
-    const postedAt = String(t.postedAt).slice(0, 10);
-    const prod = productOf(acc);
-    const internal = Number(t.isInternalTransfer ?? 0) === 1;
-    // Tres estados: null (sin decidir) se preserva como null — distinto de 0 (el usuario
-    // dijo que es habitual), que es lo que impide volver a preguntar por esa fila.
-    const rawExtra = t.isExtraordinary;
-    const extraordinary =
-      rawExtra === null || rawExtra === undefined ? null : Number(rawExtra) === 1 ? 1 : 0;
-    return {
-      id: String(t.id),
-      accountId: t.accountId as number,
-      postedAt,
-      month: postedAt.slice(0, 7),
-      day: Number(postedAt.slice(8, 10)) || 1,
-      amount,
-      cargo: amount < 0 ? Math.abs(amount) : 0,
-      abono: amount > 0 ? amount : 0,
-      tipo: amount >= 0 ? ("ingreso" as const) : ("egreso" as const),
-      descripcion: (t.description as string) ?? "",
-      description: (t.description as string) ?? "",
-      categoria: (t.category as string) ?? "otro",
-      category: (t.category as string) ?? "otro",
-      isInternalTransfer: internal,
-      is_internal_transfer: internal ? 1 : 0,
-      is_extraordinary: extraordinary,
-      isExtraordinary: extraordinary === 1,
-      extraordinaryMarkedAt: (t.extraordinaryMarkedAt as string) ?? null,
-      categoryConfidence: typeof t.categoryConfidence === "number" ? t.categoryConfidence : null,
-      categoryRuleId: (t.categoryRuleId as string) ?? null,
-      categorizerVersion: (t.categorizerVersion as string) ?? null,
-      accountName: acc?.name ?? null,
-      accountType: acc?.type ?? null,
-      accountSubtype: acc?.subtype ?? null,
-      product: prod.key,
-      productLabel: prod.label,
-    };
-  });
+  const transactions = (rows as Array<Record<string, unknown>>).map((t) =>
+    toNormalizedTx(t, accById.get(t.accountId as number)),
+  );
 
   transactions.sort((a, b) => (b.postedAt > a.postedAt ? 1 : b.postedAt < a.postedAt ? -1 : 0));
   return { accounts, transactions };
+}
+
+/**
+ * Fila cruda de `transactions` (ya descifrada) → forma uniforme `NormalizedTx`. Pura y
+ * exportada para que los tests de los consumidores (detector de extraordinarios, métricas)
+ * usen EXACTAMENTE la forma de producción. Un fixture armado a mano ya dejó pasar un bug:
+ * los tests no traían el booleano `isExtraordinary` y el detector, en prod, saltaba todo.
+ */
+export function toNormalizedTx(
+  t: Record<string, unknown>,
+  acc: NormalizedAccount | undefined,
+): NormalizedTx {
+  const amount = Number(t.amount);
+  const postedAt = String(t.postedAt).slice(0, 10);
+  const prod = productOf(acc);
+  const internal = Number(t.isInternalTransfer ?? 0) === 1;
+  // Tres estados: null (sin decidir) se preserva como null — distinto de 0 (el usuario
+  // dijo que es habitual), que es lo que impide volver a preguntar por esa fila.
+  const rawExtra = t.isExtraordinary;
+  const extraordinary =
+    rawExtra === null || rawExtra === undefined ? null : Number(rawExtra) === 1 ? 1 : 0;
+  return {
+    id: String(t.id),
+    accountId: t.accountId as number,
+    postedAt,
+    month: postedAt.slice(0, 7),
+    day: Number(postedAt.slice(8, 10)) || 1,
+    amount,
+    cargo: amount < 0 ? Math.abs(amount) : 0,
+    abono: amount > 0 ? amount : 0,
+    tipo: amount >= 0 ? ("ingreso" as const) : ("egreso" as const),
+    descripcion: (t.description as string) ?? "",
+    description: (t.description as string) ?? "",
+    categoria: (t.category as string) ?? "otro",
+    category: (t.category as string) ?? "otro",
+    isInternalTransfer: internal,
+    is_internal_transfer: internal ? 1 : 0,
+    is_extraordinary: extraordinary,
+    isExtraordinary: extraordinary === 1,
+    extraordinaryMarkedAt: (t.extraordinaryMarkedAt as string) ?? null,
+    categoryConfidence: typeof t.categoryConfidence === "number" ? t.categoryConfidence : null,
+    categoryRuleId: (t.categoryRuleId as string) ?? null,
+    categorizerVersion: (t.categorizerVersion as string) ?? null,
+    accountName: acc?.name ?? null,
+    accountType: acc?.type ?? null,
+    accountSubtype: acc?.subtype ?? null,
+    product: prod.key,
+    productLabel: prod.label,
+  };
 }
 
 /**
