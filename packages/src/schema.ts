@@ -19,6 +19,11 @@ const real = (isProd ? pgCore.real : sqliteCore.real) as any;
 
 // PK numérica: Postgres = serial("id").primaryKey(), SQLite = integer("id").primaryKey({ autoIncrement: true }).
 // Misma definición para todas las tablas con id serial (bank_connections, consent_grants, accounts, etc.).
+// Índice único compuesto: en Postgres lo crea la migración; declararlo acá lo hace existir
+// también en la BD SQLite de tests/dev (que se construye desde este schema, no desde las
+// migraciones). Sin esto, un upsert con ON CONFLICT (user_id, source) revienta sólo en tests.
+const uniqueIndex = (isProd ? pgCore.uniqueIndex : sqliteCore.uniqueIndex) as any;
+
 const serialPk = isProd
   ? (name: string) => pgCore.serial(name).primaryKey()
   : (name: string) =>
@@ -1171,25 +1176,36 @@ export const inscripcionJobs = table("inscripcion_jobs", {
  * estabilidad de cotizaciones. Los datos se extraen del PDF oficial que el usuario sube con Clave
  * Única (no manejamos sus credenciales).
  */
-export const userFinancialSources = table("user_financial_sources", {
-  id: text("id").primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id),
-  /** 'afp' | 'sii' | 'tgr' */
-  source: text("source").notNull(),
-  /** Ingreso mensual verificado (SII: renta líquida/12; AFP: renta imponible promedio). */
-  verifiedMonthlyIncomeClp: integer("verified_monthly_income_clp"),
-  /** Deuda fiscal vigente (TGR). */
-  fiscalDebtClp: integer("fiscal_debt_clp"),
-  /** Meses cotizados / continuidad previsional (AFP) — proxy de estabilidad de ingresos. */
-  contributionMonths: integer("contribution_months"),
-  /** JSON del parse completo (auditoría / campos adicionales). */
-  rawData: text("raw_data"),
-  extractedAt: text("extracted_at")
-    .default(sql`CURRENT_TIMESTAMP`)
-    .notNull(),
-});
+export const userFinancialSources = table(
+  "user_financial_sources",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    /** 'afp' | 'sii' | 'tgr' */
+    source: text("source").notNull(),
+    /** Ingreso mensual verificado (SII: renta líquida/12; AFP: renta imponible promedio). */
+    verifiedMonthlyIncomeClp: integer("verified_monthly_income_clp"),
+    /** Deuda fiscal vigente (TGR). */
+    fiscalDebtClp: integer("fiscal_debt_clp"),
+    /** Meses cotizados / continuidad previsional (AFP) — proxy de estabilidad de ingresos. */
+    contributionMonths: integer("contribution_months"),
+    /** JSON del parse completo (auditoría / campos adicionales). */
+    rawData: text("raw_data"),
+    extractedAt: text("extracted_at")
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  },
+  // Una fila por usuario+fuente: es lo que hace válido el upsert de saveGovSourceData.
+  // En Postgres existe desde la migración 038; acá se declara para la BD de tests.
+  (t: any) => ({
+    userSourceUnique: uniqueIndex("user_financial_sources_user_source_unique").on(
+      t.userId,
+      t.source,
+    ),
+  }),
+);
 
 /** Memoria del asistente IA por usuario: resumen rolling de conversaciones pasadas. */
 export const assistantSummaries = table("assistant_summaries", {
