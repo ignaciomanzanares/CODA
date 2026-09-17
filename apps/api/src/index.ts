@@ -191,6 +191,14 @@ registerMetricsEndpoint(app);
         } catch (err) {
           logger.warn({ err }, "[retention] purgeExpiredOriginals falló");
         }
+        try {
+          // Secretos de conectores vencidos (D1/B4): un secreto que ya no sirve es sólo pasivo.
+          const { purgeExpiredSecrets } =
+            await import("./services/secrets/connectorSecretVault.js");
+          await purgeExpiredSecrets();
+        } catch (err) {
+          logger.warn({ err }, "[retention] purgeExpiredSecrets falló");
+        }
       };
       void runRetention();
       const retentionTimer = setInterval(runRetention, 24 * 60 * 60 * 1000);

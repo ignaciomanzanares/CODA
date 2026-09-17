@@ -1310,3 +1310,38 @@ export const betaWaitlist = table("beta_waitlist", {
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),
 });
+
+/**
+ * Bóveda de secretos de conectores (D1/B4): lo que una fuente pide para entregar datos sin el
+ * titular presente. Caso concreto: el CÓDIGO y la CLAVE de una Carpeta Tributaria del SII, que el
+ * usuario comparte una vez y sirven 90 días.
+ *
+ * Reglas del diseño:
+ *  - `secret` va CIFRADO en reposo (services/crypto/fieldEncryption) y nunca sale en logs ni en
+ *    respuestas de la API: sólo lo lee el conector que lo va a usar.
+ *  - `expiresAt` es obligatorio: un secreto sin vencimiento es un pasivo. El job de retención los
+ *    borra al vencer.
+ *  - Una fila por usuario+conector (upsert): compartir de nuevo reemplaza, no acumula.
+ *  - Las CLAVES DE BANCO no viven acá: el scraper las recibe en memoria y las descarta
+ *    (ver connectors/scraper/README.md). Esta tabla es para secretos que el usuario delega.
+ */
+export const connectorSecrets = table("connector_secrets", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  /** Id del conector que lo usa (connectors/registry.ts). */
+  connectorId: text("connector_id").notNull(),
+  /** JSON cifrado con los campos que pide la fuente (p. ej. {"codigo":"…","clave":"…"}). */
+  secret: text("secret").notNull(),
+  /** ISO timestamp. Obligatorio: el job de retención borra los vencidos. */
+  expiresAt: text("expires_at").notNull(),
+  /** Última vez que un conector lo usó (para auditar y detectar secretos muertos). */
+  lastUsedAt: text("last_used_at"),
+  createdAt: text("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  updatedAt: text("updated_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});

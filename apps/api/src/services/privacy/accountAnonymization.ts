@@ -60,6 +60,7 @@ import {
   productConversionEvents,
   auditLogs,
   userFinancialSources,
+  connectorSecrets,
 } from "../../db/index.js";
 import { logger } from "../../logger.js";
 
@@ -153,6 +154,9 @@ export async function anonymizeUser(userId: string): Promise<void> {
   await db.delete(productConversionEvents).where(eq(productConversionEvents.userId, userId));
   // Datos verificados de fuentes gov (renta/deuda fiscal) → PII, se borran.
   await db.delete(userFinancialSources).where(eq(userFinancialSources.userId, userId));
+  // Secretos delegados a conectores (código/clave de la carpeta tributaria, etc.): sin dueño
+  // activo no hay nada que consultar.
+  await db.delete(connectorSecrets).where(eq(connectorSecrets.userId, userId));
 
   // Rastro de seguridad (auditoría): se conserva el evento, se desvincula del usuario (userId
   // nullable, a diferencia de algorithm_prediction_logs — no hace falta usuario placeholder).

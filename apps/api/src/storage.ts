@@ -39,6 +39,7 @@ import {
   userAssets,
   inscripcionJobs,
   parserDiagnostics,
+  connectorSecrets,
   eq,
   and,
   inArray,
@@ -2296,6 +2297,9 @@ export class DatabaseStorage implements IStorage {
       await executor.delete(assistantSummaries).where(eq(assistantSummaries.userId, userId));
       await executor.delete(assistantFeedback).where(eq(assistantFeedback.userId, userId));
       await executor.delete(parserDiagnostics).where(eq(parserDiagnostics.userId, userId));
+      // Secretos de conectores (código/clave de la carpeta tributaria, etc.): referencian
+      // users.id sin cascade y son PII delegada → se borran con la cuenta.
+      await executor.delete(connectorSecrets).where(eq(connectorSecrets.userId, userId));
       // audit_logs.user_id referencia users.id (sin cascade): hay que borrarlo o
       // el DELETE de users falla en Postgres. Se elimina la fila completa para no
       // dejar PII (IP, detalles) ligada a un usuario eliminado.
