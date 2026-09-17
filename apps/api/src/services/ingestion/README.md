@@ -30,6 +30,7 @@ pedido (usuario o tarea programada)
 | Gate de consentimiento + traza por consulta | `services/audit/sourceAccessAudit.ts` (`withSourceAccess`) |
 | Registro de conectores | `connectors/registry.ts` |
 | Ejecución: cola o en proceso | `connectors/runConnector.ts`, `queues/connectorQueue.ts`, `workers/connectorWorker.ts` |
+| Conectores de fuentes oficiales | `connectors/sources/` (hoy: `sii-carpeta`) |
 | Ingesta bancaria a tablas normalizadas | `jobs/ingest.ts` (`ingestOpenBankingForUser`) |
 | Cartolas subidas (PDF) | `normalizeCartolaDoc` — único escritor de sus transacciones |
 | Bóveda de secretos delegados (código/clave de la carpeta SII) | `services/secrets/connectorSecretVault.ts` |
@@ -75,6 +76,22 @@ await requestConnectorRun(userId, "cmf-informe-deudas");
 ```
 
 No llames a `assertSourceConsent` desde el conector: el runner ya pasa por `withSourceAccess`.
+
+## Carpeta Tributaria del SII (D5, obtención)
+
+La vía para traer renta declarada sin pedir la ClaveÚnica: el titular genera la carpeta en sii.cl
+y delega un CÓDIGO + CLAVE acotados y revocables.
+
+| Endpoint | Qué hace |
+|---|---|
+| `POST /api/data-sources/sii-carpeta/secreto` | Guarda código+clave en la bóveda (cifrados). No vuelven a salir |
+| `GET /api/data-sources/sii-carpeta/secreto` | Si hay acceso, cuándo vence y cuándo se usó — nunca el secreto |
+| `DELETE /api/data-sources/sii-carpeta/secreto` | El titular revoca el acceso |
+| `POST /api/data-sources/sii-carpeta/consultar` | Dispara la consulta (cola o en proceso), con gate + traza |
+
+Consultar responde hoy **501**: falta implementar el fetch contra el sitio del SII (runbook en
+`connectors/sources/siiCarpeta.ts`). El parseo ya existe y el camino de subir el PDF a mano
+(`POST /api/data-sources/sii`) sigue funcionando.
 
 ## Cola en producción
 

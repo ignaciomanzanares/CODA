@@ -14,6 +14,8 @@ import { z } from "zod";
 import { logger } from "./logger.js";
 
 const createConsentSchema = z.object({
+  // Incluye las fuentes oficiales del nivel 1 (cmf/sii/afc): el gate de `withSourceAccess` exige
+  // un grant de ese tipo, y sin esto era IMPOSIBLE crearlo → ningún conector podía correr nunca.
   resourceTypes: z
     .array(
       z.enum([
@@ -22,6 +24,9 @@ const createConsentSchema = z.object({
         "historical_positions",
         "terms_and_conditions",
         "payment_initiation",
+        "cmf_debt_report",
+        "sii_tax_data",
+        "afc_employment",
       ]),
     )
     .min(1),

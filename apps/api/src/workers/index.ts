@@ -9,10 +9,14 @@
  */
 
 import { logger } from "../logger.js";
+import { registerBuiltinConnectors } from "../connectors/sources/index.js";
 import { startDocumentWorker } from "./documentWorker.js";
 import { startConnectorWorker } from "./connectorWorker.js";
 
 export function startWorkers(): void {
+  // El worker corre los jobs de conectores: sin el registro acá, cada job muere con
+  // "conector no registrado".
+  registerBuiltinConnectors();
   startDocumentWorker();
   startConnectorWorker();
   logger.info("Workers iniciados (documentos + conectores)");

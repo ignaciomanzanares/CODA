@@ -159,6 +159,11 @@ registerMetricsEndpoint(app);
     const { runPendingMigrations } = await import("./db/migrate.js");
     await runPendingMigrations();
 
+    // Conectores de fuentes oficiales (D5…): el registro tiene que existir en este proceso para
+    // que `requestConnectorRun` los encuentre cuando no hay cola.
+    const { registerBuiltinConnectors } = await import("./connectors/sources/index.js");
+    registerBuiltinConnectors();
+
     // Initialize algorithmic traceability system (CMF compliance)
     initializeTraceabilitySystem();
     try {
