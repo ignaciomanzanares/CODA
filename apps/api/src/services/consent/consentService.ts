@@ -104,6 +104,49 @@ export class ConsentService {
     return { sealed, valid };
   }
 
+  /**
+   * Expediente EXPORTABLE de consentimientos del usuario (B3): lo que se entrega ante un
+   * requerimiento (CMF, tribunal, el propio titular ejerciendo acceso). Por cada grant van los
+   * hechos consentidos tal como están guardados, más el sello y el resultado de verificarlo
+   * ahora — así el receptor puede comprobar que nadie los editó después.
+   */
+  async exportEvidence(userId: string): Promise<{
+    generatedAt: string;
+    userId: string;
+    policyVersion: string;
+    grants: Array<ConsentGrantForPanel & { sealed: boolean; sealValid: boolean }>;
+  }> {
+    const rows = await db
+      .select()
+      .from(consentGrants)
+      .where(eq(consentGrants.userId, userId))
+      .orderBy(desc(consentGrants.createdAt));
+
+    const grants = (rows as Array<Record<string, unknown>>).map((row) => {
+      const grant = mapToPanel(row);
+      const sealed = !!grant.evidenceHash && !!grant.sealedAt;
+      return {
+        ...grant,
+        sealed,
+        sealValid: verifyConsentEvidence({
+          userId: grant.userId,
+          authorizationDetails: (row.authorizationDetails as string) ?? "[]",
+          purpose: grant.purpose,
+          policyVersion: grant.policyVersion,
+          sealedAt: grant.sealedAt,
+          evidenceHash: grant.evidenceHash,
+        }),
+      };
+    });
+
+    return {
+      generatedAt: new Date().toISOString(),
+      userId,
+      policyVersion: CONSENT_POLICY_VERSION,
+      grants,
+    };
+  }
+
   /** Lista todos los consentimientos del usuario para el Panel de Control. */
   async listByUser(userId: string): Promise<ConsentGrantForPanel[]> {
     const rows = await db

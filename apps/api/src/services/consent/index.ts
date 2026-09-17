@@ -28,6 +28,7 @@ export { handleConsentWebhook } from "./webhooks.js";
 export {
   ConsentRequiredError,
   isGrantActive,
+  grantCoversInstitution,
   scopeCovers,
   selectActiveConsent,
   findActiveConsent,

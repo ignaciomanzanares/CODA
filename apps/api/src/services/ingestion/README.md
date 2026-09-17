@@ -32,6 +32,7 @@ pedido (usuario o tarea programada)
 | Ejecución: cola o en proceso | `connectors/runConnector.ts`, `queues/connectorQueue.ts`, `workers/connectorWorker.ts` |
 | Ingesta bancaria a tablas normalizadas | `jobs/ingest.ts` (`ingestOpenBankingForUser`) |
 | Cartolas subidas (PDF) | `normalizeCartolaDoc` — único escritor de sus transacciones |
+| Bóveda de secretos delegados (código/clave de la carpeta SII) | `services/secrets/connectorSecretVault.ts` |
 | Cifrado en reposo + rotación de llaves | `services/crypto/` |
 
 ## Garantías de cada consulta a una fuente
@@ -39,13 +40,22 @@ pedido (usuario o tarea programada)
 - **Sin consentimiento vigente no se consulta.** `withSourceAccess` busca el grant que cubre el
   recurso (`cmf_debt_report`, `sii_tax_data`, `afc_employment`, `account_information`…) y si no
   hay, lanza `ConsentRequiredError` sin ejecutar el conector. El rechazo queda registrado.
+- **Y por INSTITUCIÓN (B3).** Si el conector nombra la institución (`institution` en el contexto,
+  p. ej. el bankId del scraper), sólo sirve un grant de ESE banco (`ipiId`). Un consentimiento sin
+  banco no es permiso abierto a cualquier banco. El titular exporta su expediente completo
+  (hechos + sello + verificación) en `GET /api/consent/export`.
 - **Sin traza no se consulta.** La fila `source_access.started` se escribe en `audit_logs` antes de
   tocar la fuente; si no se puede escribir, la consulta no ocurre. El término (`succeeded` /
   `failed`) va en otra fila con el mismo `entity_id` (append-only).
 - **Sin PII en la traza.** Ids, conector, quién la pidió, duración y código de error. Nunca el
   mensaje del error.
 - **Credenciales fuera de la cola.** El job lleva sólo `userId`, `connectorId` y `trigger`. El
-  scraper recibe la clave en memoria y cierra el navegador en un `finally`.
+  scraper recibe la clave en memoria y cierra el navegador en un `finally`. Si un conector necesita
+  un secreto que el usuario delega (el código + clave de su carpeta tributaria), lo lee de la
+  bóveda con `getSecret(userId, connectorId)`: cifrado en reposo, con vencimiento obligatorio y
+  borrado por el job de retención. Nunca viaja en el job ni sale por la API.
+- **Una fuente que falla seguido avisa.** Tres fallos consecutivos de un conector alertan a Ops
+  (correo o webhook, ver `docs/INTEGRATION_GUIDE.md`).
 - El titular ve sus consultas en `GET /api/data-sources/access-log`.
 
 ## Agregar un conector de fuente

@@ -33,6 +33,11 @@ export interface SourceAccessContext {
   /** Conector que consulta (p. ej. "cmf-informe-deudas", "santander"). */
   connectorId: string;
   trigger: SourceAccessTrigger;
+  /**
+   * Institución a la que va la consulta (B3), p. ej. el bankId del scraper. Con esto, el gate
+   * exige un consentimiento DE ESE banco, no uno genérico. Las fuentes oficiales no la llevan.
+   */
+  institution?: string;
   /** Id del job, si vino de la cola (para cruzar con los logs del worker). */
   jobId?: string;
 }
@@ -72,6 +77,7 @@ export function toAuditRow(e: SourceAccessEvent) {
     connectorId: e.connectorId,
     trigger: e.trigger,
   };
+  if (e.institution) details.institution = e.institution;
   if (e.jobId) details.jobId = e.jobId;
   if (e.consentGrantId != null) details.consentGrantId = e.consentGrantId;
   if (e.durationMs != null) details.durationMs = e.durationMs;
@@ -88,6 +94,54 @@ export function toAuditRow(e: SourceAccessEvent) {
 
 export async function recordSourceAccess(e: SourceAccessEvent): Promise<void> {
   await db.insert(auditLogs).values(toAuditRow(e));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Alerta: una fuente que empieza a fallar seguido (D8 "monitoreo y alertas")
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Fallos consecutivos de un conector antes de avisarle a Ops. */
+const FAILURE_ALERT_THRESHOLD = Number(process.env.SOURCE_FAILURE_ALERT_THRESHOLD) || 3;
+
+/** Contador en memoria por conector; un éxito lo resetea. */
+const consecutiveFailures = new Map<string, number>();
+
+/** Sólo para tests. */
+export function resetSourceFailureCounters(): void {
+  consecutiveFailures.clear();
+}
+
+/**
+ * Cuenta fallos consecutivos por conector y avisa a Ops al cruzar el umbral. Un fallo aislado es
+ * normal (timeout de la fuente); tres seguidos suelen ser un cambio en la fuente o credenciales
+ * muertas, y sin esto nos enterábamos sólo si alguien miraba los logs.
+ */
+async function trackFailureForAlerts(
+  connectorId: string,
+  resourceType: ConsentResourceType,
+  outcome: SourceAccessOutcome,
+  errorCode?: string,
+): Promise<void> {
+  if (outcome === "succeeded") {
+    consecutiveFailures.delete(connectorId);
+    return;
+  }
+  if (outcome !== "failed") return;
+
+  const fallos = (consecutiveFailures.get(connectorId) ?? 0) + 1;
+  consecutiveFailures.set(connectorId, fallos);
+  if (fallos < FAILURE_ALERT_THRESHOLD) return;
+
+  try {
+    const { notifyOps } = await import("../observability/index.js");
+    await notifyOps(
+      `La fuente '${resourceType}' falla seguido: ${fallos} intentos consecutivos del conector '${connectorId}'.`,
+      { connectorId, resourceType, consecutiveFailures: fallos, lastErrorCode: errorCode },
+      { key: `source_access_failures:${connectorId}` },
+    );
+  } catch (err) {
+    logger.error({ err, connectorId }, "[sourceAccess] no se pudo alertar los fallos de la fuente");
+  }
 }
 
 export interface SourceAccessDeps {
@@ -120,6 +174,7 @@ export async function withSourceAccess<T>(
 
   // Registrar el término es best-effort: la consulta ya ocurrió y su `started` ya está escrito.
   const recordEnd = async (e: SourceAccessEvent) => {
+    await trackFailureForAlerts(ctx.connectorId, resourceType, e.outcome, e.errorCode);
     try {
       await d.record(e);
     } catch (err) {
@@ -130,7 +185,7 @@ export async function withSourceAccess<T>(
     }
   };
 
-  const consent = await d.findConsent(userId, resourceType);
+  const consent = await d.findConsent(userId, resourceType, ctx.institution);
   if (!consent) {
     await recordEnd({ ...base, outcome: "denied", at: d.now().toISOString() });
     throw new ConsentRequiredError(userId, resourceType);
@@ -179,6 +234,7 @@ export interface SourceAccessEntry {
   resourceType: string;
   connectorId: string | null;
   trigger: string | null;
+  institution: string | null;
   jobId: string | null;
   /** `started` sin término = sigue corriendo o el proceso murió a mitad. */
   outcome: SourceAccessOutcome;
@@ -222,6 +278,7 @@ export function summarizeSourceAccess(rows: AuditRowLike[]): SourceAccessEntry[]
       resourceType: row.entity ?? "unknown",
       connectorId: null,
       trigger: null,
+      institution: null,
       jobId: null,
       outcome,
       consentGrantId: null,
@@ -232,6 +289,7 @@ export function summarizeSourceAccess(rows: AuditRowLike[]): SourceAccessEntry[]
     };
     entry.connectorId ??= str(det.connectorId);
     entry.trigger ??= str(det.trigger);
+    entry.institution ??= str(det.institution);
     entry.jobId ??= str(det.jobId);
     entry.consentGrantId ??= num(det.consentGrantId);
     if (outcome === "started") {

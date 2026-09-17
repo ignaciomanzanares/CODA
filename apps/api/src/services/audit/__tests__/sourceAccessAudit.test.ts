@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
 import { db, auditLogs, consentGrants, users } from "../../../db/index.js";
@@ -9,9 +9,22 @@ import {
   listSourceAccessForUser,
   summarizeSourceAccess,
   toAuditRow,
+  resetSourceFailureCounters,
   withSourceAccess,
   type SourceAccessEvent,
 } from "../sourceAccessAudit.js";
+
+// La alerta a Ops se prueba acá sin tocar webhook ni correo.
+const { notifyOpsSpy } = vi.hoisted(() => ({ notifyOpsSpy: vi.fn(async () => {}) }));
+vi.mock("../../observability/index.js", async (orig) => ({
+  ...(await orig<typeof import("../../observability/index.js")>()),
+  notifyOps: notifyOpsSpy,
+}));
+
+beforeEach(() => {
+  resetSourceFailureCounters();
+  notifyOpsSpy.mockClear();
+});
 
 const CTX = { connectorId: "cmf-test", trigger: "user" as const };
 
@@ -104,6 +117,50 @@ describe("withSourceAccess — gate + traza", () => {
     await expect(
       withSourceAccess("u1", "cmf_debt_report", CTX, async () => "ok", deps),
     ).resolves.toBe("ok");
+  });
+});
+
+describe("alerta por fuente que falla seguido", () => {
+  const failing = async () => {
+    const { deps } = memoryDeps({ id: 7, expiresAt: null });
+    await withSourceAccess(
+      "u1",
+      "cmf_debt_report",
+      CTX,
+      async () => {
+        throw Object.assign(new Error("timeout"), { code: "E_TIMEOUT" });
+      },
+      deps,
+    ).catch(() => {});
+  };
+
+  it("un fallo aislado no alerta; al tercero consecutivo avisa a Ops una vez", async () => {
+    await failing();
+    await failing();
+    expect(notifyOpsSpy).not.toHaveBeenCalled();
+
+    await failing();
+    expect(notifyOpsSpy).toHaveBeenCalledTimes(1);
+    const [message, details, opts] = notifyOpsSpy.mock.calls[0] as unknown as [
+      string,
+      Record<string, unknown>,
+      Record<string, unknown>,
+    ];
+    expect(message).toContain("cmf_debt_report");
+    expect(details).toMatchObject({ connectorId: "cmf-test", consecutiveFailures: 3 });
+    expect(details).toMatchObject({ lastErrorCode: "E_TIMEOUT" });
+    // La clave agrupa los repetidos: la ventana de silencio vive en notifyOps.
+    expect(opts).toEqual({ key: "source_access_failures:cmf-test" });
+  });
+
+  it("un éxito resetea la cuenta", async () => {
+    await failing();
+    await failing();
+    const { deps } = memoryDeps({ id: 7, expiresAt: null });
+    await withSourceAccess("u1", "cmf_debt_report", CTX, async () => "ok", deps);
+    await failing();
+    await failing();
+    expect(notifyOpsSpy).not.toHaveBeenCalled();
   });
 });
 

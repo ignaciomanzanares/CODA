@@ -6,6 +6,12 @@
  *   - status === "authorized"
  *   - no expirado (expiresAt nulo o futuro)
  *   - su scope (authorization_details) incluye el resourceType
+ *   - si la consulta va a una INSTITUCIÓN concreta (un banco), el grant es de esa institución
+ *
+ * Lo último es el B3 del plan: un consentimiento no puede ser un permiso abierto a "los bancos".
+ * Cuando el conector nombra la institución (`institution`, p. ej. el bankId del scraper), sólo
+ * sirve un grant con ese mismo `ipiId`. Los grants sin `ipiId` valen para las fuentes que no son
+ * por institución (CMF, SII, AFC), no como permiso genérico bancario.
  *
  * La lógica de decisión es pura y testeable (`selectActiveConsent`); las funciones con DB solo
  * la envuelven.
@@ -33,6 +39,20 @@ export interface GrantLike {
   status: string;
   expiresAt: string | null;
   authorizationDetails: string;
+  /** Institución (IPI/banco) a la que aplica el grant. `null` = no es por institución. */
+  ipiId?: string | null;
+}
+
+/**
+ * True si el grant sirve para la institución pedida. Sin `institution` (fuentes oficiales) sirve
+ * cualquiera; con institución, el grant tiene que ser de esa institución.
+ */
+export function grantCoversInstitution(
+  grant: Pick<GrantLike, "ipiId">,
+  institution?: string,
+): boolean {
+  if (!institution) return true;
+  return grant.ipiId === institution;
 }
 
 /** True si el grant está VIGENTE ahora: autorizado y no expirado (no mira scope). */
@@ -63,10 +83,14 @@ export function selectActiveConsent<T extends GrantLike>(
   grants: T[],
   resourceType: ConsentResourceType,
   now = new Date(),
+  institution?: string,
 ): T | null {
   return (
     grants.find(
-      (g) => isGrantActive(g, now) && scopeCovers(g.authorizationDetails, resourceType),
+      (g) =>
+        isGrantActive(g, now) &&
+        scopeCovers(g.authorizationDetails, resourceType) &&
+        grantCoversInstitution(g, institution),
     ) ?? null
   );
 }
@@ -75,12 +99,13 @@ export function selectActiveConsent<T extends GrantLike>(
 export async function findActiveConsent(
   userId: string,
   resourceType: ConsentResourceType,
+  institution?: string,
 ): Promise<{ id: number; expiresAt: string | null } | null> {
   const rows = (await db
     .select()
     .from(consentGrants)
     .where(eq(consentGrants.userId, userId))) as unknown as Array<GrantLike & { id: number }>;
-  const match = selectActiveConsent(rows, resourceType);
+  const match = selectActiveConsent(rows, resourceType, new Date(), institution);
   return match ? { id: match.id, expiresAt: match.expiresAt } : null;
 }
 
@@ -88,19 +113,21 @@ export async function findActiveConsent(
 export async function hasValidConsent(
   userId: string,
   resourceType: ConsentResourceType,
+  institution?: string,
 ): Promise<boolean> {
-  return (await findActiveConsent(userId, resourceType)) !== null;
+  return (await findActiveConsent(userId, resourceType, institution)) !== null;
 }
 
 /**
- * GATE. Lanza `ConsentRequiredError` si no hay consentimiento vigente que cubra el recurso.
- * Llamar SIEMPRE antes de obtener datos de una fuente.
+ * GATE. Lanza `ConsentRequiredError` si no hay consentimiento vigente que cubra el recurso
+ * (y la institución, si la consulta va a una). Llamar SIEMPRE antes de obtener datos de una fuente.
  */
 export async function assertSourceConsent(
   userId: string,
   resourceType: ConsentResourceType,
+  institution?: string,
 ): Promise<void> {
-  if (!(await hasValidConsent(userId, resourceType))) {
+  if (!(await hasValidConsent(userId, resourceType, institution))) {
     throw new ConsentRequiredError(userId, resourceType);
   }
 }

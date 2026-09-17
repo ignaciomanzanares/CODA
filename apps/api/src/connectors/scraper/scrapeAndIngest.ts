@@ -50,7 +50,8 @@ export async function scrapeAndIngest(opts: ScrapeOptions): Promise<ScrapeResult
       userId,
       "account_information",
       // El scrape necesita al usuario presente (clave + MFA): siempre lo dispara él.
-      { connectorId: `scraper:${adapter.bankId}`, trigger: "user" },
+      // La institución va explícita: sin consentimiento DE ESTE banco, el gate corta (B3).
+      { connectorId: `scraper:${adapter.bankId}`, trigger: "user", institution: adapter.bankId },
       async () => {
         const page = await driver.newPage();
         await adapter.login(page, creds, resolveMfa);

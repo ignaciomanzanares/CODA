@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   isGrantActive,
+  grantCoversInstitution,
   scopeCovers,
   selectActiveConsent,
   assertSourceConsent,
@@ -63,6 +64,35 @@ describe("selectActiveConsent", () => {
   it("null si ninguno califica", () => {
     expect(selectActiveConsent([grant({ status: "expired" })], "cmf_debt_report")).toBeNull();
     expect(selectActiveConsent([], "cmf_debt_report")).toBeNull();
+  });
+});
+
+describe("por institución (B3)", () => {
+  const santander = grant({ authorizationDetails: SCOPE_ACCTS, ipiId: "santander" });
+  const generico = grant({ authorizationDetails: SCOPE_ACCTS });
+
+  it("una consulta sin institución (CMF/SII/AFC) no exige institución", () => {
+    expect(grantCoversInstitution(generico)).toBe(true);
+    expect(grantCoversInstitution(santander)).toBe(true);
+  });
+
+  it("consultar un banco exige un grant DE ESE banco", () => {
+    expect(grantCoversInstitution(santander, "santander")).toBe(true);
+    expect(grantCoversInstitution(santander, "bancoestado")).toBe(false);
+    // Un consentimiento sin banco no es permiso abierto a cualquier banco.
+    expect(grantCoversInstitution(generico, "santander")).toBe(false);
+  });
+
+  it("selectActiveConsent filtra por institución", () => {
+    const grants = [generico, santander];
+    expect(selectActiveConsent(grants, "account_information", new Date(), "santander")).toBe(
+      santander,
+    );
+    expect(
+      selectActiveConsent(grants, "account_information", new Date(), "bancoestado"),
+    ).toBeNull();
+    // Sin institución sigue sirviendo el primero vigente que cubre el recurso.
+    expect(selectActiveConsent(grants, "account_information")).toBe(generico);
   });
 });
 

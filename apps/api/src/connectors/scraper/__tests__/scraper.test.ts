@@ -111,7 +111,7 @@ describe("scrapeAndIngest — garantía de seguridad", () => {
     expect(sourceAccessSpy.mock.calls.at(-1)?.slice(0, 3)).toEqual([
       "u1",
       "account_information",
-      { connectorId: "scraper:fakebank", trigger: "user" },
+      { connectorId: "scraper:fakebank", trigger: "user", institution: "fakebank" },
     ]);
   });
 

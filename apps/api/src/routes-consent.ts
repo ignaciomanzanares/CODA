@@ -90,6 +90,30 @@ export function registerConsentRoutes(app: Express): void {
     },
   );
 
+  /**
+   * Expediente exportable de consentimientos (B3): hechos consentidos + sello + verificación.
+   * Va ANTES de "/:id" porque "export" no es un id numérico.
+   */
+  router.get("/export", authenticate, async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user?.userId ?? "";
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const expediente = await consentService.exportEvidence(userId);
+      const fecha = expediente.generatedAt.slice(0, 10);
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="consentimientos-coda-${fecha}.json"`,
+      );
+      return res.json(expediente);
+    } catch (e) {
+      logger.error({ err: e }, "Export consent evidence failed");
+      return res.status(500).json({ message: "Error exporting consent evidence" });
+    }
+  });
+
   /** Obtiene un consentimiento por id (solo del usuario). */
   router.get(
     "/:id",
