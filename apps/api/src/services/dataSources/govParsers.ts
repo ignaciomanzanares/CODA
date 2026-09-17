@@ -174,6 +174,52 @@ export function parseAfp(text: string): GovParseResult {
  * año tributario MÁS RECIENTE (para no mezclar sueldos de un año con honorarios de otro) y sumamos
  * sueldos (código 1098) + honorarios brutos (código 547 «Total Ingresos Brutos», o 461/467). /12.
  */
+const MESES_ES =
+  "Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Setiembre|Octubre|Noviembre|Diciembre";
+const BOLETAS_EMITIDAS_RE = /Boletas?\s+de\s+Honorarios\s+electr[oó]nicas\s+emitidas/i;
+const BOLETAS_FIN_RE =
+  /Boletas?\s+de\s+prestaci[oó]n\s+de\s+servicios\s+de\s+terceros|Declaraciones\s+de\s+IVA|Formulario\s+29/i;
+
+export interface BoletasHonorarios {
+  totalBrutoClp: number;
+  retencionClp: number;
+  periodos: string[];
+}
+
+/**
+ * Boletas de honorarios electrónicas EMITIDAS en los últimos 12 meses, de la carpeta tributaria.
+ *
+ * Por qué importa: quien recién empieza —el usuario típico de CODA— no tiene F22 ni F29, y su
+ * única señal de ingreso en toda la carpeta son estas boletas. Sin esto, la carpeta de una persona
+ * que sí factura se leía como "sin ingreso".
+ *
+ * Acota el bloque hasta la sección siguiente a propósito: justo debajo vienen las boletas
+ * RECIBIDAS de terceros (plata que la persona PAGA, no que recibe). Sumarlas sería inventar
+ * ingreso.
+ */
+export function boletasHonorariosEmitidas(text: string): BoletasHonorarios | null {
+  const start = text.search(BOLETAS_EMITIDAS_RE);
+  if (start < 0) return null;
+  const rest = text.slice(start);
+  const endRel = rest.slice(1).search(BOLETAS_FIN_RE);
+  const bloque = endRel >= 0 ? rest.slice(0, endRel + 1) : rest;
+
+  const fila = new RegExp(`^\\s*(${MESES_ES})\\s+(\\d{4})\\s+([\\d.]+)(?:\\s+([\\d.]+))?`, "gim");
+  const monto = (raw: string | undefined) => (raw ? Number(raw.replace(/\./g, "")) : 0);
+
+  let totalBrutoClp = 0;
+  let retencionClp = 0;
+  const periodos: string[] = [];
+  for (const m of bloque.matchAll(fila)) {
+    const bruto = monto(m[3]);
+    if (!Number.isFinite(bruto) || bruto <= 0) continue;
+    totalBrutoClp += bruto;
+    retencionClp += monto(m[4]);
+    periodos.push(`${m[1]} ${m[2]}`);
+  }
+  return periodos.length > 0 ? { totalBrutoClp, retencionClp, periodos } : null;
+}
+
 export function parseSii(text: string): GovParseResult {
   const f22Start = text.search(/Formulario 22|IMPUESTOS ANUALES A LA RENTA/i);
   const f22Full = f22Start >= 0 ? text.slice(f22Start) : text;
@@ -187,12 +233,38 @@ export function parseSii(text: string): GovParseResult {
     0;
   const rentaAnual = sueldos + honorarios;
 
+  // Sin F22 (no declara renta), la única señal de ingreso de la carpeta son las boletas de
+  // honorarios emitidas. El F22 manda cuando existe: es anual y declarado.
   if (rentaAnual <= 0) {
+    const boletas = boletasHonorariosEmitidas(text);
+    if (!boletas) {
+      return {
+        source: "sii",
+        ok: false,
+        raw: { f22Encontrado: f22Start >= 0 },
+        message: "No se pudo leer la renta en el Formulario 22 de la carpeta tributaria.",
+      };
+    }
+
+    // La sección cubre los últimos 12 meses: el promedio se calcula sobre la ventana completa,
+    // no sobre los meses con boleta — quien emitió una sola boleta en el año no gana eso al mes.
+    const mensual = Math.round(boletas.totalBrutoClp / 12);
+    const enRango = mensual >= MIN_RENTA_MENSUAL && mensual <= MAX_RENTA_MENSUAL;
     return {
       source: "sii",
-      ok: false,
-      raw: { f22Encontrado: f22Start >= 0 },
-      message: "No se pudo leer la renta en el Formulario 22 de la carpeta tributaria.",
+      ok: enRango,
+      verifiedMonthlyIncomeClp: enRango ? mensual : null,
+      raw: {
+        f22Encontrado: f22Start >= 0,
+        origen: "boletas_honorarios",
+        boletasTotalBrutoClp: boletas.totalBrutoClp,
+        boletasRetencionClp: boletas.retencionClp,
+        boletasMeses: boletas.periodos.length,
+        boletasPeriodos: boletas.periodos,
+      },
+      message: enRango
+        ? undefined
+        : `Sin Formulario 22. Se leyeron boletas de honorarios por $${boletas.totalBrutoClp.toLocaleString("es-CL")} en ${boletas.periodos.length} mes(es) (≈$${mensual.toLocaleString("es-CL")}/mes), fuera del rango de renta considerado plausible.`,
     };
   }
 

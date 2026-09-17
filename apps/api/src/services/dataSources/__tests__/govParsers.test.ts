@@ -4,6 +4,7 @@ import {
   parseGovDocument,
   parseAfp,
   parseSii,
+  boletasHonorariosEmitidas,
   parseTgr,
   extractMontosClp,
 } from "../govParsers";
@@ -85,6 +86,85 @@ describe("govParsers", () => {
     const soloF29 = "FORMULARIO 29. 563 BASE IMPONIBLE 39.847. 547 TOTAL DETERMINADO 7.621";
     const r = parseSii(soloF29);
     expect(r.ok).toBe(false);
+  });
+
+  // ── Boletas de honorarios: la única señal de ingreso de quien todavía no declara renta ──
+  // Layout real de la carpeta tributaria (datos sintéticos).
+  const carpetaBoletas = (
+    filasEmitidas: string[],
+    filasRecibidas: string[] = ["No registra información"],
+  ) =>
+    [
+      "Boletas de Honorarios electrónicas emitidas (6): Últimos 12 meses",
+      "   Períodos          Honorario bruto ($)      Retención de terceros ($)",
+      ...filasEmitidas,
+      "Boleta de prestación de servicios de terceros electrónicas recibidas (6): Últimos 12 meses",
+      "   Períodos          Honorario bruto ($)      Retención ($)",
+      ...filasRecibidas,
+      "Declaraciones de IVA - Formulario 29 (F29)",
+      "Agosto 2026",
+      "No se registra declaración para este período.",
+      "Declaraciones de Renta - Formulario 22 (F22)",
+      "Año Tributario 2026",
+      "- No existen declaraciones de Renta recibidas para este periodo -",
+    ].join("\n");
+
+  it("SII: sin F22, usa las boletas de honorarios emitidas (÷12, la ventana de la sección)", () => {
+    const r = parseSii(
+      carpetaBoletas([
+        "   Junio 2026            450.000                  68.633",
+        "   Julio 2026            500.000                  76.259",
+        "   Agosto 2026           550.000                  83.885",
+      ]),
+    );
+    expect(r.ok).toBe(true);
+    expect(r.verifiedMonthlyIncomeClp).toBe(125_000); // 1.500.000 / 12
+    expect(r.raw.origen).toBe("boletas_honorarios");
+    expect(r.raw.boletasMeses).toBe(3);
+  });
+
+  it("SII: NO suma las boletas RECIBIDAS de terceros (eso es plata que la persona paga)", () => {
+    const r = parseSii(
+      carpetaBoletas(
+        ["   Junio 2026            450.000                  68.633"],
+        [
+          "   Junio 2026          9.000.000               1.372.657",
+          "   Julio 2026          9.000.000               1.372.657",
+        ],
+      ),
+    );
+    expect(r.raw.boletasTotalBrutoClp).toBe(450_000);
+    expect(r.raw.boletasMeses).toBe(1);
+  });
+
+  it("SII: si hay F22, manda el F22 y las boletas no se usan", () => {
+    const conAmbos = [
+      "Boletas de Honorarios electrónicas emitidas (6): Últimos 12 meses",
+      "   Junio 2026            450.000                  68.633",
+      "Declaraciones de Renta - Formulario 22 (F22)",
+      "AÑO TRIBUTARIO 2026",
+      "547 Total Ingresos Brutos 12.000.000",
+    ].join("\n");
+    const r = parseSii(conAmbos);
+    expect(r.ok).toBe(true);
+    expect(r.verifiedMonthlyIncomeClp).toBe(1_000_000);
+    expect(r.raw.origen).toBeUndefined();
+  });
+
+  it("SII: boleta única y chica → no inventa renta, pero dice qué encontró", () => {
+    // Caso real de una carpeta sin declaraciones: $41.300 en un mes ≈ $3.442/mes.
+    const r = parseSii(carpetaBoletas(["   Junio 2026            41.300                   6.298"]));
+    expect(r.ok).toBe(false);
+    expect(r.verifiedMonthlyIncomeClp).toBeNull();
+    expect(r.raw.boletasTotalBrutoClp).toBe(41_300);
+    expect(r.message).toContain("Sin Formulario 22");
+    expect(r.message).toContain("41.300");
+  });
+
+  it("boletasHonorariosEmitidas: sin la sección devuelve null", () => {
+    expect(
+      boletasHonorariosEmitidas("Formulario 22. 547 Total Ingresos Brutos 12.000.000"),
+    ).toBeNull();
   });
 
   it("AFP: cuenta cotizaciones y estima renta ≈ cotización/0,10", () => {
