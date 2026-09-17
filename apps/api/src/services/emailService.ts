@@ -308,6 +308,29 @@ Ver detalle: ${billSplitUrl}
     });
   }
 
+  /**
+   * Alerta operacional interna (D8): cola saturada, deriva del modelo, una fuente que falla.
+   * Va al buzón de Ops, no al usuario, y nunca lleva datos de personas — sólo ids y contadores
+   * que arma `notifyOps`. Best-effort.
+   */
+  async sendOpsAlert(
+    to: string,
+    message: string,
+    details: Record<string, unknown> = {},
+  ): Promise<boolean> {
+    const cuerpo = Object.entries(details)
+      .map(([k, v]) => `${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`)
+      .join("\n");
+    const text = `${message}\n\n${cuerpo}`.trim();
+    const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return sendEmail({
+      to,
+      subject: `[CODA ops] ${message}`.slice(0, 180),
+      text,
+      html: `<pre style="font-family:inherit">${escaped}</pre>`,
+    });
+  }
+
   /** Aviso interno de nuevo reclamo/consulta (canal NCG 502) — best-effort. */
   async sendSupportTicketAlert(
     to: string,

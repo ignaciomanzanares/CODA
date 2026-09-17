@@ -1,5 +1,5 @@
 import express from "express";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   captureError,
   httpMetricsMiddleware,
@@ -7,8 +7,16 @@ import {
   metrics,
   notifyOps,
   registerMetricsEndpoint,
+  resetOpsAlertCooldown,
   sanitizeForObservability,
 } from "../index.js";
+
+// Las alertas por correo usan el proveedor real (Gmail/Resend) → se mockea el servicio.
+const { sendOpsAlert } = vi.hoisted(() => ({ sendOpsAlert: vi.fn(async () => true) }));
+vi.mock("../../emailService.js", () => ({
+  emailService: { sendOpsAlert },
+  isEmailConfigured: () => true,
+}));
 
 const originalEnv = { ...process.env };
 
@@ -187,6 +195,39 @@ describe("metrics registry (formato Prometheus)", () => {
     metrics.setGauge("coda_test_gauge", 42, { route: "/api/y" });
     const out = metrics.render();
     expect(out).toContain('coda_test_gauge{route="/api/y"} 42');
+  });
+});
+
+describe("alertas de Ops", () => {
+  beforeEach(() => {
+    resetOpsAlertCooldown();
+    sendOpsAlert.mockClear();
+    delete process.env.OPS_WEBHOOK_URL;
+    delete process.env.OPS_ALERTS_ENABLED;
+  });
+
+  it("sin webhook manda la alerta por correo al buzón de Ops", async () => {
+    process.env.OPS_ALERT_EMAIL = "ops@codafinance.cl";
+    await notifyOps("cola saturada", { waiting: 60 });
+    expect(sendOpsAlert).toHaveBeenCalledWith("ops@codafinance.cl", "cola saturada", {
+      waiting: 60,
+    });
+  });
+
+  it("repetir la misma alerta dentro de la ventana no vuelve a notificar", async () => {
+    await notifyOps("cola saturada", {}, { key: "queue" });
+    await notifyOps("cola saturada", {}, { key: "queue" });
+    expect(sendOpsAlert).toHaveBeenCalledTimes(1);
+
+    // Pasada la ventana (30 min por defecto), vuelve a avisar.
+    await notifyOps("cola saturada", {}, { key: "queue", now: Date.now() + 31 * 60 * 1000 });
+    expect(sendOpsAlert).toHaveBeenCalledTimes(2);
+  });
+
+  it("OPS_ALERTS_ENABLED=false deja la alerta sólo en el log", async () => {
+    process.env.OPS_ALERTS_ENABLED = "false";
+    await notifyOps("cola saturada", {});
+    expect(sendOpsAlert).not.toHaveBeenCalled();
   });
 });
 

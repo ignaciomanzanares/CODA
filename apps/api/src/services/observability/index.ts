@@ -309,14 +309,45 @@ export function registerMetricsEndpoint(app: Express): void {
 // Alertas operacionales
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Envía una alerta al webhook de Ops (`OPS_WEBHOOK_URL`) si está configurado; si no, loguea. */
+/**
+ * Ventana de silencio por alerta repetida. Sin esto, un worker caído manda una alerta por chequeo
+ * (cada minuto) y el destino se vuelve ruido que nadie lee.
+ */
+const ALERT_COOLDOWN_MS = Number(process.env.OPS_ALERT_COOLDOWN_MS) || 30 * 60 * 1000;
+const lastAlertAt = new Map<string, number>();
+
+/** Sólo para tests. */
+export function resetOpsAlertCooldown(): void {
+  lastAlertAt.clear();
+}
+
+/**
+ * Alerta operacional (D8 "monitoreo y alertas"). SIEMPRE queda en el log; además se manda al
+ * primer destino disponible:
+ *   1. `OPS_WEBHOOK_URL` (Slack/Discord) si está configurado.
+ *   2. Correo a `OPS_ALERT_EMAIL` (o `SUPPORT_INBOX_EMAIL`, default info@codafinance.cl) usando
+ *      el proveedor de email que ya existe — así las alertas funcionan sin contratar nada.
+ * Con `OPS_ALERTS_ENABLED=false` sólo loguea.
+ *
+ * Alertas repetidas se agrupan por `key` (default: el mensaje) con una ventana de silencio.
+ */
 export async function notifyOps(
   message: string,
   details: Record<string, unknown> = {},
+  opts: { key?: string; now?: number } = {},
 ): Promise<void> {
+  logger.warn({ ...details }, `[ops-alert] ${message}`);
+  if (process.env.OPS_ALERTS_ENABLED === "false") return;
+
+  const key = opts.key ?? message;
+  const now = opts.now ?? Date.now();
+  const previous = lastAlertAt.get(key);
+  if (previous != null && now - previous < ALERT_COOLDOWN_MS) return;
+  lastAlertAt.set(key, now);
+
   const url = process.env.OPS_WEBHOOK_URL;
   if (!url) {
-    logger.warn({ ...details }, `[ops-alert] ${message}`);
+    await notifyOpsByEmail(message, details);
     return;
   }
   try {
@@ -331,5 +362,20 @@ export async function notifyOps(
     clearTimeout(t);
   } catch (e) {
     logger.error({ err: e, message }, "[observability] notifyOps falló");
+    // El webhook puede estar caído justo cuando hace falta la alerta.
+    await notifyOpsByEmail(message, details);
+  }
+}
+
+/** Alerta por correo. Best-effort: si no hay proveedor de email, ya quedó en el log. */
+async function notifyOpsByEmail(message: string, details: Record<string, unknown>): Promise<void> {
+  try {
+    const { emailService, isEmailConfigured } = await import("../emailService.js");
+    if (!isEmailConfigured()) return;
+    const to =
+      process.env.OPS_ALERT_EMAIL || process.env.SUPPORT_INBOX_EMAIL || "info@codafinance.cl";
+    await emailService.sendOpsAlert(to, message, details);
+  } catch (e) {
+    logger.error({ err: e, message }, "[observability] alerta por correo falló");
   }
 }

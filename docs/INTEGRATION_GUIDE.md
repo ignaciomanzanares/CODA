@@ -10,7 +10,11 @@ Resumen de variables de entorno (todas opcionales salvo las ya existentes):
 |---|---|---|
 | `BLOB_BACKEND=s3` + `BLOB_*` | Guardar artefactos ML y originales en S3/R2 | Se usa Postgres (`stored_blobs`, cifrado) |
 | `SENTRY_DSN` / `VITE_SENTRY_DSN` | Captura de errores backend / frontend | Solo logs |
-| `OPS_WEBHOOK_URL` | Alertas de drift y profundidad de cola a Slack/Discord | Solo logs |
+| `OPS_WEBHOOK_URL` | Alertas de Ops a Slack/Discord | Se manda por correo (ver abajo) |
+| `OPS_ALERT_EMAIL` | Buzón que recibe las alertas cuando no hay webhook | `SUPPORT_INBOX_EMAIL`, o info@codafinance.cl |
+| `OPS_ALERTS_ENABLED=false` | Dejar las alertas sólo en el log | Se notifican |
+| `OPS_ALERT_COOLDOWN_MS` | Ventana de silencio por alerta repetida (default 30 min) | 30 min |
+| `SOURCE_FAILURE_ALERT_THRESHOLD` | Fallos consecutivos de un conector antes de alertar (default 3) | 3 |
 | `AI_AUTHORIZED_PROVIDERS` | Whitelist de proveedores de IA con DPA | No restringe (todos con API key) |
 | `AI_ANONYMIZE_PAYLOAD=false` | Desactivar anonimización del payload a IA | Anonimizado por defecto (#6) |
 | `DEMO_MODE` | Login demo (solo staging) | `false` en prod (cerrado, #4) |
@@ -49,10 +53,20 @@ Al boot, `modelRegistry` descarga la versión `production` del blob. El workflow
 - Frontend: `npm i @sentry/react -w @coda/web` + `VITE_SENTRY_DSN`.
 - Sin el DSN no se inicializa (no-op). `/metrics` (Prometheus) está siempre activo.
 
-## 4. Alertas a Ops (drift + cola) — #24/#27
+## 4. Alertas a Ops (drift + cola + fuentes) — #24/#27, D8
 
-Setear `OPS_WEBHOOK_URL` (webhook entrante de Slack/Discord). Recibe alertas de drift de modelo
-(PSI) y de saturación de la cola de documentos. Sin él, las alertas van al log.
+Las alertas **ya funcionan sin contratar nada**: van al primer destino disponible.
+
+1. `OPS_WEBHOOK_URL` (webhook entrante de Slack/Discord), si está.
+2. Si no, **correo** a `OPS_ALERT_EMAIL` (o `SUPPORT_INBOX_EMAIL`) con el proveedor de email que ya
+   usa el 2FA. Si el webhook falla, también cae al correo.
+3. Siempre, en cualquier caso, queda en el log.
+
+Qué alerta hoy: deriva del modelo (PSI), saturación de la cola de documentos, y un conector de
+fuentes que falla 3 veces consecutivas (`SOURCE_FAILURE_ALERT_THRESHOLD`; un éxito resetea la
+cuenta). Las repetidas se agrupan por clave con una ventana de silencio de 30 min
+(`OPS_ALERT_COOLDOWN_MS`), para que un worker caído no llene el buzón. `OPS_ALERTS_ENABLED=false`
+las deja sólo en el log.
 
 ## 5. Datos a IA con DPA — #6
 
