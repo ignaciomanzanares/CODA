@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, ExternalLink, Upload, Landmark, FileText, Receipt } from "lucide-react";
+import { PermisosConsulta } from "@/components/datos/PermisosConsulta";
 
 interface SourceStatus {
   source: string;
@@ -81,6 +82,7 @@ export default function ConectarDatos() {
           clave: tú los descargas en el sitio de cada institución y los subes aquí.
         </p>
       </div>
+      <PermisosConsulta />
       {SOURCES.map((cfg) => (
         <SourceCard
           key={cfg.id}

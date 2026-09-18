@@ -37,6 +37,12 @@ export {
 } from "./consentGate.js";
 export type { GrantLike } from "./consentGate.js";
 export {
+  SELF_AUTHORIZABLE_TYPES,
+  isSelfAuthorizableType,
+  canSelfAuthorize,
+} from "./selfAuthorization.js";
+export type { SelfAuthorizationCheck } from "./selfAuthorization.js";
+export {
   computeConsentEvidenceHash,
   sealConsentEvidence,
   verifyConsentEvidence,

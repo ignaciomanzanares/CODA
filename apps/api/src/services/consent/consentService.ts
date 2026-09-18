@@ -22,6 +22,7 @@ import {
   parseAuthorizationDetails,
 } from "./rar.js";
 import { sealConsentEvidence, verifyConsentEvidence } from "./consentEvidence.js";
+import { canSelfAuthorize } from "./selfAuthorization.js";
 
 const VALID_STATUSES: ConsentGrantStatus[] = [
   "pending",
@@ -65,6 +66,37 @@ export class ConsentService {
       .returning();
 
     return mapToPanel(row as Record<string, unknown>);
+  }
+
+  /**
+   * El TITULAR autoriza su propio consentimiento (fuentes oficiales: CMF/SII/AFC). Sella la
+   * evidencia igual que el webhook del banco. Lo bancario NO se puede autorizar por esta vía.
+   *
+   * Idempotente: autorizar dos veces devuelve el mismo grant con su sello original.
+   */
+  async authorizeOwn(
+    grantId: number,
+    userId: string,
+  ): Promise<
+    | { ok: true; grant: ConsentGrantForPanel }
+    | { ok: false; code: "not_found" | "bank_authorizes" | "invalid_state"; status?: string }
+  > {
+    const existing = await this.getById(grantId, userId);
+    if (!existing) return { ok: false, code: "not_found" };
+
+    const check = canSelfAuthorize(existing.scope);
+    if (!check.ok) return { ok: false, code: "bank_authorizes" };
+
+    if (existing.status === "authorized") return { ok: true, grant: existing };
+    // Revocado/rechazado/expirado no se "reviven": el usuario otorga uno nuevo, y así la
+    // evidencia sellada sigue contando una historia sin saltos.
+    if (existing.status !== "pending") {
+      return { ok: false, code: "invalid_state", status: existing.status };
+    }
+
+    const grant = await this.updateStatus(grantId, "authorized", { userId });
+    if (!grant) return { ok: false, code: "not_found" };
+    return { ok: true, grant };
   }
 
   /** Obtiene un consentimiento por id; verifica que pertenezca al userId si se indica. */

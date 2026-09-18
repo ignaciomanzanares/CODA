@@ -156,6 +156,8 @@ export type ApiClient = {
   deleteNotification: (notificationId: number) => Promise<import("@/types").ApiResponse>;
   getUnreadNotificationCount: () => Promise<number>;
   getConsents: () => Promise<import("@/types").ConsentGrant[]>;
+  createConsent: (resourceTypes: string[]) => Promise<import("@/types").ConsentGrant>;
+  authorizeConsent: (grantId: number) => Promise<import("@/types").ConsentGrant>;
   revokeConsent: (grantId: number) => Promise<import("@/types").ConsentGrant>;
   verifyConsent: (grantId: number) => Promise<{ sealed: boolean; valid: boolean }>;
   getPrivacyConsents: () => Promise<import("@/types").PrivacyConsentPanelResponse>;
@@ -654,6 +656,22 @@ export function useApi(): ApiClient {
     return await apiRequest<import("@/types").ConsentGrant[]>("GET", "/api/consent");
   };
 
+  /** Pide el consentimiento (queda pendiente) — para fuentes oficiales lo autoriza el titular. */
+  const createConsent = async (
+    resourceTypes: string[],
+  ): Promise<import("@/types").ConsentGrant> => {
+    return await apiRequest<import("@/types").ConsentGrant>("POST", "/api/consent", {
+      resourceTypes,
+    });
+  };
+
+  const authorizeConsent = async (grantId: number): Promise<import("@/types").ConsentGrant> => {
+    return await apiRequest<import("@/types").ConsentGrant>(
+      "POST",
+      `/api/consent/${grantId}/authorize`,
+    );
+  };
+
   const revokeConsent = async (grantId: number): Promise<import("@/types").ConsentGrant> => {
     return await apiRequest<import("@/types").ConsentGrant>(
       "POST",
@@ -838,6 +856,8 @@ export function useApi(): ApiClient {
     deleteNotification,
     getUnreadNotificationCount,
     getConsents,
+    createConsent,
+    authorizeConsent,
     revokeConsent,
     verifyConsent,
     getPrivacyConsents,

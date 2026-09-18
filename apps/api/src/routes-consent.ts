@@ -145,6 +145,45 @@ export function registerConsentRoutes(app: Express): void {
     },
   );
 
+  /**
+   * El titular autoriza su propio consentimiento para fuentes oficiales (CMF/SII/AFC). Sin esto,
+   * esos grants quedaban `pending` para siempre: no hay banco que mande el webhook.
+   */
+  router.post(
+    "/:id/authorize",
+    authenticate,
+    validateParams(idParamSchema),
+    async (req: Request, res: Response) => {
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user?.userId ?? "";
+      const grantId = parseInt((req.params as { id: string }).id, 10);
+      if (Number.isNaN(grantId)) {
+        return res.status(400).json({ message: "Invalid grant id" });
+      }
+      try {
+        const result = await consentService.authorizeOwn(grantId, userId);
+        if (result.ok) return res.json(result.grant);
+        if (result.code === "not_found") {
+          return res.status(404).json({ message: "Consent grant not found" });
+        }
+        if (result.code === "bank_authorizes") {
+          return res.status(403).json({
+            message:
+              "Este consentimiento lo autoriza la institución financiera, no se puede autorizar desde aquí.",
+            code: result.code,
+          });
+        }
+        return res.status(409).json({
+          message: `No se puede autorizar un consentimiento ${result.status}. Otorga uno nuevo.`,
+          code: result.code,
+        });
+      } catch (e) {
+        logger.error({ err: e }, "Authorize own consent failed");
+        return res.status(500).json({ message: "Error authorizing consent" });
+      }
+    },
+  );
+
   /** Revoca un consentimiento (usuario). */
   router.post(
     "/:id/revoke",
