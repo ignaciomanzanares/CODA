@@ -19,8 +19,19 @@ const CLP = new Intl.NumberFormat("es-CL", {
   maximumFractionDigits: 0,
 });
 
-const fmtDate = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString("es-CL", { day: "numeric", month: "short" });
+/**
+ * Fecha con AÑO cuando no es el del último movimiento del usuario. La tarjeta mezcla períodos
+ * —un pago de abril del año pasado junto a uno de mayo de este— y "15 abr" a secas hacía parecer
+ * que todo era reciente, justo en la pantalla donde la persona decide si algo fue puntual.
+ */
+const fmtDate = (iso: string, anioReferencia: number) => {
+  const d = new Date(`${iso}T00:00:00`);
+  return d.toLocaleDateString("es-CL", {
+    day: "numeric",
+    month: "short",
+    ...(d.getFullYear() === anioReferencia ? {} : { year: "numeric" }),
+  });
+};
 
 interface Candidate {
   id: string;
@@ -64,7 +75,7 @@ function useDecide() {
   });
 }
 
-function CandidateRow({ c }: { c: Candidate }) {
+function CandidateRow({ c, anioReferencia }: { c: Candidate; anioReferencia: number }) {
   const decide = useDecide();
   const esIngreso = c.tipo === "ingreso";
 
@@ -73,7 +84,7 @@ function CandidateRow({ c }: { c: Candidate }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">{c.description}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          {fmtDate(c.postedAt)} · {esIngreso ? "Ingreso" : "Gasto"} de{" "}
+          {fmtDate(c.postedAt, anioReferencia)} · {esIngreso ? "Ingreso" : "Gasto"} de{" "}
           <span className="font-semibold text-foreground tabular-nums">
             {CLP.format(c.amountClp)}
           </span>
@@ -146,6 +157,12 @@ export default function ExtraordinaryEventsCard() {
   const { candidates, marked } = data;
   if (candidates.length === 0 && marked.length === 0) return null;
 
+  // Año del movimiento más reciente: las fechas de otros años se muestran con año.
+  const anioReferencia = [...candidates, ...marked].reduce(
+    (max, m) => Math.max(max, Number(m.postedAt.slice(0, 4))),
+    0,
+  );
+
   return (
     <Card className="border-amber-200 bg-amber-50/40 dark:border-amber-500/20 dark:bg-amber-500/5">
       <CardContent className="p-5">
@@ -168,7 +185,7 @@ export default function ExtraordinaryEventsCard() {
                 </p>
                 <div className="mt-2 divide-y divide-border/60">
                   {candidates.map((c) => (
-                    <CandidateRow key={c.id} c={c} />
+                    <CandidateRow key={c.id} c={c} anioReferencia={anioReferencia} />
                   ))}
                 </div>
               </>
