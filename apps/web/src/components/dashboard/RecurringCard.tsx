@@ -133,8 +133,11 @@ export default function RecurringCard() {
 
             {detenidos.length > 0 && (
               <div className="mt-3 border-t border-border/60 pt-2">
+                {/* "Ya no se cobran" afirmaría que la suscripción terminó, y lo único que
+                    sabemos es que no hubo cobro en la ventana activa respecto del último
+                    movimiento que tenemos: una cartola atrasada se ve idéntica a una baja. */}
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Ya no se están cobrando
+                  Sin cobro reciente
                 </p>
                 <div className="mt-1 divide-y divide-border/60">
                   {detenidos.slice(0, MAX_FILAS).map((c) => (
