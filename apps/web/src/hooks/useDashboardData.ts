@@ -279,6 +279,27 @@ function pickInsight(insights: DashboardInsight[]): DashboardInsight | null {
   return topGroup[new Date().getHours() % topGroup.length];
 }
 
+/**
+ * Qué mostrar en el panel. Existe como función aparte porque acá vivía un bug de los que
+ * engañan: un fallo de la API se leía como "este usuario no tiene documentos" y el panel
+ * ofrecía "Sube tu primer documento" a alguien que sí los tenía (visto en vivo mientras Render
+ * redesplegaba). "Vacío" y "no pudimos cargar" son estados DISTINTOS y el orden importa: el
+ * error se decide antes de mirar cuántos documentos hay, porque con la API caída ese conteo
+ * es cero por falta de respuesta, no por falta de datos.
+ */
+export type DashboardState = "loading" | "error" | "empty" | "ready";
+
+export function resolveDashboardState(input: {
+  enabled: boolean;
+  isLoading: boolean;
+  error: unknown;
+  docCount: number;
+}): DashboardState {
+  if (!input.enabled || input.isLoading) return "loading";
+  if (input.error) return "error";
+  return input.docCount > 0 ? "ready" : "empty";
+}
+
 // ── Main Hook ───────────────────────────────────────────────────────────────
 
 export function useDashboardData(
@@ -349,14 +370,20 @@ export function useDashboardData(
   const error = parsedTx.error || summary.error || score.error;
 
   // ── Build empty state ──────────────────────────────────────────────────
-  if (isLoading || !enabled) {
+  const docCount = summary.data?.summary?.documentCount ?? 0;
+  const state = resolveDashboardState({ enabled, isLoading, error, docCount });
+
+  if (state === "loading") {
     return { data: null, isLoading: true, error: null, totalMonths: 0 };
   }
 
-  const docCount = summary.data?.summary?.documentCount ?? 0;
-  const hasData = docCount > 0;
+  // El error se DEVUELVE (antes se calculaba y se descartaba): la página muestra "no pudimos
+  // cargar" con reintento en vez del estado vacío.
+  if (state === "error") {
+    return { data: null, isLoading: false, error, totalMonths: 0 };
+  }
 
-  if (!hasData) {
+  if (state === "empty") {
     return {
       data: {
         hasData: false,

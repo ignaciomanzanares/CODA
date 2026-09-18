@@ -36,7 +36,14 @@ import OnboardingChecklist from "@/components/OnboardingChecklist";
 import SignInBanner from "@/components/SignInBanner";
 
 // Icons
-import { RefreshCw, FileText, Upload, RotateCcw, MoreHorizontal } from "lucide-react";
+import {
+  RefreshCw,
+  FileText,
+  Upload,
+  RotateCcw,
+  MoreHorizontal,
+  AlertTriangle,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
 import { apiFetch } from "@/lib/apiFetch";
@@ -53,7 +60,7 @@ export default function Dashboard() {
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const { setOpen: openUploadDrawer } = useUploadDrawer();
   const { toast } = useToast();
-  const { data, isLoading } = useDashboardData(period, monthOffset);
+  const { data, isLoading, error: dashboardError } = useDashboardData(period, monthOffset);
   // Para fusionar las dos cards "Pendiente" (CMF + salud) en una sola de acción.
   // React Query dedupe: HealthSummaryCard usa el mismo hook sin costo extra.
   const health = useHealthEvaluation();
@@ -219,6 +226,31 @@ export default function Dashboard() {
           {/* ONBOARDING CHECKLIST — shown while setup is incomplete     */}
           {/* ═══════════════════════════════════════════════════════════ */}
           {isAuthenticated && <OnboardingChecklist />}
+
+          {/* ═══════════════════════════════════════════════════════════ */}
+          {/* ERROR STATE — la API no respondió                          */}
+          {/* No mostrar acá el estado vacío: decirle "sube tu primer    */}
+          {/* documento" a alguien que sí los tiene (porque la API está  */}
+          {/* caída) es peor que no mostrar nada.                        */}
+          {/* ═══════════════════════════════════════════════════════════ */}
+          {isAuthenticated && dashboardError && (
+            <div className="rounded-2xl border-2 border-dashed border-red-200 bg-card p-10 text-center space-y-5 dark:border-red-500/20">
+              <PastelIcon icon={AlertTriangle} color="red" size="lg" className="mx-auto" />
+              <div>
+                <h3 className="font-bold text-xl mb-2 text-foreground">
+                  No pudimos cargar tu panel
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                  No es que no tengas datos: no logramos comunicarnos con el servidor. Tus
+                  documentos y movimientos están donde los dejaste.
+                </p>
+              </div>
+              <Button onClick={refreshAllData} disabled={isRefreshing} className="gap-2">
+                <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+                Reintentar
+              </Button>
+            </div>
+          )}
 
           {/* ═══════════════════════════════════════════════════════════ */}
           {/* EMPTY STATE — no documents uploaded                        */}
