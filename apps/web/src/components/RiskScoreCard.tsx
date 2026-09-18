@@ -160,9 +160,9 @@ export default function RiskScoreCard() {
 
   if (isLoading) return <Skeleton className="h-56 w-full rounded-2xl" />;
 
-  // NUNCA fallar en silencio: si el endpoint no responde (p. ej. RISK_DUAL_SCORE_ENABLED
-  // apagado en la API → 404), antes retornábamos null y la tarjeta desaparecía sin rastro,
-  // indistinguible de "el flag del front está apagado". Eso costó una sesión de debug.
+  // NUNCA fallar en silencio: si el endpoint no responde, antes retornábamos null y la tarjeta
+  // desaparecía sin rastro, indistinguible de "el flag del front está apagado". Eso costó una
+  // sesión de debug entera cuando la API gateaba el endpoint con una variable de entorno.
   if (isError || !data) {
     return (
       <Card>

@@ -14,7 +14,7 @@ CODA sirve **dos evaluadores que conviven** sobre un feature store unificado (`s
 (GiveMeSomeCredit y Berka son de otras poblaciones/épocas). Sirven como MVP y para comparar
 metodologías, pero **no deben publicarse como verdad absoluta** — por eso el transaccional va
 etiquetado **"Beta"** en la UI y el endpoint `/api/risk/evaluation` está detrás del flag
-`RISK_DUAL_SCORE_ENABLED` (habilitado en dev; en prod requiere set explícito) + `FEATURES.riskDualScore`
+`FEATURES.riskDualScore` (flag del front, versionado en `apps/web/.env.production`)
 en el front.
 
 **El "control" es METODOLÓGICO, no estadístico.** El tradicional es un control del experimental solo

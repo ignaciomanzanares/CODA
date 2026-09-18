@@ -27,9 +27,9 @@ export const FEATURES = {
    * Encendido (VITE_ENABLE_RISK_DUAL_SCORE=true), la tarjeta consume /api/risk/evaluation y muestra
    * titular + segunda opinión según segmento. Beta hasta calibrar con outcomes locales (Fase G).
    *
-   * Flag de DOS LADOS: la API gatea el mismo endpoint con RISK_DUAL_SCORE_ENABLED (404 en
-   * producción si está apagado). Encender solo este monta la tarjeta pero no hay datos que
-   * mostrar — hay que encender ambos.
+   * Ya NO es un flag de dos lados: la API dejó de gatear el endpoint (la variable vivía sólo en
+   * el panel de Render y se perdía al recrear el servicio). Este flag es ahora el único
+   * interruptor, y vive versionado en .env.production.
    */
   riskDualScore: import.meta.env.VITE_ENABLE_RISK_DUAL_SCORE === "true",
 } as const;
