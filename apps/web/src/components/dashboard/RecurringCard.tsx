@@ -64,7 +64,6 @@ function Fila({ item }: { item: RecurringItem }) {
         <p className="mt-0.5 text-xs text-muted-foreground">
           {fmtDia(item.typicalDay)} · {item.occurrences} meses
           {item.fixedAmount ? " · monto fijo" : ""}
-          {item.active ? "" : " · sin cobro reciente"}
         </p>
       </div>
       <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
@@ -94,6 +93,9 @@ export default function RecurringCard() {
   if (cobros.length === 0 && ingresos.length === 0 && dups.length === 0) return null;
 
   const activos = cobros.filter((c) => c.active);
+  // Los que dejaron de cobrarse van aparte: la frase de arriba cuenta sólo los activos, y
+  // mezclarlos hacía que dijera "3 cobros" sobre una lista de 5.
+  const detenidos = cobros.filter((c) => !c.active);
 
   return (
     <Card>
@@ -116,16 +118,29 @@ export default function RecurringCard() {
               </p>
             )}
 
-            {cobros.length > 0 && (
+            {activos.length > 0 && (
               <div className="mt-2 divide-y divide-border/60">
-                {cobros.slice(0, MAX_FILAS).map((c) => (
+                {activos.slice(0, MAX_FILAS).map((c) => (
                   <Fila key={`${c.label}-${c.typicalDay}`} item={c} />
                 ))}
-                {cobros.length > MAX_FILAS && (
+                {activos.length > MAX_FILAS && (
                   <p className="pt-2 text-xs text-muted-foreground">
-                    y {cobros.length - MAX_FILAS} más
+                    y {activos.length - MAX_FILAS} más
                   </p>
                 )}
+              </div>
+            )}
+
+            {detenidos.length > 0 && (
+              <div className="mt-3 border-t border-border/60 pt-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Ya no se están cobrando
+                </p>
+                <div className="mt-1 divide-y divide-border/60">
+                  {detenidos.slice(0, MAX_FILAS).map((c) => (
+                    <Fila key={`${c.label}-${c.typicalDay}`} item={c} />
+                  ))}
+                </div>
               </div>
             )}
 
@@ -154,8 +169,10 @@ export default function RecurringCard() {
                   {dups.slice(0, MAX_FILAS).map((d, i) => (
                     <p key={i} className="text-xs text-muted-foreground">
                       <span className="font-medium text-foreground">{d.label}</span> ·{" "}
-                      <span className="tabular-nums">{CLP.format(d.amountClp)}</span> el{" "}
-                      {fmtFecha(d.first.postedAt)} y el {fmtFecha(d.second.postedAt)}
+                      <span className="tabular-nums">{CLP.format(d.amountClp)}</span>{" "}
+                      {d.first.postedAt === d.second.postedAt
+                        ? `dos veces el ${fmtFecha(d.first.postedAt)}`
+                        : `el ${fmtFecha(d.first.postedAt)} y el ${fmtFecha(d.second.postedAt)}`}
                     </p>
                   ))}
                 </div>

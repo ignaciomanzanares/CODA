@@ -395,7 +395,9 @@ export function detectRecurringSeries(
   const byAmount = (a: RecurringItem, b: RecurringItem) => b.typicalAmountClp - a.typicalAmountClp;
 
   /** Criterios con la clave unificada: un comercio que cambió de glosa sigue siendo uno solo. */
-  const conGlosasUnidas = (c: MonthlySeriesCriteria): MonthlySeriesCriteria => {
+  const conGlosasUnidas = (
+    c: MonthlySeriesCriteria,
+  ): { criterios: MonthlySeriesCriteria; canonica: Map<string, string> } => {
     const porClave = new Map<string, { montos: number[]; veces: number }>();
     for (const t of txs) {
       if (!t.description) continue;
@@ -409,18 +411,41 @@ export function detectRecurringSeries(
     }
     const canonica = unificarGlosasDelMismoComercio(porClave);
     return {
-      ...c,
-      keyOf: (d) => {
-        const k = c.keyOf(d);
-        return canonica.get(k) ?? k;
+      criterios: {
+        ...c,
+        keyOf: (d) => {
+          const k = c.keyOf(d);
+          return canonica.get(k) ?? k;
+        },
       },
+      canonica,
     };
   };
 
-  const charges = findMonthlySeries(txs, conGlosasUnidas(CHARGE_CRITERIA))
+  /**
+   * Unir glosas NUNCA puede costar una serie. Al juntar dos nombres del mismo comercio, el mes
+   * de transición queda con cargos de ambas glosas y la serie unida puede pasarse del máximo de
+   * cargos por mes — criterio pensado para descartar consumo variable— y quedar descartada
+   * entera. En producción eso hizo DESAPARECER una suscripción que antes al menos se veía a
+   * medias (PlayStation: se veían 3 meses; tras unir, ninguno).
+   *
+   * Así que si la clave unificada no llega a serie, se conservan las que sí formaban las glosas
+   * por separado. La unión sólo puede AGREGAR.
+   */
+  const seriesConRespaldo = (c: MonthlySeriesCriteria) => {
+    const { criterios, canonica } = conGlosasUnidas(c);
+    const unidas = findMonthlySeries(txs, criterios);
+    const formadas = new Set(unidas.map((s) => s.key));
+    const rescatadas = findMonthlySeries(txs, c).filter(
+      (s) => !formadas.has(canonica.get(s.key) ?? s.key),
+    );
+    return [...unidas, ...rescatadas];
+  };
+
+  const charges = seriesConRespaldo(CHARGE_CRITERIA)
     .map((s) => toItem(s, asOf))
     .sort(byAmount);
-  const income = findMonthlySeries(txs, conGlosasUnidas(INCOME_CRITERIA))
+  const income = seriesConRespaldo(INCOME_CRITERIA)
     .map((s) => toItem(s, asOf))
     .sort(byAmount);
   const activeSum = (items: RecurringItem[]) =>

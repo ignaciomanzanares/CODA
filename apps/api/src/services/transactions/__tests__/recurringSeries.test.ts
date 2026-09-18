@@ -136,6 +136,26 @@ describe("detectRecurringSeries — comercios que cambian de glosa", () => {
     expect(charges[0]!.typicalAmountClp).toBe(21_417);
   });
 
+  it("unir NO puede hacer desaparecer una serie que antes se veía (regresión real)", () => {
+    // Producción, tras activar la unión: "PLAYSTATION" (3 meses) dejó de aparecer. Al unirla con
+    // "PlayStation Network" el mes de transición quedó con cargos de las dos glosas, la serie
+    // unida se pasó del máximo de cargos por mes y quedó descartada ENTERA — peor que el bug
+    // original, porque antes al menos se veían 3 meses.
+    const txs = [
+      ...monthly("PlayStation Network", -8_400, 18, 5, "2026-01"),
+      // El mes de transición trae las dos glosas a la vez.
+      ...monthly("PlayStation Network", -8_400, 19, 3, "2026-03"),
+      ...monthly("PLAYSTATION", -8_558, 18, 3, "2026-03"),
+    ];
+    const charges = detectRecurringSeries(txs).charges;
+
+    expect(charges.length).toBeGreaterThan(0);
+    const playstation = charges.filter((c) => /PLAYSTATION/i.test(c.label));
+    expect(playstation.length).toBeGreaterThan(0);
+    // Y no se cuenta dos veces lo mismo: ninguna serie rescatada duplica a una unida.
+    expect(new Set(charges.map((c) => c.label)).size).toBe(charges.length);
+  });
+
   it("NO une glosas parecidas con montos distintos (caso Amazon real)", () => {
     const txs = [
       ...monthly("Amazon.ca Prime Member", -7_400, 5, 4, "2026-05"),
