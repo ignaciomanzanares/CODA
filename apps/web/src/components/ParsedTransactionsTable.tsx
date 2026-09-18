@@ -21,7 +21,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowUpDown, ArrowUp, ArrowDown, Upload, Download, Trash2, RotateCcw } from "lucide-react";
+import {
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Upload,
+  Download,
+  Trash2,
+  RotateCcw,
+  AlertTriangle,
+  RefreshCw,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -211,7 +221,10 @@ export default function ParsedTransactionsTable({
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useQuery<{ transactions: ParsedTransaction[]; count: number }>({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery<{
+    transactions: ParsedTransaction[];
+    count: number;
+  }>({
     queryKey: ["/api/transactions/parsed"],
     // Sin guard de token/sesión: `enabled: isAuthenticated` ya evita correr la query
     // logueado-fuera. Con auth cookie-only, devolver { transactions: [], count: 0 }
@@ -519,16 +532,43 @@ export default function ParsedTransactionsTable({
     <Card>
       <CardHeader className="pb-2">
         <CardDescription>
-          {allTxs.length > 0
-            ? `${allTxs.length} ${isGastos ? "gastos" : "transacciones"} extraídos · mostrando ${visibleItems.length}`
-            : (subtitle ??
-              (isGastos
-                ? "Sube una cartola para ver tus gastos categorizados"
-                : "Transacciones extraídas de tus cartolas bancarias"))}
+          {isError
+            ? "No pudimos cargar tus movimientos"
+            : allTxs.length > 0
+              ? `${allTxs.length} ${isGastos ? "gastos" : "transacciones"} extraídos · mostrando ${visibleItems.length}`
+              : (subtitle ??
+                (isGastos
+                  ? "Sube una cartola para ver tus gastos categorizados"
+                  : "Transacciones extraídas de tus cartolas bancarias"))}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {allTxs.length === 0 ? (
+        {isError ? (
+          /* Un fallo de carga NO es "no tienes movimientos": invitar a subir una cartola a quien
+             ya subió doce es el mismo engaño que arreglamos en el panel. Este archivo ya había
+             caído en una versión de esto (ver el comentario de la query). */
+          <div className="text-center py-16 space-y-4 border-2 border-dashed border-red-200 dark:border-red-500/20 rounded-lg">
+            <div className="p-4 rounded-full bg-red-500/10 mx-auto w-fit">
+              <AlertTriangle className="h-8 w-8 text-red-500 dark:text-red-400" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-medium text-lg">No pudimos cargar tus movimientos</p>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                No es que no tengas: no logramos comunicarnos con el servidor. Tus cartolas siguen
+                cargadas donde las dejaste.
+              </p>
+            </div>
+            <Button
+              size="lg"
+              onClick={() => void refetch()}
+              disabled={isFetching}
+              className="gap-2"
+            >
+              <RefreshCw className={cn("h-5 w-5", isFetching && "animate-spin")} />
+              Reintentar
+            </Button>
+          </div>
+        ) : allTxs.length === 0 ? (
           <div className="text-center py-16 space-y-4 border-2 border-dashed border-muted rounded-lg">
             <div className="p-4 rounded-full bg-primary/10 mx-auto w-fit">
               <Upload className="h-8 w-8 text-primary" />
