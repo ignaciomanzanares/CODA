@@ -14,12 +14,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, ShieldOff, AlertTriangle, Loader2, History } from "lucide-react";
 
-interface SourceAccessEntry {
+export interface SourceAccessEntry {
   accessId: string;
   resourceType: string;
   connectorId: string | null;
   trigger: string | null;
   institution: string | null;
+  /** Presente cuando la consulta pasó por la cola de conectores. */
+  jobId: string | null;
   outcome: "started" | "succeeded" | "failed" | "denied";
   consentGrantId: number | null;
   startedAt: string | null;

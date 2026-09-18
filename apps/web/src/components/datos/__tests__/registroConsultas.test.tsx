@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderToString } from "react-dom/server";
-import { RegistroConsultasView } from "../RegistroConsultas";
+import { RegistroConsultasView, type SourceAccessEntry } from "../RegistroConsultas";
 
 /**
  * Smoke de render con la forma REAL que devuelve `GET /api/data-sources/access-log` (copiada de
@@ -8,7 +8,7 @@ import { RegistroConsultasView } from "../RegistroConsultas";
  * para lo que importa acá — que la traza se lea como algo que una persona entiende y que un
  * intento bloqueado NO se muestre como consulta hecha.
  */
-const ENTRADAS = {
+const ENTRADAS: { entries: SourceAccessEntry[] } = {
   entries: [
     {
       accessId: "73a96232-00a8-48a0-a354-14beb3f2cab8",
@@ -55,7 +55,7 @@ const ENTRADAS = {
   ],
 };
 
-function render(datos: { entries: typeof ENTRADAS.entries }, isError = false): string {
+function render(datos: { entries: SourceAccessEntry[] }, isError = false): string {
   const html = renderToString(<RegistroConsultasView entries={datos.entries} isError={isError} />);
   return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 }
