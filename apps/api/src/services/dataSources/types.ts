@@ -4,12 +4,13 @@
  * (consistente con "el usuario nunca entrega credenciales" del deck).
  */
 
-export type GovSource = "afp" | "sii" | "tgr";
+export type GovSource = "afp" | "sii" | "tgr" | "afc";
 
 export const GOV_SOURCE_LABELS: Record<GovSource, string> = {
   afp: "AFP — Certificado de cotizaciones",
   sii: "SII — Carpeta tributaria / renta",
   tgr: "Tesorería — Certificado de deuda fiscal",
+  afc: "AFC — Cotizaciones y vínculo laboral (seguro de cesantía)",
 };
 
 /** Resultado normalizado del parseo de un documento de fuente gov. Never-throw: si no se pudo

@@ -14,7 +14,7 @@ import { logger } from "./logger.js";
 import type { GovSource } from "./services/dataSources/types.js";
 import { SII_CARPETA_CONNECTOR_ID } from "./connectors/sources/index.js";
 
-const VALID_SOURCES: GovSource[] = ["afp", "sii", "tgr"];
+const VALID_SOURCES: GovSource[] = ["afp", "sii", "tgr", "afc"];
 
 /**
  * Código + clave de una Carpeta Tributaria (D5). La vigencia la fija el SII al generarla (90 días
@@ -36,7 +36,7 @@ export function registerDataSourceRoutes(app: Express) {
     async (req: Request, res: Response) => {
       const source = req.params.source as GovSource;
       if (!VALID_SOURCES.includes(source)) {
-        return res.status(400).json({ message: "Fuente inválida. Usa afp, sii o tgr." });
+        return res.status(400).json({ message: "Fuente inválida. Usa afp, sii, tgr o afc." });
       }
 
       const { documentUpload } = await import("./middleware/uploadMiddleware.js");

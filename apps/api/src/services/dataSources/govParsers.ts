@@ -8,6 +8,7 @@
  * muestras (p. ej. otras AFP, carpetas con renta de sueldos código 1098).
  */
 import type { GovParseResult, GovSource } from "./types.js";
+import { parseAfcCertificado } from "./afcParsers.js";
 
 /** Rango razonable de una renta mensual en CLP, para filtrar montos espurios del PDF. */
 const MIN_RENTA_MENSUAL = 100_000;
@@ -91,6 +92,14 @@ export function detectGovSource(text: string): GovSource | null {
     afp:
       2 * count(/certificado\s+cotizaciones|cuenta obligatoria|a\.?f\.?p\.?\s/g) +
       count(/cotizaci[oó]n normal|renta imponible|remuneraci[oó]n imponible/g),
+    // La AFC comparte vocabulario con la AFP ("cotizaciones", "renta imponible"), así que sus
+    // marcadores propios pesan más para que no se la lleve la AFP.
+    afc:
+      3 *
+        count(
+          /afc\s*chile|cuenta individual por cesant[íi]a|afiliado registrado en afc|seguro de cesant[íi]a/g,
+        ) +
+      count(/cotizaciones pagadas|tipo de contrato|fecha inicio contrato/g),
     tgr:
       2 *
         count(
@@ -101,7 +110,7 @@ export function detectGovSource(text: string): GovSource | null {
 
   let best: GovSource | null = null;
   let bestScore = 0;
-  for (const src of ["sii", "afp", "tgr"] as const) {
+  for (const src of ["sii", "afp", "tgr", "afc"] as const) {
     if (score[src] > bestScore) {
       bestScore = score[src];
       best = src;
@@ -307,6 +316,8 @@ export function parseGovDocument(source: GovSource, text: string): GovParseResul
       return parseAfp(text);
     case "sii":
       return parseSii(text);
+    case "afc":
+      return parseAfcCertificado(text);
     case "tgr":
       return parseTgr(text);
   }

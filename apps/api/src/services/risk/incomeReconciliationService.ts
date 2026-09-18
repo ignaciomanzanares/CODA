@@ -43,7 +43,7 @@ export async function getIncomeReconciliationForUser(userId: string): Promise<Re
   const govs = await getGovSources(userId);
   for (const g of govs) {
     if (
-      (g.source === "sii" || g.source === "afp") &&
+      (g.source === "sii" || g.source === "afp" || g.source === "afc") &&
       g.verifiedMonthlyIncomeClp &&
       g.verifiedMonthlyIncomeClp > 0
     ) {

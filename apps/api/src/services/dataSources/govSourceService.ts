@@ -3,30 +3,55 @@
  * (upsert) y expone los ajustes que alimentan los ratios de salud financiera.
  */
 import { randomUUID } from "crypto";
-import { db, userFinancialSources, eq } from "../../db/index.js";
+import { db, userFinancialSources, eq, and } from "../../db/index.js";
 import type { GovParseResult } from "./types.js";
 
 export async function saveGovSourceData(userId: string, r: GovParseResult): Promise<void> {
   const now = new Date().toISOString();
+
+  // Fusión, no reemplazo: una misma fuente puede llegar en VARIOS documentos complementarios.
+  // La AFC son dos (cotizaciones trae la renta; antecedentes trae empleadores y contratos), y
+  // con reemplazo el segundo borraba lo del primero. Un campo nulo no pisa un valor ya guardado,
+  // y `rawData` se mezcla por clave.
+  const [previo] = await db
+    .select()
+    .from(userFinancialSources)
+    .where(and(eq(userFinancialSources.userId, userId), eq(userFinancialSources.source, r.source)));
+
+  const mantener = <T>(nuevo: T | null | undefined, anterior: T | null | undefined) =>
+    nuevo ?? anterior ?? null;
+  const rawPrevio = (() => {
+    try {
+      return previo?.rawData
+        ? (JSON.parse(previo.rawData as string) as Record<string, unknown>)
+        : {};
+    } catch {
+      return {};
+    }
+  })();
+  const rawFusionado = { ...rawPrevio, ...(r.raw ?? {}) };
+  const verified = mantener(r.verifiedMonthlyIncomeClp, previo?.verifiedMonthlyIncomeClp);
+  const fiscal = mantener(r.fiscalDebtClp, previo?.fiscalDebtClp);
+  const meses = mantener(r.contributionMonths, previo?.contributionMonths);
   await db
     .insert(userFinancialSources)
     .values({
       id: randomUUID(),
       userId,
       source: r.source,
-      verifiedMonthlyIncomeClp: r.verifiedMonthlyIncomeClp ?? null,
-      fiscalDebtClp: r.fiscalDebtClp ?? null,
-      contributionMonths: r.contributionMonths ?? null,
-      rawData: JSON.stringify(r.raw ?? {}),
+      verifiedMonthlyIncomeClp: verified,
+      fiscalDebtClp: fiscal,
+      contributionMonths: meses,
+      rawData: JSON.stringify(rawFusionado),
       extractedAt: now,
     })
     .onConflictDoUpdate({
       target: [userFinancialSources.userId, userFinancialSources.source],
       set: {
-        verifiedMonthlyIncomeClp: r.verifiedMonthlyIncomeClp ?? null,
-        fiscalDebtClp: r.fiscalDebtClp ?? null,
-        contributionMonths: r.contributionMonths ?? null,
-        rawData: JSON.stringify(r.raw ?? {}),
+        verifiedMonthlyIncomeClp: verified,
+        fiscalDebtClp: fiscal,
+        contributionMonths: meses,
+        rawData: JSON.stringify(rawFusionado),
         extractedAt: now,
       },
     });

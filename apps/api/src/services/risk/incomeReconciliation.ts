@@ -12,7 +12,7 @@
  * viven en `RECONCILIATION_CONFIG` con su racional.
  */
 
-export type IncomeSourceId = "sii" | "afp" | "cartola" | "cmf_proxy";
+export type IncomeSourceId = "sii" | "afp" | "afc" | "cartola" | "cmf_proxy";
 
 export interface IncomeSignal {
   source: IncomeSourceId;
@@ -59,6 +59,7 @@ export const RECONCILIATION_CONFIG = {
   baseConfidence: {
     sii: 0.9, // renta declarada al SII: formal y verificable [criterio propio]
     afp: 0.85, // renta imponible: formal pero topada al imponible; omite lo no imponible
+    afc: 0.85, // renta imponible del seguro de cesantía: mismo carácter que AFP, mes a mes
     cartola: 0.7, // flujo observado: captura informalidad pero es ruidoso (incluye transferencias)
     cmf_proxy: 0.3, // deuda/12: no es ingreso real, último recurso
   } as Record<IncomeSourceId, number>,
@@ -111,15 +112,18 @@ function detectDiscrepancies(
   const sii = by("sii");
   const afp = by("afp");
   const cartola = by("cartola");
-  const declared = sii ?? afp; // el declarado formal más fuerte disponible
+  const afc = by("afc");
+  const declared = sii ?? afp ?? afc; // el declarado formal más fuerte disponible
 
-  // Informalidad: la cartola ve bastante más de lo declarado.
-  if (cartola && sii && cartola.monthlyClp > sii.monthlyClp * cfg.informalRatio) {
+  // Informalidad: la cartola ve bastante más de lo formal. Vale contra CUALQUIER fuente formal,
+  // no sólo el SII: quien no declara renta pero cotiza tiene su renta formal en AFP/AFC, y con
+  // la regla atada al SII ese caso —el más común en Chile— nunca se detectaba.
+  if (cartola && declared && cartola.monthlyClp > declared.monthlyClp * cfg.informalRatio) {
     out.push({
       kind: "informal_income",
-      sources: ["cartola", "sii"],
+      sources: ["cartola", declared.source],
       severity: "warn",
-      detail: `La cartola observa ${Math.round((cartola.monthlyClp / sii.monthlyClp - 1) * 100)}% más ingreso que lo declarado al SII — posible ingreso informal/no declarado.`,
+      detail: `La cartola observa ${Math.round((cartola.monthlyClp / declared.monthlyClp - 1) * 100)}% más ingreso que lo formalizado (${declared.source.toUpperCase()}) — posible ingreso informal/no declarado.`,
     });
   }
 
