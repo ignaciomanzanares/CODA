@@ -246,6 +246,23 @@ export async function registerAccountsTransactionsRoutes(app: Express): Promise<
     }
   });
 
+  /**
+   * B2 — Qué bancos se pueden vincular hoy, y con qué estado.
+   *
+   * Va registrado ANTES de "/:id" porque "instituciones" no es un id numérico (misma trampa
+   * que ya mordió con "/api/consent/export"). Es sólo lectura y no expone nada del titular:
+   * describe el catálogo, no sus cuentas.
+   */
+  app.get("/api/bank-connections/instituciones", authenticate, async (_req, res) => {
+    try {
+      const { listarBancosSoportados } = await import("./connectors/scraper/adapters/index.js");
+      res.json({ instituciones: listarBancosSoportados() });
+    } catch (e) {
+      logger.error({ err: e }, "Error listando instituciones del scraper");
+      res.status(500).json({ message: "No se pudo obtener la lista de bancos." });
+    }
+  });
+
   app.post(
     "/api/bank-connections",
     authenticate,
