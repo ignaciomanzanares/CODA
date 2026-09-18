@@ -19,6 +19,7 @@ import {
   ListChecks,
 } from "lucide-react";
 import type { DashboardData } from "@/types/dashboard";
+import { categoryChange } from "./DashboardTextInsights";
 
 const fmtCLP = (n: number) =>
   new Intl.NumberFormat("es-CL", {
@@ -268,12 +269,15 @@ function generateRecommendations(data: DashboardData): ActionRecommendation[] {
     ocio.baselineTotal > ocioPrev * 1.5 &&
     ocio.baselineTotal > 50000
   ) {
-    const delta = Math.round(((ocio.baselineTotal - ocioPrev) / ocioPrev) * 100);
+    // Mismo criterio que el resto del panel: el porcentaje sólo va al titular cuando
+    // informa. Con una base ínfima el mes pasado, "Ocio subió 3.900%" es cierto e inútil;
+    // categoryChange() cae a pesos en ese caso.
+    const cambio = categoryChange(ocio.baselineTotal, ocioPrev);
     recs.push({
       id: "leisure-spike",
       icon: Banknote,
       color: "orange",
-      title: `Ocio subió ${delta}% vs mes anterior`,
+      title: `Ocio ${cambio ? cambio.phrase : "subió"} vs mes anterior`,
       body: `Gastaste ${fmtCLP(ocio.baselineTotal)} en entretenimiento. Redirigir parte a ahorro podría mejorar tu score.`,
       cta: "Ver detalle",
       href: "/movimientos?categoria=entretenimiento",
