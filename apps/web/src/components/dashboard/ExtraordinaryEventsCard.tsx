@@ -180,7 +180,7 @@ export default function ExtraordinaryEventsCard() {
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                   Si fueron eventos únicos —un matrimonio, un auto, un pie— dejan de contar como tu
-                  ritmo mensual: tu tasa de ahorro y tu nivel de salud pasan a reflejar cómo vivís
+                  ritmo mensual: tu tasa de ahorro y tu nivel de salud pasan a reflejar cómo vives
                   normalmente. La plata sigue contando en tu saldo y en tus movimientos.
                 </p>
                 <div className="mt-2 divide-y divide-border/60">

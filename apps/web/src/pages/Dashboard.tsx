@@ -17,6 +17,7 @@ import SavingsProgress from "@/components/dashboard/SavingsProgress";
 import CreditScoreCard from "@/components/dashboard/CreditScoreCard";
 import HealthSummaryCard from "@/components/dashboard/HealthSummaryCard";
 import ExtraordinaryEventsCard from "@/components/dashboard/ExtraordinaryEventsCard";
+import RecurringCard from "@/components/dashboard/RecurringCard";
 import PlanSummaryCard from "@/components/dashboard/PlanSummaryCard";
 import RiskScoreCard from "@/components/RiskScoreCard";
 import ScoresPendingCard from "@/components/dashboard/ScoresPendingCard";
@@ -319,6 +320,11 @@ export default function Dashboard() {
 
                 {/* Plan financiero — resumen 50/30/20 + metas */}
                 <PlanSummaryCard />
+
+                {/* Lo que se repite todos los meses (B6). Va DESPUÉS del plan porque
+                    explica de dónde sale la parte del ingreso que ya está comprometida
+                    antes de decidir nada. Se oculta sola si no hay series ni duplicados. */}
+                <RecurringCard />
 
                 {/* ── ACTION CARDS — Revenue bridge (en desktop van a la sidebar) ── */}
                 <div className="lg:hidden">
