@@ -195,6 +195,118 @@ export function counterpartyKey(description: string): string {
   return normalizeMerchant(counterpartyLabel(description));
 }
 
+// ─── Comercios que cambian de glosa ───────────────────────────────────────────
+
+/**
+ * Palabras que NO identifican a un comercio: aparecen en glosas de cualquiera. Un token de
+ * estos nunca puede ser la razón para fusionar dos series.
+ */
+const TOKENS_GENERICOS = new Set([
+  "TRANSF",
+  "TRANSFERENCIA",
+  "PAGO",
+  "PAGOS",
+  "COMPRA",
+  "SUBSCRIPTION",
+  "SUBSCR",
+  "MEMBER",
+  "PREMIUM",
+  "SERVICIO",
+  "SERVICIOS",
+  "LIMITADA",
+  "SPA",
+  "CHILE",
+  "SANTIAGO",
+  "BANCO",
+  "ESTADO",
+  "SEGURO",
+  "SEGUROS",
+  "CUENTA",
+  "TARJETA",
+  "CREDITO",
+  "DEBITO",
+  "MENSUAL",
+  "ONLINE",
+  "INTERNET",
+]);
+
+/** Diferencia máxima entre montos típicos para aceptar que dos glosas son el mismo cobro. */
+const MAX_DIF_MONTO = 0.15;
+
+const tokensDistintivos = (key: string) =>
+  key
+    .split(/[^A-ZÁÉÍÓÚÑ]+/i)
+    .map((t) => t.toUpperCase())
+    .filter((t) => t.length >= 5 && !TOKENS_GENERICOS.has(t));
+
+/**
+ * Un mismo servicio cambia de glosa con el tiempo y queda partido en varias series:
+ * "PLAYSTATION" y "PlayStation Network", o "ANTHROPIC ANTHROPIC." y
+ * "CLAUDE.AI SUBSCRIPTION ANTHROPIC.". Partido, cada trozo puede no llegar al mínimo de meses
+ * y la suscripción **desaparece**: en datos reales, 8 meses de PlayStation se mostraban como 3,
+ * y Anthropic no aparecía en absoluto.
+ *
+ * Por eso la unión ocurre ANTES de aplicar los criterios, no después.
+ *
+ * Se fusiona sólo con dos condiciones juntas, porque un falso positivo mezcla cobros de
+ * comercios distintos:
+ *  - comparten un token DISTINTIVO (≥5 letras, no genérico) que además es RARO entre las glosas
+ *    de esta persona — si aparece en muchas, no identifica a nadie;
+ *  - sus montos típicos difieren ≤15%.
+ *
+ * Devuelve el mapa clave → clave canónica (la de la glosa más frecuente).
+ */
+export function unificarGlosasDelMismoComercio(
+  porClave: Map<string, { montos: number[]; veces: number }>,
+): Map<string, string> {
+  const claves = [...porClave.keys()];
+  const padre = new Map(claves.map((k) => [k, k]));
+  const raiz = (k: string): string => (padre.get(k) === k ? k : raiz(padre.get(k)!));
+  const unir = (a: string, b: string) => padre.set(raiz(a), raiz(b));
+
+  const mediana = (v: number[]) => {
+    const s = [...v].sort((x, y) => x - y);
+    const m = Math.floor(s.length / 2);
+    return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
+  };
+  const tipico = new Map(claves.map((k) => [k, mediana(porClave.get(k)!.montos)]));
+
+  const porToken = new Map<string, string[]>();
+  for (const k of claves) {
+    for (const t of new Set(tokensDistintivos(k))) {
+      (porToken.get(t) ?? porToken.set(t, []).get(t)!).push(k);
+    }
+  }
+
+  for (const [, grupo] of porToken) {
+    // Un token compartido por muchas glosas no distingue: es ruido, no identidad.
+    if (grupo.length < 2 || grupo.length > 3) continue;
+    for (let i = 0; i < grupo.length; i++) {
+      for (let j = i + 1; j < grupo.length; j++) {
+        const a = tipico.get(grupo[i]!)!;
+        const b = tipico.get(grupo[j]!)!;
+        const mayor = Math.max(a, b);
+        if (mayor > 0 && Math.abs(a - b) / mayor <= MAX_DIF_MONTO) unir(grupo[i]!, grupo[j]!);
+      }
+    }
+  }
+
+  // Canónica del grupo: la glosa con más movimientos (desempata la más larga).
+  const mejorPorRaiz = new Map<string, string>();
+  for (const k of claves) {
+    const r = raiz(k);
+    const actual = mejorPorRaiz.get(r);
+    if (
+      !actual ||
+      porClave.get(k)!.veces > porClave.get(actual)!.veces ||
+      (porClave.get(k)!.veces === porClave.get(actual)!.veces && k.length > actual.length)
+    ) {
+      mejorPorRaiz.set(r, k);
+    }
+  }
+  return new Map(claves.map((k) => [k, mejorPorRaiz.get(raiz(k))!]));
+}
+
 // ─── Inventario (endpoint) ─────────────────────────────────────────────────────
 
 export interface RecurringItem {
@@ -281,10 +393,34 @@ export function detectRecurringSeries(
   const asOf = opts.asOf ?? (latest ? new Date(`${latest}T00:00:00Z`) : new Date());
 
   const byAmount = (a: RecurringItem, b: RecurringItem) => b.typicalAmountClp - a.typicalAmountClp;
-  const charges = findMonthlySeries(txs, CHARGE_CRITERIA)
+
+  /** Criterios con la clave unificada: un comercio que cambió de glosa sigue siendo uno solo. */
+  const conGlosasUnidas = (c: MonthlySeriesCriteria): MonthlySeriesCriteria => {
+    const porClave = new Map<string, { montos: number[]; veces: number }>();
+    for (const t of txs) {
+      if (!t.description) continue;
+      if ((c.direction === "egreso" ? t.amount < 0 : t.amount > 0) === false) continue;
+      const k = c.keyOf(t.description);
+      if (!k) continue;
+      const e = porClave.get(k) ?? { montos: [], veces: 0 };
+      e.montos.push(Math.abs(t.amount));
+      e.veces++;
+      porClave.set(k, e);
+    }
+    const canonica = unificarGlosasDelMismoComercio(porClave);
+    return {
+      ...c,
+      keyOf: (d) => {
+        const k = c.keyOf(d);
+        return canonica.get(k) ?? k;
+      },
+    };
+  };
+
+  const charges = findMonthlySeries(txs, conGlosasUnidas(CHARGE_CRITERIA))
     .map((s) => toItem(s, asOf))
     .sort(byAmount);
-  const income = findMonthlySeries(txs, INCOME_CRITERIA)
+  const income = findMonthlySeries(txs, conGlosasUnidas(INCOME_CRITERIA))
     .map((s) => toItem(s, asOf))
     .sort(byAmount);
   const activeSum = (items: RecurringItem[]) =>

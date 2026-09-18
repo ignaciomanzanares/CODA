@@ -109,3 +109,47 @@ describe("detectRecurringSeries — ingresos recurrentes", () => {
     expect(inv.income).toEqual([]);
   });
 });
+
+describe("detectRecurringSeries — comercios que cambian de glosa", () => {
+  it("una suscripción partida en dos glosas no se pierde (caso PlayStation real)", () => {
+    // En datos reales: "PlayStation Network" 5 meses + "PLAYSTATION" 3 meses, mismo día, mismo
+    // monto. El panel mostraba 3 meses en vez de 8.
+    const txs = [
+      ...monthly("PlayStation Network", -8_400, 18, 5, "2026-01"),
+      ...monthly("PLAYSTATION", -8_558, 18, 3, "2026-05"),
+    ];
+    const charges = detectRecurringSeries(txs).charges;
+    expect(charges).toHaveLength(1);
+    expect(charges[0]!.occurrences).toBe(8);
+  });
+
+  it("una suscripción que sola no llegaba al mínimo aparece al unirla (caso Anthropic real)", () => {
+    // 2 meses con una glosa + 1 mes con otra: partida, ninguna llegaba a 3 meses y la
+    // suscripción NO aparecía en absoluto.
+    const txs = [
+      ...monthly("CLAUDE.AI SUBSCRIPTION ANTHROPIC.", -21_417, 7, 2, "2026-05"),
+      ...monthly("ANTHROPIC ANTHROPIC.", -21_417, 7, 1, "2026-03"),
+    ];
+    const charges = detectRecurringSeries(txs).charges;
+    expect(charges).toHaveLength(1);
+    expect(charges[0]!.occurrences).toBe(3);
+    expect(charges[0]!.typicalAmountClp).toBe(21_417);
+  });
+
+  it("NO une glosas parecidas con montos distintos (caso Amazon real)", () => {
+    const txs = [
+      ...monthly("Amazon.ca Prime Member", -7_400, 5, 4, "2026-05"),
+      ...monthly("AMAZON PRIM RK7EZ7MS4 LUXEMBOURG", -5_022, 5, 3, "2026-05"),
+    ];
+    const labels = detectRecurringSeries(txs).charges.map((c) => c.label);
+    expect(labels.length).toBeGreaterThan(1);
+  });
+
+  it("NO une por palabras genéricas aunque los montos calcen", () => {
+    const txs = [
+      ...monthly("BANCO ESTADO COMISION MANTENCION", -3_100, 27, 4, "2026-05"),
+      ...monthly("BANCO ESTADO SEGURO DESGRAVAMEN", -3_150, 27, 4, "2026-05"),
+    ];
+    expect(detectRecurringSeries(txs).charges).toHaveLength(2);
+  });
+});
