@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, ExternalLink, Upload, Landmark, FileText, Receipt } from "lucide-react";
 import { PermisosConsulta } from "@/components/datos/PermisosConsulta";
 import { RegistroConsultas } from "@/components/datos/RegistroConsultas";
+import { PerfilCanonico } from "@/components/datos/PerfilCanonico";
 
 interface SourceStatus {
   source: string;
@@ -84,6 +85,7 @@ export default function ConectarDatos() {
         </p>
       </div>
       <PermisosConsulta />
+      <PerfilCanonico />
       <RegistroConsultas />
       {SOURCES.map((cfg) => (
         <SourceCard
