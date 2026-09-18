@@ -29,8 +29,8 @@ Requiere respaldo legal (fuera del alcance de este código).
 | `types.ts` | `BankAdapter`, `BankPage` (abstracción del navegador), `ScraperCredentials`, `MfaResolver` |
 | `bankScraperProvider.ts` | `OBProvider` que envuelve una sesión autenticada + un `BankAdapter` |
 | `scrapeAndIngest.ts` | Orquestador: abre navegador → login → ingiere → **cierra siempre**. Define `BrowserDriver` |
-| `adapters/santander.ts` | **Santander** (esqueleto; primer banco objetivo — Ignacio tiene cuenta) |
-| `adapters/bancoEstado.ts` | BancoEstado (esqueleto) |
+| `adapters/bancoEstado.ts` | **BancoEstado** (esqueleto; PRIMER banco objetivo — ver runbook) |
+| `adapters/santander.ts` | Santander (esqueleto; sin acceso a una cuenta por ahora) |
 
 Falta (siguiente paso): el `BrowserDriver` concreto con **Playwright** (corre local, con el
 usuario presente; aún no en el worker de Render).
@@ -44,24 +44,32 @@ usuario presente; aún no en el worker de Render).
    `__tests__/scraper.test.ts`). Mientras un método no esté hecho, lanza `PendingAdapterError`
    (un test parametrizado verifica que ningún esqueleto quede a medio implementar en silencio).
 
-## Runbook — primera corrida de Santander (cuando Ignacio la desbloquee)
+## Runbook — primera corrida de BancoEstado
 
-Prerrequisito: acceso a una cuenta Santander de PRUEBA (o la propia, asumiendo el riesgo de ToS).
+**Banco elegido (2026-09-17): BancoEstado.** Ignacio no tiene acceso a la cuenta Santander (la
+administra un familiar) y sí tiene CuentaRUT; además es la cuenta más común entre los usuarios
+objetivo. El adapter de Santander queda como esqueleto para después.
+
+Prerrequisito: acceso a la propia CuentaRUT, asumiendo el riesgo de ToS.
 
 1. **Capturar el flujo real** en el lab (`~/Documents/Personal/WeGroup/coda-scraper-lab`, Playwright):
-   `node inspect.mjs` → login manual, y anotar para cada paso: URL, selectores de RUT/clave/submit,
+   `node inspect.mjs` (ya apunta a bancoestado.cl) → login manual, capturando en cuatro momentos:
+   login, segundo factor, saldos y detalle de movimientos. Anotar para cada paso: URL, selectores,
    cómo se ve la pantalla MFA (`kind`: otp/push) y el dashboard post-login. Guardar HTML/screenshots.
-2. **Preferir el API interno sobre el DOM**: Santander suele ser un SPA que trae saldos/movimientos
+2. **Preferir el API interno sobre el DOM**: `inspect.mjs` genera además `red-N.txt` con la forma de
+   los endpoints XHR/fetch (método, ruta con números enmascarados, estado, content-type; nunca el
+   cuerpo). Si ahí aparecen endpoints JSON con saldos y movimientos, el adapter consume ese API.
+   El banco suele ser un SPA que trae saldos/movimientos
    por XHR en JSON. Inspeccionar la pestaña Red; si hay endpoints JSON estables, parsear esas
    respuestas (más robusto que raspar el DOM). El `BankPage` actual es DOM-only — si se va por API,
    ampliar la abstracción con un `waitForResponse`/lectura de red (mantener el desacople de Playwright).
-3. **Completar `adapters/santander.ts`** método por método, reemplazando cada `PendingAdapterError`.
+3. **Completar `adapters/bancoEstado.ts`** método por método, reemplazando cada `PendingAdapterError`.
    Mapear cuenta→`OBAccount`, saldo→`OBBalance`, cada movimiento→`OBTransaction` con `externalId`
    determinístico (p. ej. hash de fecha+glosa+monto+cuenta) para la dedup.
 4. **Implementar el `BrowserDriver` con Playwright** (fuera de estos módulos): `newPage()` devuelve
    una `Page` que satisface `BankPage`; `close()` cierra el browser. Correr LOCAL con el usuario
    presente (la MFA la resuelve `resolveMfa` mostrando el prompt y devolviendo el OTP/confirmación).
-5. **Correr `scrapeAndIngest`** con `{ userId, adapter: new SantanderAdapter(), creds, resolveMfa,
+5. **Correr `scrapeAndIngest`** con `{ userId, adapter: new BancoEstadoAdapter(), creds, resolveMfa,
    driver }`. Verificar que las cuentas/saldos/movimientos aterrizan en `accounts`/`balances`/
    `transactions` y que el resto (score, salud, PFM) los toma sin cambios.
 
