@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderToString } from "react-dom/server";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { RegistroConsultas } from "../RegistroConsultas";
+import { RegistroConsultasView } from "../RegistroConsultas";
 
 /**
  * Smoke de render con la forma REAL que devuelve `GET /api/data-sources/access-log` (copiada de
@@ -56,14 +55,8 @@ const ENTRADAS = {
   ],
 };
 
-function render(datos: unknown): string {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  qc.setQueryData(["/api/data-sources/access-log"], datos);
-  const html = renderToString(
-    <QueryClientProvider client={qc}>
-      <RegistroConsultas />
-    </QueryClientProvider>,
-  );
+function render(datos: { entries: typeof ENTRADAS.entries }, isError = false): string {
+  const html = renderToString(<RegistroConsultasView entries={datos.entries} isError={isError} />);
   return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 }
 
@@ -98,6 +91,12 @@ describe("Registro de consultas", () => {
   it("sin consultas todavía, lo dice en vez de mostrar una tabla vacía", () => {
     const texto = render({ entries: [] });
     expect(texto).toContain("Todavía no hemos consultado ninguna fuente con tus datos.");
+  });
+
+  it("si el registro no se pudo cargar, NO dice que no haya consultas", () => {
+    const texto = render({ entries: [] }, true);
+    expect(texto).toContain("No pudimos cargar tu registro ahora");
+    expect(texto).not.toContain("Todavía no hemos consultado ninguna fuente");
   });
 
   it("un código de error nuevo se muestra tal cual en vez de romper", () => {

@@ -59,7 +59,7 @@ export function PermisosConsulta() {
   const queryClient = useQueryClient();
   const [pendiente, setPendiente] = useState<string | null>(null);
 
-  const { data: grants } = useQuery<ConsentGrant[]>({
+  const { data: grants, isError } = useQuery<ConsentGrant[]>({
     queryKey: ["/api/consent"],
     queryFn: getConsents,
   });
@@ -123,12 +123,21 @@ export function PermisosConsulta() {
           </p>
         </div>
 
+        {isError && (
+          <p className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+            No pudimos cargar tus permisos ahora. Esta lista puede no reflejar lo que autorizaste,
+            así que no ofrecemos cambiarlos hasta poder confirmarlo.
+          </p>
+        )}
+
         <div className="space-y-3">
           {PERMISOS.map((config) => {
             const grant = porRecurso[config.resourceType];
             const autorizado = grant?.status === "authorized";
             const aMedias = grant?.status === "pending";
-            const ocupado = pendiente === config.resourceType;
+            // Con la lista sin cargar no se sabe qué hay autorizado: actuar a ciegas podría
+            // crear un permiso duplicado o revocar el equivocado.
+            const ocupado = pendiente === config.resourceType || isError;
 
             return (
               <div

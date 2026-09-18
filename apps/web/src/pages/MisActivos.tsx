@@ -51,7 +51,11 @@ export default function MisActivos() {
   const [addOpen, setAddOpen] = useState(false);
   const { apiRequest } = useApi();
 
-  const { data: assets = [], isLoading } = useQuery<UserAsset[]>({
+  const {
+    data: assets = [],
+    isLoading,
+    isError,
+  } = useQuery<UserAsset[]>({
     queryKey: ["assets"],
     queryFn: () => apiRequest<UserAsset[]>("GET", "/api/assets"),
   });
@@ -82,8 +86,21 @@ export default function MisActivos() {
         </Button>
       </div>
 
+      {/* Sin lista cargada no se puede afirmar que no tenga activos (mismo engaño que el panel
+          diciendo "sube tu primer documento" con la API caída). */}
+      {isError && (
+        <Card className="border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30">
+          <CardContent className="p-4 flex gap-3">
+            <Info className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-red-700 dark:text-red-300">
+              No pudimos cargar tus activos. Siguen guardados; vuelve a intentarlo en un momento.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Banner informativo cuando no hay activos */}
-      {!isLoading && assets.length === 0 && (
+      {!isLoading && !isError && assets.length === 0 && (
         <Card className="border-blue-200 bg-blue-50 dark:border-blue-900/50 dark:bg-blue-950/30">
           <CardContent className="p-4 flex gap-3">
             <Info className="w-5 h-5 text-blue-500 dark:text-blue-400 flex-shrink-0 mt-0.5" />

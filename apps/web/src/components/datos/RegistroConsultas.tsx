@@ -108,12 +108,28 @@ function estado(entry: SourceAccessEntry) {
 }
 
 export function RegistroConsultas() {
-  const { data } = useQuery<{ entries: SourceAccessEntry[] }>({
+  const { data, isError } = useQuery<{ entries: SourceAccessEntry[] }>({
     queryKey: ["/api/data-sources/access-log"],
     queryFn: () => apiFetch("/api/data-sources/access-log?limit=20"),
   });
-  const entries = data?.entries ?? [];
+  return <RegistroConsultasView entries={data?.entries ?? []} isError={isError} />;
+}
 
+/**
+ * La vista separada de la consulta, para poder probar los tres casos (con consultas, sin
+ * consultas y sin poder cargarlas) sin montar react-query.
+ *
+ * `isError` importa: si la API no responde, decir "todavía no hemos consultado ninguna fuente"
+ * sería afirmar algo que no sabemos — el mismo engaño que el panel mostrando "sube tu primer
+ * documento" a quien ya subió.
+ */
+export function RegistroConsultasView({
+  entries,
+  isError,
+}: {
+  entries: SourceAccessEntry[];
+  isError?: boolean;
+}) {
   return (
     <Card>
       <CardContent className="space-y-4 p-5">
@@ -130,7 +146,12 @@ export function RegistroConsultas() {
           </div>
         </div>
 
-        {entries.length === 0 ? (
+        {isError ? (
+          <p className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+            No pudimos cargar tu registro ahora. No significa que no haya consultas: vuelve a
+            intentarlo en un momento.
+          </p>
+        ) : entries.length === 0 ? (
           <p className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
             Todavía no hemos consultado ninguna fuente con tus datos.
           </p>
