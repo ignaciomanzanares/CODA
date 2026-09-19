@@ -16,7 +16,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldCheck, ShieldOff } from "lucide-react";
+import { ShieldCheck, ShieldOff, Download } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 
 interface PermisoConfig {
   resourceType: string;
@@ -42,6 +43,12 @@ const PERMISOS: PermisoConfig[] = [
   },
 ];
 
+/** Nombre del archivo del expediente. Fecha en el nombre: sirve para archivar varias copias. */
+export function nombreExpediente(iso: string): string {
+  const fecha = /^\d{4}-\d{2}-\d{2}/.test(iso) ? iso.slice(0, 10) : "sin-fecha";
+  return `consentimientos-coda-${fecha}.json`;
+}
+
 function grantFor(grants: ConsentGrant[], resourceType: string): ConsentGrant | undefined {
   // El más reciente que cubre el recurso y todavía sirve o está a medio otorgar.
   return grants
@@ -58,6 +65,7 @@ export function PermisosConsulta() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [pendiente, setPendiente] = useState<string | null>(null);
+  const [descargando, setDescargando] = useState(false);
 
   const { data: grants, isError } = useQuery<ConsentGrant[]>({
     queryKey: ["/api/consent"],
@@ -110,6 +118,33 @@ export function PermisosConsulta() {
     },
     onSettled: () => setPendiente(null),
   });
+
+  /**
+   * Expediente exportable (B3): los hechos consentidos + el sello + su verificación. Es lo que se
+   * entrega ante un requerimiento, y también lo que le permite al titular llevarse la prueba de
+   * qué autorizó. La API ya lo armaba; hasta ahora no había cómo pedirlo desde la app.
+   */
+  const descargarExpediente = async () => {
+    setDescargando(true);
+    try {
+      const expediente = await apiFetch("/api/consent/export");
+      const blob = new Blob([JSON.stringify(expediente, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const enlace = document.createElement("a");
+      enlace.href = url;
+      enlace.download = nombreExpediente(String(expediente?.generatedAt ?? ""));
+      enlace.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast({
+        title: "No se pudo descargar",
+        description: (e as Error)?.message ?? "Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setDescargando(false);
+    }
+  };
 
   return (
     <Card>
@@ -184,6 +219,21 @@ export function PermisosConsulta() {
               </div>
             );
           })}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
+          <p className="text-sm text-muted-foreground">
+            Puedes llevarte la prueba de lo que autorizaste, con su sello y su verificación.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={descargando}
+            onClick={() => void descargarExpediente()}
+          >
+            <Download className="mr-1.5 h-4 w-4" />
+            {descargando ? "Preparando…" : "Descargar expediente"}
+          </Button>
         </div>
       </CardContent>
     </Card>
