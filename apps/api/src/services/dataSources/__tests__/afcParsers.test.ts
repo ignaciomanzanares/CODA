@@ -4,6 +4,7 @@ import {
   parseAfcAntecedentes,
   derivarMetricasAfc,
   parseAfcCertificado,
+  leerFolioAfc,
 } from "../afcParsers";
 import { detectGovSource } from "../govParsers";
 
@@ -215,5 +216,45 @@ describe("detectGovSource", () => {
     expect(
       detectGovSource("CERTIFICADO COTIZACIONES AFP MODELO. Cuenta obligatoria. Renta imponible"),
     ).toBe("afp");
+  });
+});
+
+describe("folio — lo único que hace verificable al certificado", () => {
+  it("lee el folio del encabezado", () => {
+    expect(parseAfcCotizaciones(certificado([], "0")).folio).toBe("ABCD-1234-EFGH-5678");
+  });
+
+  it("no inventa folio cuando el documento no lo trae", () => {
+    expect(leerFolioAfc("Certificado sin número de folio impreso")).toBeNull();
+  });
+
+  it("el folio llega al resultado junto con el enlace para comprobarlo", () => {
+    const r = parseAfcCertificado(
+      certificado([fila("Agosto 2024", "1.500.000", "9.000", "10/09/2024")], "9.000"),
+    );
+    expect(r.raw.folio).toBe("ABCD-1234-EFGH-5678");
+    expect(String(r.raw.validador)).toContain("servicios.afc.cl");
+  });
+
+  it("guarda el folio INCLUSO si el histórico no cuadra: ahí es cuando más sirve", () => {
+    // Un total que no cuadra puede ser un parser incompleto… o un PDF editado. El folio es
+    // lo único que permite distinguir una cosa de la otra, así que no se pierde.
+    const r = parseAfcCertificado(
+      certificado([fila("Agosto 2024", "1.500.000", "9.000", "10/09/2024")], "50.000"),
+    );
+    expect(r.ok).toBe(false);
+    expect(r.raw.folio).toBe("ABCD-1234-EFGH-5678");
+  });
+
+  it("también lo lee del certificado de antecedentes", () => {
+    const r = parseAfcCertificado(
+      [
+        "                 N° de folio WXYZ-9876-ABCD-5432",
+        "Antecedentes de afiliado registrado en AFC",
+        "   13-02-2023    76.000.000-0   EMPRESA DEMO SPA   INDEFINIDO   01-01-2023",
+      ].join("\n"),
+    );
+    expect(r.raw.documento).toBe("antecedentes");
+    expect(r.raw.folio).toBe("WXYZ-9876-ABCD-5432");
   });
 });

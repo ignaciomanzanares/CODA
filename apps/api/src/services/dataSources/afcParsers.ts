@@ -66,6 +66,23 @@ export interface CotizacionesAfc {
   cuadra: boolean;
   /** Fecha de emisión del certificado, si se pudo leer (ISO YYYY-MM-DD). */
   emitidoEl: string | null;
+  /** Folio del documento, con el que CUALQUIERA puede comprobar que el PDF es auténtico. */
+  folio: string | null;
+}
+
+/**
+ * El N° de folio que la AFC imprime en su certificado. Importa más de lo que parece: es lo
+ * único que permite distinguir un certificado real de un PDF retocado, porque se comprueba
+ * contra la AFC en {@link VALIDADOR_AFC}. Sin guardarlo, un certificado subido a CODA es
+ * indistinguible de uno editado, y la "renta verificada" deja de estar verificada por nadie.
+ *
+ * Se lee de los dos documentos: el de cotizaciones y el de antecedentes.
+ */
+export const VALIDADOR_AFC = "https://servicios.afc.cl/validador-documentos/";
+
+export function leerFolioAfc(text: string): string | null {
+  const m = text.match(/N[°ºo]?\s*de\s*folio[:\s]*([A-Z0-9][A-Z0-9-]{5,})/i);
+  return m ? m[1]!.toUpperCase() : null;
 }
 
 /**
@@ -168,6 +185,7 @@ export function parseAfcCotizaciones(text: string): CotizacionesAfc {
     totalLeidoClp,
     cuadra: totalDeclaradoClp === null || totalLeidoClp === totalDeclaradoClp,
     emitidoEl,
+    folio: leerFolioAfc(text),
   };
 }
 
@@ -326,6 +344,8 @@ export function parseAfcCertificado(text: string): GovParseResult {
           totalDeclaradoClp: cot.totalDeclaradoClp,
           totalLeidoClp: cot.totalLeidoClp,
           periodosLeidos: cot.periodos.length,
+          folio: cot.folio,
+          validador: VALIDADOR_AFC,
         },
         message:
           "El certificado de cotizaciones no cuadra con su propio total: se leyeron " +
@@ -339,7 +359,13 @@ export function parseAfcCertificado(text: string): GovParseResult {
       ok: m.rentaImponibleMensualClp !== null,
       verifiedMonthlyIncomeClp: m.rentaImponibleMensualClp,
       contributionMonths: m.mesesCotizados,
-      raw: { documento: "cotizaciones", ...m, emitidoEl: cot.emitidoEl },
+      raw: {
+        documento: "cotizaciones",
+        ...m,
+        emitidoEl: cot.emitidoEl,
+        folio: cot.folio,
+        validador: VALIDADOR_AFC,
+      },
       message:
         m.mesesSinCotizar && m.mesesSinCotizar >= 6
           ? `Sin cotizaciones hace ${m.mesesSinCotizar} meses: la renta imponible es histórica, no actual.`
@@ -356,6 +382,8 @@ export function parseAfcCertificado(text: string): GovParseResult {
         documento: "antecedentes",
         empleadores,
         empleadorVigente: empleadores.find((e) => !e.fin)?.razonSocial ?? null,
+        folio: leerFolioAfc(text),
+        validador: VALIDADOR_AFC,
       },
     };
   }
