@@ -29,7 +29,19 @@ export async function saveGovSourceData(userId: string, r: GovParseResult): Prom
       return {};
     }
   })();
-  const rawFusionado = { ...rawPrevio, ...(r.raw ?? {}) };
+  // La regla de `mantener` vale TAMBIÉN dentro de `rawData`: un spread dejaba que una clave
+  // nula del documento nuevo pisara un valor que el anterior sí traía. Caso real alcanzable:
+  // el folio va en los dos certificados de la AFC, así que subir el de antecedentes sin folio
+  // impreso borraba el del certificado de cotizaciones — y con él, la única forma de comprobar
+  // que el documento es auténtico.
+  const rawFusionado: Record<string, unknown> = { ...rawPrevio };
+  for (const [clave, valor] of Object.entries(r.raw ?? {})) {
+    if (valor === null || valor === undefined) {
+      if (rawFusionado[clave] === undefined) rawFusionado[clave] = null;
+    } else {
+      rawFusionado[clave] = valor;
+    }
+  }
   const verified = mantener(r.verifiedMonthlyIncomeClp, previo?.verifiedMonthlyIncomeClp);
   const fiscal = mantener(r.fiscalDebtClp, previo?.fiscalDebtClp);
   const meses = mantener(r.contributionMonths, previo?.contributionMonths);
