@@ -63,6 +63,48 @@ export interface GovSourceStatus {
   fiscalDebtClp: number | null;
   contributionMonths: number | null;
   extractedAt: string;
+  /**
+   * Folio del documento oficial y dónde comprobarlo, cuando el parser los capturó (hoy AFC).
+   * Es lo único que permite distinguir un certificado auténtico de un PDF retocado — CODA no lo
+   * verifica todavía, así que se exponen para que lo compruebe quien mire el caso.
+   */
+  folio: string | null;
+  validador: string | null;
+}
+
+/** `raw_data` es texto libre escrito por el parser: si no es JSON usable, se ignora sin romper. */
+function leerRaw(rawData: unknown): Record<string, unknown> {
+  if (typeof rawData !== "string" || rawData.length === 0) return {};
+  try {
+    const parsed = JSON.parse(rawData);
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
+const textoONull = (v: unknown): string | null =>
+  typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
+
+/** Fila de `user_financial_sources` → estado para la UI. Pura: es lo que se prueba. */
+export function toGovSourceStatus(row: {
+  source: string;
+  verifiedMonthlyIncomeClp?: number | null;
+  fiscalDebtClp?: number | null;
+  contributionMonths?: number | null;
+  extractedAt: string;
+  rawData?: unknown;
+}): GovSourceStatus {
+  const raw = leerRaw(row.rawData);
+  return {
+    source: row.source,
+    verifiedMonthlyIncomeClp: row.verifiedMonthlyIncomeClp ?? null,
+    fiscalDebtClp: row.fiscalDebtClp ?? null,
+    contributionMonths: row.contributionMonths ?? null,
+    extractedAt: row.extractedAt,
+    folio: textoONull(raw.folio),
+    validador: textoONull(raw.validador),
+  };
 }
 
 /** Fuentes conectadas por el usuario (para la UI de "Conecta tus datos"). */
@@ -71,13 +113,7 @@ export async function getGovSources(userId: string): Promise<GovSourceStatus[]> 
     .select()
     .from(userFinancialSources)
     .where(eq(userFinancialSources.userId, userId));
-  return rows.map((r: any) => ({
-    source: r.source,
-    verifiedMonthlyIncomeClp: r.verifiedMonthlyIncomeClp ?? null,
-    fiscalDebtClp: r.fiscalDebtClp ?? null,
-    contributionMonths: r.contributionMonths ?? null,
-    extractedAt: r.extractedAt,
-  }));
+  return rows.map((r: any) => toGovSourceStatus(r));
 }
 
 /**

@@ -23,6 +23,9 @@ interface SourceStatus {
   fiscalDebtClp: number | null;
   contributionMonths: number | null;
   extractedAt: string;
+  /** Folio del documento oficial y dónde comprobarlo (hoy sólo AFC). */
+  folio?: string | null;
+  validador?: string | null;
 }
 
 interface SourceConfig {
@@ -190,6 +193,27 @@ function SourceCard({
               <p>
                 Meses cotizados detectados:{" "}
                 <span className="font-medium">{status!.contributionMonths}</span>
+              </p>
+            )}
+            {/* El folio es lo único que distingue un certificado auténtico de un PDF retocado.
+                CODA NO lo verifica todavía, así que el texto dice que PUEDES comprobarlo tú —
+                no que ya lo comprobamos. */}
+            {status!.folio && (
+              <p className="mt-1">
+                Folio del documento: <span className="font-medium">{status!.folio}</span>
+                {status!.validador && (
+                  <>
+                    {" · "}
+                    <a
+                      href={status!.validador}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline underline-offset-2"
+                    >
+                      puedes comprobarlo en la fuente
+                    </a>
+                  </>
+                )}
               </p>
             )}
           </div>
