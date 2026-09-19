@@ -15,6 +15,7 @@ import { CheckCircle2, ExternalLink, Upload, Landmark, FileText, Receipt } from 
 import { PermisosConsulta } from "@/components/datos/PermisosConsulta";
 import { RegistroConsultas } from "@/components/datos/RegistroConsultas";
 import { PerfilCanonico } from "@/components/datos/PerfilCanonico";
+import { VinculacionBancaria } from "@/components/bancos/VinculacionBancaria";
 
 interface SourceStatus {
   source: string;
@@ -84,9 +85,14 @@ export default function ConectarDatos() {
           clave: tú los descargas en el sitio de cada institución y los subes aquí.
         </p>
       </div>
+      {/* El orden cuenta un relato: (1) qué autorizas, (2) cómo entran tus datos, (3) qué
+          sabemos, (4) qué hicimos con eso. La vinculación bancaria va PEGADA a las tarjetas de
+          subir certificados porque hoy dice "ningún banco disponible": si la salida (subir la
+          cartola) no está en el mismo scroll, el usuario lee el callejón y no ve la puerta.
+          `onVincular` va sin pasar a propósito — sin la máquina del segundo factor, un botón
+          "Vincular" que no hace nada es peor que no tenerlo. */}
       <PermisosConsulta />
-      <PerfilCanonico />
-      <RegistroConsultas />
+      <VinculacionBancaria />
       {SOURCES.map((cfg) => (
         <SourceCard
           key={cfg.id}
@@ -95,6 +101,8 @@ export default function ConectarDatos() {
           onDone={refetch}
         />
       ))}
+      <PerfilCanonico />
+      <RegistroConsultas />
     </div>
   );
 }
