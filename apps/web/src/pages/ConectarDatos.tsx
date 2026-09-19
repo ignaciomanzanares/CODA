@@ -11,7 +11,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle2, ExternalLink, Upload, Landmark, FileText, Receipt } from "lucide-react";
+import {
+  CheckCircle2,
+  ExternalLink,
+  Upload,
+  Landmark,
+  FileText,
+  Receipt,
+  Briefcase,
+} from "lucide-react";
 import { PermisosConsulta } from "@/components/datos/PermisosConsulta";
 import { RegistroConsultas } from "@/components/datos/RegistroConsultas";
 import { PerfilCanonico } from "@/components/datos/PerfilCanonico";
@@ -29,7 +37,7 @@ interface SourceStatus {
 }
 
 interface SourceConfig {
-  id: "afp" | "sii" | "tgr";
+  id: "afp" | "sii" | "tgr" | "afc";
   title: string;
   icon: React.ComponentType<{ className?: string }>;
   description: string;
@@ -59,6 +67,19 @@ const SOURCES: SourceConfig[] = [
     officialLabel: "Ir a tu AFP",
     instructions:
       "En el sitio de tu AFP (con Clave Única): Certificados → Certificado de cotizaciones. Descarga el PDF de los últimos 12 meses y súbelo aquí.",
+  },
+  {
+    id: "afc",
+    title: "AFC — Seguro de cesantía",
+    icon: Briefcase,
+    description:
+      "Acredita tu renta imponible mes a mes, con tus empleadores y los períodos sin cotizar.",
+    officialUrl: "https://www.afc.cl",
+    officialLabel: "Ir a afc.cl",
+    // Son DOS documentos complementarios y esa es la parte que no se adivina: el de
+    // cotizaciones trae la renta, el de antecedentes trae empleadores y contratos.
+    instructions:
+      "En personas.afc.cl (con Clave Única): Certificados → descarga «Cotizaciones pagadas (histórico)» y «Antecedentes del afiliado». Son dos PDF: súbelos por separado, en el orden que quieras — el segundo no reemplaza al primero, se complementan. Los datos son los del día que descargas el certificado.",
   },
   {
     id: "tgr",
