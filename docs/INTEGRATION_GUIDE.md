@@ -62,8 +62,10 @@ Las alertas **ya funcionan sin contratar nada**: van al primer destino disponibl
    usa el 2FA. Si el webhook falla, también cae al correo.
 3. Siempre, en cualquier caso, queda en el log.
 
-Qué alerta hoy: deriva del modelo (PSI), saturación de la cola de documentos, y un conector de
-fuentes que falla 3 veces consecutivas (`SOURCE_FAILURE_ALERT_THRESHOLD`; un éxito resetea la
+Qué alerta hoy: deriva del modelo (PSI), saturación de la cola de documentos, saturación de la
+cola de CONECTORES (`coda_connector_queue_waiting`; un upload atascado lo nota el usuario que
+espera su cartola, una consulta a una fuente encolada y sin procesar no la nota nadie), y un
+conector de fuentes que falla 3 veces consecutivas (`SOURCE_FAILURE_ALERT_THRESHOLD`; un éxito resetea la
 cuenta). Las repetidas se agrupan por clave con una ventana de silencio de 30 min
 (`OPS_ALERT_COOLDOWN_MS`), para que un worker caído no llene el buzón. `OPS_ALERTS_ENABLED=false`
 las deja sólo en el log.
